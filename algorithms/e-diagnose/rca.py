@@ -139,8 +139,8 @@ def main(csv_file_path):
     
     
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='读取CSV文件并处理数据')
-    parser.add_argument('csv_file', type=str, help='输入的CSV文件路径')
+    parser = argparse.ArgumentParser(description='read csv')
+    parser.add_argument('csv_file', type=str, help='csv path')
     args = parser.parse_args()
 
     main(args.csv_file)
