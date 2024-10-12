@@ -3,6 +3,7 @@ import numpy as np
 import time
 from typing import List, Dict
 import argparse
+from typing import List, Tuple
 
 def calculate_rho_squared(df_normal: pd.DataFrame, df_abnormal: pd.DataFrame) -> Dict[str, float]:
     """
@@ -72,10 +73,10 @@ def diagnose_faults(
             if inject_timestamp not in all_services:
                 all_services[inject_timestamp] = {}
 
-            normal_start = inject_timestamp - time_range
-            normal_end = inject_timestamp
-            abnormal_start = inject_timestamp
-            abnormal_end = inject_timestamp + time_range
+            normal_start = event['normal_range'][0]
+            normal_end = event['normal_range'][1]
+            abnormal_start = event['normal_range'][0]
+            abnormal_end = event['abnormal_range'][1]
 
             normal_range = service_df[
                 (service_df['TimeStamp']   >= normal_start) &
@@ -114,33 +115,31 @@ def diagnose_faults(
 
     return expanded_df
 
+# IMPORTANT: do not change the function signature!!
+def start_rca(log_file: str, trace_file: str, metric_file: str, event_file: str, profiling_file: str, normal_time_range: List[Tuple[int, int]], abnormal_time_range: List[Tuple[int, int]]):
+    if len(normal_time_range) == 0 or len(abnormal_time_range) == 0:
+        print("There is no information of abnormal time, shutting down")
+        return
 
-
-def main(csv_file_path):
     selected_columns = ['TimeStamp', 'MetricName', 'Value', 'PodName']
-    df = pd.read_csv(csv_file_path, usecols=selected_columns, parse_dates=['TimeStamp'])
-
+    df = pd.read_csv(metric_file, usecols=selected_columns, parse_dates=['TimeStamp'])
     df_pivot = df.pivot_table(index=['TimeStamp', 'PodName'], columns='MetricName', values='Value').reset_index()
 
     df_pivot['TimeStamp'] = df_pivot['TimeStamp'].apply(lambda x: int(x.timestamp()))
 
-    sorted_timestamps = df_pivot['TimeStamp'].sort_values()
-    
-    inject_time = sorted_timestamps.iloc[len(sorted_timestamps) // 2]
-    
-    fault_list = [
-        {'inject_timestamp': inject_time},
-    ]
+    if len(normal_time_range) < len(abnormal_time_range):
+        normal_time_range.append(normal_time_range[-1])
+    if len(abnormal_time_range) < len(normal_time_range):
+        abnormal_time_range.append(abnormal_time_range[-1])
+
+    fault_list = []
+    for i in range(len(normal_time_range)):
+        fault_list.append({
+            "normal_range": normal_time_range[i],
+            "abnormal_range": abnormal_time_range[i],
+        })
 
     metric_data = df_pivot
     output_df = diagnose_faults(fault_list, metric_data)
-    
-    print(output_df)
-    
-    
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='read csv')
-    parser.add_argument('csv_file', type=str, help='csv path')
-    args = parser.parse_args()
 
-    main(args.csv_file)
+    print(output_df)
