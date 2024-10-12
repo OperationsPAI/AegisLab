@@ -116,7 +116,11 @@ def diagnose_faults(
     return expanded_df
 
 # IMPORTANT: do not change the function signature!!
-def start_rca(log_file: str, trace_file: str, metric_file: str, event_file: str, profiling_file: str, normal_time_range: List[Tuple[int, int]], abnormal_time_range: List[Tuple[int, int]]):
+def start_rca(params: Dict):
+    normal_time_range = params['normal_time_range']
+    abnormal_time_range = params['abnormal_time_range']
+    metric_file = params['metric_file']
+    
     if len(normal_time_range) == 0 or len(abnormal_time_range) == 0:
         print("There is no information of abnormal time, shutting down")
         return
