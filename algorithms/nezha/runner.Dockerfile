@@ -1,11 +1,15 @@
-FROM python:3.10-slim AS runner
+ARG BUILDER_IMAGE=builder:local
+ARG DATA_BUILDER_IMAGE=data_builder:local
+
+FROM ${BUILDER_IMAGE} AS base
+FROM ${DATA_BUILDER_IMAGE} AS data_builder
+FROM python:3.6-slim AS runner
+
 
 WORKDIR /app
 
-# 安装运行时依赖
-COPY --from=builder:local  /app /app
-COPY --from=builder:local  /usr/local/lib/python3.6/site-packages /usr/local/lib/python3.6/site-packages
-
-COPY --from=data_builder:local /app/input.csv /app/input.csv
+COPY --from=base  /app /app
+COPY --from=base  /usr/local/lib/python3.6/site-packages /usr/local/lib/python3.6/site-packages
+COPY --from=data_builder /app/input.csv /app/input.csv
 
 COPY rca.py .
