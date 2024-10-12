@@ -5,7 +5,10 @@ from typing import List, Dict
 import argparse
 from typing import List, Tuple
 
-def calculate_rho_squared(df_normal: pd.DataFrame, df_abnormal: pd.DataFrame) -> Dict[str, float]:
+
+def calculate_rho_squared(
+    df_normal: pd.DataFrame, df_abnormal: pd.DataFrame
+) -> Dict[str, float]:
     """
     计算每个指标的 rho_squared 值。
 
@@ -18,7 +21,7 @@ def calculate_rho_squared(df_normal: pd.DataFrame, df_abnormal: pd.DataFrame) ->
     """
     results = {}
     for column in df_normal.columns:
-        if column in df_abnormal.columns and column not in ['TimeStamp', 'PodName']:
+        if column in df_abnormal.columns and column not in ["TimeStamp", "PodName"]:
             normal_data = df_normal[column].dropna()
             abnormal_data = df_abnormal[column].dropna()
             min_length = min(len(normal_data), len(abnormal_data))
@@ -30,7 +33,7 @@ def calculate_rho_squared(df_normal: pd.DataFrame, df_abnormal: pd.DataFrame) ->
                 var_normal = normal_data.var()
                 var_abnormal = abnormal_data.var()
                 if var_normal > 0 and var_abnormal > 0:
-                    rho_squared = (cov ** 2) / (var_normal * var_abnormal)
+                    rho_squared = (cov**2) / (var_normal * var_abnormal)
                     results[column] = rho_squared
             except Exception:
                 continue
@@ -38,10 +41,10 @@ def calculate_rho_squared(df_normal: pd.DataFrame, df_abnormal: pd.DataFrame) ->
 
 
 def diagnose_faults(
-        fault_list: List[Dict],
-        metric_data: pd.DataFrame,
-        time_range: int = 300,
-        top_n: int = 5
+    fault_list: List[Dict],
+    metric_data: pd.DataFrame,
+    time_range: int = 300,
+    top_n: int = 5,
 ) -> pd.DataFrame:
     """
     诊断故障并返回每个时间戳的 Top N 服务。
@@ -58,34 +61,33 @@ def diagnose_faults(
     results = []
     all_services = {}
 
-    metric_data['TimeStamp'] = pd.to_numeric(metric_data['TimeStamp'], errors='coerce')
-    metric_data['TimeStamp'] = metric_data['TimeStamp']
-    service_names = metric_data['PodName'].unique()
-
+    metric_data["TimeStamp"] = pd.to_numeric(metric_data["TimeStamp"], errors="coerce")
+    metric_data["TimeStamp"] = metric_data["TimeStamp"]
+    service_names = metric_data["PodName"].unique()
 
     for service in service_names:
-        service_df = metric_data[metric_data['PodName'] == service].copy()
-        service_df = service_df.dropna(subset=['TimeStamp'])
-        service_df = service_df.sort_values('TimeStamp')
+        service_df = metric_data[metric_data["PodName"] == service].copy()
+        service_df = service_df.dropna(subset=["TimeStamp"])
+        service_df = service_df.sort_values("TimeStamp")
 
         for event in fault_list:
-            inject_timestamp = int(event['inject_timestamp'])
+            inject_timestamp = int(event["inject_timestamp"])
             if inject_timestamp not in all_services:
                 all_services[inject_timestamp] = {}
 
-            normal_start = event['normal_range'][0]
-            normal_end = event['normal_range'][1]
-            abnormal_start = event['normal_range'][0]
-            abnormal_end = event['abnormal_range'][1]
+            normal_start = event["normal_range"][0]
+            normal_end = event["normal_range"][1]
+            abnormal_start = event["normal_range"][0]
+            abnormal_end = event["abnormal_range"][1]
 
             normal_range = service_df[
-                (service_df['TimeStamp']   >= normal_start) &
-                (service_df['TimeStamp']  < normal_end)
-                ]
+                (service_df["TimeStamp"] >= normal_start)
+                & (service_df["TimeStamp"] < normal_end)
+            ]
             abnormal_range = service_df[
-                (service_df['TimeStamp']  >= abnormal_start) &
-                (service_df['TimeStamp']   <= abnormal_end)
-                ]
+                (service_df["TimeStamp"] >= abnormal_start)
+                & (service_df["TimeStamp"] <= abnormal_end)
+            ]
 
             metric_scores = calculate_rho_squared(normal_range, abnormal_range)
             if metric_scores:
@@ -96,40 +98,40 @@ def diagnose_faults(
     for timestamp, services in all_services.items():
         sorted_services = sorted(services.items(), key=lambda x: x[1], reverse=True)
         top_services = [service for service, _ in sorted_services[:top_n]]
-        results.append({
-            'timestamp': timestamp,
-            'top_services': top_services
-        })
+        results.append({"timestamp": timestamp, "top_services": top_services})
 
     top_services_df = pd.DataFrame(results)
 
     # 扩展每个时间戳的 Top 服务为单独的行
     expanded_rows = []
     for _, row in top_services_df.iterrows():
-        timestamp = row['timestamp']
-        services = row['top_services']
+        timestamp = row["timestamp"]
+        services = row["top_services"]
         for service in services:
-            expanded_rows.append({'timestamp': timestamp, 'pod': service})
+            expanded_rows.append({"timestamp": timestamp, "pod": service})
 
     expanded_df = pd.DataFrame(expanded_rows)
 
     return expanded_df
 
+
 # IMPORTANT: do not change the function signature!!
 def start_rca(params: Dict):
-    normal_time_range = params['normal_time_range']
-    abnormal_time_range = params['abnormal_time_range']
-    metric_file = params['metric_file']
-    
+    normal_time_range = params["normal_time_range"]
+    abnormal_time_range = params["abnormal_time_range"]
+    metric_file = params["metric_file"]
+
     if len(normal_time_range) == 0 or len(abnormal_time_range) == 0:
         print("There is no information of abnormal time, shutting down")
         return
 
-    selected_columns = ['TimeStamp', 'MetricName', 'Value', 'PodName']
-    df = pd.read_csv(metric_file, usecols=selected_columns, parse_dates=['TimeStamp'])
-    df_pivot = df.pivot_table(index=['TimeStamp', 'PodName'], columns='MetricName', values='Value').reset_index()
+    selected_columns = ["TimeStamp", "MetricName", "Value", "PodName"]
+    df = pd.read_csv(metric_file, usecols=selected_columns, parse_dates=["TimeStamp"])
+    df_pivot = df.pivot_table(
+        index=["TimeStamp", "PodName"], columns="MetricName", values="Value"
+    ).reset_index()
 
-    df_pivot['TimeStamp'] = df_pivot['TimeStamp'].apply(lambda x: int(x.timestamp()))
+    df_pivot["TimeStamp"] = df_pivot["TimeStamp"].apply(lambda x: int(x.timestamp()))
 
     if len(normal_time_range) < len(abnormal_time_range):
         normal_time_range.append(normal_time_range[-1])
@@ -138,10 +140,12 @@ def start_rca(params: Dict):
 
     fault_list = []
     for i in range(len(normal_time_range)):
-        fault_list.append({
-            "normal_range": normal_time_range[i],
-            "abnormal_range": abnormal_time_range[i],
-        })
+        fault_list.append(
+            {
+                "normal_range": normal_time_range[i],
+                "abnormal_range": abnormal_time_range[i],
+            }
+        )
 
     metric_data = df_pivot
     output_df = diagnose_faults(fault_list, metric_data)
