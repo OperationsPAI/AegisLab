@@ -1,11 +1,13 @@
 from experiments.utils import build_image
 import os
 from loguru import logger
+    
 
 def build_benchmark_images(algo_name):
     builder_image=f"{algo_name}_builder:local"
     data_builder_image=f"{algo_name}_data_builder:local"
     runner_image=f"{algo_name}_runner:local"
+    executor_image=f"{algo_name}_executor:local"
     logger.info("Starting the Docker build process...")
     
     # Build the builder image
@@ -30,6 +32,16 @@ def build_benchmark_images(algo_name):
     }
     build_image(dockerfile=runner_dockerfile, tag=runner_image, dir=runner_dir, build_args=build_args)
     
+    
+    # Build the execution image with build arguments
+    logger.info("Building the final execution image...")
+    executor_dockerfile = os.path.join('experiments', 'execution.Dockerfile')
+    build_args = {
+        'RUNNER_IMAGE': runner_image,
+    }
+    build_image(dockerfile=executor_dockerfile, tag=executor_image, dir="experiments", build_args=build_args)
+    
+    
     logger.info("All Docker images built successfully.")
     
-build_benchmark_images("nezha")
+build_benchmark_images("e-diagnose")
