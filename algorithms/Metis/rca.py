@@ -200,8 +200,11 @@ async def start_rca(params: Dict):
         )
         await evaluate("data", pool)
         result = Path("data") / 'final_ranking.csv'
-        # copy file to output_file_path
-        shutil.copy(result, params['output_file_path'])
+        df = pd.read_csv(result)
+        df.insert(0, 'topk', range(1, len(df) + 1))
+
+        df.rename(columns={'ServiceName': 'Service'}, inplace=True)
+        df.to_csv('output_file_path', index=False)
 
 
 if __name__ == "__main__":
