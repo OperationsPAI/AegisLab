@@ -10,6 +10,6 @@ WORKDIR /app
 
 COPY --from=base  /app /app
 COPY --from=base  /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
-COPY --from=data_builder /app/input.csv /app/input.csv
+COPY --from=data_builder /app/input /app/input
 
 COPY rca.py .

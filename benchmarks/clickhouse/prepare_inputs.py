@@ -349,7 +349,7 @@ if __name__ == "__main__":
 
     os.mkdir("input")
 
-    # save_to_csv(generate_metric(start_time, end_time), "input/metrics.csv")
+    save_to_csv(generate_metric(start_time, end_time), "input/metrics.csv")
     save_to_csv(generate_metric_sum(start_time, end_time), "input/metric_sum.csv")
     save_to_csv(
         generate_metric_histogram(start_time, end_time), "input/metrics_histogram.csv"

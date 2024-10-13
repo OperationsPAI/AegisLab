@@ -13,7 +13,7 @@ def build_image(dockerfile: str, tag: str, dir: str, build_args: dict = None):
         for key, value in build_args.items():
             command.extend(["--build-arg", f"{key}={value}"])
 
-    logger.info(f'Running command: {' '.join(command)}')
+    logger.info(f"Running command: {' '.join(command)}")
 
     result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
