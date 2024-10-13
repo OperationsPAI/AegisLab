@@ -218,7 +218,7 @@ def generate_trace(start_time, end_time) -> pd.DataFrame:
         SpanName,
         SpanKind,
         ServiceName,
-        ResourceAttributes,
+        toJSONString(ResourceAttributes) AS ResourceAttributes_JSON,
         SpanAttributes,
         Duration,
         StatusCode,
