@@ -8,7 +8,8 @@ from pathlib import Path
 if __name__ == "__main__":
     workspace = os.environ["WORKSPACE"]
     if workspace == "":
-        print("ERROR: the WORKSPACE environ is not defined.")
+        print("WARN: the WORKSPACE environ is not defined, using default '/app'")
+        workspace = '/app'
     base_path = Path(workspace)
     start_rca(
         {
