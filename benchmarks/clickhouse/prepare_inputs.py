@@ -3,7 +3,7 @@ import pandas as pd
 import time
 import os
 
-namespace = "ts"
+namespace = "ts-dev"
 
 
 def generate_metric(start_time, end_time) -> pd.DataFrame:
@@ -226,8 +226,7 @@ def generate_trace(start_time, end_time) -> pd.DataFrame:
     FROM 
         otel_traces
     WHERE 
-        (ResourceAttributes['k8s.namespace.name'] = %(namespace)s
-        OR NOT mapContains(ResourceAttributes, 'k8s.namespace.name'))
+        (ResourceAttributes['service.namespace'] = %(namespace)s)
         AND Timestamp BETWEEN %(start_time)s AND %(end_time)s
     """
 
