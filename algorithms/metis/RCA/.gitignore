@@ -1,0 +1,9 @@
+*.csv
+*.log
+
+*.vscode
+
+__pycache__
+
+*.lprof
+*.prof
