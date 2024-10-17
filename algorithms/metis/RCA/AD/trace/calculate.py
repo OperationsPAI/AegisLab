@@ -54,7 +54,15 @@ async def calculate_abnormal(trace_df: pd.DataFrame, pool: Pool):
     rolling_data = pd.concat(results)
 
     return rolling_data[
-        ["ServiceName", "SpanName", "MeanDuration", "StdDuration", "ParentServiceName", "TraceId", "StartTime"]
+        [
+            "ServiceName",
+            "SpanName",
+            "MeanDuration",
+            "StdDuration",
+            "ParentServiceName",
+            "TraceId",
+            "StartTime",
+        ]
     ]
 
 

@@ -164,7 +164,9 @@ async def fetch_data(client: AsyncClient, query, filepath, semaphore):
             await f.write(result.decode("utf-8"))
 
 
-async def collect_and_save_data(client, folder, start_time, end_time, data_type, namespace, semaphore):
+async def collect_and_save_data(
+    client, folder, start_time, end_time, data_type, namespace, semaphore
+):
     """Collect and save data in batches."""
     filepath = Path(folder) / f"{data_type}s.csv"
     query = generate_query(data_type, start_time, end_time, namespace)
@@ -195,10 +197,12 @@ async def process_case(timestamp, namespace, chaos_type, service, client, semaph
     abnormal_end = timestamp + timedelta(minutes=10)
     normal_start = abnormal_start - timedelta(minutes=5)
     normal_end = abnormal_start
-    
+
     normal_folder, abnormal_folder = create_folders(namespace, chaos_type, service)
     tasks = [
-        collect_and_save_data(client, folder, start_time, end_time, data_type, namespace, semaphore)
+        collect_and_save_data(
+            client, folder, start_time, end_time, data_type, namespace, semaphore
+        )
         for folder, start_time, end_time in [
             (normal_folder, normal_start, normal_end),
             (abnormal_folder, abnormal_start, abnormal_end),
@@ -223,7 +227,9 @@ def load_from_toml(config_path):
             # Validate timestamp format
             datetime.strptime(input_timestamp, "%Y-%m-%d %H:%M:%S")
         except ValueError:
-            print(f"Invalid timestamp format for {input_timestamp}. Skipping this event.")
+            print(
+                f"Invalid timestamp format for {input_timestamp}. Skipping this event."
+            )
             continue
 
         args.append([input_timestamp, input_namespace, input_chaos_type, input_service])

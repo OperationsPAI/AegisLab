@@ -57,6 +57,7 @@ def handle_hipster_java(log_data, level):
         "log_level": level,
     }
 
+
 # OnlineBoutique Python emailservice recommendationservice
 def handle_hipster_python(log_data, level):
     """
