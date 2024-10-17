@@ -1,0 +1,6 @@
+{
+  "name": "rcabench",
+  "sdk": "go",
+  "source": "experiments_controller",
+  "engineVersion": "v0.13.5"
+}

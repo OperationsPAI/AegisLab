@@ -5,7 +5,9 @@ import pandas as pd
 
 async def calculate_rates(data, normal=True):
     """wrapper function to calculate error and warn rates."""
-    return pd.concat(list(starmap(calculate_normal if normal else calculate_abnormal, data))).round(3)
+    return pd.concat(
+        list(starmap(calculate_normal if normal else calculate_abnormal, data))
+    ).round(3)
 
 
 def process_window(window_slice: pd.DataFrame, pod, current_start):
@@ -37,7 +39,6 @@ def calculate_abnormal(log_df: pd.DataFrame, pod):
 
     args = []
     for current_start in pd.date_range(start=start_time, end=end_time, freq=step_size):
-
         current_end = current_start + window_size
 
         if current_end > end_time:
@@ -78,7 +79,9 @@ def calculate_normal(log_df: pd.DataFrame, pod):
     window_size = pd.Timedelta(seconds=10)
     args = []
 
-    for current_start in pd.date_range(start=start_time, end=end_time, freq=window_size):
+    for current_start in pd.date_range(
+        start=start_time, end=end_time, freq=window_size
+    ):
         current_end = current_start + window_size
 
         if current_end > end_time:

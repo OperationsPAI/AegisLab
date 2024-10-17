@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler,MinMaxScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import matplotlib.pyplot as plt
 from typing import Union
 import os
@@ -18,7 +18,9 @@ def check_timeseries_shape(timeseries: np.ndarray):
 
 
 class TADMethodEstimator:
-    def fit(self, X: np.ndarray, univariate: bool = False, verbose: bool = False) -> None:
+    def fit(
+        self, X: np.ndarray, univariate: bool = False, verbose: bool = False
+    ) -> None:
         pass
 
     def transform(self, X: np.ndarray) -> np.ndarray:
@@ -26,20 +28,24 @@ class TADMethodEstimator:
 
 
 class PCAError(TADMethodEstimator):
-    def __init__(self, pca_dim: Union[int, str] = 'auto', svd_solver: str = 'full') -> None:
+    def __init__(
+        self, pca_dim: Union[int, str] = "auto", svd_solver: str = "full"
+    ) -> None:
         self.pca_dim = pca_dim
         self.svd_solver = svd_solver
         self.pca = None
         self.scaler = StandardScaler()
         # self.scaler = MinMaxScaler()
 
-    def fit(self, X: np.ndarray, univariate: bool = False, verbose: bool = False) -> None:
+    def fit(
+        self, X: np.ndarray, univariate: bool = False, verbose: bool = False
+    ) -> None:
         check_timeseries_shape(X)
 
         X_scaled = self.scaler.fit_transform(X)
         n_features = X_scaled.shape[1]
 
-        if self.pca_dim == 'auto':
+        if self.pca_dim == "auto":
             n_components = min(n_features, max(1, n_features // 2))
             if verbose:
                 print(f"Auto-selected number of PCA components: {n_components}")
@@ -49,7 +55,9 @@ class PCAError(TADMethodEstimator):
         self.pca = PCA(n_components=n_components, svd_solver=self.svd_solver)
         self.pca.fit(X_scaled)
 
-        reconstruction_error = np.abs(X_scaled - self.pca.inverse_transform(self.pca.transform(X_scaled)))
+        reconstruction_error = np.abs(
+            X_scaled - self.pca.inverse_transform(self.pca.transform(X_scaled))
+        )
         self.threshold = np.percentile(np.mean(reconstruction_error, axis=1), 95)
         if verbose:
             print(f"Anomaly detection threshold set at: {self.threshold}")
@@ -70,7 +78,9 @@ class PCAError(TADMethodEstimator):
         return anomalies, anomaly_scores
 
 
-def detect_continuous_anomalies(timestamps, anomalies, anomaly_scores, min_duration_seconds=30):
+def detect_continuous_anomalies(
+    timestamps, anomalies, anomaly_scores, min_duration_seconds=30
+):
     # Identifying continuous anomaly windows that are longer than min_duration_seconds
     continuous_windows = []
     current_window = []
@@ -83,12 +93,18 @@ def detect_continuous_anomalies(timestamps, anomalies, anomaly_scores, min_durat
         else:
             if len(current_window) > 0:
                 # Check if the duration of the window is greater than min_duration_seconds
-                if (current_window[-1] - current_window[0]).total_seconds() >= min_duration_seconds:
+                if (
+                    current_window[-1] - current_window[0]
+                ).total_seconds() >= min_duration_seconds:
                     continuous_windows.append((current_window, current_scores))
                 current_window = []
                 current_scores = []
 
-    if len(current_window) > 0 and (current_window[-1] - current_window[0]).total_seconds() >= min_duration_seconds:
+    if (
+        len(current_window) > 0
+        and (current_window[-1] - current_window[0]).total_seconds()
+        >= min_duration_seconds
+    ):
         continuous_windows.append((current_window, current_scores))
 
     return continuous_windows
@@ -101,29 +117,33 @@ def PCA_detection(normal_data_addr, detect_addr, output_file_path):
     # os.makedirs(metric_fig_dir, exist_ok=True)
 
     for file_name in os.listdir(detect_addr):
-        if file_name.endswith('.csv'):
+        if file_name.endswith(".csv"):
             normal_file_path = os.path.join(normal_data_addr, file_name)
             detect_file_path = os.path.join(detect_addr, file_name)
 
             if not os.path.exists(normal_file_path):
                 print(f"Normal data file {file_name} not found.")
-                continue       
-        
+                continue
+
             normal_data_df = pd.read_csv(normal_file_path)
             detect_data_df = pd.read_csv(detect_file_path)
 
             if normal_data_df.empty or len(normal_data_df) == 0:
-                print(f"Normal data file {file_name} is empty or contains only headers.")
+                print(
+                    f"Normal data file {file_name} is empty or contains only headers."
+                )
                 continue
             if detect_data_df.empty or len(detect_data_df) == 0:
-                print(f"Detect data file {file_name} is empty or contains only headers.")
+                print(
+                    f"Detect data file {file_name} is empty or contains only headers."
+                )
                 continue
-            
-            normal_data_df['TimeUnix'] = pd.to_datetime(normal_data_df['TimeUnix'])
-            detect_data_df['TimeUnix'] = pd.to_datetime(detect_data_df['TimeUnix'])
-            
+
+            normal_data_df["TimeUnix"] = pd.to_datetime(normal_data_df["TimeUnix"])
+            detect_data_df["TimeUnix"] = pd.to_datetime(detect_data_df["TimeUnix"])
+
             # print(normal_data_df)
-            
+
             # # 如果 'receive_bytes' 列不全为 0，则进行替换 0 为 NaN 和插值
             # if not (normal_data_df['receive_bytes'] == 0).all():
             #     normal_data_df['receive_bytes'].replace(0, np.nan, inplace=True)
@@ -146,22 +166,26 @@ def PCA_detection(normal_data_addr, detect_addr, output_file_path):
             normal_data_df.replace(np.nan, 0, inplace=True)
             detect_data_df.replace(np.nan, 0, inplace=True)
 
-            print("file_name:",file_name)
-            normal_timestamps = normal_data_df['TimeUnix']
-            normal_features = normal_data_df.drop(columns=['TimeUnix']).values
+            print("file_name:", file_name)
+            normal_timestamps = normal_data_df["TimeUnix"]
+            normal_features = normal_data_df.drop(columns=["TimeUnix"]).values
 
-            detect_timestamps = detect_data_df['TimeUnix']
-            detect_features = detect_data_df.drop(columns=['TimeUnix']).values
+            detect_timestamps = detect_data_df["TimeUnix"]
+            detect_features = detect_data_df.drop(columns=["TimeUnix"]).values
 
             # print(normal_data_df)
             # Initialize PCA anomaly detector
-            pca_detector = PCAError(pca_dim='auto', svd_solver='full')
+            pca_detector = PCAError(pca_dim="auto", svd_solver="full")
             pca_detector.fit(normal_features, verbose=True)
 
             # Detect anomalies over the entire period
-            window_anomalies, complete_anomaly_scores = pca_detector.detect(detect_features)
+            window_anomalies, complete_anomaly_scores = pca_detector.detect(
+                detect_features
+            )
 
-            continuous_windows = detect_continuous_anomalies(detect_timestamps, window_anomalies, complete_anomaly_scores)
+            continuous_windows = detect_continuous_anomalies(
+                detect_timestamps, window_anomalies, complete_anomaly_scores
+            )
 
             # Check if there are any valid continuous windows
             if len(continuous_windows) > 0:
@@ -169,17 +193,29 @@ def PCA_detection(normal_data_addr, detect_addr, output_file_path):
                 latest_anomaly = continuous_windows[-1][0][-1]
 
                 # Use the earliest and latest timestamps as the time range
-                earliest_anomaly_str = pd.Timestamp(earliest_anomaly).strftime('%Y-%m-%dT%H:%M:%S')
-                latest_anomaly_str = pd.Timestamp(latest_anomaly).strftime('%Y-%m-%dT%H:%M:%S')
+                earliest_anomaly_str = pd.Timestamp(earliest_anomaly).strftime(
+                    "%Y-%m-%dT%H:%M:%S"
+                )
+                latest_anomaly_str = pd.Timestamp(latest_anomaly).strftime(
+                    "%Y-%m-%dT%H:%M:%S"
+                )
 
                 # Average anomaly score for all anomaly points
-                all_anomaly_scores = np.concatenate([scores for _, scores in continuous_windows])
+                all_anomaly_scores = np.concatenate(
+                    [scores for _, scores in continuous_windows]
+                )
                 average_anomaly_score = all_anomaly_scores.max()
 
                 # If AnomalyScore is greater than or equal to 0.1, add to service list
                 if average_anomaly_score >= 0.1:
                     service_name = file_name.replace(".csv", "")
-                    service_list.append([service_name, round(average_anomaly_score, 3), f"{earliest_anomaly_str}-{latest_anomaly_str}"])
+                    service_list.append(
+                        [
+                            service_name,
+                            round(average_anomaly_score, 3),
+                            f"{earliest_anomaly_str}-{latest_anomaly_str}",
+                        ]
+                    )
             else:
                 print(f"No anomalies detected in {file_name}.")
 
@@ -199,9 +235,11 @@ def PCA_detection(normal_data_addr, detect_addr, output_file_path):
 
     # Output service_list.csv
     os.makedirs(output_file_path, exist_ok=True)
-    service_list_file = os.path.join(output_file_path, 'service_list.csv')
+    service_list_file = os.path.join(output_file_path, "service_list.csv")
 
-    service_list_df = pd.DataFrame(service_list, columns=['ServiceName', 'AnomalyScore', 'TimeRanges'])
+    service_list_df = pd.DataFrame(
+        service_list, columns=["ServiceName", "AnomalyScore", "TimeRanges"]
+    )
     service_list_df.to_csv(service_list_file, index=False)
     # print(f"Results saved to {service_list_file}")
 
@@ -217,7 +255,9 @@ def metric_ad(file_path):
     detect_file_path = os.path.join(file_path, "abnormal/processed_metrics/")
     output_file_path = os.path.join(file_path, "metric_ad_output")
 
-    abnormal_service_name = PCA_detection(normal_file_path, detect_file_path, output_file_path)
+    abnormal_service_name = PCA_detection(
+        normal_file_path, detect_file_path, output_file_path
+    )
     return abnormal_service_name
 
 
