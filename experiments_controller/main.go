@@ -43,6 +43,24 @@ func (m *Rcabench) BuildAlgoRunnerImage(ctx context.Context, bench_dir, src *dag
 
 	return runner
 }
+func (m *Rcabench) Evaluate(ctx context.Context, bench_dir, src *dagger.Directory, start_script *dagger.File) *dagger.Directory {
+	return m.BuildAlgoRunnerImage(ctx, bench_dir, src, start_script).
+		WithExec([]string{"python", "run_exp.py"}).
+		Directory("/app/output")
+}
+
+func (m *Rcabench) Publish(ctx context.Context, registry string, username string, password *dagger.Secret,
+) (string, error) {
+	return dag.Container().
+		From("nginx:1.23-alpine").
+		WithNewFile(
+			"/usr/share/nginx/html/index.html",
+			"Hello from Dagger!",
+			dagger.ContainerWithNewFileOpts{Permissions: 0o400},
+		).
+		WithRegistryAuth(registry, username, password).
+		Publish(ctx, fmt.Sprintf("%s/library/my-nginx", registry))
+}
 
 func (m *Rcabench) Test1(input string) string {
 	fmt.Println(input)
