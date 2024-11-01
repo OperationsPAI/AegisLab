@@ -2,10 +2,16 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
+	"dagger.io/dagger/dag"
 	"github.com/go-redis/redis/v8"
+	"github.com/k0kubun/pp"
 	"github.com/sirupsen/logrus"
 )
 
@@ -26,7 +32,7 @@ var Rdb = initRedisClient()
 func ConsumeTasks() {
 	for {
 		entries, err := Rdb.XRead(context.Background(), &redis.XReadArgs{
-			Streams: []string{StreamName, "$"}, // 从最新位置开始读取
+			Streams: []string{StreamName, "$"},
 			Count:   1,
 			Block:   0,
 		}).Result()
@@ -38,6 +44,12 @@ func ConsumeTasks() {
 		for _, entry := range entries[0].Messages {
 			taskID := entry.Values["taskID"].(string)
 			taskType := entry.Values["taskType"].(string)
+			jsonPayload := entry.Values["payload"].(string)
+			payload := map[string]interface{}{}
+			err = json.Unmarshal([]byte(jsonPayload), &payload)
+			if err != nil {
+				logrus.Errorf("Unmarshaling %s failed", jsonPayload)
+			}
 
 			logrus.Infof("Executing %s", taskID)
 
@@ -45,32 +57,81 @@ func ConsumeTasks() {
 
 			switch taskType {
 			case "FaultInjection":
-				executeFaultInjection(taskID)
+				err = executeFaultInjection(taskID, payload)
 			case "RunAlgorithm":
-				executeAlgorithm(taskID)
+				err = executeAlgorithm(taskID, payload)
 			case "EvaluateAlgorithm":
-				evaluateAlgorithm(taskID)
+				err = evaluateAlgorithm(taskID, payload)
 			}
-
-			updateTaskStatus(taskID, "Completed", fmt.Sprintf("Task %s completed", taskID))
+			if err != nil {
+				updateTaskStatus(taskID, "Error", fmt.Sprintf("Task %s error, message: %s", taskID, err))
+				logrus.Error(err)
+			} else {
+				updateTaskStatus(taskID, "Completed", fmt.Sprintf("Task %s completed", taskID))
+				logrus.Infof("Task %s completed", taskID)
+			}
 			Rdb.XDel(context.Background(), StreamName, entry.ID)
 		}
 	}
 }
 
-func executeFaultInjection(taskID string) {
+func executeFaultInjection(taskID string, payload map[string]interface{}) error {
+	logrus.Infof("injecting, taskID: %s", taskID)
+	pp.Print("payload:", payload)
 	updateTaskStatus(taskID, "Running", fmt.Sprintf("Executing fault injection for task %s", taskID))
 	time.Sleep(2 * time.Second)
+	return nil
 }
 
-func executeAlgorithm(taskID string) {
+func executeAlgorithm(taskID string, payload map[string]interface{}) error {
+	pp.Print(payload)
+	requiredKeys := []string{"benchmarks", "algorithms"}
+	for _, key := range requiredKeys {
+		if val, ok := payload[key].(string); !ok || val == "" {
+			return fmt.Errorf("missing or invalid '%s' key in payload", key)
+		}
+	}
+	bench := payload["benchmarks"].(string)
+	algo := payload["algorithms"].(string)
+
 	updateTaskStatus(taskID, "Running", fmt.Sprintf("Running algorithm for task %s", taskID))
-	time.Sleep(5 * time.Second)
+
+	pwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	parentDir := filepath.Dir(pwd)
+
+	benchPath := filepath.Join(parentDir, "benchmarks", bench)
+	algoPath := filepath.Join(parentDir, "algorithms", algo)
+	startScriptPath := filepath.Join(parentDir, "experiments", "run_exp.py")
+
+	if _, err := os.Stat(benchPath); os.IsNotExist(err) {
+		return errors.New("benchmark directory does not exist")
+	}
+	if _, err := os.Stat(algoPath); os.IsNotExist(err) {
+		return errors.New("algorithm directory does not exist")
+	}
+	if _, err := os.Stat(startScriptPath); os.IsNotExist(err) {
+		return errors.New("start script does not exist")
+	}
+	rc := &Rcabench{}
+	con := rc.Evaluate(context.Background(), dag.Host().Directory(benchPath), dag.Host().Directory(algoPath), dag.Host().File(startScriptPath))
+
+	_, err = con.Export(context.Background(), "./output")
+	if err != nil {
+		return fmt.Errorf("failed to export result, details: %s", err.Error())
+	}
+
+	return nil
 }
 
-func evaluateAlgorithm(taskID string) {
+func evaluateAlgorithm(taskID string, payload map[string]interface{}) error {
+	pp.Print(payload)
 	updateTaskStatus(taskID, "Running", fmt.Sprintf("Evaluating algorithm for task %s", taskID))
 	time.Sleep(3 * time.Second)
+	return nil
 }
 
 func updateTaskStatus(taskID, status, message string) {
