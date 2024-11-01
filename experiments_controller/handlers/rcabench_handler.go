@@ -30,7 +30,6 @@ func (m *Rcabench) Home(c *gin.Context) {
 	algoPath := filepath.Join(parentDir, "algorithms", algo)
 	startScriptPath := filepath.Join(parentDir, "experiments", "run_exp.py")
 
-	// 检查文件和目录是否存在
 	if _, err := os.Stat(benchPath); os.IsNotExist(err) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Benchmark directory does not exist"})
 		return
