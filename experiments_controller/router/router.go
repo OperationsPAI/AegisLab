@@ -16,7 +16,9 @@ func New() *gin.Engine {
 	router.Use(middleware.Logging(), cors.New(config))
 
 	rca := handlers.Rcabench{}
-	api := router.Group("/api/v1")
-	api.GET("/", rca.Home)
+	router.GET("/", rca.Home)
+	router.POST("/submit", handlers.SubmitTask)
+	router.GET("/status/:taskID", handlers.GetTaskStatus)
+	router.GET("/tasks", handlers.GetAllTasks)
 	return router
 }
