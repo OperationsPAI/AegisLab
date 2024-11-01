@@ -1,61 +1,12 @@
-package handlers
+package executor
 
 import (
 	"context"
-	"net/http"
-	"os"
-	"path/filepath"
-
-	"dagger.io/dagger"
-
 	"fmt"
 
+	"dagger.io/dagger"
 	"dagger.io/dagger/dag"
-	"github.com/gin-gonic/gin"
 )
-
-func (m *Rcabench) Home(c *gin.Context) {
-	algo := c.DefaultQuery("algo", "dummyalgo")
-	bench := c.DefaultQuery("bench", "clickhouse")
-
-	pwd, err := os.Getwd()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get current directory"})
-		return
-	}
-
-	parentDir := filepath.Dir(pwd)
-
-	benchPath := filepath.Join(parentDir, "benchmarks", bench)
-	algoPath := filepath.Join(parentDir, "algorithms", algo)
-	startScriptPath := filepath.Join(parentDir, "experiments", "run_exp.py")
-
-	if _, err := os.Stat(benchPath); os.IsNotExist(err) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Benchmark directory does not exist"})
-		return
-	}
-	if _, err := os.Stat(algoPath); os.IsNotExist(err) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Algorithm directory does not exist"})
-		return
-	}
-	if _, err := os.Stat(startScriptPath); os.IsNotExist(err) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Start script does not exist"})
-		return
-	}
-
-	con := m.Evaluate(context.Background(), dag.Host().Directory(benchPath), dag.Host().Directory(algoPath), dag.Host().File(startScriptPath))
-
-	res, err := con.Export(context.Background(), "./output")
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to export result", "details": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Hello, World!",
-		"result":  res,
-	})
-}
 
 type Rcabench struct{}
 
@@ -111,9 +62,4 @@ func (m *Rcabench) Publish(ctx context.Context, registry string, username string
 		).
 		WithRegistryAuth(registry, username, password).
 		Publish(ctx, fmt.Sprintf("%s/library/my-nginx", registry))
-}
-
-func (m *Rcabench) Test1(input string) string {
-	fmt.Println(input)
-	return input
 }

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Status</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+        <h1 class="text-3xl font-bold mb-4">Task Status Dashboard</h1>
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white">
+                <thead>
+                    <tr>
+                        <th class="px-4 py-2 border-b-2 border-gray-300 text-left">Task ID</th>
+                        <th class="px-4 py-2 border-b-2 border-gray-300 text-left">Status</th>
+                        <th class="px-4 py-2 border-b-2 border-gray-300 text-left">Logs</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range .Tasks }}
+                    <tr>
+                        <td class="px-4 py-2 border-b border-gray-300">{{ .taskID }}</td>
+                        <td class="px-4 py-2 border-b border-gray-300">{{ .status }}</td>
+                        <td class="px-4 py-2 border-b border-gray-300">
+                            <ul class="list-disc pl-4">
+                                {{ range .logs }}
+                                <li>{{ . }}</li>
+                                {{ end }}
+                            </ul>
+                        </td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

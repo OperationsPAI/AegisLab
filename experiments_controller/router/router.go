@@ -14,11 +14,9 @@ func New() *gin.Engine {
 	config := cors.DefaultConfig()
 	config.AllowOrigins = []string{"http://localhost:3000", "http://localhost:5173"} // 允许来自前端服务器的请求
 	router.Use(middleware.Logging(), cors.New(config))
-
-	rca := handlers.Rcabench{}
-	router.GET("/", rca.Home)
+	router.LoadHTMLGlob("templates/*")
 	router.POST("/submit", handlers.SubmitTask)
 	router.GET("/status/:taskID", handlers.GetTaskStatus)
-	router.GET("/tasks", handlers.GetAllTasks)
+	router.GET("/tasks", handlers.ShowAllTasks)
 	return router
 }
