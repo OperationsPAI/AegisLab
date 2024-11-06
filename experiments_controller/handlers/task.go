@@ -2,11 +2,11 @@ package handlers
 
 import (
 	"context"
+	"dagger/rcabench/database"
 	"dagger/rcabench/executor"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
@@ -33,25 +33,32 @@ func SubmitTask(c *gin.Context) {
 		return
 	}
 	taskID := uuid.New().String()
-	taskData := map[string]interface{}{
-		"taskID":   taskID,
-		"taskType": taskType,
-		"payload":  jsonPayload,
-	}
 
 	// 将任务添加到 Redis Stream 队列
 	_, err = executor.Rdb.XAdd(c, &redis.XAddArgs{
-		Stream: executor.StreamName, // 用单独的 Stream 键
-		Values: taskData,
+		Stream: executor.StreamName,
+		Values: map[string]interface{}{
+			"taskID":   taskID,
+			"taskType": taskType,
+			"payload":  jsonPayload,
+		},
 	}).Result()
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to submit task"})
 		return
 	}
 
-	// 设置任务状态初始值
-	taskKey := fmt.Sprintf("task:%s:status", taskID)
-	executor.Rdb.HSet(context.Background(), taskKey, "status", "Pending")
+	// 保存任务到 SQLite 数据库
+	task := database.Task{
+		ID:      taskID,
+		Type:    taskType,
+		Payload: string(jsonPayload),
+		Status:  "Pending",
+	}
+	if err := database.DB.Create(&task).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to save task to database"})
+		return
+	}
 
 	c.JSON(202, gin.H{"taskID": taskID, "message": "Task submitted successfully"})
 }
@@ -84,47 +91,11 @@ func GetTaskStatus(c *gin.Context) {
 }
 
 func ShowAllTasks(c *gin.Context) {
-	var tasks []map[string]interface{}
-	iter := executor.Rdb.Scan(context.Background(), 0, "task:*:status", 0).Iterator()
-
-	for iter.Next(context.Background()) {
-		taskKey := iter.Val()
-		taskID := taskKey[len("task:") : len(taskKey)-len(":status")]
-
-		status, err := executor.Rdb.HGet(context.Background(), taskKey, "status").Result()
-		if err != nil && err != redis.Nil {
-			c.JSON(500, gin.H{"error": "Failed to retrieve task status"})
-			return
-		}
-
-		logKey := "task:" + taskID + ":logs"
-		logs, err := executor.Rdb.LRange(context.Background(), logKey, 0, -1).Result()
-		if err != nil && err != redis.Nil {
-			c.JSON(500, gin.H{"error": "Failed to retrieve task logs"})
-			return
-		}
-
-		var lastLogTime time.Time
-		if len(logs) > 0 {
-			lastLogTime, err = parseLogTimestamp(logs[len(logs)-1])
-			if err != nil {
-				c.JSON(500, gin.H{"error": "Failed to parse log timestamp"})
-				return
-			}
-		}
-
-		taskInfo := map[string]interface{}{
-			"taskID":      taskID,
-			"status":      status,
-			"logs":        logs,
-			"lastLogTime": lastLogTime,
-		}
-		tasks = append(tasks, taskInfo)
+	var tasks []database.Task
+	if err := database.DB.Find(&tasks).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to retrieve tasks"})
+		return
 	}
-
-	sort.Slice(tasks, func(i, j int) bool {
-		return tasks[i]["lastLogTime"].(time.Time).After(tasks[j]["lastLogTime"].(time.Time))
-	})
 
 	c.HTML(http.StatusOK, "tasks.html", gin.H{
 		"Tasks": tasks,
@@ -134,4 +105,31 @@ func ShowAllTasks(c *gin.Context) {
 func parseLogTimestamp(log string) (time.Time, error) {
 	parts := strings.SplitN(log, " ", 2)
 	return time.Parse(time.RFC3339, parts[0])
+}
+
+func GetTaskDetails(c *gin.Context) {
+	taskID := c.Param("taskID")
+
+	var task database.Task
+	if err := database.DB.First(&task, "id = ?", taskID).Error; err != nil {
+		c.JSON(404, gin.H{"error": "Task not found"})
+		return
+	}
+
+	c.JSON(200, task)
+}
+func GetTaskLogs(c *gin.Context) {
+	taskID := c.Param("taskID")
+	logKey := fmt.Sprintf("task:%s:logs", taskID)
+
+	logs, err := executor.Rdb.LRange(context.Background(), logKey, 0, -1).Result()
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to retrieve logs"})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"taskID": taskID,
+		"logs":   logs,
+	})
 }

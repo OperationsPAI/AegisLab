@@ -3,38 +3,242 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Task Status</title>
+    <title>Task Manager</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .log-container {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+    <script>
+        async function toggleDetails(taskID) {
+            const detailsDiv = document.getElementById(`details-${taskID}`);
+            const toggleButton = document.getElementById(`toggle-btn-${taskID}`);
+
+            if (detailsDiv.classList.contains("hidden")) {
+                toggleButton.textContent = "Hide Details";
+                detailsDiv.classList.remove("hidden");
+                await fetchTaskDetails(taskID);
+                await fetchTaskLogs(taskID);
+            } else {
+                toggleButton.textContent = "Show Details";
+                detailsDiv.classList.add("hidden");
+            }
+        }
+
+        async function fetchTaskDetails(taskID) {
+            const response = await fetch(`/task/${taskID}/details`);
+            const detailsDiv = document.getElementById(`details-${taskID}-content`);
+            if (!detailsDiv) return;
+
+            if (response.ok) {
+                const data = await response.json();
+                detailsDiv.innerHTML = `
+                    <p><strong>Task Type:</strong> ${data.type}</p>
+                    <p><strong>Payload:</strong> <pre>${JSON.stringify(JSON.parse(data.payload), null, 2)}</pre></p>
+                    <p><strong>Status:</strong> ${data.status}</p>
+                    <p><strong>Created At:</strong> ${data.created_at}</p>
+                `;
+            } else {
+                detailsDiv.innerHTML = `<p class="text-red-500">Error: Unable to fetch details.</p>`;
+            }
+        }
+
+        async function fetchTaskLogs(taskID) {
+            const response = await fetch(`/task/${taskID}/logs`);
+            const logsDiv = document.getElementById(`logs-${taskID}`);
+            if (!logsDiv) return;
+
+            if (response.ok) {
+                const data = await response.json();
+                const parsedLogs = data.logs.map(log => {
+                    const splitIndex = log.indexOf(" - ");
+                    const time = splitIndex !== -1 ? log.slice(0, splitIndex) : "Unknown";
+                    const message = splitIndex !== -1 ? log.slice(splitIndex + 3) : log;
+                    return { time, message };
+                });
+                logsDiv.innerHTML = `
+                    <h3 class="font-bold mb-2">Logs:</h3>
+                    <ul class="list-disc ml-5">
+                        ${parsedLogs
+                            .map(log => `<li><strong>${log.time}</strong>: ${log.message}</li>`)
+                            .join("")}
+                    </ul>
+                `;
+            } else {
+                logsDiv.innerHTML = `<p class="text-red-500">Error: Unable to fetch logs.</p>`;
+            }
+        }
+
+        function addKeyValuePair() {
+            const container = document.getElementById("keyValuePairs");
+            const row = document.createElement("div");
+            row.className = "flex space-x-4 mb-2";
+
+            row.innerHTML = `
+                <input type="text" placeholder="Key" class="shadow appearance-none border rounded w-1/2 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline key-input">
+                <input type="text" placeholder="Value" class="shadow appearance-none border rounded w-1/2 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline value-input">
+                <button type="button" class="text-red-500 font-bold" onclick="this.parentElement.remove()">Remove</button>
+            `;
+
+            container.appendChild(row);
+        }
+
+        async function submitTask(event) {
+            event.preventDefault(); // 阻止表单默认提交
+
+            const taskType = document.getElementById("taskType").value;
+
+            // 从键值对构建 JSON
+            const keyInputs = document.querySelectorAll(".key-input");
+            const valueInputs = document.querySelectorAll(".value-input");
+            const payload = {};
+
+            keyInputs.forEach((keyInput, index) => {
+                const key = keyInput.value.trim();
+                const value = valueInputs[index].value.trim();
+                if (key) {
+                    payload[key] = value;
+                }
+            });
+
+            if (Object.keys(payload).length === 0) {
+                alert("Payload cannot be empty");
+                return;
+            }
+
+            const url = `/submit?type=${encodeURIComponent(taskType)}`;
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                alert(`Task submitted successfully: ${data.taskID}`);
+                location.reload();
+            } else {
+                alert(`Error: ${data.error}`);
+            }
+        }
+
+        function applyTemplate() {
+            const templateSelector = document.getElementById("templateSelector");
+            const selectedTemplate = templateSelector.value;
+    
+            if (!selectedTemplate) return;
+    
+            // Clear existing key-value pairs
+            const container = document.getElementById("keyValuePairs");
+            container.innerHTML = "";
+    
+            // Parse the selected template and populate key-value pairs
+            try {
+                const templateObject = JSON.parse(selectedTemplate);
+                for (const [key, value] of Object.entries(templateObject)) {
+                    const row = document.createElement("div");
+                    row.className = "flex space-x-4 mb-2";
+                    row.innerHTML = `
+                        <input type="text" value="${key}" class="shadow appearance-none border rounded w-1/2 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline key-input">
+                        <input type="text" value="${value}" class="shadow appearance-none border rounded w-1/2 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline value-input">
+                        <button type="button" class="text-red-500 font-bold" onclick="this.parentElement.remove()">Remove</button>
+                    `;
+                    container.appendChild(row);
+                }
+            } catch (e) {
+                alert("Error applying template. Invalid template format.");
+            }
+        }
+    </script>
 </head>
 <body class="bg-gray-100">
-    <div class="container mx-auto p-4">
-        <h1 class="text-3xl font-bold mb-4">Task Status Dashboard</h1>
-        <div class="overflow-x-auto">
-            <table class="min-w-full bg-white">
-                <thead>
-                    <tr>
-                        <th class="px-4 py-2 border-b-2 border-gray-300 text-left">Task ID</th>
-                        <th class="px-4 py-2 border-b-2 border-gray-300 text-left">Status</th>
-                        <th class="px-4 py-2 border-b-2 border-gray-300 text-left">Logs</th>
-                    </tr>
-                </thead>
-                <tbody>
+
+    <div class="container mx-auto p-6">
+        <h1 class="text-2xl font-bold mb-4">Task Manager</h1>
+
+        <div class="flex">
+            <!-- Task Submission Form -->
+            <form id="taskForm" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-6 w-3/4" onsubmit="submitTask(event)">
+                <div class="mb-4">
+                    <label for="taskType" class="block text-gray-700 text-sm font-bold mb-2">Task Type</label>
+                    <select id="taskType" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                        <option value="FaultInjection">Fault Injection</option>
+                        <option value="RunAlgorithm">Run Algorithm</option>
+                        <option value="EvaluateAlgorithm">Evaluate Algorithm</option>
+                    </select>
+                </div>
+        
+                <div class="mb-4">
+                    <label for="keyValuePairs" class="block text-gray-700 text-sm font-bold mb-2">Payload (Key-Value Pairs)</label>
+                    <div id="keyValuePairs" class="space-y-2">
+                        <div class="flex space-x-4">
+                            <input type="text" placeholder="Key" class="shadow appearance-none border rounded w-1/2 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline key-input">
+                            <input type="text" placeholder="Value" class="shadow appearance-none border rounded w-1/2 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline value-input">
+                        </div>
+                    </div>
+                    <button type="button" class="mt-2 bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-4 rounded focus:outline-none focus:shadow-outline" onclick="addKeyValuePair()">Add Pair</button>
+                </div>
+        
+                <div class="flex items-center justify-between">
+                    <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                        Submit Task
+                    </button>
+                </div>
+            </form>
+        
+            <!-- Template Selector -->
+            <div class="bg-gray-200 shadow-md rounded px-6 py-6 ml-6 w-1/4">
+                <h2 class="text-lg font-bold mb-4">Templates</h2>
+                <select id="templateSelector" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" onchange="applyTemplate()">
+                    <option value="">Select a Template</option>
+                    <option value='{"key1": "value1", "key2": "value2"}'>Basic Template</option>
+                    <option value='{"action": "inject", "target": "serviceA"}'>Fault Injection</option>
+                    <option value='{"algorithm": "A*", "input": "graph1"}'>Algorithm Execution</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Task List -->
+        <h2 class="text-xl font-bold mb-4">Tasks</h2>
+        <div class="bg-white shadow-md rounded px-8 pt-6 pb-8">
+            {{ if .Tasks }}
+                <div class="space-y-4">
                     {{ range .Tasks }}
-                    <tr>
-                        <td class="px-4 py-2 border-b border-gray-300">{{ .taskID }}</td>
-                        <td class="px-4 py-2 border-b border-gray-300">{{ .status }}</td>
-                        <td class="px-4 py-2 border-b border-gray-300">
-                            <ul class="list-disc pl-4">
-                                {{ range .logs }}
-                                <li>{{ . }}</li>
-                                {{ end }}
-                            </ul>
-                        </td>
-                    </tr>
+                        <div class="border-b border-gray-200 pb-4">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="font-bold text-lg">Task ID: {{ .ID }}</p>
+                                    <p class="text-sm text-gray-600">Status: {{ .Status }}</p>
+                                </div>
+                                <button
+                                    id="toggle-btn-{{ .ID }}"
+                                    class="bg-blue-500 hover:bg-blue-700 text-white py-1 px-3 rounded focus:outline-none focus:shadow-outline"
+                                    onclick="toggleDetails('{{ .ID }}')">
+                                    Show Details
+                                </button>
+                            </div>
+
+                            <!-- Task Details and Logs -->
+                            <div id="details-{{ .ID }}" class="hidden bg-gray-100 mt-4 p-4 rounded">
+                                <div id="details-{{ .ID }}-content" class="mb-4">
+                                    <!-- Task details will be dynamically loaded here -->
+                                </div>
+                                <div id="logs-{{ .ID }}" class="log-container bg-white border rounded p-2 text-sm text-gray-700">
+                                    <!-- Task logs will be dynamically loaded here -->
+                                </div>
+                            </div>
+                        </div>
                     {{ end }}
-                </tbody>
-            </table>
+                </div>
+            {{ else }}
+                <p class="text-gray-600">No tasks available.</p>
+            {{ end }}
         </div>
     </div>
+
 </body>
 </html>

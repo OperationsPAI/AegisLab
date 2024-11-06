@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dagger/rcabench/database"
 	"dagger/rcabench/executor"
 	"dagger/rcabench/router"
 	"fmt"
@@ -23,6 +24,7 @@ func main() {
 		Short: "Run as a producer",
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Println("Running as producer")
+			database.InitDB()
 			engine := router.New()
 			err := engine.Run(":8080")
 			if err != nil {
@@ -46,6 +48,7 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Println("Running as both producer and consumer")
 			engine := router.New()
+			database.InitDB()
 			go executor.ConsumeTasks()
 			err := engine.Run(":8080")
 			if err != nil {
