@@ -1,17 +1,13 @@
+# Run the server 
+
+```bash
+cd experiments_controller
+# export GOPRIVATE=github.com/CUHK-SE-Group/chaos-experiment
+go run main.go both
+```
+
 
 # Input Specification
-
-```bash
-dagger call evaluate --bench_dir ./benchmarks/clickhouse --src algorithms/dummyalgo/ --start-script experiments/run_exp.py export --path=./output
-```
-
-```bash
-dagger call evaluate --bench_dir ./benchmarks/clickhouse \  # 指定 benchmark 的代码目录
---src algorithms/dummyalgo/ \                               # 指定算法代码目录
---start-script experiments/run_exp.py \                     # 指定启动脚本代码目录
-export --path=./output                                      # 指定输出目录
-```
-
 
 `def start_rca(params: Dict):` 函数的输入参数示例
 

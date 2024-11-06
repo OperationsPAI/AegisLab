@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"time"
 
+	chaos "github.com/CUHK-SE-Group/chaos-experiment/chaos"
+
 	"dagger.io/dagger/dag"
 	"github.com/go-redis/redis/v8"
 	"github.com/k0kubun/pp"
@@ -80,7 +82,9 @@ func executeFaultInjection(taskID string, payload map[string]interface{}) error 
 	logrus.Infof("injecting, taskID: %s", taskID)
 	pp.Print("payload:", payload)
 	updateTaskStatus(taskID, "Running", fmt.Sprintf("Executing fault injection for task %s", taskID))
-	time.Sleep(2 * time.Second)
+
+	chaos.NewIOChaos() // change here
+
 	return nil
 }
 
