@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"dagger/rcabench/database"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -135,10 +136,17 @@ func evaluateAlgorithm(taskID string, payload map[string]interface{}) error {
 }
 
 func updateTaskStatus(taskID, status, message string) {
+	// 更新 Redis 中的任务状态
 	taskKey := fmt.Sprintf("task:%s:status", taskID)
 	Rdb.HSet(context.Background(), taskKey, "status", status)
 	Rdb.HSet(context.Background(), taskKey, "updated_at", time.Now().Format(time.RFC3339))
 
+	// 添加日志到 Redis
 	logKey := fmt.Sprintf("task:%s:logs", taskID)
 	Rdb.RPush(context.Background(), logKey, fmt.Sprintf("%s - %s", time.Now().Format(time.RFC3339), message))
+
+	// 更新 SQLite 中的任务状态
+	if err := database.DB.Model(&database.Task{}).Where("id = ?", taskID).Update("status", status).Error; err != nil {
+		fmt.Printf("Failed to update task %s in SQLite: %v\n", taskID, err)
+	}
 }

@@ -18,5 +18,7 @@ func New() *gin.Engine {
 	router.POST("/submit", handlers.SubmitTask)
 	router.GET("/status/:taskID", handlers.GetTaskStatus)
 	router.GET("/tasks", handlers.ShowAllTasks)
+	router.GET("/task/:taskID/details", handlers.GetTaskDetails)
+	router.GET("/task/:taskID/logs", handlers.GetTaskLogs)
 	return router
 }
