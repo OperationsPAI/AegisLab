@@ -1,26 +1,35 @@
 package handlers
 
 import (
-	"context"
 	"dagger/rcabench/database"
 	"dagger/rcabench/executor"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"github.com/k0kubun/pp"
+	"gorm.io/gorm"
 )
+
+var validTaskTypes = map[string]bool{
+	"FaultInjection":    true,
+	"RunAlgorithm":      true,
+	"EvaluateAlgorithm": true,
+}
 
 func SubmitTask(c *gin.Context) {
 	taskType := c.Query("type")
-	if taskType != "FaultInjection" && taskType != "RunAlgorithm" && taskType != "EvaluateAlgorithm" {
+	if taskType == "" {
+		c.JSON(400, gin.H{"error": "Task type is required"})
+		return
+	}
+	if !validTaskTypes[taskType] {
 		c.JSON(400, gin.H{"error": "Invalid task type"})
 		return
 	}
@@ -38,7 +47,9 @@ func SubmitTask(c *gin.Context) {
 	}
 	pp.Print(payload)
 
-	_, err = executor.Rdb.XAdd(c, &redis.XAddArgs{
+	ctx := c.Request.Context()
+
+	_, err = executor.Rdb.XAdd(ctx, &redis.XAddArgs{
 		Stream: executor.StreamName,
 		Values: map[string]interface{}{
 			executor.RdbMsgTaskID:   taskID,
@@ -71,17 +82,22 @@ func GetTaskStatus(c *gin.Context) {
 	taskID := c.Param("taskID")
 	taskKey := fmt.Sprintf("task:%s:status", taskID) // 使用专用的状态键
 
+	ctx := c.Request.Context()
+
 	// 获取任务状态
-	status, err := executor.Rdb.HGet(context.Background(), taskKey, "status").Result()
-	if err != nil {
+	status, err := executor.Rdb.HGet(ctx, taskKey, "status").Result()
+	if err == redis.Nil {
 		c.JSON(404, gin.H{"error": "Task not found"})
+		return
+	} else if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to retrieve task status"})
 		return
 	}
 
 	// 获取任务日志
 	logKey := fmt.Sprintf("task:%s:logs", taskID) // 使用专用的日志键
-	logs, err := executor.Rdb.LRange(context.Background(), logKey, 0, -1).Result()
-	if err != nil {
+	logs, err := executor.Rdb.LRange(ctx, logKey, 0, -1).Result()
+	if err != nil && err != redis.Nil {
 		c.JSON(500, gin.H{"error": "Failed to retrieve logs"})
 		return
 	}
@@ -106,28 +122,32 @@ func ShowAllTasks(c *gin.Context) {
 	})
 }
 
-func parseLogTimestamp(log string) (time.Time, error) {
-	parts := strings.SplitN(log, " ", 2)
-	return time.Parse(time.RFC3339, parts[0])
-}
-
 func GetTaskDetails(c *gin.Context) {
 	taskID := c.Param("taskID")
 
 	var task database.Task
 	if err := database.DB.First(&task, "id = ?", taskID).Error; err != nil {
-		c.JSON(404, gin.H{"error": "Task not found"})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(404, gin.H{"error": "Task not found"})
+		} else {
+			c.JSON(500, gin.H{"error": "Failed to retrieve task"})
+		}
 		return
 	}
 
 	c.JSON(200, task)
 }
+
 func GetTaskLogs(c *gin.Context) {
 	taskID := c.Param("taskID")
 	logKey := fmt.Sprintf("task:%s:logs", taskID)
 
-	logs, err := executor.Rdb.LRange(context.Background(), logKey, 0, -1).Result()
-	if err != nil {
+	ctx := c.Request.Context()
+
+	logs, err := executor.Rdb.LRange(ctx, logKey, 0, -1).Result()
+	if err == redis.Nil {
+		logs = []string{}
+	} else if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to retrieve logs"})
 		return
 	}
@@ -137,6 +157,7 @@ func GetTaskLogs(c *gin.Context) {
 		"logs":   logs,
 	})
 }
+
 func getSubFiles(dir string) ([]string, error) {
 	var files []string
 	entries, err := os.ReadDir(dir)
@@ -149,7 +170,6 @@ func getSubFiles(dir string) ([]string, error) {
 			files = append(files, entry.Name())
 		}
 	}
-	fmt.Println(files)
 	return files, nil
 }
 
@@ -164,7 +184,6 @@ func GetAlgoBench(c *gin.Context) {
 	benchPath := filepath.Join(parentDir, "benchmarks")
 	algoPath := filepath.Join(parentDir, "algorithms")
 
-	fmt.Println(algoPath, benchPath)
 	// 获取benchPath下的文件列表
 	benchFiles, err := getSubFiles(benchPath)
 	if err != nil {

@@ -6,8 +6,6 @@
     <title>Task Manager</title>
     <!-- 引入 Tailwind CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- 引入 Select2 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <style>
         .log-container {
             max-height: 200px;
@@ -16,29 +14,9 @@
         .hidden {
             display: none;
         }
-        /* 自定义 Select2 的样式以匹配 Tailwind CSS */
-        .select2-container .select2-selection--multiple {
-            min-height: 2.5rem;
-            border-radius: 0.25rem;
-            border-color: #d1d5db;
-            padding: 0.5rem;
-        }
-        .select2-container--default .select2-selection--multiple .select2-selection__choice {
-            background-color: #3b82f6;
-            border: none;
-            color: white;
-            padding: 0 0.5rem;
-            margin-top: 0.25rem;
-        }
-        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
-            color: rgba(255,255,255,0.7);
-            margin-right: 0.25rem;
-        }
     </style>
     <!-- 引入 jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- 引入 Select2 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         async function toggleDetails(taskID) {
             const detailsDiv = document.getElementById(`details-${taskID}`);
@@ -121,19 +99,19 @@
             let payload = {};
 
             if (taskType === "RunAlgorithm") {
-                // 从 Select2 获取选中的算法
-                const selectedAlgorithms = $('#algorithmSelect').val();
+                // 获取选中的算法
+                const selectedAlgorithm = document.getElementById('algorithmSelect').value;
                 const benchmark = document.getElementById("benchmarkSelect").value;
                 const dataset = document.getElementById("datasetSelect").value;
 
-                if (!selectedAlgorithms || selectedAlgorithms.length === 0) {
-                    alert("Please select at least one algorithm.");
+                if (!selectedAlgorithm) {
+                    alert("Please select an algorithm.");
                     return;
                 }
 
                 // 构建 payload
                 payload = {
-                    algorithms: selectedAlgorithms,
+                    algorithm: selectedAlgorithm,
                     benchmark: benchmark,
                     dataset: dataset
                 };
@@ -206,7 +184,7 @@
             }
         }
 
-        // 使用 Select2 填充算法选择框
+        // 填充算法选择框
         function populateAlgorithmSelect(algorithms) {
             const algorithmSelect = document.getElementById('algorithmSelect');
             algorithmSelect.innerHTML = '';
@@ -215,12 +193,6 @@
                 option.value = algorithm;
                 option.textContent = algorithm;
                 algorithmSelect.appendChild(option);
-            });
-            // 初始化 Select2
-            $('#algorithmSelect').select2({
-                placeholder: 'Select Algorithms',
-                allowClear: true,
-                width: '100%'
             });
         }
 
@@ -290,7 +262,7 @@
                 <!-- Algorithm Selection (hidden by default) -->
                 <div id="algorithmSelection" class="mb-4 hidden">
                     <label for="algorithmSelect" class="block text-gray-700 text-sm font-bold mb-2">Algorithm</label>
-                    <select id="algorithmSelect" multiple class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    <select id="algorithmSelect" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                         <!-- Options will be populated dynamically -->
                     </select>
                 </div>
