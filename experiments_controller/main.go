@@ -11,6 +11,8 @@ import (
 )
 
 func main() {
+	var port string
+
 	var rootCmd = &cobra.Command{
 		Use:   "rcabench",
 		Short: "RCA Bench is a benchmarking tool",
@@ -26,7 +28,7 @@ func main() {
 			fmt.Println("Running as producer")
 			database.InitDB()
 			engine := router.New()
-			err := engine.Run(":8080")
+			err := engine.Run(":" + port)
 			if err != nil {
 				panic(err)
 			}
@@ -50,12 +52,15 @@ func main() {
 			engine := router.New()
 			database.InitDB()
 			go executor.ConsumeTasks()
-			err := engine.Run(":8080")
+			err := engine.Run(":" + port)
 			if err != nil {
 				panic(err)
 			}
 		},
 	}
+
+	rootCmd.PersistentFlags().StringVarP(&port, "port", "p", "8080", "Port to run the server on")
+
 	rootCmd.AddCommand(producerCmd, consumerCmd, bothCmd)
 
 	if err := rootCmd.Execute(); err != nil {

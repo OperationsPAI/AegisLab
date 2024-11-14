@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -131,5 +133,52 @@ func GetTaskLogs(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"taskID": taskID,
 		"logs":   logs,
+	})
+}
+func getSubFiles(dir string) ([]string, error) {
+	var files []string
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			files = append(files, entry.Name())
+		}
+	}
+	fmt.Println(files)
+	return files, nil
+}
+
+func GetAlgoBench(c *gin.Context) {
+	pwd, err := os.Getwd()
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Get work directory failed"})
+		return
+	}
+
+	parentDir := filepath.Dir(pwd)
+	benchPath := filepath.Join(parentDir, "benchmarks")
+	algoPath := filepath.Join(parentDir, "algorithms")
+
+	fmt.Println(algoPath, benchPath)
+	// 获取benchPath下的文件列表
+	benchFiles, err := getSubFiles(benchPath)
+	if err != nil {
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to list files in %s: %v", benchPath, err)})
+		return
+	}
+
+	// 获取algoPath下的文件列表
+	algoFiles, err := getSubFiles(algoPath)
+	if err != nil {
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to list files in %s: %v", algoPath, err)})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"benchmarks": benchFiles,
+		"algorithms": algoFiles,
 	})
 }
