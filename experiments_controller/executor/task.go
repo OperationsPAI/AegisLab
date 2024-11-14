@@ -10,12 +10,24 @@ import (
 	"path/filepath"
 	"time"
 
-	chaos "github.com/CUHK-SE-Group/chaos-experiment/chaos"
-
 	"dagger.io/dagger/dag"
 	"github.com/go-redis/redis/v8"
 	"github.com/k0kubun/pp"
 	"github.com/sirupsen/logrus"
+)
+
+const (
+	RunAlgo        = "RunAlgorithm"
+	FaultInjection = "FaultInjection"
+
+	RdbMsgTaskID       = "taskID"
+	RdbMsgTaskType     = "taskType"
+	RdbMsgPayload      = "payload"
+	RdbMsgParentTaskID = "parentTaskID"
+
+	EvalPayloadAlgo    = "algorithm"
+	EvalPayloadDataset = "dataset"
+	EvalPayloadBench   = "benchmark"
 )
 
 func initRedisClient() *redis.Client {
@@ -45,9 +57,9 @@ func ConsumeTasks() {
 		}
 
 		for _, entry := range entries[0].Messages {
-			taskID := entry.Values["taskID"].(string)
-			taskType := entry.Values["taskType"].(string)
-			jsonPayload := entry.Values["payload"].(string)
+			taskID := entry.Values[RdbMsgTaskID].(string)
+			taskType := entry.Values[RdbMsgTaskType].(string)
+			jsonPayload := entry.Values[RdbMsgPayload].(string)
 			payload := map[string]interface{}{}
 			err = json.Unmarshal([]byte(jsonPayload), &payload)
 			if err != nil {
@@ -59,12 +71,10 @@ func ConsumeTasks() {
 			updateTaskStatus(taskID, "Running", fmt.Sprintf("Task %s started of type %s", taskID, taskType))
 
 			switch taskType {
-			case "FaultInjection":
+			case FaultInjection:
 				err = executeFaultInjection(taskID, payload)
-			case "RunAlgorithm":
+			case RunAlgo:
 				err = executeAlgorithm(taskID, payload)
-			case "EvaluateAlgorithm":
-				err = evaluateAlgorithm(taskID, payload)
 			}
 			if err != nil {
 				updateTaskStatus(taskID, "Error", fmt.Sprintf("Task %s error, message: %s", taskID, err))
@@ -81,24 +91,63 @@ func ConsumeTasks() {
 func executeFaultInjection(taskID string, payload map[string]interface{}) error {
 	logrus.Infof("injecting, taskID: %s", taskID)
 	pp.Print("payload:", payload)
+
+	// 从 payload 中提取字段
+	faultType := payload["fault_type"].(string)
+	startTime := payload["start_time"].(string)
+	endTime := payload["end_time"].(string)
+
+	// 更新任务状态
 	updateTaskStatus(taskID, "Running", fmt.Sprintf("Executing fault injection for task %s", taskID))
 
-	chaos.NewIOChaos() // change here
+	// 转换 startTime 和 endTime 为 time.Time
+	startTimeParsed, err := time.Parse(time.RFC3339, startTime)
+	if err != nil {
+		logrus.Errorf("Failed to parse start_time: %v", err)
+		return fmt.Errorf("invalid start_time format: %v", err)
+	}
+	endTimeParsed, err := time.Parse(time.RFC3339, endTime)
+	if err != nil {
+		logrus.Errorf("Failed to parse end_time: %v", err)
+		return fmt.Errorf("invalid end_time format: %v", err)
+	}
+
+	// 创建新的故障注入记录
+	faultRecord := database.FaultInjectionSchedule{
+		ID:          taskID,                                   // 使用任务 ID 作为记录的主键
+		FaultType:   faultType,                                // 故障类型
+		Config:      fmt.Sprintf("%v", payload),               // 故障配置 (JSON 格式化字符串)
+		StartTime:   startTimeParsed,                          // 开始时间
+		EndTime:     endTimeParsed,                            // 结束时间
+		Description: fmt.Sprintf("Fault for task %s", taskID), // 可选描述
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	// 写入数据库
+	if err := database.DB.Create(&faultRecord).Error; err != nil {
+		logrus.Errorf("Failed to write fault injection schedule to database: %v", err)
+		return fmt.Errorf("failed to write to database: %v", err)
+	}
+
+	// 故障注入逻辑
+	// chaos.NewIOChaos() // change here
+	//需要对账系统来 check 故障注入是否成功，如果不成功，则把数据库里的条目删除，否则会出现假注入。
 
 	return nil
 }
 
 func executeAlgorithm(taskID string, payload map[string]interface{}) error {
-	pp.Print(payload)
-	requiredKeys := []string{"benchmarks", "algorithms"}
+	requiredKeys := []string{EvalPayloadBench, EvalPayloadAlgo, EvalPayloadDataset}
 	for _, key := range requiredKeys {
 		if val, ok := payload[key].(string); !ok || val == "" {
 			return fmt.Errorf("missing or invalid '%s' key in payload", key)
 		}
 	}
-	bench := payload["benchmarks"].(string)
-	algo := payload["algorithms"].(string)
-
+	bench := payload[EvalPayloadBench].(string)
+	algo := payload[EvalPayloadAlgo].(string)
+	dataset := payload[EvalPayloadDataset].(string)
+	_ = dataset //TODO
 	updateTaskStatus(taskID, "Running", fmt.Sprintf("Running algorithm for task %s", taskID))
 
 	pwd, err := os.Getwd()
@@ -132,13 +181,6 @@ func executeAlgorithm(taskID string, payload map[string]interface{}) error {
 	return nil
 }
 
-func evaluateAlgorithm(taskID string, payload map[string]interface{}) error {
-	pp.Print(payload)
-	updateTaskStatus(taskID, "Running", fmt.Sprintf("Evaluating algorithm for task %s", taskID))
-	time.Sleep(3 * time.Second)
-	return nil
-}
-
 func updateTaskStatus(taskID, status, message string) {
 	// 更新 Redis 中的任务状态
 	taskKey := fmt.Sprintf("task:%s:status", taskID)
@@ -148,9 +190,9 @@ func updateTaskStatus(taskID, status, message string) {
 	// 添加日志到 Redis
 	logKey := fmt.Sprintf("task:%s:logs", taskID)
 	Rdb.RPush(context.Background(), logKey, fmt.Sprintf("%s - %s", time.Now().Format(time.RFC3339), message))
-
+	logrus.Info(fmt.Sprintf("%s - %s", time.Now().Format(time.RFC3339), message))
 	// 更新 SQLite 中的任务状态
 	if err := database.DB.Model(&database.Task{}).Where("id = ?", taskID).Update("status", status).Error; err != nil {
-		fmt.Printf("Failed to update task %s in SQLite: %v\n", taskID, err)
+		logrus.Errorf("Failed to update task %s in SQLite: %v\n", taskID, err)
 	}
 }
