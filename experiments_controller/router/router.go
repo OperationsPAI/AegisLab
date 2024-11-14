@@ -20,5 +20,6 @@ func New() *gin.Engine {
 	router.GET("/tasks", handlers.ShowAllTasks)
 	router.GET("/task/:taskID/details", handlers.GetTaskDetails)
 	router.GET("/task/:taskID/logs", handlers.GetTaskLogs)
+	router.GET("/algobench", handlers.GetAlgoBench)
 	return router
 }

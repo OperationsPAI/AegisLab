@@ -10,6 +10,9 @@
             max-height: 200px;
             overflow-y: auto;
         }
+        .hidden {
+            display: none;
+        }
     </style>
     <script>
         async function toggleDetails(taskID) {
@@ -90,22 +93,39 @@
 
             const taskType = document.getElementById("taskType").value;
 
-            // 从键值对构建 JSON
-            const keyInputs = document.querySelectorAll(".key-input");
-            const valueInputs = document.querySelectorAll(".value-input");
-            const payload = {};
+            let payload = {};
 
-            keyInputs.forEach((keyInput, index) => {
-                const key = keyInput.value.trim();
-                const value = valueInputs[index].value.trim();
-                if (key) {
-                    payload[key] = value;
+            if (taskType === "RunAlgorithm") {
+                // Get selected algorithm, benchmark, and dataset
+                const algorithm = document.getElementById("algorithmSelect").value;
+                const benchmark = document.getElementById("benchmarkSelect").value;
+                const dataset = document.getElementById("datasetSelect").value;
+
+                // Build payload
+                payload = {
+                    algorithm: algorithm,
+                    benchmark: benchmark,
+                    dataset: dataset
+                };
+
+            } else {
+                // From key-value pairs build JSON
+                const keyInputs = document.querySelectorAll(".key-input");
+                const valueInputs = document.querySelectorAll(".value-input");
+                payload = {};
+
+                keyInputs.forEach((keyInput, index) => {
+                    const key = keyInput.value.trim();
+                    const value = valueInputs[index].value.trim();
+                    if (key) {
+                        payload[key] = value;
+                    }
+                });
+
+                if (Object.keys(payload).length === 0) {
+                    alert("Payload cannot be empty");
+                    return;
                 }
-            });
-
-            if (Object.keys(payload).length === 0) {
-                alert("Payload cannot be empty");
-                return;
             }
 
             const url = `/submit?type=${encodeURIComponent(taskType)}`;
@@ -129,13 +149,13 @@
         function applyTemplate() {
             const templateSelector = document.getElementById("templateSelector");
             const selectedTemplate = templateSelector.value;
-    
+
             if (!selectedTemplate) return;
-    
+
             // Clear existing key-value pairs
             const container = document.getElementById("keyValuePairs");
             container.innerHTML = "";
-    
+
             // Parse the selected template and populate key-value pairs
             try {
                 const templateObject = JSON.parse(selectedTemplate);
@@ -153,6 +173,82 @@
                 alert("Error applying template. Invalid template format.");
             }
         }
+
+        async function fetchAlgoBench() {
+            try {
+                const response = await fetch('/algobench');
+                if (response.ok) {
+                    const data = await response.json();
+                    const algorithms = data.algorithms || [];
+                    const benchmarks = data.benchmarks || [];
+                    populateAlgorithmSelect(algorithms);
+                    populateBenchmarkSelect(benchmarks);
+                    // Assuming datasets are static for now
+                    const datasets = ['dataset1', 'dataset2', 'dataset3'];
+                    populateDatasetSelect(datasets);
+                } else {
+                    console.error('Failed to fetch algorithms and benchmarks');
+                }
+            } catch (error) {
+                console.error('Error fetching algorithms and benchmarks:', error);
+            }
+        }
+
+        function populateAlgorithmSelect(algorithms) {
+            const algorithmSelect = document.getElementById('algorithmSelect');
+            algorithmSelect.innerHTML = '';
+            algorithms.forEach(algorithm => {
+                const option = document.createElement('option');
+                option.value = algorithm;
+                option.textContent = algorithm;
+                algorithmSelect.appendChild(option);
+            });
+        }
+
+        function populateBenchmarkSelect(benchmarks) {
+            const benchmarkSelect = document.getElementById('benchmarkSelect');
+            benchmarkSelect.innerHTML = '';
+            benchmarks.forEach(benchmark => {
+                const option = document.createElement('option');
+                option.value = benchmark;
+                option.textContent = benchmark;
+                benchmarkSelect.appendChild(option);
+            });
+        }
+
+        function populateDatasetSelect(datasets) {
+            const datasetSelect = document.getElementById('datasetSelect');
+            datasetSelect.innerHTML = '';
+            datasets.forEach(dataset => {
+                const option = document.createElement('option');
+                option.value = dataset;
+                option.textContent = dataset;
+                datasetSelect.appendChild(option);
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            fetchAlgoBench();
+
+            document.getElementById('taskType').addEventListener('change', function() {
+                const taskType = this.value;
+                if (taskType === 'RunAlgorithm') {
+                    // Show algorithm, benchmark, and dataset selection
+                    document.getElementById('algorithmSelection').classList.remove('hidden');
+                    document.getElementById('benchmarkSelection').classList.remove('hidden');
+                    document.getElementById('datasetSelection').classList.remove('hidden');
+                    // Hide key-value pairs input
+                    document.getElementById('keyValuePairsContainer').classList.add('hidden');
+                } else {
+                    // Hide algorithm, benchmark, and dataset selection
+                    document.getElementById('algorithmSelection').classList.add('hidden');
+                    document.getElementById('benchmarkSelection').classList.add('hidden');
+                    document.getElementById('datasetSelection').classList.add('hidden');
+                    // Show key-value pairs input
+                    document.getElementById('keyValuePairsContainer').classList.remove('hidden');
+                }
+            });
+        });
     </script>
 </head>
 <body class="bg-gray-100">
@@ -171,8 +267,36 @@
                         <option value="EvaluateAlgorithm">Evaluate Algorithm</option>
                     </select>
                 </div>
-        
-                <div class="mb-4">
+
+                <!-- Algorithm Selection (hidden by default) -->
+                <div id="algorithmSelection" class="mb-4 hidden">
+                    <label for="algorithmSelect" class="block text-gray-700 text-sm font-bold mb-2">Algorithm</label>
+                    <select id="algorithmSelect" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <!-- Options will be populated dynamically -->
+                    </select>
+                </div>
+
+                <!-- Benchmark Selection (hidden by default) -->
+                <div id="benchmarkSelection" class="mb-4 hidden">
+                    <label for="benchmarkSelect" class="block text-gray-700 text-sm font-bold mb-2">Benchmark</label>
+                    <select id="benchmarkSelect" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <!-- Options will be populated dynamically -->
+                    </select>
+                </div>
+
+                <!-- Dataset Selection (hidden by default) -->
+                <div id="datasetSelection" class="mb-4 hidden">
+                    <label for="datasetSelect" class="block text-gray-700 text-sm font-bold mb-2">Dataset</label>
+                    <select id="datasetSelect" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <!-- Options can be customized -->
+                        <option value="dataset1">dataset1</option>
+                        <option value="dataset2">dataset2</option>
+                        <option value="dataset3">dataset3</option>
+                    </select>
+                </div>
+
+                <!-- Key-Value Pairs Container -->
+                <div id="keyValuePairsContainer" class="mb-4">
                     <label for="keyValuePairs" class="block text-gray-700 text-sm font-bold mb-2">Payload (Key-Value Pairs)</label>
                     <div id="keyValuePairs" class="space-y-2">
                         <div class="flex space-x-4">
@@ -182,14 +306,14 @@
                     </div>
                     <button type="button" class="mt-2 bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-4 rounded focus:outline-none focus:shadow-outline" onclick="addKeyValuePair()">Add Pair</button>
                 </div>
-        
+
                 <div class="flex items-center justify-between">
                     <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
                         Submit Task
                     </button>
                 </div>
             </form>
-        
+
             <!-- Template Selector -->
             <div class="bg-gray-200 shadow-md rounded px-6 py-6 ml-6 w-1/4">
                 <h2 class="text-lg font-bold mb-4">Templates</h2>
