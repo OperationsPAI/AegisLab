@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
+	"github.com/k0kubun/pp"
 )
 
 func SubmitTask(c *gin.Context) {
@@ -29,24 +30,25 @@ func SubmitTask(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "Invalid JSON payload"})
 		return
 	}
+	taskID := uuid.New().String()
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to marshal payload"})
 		return
 	}
-	taskID := uuid.New().String()
+	pp.Print(payload)
 
-	// 将任务添加到 Redis Stream 队列
 	_, err = executor.Rdb.XAdd(c, &redis.XAddArgs{
 		Stream: executor.StreamName,
 		Values: map[string]interface{}{
-			"taskID":   taskID,
-			"taskType": taskType,
-			"payload":  jsonPayload,
+			executor.RdbMsgTaskID:   taskID,
+			executor.RdbMsgTaskType: taskType,
+			executor.RdbMsgPayload:  jsonPayload,
 		},
 	}).Result()
+
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to submit task"})
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to submit task, err: %s", err)})
 		return
 	}
 
@@ -180,5 +182,11 @@ func GetAlgoBench(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"benchmarks": benchFiles,
 		"algorithms": algoFiles,
+	})
+}
+
+func GetDatasets(c *gin.Context) {
+	c.JSON(200, gin.H{
+		"datasets": []string{"test1"},
 	})
 }

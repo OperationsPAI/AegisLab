@@ -39,6 +39,7 @@ func main() {
 		Use:   "consumer",
 		Short: "Run as a consumer",
 		Run: func(cmd *cobra.Command, args []string) {
+			database.InitDB()
 			fmt.Println("Running as consumer")
 			executor.ConsumeTasks()
 		},

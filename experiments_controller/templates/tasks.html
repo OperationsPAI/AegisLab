@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Task Manager</title>
+    <!-- 引入 Tailwind CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- 引入 Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <style>
         .log-container {
             max-height: 200px;
@@ -13,7 +16,29 @@
         .hidden {
             display: none;
         }
+        /* 自定义 Select2 的样式以匹配 Tailwind CSS */
+        .select2-container .select2-selection--multiple {
+            min-height: 2.5rem;
+            border-radius: 0.25rem;
+            border-color: #d1d5db;
+            padding: 0.5rem;
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            background-color: #3b82f6;
+            border: none;
+            color: white;
+            padding: 0 0.5rem;
+            margin-top: 0.25rem;
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+            color: rgba(255,255,255,0.7);
+            margin-right: 0.25rem;
+        }
     </style>
+    <!-- 引入 jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- 引入 Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         async function toggleDetails(taskID) {
             const detailsDiv = document.getElementById(`details-${taskID}`);
@@ -96,20 +121,25 @@
             let payload = {};
 
             if (taskType === "RunAlgorithm") {
-                // Get selected algorithm, benchmark, and dataset
-                const algorithm = document.getElementById("algorithmSelect").value;
+                // 从 Select2 获取选中的算法
+                const selectedAlgorithms = $('#algorithmSelect').val();
                 const benchmark = document.getElementById("benchmarkSelect").value;
                 const dataset = document.getElementById("datasetSelect").value;
 
-                // Build payload
+                if (!selectedAlgorithms || selectedAlgorithms.length === 0) {
+                    alert("Please select at least one algorithm.");
+                    return;
+                }
+
+                // 构建 payload
                 payload = {
-                    algorithm: algorithm,
+                    algorithms: selectedAlgorithms,
                     benchmark: benchmark,
                     dataset: dataset
                 };
 
             } else {
-                // From key-value pairs build JSON
+                // 从键值对构建 JSON
                 const keyInputs = document.querySelectorAll(".key-input");
                 const valueInputs = document.querySelectorAll(".value-input");
                 payload = {};
@@ -146,54 +176,37 @@
             }
         }
 
-        function applyTemplate() {
-            const templateSelector = document.getElementById("templateSelector");
-            const selectedTemplate = templateSelector.value;
-
-            if (!selectedTemplate) return;
-
-            // Clear existing key-value pairs
-            const container = document.getElementById("keyValuePairs");
-            container.innerHTML = "";
-
-            // Parse the selected template and populate key-value pairs
-            try {
-                const templateObject = JSON.parse(selectedTemplate);
-                for (const [key, value] of Object.entries(templateObject)) {
-                    const row = document.createElement("div");
-                    row.className = "flex space-x-4 mb-2";
-                    row.innerHTML = `
-                        <input type="text" value="${key}" class="shadow appearance-none border rounded w-1/2 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline key-input">
-                        <input type="text" value="${value}" class="shadow appearance-none border rounded w-1/2 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline value-input">
-                        <button type="button" class="text-red-500 font-bold" onclick="this.parentElement.remove()">Remove</button>
-                    `;
-                    container.appendChild(row);
-                }
-            } catch (e) {
-                alert("Error applying template. Invalid template format.");
-            }
-        }
-
         async function fetchAlgoBench() {
             try {
-                const response = await fetch('/algobench');
-                if (response.ok) {
-                    const data = await response.json();
-                    const algorithms = data.algorithms || [];
-                    const benchmarks = data.benchmarks || [];
+                const [algobenchResponse, datasetsResponse] = await Promise.all([
+                    fetch('/algobench'),
+                    fetch('/datasets')
+                ]);
+
+                if (algobenchResponse.ok) {
+                    const algobenchData = await algobenchResponse.json();
+                    const algorithms = algobenchData.algorithms || [];
+                    const benchmarks = algobenchData.benchmarks || [];
                     populateAlgorithmSelect(algorithms);
                     populateBenchmarkSelect(benchmarks);
-                    // Assuming datasets are static for now
-                    const datasets = ['dataset1', 'dataset2', 'dataset3'];
-                    populateDatasetSelect(datasets);
                 } else {
                     console.error('Failed to fetch algorithms and benchmarks');
                 }
+
+                if (datasetsResponse.ok) {
+                    const datasetsData = await datasetsResponse.json();
+                    const datasets = datasetsData.datasets || [];
+                    populateDatasetSelect(datasets);
+                } else {
+                    console.error('Failed to fetch datasets');
+                }
+
             } catch (error) {
-                console.error('Error fetching algorithms and benchmarks:', error);
+                console.error('Error fetching data:', error);
             }
         }
 
+        // 使用 Select2 填充算法选择框
         function populateAlgorithmSelect(algorithms) {
             const algorithmSelect = document.getElementById('algorithmSelect');
             algorithmSelect.innerHTML = '';
@@ -202,6 +215,12 @@
                 option.value = algorithm;
                 option.textContent = algorithm;
                 algorithmSelect.appendChild(option);
+            });
+            // 初始化 Select2
+            $('#algorithmSelect').select2({
+                placeholder: 'Select Algorithms',
+                allowClear: true,
+                width: '100%'
             });
         }
 
@@ -233,18 +252,18 @@
             document.getElementById('taskType').addEventListener('change', function() {
                 const taskType = this.value;
                 if (taskType === 'RunAlgorithm') {
-                    // Show algorithm, benchmark, and dataset selection
+                    // 显示算法、基准和数据集选择
                     document.getElementById('algorithmSelection').classList.remove('hidden');
                     document.getElementById('benchmarkSelection').classList.remove('hidden');
                     document.getElementById('datasetSelection').classList.remove('hidden');
-                    // Hide key-value pairs input
+                    // 隐藏键值对输入
                     document.getElementById('keyValuePairsContainer').classList.add('hidden');
                 } else {
-                    // Hide algorithm, benchmark, and dataset selection
+                    // 隐藏算法、基准和数据集选择
                     document.getElementById('algorithmSelection').classList.add('hidden');
                     document.getElementById('benchmarkSelection').classList.add('hidden');
                     document.getElementById('datasetSelection').classList.add('hidden');
-                    // Show key-value pairs input
+                    // 显示键值对输入
                     document.getElementById('keyValuePairsContainer').classList.remove('hidden');
                 }
             });
@@ -258,7 +277,7 @@
 
         <div class="flex">
             <!-- Task Submission Form -->
-            <form id="taskForm" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-6 w-3/4" onsubmit="submitTask(event)">
+            <form id="taskForm" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-6 w-full" onsubmit="submitTask(event)">
                 <div class="mb-4">
                     <label for="taskType" class="block text-gray-700 text-sm font-bold mb-2">Task Type</label>
                     <select id="taskType" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
@@ -271,7 +290,7 @@
                 <!-- Algorithm Selection (hidden by default) -->
                 <div id="algorithmSelection" class="mb-4 hidden">
                     <label for="algorithmSelect" class="block text-gray-700 text-sm font-bold mb-2">Algorithm</label>
-                    <select id="algorithmSelect" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    <select id="algorithmSelect" multiple class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                         <!-- Options will be populated dynamically -->
                     </select>
                 </div>
@@ -288,10 +307,7 @@
                 <div id="datasetSelection" class="mb-4 hidden">
                     <label for="datasetSelect" class="block text-gray-700 text-sm font-bold mb-2">Dataset</label>
                     <select id="datasetSelect" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                        <!-- Options can be customized -->
-                        <option value="dataset1">dataset1</option>
-                        <option value="dataset2">dataset2</option>
-                        <option value="dataset3">dataset3</option>
+                        <!-- Options will be populated dynamically -->
                     </select>
                 </div>
 
@@ -313,17 +329,6 @@
                     </button>
                 </div>
             </form>
-
-            <!-- Template Selector -->
-            <div class="bg-gray-200 shadow-md rounded px-6 py-6 ml-6 w-1/4">
-                <h2 class="text-lg font-bold mb-4">Templates</h2>
-                <select id="templateSelector" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" onchange="applyTemplate()">
-                    <option value="">Select a Template</option>
-                    <option value='{"key1": "value1", "key2": "value2"}'>Basic Template</option>
-                    <option value='{"action": "inject", "target": "serviceA"}'>Fault Injection</option>
-                    <option value='{"algorithm": "A*", "input": "graph1"}'>Algorithm Execution</option>
-                </select>
-            </div>
         </div>
 
         <!-- Task List -->
