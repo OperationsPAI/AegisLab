@@ -32,8 +32,7 @@ const (
 	EvalPayloadBench   = "benchmark"
 
 	InjectFaultType = "faultType"
-	InjectStartTime = "start_time"
-	InjectEndTime   = "end_time"
+	InjectDuration  = "duration"
 	InjectSpec      = "spec"
 )
 
@@ -198,6 +197,12 @@ func executeFaultInjection(taskID string, payload map[string]interface{}) error 
 		logrus.Error(err)
 		return err
 	}
+	duration, ok := payload[InjectDuration].(float64)
+	if !ok {
+		err := fmt.Errorf("invalid or missing '%s' in payload", InjectDuration)
+		logrus.Error(err)
+		return err
+	}
 
 	injectSpecMap, ok := payload[InjectSpec].(map[string]interface{})
 	if !ok {
@@ -220,7 +225,6 @@ func executeFaultInjection(taskID string, payload map[string]interface{}) error 
 	updateTaskStatus(taskID, "Running", fmt.Sprintf("Executing fault injection for task %s", taskID))
 
 	// 故障注入逻辑
-	_ = handler.ChaosConfig{}
 	spec := handler.SpecMap[handler.ChaosType(faultType)]
 	actionSpace, err := handler.GenerateActionSpace(spec)
 	if err != nil {
@@ -239,18 +243,24 @@ func executeFaultInjection(taskID string, payload map[string]interface{}) error 
 	}
 
 	config := handler.ChaosConfig{
-		Type: handler.ChaosType(faultType),
-		Spec: chaosSpec,
+		Type:     handler.ChaosType(faultType),
+		Spec:     chaosSpec,
+		Duration: int(duration),
 	}
-	// handler.Create(config)
+	handler.Create(config)
+	jsonData, err := json.Marshal(config)
+	if err != nil {
+		logrus.Errorf("marshal config failed, config: %+v, err: %s", config, err)
+		return err
+	}
 	pp.Print("config", config)
 
 	// 创建新的故障注入记录
 	faultRecord := database.FaultInjectionSchedule{
 		ID:          taskID,                                   // 使用任务 ID 作为记录的主键
 		FaultType:   faultType,                                // 故障类型
-		Config:      fmt.Sprintf("%v", payload),               // 故障配置 (JSON 格式化字符串)
-		LastTime:    time.Now(),                               // 开始时间
+		Config:      string(jsonData),                         // 故障配置 (JSON 格式化字符串)
+		Duration:    int(duration),                            // 开始时间
 		Description: fmt.Sprintf("Fault for task %s", taskID), // 可选描述
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
