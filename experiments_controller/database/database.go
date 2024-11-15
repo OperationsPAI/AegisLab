@@ -25,7 +25,7 @@ type FaultInjectionSchedule struct {
 	ID          string    `gorm:"primaryKey" json:"id"` // 唯一标识
 	FaultType   int       `json:"fault_type"`           // 故障类型
 	Config      string    `json:"config"`               // 配置 JSON 格式
-	LastTime    time.Time `json:"last_time"`            // 故障持续时间
+	Duration    int       `json:"duration"`             // 故障持续时间
 	StartTime   time.Time `json:"start_time"`           // 故障开始时间
 	EndTime     time.Time `json:"end_time"`             // 故障结束时间
 	Description string    `json:"description"`          // 描述（可选字段）

@@ -183,6 +183,24 @@
 
                 payload['faultType'] = faultTypeKey; // 使用数字表示的故障类型
 
+                // 获取 Duration 值
+                const durationInput = document.getElementById('durationInput');
+                let durationValue = durationInput.value.trim();
+
+                if (durationValue === '') {
+                    alert("Duration is required.");
+                    return;
+                }
+
+                durationValue = Number(durationValue);
+                if (isNaN(durationValue) || durationValue <= 0) {
+                    alert("Duration must be a positive number.");
+                    return;
+                }
+
+                // 添加 Duration 到 payload
+                payload['duration'] = durationValue;
+
                 // 收集参数
                 let parametersValid = true;
                 const parameters = {};
@@ -384,6 +402,11 @@
                     <select id="faultTypeSelect" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                         <!-- 选项将由 JavaScript 动态填充 -->
                     </select>
+                    <!-- 添加 Duration 输入字段 -->
+                    <div class="mb-4 mt-4">
+                        <label for="durationInput" class="block text-gray-700 text-sm font-bold mb-2">Duration (minutes)</label>
+                        <input type="number" id="durationInput" name="Duration" min="1" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    </div>
                     <div id="faultParameters" class="mt-4">
                         <!-- 参数输入字段将由 JavaScript 动态填充 -->
                     </div>
