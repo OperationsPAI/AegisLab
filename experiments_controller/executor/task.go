@@ -4,11 +4,11 @@ import (
 	"context"
 	"dagger/rcabench/database"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"dagger.io/dagger/dag"
@@ -31,83 +31,189 @@ const (
 	EvalPayloadDataset = "dataset"
 	EvalPayloadBench   = "benchmark"
 
-	InjectFaultTpye = "faultType"
+	InjectFaultType = "faultType"
 	InjectStartTime = "start_time"
 	InjectEndTime   = "end_time"
 	InjectSpec      = "spec"
 )
 
 func initRedisClient() *redis.Client {
-	return redis.NewClient(&redis.Options{
+	client := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "",
 		DB:       0,
 	})
+
+	// 检查 Redis 连接是否成功
+	ctx := context.Background()
+	if err := client.Ping(ctx).Err(); err != nil {
+		logrus.Fatalf("Failed to connect to Redis: %v", err)
+	}
+
+	return client
 }
 
 const (
-	StreamName = "task_stream"
+	StreamName   = "task_stream"
+	GroupName    = "task_consumer_group"
+	ConsumerName = "task_consumer"
 )
 
 var Rdb = initRedisClient()
 
+func init() {
+	initConsumerGroup()
+}
+
+func initConsumerGroup() {
+	ctx := context.Background()
+	err := Rdb.XGroupCreateMkStream(ctx, StreamName, GroupName, "0").Err()
+	if err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
+		logrus.Fatalf("Failed to create consumer group: %v", err)
+	}
+}
+
 func ConsumeTasks() {
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("ConsumeTasks panicked: %v", r)
+		}
+	}()
+
+	ctx := context.Background()
 	for {
-		entries, err := Rdb.XRead(context.Background(), &redis.XReadArgs{
-			Streams: []string{StreamName, "$"},
-			Count:   1,
-			Block:   0,
+		// 尝试读取未处理的消息
+		entries, err := Rdb.XReadGroup(ctx, &redis.XReadGroupArgs{
+			Group:    GroupName,
+			Consumer: ConsumerName,
+			Streams:  []string{StreamName, "0"},
+			Count:    1,
+			Block:    0,
 		}).Result()
-		if err != nil {
-			fmt.Println("Error reading from stream:", err)
+		if err != nil && err != redis.Nil {
+			logrus.Errorf("Error reading from stream: %v", err)
+			time.Sleep(time.Second)
 			continue
 		}
 
-		for _, entry := range entries[0].Messages {
-			taskID := entry.Values[RdbMsgTaskID].(string)
-			taskType := entry.Values[RdbMsgTaskType].(string)
-			jsonPayload := entry.Values[RdbMsgPayload].(string)
-			payload := map[string]interface{}{}
-			err = json.Unmarshal([]byte(jsonPayload), &payload)
-			if err != nil {
-				logrus.Errorf("Unmarshaling %s failed", jsonPayload)
+		if len(entries) > 0 && len(entries[0].Messages) > 0 {
+			for _, entry := range entries[0].Messages {
+				processTask(entry)
 			}
+			continue
+		}
 
-			logrus.Infof("Executing %s", taskID)
+		// 如果没有未处理的消息，读取新的消息
+		entries, err = Rdb.XReadGroup(ctx, &redis.XReadGroupArgs{
+			Group:    GroupName,
+			Consumer: ConsumerName,
+			Streams:  []string{StreamName, ">"},
+			Count:    1,
+			Block:    0,
+		}).Result()
+		if err != nil && err != redis.Nil {
+			logrus.Errorf("Error reading from stream: %v", err)
+			time.Sleep(time.Second)
+			continue
+		}
 
-			updateTaskStatus(taskID, "Running", fmt.Sprintf("Task %s started of type %s", taskID, taskType))
-
-			switch taskType {
-			case FaultInjection:
-				err = executeFaultInjection(taskID, payload)
-			case RunAlgo:
-				err = executeAlgorithm(taskID, payload)
+		if len(entries) > 0 && len(entries[0].Messages) > 0 {
+			for _, entry := range entries[0].Messages {
+				processTask(entry)
 			}
-			if err != nil {
-				updateTaskStatus(taskID, "Error", fmt.Sprintf("Task %s error, message: %s", taskID, err))
-				logrus.Error(err)
-			} else {
-				updateTaskStatus(taskID, "Completed", fmt.Sprintf("Task %s completed", taskID))
-				logrus.Infof("Task %s completed", taskID)
-			}
-			Rdb.XDel(context.Background(), StreamName, entry.ID)
+		} else {
+			// 如果没有消息，稍等一会儿
+			time.Sleep(time.Second)
 		}
 	}
 }
 
+func processTask(entry redis.XMessage) {
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("processTask panicked: %v", r)
+		}
+		// 确认并删除消息
+		Rdb.XAck(context.Background(), StreamName, GroupName, entry.ID)
+		Rdb.XDel(context.Background(), StreamName, entry.ID)
+	}()
+
+	taskID, ok := entry.Values[RdbMsgTaskID].(string)
+	if !ok {
+		logrus.Error("Invalid taskID in message")
+		return
+	}
+	taskType, ok := entry.Values[RdbMsgTaskType].(string)
+	if !ok {
+		logrus.Error("Invalid taskType in message")
+		return
+	}
+	jsonPayload, ok := entry.Values[RdbMsgPayload].(string)
+	if !ok {
+		logrus.Error("Invalid payload in message")
+		return
+	}
+	payload := map[string]interface{}{}
+	err := json.Unmarshal([]byte(jsonPayload), &payload)
+	if err != nil {
+		logrus.Errorf("Unmarshaling %s failed: %v", jsonPayload, err)
+		return
+	}
+
+	logrus.Infof("Executing %s", taskID)
+	updateTaskStatus(taskID, "Running", fmt.Sprintf("Task %s started of type %s", taskID, taskType))
+
+	var execErr error
+	switch taskType {
+	case FaultInjection:
+		execErr = executeFaultInjection(taskID, payload)
+	case RunAlgo:
+		execErr = executeAlgorithm(taskID, payload)
+	default:
+		execErr = fmt.Errorf("unknown task type: %s", taskType)
+	}
+
+	if execErr != nil {
+		updateTaskStatus(taskID, "Error", fmt.Sprintf("Task %s error, message: %s", taskID, execErr))
+		logrus.Error(execErr)
+	} else {
+		updateTaskStatus(taskID, "Completed", fmt.Sprintf("Task %s completed", taskID))
+		logrus.Infof("Task %s completed", taskID)
+	}
+}
+
 func executeFaultInjection(taskID string, payload map[string]interface{}) error {
-	logrus.Infof("injecting, taskID: %s", taskID)
+	logrus.Infof("Injecting fault, taskID: %s", taskID)
 	pp.Print("payload:", payload)
 
 	// 从 payload 中提取字段
-	faultType, err := strconv.Atoi(payload[InjectFaultTpye].(string))
+	faultTypeStr, ok := payload[InjectFaultType].(string)
+	if !ok {
+		err := fmt.Errorf("invalid or missing '%s' in payload", InjectFaultType)
+		logrus.Error(err)
+		return err
+	}
+	faultType, err := strconv.Atoi(faultTypeStr)
 	if err != nil {
 		logrus.Error(err)
 		return err
 	}
+
+	injectSpecMap, ok := payload[InjectSpec].(map[string]interface{})
+	if !ok {
+		err := fmt.Errorf("invalid or missing '%s' in payload", InjectSpec)
+		logrus.Error(err)
+		return err
+	}
 	injectSpec := make(map[string]int)
-	for k, v := range payload[InjectSpec].(map[string]interface{}) {
-		injectSpec[k] = int(v.(float64))
+	for k, v := range injectSpecMap {
+		floatVal, ok := v.(float64)
+		if !ok {
+			err := fmt.Errorf("invalid value for key '%s' in injectSpec", k)
+			logrus.Error(err)
+			return err
+		}
+		injectSpec[k] = int(floatVal)
 	}
 
 	// 更新任务状态
@@ -119,6 +225,7 @@ func executeFaultInjection(taskID string, payload map[string]interface{}) error 
 	actionSpace, err := handler.GenerateActionSpace(spec)
 	if err != nil {
 		logrus.Error(err)
+		return err
 	}
 	err = handler.ValidateAction(injectSpec, actionSpace)
 	if err != nil {
@@ -137,8 +244,6 @@ func executeFaultInjection(taskID string, payload map[string]interface{}) error 
 	}
 	// handler.Create(config)
 	pp.Print("config", config)
-
-	//需要对账系统来 check 故障注入是否成功，如果不成功，则把数据库里的条目删除，否则会出现假注入。
 
 	// 创建新的故障注入记录
 	faultRecord := database.FaultInjectionSchedule{
@@ -163,19 +268,21 @@ func executeFaultInjection(taskID string, payload map[string]interface{}) error 
 func executeAlgorithm(taskID string, payload map[string]interface{}) error {
 	requiredKeys := []string{EvalPayloadBench, EvalPayloadAlgo, EvalPayloadDataset}
 	for _, key := range requiredKeys {
-		if val, ok := payload[key].(string); !ok || val == "" {
+		val, ok := payload[key].(string)
+		if !ok || val == "" {
 			return fmt.Errorf("missing or invalid '%s' key in payload", key)
 		}
 	}
 	bench := payload[EvalPayloadBench].(string)
 	algo := payload[EvalPayloadAlgo].(string)
 	dataset := payload[EvalPayloadDataset].(string)
-	_ = dataset //TODO
+	_ = dataset // TODO: 处理 dataset
+
 	updateTaskStatus(taskID, "Running", fmt.Sprintf("Running algorithm for task %s", taskID))
 
 	pwd, err := os.Getwd()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get current working directory: %v", err)
 	}
 
 	parentDir := filepath.Dir(pwd)
@@ -185,14 +292,15 @@ func executeAlgorithm(taskID string, payload map[string]interface{}) error {
 	startScriptPath := filepath.Join(parentDir, "experiments", "run_exp.py")
 
 	if _, err := os.Stat(benchPath); os.IsNotExist(err) {
-		return errors.New("benchmark directory does not exist")
+		return fmt.Errorf("benchmark directory does not exist: %s", benchPath)
 	}
 	if _, err := os.Stat(algoPath); os.IsNotExist(err) {
-		return errors.New("algorithm directory does not exist")
+		return fmt.Errorf("algorithm directory does not exist: %s", algoPath)
 	}
 	if _, err := os.Stat(startScriptPath); os.IsNotExist(err) {
-		return errors.New("start script does not exist")
+		return fmt.Errorf("start script does not exist: %s", startScriptPath)
 	}
+
 	rc := &Rcabench{}
 	con := rc.Evaluate(context.Background(), dag.Host().Directory(benchPath), dag.Host().Directory(algoPath), dag.Host().File(startScriptPath))
 
@@ -205,17 +313,24 @@ func executeAlgorithm(taskID string, payload map[string]interface{}) error {
 }
 
 func updateTaskStatus(taskID, status, message string) {
+	ctx := context.Background()
 	// 更新 Redis 中的任务状态
 	taskKey := fmt.Sprintf("task:%s:status", taskID)
-	Rdb.HSet(context.Background(), taskKey, "status", status)
-	Rdb.HSet(context.Background(), taskKey, "updated_at", time.Now().Format(time.RFC3339))
+	if err := Rdb.HSet(ctx, taskKey, "status", status).Err(); err != nil {
+		logrus.Errorf("Failed to update task status in Redis for task %s: %v", taskID, err)
+	}
+	if err := Rdb.HSet(ctx, taskKey, "updated_at", time.Now().Format(time.RFC3339)).Err(); err != nil {
+		logrus.Errorf("Failed to update task updated_at in Redis for task %s: %v", taskID, err)
+	}
 
 	// 添加日志到 Redis
 	logKey := fmt.Sprintf("task:%s:logs", taskID)
-	Rdb.RPush(context.Background(), logKey, fmt.Sprintf("%s - %s", time.Now().Format(time.RFC3339), message))
+	if err := Rdb.RPush(ctx, logKey, fmt.Sprintf("%s - %s", time.Now().Format(time.RFC3339), message)).Err(); err != nil {
+		logrus.Errorf("Failed to push log to Redis for task %s: %v", taskID, err)
+	}
 	logrus.Info(fmt.Sprintf("%s - %s", time.Now().Format(time.RFC3339), message))
 	// 更新 SQLite 中的任务状态
 	if err := database.DB.Model(&database.Task{}).Where("id = ?", taskID).Update("status", status).Error; err != nil {
-		logrus.Errorf("Failed to update task %s in SQLite: %v\n", taskID, err)
+		logrus.Errorf("Failed to update task %s in SQLite: %v", taskID, err)
 	}
 }
