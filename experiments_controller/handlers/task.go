@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
@@ -201,6 +202,23 @@ func GetAlgoBench(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"benchmarks": benchFiles,
 		"algorithms": algoFiles,
+	})
+}
+
+func GetInjectionPara(c *gin.Context) {
+	choice := make(map[string][]handler.ActionSpace, 0)
+	for tp, spec := range handler.SpecMap {
+		actionSpace, err := handler.GenerateActionSpace(spec)
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Failed to generate action space"})
+			return
+		}
+		name := handler.GetChaosTypeName(tp)
+		choice[name] = actionSpace
+	}
+	c.JSON(200, gin.H{
+		"specification": choice,
+		"keymap":        handler.ChaosTypeMap,
 	})
 }
 

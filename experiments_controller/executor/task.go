@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"dagger.io/dagger/dag"
+	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/go-redis/redis/v8"
 	"github.com/k0kubun/pp"
 	"github.com/sirupsen/logrus"
@@ -28,6 +30,11 @@ const (
 	EvalPayloadAlgo    = "algorithm"
 	EvalPayloadDataset = "dataset"
 	EvalPayloadBench   = "benchmark"
+
+	InjectFaultTpye = "faultType"
+	InjectStartTime = "start_time"
+	InjectEndTime   = "end_time"
+	InjectSpec      = "spec"
 )
 
 func initRedisClient() *redis.Client {
@@ -93,32 +100,52 @@ func executeFaultInjection(taskID string, payload map[string]interface{}) error 
 	pp.Print("payload:", payload)
 
 	// 从 payload 中提取字段
-	faultType := payload["fault_type"].(string)
-	startTime := payload["start_time"].(string)
-	endTime := payload["end_time"].(string)
+	faultType, err := strconv.Atoi(payload[InjectFaultTpye].(string))
+	if err != nil {
+		logrus.Error(err)
+		return err
+	}
+	injectSpec := make(map[string]int)
+	for k, v := range payload[InjectSpec].(map[string]interface{}) {
+		injectSpec[k] = int(v.(float64))
+	}
 
 	// 更新任务状态
 	updateTaskStatus(taskID, "Running", fmt.Sprintf("Executing fault injection for task %s", taskID))
 
-	// 转换 startTime 和 endTime 为 time.Time
-	startTimeParsed, err := time.Parse(time.RFC3339, startTime)
+	// 故障注入逻辑
+	_ = handler.ChaosConfig{}
+	spec := handler.SpecMap[handler.ChaosType(faultType)]
+	actionSpace, err := handler.GenerateActionSpace(spec)
 	if err != nil {
-		logrus.Errorf("Failed to parse start_time: %v", err)
-		return fmt.Errorf("invalid start_time format: %v", err)
+		logrus.Error(err)
 	}
-	endTimeParsed, err := time.Parse(time.RFC3339, endTime)
+	err = handler.ValidateAction(injectSpec, actionSpace)
 	if err != nil {
-		logrus.Errorf("Failed to parse end_time: %v", err)
-		return fmt.Errorf("invalid end_time format: %v", err)
+		logrus.Error("ValidateAction", err)
+		return err
 	}
+	chaosSpec, err := handler.ActionToStruct(handler.ChaosType(faultType), injectSpec)
+	if err != nil {
+		logrus.Errorf("ActionToStruct, err: %s", err)
+		return err
+	}
+
+	config := handler.ChaosConfig{
+		Type: handler.ChaosType(faultType),
+		Spec: chaosSpec,
+	}
+	// handler.Create(config)
+	pp.Print("config", config)
+
+	//需要对账系统来 check 故障注入是否成功，如果不成功，则把数据库里的条目删除，否则会出现假注入。
 
 	// 创建新的故障注入记录
 	faultRecord := database.FaultInjectionSchedule{
 		ID:          taskID,                                   // 使用任务 ID 作为记录的主键
 		FaultType:   faultType,                                // 故障类型
 		Config:      fmt.Sprintf("%v", payload),               // 故障配置 (JSON 格式化字符串)
-		StartTime:   startTimeParsed,                          // 开始时间
-		EndTime:     endTimeParsed,                            // 结束时间
+		LastTime:    time.Now(),                               // 开始时间
 		Description: fmt.Sprintf("Fault for task %s", taskID), // 可选描述
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -129,10 +156,6 @@ func executeFaultInjection(taskID string, payload map[string]interface{}) error 
 		logrus.Errorf("Failed to write fault injection schedule to database: %v", err)
 		return fmt.Errorf("failed to write to database: %v", err)
 	}
-
-	// 故障注入逻辑
-	// chaos.NewIOChaos() // change here
-	//需要对账系统来 check 故障注入是否成功，如果不成功，则把数据库里的条目删除，否则会出现假注入。
 
 	return nil
 }

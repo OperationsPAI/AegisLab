@@ -91,6 +91,60 @@
             container.appendChild(row);
         }
 
+        let injectionData = {};
+
+        async function fetchInjectionData() {
+            try {
+                const response = await fetch('/injection');
+                if (response.ok) {
+                    injectionData = await response.json();
+                    populateFaultTypeSelect();
+                } else {
+                    console.error('Failed to fetch injection data');
+                }
+            } catch (error) {
+                console.error('Error fetching injection data:', error);
+            }
+        }
+
+        function populateFaultTypeSelect() {
+            const faultTypeSelect = document.getElementById('faultTypeSelect');
+            faultTypeSelect.innerHTML = '';
+            const keymap = injectionData.keymap || {};
+            for (const [key, value] of Object.entries(keymap)) {
+                const option = document.createElement('option');
+                option.value = key; // 使用故障类型的数字表示
+                option.textContent = value;
+                faultTypeSelect.appendChild(option);
+            }
+            // 设置默认值并加载参数
+            if (faultTypeSelect.options.length > 0) {
+                faultTypeSelect.selectedIndex = 0;
+                const selectedFaultTypeKey = faultTypeSelect.options[0].value;
+                populateFaultParameters(selectedFaultTypeKey);
+            }
+        }
+
+        function populateFaultParameters(faultTypeKey) {
+            const faultParametersDiv = document.getElementById('faultParameters');
+            faultParametersDiv.innerHTML = ''; // 清除之前的参数
+            const faultTypeName = injectionData.keymap[faultTypeKey];
+            const specification = injectionData.specification[faultTypeName];
+            if (specification) {
+                specification.forEach(param => {
+                    const paramDiv = document.createElement('div');
+                    paramDiv.className = 'mb-2';
+                    paramDiv.innerHTML = `
+                        <label class="block text-gray-700 text-sm font-bold mb-1">${param.FieldName} (${param.Min} - ${param.Max}) ${param.IsOptional ? '(Optional)' : ''}</label>
+                        <input type="number" id="param-${param.FieldName}" name="${param.FieldName}" min="${param.Min}" max="${param.Max}" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    `;
+                    faultParametersDiv.appendChild(paramDiv);
+                });
+            } else {
+                faultParametersDiv.innerHTML = '<p class="text-red-500">No parameters found for this fault type.</p>';
+            }
+        }
+
         async function submitTask(event) {
             event.preventDefault(); // 阻止表单默认提交
 
@@ -115,6 +169,50 @@
                     benchmark: benchmark,
                     dataset: dataset
                 };
+
+            } else if (taskType === "FaultInjection") {
+                // 收集故障类型和参数
+                const faultTypeKey = document.getElementById('faultTypeSelect').value;
+                const faultTypeName = injectionData.keymap[faultTypeKey];
+                const specification = injectionData.specification[faultTypeName];
+
+                if (!faultTypeName || !specification) {
+                    alert("Invalid fault type selected.");
+                    return;
+                }
+
+                payload['faultType'] = faultTypeKey; // 使用数字表示的故障类型
+
+                // 收集参数
+                let parametersValid = true;
+                const parameters = {};
+
+                specification.forEach(param => {
+                    const input = document.getElementById(`param-${param.FieldName}`);
+                    let value = input.value.trim();
+
+                    if (value === '' && !param.IsOptional) {
+                        alert(`${param.FieldName} is required.`);
+                        parametersValid = false;
+                        return;
+                    }
+
+                    value = Number(value);
+                    if (isNaN(value) || value < param.Min || value > param.Max) {
+                        alert(`${param.FieldName} must be a number between ${param.Min} and ${param.Max}.`);
+                        parametersValid = false;
+                        return;
+                    }
+
+                    parameters[param.FieldName] = value;
+                });
+
+                if (!parametersValid) {
+                    return;
+                }
+
+                // 合并参数到 payload
+                payload["spec"] = parameters;
 
             } else {
                 // 从键值对构建 JSON
@@ -220,24 +318,45 @@
 
         document.addEventListener("DOMContentLoaded", function() {
             fetchAlgoBench();
+            fetchInjectionData().then(() => {
+                const taskTypeSelect = document.getElementById('taskType');
 
-            document.getElementById('taskType').addEventListener('change', function() {
-                const taskType = this.value;
-                if (taskType === 'RunAlgorithm') {
-                    // 显示算法、基准和数据集选择
-                    document.getElementById('algorithmSelection').classList.remove('hidden');
-                    document.getElementById('benchmarkSelection').classList.remove('hidden');
-                    document.getElementById('datasetSelection').classList.remove('hidden');
-                    // 隐藏键值对输入
-                    document.getElementById('keyValuePairsContainer').classList.add('hidden');
-                } else {
-                    // 隐藏算法、基准和数据集选择
-                    document.getElementById('algorithmSelection').classList.add('hidden');
-                    document.getElementById('benchmarkSelection').classList.add('hidden');
-                    document.getElementById('datasetSelection').classList.add('hidden');
-                    // 显示键值对输入
-                    document.getElementById('keyValuePairsContainer').classList.remove('hidden');
-                }
+                taskTypeSelect.addEventListener('change', function() {
+                    const taskType = this.value;
+                    if (taskType === 'RunAlgorithm') {
+                        // 显示算法、基准和数据集选择
+                        document.getElementById('algorithmSelection').classList.remove('hidden');
+                        document.getElementById('benchmarkSelection').classList.remove('hidden');
+                        document.getElementById('datasetSelection').classList.remove('hidden');
+                        // 隐藏键值对输入和故障注入选项
+                        document.getElementById('keyValuePairsContainer').classList.add('hidden');
+                        document.getElementById('faultInjectionOptions').classList.add('hidden');
+                    } else if (taskType === 'FaultInjection') {
+                        // 显示故障注入选项
+                        document.getElementById('faultInjectionOptions').classList.remove('hidden');
+                        // 隐藏其他输入
+                        document.getElementById('algorithmSelection').classList.add('hidden');
+                        document.getElementById('benchmarkSelection').classList.add('hidden');
+                        document.getElementById('datasetSelection').classList.add('hidden');
+                        document.getElementById('keyValuePairsContainer').classList.add('hidden');
+                    } else {
+                        // 显示键值对输入
+                        document.getElementById('keyValuePairsContainer').classList.remove('hidden');
+                        // 隐藏其他输入
+                        document.getElementById('algorithmSelection').classList.add('hidden');
+                        document.getElementById('benchmarkSelection').classList.add('hidden');
+                        document.getElementById('datasetSelection').classList.add('hidden');
+                        document.getElementById('faultInjectionOptions').classList.add('hidden');
+                    }
+                });
+
+                document.getElementById('faultTypeSelect').addEventListener('change', function() {
+                    const selectedFaultTypeKey = this.value;
+                    populateFaultParameters(selectedFaultTypeKey);
+                });
+
+                // 手动触发一次 change 事件，确保初始状态正确
+                taskTypeSelect.dispatchEvent(new Event('change'));
             });
         });
     </script>
@@ -257,6 +376,17 @@
                         <option value="RunAlgorithm">Run Algorithm</option>
                         <option value="EvaluateAlgorithm">Evaluate Algorithm</option>
                     </select>
+                </div>
+
+                <!-- 故障注入选项（默认隐藏） -->
+                <div id="faultInjectionOptions" class="mb-4 hidden">
+                    <label for="faultTypeSelect" class="block text-gray-700 text-sm font-bold mb-2">Fault Type</label>
+                    <select id="faultTypeSelect" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <!-- 选项将由 JavaScript 动态填充 -->
+                    </select>
+                    <div id="faultParameters" class="mt-4">
+                        <!-- 参数输入字段将由 JavaScript 动态填充 -->
+                    </div>
                 </div>
 
                 <!-- Algorithm Selection (hidden by default) -->

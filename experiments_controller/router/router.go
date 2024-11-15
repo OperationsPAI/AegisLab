@@ -22,5 +22,6 @@ func New() *gin.Engine {
 	router.GET("/task/:taskID/logs", handlers.GetTaskLogs)
 	router.GET("/algobench", handlers.GetAlgoBench)
 	router.GET("/datasets", handlers.GetDatasets)
+	router.GET("/injection", handlers.GetInjectionPara)
 	return router
 }
