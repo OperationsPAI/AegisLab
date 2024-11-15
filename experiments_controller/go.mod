@@ -4,6 +4,7 @@ go 1.23.2
 
 require (
 	dagger.io/dagger v0.13.7
+	github.com/CUHK-SE-Group/chaos-experiment v0.0.0-20241115072640-63ecb5d79fe0
 	github.com/gin-contrib/cors v1.7.2
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-redis/redis/v8 v8.11.5
@@ -17,7 +18,6 @@ require (
 
 require (
 	github.com/99designs/gqlgen v0.17.55 // indirect
-	github.com/CUHK-SE-Group/chaos-experiment v0.0.0-20241106111231-9f884e6141b2 // indirect
 	github.com/Khan/genqlient v0.7.0 // indirect
 	github.com/adrg/xdg v0.5.1 // indirect
 	github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137 // indirect
