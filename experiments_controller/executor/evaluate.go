@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"dagger.io/dagger"
@@ -36,15 +37,14 @@ func (m *Rcabench) BuildAlgoBuilderImage(ctx context.Context, src *dagger.Direct
 func (m *Rcabench) BuildAlgoRunnerImage(ctx context.Context, bench_dir, src *dagger.Directory, start_script *dagger.File, startTime, endTime time.Time) *dagger.Container {
 	data := m.BuildBenchmarkDataImage(ctx, bench_dir)
 	builder := m.BuildAlgoBuilderImage(ctx, src)
-
 	runner := builder.
 		WithWorkdir("/app").
 		WithDirectory("/app/input", data.Directory("/app/input")).
 		WithFile("/app/rca.py", src.File("rca.py")).
 		WithFile("/app/run_exp.py", start_script).
 		WithEnvVariable("WORKSPACE", "/app").
-		WithEnvVariable("ABNORMAL_START", string(startTime.Unix())).
-		WithEnvVariable("ABNORMAL_END", string(endTime.Unix()))
+		WithEnvVariable("ABNORMAL_START", strconv.Itoa(int(startTime.Unix()))).
+		WithEnvVariable("ABNORMAL_END", strconv.Itoa(int(endTime.Unix())))
 
 	return runner
 }
