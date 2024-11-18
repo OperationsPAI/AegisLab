@@ -1,13 +1,17 @@
 package main
 
 import (
+	"dagger/rcabench/config"
 	"dagger/rcabench/database"
 	"dagger/rcabench/executor"
 	"dagger/rcabench/router"
-	"fmt"
+	"log"
 	"os"
 
+	"github.com/go-logr/stdr"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	k8slogger "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func main() {
@@ -17,7 +21,7 @@ func main() {
 		Use:   "rcabench",
 		Short: "RCA Bench is a benchmarking tool",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("Please specify a mode: producer, consumer, or both")
+			logrus.Println("Please specify a mode: producer, consumer, or both")
 		},
 	}
 
@@ -25,7 +29,7 @@ func main() {
 		Use:   "producer",
 		Short: "Run as a producer",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("Running as producer")
+			logrus.Println("Running as producer")
 			database.InitDB()
 			engine := router.New()
 			err := engine.Run(":" + port)
@@ -40,7 +44,8 @@ func main() {
 		Short: "Run as a consumer",
 		Run: func(cmd *cobra.Command, args []string) {
 			database.InitDB()
-			fmt.Println("Running as consumer")
+			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
+			logrus.Println("Running as consumer")
 			executor.ConsumeTasks()
 		},
 	}
@@ -49,7 +54,8 @@ func main() {
 		Use:   "both",
 		Short: "Run as both producer and consumer",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("Running as both producer and consumer")
+			logrus.Println("Running as both producer and consumer")
+			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
 			engine := router.New()
 			database.InitDB()
 			go executor.ConsumeTasks()
@@ -59,13 +65,13 @@ func main() {
 			}
 		},
 	}
-
+	config.Init("./config.toml")
 	rootCmd.PersistentFlags().StringVarP(&port, "port", "p", "8080", "Port to run the server on")
 
 	rootCmd.AddCommand(producerCmd, consumerCmd, bothCmd)
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		logrus.Println(err)
 		os.Exit(1)
 	}
 }

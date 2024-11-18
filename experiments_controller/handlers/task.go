@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"dagger/rcabench/config"
 	"dagger/rcabench/database"
 	"dagger/rcabench/executor"
 	"encoding/json"
@@ -9,12 +10,14 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
+	"github.com/CUHK-SE-Group/chaos-experiment/client"
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
-	"github.com/k0kubun/pp"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -46,7 +49,6 @@ func SubmitTask(c *gin.Context) {
 		c.JSON(500, gin.H{"error": "Failed to marshal payload"})
 		return
 	}
-	pp.Print(payload)
 
 	ctx := c.Request.Context()
 
@@ -223,7 +225,88 @@ func GetInjectionPara(c *gin.Context) {
 }
 
 func GetDatasets(c *gin.Context) {
-	c.JSON(200, gin.H{
-		"datasets": []string{"test1"},
+	var faultRecords []database.FaultInjectionSchedule
+
+	// 获取当前时间
+	currentTime := time.Now()
+
+	// 查询所有非失败状态的记录，并满足 CreatedAt + Duration < 当前时间 的条件
+	err := database.DB.
+		Where("status != ?", database.DatasetFailed).
+		Where("proposed_end_time < ?", currentTime).
+		Find(&faultRecords).Error
+
+	if err != nil {
+		logrus.Errorf("Failed to query fault injection schedules: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve datasets"})
+		return
+	}
+
+	// 用于存储最终成功的记录
+	var successfulRecords []database.FaultInjectionSchedule
+
+	for _, record := range faultRecords {
+		datasetName := record.InjectionName
+		var startTime, endTime time.Time
+
+		// 如果状态为初始，查询 CRD 并更新记录
+		if record.Status == database.DatasetInitial {
+			startTime, endTime, err = client.QueryCRDByName("ts", datasetName)
+			if err != nil {
+				logrus.Errorf("Failed to QueryCRDByName for dataset %s: %v", datasetName, err)
+
+				// 更新状态为失败
+				if updateErr := database.DB.Model(&record).Where("injection_name = ?", datasetName).
+					Update("status", database.DatasetFailed).Error; updateErr != nil {
+					logrus.Errorf("Failed to update status to DatasetFailed for dataset %s: %v", datasetName, updateErr)
+				}
+				continue
+			}
+
+			// 更新数据库中的 start_time、end_time 和状态为成功
+			if updateErr := database.DB.Model(&record).Where("injection_name = ?", datasetName).
+				Updates(map[string]interface{}{
+					"start_time": startTime,
+					"end_time":   endTime,
+					"status":     database.DatasetSuccess,
+				}).Error; updateErr != nil {
+				logrus.Errorf("Failed to update record for dataset %s: %v", datasetName, updateErr)
+				continue
+			}
+			// 更新成功的记录状态到内存
+			record.StartTime = startTime
+			record.EndTime = endTime
+			record.Status = database.DatasetSuccess
+		}
+
+		// 仅保留状态为成功的记录
+		if record.Status == database.DatasetSuccess {
+			successfulRecords = append(successfulRecords, record)
+		}
+	}
+
+	datasetNames := []string{}
+	for _, record := range successfulRecords {
+		datasetNames = append(datasetNames, record.InjectionName)
+	}
+
+	// 返回成功的记录
+	c.JSON(http.StatusOK, gin.H{
+		"datasets": datasetNames,
+	})
+}
+
+func GetNamespacePod(c *gin.Context) {
+	res := make(map[string][]string)
+	for _, ns := range config.GetStringSlice("injection.namespace") {
+		labels, err := client.GetLabels(ns, config.GetString("injection.label"))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get labels from namespace ts"})
+		}
+		res[ns] = labels
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"namespace_info": res,
 	})
 }

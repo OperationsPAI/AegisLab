@@ -4,6 +4,7 @@ import (
 	"context"
 	"dagger/rcabench/database"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,10 +13,11 @@ import (
 	"time"
 
 	"dagger.io/dagger/dag"
+	"github.com/CUHK-SE-Group/chaos-experiment/client"
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/go-redis/redis/v8"
-	"github.com/k0kubun/pp"
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 )
 
 const (
@@ -32,8 +34,15 @@ const (
 	EvalPayloadBench   = "benchmark"
 
 	InjectFaultType = "faultType"
+	InjectNamespace = "injectNamespace"
+	InjectPod       = "injectPod"
 	InjectDuration  = "duration"
 	InjectSpec      = "spec"
+)
+const (
+	StreamName   = "task_stream"
+	GroupName    = "task_consumer_group"
+	ConsumerName = "task_consumer"
 )
 
 func initRedisClient() *redis.Client {
@@ -52,15 +61,10 @@ func initRedisClient() *redis.Client {
 	return client
 }
 
-const (
-	StreamName   = "task_stream"
-	GroupName    = "task_consumer_group"
-	ConsumerName = "task_consumer"
-)
-
 var Rdb = initRedisClient()
 
 func init() {
+
 	initConsumerGroup()
 }
 
@@ -81,13 +85,13 @@ func ConsumeTasks() {
 
 	ctx := context.Background()
 	for {
-		// 尝试读取未处理的消息
+		// 读取待处理的消息（Pending Entries）
 		entries, err := Rdb.XReadGroup(ctx, &redis.XReadGroupArgs{
 			Group:    GroupName,
 			Consumer: ConsumerName,
 			Streams:  []string{StreamName, "0"},
 			Count:    1,
-			Block:    0,
+			Block:    time.Second * 5, // 阻塞等待最多5秒
 		}).Result()
 		if err != nil && err != redis.Nil {
 			logrus.Errorf("Error reading from stream: %v", err)
@@ -98,17 +102,21 @@ func ConsumeTasks() {
 		if len(entries) > 0 && len(entries[0].Messages) > 0 {
 			for _, entry := range entries[0].Messages {
 				processTask(entry)
+				err := Rdb.XAck(ctx, StreamName, GroupName, entry.ID).Err()
+				if err != nil {
+					logrus.Errorf("Failed to acknowledge message %v: %v", entry.ID, err)
+				}
 			}
 			continue
 		}
 
-		// 如果没有未处理的消息，读取新的消息
+		// 如果没有待处理的消息，读取新的消息
 		entries, err = Rdb.XReadGroup(ctx, &redis.XReadGroupArgs{
 			Group:    GroupName,
 			Consumer: ConsumerName,
 			Streams:  []string{StreamName, ">"},
 			Count:    1,
-			Block:    0,
+			Block:    time.Second * 5, // 阻塞等待最多5秒
 		}).Result()
 		if err != nil && err != redis.Nil {
 			logrus.Errorf("Error reading from stream: %v", err)
@@ -119,6 +127,11 @@ func ConsumeTasks() {
 		if len(entries) > 0 && len(entries[0].Messages) > 0 {
 			for _, entry := range entries[0].Messages {
 				processTask(entry)
+				// 确认消息已被处理
+				err := Rdb.XAck(ctx, StreamName, GroupName, entry.ID).Err()
+				if err != nil {
+					logrus.Errorf("Failed to acknowledge message %v: %v", entry.ID, err)
+				}
 			}
 		} else {
 			// 如果没有消息，稍等一会儿
@@ -128,6 +141,7 @@ func ConsumeTasks() {
 }
 
 func processTask(entry redis.XMessage) {
+	logrus.Infof("processing %s", entry.ID)
 	defer func() {
 		if r := recover(); r != nil {
 			logrus.Errorf("processTask panicked: %v", r)
@@ -183,9 +197,21 @@ func processTask(entry redis.XMessage) {
 
 func executeFaultInjection(taskID string, payload map[string]interface{}) error {
 	logrus.Infof("Injecting fault, taskID: %s", taskID)
-	pp.Print("payload:", payload)
 
 	// 从 payload 中提取字段
+	namespace, ok := payload[InjectNamespace].(string)
+	if !ok {
+		err := fmt.Errorf("invalid or missing '%s' in payload", InjectNamespace)
+		logrus.Error(err)
+		return err
+	}
+	targetPod, ok := payload[InjectPod].(string)
+	if !ok {
+		err := fmt.Errorf("invalid or missing '%s' in payload", InjectPod)
+		logrus.Error(err)
+		return err
+	}
+
 	faultTypeStr, ok := payload[InjectFaultType].(string)
 	if !ok {
 		err := fmt.Errorf("invalid or missing '%s' in payload", InjectFaultType)
@@ -247,23 +273,28 @@ func executeFaultInjection(taskID string, payload map[string]interface{}) error 
 		Spec:     chaosSpec,
 		Duration: int(duration),
 	}
-	handler.Create(config)
+	name := handler.Create(namespace, targetPod, config)
+	if name == "" {
+		return fmt.Errorf("create chaos failed, config: %+v", config)
+	}
 	jsonData, err := json.Marshal(config)
 	if err != nil {
 		logrus.Errorf("marshal config failed, config: %+v, err: %s", config, err)
 		return err
 	}
-	pp.Print("config", config)
 
 	// 创建新的故障注入记录
 	faultRecord := database.FaultInjectionSchedule{
-		ID:          taskID,                                   // 使用任务 ID 作为记录的主键
-		FaultType:   faultType,                                // 故障类型
-		Config:      string(jsonData),                         // 故障配置 (JSON 格式化字符串)
-		Duration:    int(duration),                            // 开始时间
-		Description: fmt.Sprintf("Fault for task %s", taskID), // 可选描述
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:              taskID,           // 使用任务 ID 作为记录的主键
+		FaultType:       faultType,        // 故障类型
+		Config:          string(jsonData), // 故障配置 (JSON 格式化字符串)
+		Duration:        int(duration),
+		Description:     fmt.Sprintf("Fault for task %s", taskID),
+		Status:          database.DatasetInitial,
+		InjectionName:   name,
+		ProposedEndTime: time.Now().Add(time.Duration(int(duration)+2) * time.Minute),
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 	}
 
 	// 写入数据库
@@ -285,8 +316,35 @@ func executeAlgorithm(taskID string, payload map[string]interface{}) error {
 	}
 	bench := payload[EvalPayloadBench].(string)
 	algo := payload[EvalPayloadAlgo].(string)
-	dataset := payload[EvalPayloadDataset].(string)
-	_ = dataset // TODO: 处理 dataset
+	datasetName := payload[EvalPayloadDataset].(string)
+
+	var faultRecord database.FaultInjectionSchedule
+	err := database.DB.Where("injection_name = ?", datasetName).First(&faultRecord).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("no matching fault injection record found for dataset: %s", datasetName)
+		}
+		return fmt.Errorf("failed to query database for dataset: %s, error: %v", datasetName, err)
+	}
+
+	var startTime time.Time
+	var endTime time.Time
+	if faultRecord.Status == database.DatasetSuccess {
+		startTime = faultRecord.StartTime
+		endTime = faultRecord.EndTime
+	} else if faultRecord.Status == database.DatasetInitial {
+		startTime, endTime, err = client.QueryCRDByName("ts", datasetName)
+		if err != nil {
+			return fmt.Errorf("failed to QueryCRDByName: %s, error: %v", datasetName, err)
+		}
+		if err := database.DB.Model(&faultRecord).Where("injection_name = ?", datasetName).
+			Updates(map[string]interface{}{
+				"start_time": startTime,
+				"end_time":   endTime,
+			}).Error; err != nil {
+			return fmt.Errorf("failed to update start_time and end_time for dataset: %s, error: %v", datasetName, err)
+		}
+	}
 
 	updateTaskStatus(taskID, "Running", fmt.Sprintf("Running algorithm for task %s", taskID))
 
@@ -312,7 +370,7 @@ func executeAlgorithm(taskID string, payload map[string]interface{}) error {
 	}
 
 	rc := &Rcabench{}
-	con := rc.Evaluate(context.Background(), dag.Host().Directory(benchPath), dag.Host().Directory(algoPath), dag.Host().File(startScriptPath))
+	con := rc.Evaluate(context.Background(), dag.Host().Directory(benchPath), dag.Host().Directory(algoPath), dag.Host().File(startScriptPath), startTime, endTime)
 
 	_, err = con.Export(context.Background(), "./output")
 	if err != nil {
