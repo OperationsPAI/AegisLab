@@ -92,6 +92,7 @@
         }
 
         let injectionData = {};
+        let namespacePodData = {};
 
         async function fetchInjectionData() {
             try {
@@ -232,6 +233,13 @@
                 // 合并参数到 payload
                 payload["spec"] = parameters;
 
+                // 获取选定的命名空间和Pod
+                const injectNamespace = document.getElementById('namespaceSelect').value;
+                const injectPod = document.getElementById('podSelect').value;
+
+                payload['injectNamespace'] = injectNamespace;
+                payload['injectPod'] = injectPod;
+
             } else {
                 // 从键值对构建 JSON
                 const keyInputs = document.querySelectorAll(".key-input");
@@ -334,6 +342,50 @@
             });
         }
 
+        async function fetchNamespacePod() {
+            try {
+                const response = await fetch('/namespacepod');
+                if (response.ok) {
+                    const data = await response.json();
+                    namespacePodData = data.namespace_info || {};
+                    populateNamespaceSelect();
+                } else {
+                    console.error('Failed to fetch namespace and pod data');
+                }
+            } catch (error) {
+                console.error('Error fetching namespace and pod data:', error);
+            }
+        }
+
+        function populateNamespaceSelect() {
+            const namespaceSelect = document.getElementById('namespaceSelect');
+            namespaceSelect.innerHTML = '';
+            for (const namespace in namespacePodData) {
+                const option = document.createElement('option');
+                option.value = namespace;
+                option.textContent = namespace;
+                namespaceSelect.appendChild(option);
+            }
+            // 设置默认值并加载 Pod 列表
+            if (namespaceSelect.options.length > 0) {
+                namespaceSelect.selectedIndex = 0;
+                const selectedNamespace = namespaceSelect.options[0].value;
+                populatePodSelect(selectedNamespace);
+            }
+        }
+
+        function populatePodSelect(namespace) {
+            const podSelect = document.getElementById('podSelect');
+            podSelect.innerHTML = '';
+            const pods = namespacePodData[namespace] || [];
+            pods.forEach(pod => {
+                const option = document.createElement('option');
+                option.value = pod;
+                option.textContent = pod;
+                podSelect.appendChild(option);
+            });
+        }
+
         document.addEventListener("DOMContentLoaded", function() {
             fetchAlgoBench();
             fetchInjectionData().then(() => {
@@ -373,9 +425,18 @@
                     populateFaultParameters(selectedFaultTypeKey);
                 });
 
+                // 添加命名空间选择事件监听
+                document.getElementById('namespaceSelect').addEventListener('change', function() {
+                    const selectedNamespace = this.value;
+                    populatePodSelect(selectedNamespace);
+                });
+
                 // 手动触发一次 change 事件，确保初始状态正确
                 taskTypeSelect.dispatchEvent(new Event('change'));
             });
+
+            // 获取命名空间和 Pod 数据
+            fetchNamespacePod();
         });
     </script>
 </head>
@@ -406,6 +467,20 @@
                     <div class="mb-4 mt-4">
                         <label for="durationInput" class="block text-gray-700 text-sm font-bold mb-2">Duration (minutes)</label>
                         <input type="number" id="durationInput" name="Duration" min="1" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    </div>
+                    <!-- 添加命名空间选择 -->
+                    <div class="mb-4 mt-4">
+                        <label for="namespaceSelect" class="block text-gray-700 text-sm font-bold mb-2">Namespace</label>
+                        <select id="namespaceSelect" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                            <!-- 选项将由 JavaScript 动态填充 -->
+                        </select>
+                    </div>
+                    <!-- 添加 Pod 选择 -->
+                    <div class="mb-4 mt-4">
+                        <label for="podSelect" class="block text-gray-700 text-sm font-bold mb-2">Pod</label>
+                        <select id="podSelect" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                            <!-- 选项将由 JavaScript 动态填充 -->
+                        </select>
                     </div>
                     <div id="faultParameters" class="mt-4">
                         <!-- 参数输入字段将由 JavaScript 动态填充 -->

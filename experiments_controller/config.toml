@@ -1,0 +1,3 @@
+[injection]
+namespace = ["ts"]  
+label = "app"

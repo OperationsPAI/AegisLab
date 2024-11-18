@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"dagger.io/dagger"
 	"dagger.io/dagger/dag"
@@ -32,7 +33,7 @@ func (m *Rcabench) BuildAlgoBuilderImage(ctx context.Context, src *dagger.Direct
 		})
 }
 
-func (m *Rcabench) BuildAlgoRunnerImage(ctx context.Context, bench_dir, src *dagger.Directory, start_script *dagger.File) *dagger.Container {
+func (m *Rcabench) BuildAlgoRunnerImage(ctx context.Context, bench_dir, src *dagger.Directory, start_script *dagger.File, startTime, endTime time.Time) *dagger.Container {
 	data := m.BuildBenchmarkDataImage(ctx, bench_dir)
 	builder := m.BuildAlgoBuilderImage(ctx, src)
 
@@ -41,12 +42,14 @@ func (m *Rcabench) BuildAlgoRunnerImage(ctx context.Context, bench_dir, src *dag
 		WithDirectory("/app/input", data.Directory("/app/input")).
 		WithFile("/app/rca.py", src.File("rca.py")).
 		WithFile("/app/run_exp.py", start_script).
-		WithEnvVariable("WORKSPACE", "/app")
+		WithEnvVariable("WORKSPACE", "/app").
+		WithEnvVariable("ABNORMAL_START", string(startTime.Unix())).
+		WithEnvVariable("ABNORMAL_END", string(endTime.Unix()))
 
 	return runner
 }
-func (m *Rcabench) Evaluate(ctx context.Context, bench_dir, src *dagger.Directory, start_script *dagger.File) *dagger.Directory {
-	return m.BuildAlgoRunnerImage(ctx, bench_dir, src, start_script).
+func (m *Rcabench) Evaluate(ctx context.Context, bench_dir, src *dagger.Directory, start_script *dagger.File, startTime, endTime time.Time) *dagger.Directory {
+	return m.BuildAlgoRunnerImage(ctx, bench_dir, src, start_script, startTime, endTime).
 		WithExec([]string{"python", "run_exp.py"}).
 		Directory("/app/output")
 }
