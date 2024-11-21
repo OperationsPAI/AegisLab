@@ -8,18 +8,44 @@ import (
 
 	"dagger.io/dagger"
 	"dagger.io/dagger/dag"
+	"github.com/sirupsen/logrus"
 )
 
 type Rcabench struct{}
 
-func (m *Rcabench) BuildBenchmarkDataImage(ctx context.Context, src *dagger.Directory) *dagger.Container {
+func (m *Rcabench) BuildBenchmarkDataImage(
+	ctx context.Context,
+	src *dagger.Directory,
+	abnorStartTime, abnorEndTime, norStartTime, norEndTime time.Time,
+) *dagger.Container {
 	workspace := dag.Container().
 		WithDirectory("/app", src).
 		WithWorkdir("/app").
 		Directory("/app")
 
+	logrus.Infof("timestamp: %v %v %v %v", abnorStartTime, abnorEndTime, norStartTime, norEndTime)
 	return dag.Container().
-		Build(workspace)
+		WithEnvVariable("CACHEBUSTER", time.Now().String()). // 强制重新编译
+		Build(workspace, dagger.ContainerBuildOpts{
+			BuildArgs: []dagger.BuildArg{
+				{
+					Name:  "ABNORMAL_START_VAR",
+					Value: strconv.Itoa(int(abnorStartTime.Unix())),
+				},
+				{
+					Name:  "ABNORMAL_END_VAR",
+					Value: strconv.Itoa(int(abnorEndTime.Unix())),
+				},
+				{
+					Name:  "NORMAL_START_VAR",
+					Value: strconv.Itoa(int(norStartTime.Unix())),
+				},
+				{
+					Name:  "NORMAL_END_VAR",
+					Value: strconv.Itoa(int(norEndTime.Unix())),
+				},
+			},
+		})
 }
 
 func (m *Rcabench) BuildAlgoBuilderImage(ctx context.Context, src *dagger.Directory) *dagger.Container {
@@ -34,8 +60,11 @@ func (m *Rcabench) BuildAlgoBuilderImage(ctx context.Context, src *dagger.Direct
 		})
 }
 
-func (m *Rcabench) BuildAlgoRunnerImage(ctx context.Context, bench_dir, src *dagger.Directory, start_script *dagger.File, startTime, endTime time.Time) *dagger.Container {
-	data := m.BuildBenchmarkDataImage(ctx, bench_dir)
+func (m *Rcabench) BuildAlgoRunnerImage(
+	ctx context.Context, bench_dir, src *dagger.Directory, start_script *dagger.File,
+	abnorStartTime, abnorEndTime, norStartTime, norEndTime time.Time,
+) *dagger.Container {
+	data := m.BuildBenchmarkDataImage(ctx, bench_dir, abnorStartTime, abnorEndTime, norStartTime, norEndTime)
 	builder := m.BuildAlgoBuilderImage(ctx, src)
 	runner := builder.
 		WithWorkdir("/app").
@@ -43,13 +72,19 @@ func (m *Rcabench) BuildAlgoRunnerImage(ctx context.Context, bench_dir, src *dag
 		WithFile("/app/rca.py", src.File("rca.py")).
 		WithFile("/app/run_exp.py", start_script).
 		WithEnvVariable("WORKSPACE", "/app").
-		WithEnvVariable("ABNORMAL_START", strconv.Itoa(int(startTime.Unix()))).
-		WithEnvVariable("ABNORMAL_END", strconv.Itoa(int(endTime.Unix())))
+		WithEnvVariable("CACHEBUSTER", time.Now().String()). // 强制重新编译
+		WithEnvVariable("ABNORMAL_START", strconv.Itoa(int(abnorStartTime.Unix()))).
+		WithEnvVariable("ABNORMAL_END", strconv.Itoa(int(abnorEndTime.Unix()))).
+		WithEnvVariable("NORMAL_START", strconv.Itoa(int(norStartTime.Unix()))).
+		WithEnvVariable("NORMAL_END", strconv.Itoa(int(norEndTime.Unix())))
 
 	return runner
 }
-func (m *Rcabench) Evaluate(ctx context.Context, bench_dir, src *dagger.Directory, start_script *dagger.File, startTime, endTime time.Time) *dagger.Directory {
-	return m.BuildAlgoRunnerImage(ctx, bench_dir, src, start_script, startTime, endTime).
+func (m *Rcabench) Evaluate(
+	ctx context.Context, bench_dir, src *dagger.Directory, start_script *dagger.File,
+	abnorStartTime, abnorEndTime, norStartTime, norEndTime time.Time,
+) *dagger.Directory {
+	return m.BuildAlgoRunnerImage(ctx, bench_dir, src, start_script, abnorStartTime, abnorEndTime, norStartTime, norEndTime).
 		WithExec([]string{"python", "run_exp.py"}).
 		Directory("/app/output")
 }
