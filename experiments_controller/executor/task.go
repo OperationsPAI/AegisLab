@@ -370,7 +370,8 @@ func executeAlgorithm(taskID string, payload map[string]interface{}) error {
 	}
 
 	rc := &Rcabench{}
-	con := rc.Evaluate(context.Background(), dag.Host().Directory(benchPath), dag.Host().Directory(algoPath), dag.Host().File(startScriptPath), startTime, endTime)
+	con := rc.Evaluate(context.Background(), dag.Host().Directory(benchPath), dag.Host().Directory(algoPath), dag.Host().File(startScriptPath),
+		startTime, endTime, startTime.Add(-20*time.Minute), startTime)
 
 	_, err = con.Export(context.Background(), "./output")
 	if err != nil {
