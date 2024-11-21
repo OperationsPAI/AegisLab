@@ -234,7 +234,7 @@ def save_to_csv(result: bytes, filename: str):
 
 def convert_to_clickhouse_time(unix_timestamp):
     """将 UNIX 时间戳转换为 ClickHouse 支持的时间格式"""
-    return datetime.utcfromtimestamp(unix_timestamp).strftime("%Y-%m-%d %H:%M:%S")
+    return pd.to_datetime(unix_timestamp, utc=True, unit="s").astimezone("Asia/Shanghai").strftime("%Y-%m-%d %H:%M:%S")
 
 if __name__ == "__main__":
     check_clickhouse_health()
