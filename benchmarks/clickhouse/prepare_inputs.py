@@ -1,20 +1,47 @@
 import os
-import time
-
 import clickhouse_connect
 import pandas as pd
-from clickhouse_connect.driver.client import Client
+import subprocess
+from datetime import datetime
+
 
 namespace = "ts"
-clickhouse_host = "10.10.10.58"
+clickhouse_host = "clickhouse"
+username="default"
+password="password"
+client = clickhouse_connect.get_client(
+    host=clickhouse_host, username=username, password=password
+)
 
+def ping_host(host):
+    """
+    使用系统 ping 命令测试主机连通性
+    """
+    try:
+        result = subprocess.run(['ping', '-c', '1', '-W', '2', host], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if result.returncode == 0:
+            print(f"{host} 可达")
+            return True
+        else:
+            print(f"{host} 不可达")
+            return False
+    except Exception as e:
+        print(f"Ping 异常: {e}")
+        return False
 
+def check_clickhouse_health():
+    try:
+        result = client.ping()
+        if result:
+            print("ClickHouse 服务正常")
+            return True
+        else:
+            print("clickhouse 服务异常")
+    except Exception as e:
+        print(f"ClickHouse 服务异常: {e}")
+        return False
+    
 def generate_metric(start_time, end_time) -> pd.DataFrame:
-    # 连接到 ClickHouse 客户端
-    client = clickhouse_connect.get_client(
-        host=clickhouse_host, username="default", password="password"
-    )
-    # 定义查询语句
     query = f"""
 SELECT 
     TimeUnix,
@@ -38,12 +65,6 @@ WHERE
 
 
 def generate_metric_sum(start_time, end_time) -> pd.DataFrame:
-    # 连接到 ClickHouse 客户端
-    client = clickhouse_connect.get_client(
-        host=clickhouse_host, username="default", password="password"
-    )
-
-    # 定义查询语句
     query = f"""
     SELECT 
         TimeUnix,
@@ -67,12 +88,6 @@ def generate_metric_sum(start_time, end_time) -> pd.DataFrame:
 
 
 def generate_metric_histogram(start_time, end_time) -> pd.DataFrame:
-    # 连接到 ClickHouse 客户端
-    client = clickhouse_connect.get_client(
-        host=clickhouse_host, username="default", password="password"
-    )
-
-    # 定义查询语句
     query = f"""
     SELECT 
         TimeUnix,
@@ -102,12 +117,6 @@ def generate_metric_histogram(start_time, end_time) -> pd.DataFrame:
 
 
 def generate_log(start_time, end_time) -> pd.DataFrame:
-    # 连接到 ClickHouse 客户端
-    client = clickhouse_connect.get_client(
-        host=clickhouse_host, username="default", password="password"
-    )
-
-    # 定义查询语句
     query = f"""
     SELECT 
         Timestamp,
@@ -134,12 +143,6 @@ def generate_log(start_time, end_time) -> pd.DataFrame:
 
 
 def generate_trace(start_time, end_time) -> pd.DataFrame:
-    # 连接到 ClickHouse 客户端
-    client = clickhouse_connect.get_client(
-        host=clickhouse_host, username="default", password="password"
-    )
-
-    # 定义查询语句
     query = f"""
     SELECT Timestamp,
         TraceId, 
@@ -169,7 +172,7 @@ def generate_trace(start_time, end_time) -> pd.DataFrame:
 def generate_trace_id_ts(start_time, end_time) -> pd.DataFrame:
     # 连接到 ClickHouse 客户端
     client = clickhouse_connect.get_client(
-        host=clickhouse_host, username="default", password="password"
+        host=clickhouse_host, username=username, password=password
     )
 
     # 定义查询语句
@@ -191,12 +194,6 @@ def generate_trace_id_ts(start_time, end_time) -> pd.DataFrame:
 
 
 def generate_data_nezha(start_time, end_time) -> pd.DataFrame:
-    # 连接到 ClickHouse 客户端
-    client = Client(
-        clickhouse_host, user="default", password="password", database="default"
-    )
-
-    # 定义查询语句
     query = """
     SELECT 
         TimeUnix,
@@ -235,7 +232,13 @@ def save_to_csv(result: bytes, filename: str):
     print(f"数据已成功保存到 {filename}")
 
 
+def convert_to_clickhouse_time(unix_timestamp):
+    """将 UNIX 时间戳转换为 ClickHouse 支持的时间格式"""
+    return datetime.utcfromtimestamp(unix_timestamp).strftime("%Y-%m-%d %H:%M:%S")
+
 if __name__ == "__main__":
+    check_clickhouse_health()
+
     if os.environ.get("NORMAL_START") and os.environ.get("NORMAL_END"):
         normal_time_range = [
             int(os.environ["NORMAL_START"]),
@@ -244,6 +247,7 @@ if __name__ == "__main__":
     else:
         print("env NORMAL_START and NORMAL_END not found")
         exit(0)
+
     if os.environ.get("ABNORMAL_START") and os.environ.get("ABNORMAL_END"):
         abnormal_time_range = [
             int(os.environ["ABNORMAL_START"]),
@@ -253,35 +257,51 @@ if __name__ == "__main__":
         print("env ABNORMAL_START and ABNORMAL_END not found")
         exit(0)
 
-    print(normal_time_range)
-    print(abnormal_time_range)
+    print("Normal Time Range (Unix):", normal_time_range)
+    print("Abnormal Time Range (Unix):", abnormal_time_range)
+
     normal_start_time = normal_time_range[0]
     normal_end_time = normal_time_range[1]
 
     abnormal_start_time = abnormal_time_range[0]
     abnormal_end_time = abnormal_time_range[1]
 
-    if normal_end_time != abnormal_time_range:
-        print(
-            "the time range may not suitable for discontinuous time range, please check it."
-        )
-    os.mkdir("input")
+    # 转换为 ClickHouse 格式
+    normal_start_time_clickhouse = convert_to_clickhouse_time(normal_start_time)
+    normal_end_time_clickhouse = convert_to_clickhouse_time(normal_end_time)
+    abnormal_start_time_clickhouse = convert_to_clickhouse_time(abnormal_start_time)
+    abnormal_end_time_clickhouse = convert_to_clickhouse_time(abnormal_end_time)
 
+    print("Normal Time Range (ClickHouse):", [normal_start_time_clickhouse, normal_end_time_clickhouse])
+    print("Abnormal Time Range (ClickHouse):", [abnormal_start_time_clickhouse, abnormal_end_time_clickhouse])
+
+    if normal_end_time != abnormal_start_time:
+        print("The time range may not suitable for discontinuous time range, please check it.")
+
+    os.makedirs("input", exist_ok=True)
+
+    # 将转换后的时间格式传递给生成函数（示例代码）
     save_to_csv(
-        generate_metric(normal_start_time, abnormal_end_time), "input/metrics.csv"
+        generate_metric(normal_start_time_clickhouse, abnormal_end_time_clickhouse),
+        "input/metrics.csv",
     )
     save_to_csv(
-        generate_metric_sum(normal_start_time, abnormal_end_time), "input/metric.csv"
+        generate_metric_sum(normal_start_time_clickhouse, abnormal_end_time_clickhouse),
+        "input/metric.csv",
     )
     save_to_csv(
-        generate_metric_histogram(normal_start_time, abnormal_end_time),
+        generate_metric_histogram(normal_start_time_clickhouse, abnormal_end_time_clickhouse),
         "input/metrics_histogram.csv",
     )
-    save_to_csv(generate_log(normal_start_time, abnormal_end_time), "input/logs.csv")
     save_to_csv(
-        generate_trace(normal_start_time, abnormal_end_time), "input/traces.csv"
+        generate_log(normal_start_time_clickhouse, abnormal_end_time_clickhouse),
+        "input/logs.csv",
     )
     save_to_csv(
-        generate_trace_id_ts(normal_start_time, abnormal_end_time),
+        generate_trace(normal_start_time_clickhouse, abnormal_end_time_clickhouse),
+        "input/traces.csv",
+    )
+    save_to_csv(
+        generate_trace_id_ts(normal_start_time_clickhouse, abnormal_end_time_clickhouse),
         "input/trace_id_ts.csv",
     )
