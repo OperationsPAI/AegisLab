@@ -16,13 +16,14 @@ CLICKHOUSE_PASSWORD = os.getenv("CLICKHOUSE_PASSWORD", "nn")
 def generate_query(query_type, start_time, end_time, namespace):
     """Generate the query for logs, metrics, and traces."""
     if query_type == "log":
-        return Rf"""
+        return (
+            Rf"""
             SELECT 
                 Timestamp, 
                 ResourceAttributes['k8s.namespace.uid'] AS k8s_namespace_uid,
                 ResourceAttributes['k8s.namespace.name'] AS k8s_namespace_name,
                 ResourceAttributes['k8s.pod.uid'] AS k8s_pod_uid,
-                ResourceAttributes['k8s.{"container" if namespace == "ts" else "deployment"}.name'] AS k8s_container_name,
+                ResourceAttributes['k8s.deployment.name'] AS k8s_container_name,
                 Body 
             FROM 
                 otel_logs 
@@ -30,6 +31,23 @@ def generate_query(query_type, start_time, end_time, namespace):
                 Timestamp BETWEEN '{start_time}' AND '{end_time}'
                 AND ResourceAttributes['k8s.namespace.name'] = '{namespace}'
         """
+            if namespace not in ["ts", "ts-dev", "otel-ob"]
+            else Rf"""
+            SELECT 
+                Timestamp, 
+                TraceId, 
+                SpanId, 
+                SeverityText, 
+                SeverityNumber, 
+                ServiceName, 
+                Body 
+            FROM 
+                otel_logs 
+            WHERE 
+                Timestamp BETWEEN '{start_time}' AND '{end_time}'
+                AND ResourceAttributes['service.namespace'] = '{namespace}'
+        """
+        )
     elif query_type == "metric":
         return Rf"""
             (
@@ -67,52 +85,26 @@ def generate_query(query_type, start_time, end_time, namespace):
                 AND ResourceAttributes['k8s.namespace.name'] = '{namespace}'
             )
         """
-    elif query_type == "trace":
-        return (
-            Rf"""
-            WITH 
-                trace_ids AS (
-                    SELECT DISTINCT traceID
-                    FROM apo.jaeger_spans_local
-                    WHERE `timestamp` BETWEEN '{start_time}' AND '{end_time}'
-                ),
-
-                parent AS (
-                    SELECT
-                        lower(Hex(reinterpretAsString(base64Decode(JSONExtractString(model, 'span_id'))))) AS SpanId,
-                        JSONExtractString(t1.model, 'process', 'service_name') AS ServiceName,
-                        traceID
-                    FROM
-                        apo.jaeger_spans_local
-                    WHERE
-                        traceID IN (SELECT traceID FROM trace_ids)
-                )
-
+    elif query_type == "request_metric":
+        return Rf"""
             SELECT
-                t1.`timestamp` AS Timestamp,
-                t1.traceID AS TraceId,
-                lower(Hex(reinterpretAsString(base64Decode(JSONExtractString(t1.model, 'span_id'))))) AS SpanId,
-                JSONExtractString(t1.model, 'operation_name') AS SpanName,
-                JSONExtractString(t1.model, 'process', 'service_name') AS ServiceName,
-                JSONExtractUInt(t1.model, 'duration') AS Duration,
-                COALESCE(parent.SpanId, 'Unknown') AS ParentSpanId,
-                COALESCE(parent.SServiceName, 'Unknown') AS ParentServiceName
-            FROM
-                apo.jaeger_spans_local t1
-            LEFT JOIN
-                parent
-            ON
-                parent.SpanId = lower(Hex(reinterpretAsString(base64Decode(JSONExtractString(t1.model, 'references', 1, 'span_id')))))
-            WHERE
-                t1.`timestamp` BETWEEN '{start_time}' AND '{end_time}'
+                ResourceAttributes['service.namespace'] AS namespace_name,
+                ServiceName,
+                Attributes['http.response.status_code'] AS status_code,
+                MetricName, MetricDescription, TimeUnix, Count, Sum, BucketCounts,ExplicitBounds
+            FROM otel_metrics_histogram
+            WHERE TimeUnix BETWEEN '{start_time}' AND '{end_time}'
+            AND MetricName IN ('http.client.request.duration', 'http.server.request.duration')
+            AND ResourceAttributes['service.namespace'] = '{namespace}'
         """
-            if namespace == "ts"
-            else Rf"""
+    elif query_type == "trace":
+        return Rf"""
             WITH
                 trace_ids AS (
                     SELECT DISTINCT TraceId
                     FROM otel_traces
                     WHERE `Timestamp` BETWEEN '{start_time}' AND '{end_time}'
+                    AND ResourceAttributes['service.namespace'] = '{namespace}'
                 ),
                 parent AS (
                     SELECT
@@ -141,8 +133,8 @@ def generate_query(query_type, start_time, end_time, namespace):
                 ot1.ParentSpanId = parent.SpanId
             WHERE
                 ot1.`Timestamp` BETWEEN '{start_time}' AND '{end_time}'
+                AND ot1.ResourceAttributes['service.namespace'] = '{namespace}'
         """
-        )
     else:
         raise ValueError("Invalid query type")
 
@@ -164,19 +156,18 @@ async def fetch_data(client: AsyncClient, query, filepath, semaphore):
             await f.write(result.decode("utf-8"))
 
 
-async def collect_and_save_data(
-    client, folder, start_time, end_time, data_type, namespace, semaphore
-):
+async def collect_and_save_data(client, folder, start_time, end_time, data_type, namespace, semaphore):
     """Collect and save data in batches."""
     filepath = Path(folder) / f"{data_type}s.csv"
     query = generate_query(data_type, start_time, end_time, namespace)
     await fetch_data(client, query, filepath, semaphore)
 
 
-def create_folders(namespace: str, chaos_type: str, service: str):
+def create_folders(namespace: str, case_name: str):
     """Create normal and abnormal folders for storing data."""
-    normal_folder = Path(namespace) / chaos_type / service / "normal"
-    abnormal_folder = Path(namespace) / chaos_type / service / "abnormal"
+    
+    normal_folder = Path(namespace) / case_name / "normal"
+    abnormal_folder = Path(namespace) / case_name / "abnormal"
     normal_folder.mkdir(parents=True, exist_ok=True)
     abnormal_folder.mkdir(parents=True, exist_ok=True)
     return normal_folder, abnormal_folder
@@ -195,21 +186,21 @@ async def process_case(timestamp, namespace, chaos_type, service, client, semaph
 
     abnormal_start = timestamp
     abnormal_end = timestamp + timedelta(minutes=10)
-    normal_start = abnormal_start - timedelta(minutes=5)
+    normal_start = abnormal_start - timedelta(minutes=10)
     normal_end = abnormal_start
-
-    normal_folder, abnormal_folder = create_folders(namespace, chaos_type, service)
+    dt = timestamp
+    case_name = f"{service}-{dt.month:02d}{dt.day:02d}-{dt.hour:02d}{dt.minute:02d}"
+    normal_folder, abnormal_folder = create_folders(namespace, case_name)
     tasks = [
-        collect_and_save_data(
-            client, folder, start_time, end_time, data_type, namespace, semaphore
-        )
+        collect_and_save_data(client, folder, start_time, end_time, data_type, namespace, semaphore)
         for folder, start_time, end_time in [
             (normal_folder, normal_start, normal_end),
             (abnormal_folder, abnormal_start, abnormal_end),
         ]
-        for data_type in ["log", "metric", "trace"]
+        for data_type in ["log", "metric", "request_metric", "trace"]
     ]
     await asyncio.gather(*tasks)
+    return dict(case=case_name,timestamp=timestamp, namespace=namespace, chaos_type=chaos_type, service=service)
 
 
 def load_from_toml(config_path):
@@ -227,9 +218,7 @@ def load_from_toml(config_path):
             # Validate timestamp format
             datetime.strptime(input_timestamp, "%Y-%m-%d %H:%M:%S")
         except ValueError:
-            print(
-                f"Invalid timestamp format for {input_timestamp}. Skipping this event."
-            )
+            print(f"Invalid timestamp format for {input_timestamp}. Skipping this event.")
             continue
 
         args.append([input_timestamp, input_namespace, input_chaos_type, input_service])
@@ -282,8 +271,9 @@ async def main():
         args = interactive_input()
 
     print("Chaos events:", args)
-    await asyncio.gather(*(process_case(*arg, client, semaphore) for arg in args))
-
+    result = await asyncio.gather(*(process_case(*arg, client, semaphore) for arg in args))
+    with open("chaos_injection.toml","w") as f:
+        toml.dump({"chaos_injection": result}, f)
 
 if __name__ == "__main__":
     asyncio.run(main())

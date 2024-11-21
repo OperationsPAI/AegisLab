@@ -172,11 +172,11 @@ def parse_time(unix_time: int, delta=None):
 async def process_case(normal_range, abnormal_range, input_file_paths, pool):
     """Process a single chaos event."""
 
-    abnormal_start = parse_time(abnormal_range[0], pd.Timedelta(minutes=-5))
+    abnormal_start = parse_time(abnormal_range[0],pd.Timedelta(minutes=-5))
     abnormal_end = parse_time(abnormal_range[1])
-    normal_end = parse_time(normal_range[1], pd.Timedelta(minutes=-5))
-    normal_start = parse_time(normal_range[1], pd.Timedelta(minutes=-15))
-
+    normal_end = parse_time(normal_range[1],pd.Timedelta(minutes=-5))
+    normal_start = parse_time(normal_range[1],pd.Timedelta(minutes=-15))
+    
     print(f"Processing normal range: {normal_start} - {normal_end}")
     print(f"Processing abnormal range: {abnormal_start} - {abnormal_end}")
     normal_folder, abnormal_folder = create_folders()
@@ -201,9 +201,9 @@ params = {
     "metric_histogram_file": "metrics_histogram.csv",
     "event_file": "event.csv",
     "profiling_file": "profile.csv",
-    "normal_time_range": [(1728826808, 1728827108)],
-    "abnormal_time_range": [(1728827108, 1728827408)],
-    "output_file_path": "/app/output/result.csv",
+    "normal_time_range": [(1732164368, 1732164428)],
+    "abnormal_time_range": [(1732164428, 1732164719)],
+    "output_file_path": "./app/output/result.csv",
 }
 
 
@@ -221,10 +221,9 @@ async def start_rca(params: Dict):
             pool=pool,
         )
         await evaluate("data", pool)
-    result = Path("data") / "final_ranking.csv"
-    Path("/app/output").mkdir(exist_ok=1, parents=1)
-    if result.exists():
-        shutil.copy(result, "/app/output/result.csv")
+        result = Path("data") / "final_ranking.csv"
+        
+        shutil.copy(result, params["output_file_path"])
 
 
 if __name__ == "__main__":

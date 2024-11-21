@@ -1,6 +1,7 @@
 import json
 import re
 from datetime import datetime
+from typing import List
 
 import pandas as pd
 
@@ -111,6 +112,31 @@ def handle_fallback(log):
 def extract_log(df):
     """Extract log level and log message from log."""
     log = df.Body
+    # TrainTicket
+    if level := df.get("SeverityNumber"):
+        if level == 1:
+            level = "TRACE"
+        elif level == 5:
+            level = "DEBUG"
+        elif level == 9:
+            level = "INFO"
+        elif level == 13:
+            level = "WARN"
+        elif level == 17:
+            level = "ERROR"
+        else:
+            level = pd.NA
+        try:
+            log_data = json.loads(log)
+            _, message, _ = handle_ts_js(log_data, level).values()
+            log = message
+        except:
+            pass
+        return {
+            "Body": log,
+            "message": log,
+            "log_level": level,
+        }
     try:
         log_data = json.loads(log)
         level = log_data.get("level", log_data.get("severity", pd.NA))
