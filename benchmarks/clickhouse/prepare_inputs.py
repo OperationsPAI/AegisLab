@@ -287,7 +287,7 @@ if __name__ == "__main__":
     )
     save_to_csv(
         generate_metric_sum(normal_start_time_clickhouse, abnormal_end_time_clickhouse),
-        "input/metric.csv",
+        "input/metric_sum.csv",
     )
     save_to_csv(
         generate_metric_histogram(normal_start_time_clickhouse, abnormal_end_time_clickhouse),
