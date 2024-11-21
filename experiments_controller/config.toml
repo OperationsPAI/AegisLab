@@ -1,3 +1,7 @@
 [injection]
 namespace = ["ts"]  
 label = "app"
+
+
+[database]
+clickhouse_host = "10.10.10.58"

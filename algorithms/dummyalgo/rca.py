@@ -29,6 +29,10 @@ def start_rca(params: Dict):
 
     if not os.path.exists(directory):
         os.makedirs(directory)
+        
+    with open("/app/input/logs.csv") as f:
+        data = f.readlines()
+        print(data[:3])
 
     file_path = os.path.join(directory, "my_file.txt")
 

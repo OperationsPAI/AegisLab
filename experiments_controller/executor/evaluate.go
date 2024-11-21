@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"dagger/rcabench/config"
 	"fmt"
 	"strconv"
 	"time"
@@ -24,8 +25,14 @@ func (m *Rcabench) BuildBenchmarkDataImage(
 		Directory("/app")
 
 	logrus.Infof("timestamp: %v %v %v %v", abnorStartTime, abnorEndTime, norStartTime, norEndTime)
+
+	hostSrv := dag.Host().Service([]dagger.PortForward{
+		{Frontend: 8123, Backend: 8123},
+	}, dagger.HostServiceOpts{Host: config.GetString("database.clickhouse_host")})
+
 	return dag.Container().
-		WithEnvVariable("CACHEBUSTER", time.Now().String()). // 强制重新编译
+		WithEnvVariable("CACHEBUSTER", time.Now().String()).
+		WithServiceBinding("clickhouse", hostSrv).
 		Build(workspace, dagger.ContainerBuildOpts{
 			BuildArgs: []dagger.BuildArg{
 				{
@@ -45,7 +52,7 @@ func (m *Rcabench) BuildBenchmarkDataImage(
 					Value: strconv.Itoa(int(norEndTime.Unix())),
 				},
 			},
-		})
+		}).WithExec([]string{"python", "prepare_inputs.py"})
 }
 
 func (m *Rcabench) BuildAlgoBuilderImage(ctx context.Context, src *dagger.Directory) *dagger.Container {
@@ -77,7 +84,6 @@ func (m *Rcabench) BuildAlgoRunnerImage(
 		WithEnvVariable("ABNORMAL_END", strconv.Itoa(int(abnorEndTime.Unix()))).
 		WithEnvVariable("NORMAL_START", strconv.Itoa(int(norStartTime.Unix()))).
 		WithEnvVariable("NORMAL_END", strconv.Itoa(int(norEndTime.Unix())))
-
 	return runner
 }
 func (m *Rcabench) Evaluate(

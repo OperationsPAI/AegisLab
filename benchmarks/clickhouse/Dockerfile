@@ -19,4 +19,4 @@ ENV NORMAL_END=${NORMAL_END_VAR}
 
 RUN echo "Environment Variable: $ABNORMAL_START"
 
-RUN python prepare_inputs.py
+# RUN python prepare_inputs.py
