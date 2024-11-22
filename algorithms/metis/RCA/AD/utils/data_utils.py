@@ -34,7 +34,9 @@ class TraceDurationCalculator(Calculator):
             }
         )
 
-        window_result["ServiceName"] = window_result.index.get_level_values("ServiceName")
+        window_result["ServiceName"] = window_result.index.get_level_values(
+            "ServiceName"
+        )
         window_result["SpanName"] = window_result.index.get_level_values("SpanName")
 
         return window_result
@@ -52,7 +54,9 @@ class TraceDurationCalculator(Calculator):
         step_size = pd.Timedelta(minutes=1)
 
         args = []
-        for current_start in pd.date_range(start=start_time, end=end_time, freq=step_size):
+        for current_start in pd.date_range(
+            start=start_time, end=end_time, freq=step_size
+        ):
             current_end = current_start + window_size
             if current_end > end_time:
                 break
@@ -60,10 +64,20 @@ class TraceDurationCalculator(Calculator):
             window_slice = trace_df.loc[current_start:current_end]
             args.append([window_slice, current_start])
 
-        results = pd.concat(list(starmap(TraceDurationCalculator._process_window, args)))
+        results = pd.concat(
+            list(starmap(TraceDurationCalculator._process_window, args))
+        )
 
         return results[
-            ["ServiceName", "SpanName", "MeanDuration", "StdDuration", "ParentServiceName", "TraceId", "StartTime"]
+            [
+                "ServiceName",
+                "SpanName",
+                "MeanDuration",
+                "StdDuration",
+                "ParentServiceName",
+                "TraceId",
+                "StartTime",
+            ]
         ]
 
     @staticmethod
@@ -93,7 +107,11 @@ class LogLevelCalculator(Calculator):
     @staticmethod
     async def calculate(data, normal=True):
         """wrapper function to calculate error and warn rates."""
-        calculator = LogLevelCalculator._calculate_normal if normal else LogLevelCalculator._calculate_abnormal
+        calculator = (
+            LogLevelCalculator._calculate_normal
+            if normal
+            else LogLevelCalculator._calculate_abnormal
+        )
         return pd.concat(list(starmap(calculator, data))).round(3)
 
     @staticmethod
@@ -126,8 +144,9 @@ class LogLevelCalculator(Calculator):
         step_size = pd.Timedelta(minutes=1)
 
         args = []
-        for current_start in pd.date_range(start=start_time, end=end_time, freq=step_size):
-
+        for current_start in pd.date_range(
+            start=start_time, end=end_time, freq=step_size
+        ):
             current_end = current_start + window_size
             window_slice = log_df.loc[current_start:current_end]
 
@@ -165,7 +184,9 @@ class LogLevelCalculator(Calculator):
         window_size = pd.Timedelta(seconds=30)
         args = []
 
-        for current_start in pd.date_range(start=start_time, end=end_time, freq=window_size):
+        for current_start in pd.date_range(
+            start=start_time, end=end_time, freq=window_size
+        ):
             current_end = current_start + window_size
 
             window_slice = log_df.loc[current_start:current_end]

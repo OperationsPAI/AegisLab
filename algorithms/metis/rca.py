@@ -6,8 +6,6 @@ import shutil
 from functools import partial
 from pathlib import Path
 from typing import Dict, List, Tuple
-
-import aiofiles
 import pandas as pd
 from aiomultiprocess import Pool
 from evaluation import evaluate
@@ -24,7 +22,17 @@ def extract_resource_attribute(attributes: str, key: str):
 
 async def parselog(df: pd.DataFrame, start_time, end_time):
     df = df[(df["Timestamp"] >= start_time) & (df["Timestamp"] <= end_time)]
-    return df[["Timestamp", "TraceId", "SpanId", "SeverityText", "SeverityNumber", "ServiceName", "Body"]]
+    return df[
+        [
+            "Timestamp",
+            "TraceId",
+            "SpanId",
+            "SeverityText",
+            "SeverityNumber",
+            "ServiceName",
+            "Body",
+        ]
+    ]
 
 
 def extract_metric(df):
@@ -74,12 +82,17 @@ async def concat(results):
     return await asyncio.to_thread(pd.concat, results)
 
 
-async def filter_csv_data(query_type, start_time, end_time, input_file_paths, pool: Pool):
+async def filter_csv_data(
+    query_type, start_time, end_time, input_file_paths, pool: Pool
+):
     """Filter CSV data for logs, metrics, and traces based on the query type."""
     batch_size = 10000
     if query_type == "log":
         log_df = pd.read_csv(input_file_paths["log_file"], parse_dates=["Timestamp"])
-        batches = [log_df.iloc[start : start + batch_size].copy() for start in range(0, len(log_df), batch_size)]
+        batches = [
+            log_df.iloc[start : start + batch_size].copy()
+            for start in range(0, len(log_df), batch_size)
+        ]
         results = await pool.starmap(
             parselog,
             zip(batches, [start_time] * len(batches), [end_time] * len(batches)),
@@ -88,11 +101,16 @@ async def filter_csv_data(query_type, start_time, end_time, input_file_paths, po
         return filtered_df
 
     elif query_type == "metric":
-        df_gauge = pd.read_csv(input_file_paths["metric_file"], parse_dates=["TimeUnix"])
-        df_sum = pd.read_csv(input_file_paths["metric_sum_file"], parse_dates=["TimeUnix"])
+        df_gauge = pd.read_csv(
+            input_file_paths["metric_file"], parse_dates=["TimeUnix"]
+        )
+        df_sum = pd.read_csv(
+            input_file_paths["metric_sum_file"], parse_dates=["TimeUnix"]
+        )
 
         gauge_batches = [
-            df_gauge.iloc[start : start + batch_size].copy() for start in range(0, len(df_gauge), batch_size)
+            df_gauge.iloc[start : start + batch_size].copy()
+            for start in range(0, len(df_gauge), batch_size)
         ]
         gauge_results = await pool.starmap(
             parsemetric,
@@ -104,7 +122,10 @@ async def filter_csv_data(query_type, start_time, end_time, input_file_paths, po
         )
         filtered_gauge = await pool.apply(concat, (gauge_results,))
 
-        sum_batches = [df_sum.iloc[start : start + batch_size].copy() for start in range(0, len(df_sum), batch_size)]
+        sum_batches = [
+            df_sum.iloc[start : start + batch_size].copy()
+            for start in range(0, len(df_sum), batch_size)
+        ]
         sum_results = await pool.starmap(
             parsemetric,
             zip(
@@ -115,16 +136,26 @@ async def filter_csv_data(query_type, start_time, end_time, input_file_paths, po
         )
         filtered_sum = await pool.apply(concat, (sum_results,))
 
-        filtered_sum = filtered_sum[(filtered_sum["MetricName"].isin(["k8s.pod.network.io", "k8s.pod.network.errors"]))]
+        filtered_sum = filtered_sum[
+            (
+                filtered_sum["MetricName"].isin(
+                    ["k8s.pod.network.io", "k8s.pod.network.errors"]
+                )
+            )
+        ]
 
         # Combine the results
         filtered_df = pd.concat([filtered_gauge, filtered_sum])
         return filtered_df
 
     elif query_type == "trace":
-        trace_df = pd.read_csv(input_file_paths["trace_file"], parse_dates=["Timestamp"])
+        trace_df = pd.read_csv(
+            input_file_paths["trace_file"], parse_dates=["Timestamp"]
+        )
         # Apply filters
-        filtered_df = trace_df[(trace_df["Timestamp"] >= start_time) & (trace_df["Timestamp"] <= end_time)]
+        filtered_df = trace_df[
+            (trace_df["Timestamp"] >= start_time) & (trace_df["Timestamp"] <= end_time)
+        ]
         parent_df = trace_df[["SpanId", "ServiceName"]].rename(
             columns={"SpanId": "ParentSpanId", "ServiceName": "ParentServiceName"}
         )
@@ -145,10 +176,14 @@ async def filter_csv_data(query_type, start_time, end_time, input_file_paths, po
         raise ValueError("Invalid query type")
 
 
-async def collect_and_save_data(folder, start_time, end_time, data_type, input_file_paths, pool):
+async def collect_and_save_data(
+    folder, start_time, end_time, data_type, input_file_paths, pool
+):
     """Collect and save data in batches."""
     filepath = Path(folder) / f"{data_type}s.csv"
-    filtered_df = await filter_csv_data(data_type, start_time, end_time, input_file_paths, pool)
+    filtered_df = await filter_csv_data(
+        data_type, start_time, end_time, input_file_paths, pool
+    )
     await asyncio.to_thread(filtered_df.to_csv, filepath, index=False, mode="w")
 
 
@@ -181,7 +216,9 @@ async def process_case(normal_range, abnormal_range, input_file_paths, pool):
     print(f"Processing abnormal range: {abnormal_start} - {abnormal_end}")
     normal_folder, abnormal_folder = create_folders()
     tasks = [
-        collect_and_save_data(folder, start_time, end_time, data_type, input_file_paths, pool)
+        collect_and_save_data(
+            folder, start_time, end_time, data_type, input_file_paths, pool
+        )
         for folder, start_time, end_time in [
             (normal_folder, normal_start, normal_end),
             (abnormal_folder, abnormal_start, abnormal_end),
@@ -213,7 +250,9 @@ async def start_rca(params: Dict):
     childconcurrency = 20
     processes = os.cpu_count()
     queuecount = processes // 4
-    async with Pool(processes=processes, childconcurrency=childconcurrency, queuecount=queuecount) as pool:
+    async with Pool(
+        processes=processes, childconcurrency=childconcurrency, queuecount=queuecount
+    ) as pool:
         await process_case(
             normal_range=normal_time_range,
             abnormal_range=abnormal_time_range,
@@ -227,5 +266,24 @@ async def start_rca(params: Dict):
         shutil.copy(result, "/app/output/result.csv")
 
 
+def print_directory_tree(start_path, prefix=""):
+    # 获取当前目录下的所有文件和子目录
+    items = os.listdir(start_path)
+    items.sort()  # 可选：按字母排序
+    for i, item in enumerate(items):
+        # 确定是否是最后一个元素，用于绘制正确的符号
+        is_last = i == len(items) - 1
+        # 拼接路径
+        path = os.path.join(start_path, item)
+        # 根据是否是最后一个元素选择符号
+        connector = "└── " if is_last else "├── "
+        print(f"{prefix}{connector}{item}")
+        # 如果是目录，递归调用
+        if os.path.isdir(path):
+            new_prefix = prefix + ("    " if is_last else "│   ")
+            print_directory_tree(path, new_prefix)
+
+
 if __name__ == "__main__":
+    print_directory_tree("/app")
     asyncio.run(start_rca(params))

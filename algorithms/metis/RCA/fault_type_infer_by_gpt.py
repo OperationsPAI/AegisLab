@@ -9,8 +9,9 @@ import concurrent.futures
 # your key
 api_key = ""
 
+
 def get_one_input(file_path):
-    with open(file_path, 'r') as file:
+    with open(file_path, "r") as file:
         data = toml.load(file)
 
     top_events = {
@@ -21,6 +22,7 @@ def get_one_input(file_path):
 
     input_data = "Input: " + str(top_events) + "\n" + "Output:"
     return input_data
+
 
 def get_instruction_v1():
     prompt = """
@@ -51,6 +53,7 @@ def get_instruction_v1():
     }
     """
     return prompt.strip()
+
 
 def get_instruction():
     prompt = """
@@ -92,32 +95,26 @@ def get_instruction():
     return prompt.strip()
 
 
-def chat_with_gpt(instruction,input_data):
+def chat_with_gpt(instruction, input_data):
     url = "https://aigptx.top/v1/chat/completions"
     headers = {
         # "Content-Type": "application/json",
-        "Authorization": 'Bearer ' + api_key
+        "Authorization": "Bearer " + api_key
     }
 
     data = {
         # change model here
         # "model": "gpt-4",
-        "model": "gpt-3.5-turbo", 
+        "model": "gpt-3.5-turbo",
         "messages": [
-            {
-                "role": "system",
-                "content": instruction
-            },
-            {
-                "role": "user",
-                "content": input_data
-            }
-        ]
+            {"role": "system", "content": instruction},
+            {"role": "user", "content": input_data},
+        ],
     }
     # print("data: \n",data)
     response = requests.post(url, json=data, headers=headers, stream=False)
     res = response.json()
-    output = res['choices'][0]['message']['content']
+    output = res["choices"][0]["message"]["content"]
 
     return output
 
@@ -144,20 +141,22 @@ def process_events_files(root_base_dir):
 
     return outputs
 
+
 def read_ground_truth(fault_injection_file):
     """
     读取 fault_injection.toml 并解析 ground truth 数据。
     """
     data = toml.load(fault_injection_file)
     ground_truth = {}
-    
+
     for injection in data.get("chaos_injection", []):
         case = injection["case"]
         service = injection["service"]
         chaos_type = injection["chaos_type"]
         ground_truth[case] = {"service": service, "fault_type": chaos_type}
-    
+
     return ground_truth
+
 
 def evaluate_accuracy(outputs, ground_truth):
     """
@@ -177,17 +176,21 @@ def evaluate_accuracy(outputs, ground_truth):
 
         predicted_service = output.get("Root cause service")
         predicted_fault_type = output.get("Fault type")
-        
+
         if predicted_service == ground_truth_case["service"]:
             correct_service += 1
-        
+
         if predicted_fault_type == ground_truth_case["fault_type"]:
             correct_fault_type += 1
 
     service_accuracy = correct_service / total_cases
     fault_type_accuracy = correct_fault_type / total_cases
 
-    return {"service_accuracy": service_accuracy, "fault_type_accuracy": fault_type_accuracy}
+    return {
+        "service_accuracy": service_accuracy,
+        "fault_type_accuracy": fault_type_accuracy,
+    }
+
 
 def process_events_files_gpt4(root_base_dir):
     outputs = {}
@@ -207,7 +210,7 @@ def process_events_files_gpt4(root_base_dir):
                     start_index = raw_output.find("{")
                     end_index = raw_output.rfind("}")
                     if start_index != -1 and end_index != -1:
-                        output = json.loads(raw_output[start_index:end_index + 1])
+                        output = json.loads(raw_output[start_index : end_index + 1])
                         outputs[folder.name] = output
                     else:
                         raise ValueError("Failed to parse GPT output as JSON")
@@ -228,7 +231,7 @@ def process_events_files_gpt4(root_base_dir):
 #     # for folder_name, output in outputs.items():
 #     #     print(f"Folder: {folder_name}")
 #     #     print(f"Output: {output}\n")
-    
+
 #     fault_injection_file = root_base_dir / "fault_injection.toml"
 #     ground_truth = read_ground_truth(fault_injection_file)
 
@@ -240,11 +243,12 @@ def process_events_files_gpt4(root_base_dir):
 
 # run one case
 if __name__ == "__main__":
-    root_base_dir = Path(r"E:\Project\Git\RCA_Dataset\test\ts\ts-consign-service-1027-1326")
+    root_base_dir = Path(
+        r"E:\Project\Git\RCA_Dataset\test\ts\ts-consign-service-1027-1326"
+    )
     events_file_path = root_base_dir / "events.toml"
 
     instruction = get_instruction()
     input_data = get_one_input(events_file_path)
-    output = chat_with_gpt(instruction,input_data)
+    output = chat_with_gpt(instruction, input_data)
     print(output)
-
