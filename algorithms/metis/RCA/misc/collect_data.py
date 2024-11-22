@@ -156,7 +156,9 @@ async def fetch_data(client: AsyncClient, query, filepath, semaphore):
             await f.write(result.decode("utf-8"))
 
 
-async def collect_and_save_data(client, folder, start_time, end_time, data_type, namespace, semaphore):
+async def collect_and_save_data(
+    client, folder, start_time, end_time, data_type, namespace, semaphore
+):
     """Collect and save data in batches."""
     filepath = Path(folder) / f"{data_type}s.csv"
     query = generate_query(data_type, start_time, end_time, namespace)
@@ -165,7 +167,7 @@ async def collect_and_save_data(client, folder, start_time, end_time, data_type,
 
 def create_folders(namespace: str, case_name: str):
     """Create normal and abnormal folders for storing data."""
-    
+
     normal_folder = Path(namespace) / case_name / "normal"
     abnormal_folder = Path(namespace) / case_name / "abnormal"
     normal_folder.mkdir(parents=True, exist_ok=True)
@@ -192,7 +194,9 @@ async def process_case(timestamp, namespace, chaos_type, service, client, semaph
     case_name = f"{service}-{dt.month:02d}{dt.day:02d}-{dt.hour:02d}{dt.minute:02d}"
     normal_folder, abnormal_folder = create_folders(namespace, case_name)
     tasks = [
-        collect_and_save_data(client, folder, start_time, end_time, data_type, namespace, semaphore)
+        collect_and_save_data(
+            client, folder, start_time, end_time, data_type, namespace, semaphore
+        )
         for folder, start_time, end_time in [
             (normal_folder, normal_start, normal_end),
             (abnormal_folder, abnormal_start, abnormal_end),
@@ -200,7 +204,13 @@ async def process_case(timestamp, namespace, chaos_type, service, client, semaph
         for data_type in ["log", "metric", "request_metric", "trace"]
     ]
     await asyncio.gather(*tasks)
-    return dict(case=case_name,timestamp=timestamp, namespace=namespace, chaos_type=chaos_type, service=service)
+    return dict(
+        case=case_name,
+        timestamp=timestamp,
+        namespace=namespace,
+        chaos_type=chaos_type,
+        service=service,
+    )
 
 
 def load_from_toml(config_path):
@@ -218,7 +228,9 @@ def load_from_toml(config_path):
             # Validate timestamp format
             datetime.strptime(input_timestamp, "%Y-%m-%d %H:%M:%S")
         except ValueError:
-            print(f"Invalid timestamp format for {input_timestamp}. Skipping this event.")
+            print(
+                f"Invalid timestamp format for {input_timestamp}. Skipping this event."
+            )
             continue
 
         args.append([input_timestamp, input_namespace, input_chaos_type, input_service])
@@ -271,9 +283,12 @@ async def main():
         args = interactive_input()
 
     print("Chaos events:", args)
-    result = await asyncio.gather(*(process_case(*arg, client, semaphore) for arg in args))
-    with open("chaos_injection.toml","w") as f:
+    result = await asyncio.gather(
+        *(process_case(*arg, client, semaphore) for arg in args)
+    )
+    with open("chaos_injection.toml", "w") as f:
         toml.dump({"chaos_injection": result}, f)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -41,7 +41,9 @@ def pushd(path):
 async def trace_rcl(base_dir):
     base_dir = Path(base_dir)
     with pushd(base_dir):
-        merged_df = read_and_merge_data("trace_ad_output/normal.csv", "trace_ad_output/abnormal.csv")
+        merged_df = read_and_merge_data(
+            "trace_ad_output/normal.csv", "trace_ad_output/abnormal.csv"
+        )
         merged_df = calculate_changes(merged_df)
         weighted_change_result = sort_and_filter_data(merged_df)
         # weighted_change_result = weighted_change(filtered_df)
@@ -55,16 +57,20 @@ def ranking(base_dir: Path, anomalous: Sequence, score: Sequence[pd.DataFrame]):
         if anomalous:
             scores.append(score)
 
-    combined_scores = pd.concat(scores, ignore_index=True).groupby('ServiceName', as_index=False)['anomaly_score'].sum()
-    combined_scores = combined_scores[combined_scores['anomaly_score'].abs() > 0]
-    combined_scores = combined_scores.rename(columns={'anomaly_score': 'CombinedScore'})
-    combined_scores = combined_scores.sort_values(by='CombinedScore', ascending=False)
+    combined_scores = (
+        pd.concat(scores, ignore_index=True)
+        .groupby("ServiceName", as_index=False)["anomaly_score"]
+        .sum()
+    )
+    combined_scores = combined_scores[combined_scores["anomaly_score"].abs() > 0]
+    combined_scores = combined_scores.rename(columns={"anomaly_score": "CombinedScore"})
+    combined_scores = combined_scores.sort_values(by="CombinedScore", ascending=False)
 
     # Add an index column starting from 1
     combined_scores = combined_scores.reset_index(drop=True)
-    combined_scores['Index'] = combined_scores.index + 1
+    combined_scores["Index"] = combined_scores.index + 1
 
-    combined_scores.to_csv(base_dir / 'final_ranking.csv', index=False)
+    combined_scores.to_csv(base_dir / "final_ranking.csv", index=False)
     # print(combined_scores)
 
     return combined_scores
@@ -72,7 +78,7 @@ def ranking(base_dir: Path, anomalous: Sequence, score: Sequence[pd.DataFrame]):
 
 def fault_type_infer(score_list, event_list):
     """基于故障库预测fault type"""
-    fault_library_path = root_base_dir / 'fault_library.csv'
+    fault_library_path = root_base_dir / "fault_library.csv"
     fault_library_df = pd.read_csv(fault_library_path)
 
     # Define sources and initialize scores and events list
@@ -106,18 +112,18 @@ def fault_type_infer(score_list, event_list):
     # Filter fault types based on score ranges
     filtered_df = fault_library_df[
         (
-            fault_library_df['log_anomaly_score']
-            .apply(lambda x: x.split('-'))
+            fault_library_df["log_anomaly_score"]
+            .apply(lambda x: x.split("-"))
             .apply(lambda rng: int(rng[0]) <= log_pre_score <= int(rng[1]))
         )
         & (
-            fault_library_df['trace_anomaly_score']
-            .apply(lambda x: x.split('-'))
+            fault_library_df["trace_anomaly_score"]
+            .apply(lambda x: x.split("-"))
             .apply(lambda rng: int(rng[0]) <= trace_pre_score <= int(rng[1]))
         )
         & (
-            fault_library_df['metric_anomaly_score']
-            .apply(lambda x: x.split('-'))
+            fault_library_df["metric_anomaly_score"]
+            .apply(lambda x: x.split("-"))
             .apply(lambda rng: int(rng[0]) <= metric_pre_score <= int(rng[1]))
         )
     ]
@@ -126,34 +132,36 @@ def fault_type_infer(score_list, event_list):
     def has_common_events(fault_events):
         return any(event in fault_events for event in most_common_events)
 
-    filtered_df = filtered_df[filtered_df['most_common_event'].apply(lambda x: has_common_events(eval(x)))]
+    filtered_df = filtered_df[
+        filtered_df["most_common_event"].apply(lambda x: has_common_events(eval(x)))
+    ]
 
     # If multiple fault types remain, prioritize by event match count and score proximity
     if len(filtered_df) > 1:
-        filtered_df['event_match_count'] = filtered_df['most_common_event'].apply(
+        filtered_df["event_match_count"] = filtered_df["most_common_event"].apply(
             lambda x: len(set(most_common_events) & set(eval(x)))
         )
-        max_event_match = filtered_df['event_match_count'].max()
-        filtered_df = filtered_df[filtered_df['event_match_count'] == max_event_match]
+        max_event_match = filtered_df["event_match_count"].max()
+        filtered_df = filtered_df[filtered_df["event_match_count"] == max_event_match]
 
     if len(filtered_df) > 1:
 
         def score_diff(row):
-            log_range = eval(row['log_anomaly_score'])
-            trace_range = eval(row['trace_anomaly_score'])
-            metric_range = eval(row['metric_anomaly_score'])
+            log_range = eval(row["log_anomaly_score"])
+            trace_range = eval(row["trace_anomaly_score"])
+            metric_range = eval(row["metric_anomaly_score"])
             return (
                 abs(log_pre_score - sum(log_range) / 2)
                 + abs(trace_pre_score - sum(trace_range) / 2)
                 + abs(metric_pre_score - sum(metric_range) / 2)
             )
 
-        filtered_df['score_proximity'] = filtered_df.apply(score_diff, axis=1)
-        filtered_df = filtered_df.sort_values('score_proximity').iloc[:1]
+        filtered_df["score_proximity"] = filtered_df.apply(score_diff, axis=1)
+        filtered_df = filtered_df.sort_values("score_proximity").iloc[:1]
 
     # Return recommended fault type
     if not filtered_df.empty:
-        recommended_fault_type = filtered_df.iloc[0]['fault_type']
+        recommended_fault_type = filtered_df.iloc[0]["fault_type"]
     else:
         recommended_fault_type = "No matching fault type found"
 
@@ -186,10 +194,13 @@ def fault_infer(prediction_data):
 
     # score_data = [[0.43490573620211487, 0.56789, 31897.9947],[0.56789, 0.6789, 12345.6789]]
 
-    df = pd.DataFrame(score_data, columns=['log_anomaly_score', 'trace_anomaly_score', 'metric_anomaly_score'])
+    df = pd.DataFrame(
+        score_data,
+        columns=["log_anomaly_score", "trace_anomaly_score", "metric_anomaly_score"],
+    )
 
     # get features
-    X = df[['log_anomaly_score', 'trace_anomaly_score', 'metric_anomaly_score']]
+    X = df[["log_anomaly_score", "trace_anomaly_score", "metric_anomaly_score"]]
 
     # K-Means algo
     kmeans = KMeans(n_clusters=3, random_state=42)
@@ -206,29 +217,29 @@ def fault_infer(prediction_data):
 
     # 计算每个点到其所属簇中心的距离
     distances = np.linalg.norm(X.values - cluster_centers[clusters], axis=1)
-    df['distance_to_center'] = distances
+    df["distance_to_center"] = distances
 
     # 离群点检测（设置阈值，比如距离超过 90% 分位数的点为离群点）
     threshold = np.percentile(distances, 90)
-    df['is_outlier'] = df['distance_to_center'] > threshold
+    df["is_outlier"] = df["distance_to_center"] > threshold
 
     # 打印离群点
-    outliers = df[df['is_outlier']]
+    outliers = df[df["is_outlier"]]
     print("\nOutliers:")
     print(outliers)
 
     # 假设有部分已知的标签
-    known_labels = {2: 'cpu-exhaustion', 1: 'memory-exhaustion', 0: 'pod-failure'}
+    known_labels = {2: "cpu-exhaustion", 1: "memory-exhaustion", 0: "pod-failure"}
 
     # 添加手动标签
     print(type(clusters))
     print(clusters)
-    df['cluster'] = clusters
+    df["cluster"] = clusters
     df["case"] = case_name_list
-    df['fault_type_prediction'] = df['cluster'].map(known_labels)
+    df["fault_type_prediction"] = df["cluster"].map(known_labels)
 
     # 检查每个簇的标签分布
-    print(df.groupby('cluster')['fault_type_prediction'].value_counts())
+    print(df.groupby("cluster")["fault_type_prediction"].value_counts())
 
     print(df)
     # 保存为 CSV 文件
@@ -244,10 +255,12 @@ def draw_cluster(X, clusters):
 
     # 创建 3D 图形
     fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+    ax = fig.add_subplot(111, projection="3d")
 
     # 绘制 3D 散点图
-    ax.scatter(X.iloc[:, 0], X.iloc[:, 1], X.iloc[:, 2], c=clusters, cmap='viridis', s=50)
+    ax.scatter(
+        X.iloc[:, 0], X.iloc[:, 1], X.iloc[:, 2], c=clusters, cmap="viridis", s=50
+    )
 
     # 设置标题和轴标签
     ax.set_title("Clustering Results (3D Data)")
@@ -267,14 +280,14 @@ def calculate_metrics_bak(prediction_data, type_prediction, gt_list):
     total_cases = len(gt_list)
 
     for gt in gt_list:
-        case_name = gt['case']
-        gt_service = gt['service']
+        case_name = gt["case"]
+        gt_service = gt["service"]
         gt_type = gt["chaos_type"]
 
         # fault-type evaluation
         for _, row in type_prediction.iterrows():
-            fault_case = row['case']
-            fault_type_prediction = row['fault_type_prediction']
+            fault_case = row["case"]
+            fault_type_prediction = row["fault_type_prediction"]
 
             if fault_case == case_name:
                 if fault_type_prediction == gt_type:
@@ -290,8 +303,10 @@ def calculate_metrics_bak(prediction_data, type_prediction, gt_list):
             if case == case_name:
                 # 找到 ground truth service 在 combined_ranking 中的 index
                 ranking_df = combined_ranking
-                if gt_service in ranking_df['ServiceName'].values:
-                    service_index = ranking_df[ranking_df['ServiceName'] == gt_service]['Index'].values[0]
+                if gt_service in ranking_df["ServiceName"].values:
+                    service_index = ranking_df[ranking_df["ServiceName"] == gt_service][
+                        "Index"
+                    ].values[0]
 
                     # AC@1
                     if service_index == 1:
@@ -323,16 +338,18 @@ def calculate_metrics(prediction_data, gt_list):
     total_cases = len(gt_list)
 
     for gt in gt_list:
-        case_name = gt['case']
-        gt_service = gt['service']
+        case_name = gt["case"]
+        gt_service = gt["service"]
 
         # 在 prediction_data 中找到对应的 case 和 combined_ranking
         for case, combined_ranking in prediction_data:
             if case == case_name:
                 # 找到 ground truth service 在 combined_ranking 中的 index
                 ranking_df = combined_ranking
-                if gt_service in ranking_df['ServiceName'].values:
-                    service_index = ranking_df[ranking_df['ServiceName'] == gt_service]['Index'].values[0]
+                if gt_service in ranking_df["ServiceName"].values:
+                    service_index = ranking_df[ranking_df["ServiceName"] == gt_service][
+                        "Index"
+                    ].values[0]
 
                     # AC@1
                     if service_index == 1:
@@ -368,7 +385,9 @@ async def process_case(base_dir, pool: Pool, file_type="log"):
     else:
         parser: Parser = {"log": LogParser, "trace": TraceParser}[file_type](base_dir)
         data = await parser.parse(pool)
-        detector: Detector = {"log": LogDetector, "trace": TraceDetector}[file_type](base_dir, data)
+        detector: Detector = {"log": LogDetector, "trace": TraceDetector}[file_type](
+            base_dir, data
+        )
         system_anomalous, anomalies = await pool.apply(detector.detect)
         if system_anomalous:
             rcl_func = {"log": log_rcl, "trace": trace_rcl}[file_type]
@@ -382,7 +401,9 @@ async def evaluate(base_dir, pool):
     # print(case)
     base_dir = base_dir.absolute()
     file_types = ["log", "trace", "metric"]
-    result = await asyncio.gather(*(process_case(base_dir, pool, file_type) for file_type in file_types))
+    result = await asyncio.gather(
+        *(process_case(base_dir, pool, file_type) for file_type in file_types)
+    )
     result = list(zip(*result))
     system_anomalous = any(result[0])
     # multi-modal anomaly score
@@ -392,7 +413,7 @@ async def evaluate(base_dir, pool):
         combined_events = {}
         for file_type, events in zip(file_types, result[1]):
             combined_events[f"{file_type}_events"] = events
-        with open(base_dir / "events.toml", 'w') as toml_file:
+        with open(base_dir / "events.toml", "w") as toml_file:
             toml.dump(combined_events, toml_file)
         # final service ranking prediciton, calculate by multi-modal service ranking
         combined_ranking = ranking(base_dir, result[0], result[2])
@@ -450,8 +471,12 @@ async def main():
     childconcurrency = 20
     processes = os.cpu_count()
     queuecount = processes // 4
-    async with Pool(processes=processes, childconcurrency=childconcurrency, queuecount=queuecount) as pool:
-        prediction_data = await asyncio.gather(*(evaluate(case_dir, pool) for case_dir in case_dirs))
+    async with Pool(
+        processes=processes, childconcurrency=childconcurrency, queuecount=queuecount
+    ) as pool:
+        prediction_data = await asyncio.gather(
+            *(evaluate(case_dir, pool) for case_dir in case_dirs)
+        )
 
     service_evaluation_results = calculate_metrics(prediction_data, gt_list)
     print(service_evaluation_results)

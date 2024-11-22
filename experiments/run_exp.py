@@ -6,6 +6,8 @@ from pathlib import Path
 
 import inspect
 import asyncio
+
+
 def run_function(func, *args, **kwargs):
     # 检查函数是否是一个异步函数
     if inspect.iscoroutinefunction(func):
@@ -14,6 +16,8 @@ def run_function(func, *args, **kwargs):
     else:
         # 如果是普通函数，直接调用
         func(*args, **kwargs)
+
+
 if __name__ == "__main__":
     workspace = os.environ["WORKSPACE"]
     if workspace == "":
@@ -33,7 +37,8 @@ if __name__ == "__main__":
         else []
     )
 
-    run_function(start_rca,
+    run_function(
+        start_rca,
         {
             "log_file": base_path / "input" / "logs.csv",
             "trace_file": base_path / "input" / "traces.csv",
@@ -46,5 +51,5 @@ if __name__ == "__main__":
             "profiling_file": base_path / "input" / "profilings.csv",
             "normal_time_range": normal_time_range,
             "abnormal_time_range": abnormal_time_range,
-        }
+        },
     )

@@ -25,7 +25,9 @@ class TraceDetector(Detector):
         if self.system_anomalous:
             await self._save_anomalies_to_csv()
         else:
-            print(f"No trace-related anomalies detected in case {'_'.join(self.base_dir.parts[-2:])}.")
+            print(
+                f"No trace-related anomalies detected in case {'_'.join(self.base_dir.parts[-2:])}."
+            )
         return self.system_anomalous, self.anomalies
 
     def _detect_anomalies(self, k=3):
@@ -39,7 +41,8 @@ class TraceDetector(Detector):
                 mean_duration = row["MeanDuration"]
 
                 normal_stats = self.normal_df[
-                    (self.normal_df["ServiceName"] == service_name) & (self.normal_df["SpanName"] == span_name)
+                    (self.normal_df["ServiceName"] == service_name)
+                    & (self.normal_df["SpanName"] == span_name)
                 ]
 
                 if not normal_stats.empty:
@@ -49,13 +52,20 @@ class TraceDetector(Detector):
                     if mean_duration > normal_mean + k * normal_std:
                         if service_name not in self.anomalies:
                             self.anomalies[service_name] = {
-                                "TimeRanges": (start_time, start_time + pd.Timedelta(minutes=2)),
+                                "TimeRanges": (
+                                    start_time,
+                                    start_time + pd.Timedelta(minutes=2),
+                                ),
                             }
                         else:
                             self.anomalies[service_name]["TimeRanges"] = (
-                                min(self.anomalies[service_name]["TimeRanges"][0], start_time),
+                                min(
+                                    self.anomalies[service_name]["TimeRanges"][0],
+                                    start_time,
+                                ),
                                 max(
-                                    self.anomalies[service_name]["TimeRanges"][1], start_time + pd.Timedelta(minutes=2)
+                                    self.anomalies[service_name]["TimeRanges"][1],
+                                    start_time + pd.Timedelta(minutes=2),
                                 ),
                             )
 
@@ -68,7 +78,9 @@ class TraceDetector(Detector):
             time_range = details["TimeRanges"]
             start_time = time_range[0].strftime("%Y-%m-%d %H:%M:%S")
             end_time = time_range[1].strftime("%Y-%m-%d %H:%M:%S")
-            data.append({"ServiceName": service, "StartTime": start_time, "EndTime": end_time})
+            data.append(
+                {"ServiceName": service, "StartTime": start_time, "EndTime": end_time}
+            )
 
         df = pd.DataFrame(data)
         await asyncio.to_thread(df.to_csv, self.output_file, index=False, mode="w")
