@@ -1,0 +1,36 @@
+version: '3.9'
+
+services:
+  dagger-engine:
+    image: registry.dagger.io/engine:v0.14.0
+    container_name: dagger-engine-v0.14.0
+    privileged: true
+    volumes:
+      - /var/lib/dagger:/var/lib/dagger
+      - ./manifests/engine.toml:/etc/dagger/engine.toml
+    working_dir: /app
+    stdin_open: true
+    tty: true
+
+  redis:
+    image: redis:8.0-M02-alpine3.20
+    container_name: redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+  experiments-controller:
+    build:
+      context: ./experiments_controller
+    container_name: experiments-controller
+    environment:
+      GOPRIVATE: "github.com/CUHK-SE-Group/chaos-experiment"
+      # _EXPERIMENTAL_DAGGER_RUNNER_HOST: "tcp://dagger-engine:"
+    command: ["/app/experiments_controller", "both"]
+    volumes:
+      - /home/nn/.kube/config:/root/.kube/config
+    working_dir: /app
+    ports:
+      - 8081:8080
+    depends_on:
+      - redis
