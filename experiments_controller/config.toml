@@ -5,3 +5,6 @@ label = "app"
 
 [database]
 clickhouse_host = "10.10.10.58"
+
+[redis]
+host = "localhost:6379"
