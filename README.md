@@ -1,6 +1,7 @@
 # Run the server 
 
 ```bash
+make builder
 docker run -d --name redis-server -p 6379:6379 redis:8.0-M02-alpine3.20
 cd experiments_controller
 # export GOPRIVATE=github.com/CUHK-SE-Group/chaos-experiment
