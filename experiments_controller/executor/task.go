@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"dagger/rcabench/config"
 	"dagger/rcabench/database"
 	"encoding/json"
 	"errors"
@@ -47,7 +48,7 @@ const (
 
 func initRedisClient() *redis.Client {
 	client := redis.NewClient(&redis.Options{
-		Addr:     "redis:6379",
+		Addr:     config.GetString("redis.host"),
 		Password: "",
 		DB:       0,
 	})
