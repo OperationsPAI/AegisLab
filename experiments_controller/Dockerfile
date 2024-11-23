@@ -1,11 +1,11 @@
 FROM golang:1.23 as builder
 
-WORKDIR /app
+WORKDIR /app/experiments_controller
 
-COPY go.mod go.sum ./
+COPY go.mod go.sum .
 
 RUN go env -w GOPROXY=https://goproxy.cn,direct && go mod tidy
 
 COPY . .
 
-RUN go build -o /app/experiments_controller .
+RUN go build -o /app/experiments_controller/experiments_controller .
