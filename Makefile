@@ -10,13 +10,4 @@ RUNNER_IMAGE=$(ALGO)_runner:local
 all: builder data_builder runner
 
 builder:
-	docker build -f algorithms/$(ALGO)/builder.Dockerfile -t $(BUILDER_IMAGE) algorithms/$(ALGO)
-
-data_builder: builder
-	docker build -f benchmarks/clickhouse/Dockerfile -t $(DATA_BUILDER_IMAGE) benchmarks/clickhouse
-
-runner: data_builder
-	docker build -f algorithms/$(ALGO)/runner.Dockerfile --build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) --build-arg DATA_BUILDER_IMAGE=$(DATA_BUILDER_IMAGE)  -t $(RUNNER_IMAGE) algorithms/$(ALGO)
-
-clean:
-	docker rmi $(BUILDER_IMAGE) $(DATA_BUILDER_IMAGE) $(RUNNER_IMAGE)
+	docker run --rm -v /var/lib/dagger --name dagger-engine-v0.14.0 --privileged -v $PWD/manifests/engine.toml:/etc/dagger/engine.toml registry.dagger.io/engine:v0.14.0 

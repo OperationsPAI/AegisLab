@@ -1,0 +1,6 @@
+debug = true
+trace = false
+insecure-entitlements = ["security.insecure"]
+
+[registry."10.10.10.240"]
+  http = true 
