@@ -25,11 +25,15 @@ services:
     container_name: experiments-controller
     environment:
       GOPRIVATE: "github.com/CUHK-SE-Group/chaos-experiment"
-      # _EXPERIMENTAL_DAGGER_RUNNER_HOST: "tcp://dagger-engine:"
-    command: ["/app/experiments_controller", "both"]
+      _EXPERIMENTAL_DAGGER_RUNNER_HOST: "tcp://dagger-engine:5678"
+    command: ["/app/experiments_controller/experiments_controller", "both"]
     volumes:
       - /home/nn/.kube/config:/root/.kube/config
-    working_dir: /app
+      - ./algorithms:/app/algorithms
+      - ./benchmarks:/app/benchmarks
+      - ./experiments:/app/experiments
+      - ./reports:/app/reports
+    working_dir: /app/experiments_controller
     ports:
       - 8081:8080
     depends_on:
