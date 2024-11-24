@@ -28,13 +28,15 @@ services:
     environment:
       GOPRIVATE: "github.com/CUHK-SE-Group/chaos-experiment"
       _EXPERIMENTAL_DAGGER_RUNNER_HOST: "tcp://localhost:5678"
-    command: ["/app/experiments_controller/experiments_controller", "both", "--port", "8081"]
+    command: ["/app/experiments_controller/experiments_controller", "both", "--port", "8081", "--conf", "/etc/rcabench/config.toml"]
     volumes:
       - /home/nn/.kube/config:/root/.kube/config
       - ./algorithms:/app/algorithms
       - ./benchmarks:/app/benchmarks
       - ./experiments:/app/experiments
       - ./reports:/app/reports
+      - ./experiments_controller/config.toml:/etc/rcabench/config.toml
+      - /var/lib/rcabench/tasks.db:/var/lib/rcabench/tasks.db
     working_dir: /app/experiments_controller
     network_mode: "host"
     depends_on:

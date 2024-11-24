@@ -227,10 +227,8 @@ func GetInjectionPara(c *gin.Context) {
 func GetDatasets(c *gin.Context) {
 	var faultRecords []database.FaultInjectionSchedule
 
-	// 获取当前时间
 	currentTime := time.Now()
 
-	// 查询所有非失败状态的记录，并满足 CreatedAt + Duration < 当前时间 的条件
 	err := database.DB.
 		Where("status != ?", database.DatasetFailed).
 		Where("proposed_end_time < ?", currentTime).
