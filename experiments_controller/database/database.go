@@ -1,7 +1,10 @@
 package database
 
 import (
+	"dagger/rcabench/config"
 	"log"
+	"os"
+	"path/filepath"
 	"time"
 
 	"gorm.io/driver/sqlite"
@@ -42,17 +45,31 @@ type FaultInjectionSchedule struct {
 	UpdatedAt       time.Time `json:"updated_at"`                   // 更新时间
 }
 
-// 初始化数据库
 func InitDB() {
 	var err error
-	DB, err = gorm.Open(sqlite.Open("tasks.db"), &gorm.Config{})
+	dbPath := config.GetString("storage.path")
+
+	if err = ensureDirForFile(dbPath); err != nil {
+		log.Fatalf("Failed to ensure database directory: %v", err)
+	}
+
+	DB, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// 自动迁移
 	err = DB.AutoMigrate(&Task{}, &FaultInjectionSchedule{})
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
+}
+
+func ensureDirForFile(filePath string) error {
+	dir := filepath.Dir(filePath)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if mkdirErr := os.MkdirAll(dir, os.ModePerm); mkdirErr != nil {
+			return mkdirErr
+		}
+	}
+	return nil
 }

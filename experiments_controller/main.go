@@ -16,6 +16,7 @@ import (
 
 func main() {
 	var port string
+	var conf string
 
 	var rootCmd = &cobra.Command{
 		Use:   "rcabench",
@@ -65,8 +66,9 @@ func main() {
 			}
 		},
 	}
-	config.Init("./config.toml")
 	rootCmd.PersistentFlags().StringVarP(&port, "port", "p", "8080", "Port to run the server on")
+	rootCmd.PersistentFlags().StringVarP(&conf, "conf", "c", "./config.toml", "database path")
+	config.Init(conf)
 
 	rootCmd.AddCommand(producerCmd, consumerCmd, bothCmd)
 
