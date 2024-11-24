@@ -3,7 +3,7 @@ namespace = ["ts"]
 label = "app"
 
 [storage]
-path = "/var/lib/rcabench/tasks.db"
+path = "./tasks.db"
 
 [database]
 clickhouse_host = "10.10.10.58"

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -145,13 +146,11 @@ func processTask(entry redis.XMessage) {
 	logrus.Infof("processing %s", entry.ID)
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Errorf("processTask panicked: %v", r)
+			logrus.Errorf("processTask panicked: %v\n%s", r, debug.Stack())
 		}
-		// 确认并删除消息
 		Rdb.XAck(context.Background(), StreamName, GroupName, entry.ID)
 		Rdb.XDel(context.Background(), StreamName, entry.ID)
 	}()
-
 	taskID, ok := entry.Values[RdbMsgTaskID].(string)
 	if !ok {
 		logrus.Error("Invalid taskID in message")
@@ -252,21 +251,24 @@ func executeFaultInjection(taskID string, payload map[string]interface{}) error 
 	updateTaskStatus(taskID, "Running", fmt.Sprintf("Executing fault injection for task %s", taskID))
 
 	// 故障注入逻辑
+	var chaosSpec interface{}
 	spec := handler.SpecMap[handler.ChaosType(faultType)]
-	actionSpace, err := handler.GenerateActionSpace(spec)
-	if err != nil {
-		logrus.Error(err)
-		return err
-	}
-	err = handler.ValidateAction(injectSpec, actionSpace)
-	if err != nil {
-		logrus.Error("ValidateAction", err)
-		return err
-	}
-	chaosSpec, err := handler.ActionToStruct(handler.ChaosType(faultType), injectSpec)
-	if err != nil {
-		logrus.Errorf("ActionToStruct, err: %s", err)
-		return err
+	if spec != nil {
+		actionSpace, err := handler.GenerateActionSpace(spec)
+		if err != nil {
+			logrus.Error("GenerateActionSpace: ", err)
+			return err
+		}
+		err = handler.ValidateAction(injectSpec, actionSpace)
+		if err != nil {
+			logrus.Error("ValidateAction: ", err)
+			return err
+		}
+		chaosSpec, err = handler.ActionToStruct(handler.ChaosType(faultType), injectSpec)
+		if err != nil {
+			logrus.Errorf("ActionToStruct, err: %s", err)
+			return err
+		}
 	}
 
 	config := handler.ChaosConfig{

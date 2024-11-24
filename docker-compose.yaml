@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   dagger-engine:
     image: registry.dagger.io/engine:v0.14.0
