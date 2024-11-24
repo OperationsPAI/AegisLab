@@ -142,7 +142,7 @@
                     faultParametersDiv.appendChild(paramDiv);
                 });
             } else {
-                faultParametersDiv.innerHTML = '<p class="text-red-500">No parameters found for this fault type.</p>';
+                faultParametersDiv.innerHTML = '<p class="text-red-500">No other parameters found for this fault type.</p>';
             }
         }
 
@@ -177,7 +177,7 @@
                 const faultTypeName = injectionData.keymap[faultTypeKey];
                 const specification = injectionData.specification[faultTypeName];
 
-                if (!faultTypeName || !specification) {
+                if (!faultTypeName) {
                     alert("Invalid fault type selected.");
                     return;
                 }
@@ -206,26 +206,28 @@
                 let parametersValid = true;
                 const parameters = {};
 
-                specification.forEach(param => {
-                    const input = document.getElementById(`param-${param.FieldName}`);
-                    let value = input.value.trim();
-
-                    if (value === '' && !param.IsOptional) {
-                        alert(`${param.FieldName} is required.`);
-                        parametersValid = false;
-                        return;
-                    }
-
-                    value = Number(value);
-                    if (isNaN(value) || value < param.Min || value > param.Max) {
-                        alert(`${param.FieldName} must be a number between ${param.Min} and ${param.Max}.`);
-                        parametersValid = false;
-                        return;
-                    }
-
-                    parameters[param.FieldName] = value;
-                });
-
+                if (specification){
+                    specification.forEach(param => {
+                        const input = document.getElementById(`param-${param.FieldName}`);
+                        let value = input.value.trim();
+    
+                        if (value === '' && !param.IsOptional) {
+                            alert(`${param.FieldName} is required.`);
+                            parametersValid = false;
+                            return;
+                        }
+    
+                        value = Number(value);
+                        if (isNaN(value) || value < param.Min || value > param.Max) {
+                            alert(`${param.FieldName} must be a number between ${param.Min} and ${param.Max}.`);
+                            parametersValid = false;
+                            return;
+                        }
+    
+                        parameters[param.FieldName] = value;
+                    });
+                }
+                
                 if (!parametersValid) {
                     return;
                 }
@@ -453,7 +455,6 @@
                     <select id="taskType" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
                         <option value="FaultInjection">Fault Injection</option>
                         <option value="RunAlgorithm">Run Algorithm</option>
-                        <option value="EvaluateAlgorithm">Evaluate Algorithm</option>
                     </select>
                 </div>
 
