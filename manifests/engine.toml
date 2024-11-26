@@ -8,3 +8,10 @@ address = ["tcp://0.0.0.0:5678"]
 [registry."10.10.10.240"]
   http = true 
 
+# [worker.oci]
+# env = [
+#   "HTTP_PROXY=http://10.31.161.15:60445",
+#   "HTTPS_PROXY=http://10.31.161.15:60445",
+#   "NO_PROXY=localhost,127.0.0.1,10.10.10.240/24",
+#   "SOCKS5_PROXY=socks5://10.31.161.15:60445"
+# ]
