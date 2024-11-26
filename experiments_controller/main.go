@@ -67,7 +67,7 @@ func main() {
 		},
 	}
 	rootCmd.PersistentFlags().StringVarP(&port, "port", "p", "8080", "Port to run the server on")
-	rootCmd.PersistentFlags().StringVarP(&conf, "conf", "c", "./config.toml", "database path")
+	rootCmd.PersistentFlags().StringVarP(&conf, "conf", "c", "", "database path")
 	config.Init(conf)
 
 	rootCmd.AddCommand(producerCmd, consumerCmd, bothCmd)

@@ -7,3 +7,4 @@ address = ["tcp://0.0.0.0:5678"]
 
 [registry."10.10.10.240"]
   http = true 
+
