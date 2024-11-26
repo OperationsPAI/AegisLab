@@ -34,7 +34,8 @@ services:
       - ./experiments:/app/experiments
       - ./reports:/app/reports
       - ./experiments_controller/config.toml:/etc/rcabench/config.toml
-      - /var/lib/rcabench/tasks.db:/var/lib/rcabench/tasks.db
+      - ./data:/var/lib/rcabench
+      - ./output:/app/experiments_controller/output
     working_dir: /app/experiments_controller
     network_mode: "host"
     depends_on:

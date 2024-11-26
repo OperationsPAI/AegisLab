@@ -20,6 +20,7 @@ func (m *Rcabench) BuildBenchmarkDataImage(
 	abnorStartTime, abnorEndTime, norStartTime, norEndTime time.Time,
 ) *dagger.Container {
 	workspace := dag.Container().
+		WithEnvVariable("CACHEBUSTER", time.Now().String()). // 强制重新编译
 		WithDirectory("/app", src).
 		WithWorkdir("/app").
 		Directory("/app")
@@ -31,7 +32,6 @@ func (m *Rcabench) BuildBenchmarkDataImage(
 	}, dagger.HostServiceOpts{Host: config.GetString("database.clickhouse_host")})
 
 	return dag.Container().
-		WithEnvVariable("CACHEBUSTER", time.Now().String()).
 		WithServiceBinding("clickhouse", hostSrv).
 		Build(workspace, dagger.ContainerBuildOpts{
 			BuildArgs: []dagger.BuildArg{
@@ -79,7 +79,6 @@ func (m *Rcabench) BuildAlgoRunnerImage(
 		WithFile("/app/rca.py", src.File("rca.py")).
 		WithFile("/app/run_exp.py", start_script).
 		WithEnvVariable("WORKSPACE", "/app").
-		WithEnvVariable("CACHEBUSTER", time.Now().String()). // 强制重新编译
 		WithEnvVariable("ABNORMAL_START", strconv.Itoa(int(abnorStartTime.Unix()))).
 		WithEnvVariable("ABNORMAL_END", strconv.Itoa(int(abnorEndTime.Unix()))).
 		WithEnvVariable("NORMAL_START", strconv.Itoa(int(norStartTime.Unix()))).
@@ -89,10 +88,9 @@ func (m *Rcabench) BuildAlgoRunnerImage(
 func (m *Rcabench) Evaluate(
 	ctx context.Context, bench_dir, src *dagger.Directory, start_script *dagger.File,
 	abnorStartTime, abnorEndTime, norStartTime, norEndTime time.Time,
-) *dagger.Directory {
+) *dagger.Container {
 	return m.BuildAlgoRunnerImage(ctx, bench_dir, src, start_script, abnorStartTime, abnorEndTime, norStartTime, norEndTime).
-		WithExec([]string{"python", "run_exp.py"}).
-		Directory("/app/output")
+		WithExec([]string{"python", "run_exp.py"})
 }
 
 func (m *Rcabench) Publish(ctx context.Context, registry string, username string, password *dagger.Secret,

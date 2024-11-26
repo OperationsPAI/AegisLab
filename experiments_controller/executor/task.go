@@ -376,11 +376,14 @@ func executeAlgorithm(taskID string, payload map[string]interface{}) error {
 	con := rc.Evaluate(context.Background(), dag.Host().Directory(benchPath), dag.Host().Directory(algoPath), dag.Host().File(startScriptPath),
 		startTime, endTime, startTime.Add(-20*time.Minute), startTime)
 
-	_, err = con.Export(context.Background(), "./output")
+	_, err = con.Directory("/app/output").Export(context.Background(), "./output")
 	if err != nil {
 		return fmt.Errorf("failed to export result, details: %s", err.Error())
 	}
-
+	_, err = con.Directory("/app/input").Export(context.Background(), "./input")
+	if err != nil {
+		return fmt.Errorf("failed to export result, details: %s", err.Error())
+	}
 	return nil
 }
 

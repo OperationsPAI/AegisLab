@@ -37,4 +37,4 @@ def start_rca(params: Dict):
     file_path = os.path.join(directory, "my_file.txt")
 
     with open(file_path, "w") as file:
-        file.write("hello world jj")
+        file.write("hello world")
