@@ -26,13 +26,23 @@ if __name__ == "__main__":
     base_path = Path(workspace)
 
     normal_time_range = (
-        [(int(os.environ["NORMAL_START"]), int(os.environ["NORMAL_END"]))]
+        [
+            (
+                int(os.environ["NORMAL_START"]) + 8 * 3600,
+                int(os.environ["NORMAL_END"]) + 8 * 3600,
+            )
+        ]
         if os.environ.get("NORMAL_START") and os.environ.get("NORMAL_END")
         else []
     )
 
     abnormal_time_range = (
-        [(int(os.environ["ABNORMAL_START"]), int(os.environ["ABNORMAL_END"]))]
+        [
+            (
+                int(os.environ["ABNORMAL_START"]) + 8 * 3600,
+                int(os.environ["ABNORMAL_END"]) + 8 * 3600,
+            )
+        ]
         if os.environ.get("ABNORMAL_START") and os.environ.get("ABNORMAL_END")
         else []
     )
