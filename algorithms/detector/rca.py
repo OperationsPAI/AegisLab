@@ -164,11 +164,12 @@ def detect_significant_changes(df, k_factor=1000):
         k_factor (int): Balancing factor for dynamic weight adjustment.
 
     Returns:
-        pd.DataFrame: Filtered DataFrame with significant changes and detected issues.
+        pd.DataFrame: Filtered DataFrame with significant changes, detected issues, and scores.
     """
     results = []
     for _, row in df.iterrows():
         issues = []
+        scores = {}
 
         # 检查成功率变化
         if abs(row["SuccRateChange"]) > SUCCESS_RATE_THRESHOLD:
@@ -190,16 +191,21 @@ def detect_significant_changes(df, k_factor=1000):
                 rel_change / LATENCY_RELATIVE_THRESHOLD
             )
             print(
-                f"{row["SpanName"]} {metric}  绝对: {w_abs}, 相对: {w_rel}, 综合打分: {score}"
+                f"{row['SpanName']} {metric}  绝对权重: {w_abs:.2f}, 相对权重: {w_rel:.2f}, 综合打分: {score:.2f}"
             )
+            scores[metric] = score  # 保存评分
+
             # 判断是否需要关注
             if score > 1.0:
                 issues.append(f"{metric} Change (Score: {score:.2f})")
 
         # 如果有问题，记录
         if issues:
-            results.append({"SpanName": row["SpanName"], "Issues": ", ".join(issues)})
-
+            results.append({
+                "SpanName": row["SpanName"],
+                "Issues": ", ".join(issues),
+                **scores  # 将每个 Span 的评分作为列返回
+            })
 
     return pd.DataFrame(results)
 
