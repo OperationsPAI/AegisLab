@@ -198,7 +198,7 @@ def create_folders():
 
 def parse_time(unix_time: int, delta=None):
     """Parse the Unix timestamp to a human-readable format."""
-    dt = pd.to_datetime(unix_time, utc=True, unit="s").astimezone("Asia/Shanghai")
+    dt = pd.to_datetime(unix_time, utc=True, unit="s")
     if delta:
         dt += delta
     return dt.strftime("%Y-%m-%d %H:%M:%S")
