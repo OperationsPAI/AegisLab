@@ -24,6 +24,7 @@ func New() *gin.Engine {
 	router.GET("/datasets", handlers.GetDatasets)
 	router.GET("/injection", handlers.GetInjectionPara)
 	router.GET("/namespacepod", handlers.GetNamespacePod)
+	router.GET("/evaluation", handlers.GetTaskResults)
 
 	return router
 }
