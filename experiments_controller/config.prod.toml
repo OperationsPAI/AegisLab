@@ -1,3 +1,6 @@
+port = 8080
+debug = false
+
 [injection]
 namespace = ["ts"]  
 label = "app"

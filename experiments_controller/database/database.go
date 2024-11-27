@@ -66,23 +66,17 @@ type GranularityResult struct {
 }
 
 type Detector struct {
-	ID                  uint    `gorm:"primaryKey"`
-	SpanName            string  `gorm:"type:varchar(255);not null;index"`
-	AvgDurationNormal   float64 `gorm:"type:double;not null"`
-	AvgDurationAbnormal float64 `gorm:"type:double;not null"`
-	AvgDurationChange   float64 `gorm:"type:double;not null"`
-	SuccRateNormal      float64 `gorm:"type:double;not null"`
-	SuccRateAbnormal    float64 `gorm:"type:double;not null"`
-	SuccRateChange      float64 `gorm:"type:double;not null"`
-	P90Normal           float64 `gorm:"type:double;not null"`
-	P90Abnormal         float64 `gorm:"type:double;not null"`
-	P90Change           float64 `gorm:"type:double;not null"`
-	P95Normal           float64 `gorm:"type:double;not null"`
-	P95Abnormal         float64 `gorm:"type:double;not null"`
-	P95Change           float64 `gorm:"type:double;not null"`
-	P99Normal           float64 `gorm:"type:double;not null"`
-	P99Abnormal         float64 `gorm:"type:double;not null"`
-	P99Change           float64 `gorm:"type:double;not null"`
+	ID          int       `gorm:"primaryKey"`
+	ExecutionID int       `gorm:"index,unique" json:"execution_id"` // ExecutionID 是主键
+	SpanName    string    `gorm:"type:varchar(255)"`                // SpanName 数据库字段类型
+	Issues      string    `gorm:"type:text"`                        // Issues 字段类型为文本
+	AvgDuration *float64  `gorm:"type:float"`                       // AvgDuration 是浮点类型
+	SuccRate    *float64  `gorm:"type:float"`                       // SuccRate 是浮点类型
+	P90         *float64  `gorm:"type:float"`                       // P90 是浮点类型
+	P95         *float64  `gorm:"type:float"`                       // P95 是浮点类型
+	P99         *float64  `gorm:"type:float"`                       // P99 是浮点类型
+	CreatedAt   time.Time `gorm:"autoCreateTime"`                   // CreatedAt 自动设置为当前时间
+	UpdatedAt   time.Time `gorm:"autoUpdateTime"`                   // UpdatedAt 自动更新时间
 }
 
 func InitDB() {

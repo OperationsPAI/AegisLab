@@ -434,29 +434,44 @@ func executeAlgorithm(taskID string, payload map[string]interface{}) error {
 	con := rc.Evaluate(context.Background(), dag.Host().Directory(benchPath), dag.Host().Directory(algoPath), dag.Host().File(startScriptPath),
 		startTime, endTime, startTime.Add(-20*time.Minute), startTime)
 
-	_, err = con.Directory("/app/output").Export(context.Background(), "./output")
-	if err != nil {
-		return fmt.Errorf("failed to export result, details: %s", err.Error())
-	}
-	_, err = con.Directory("/app/input").Export(context.Background(), "./input")
-	if err != nil {
-		return fmt.Errorf("failed to export result, details: %s", err.Error())
+	if config.GetBool("debug") {
+		_, err = con.Directory("/app/output").Export(context.Background(), "./output")
+		if err != nil {
+			return fmt.Errorf("failed to export result, details: %s", err.Error())
+		}
+		_, err = con.Directory("/app/input").Export(context.Background(), "./input")
+		if err != nil {
+			return fmt.Errorf("failed to export result, details: %s", err.Error())
+		}
 	}
 
 	content, err := con.File("/app/output/result.csv").Contents(context.Background())
 	if err != nil {
-		return err
-	}
-	results, err := readCSVContent2Result(content, executionResult.ID)
-	if err != nil {
-		return err
-	}
-	if err := database.DB.Create(&results).Error; err != nil {
-		return err
+		updateTaskStatus(taskID, "Running", "There is no result.csv file in /app/output, please check whether it is nomal")
 	} else {
-		logrus.Info("Data imported successfully!")
+		results, err := readCSVContent2Result(content, executionResult.ID)
+		if err != nil {
+			return fmt.Errorf("convert result.csv to database struct failed: %v", err)
+		}
+		if err := database.DB.Create(&results).Error; err != nil {
+			return fmt.Errorf("save result.csv to database failed: %v", err)
+		}
 	}
 
+	conclusion, err := con.File("/app/output/conclusion.csv").Contents(context.Background())
+	if err != nil {
+		updateTaskStatus(taskID, "Running", "There is no conclusion.csv file in /app/output, please check whether it is nomal")
+
+	} else {
+		results, err := readDetectorCSV(conclusion, executionResult.ID)
+		if err != nil {
+			return fmt.Errorf("convert result.csv to database struct failed: %v", err)
+		}
+		fmt.Println(results)
+		if err := database.DB.Create(&results).Error; err != nil {
+			return fmt.Errorf("save conclusion.csv to database failed: %v", err)
+		}
+	}
 	return nil
 }
 
@@ -555,6 +570,98 @@ func readCSVContent2Result(csvContent string, executionID int) ([]database.Granu
 			Result:      result,
 			Rank:        rank,
 			Confidence:  confidence,
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		})
+	}
+
+	return results, nil
+}
+
+func readDetectorCSV(csvContent string, executionID int) ([]database.Detector, error) {
+	reader := csv.NewReader(strings.NewReader(csvContent))
+
+	// 读取表头
+	header, err := reader.Read()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read CSV header: %v", err)
+	}
+
+	expectedHeader := []string{"SpanName", "Issues", "AvgDuration", "SuccRate", "P90", "P95", "P99"}
+	if len(header) != len(expectedHeader) {
+		return nil, fmt.Errorf("unexpected header length: got %d, expected %d", len(header), len(expectedHeader))
+	}
+	for i, field := range header {
+		if field != expectedHeader[i] {
+			return nil, fmt.Errorf("unexpected header field at column %d: got '%s', expected '%s'", i+1, field, expectedHeader[i])
+		}
+	}
+
+	// 读取所有行
+	rows, err := reader.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read CSV rows: %v", err)
+	}
+
+	var results []database.Detector
+	for i, row := range rows {
+		if len(row) != len(expectedHeader) {
+			return nil, fmt.Errorf("row %d has incorrect number of columns: got %d, expected %d", i+1, len(row), len(expectedHeader))
+		}
+
+		spanName := row[0]
+		issues := row[1]
+
+		// 处理空值
+		var avgDuration, succRate, p90, p95, p99 *float64
+
+		// 如果字段非空，转换为 float64，否则设置为 nil
+		if row[2] != "" {
+			val, err := strconv.ParseFloat(row[2], 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid AvgDuration value in row %d: %v", i+1, err)
+			}
+			avgDuration = &val
+		}
+		if row[3] != "" {
+			val, err := strconv.ParseFloat(row[3], 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid SuccRate value in row %d: %v", i+1, err)
+			}
+			succRate = &val
+		}
+		if row[4] != "" {
+			val, err := strconv.ParseFloat(row[4], 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid P90 value in row %d: %v", i+1, err)
+			}
+			p90 = &val
+		}
+		if row[5] != "" {
+			val, err := strconv.ParseFloat(row[5], 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid P95 value in row %d: %v", i+1, err)
+			}
+			p95 = &val
+		}
+		if row[6] != "" {
+			val, err := strconv.ParseFloat(row[6], 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid P99 value in row %d: %v", i+1, err)
+			}
+			p99 = &val
+		}
+
+		// 将数据添加到结果
+		results = append(results, database.Detector{
+			ExecutionID: executionID,
+			SpanName:    spanName,
+			Issues:      issues,
+			AvgDuration: avgDuration,
+			SuccRate:    succRate,
+			P90:         p90,
+			P95:         p95,
+			P99:         p99,
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
 		})
