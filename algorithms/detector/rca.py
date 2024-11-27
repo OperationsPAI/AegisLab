@@ -176,7 +176,7 @@ def detect_significant_changes(df, k_factor=1000):
             issues.append("Success Rate Change")
 
         # 检查时延变化
-        for metric in ["AvgDuration"]:
+        for metric in ["AvgDuration", "SuccRate", "P90", "P95", "P99"]:
             normal = row[f"{metric}_normal"]
             abnormal = row[f"{metric}_abnormal"]
             abs_change = abs(abnormal - normal)
@@ -200,12 +200,12 @@ def detect_significant_changes(df, k_factor=1000):
                 issues.append(f"{metric} Change (Score: {score:.2f})")
 
         # 如果有问题，记录
-        if issues:
-            results.append({
-                "SpanName": row["SpanName"],
-                "Issues": ", ".join(issues),
-                **scores  # 将每个 Span 的评分作为列返回
-            })
+        results.append({
+            "SpanName": row["SpanName"],
+            "Issues": ", ".join(issues),
+            **scores  # 将每个 Span 的评分作为列返回
+        })
+            
 
     return pd.DataFrame(results)
 
