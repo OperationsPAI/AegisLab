@@ -20,13 +20,14 @@ func Init(configPath string) {
 	if configPath != "" {
 		viper.AddConfigPath(configPath)
 	}
-	viper.AddConfigPath(".")
 	viper.AddConfigPath("$HOME/.rcabench")
+	viper.AddConfigPath("/etc/rcabench")
+	viper.AddConfigPath(".")
 
 	if err := viper.ReadInConfig(); err != nil {
 		logrus.Fatalf("读取配置文件失败: %v", err)
 	}
-	logrus.Println("配置文件加载成功:", viper.ConfigFileUsed())
+	logrus.Printf("配置文件加载成功: %v; configPath: %v, ", viper.ConfigFileUsed(), configPath)
 
 	viper.AutomaticEnv()
 }

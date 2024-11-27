@@ -28,7 +28,7 @@ func main() {
 	}
 
 	rootCmd.PersistentFlags().StringVarP(&port, "port", "p", "8080", "Port to run the server on")
-	rootCmd.PersistentFlags().StringVarP(&conf, "conf", "c", ".", "Path to configuration file")
+	rootCmd.PersistentFlags().StringVarP(&conf, "conf", "c", "", "Path to configuration file")
 
 	viper.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port"))
 	viper.BindPFlag("conf", rootCmd.PersistentFlags().Lookup("conf"))
