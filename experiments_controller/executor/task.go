@@ -401,6 +401,7 @@ func executeAlgorithm(taskID string, payload map[string]interface{}) error {
 
 	executionResult := database.ExecutionResult{
 		Dataset: faultRecord.ID,
+		TaskID:  taskID,
 		Algo:    algPayload.Algorithm,
 	}
 	if err := database.DB.Create(&executionResult).Error; err != nil {
