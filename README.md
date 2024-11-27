@@ -7,8 +7,8 @@ docker compose up
 # Develop the server
 
 ```bash
-cd experiments_controller
 docker compose up redis dagger-engine
+cd experiments_controller
 _EXPERIMENTAL_DAGGER_RUNNER_HOST=tcp://localhost:5678 go run main.go both # --port 8082 
 ```
 
