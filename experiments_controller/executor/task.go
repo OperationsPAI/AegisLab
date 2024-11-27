@@ -4,9 +4,11 @@ import (
 	"context"
 	"dagger/rcabench/config"
 	"dagger/rcabench/database"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -112,13 +114,12 @@ func ConsumeTasks() {
 			continue
 		}
 
-		// 如果没有待处理的消息，读取新的消息
 		entries, err = Rdb.XReadGroup(ctx, &redis.XReadGroupArgs{
 			Group:    GroupName,
 			Consumer: ConsumerName,
 			Streams:  []string{StreamName, ">"},
 			Count:    1,
-			Block:    time.Second * 5, // 阻塞等待最多5秒
+			Block:    time.Second * 5,
 		}).Result()
 		if err != nil && err != redis.Nil {
 			logrus.Errorf("Error reading from stream: %v", err)
@@ -129,14 +130,12 @@ func ConsumeTasks() {
 		if len(entries) > 0 && len(entries[0].Messages) > 0 {
 			for _, entry := range entries[0].Messages {
 				processTask(entry)
-				// 确认消息已被处理
 				err := Rdb.XAck(ctx, StreamName, GroupName, entry.ID).Err()
 				if err != nil {
 					logrus.Errorf("Failed to acknowledge message %v: %v", entry.ID, err)
 				}
 			}
 		} else {
-			// 如果没有消息，稍等一会儿
 			time.Sleep(time.Second)
 		}
 	}
@@ -288,7 +287,7 @@ func executeFaultInjection(taskID string, payload map[string]interface{}) error 
 
 	// 创建新的故障注入记录
 	faultRecord := database.FaultInjectionSchedule{
-		ID:              taskID,           // 使用任务 ID 作为记录的主键
+		TaskID:          taskID,           // 使用任务 ID 作为记录的主键
 		FaultType:       faultType,        // 故障类型
 		Config:          string(jsonData), // 故障配置 (JSON 格式化字符串)
 		Duration:        int(duration),
@@ -349,6 +348,15 @@ func executeAlgorithm(taskID string, payload map[string]interface{}) error {
 		}
 	}
 
+	executionResult := database.ExecutionResult{
+		Dataset: faultRecord.ID,
+		Algo:    algo,
+	}
+	if err := database.DB.Model(&executionResult).Create(&executionResult).Error; err != nil {
+		fmt.Printf("Failed to create execution result: %v\n", err)
+		return err
+	}
+
 	updateTaskStatus(taskID, "Running", fmt.Sprintf("Running algorithm for task %s", taskID))
 
 	pwd, err := os.Getwd()
@@ -384,6 +392,21 @@ func executeAlgorithm(taskID string, payload map[string]interface{}) error {
 	if err != nil {
 		return fmt.Errorf("failed to export result, details: %s", err.Error())
 	}
+
+	content, err := con.File("/app/output/result.csv").Contents(context.Background())
+	if err != nil {
+		return err
+	}
+	results, err := readCSVContent2Result(content, executionResult.ID)
+	if err != nil {
+		return err
+	}
+	if err := database.DB.Create(&results).Error; err != nil {
+		return err
+	} else {
+		logrus.Info("Data imported successfully!")
+	}
+
 	return nil
 }
 
@@ -408,4 +431,79 @@ func updateTaskStatus(taskID, status, message string) {
 	if err := database.DB.Model(&database.Task{}).Where("id = ?", taskID).Update("status", status).Error; err != nil {
 		logrus.Errorf("Failed to update task %s in SQLite: %v", taskID, err)
 	}
+}
+func readCSVFile2Result(filename string, executionID int) ([]database.GranularityResult, error) {
+	// 打开文件
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %v", err)
+	}
+	defer file.Close()
+
+	// 读取文件内容
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file content: %v", err)
+	}
+
+	// 调用已有的函数解析 CSV 内容
+	return readCSVContent2Result(string(content), executionID)
+}
+func readCSVContent2Result(csvContent string, executionID int) ([]database.GranularityResult, error) {
+	// 将字符串内容转换为 CSV Reader
+	reader := csv.NewReader(strings.NewReader(csvContent))
+
+	// 检查表头结构
+	header, err := reader.Read() // 读取表头
+	if err != nil {
+		return nil, fmt.Errorf("failed to read CSV header: %v", err)
+	}
+
+	// 期望的表头字段
+	expectedHeader := []string{"level", "result", "rank", "confidence"}
+	if len(header) != len(expectedHeader) {
+		return nil, fmt.Errorf("unexpected header length: got %d, expected %d", len(header), len(expectedHeader))
+	}
+	for i, field := range header {
+		if field != expectedHeader[i] {
+			return nil, fmt.Errorf("unexpected header field at column %d: got '%s', expected '%s'", i+1, field, expectedHeader[i])
+		}
+	}
+
+	// 读取数据行
+	rows, err := reader.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read CSV rows: %v", err)
+	}
+
+	var results []database.GranularityResult
+	for i, row := range rows {
+		if len(row) != len(expectedHeader) {
+			return nil, fmt.Errorf("row %d has incorrect number of columns: got %d, expected %d", i+1, len(row), len(expectedHeader))
+		}
+
+		// 解析每一行
+		level := row[0]
+		result := row[1]
+		rank, err := strconv.Atoi(row[2])
+		if err != nil {
+			return nil, fmt.Errorf("invalid rank value in row %d: %v", i+1, err)
+		}
+		confidence, err := strconv.ParseFloat(row[3], 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid confidence value in row %d: %v", i+1, err)
+		}
+
+		results = append(results, database.GranularityResult{
+			ExecutionID: executionID,
+			Level:       level,
+			Result:      result,
+			Rank:        rank,
+			Confidence:  confidence,
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		})
+	}
+
+	return results, nil
 }

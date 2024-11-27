@@ -31,18 +31,38 @@ type Task struct {
 
 // FaultInjectionSchedule 模型
 type FaultInjectionSchedule struct {
-	ID              string    `gorm:"primaryKey" json:"id"`         // 唯一标识
-	FaultType       int       `json:"fault_type"`                   // 故障类型
-	Config          string    `json:"config"`                       // 配置 JSON 格式
-	Duration        int       `json:"duration"`                     // 故障持续时间
-	StartTime       time.Time `json:"start_time"`                   // 预计故障开始时间
-	EndTime         time.Time `json:"end_time"`                     // 预计故障结束时间
-	Status          int       `json:"status"`                       // 0: 初始状态，没有检查 1: 检查了，注入结束且成功 2: 检查了，注入结束且失败; 如果状态是 1，则可以用于数据集查询
-	Description     string    `json:"description"`                  // 描述（可选字段）
-	InjectionName   string    `gorm:"unique" json:"injection_name"` // 在k8s资源里注入的名字
-	ProposedEndTime time.Time `json:"proposed_end_time"`            //预计结束时间
-	CreatedAt       time.Time `json:"created_at"`                   // 创建时间
-	UpdatedAt       time.Time `json:"updated_at"`                   // 更新时间
+	ID              int       `gorm:"primaryKey;autoIncrement" json:"id"` // 唯一标识
+	TaskID          string    `gorm:"index" json:"task_id"`               //从属什么 taskid
+	FaultType       int       `json:"fault_type" grom:"index"`            // 故障类型
+	Config          string    `json:"config"`                             // 配置 JSON 格式
+	Duration        int       `json:"duration"`                           // 故障持续时间
+	StartTime       time.Time `json:"start_time"`                         // 预计故障开始时间
+	EndTime         time.Time `json:"end_time"`                           // 预计故障结束时间
+	Status          int       `json:"status"`                             // 0: 初始状态，没有检查 1: 检查了，注入结束且成功 2: 检查了，注入结束且失败; 如果状态是 1，则可以用于数据集查询
+	Description     string    `json:"description"`                        // 描述（可选字段）
+	InjectionName   string    `gorm:"unique,index" json:"injection_name"` // 在k8s资源里注入的名字
+	ProposedEndTime time.Time `json:"proposed_end_time"`                  //预计结束时间
+	CreatedAt       time.Time `json:"created_at"`                         // 创建时间
+	UpdatedAt       time.Time `json:"updated_at"`                         // 更新时间
+}
+
+type ExecutionResult struct {
+	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"` // 唯一标识
+	Dataset   int       `json:"dataset" grom:"index,unique"`        // 数据集标识
+	Algo      string    `json:"algo"`                               // 使用的算法
+	CreatedAt time.Time `json:"created_at"`                         // 创建时间
+	UpdatedAt time.Time `json:"updated_at"`                         // 更新时间
+}
+
+type GranularityResult struct {
+	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"` // 唯一标识
+	ExecutionID int       `gorm:"index,unique" json:"execution_id"`   // 关联ExecutionResult的ID
+	Level       string    `json:"level"`                              // 粒度类型 (e.g., "service", "pod", "span", "metric")
+	Result      string    `json:"result"`                             // 定位结果，以逗号分隔
+	Rank        int       `json:"rank"`                               // 排序，表示top1, top2等
+	Confidence  float64   `json:"confidence"`                         // 可信度（可选）
+	CreatedAt   time.Time `json:"created_at"`                         // 创建时间
+	UpdatedAt   time.Time `json:"updated_at"`                         // 更新时间
 }
 
 func InitDB() {
@@ -58,7 +78,7 @@ func InitDB() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	err = DB.AutoMigrate(&Task{}, &FaultInjectionSchedule{})
+	err = DB.AutoMigrate(&Task{}, &FaultInjectionSchedule{}, &ExecutionResult{}, &GranularityResult{})
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
