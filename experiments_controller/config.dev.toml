@@ -1,0 +1,14 @@
+port = 8082
+
+[injection]
+namespace = ["ts"]  
+label = "app"
+
+[storage]
+path = "./tasks.db"
+
+[database]
+clickhouse_host = "10.10.10.58"
+
+[redis]
+host = "localhost:6379"

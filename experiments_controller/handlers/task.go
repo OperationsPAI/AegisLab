@@ -52,7 +52,7 @@ func SubmitTask(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
-	_, err = executor.Rdb.XAdd(ctx, &redis.XAddArgs{
+	_, err = executor.GetRedisClient().XAdd(ctx, &redis.XAddArgs{
 		Stream: executor.StreamName,
 		Values: map[string]interface{}{
 			executor.RdbMsgTaskID:   taskID,
@@ -88,7 +88,7 @@ func GetTaskStatus(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// 获取任务状态
-	status, err := executor.Rdb.HGet(ctx, taskKey, "status").Result()
+	status, err := executor.GetRedisClient().HGet(ctx, taskKey, "status").Result()
 	if err == redis.Nil {
 		c.JSON(404, gin.H{"error": "Task not found"})
 		return
@@ -99,7 +99,7 @@ func GetTaskStatus(c *gin.Context) {
 
 	// 获取任务日志
 	logKey := fmt.Sprintf("task:%s:logs", taskID) // 使用专用的日志键
-	logs, err := executor.Rdb.LRange(ctx, logKey, 0, -1).Result()
+	logs, err := executor.GetRedisClient().LRange(ctx, logKey, 0, -1).Result()
 	if err != nil && err != redis.Nil {
 		c.JSON(500, gin.H{"error": "Failed to retrieve logs"})
 		return
@@ -147,7 +147,7 @@ func GetTaskLogs(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
-	logs, err := executor.Rdb.LRange(ctx, logKey, 0, -1).Result()
+	logs, err := executor.GetRedisClient().LRange(ctx, logKey, 0, -1).Result()
 	if err == redis.Nil {
 		logs = []string{}
 	} else if err != nil {

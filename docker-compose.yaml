@@ -26,6 +26,7 @@ services:
     environment:
       GOPRIVATE: "github.com/CUHK-SE-Group/chaos-experiment"
       _EXPERIMENTAL_DAGGER_RUNNER_HOST: "tcp://localhost:5678"
+      ENV: "prod"
     command: ["/app/experiments_controller/experiments_controller", "both", "--port", "8081", "--conf", "/etc/rcabench/config.toml"]
     volumes:
       - /home/nn/.kube/config:/root/.kube/config

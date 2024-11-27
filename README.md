@@ -1,13 +1,16 @@
 # Run the server 
 
 ```bash
-make builder
-docker run -d --name redis-server -p 6379:6379 redis:8.0-M02-alpine3.20
-cd experiments_controller
-# export GOPRIVATE=github.com/CUHK-SE-Group/chaos-experiment
-go run main.go both
+docker compose up
 ```
 
+# Develop the server
+
+```bash
+cd experiments_controller
+docker compose up redis dagger-engine
+_EXPERIMENTAL_DAGGER_RUNNER_HOST=tcp://localhost:5678 go run main.go both # --port 8082 
+```
 
 # Input Specification
 
