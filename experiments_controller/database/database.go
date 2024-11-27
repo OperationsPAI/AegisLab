@@ -65,6 +65,26 @@ type GranularityResult struct {
 	UpdatedAt   time.Time `json:"updated_at"`                         // 更新时间
 }
 
+type Detector struct {
+	ID                  uint    `gorm:"primaryKey"`
+	SpanName            string  `gorm:"type:varchar(255);not null;index"`
+	AvgDurationNormal   float64 `gorm:"type:double;not null"`
+	AvgDurationAbnormal float64 `gorm:"type:double;not null"`
+	AvgDurationChange   float64 `gorm:"type:double;not null"`
+	SuccRateNormal      float64 `gorm:"type:double;not null"`
+	SuccRateAbnormal    float64 `gorm:"type:double;not null"`
+	SuccRateChange      float64 `gorm:"type:double;not null"`
+	P90Normal           float64 `gorm:"type:double;not null"`
+	P90Abnormal         float64 `gorm:"type:double;not null"`
+	P90Change           float64 `gorm:"type:double;not null"`
+	P95Normal           float64 `gorm:"type:double;not null"`
+	P95Abnormal         float64 `gorm:"type:double;not null"`
+	P95Change           float64 `gorm:"type:double;not null"`
+	P99Normal           float64 `gorm:"type:double;not null"`
+	P99Abnormal         float64 `gorm:"type:double;not null"`
+	P99Change           float64 `gorm:"type:double;not null"`
+}
+
 func InitDB() {
 	var err error
 	dbPath := config.GetString("storage.path")
@@ -78,7 +98,7 @@ func InitDB() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	err = DB.AutoMigrate(&Task{}, &FaultInjectionSchedule{}, &ExecutionResult{}, &GranularityResult{})
+	err = DB.AutoMigrate(&Task{}, &FaultInjectionSchedule{}, &ExecutionResult{}, &GranularityResult{}, &Detector{})
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}

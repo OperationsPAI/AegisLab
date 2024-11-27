@@ -1,22 +1,34 @@
 package config
 
 import (
+	"os"
+
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
 // Init 初始化配置
 func Init(configPath string) {
-	viper.SetConfigName("config")   // 配置文件名称（不含后缀）
-	viper.SetConfigType("toml")     // 配置文件类型
-	viper.AddConfigPath(configPath) // 配置文件路径
-	viper.AddConfigPath(".")        // 当前目录
+	env := os.Getenv("ENV")
+	if env == "" {
+		env = "dev"
+	}
 
-	// 读取配置文件
+	viper.SetConfigName("config." + env)
+	viper.SetConfigType("toml")
+
+	if configPath != "" {
+		viper.AddConfigPath(configPath)
+	}
+	viper.AddConfigPath(".")
+	viper.AddConfigPath("$HOME/.rcabench")
+
 	if err := viper.ReadInConfig(); err != nil {
 		logrus.Fatalf("读取配置文件失败: %v", err)
 	}
-	logrus.Println("配置文件加载成功")
+	logrus.Println("配置文件加载成功:", viper.ConfigFileUsed())
+
+	viper.AutomaticEnv()
 }
 
 // Get 获取配置项的值

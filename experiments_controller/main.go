@@ -11,6 +11,7 @@ import (
 	"github.com/go-logr/stdr"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	k8slogger "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -26,6 +27,14 @@ func main() {
 		},
 	}
 
+	rootCmd.PersistentFlags().StringVarP(&port, "port", "p", "8080", "Port to run the server on")
+	rootCmd.PersistentFlags().StringVarP(&conf, "conf", "c", ".", "Path to configuration file")
+
+	viper.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port"))
+	viper.BindPFlag("conf", rootCmd.PersistentFlags().Lookup("conf"))
+
+	config.Init(viper.GetString("conf"))
+
 	var producerCmd = &cobra.Command{
 		Use:   "producer",
 		Short: "Run as a producer",
@@ -33,6 +42,7 @@ func main() {
 			logrus.Println("Running as producer")
 			database.InitDB()
 			engine := router.New()
+			port := viper.GetString("port") // 从 Viper 获取最终端口
 			err := engine.Run(":" + port)
 			if err != nil {
 				panic(err)
@@ -40,6 +50,7 @@ func main() {
 		},
 	}
 
+	// Consumer 子命令
 	var consumerCmd = &cobra.Command{
 		Use:   "consumer",
 		Short: "Run as a consumer",
@@ -51,6 +62,7 @@ func main() {
 		},
 	}
 
+	// Both 子命令
 	var bothCmd = &cobra.Command{
 		Use:   "both",
 		Short: "Run as both producer and consumer",
@@ -60,15 +72,13 @@ func main() {
 			engine := router.New()
 			database.InitDB()
 			go executor.ConsumeTasks()
+			port := viper.GetString("port") // 从 Viper 获取最终端口
 			err := engine.Run(":" + port)
 			if err != nil {
 				panic(err)
 			}
 		},
 	}
-	rootCmd.PersistentFlags().StringVarP(&port, "port", "p", "8080", "Port to run the server on")
-	rootCmd.PersistentFlags().StringVarP(&conf, "conf", "c", "", "database path")
-	config.Init(conf)
 
 	rootCmd.AddCommand(producerCmd, consumerCmd, bothCmd)
 
