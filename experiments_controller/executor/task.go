@@ -126,32 +126,25 @@ func ConsumeTasks() {
 	ctx := context.Background()
 	redisCli := GetRedisClient()
 
-	// 生成唯一的消费者名称
 	consumerName := generateUniqueConsumerName()
 
-	// 创建消费者组（如果不存在）
 	err := redisCli.XGroupCreateMkStream(ctx, StreamName, GroupName, "$").Err()
 	if err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
 		logrus.Errorf("Failed to create consumer group: %v", err)
 		return
 	}
 
+	messages, err := readGroupMessages(ctx, redisCli, consumerName, []string{StreamName, "0"}, 10, 0)
+	for _, msg := range messages {
+		processMessage(ctx, redisCli, consumerName, msg)
+	}
+
 	for {
-		// 先读取 pending 的消息
-		messages, err := readGroupMessages(ctx, redisCli, consumerName, []string{StreamName, "0"}, 1, 5*time.Second)
+		messages, err = readGroupMessages(ctx, redisCli, consumerName, []string{StreamName, ">"}, 1, 5*time.Second)
 		if err != nil {
 			logrus.Errorf("Error reading from stream: %v", err)
 			time.Sleep(time.Second)
 			continue
-		}
-		if len(messages) == 0 {
-			// 读取新的消息
-			messages, err = readGroupMessages(ctx, redisCli, consumerName, []string{StreamName, ">"}, 1, 5*time.Second)
-			if err != nil {
-				logrus.Errorf("Error reading from stream: %v", err)
-				time.Sleep(time.Second)
-				continue
-			}
 		}
 
 		if len(messages) == 0 {
@@ -160,38 +153,35 @@ func ConsumeTasks() {
 		}
 
 		for _, msg := range messages {
-			taskMsg, err := parseTaskMessage(msg)
-			if err != nil {
-				logrus.Errorf("Failed to parse task message: %v", err)
-				// 确认并删除消息
-				redisCli.XAck(ctx, StreamName, GroupName, msg.ID)
-				redisCli.XDel(ctx, StreamName, msg.ID)
-				continue
-			}
-			// 创建可取消的上下文
-			taskCtx, cancel := context.WithCancel(context.Background())
-			// 存储取消函数
-			taskCancelFuncsMutex.Lock()
-			taskCancelFuncs[taskMsg.TaskID] = cancel
-			taskCancelFuncsMutex.Unlock()
-
-			// 等待信号量
-			taskSemaphore <- struct{}{}
-			go func(msg redis.XMessage, taskMsg *TaskMessage, ctx context.Context) {
-				defer func() {
-					// 移除取消函数
-					taskCancelFuncsMutex.Lock()
-					delete(taskCancelFuncs, taskMsg.TaskID)
-					taskCancelFuncsMutex.Unlock()
-					<-taskSemaphore // 释放信号量
-				}()
-				// 处理任务
-				processTaskWithContext(ctx, msg)
-				// 确认消息已处理
-				redisCli.XAck(ctx, StreamName, GroupName, msg.ID)
-			}(msg, taskMsg, taskCtx)
+			processMessage(ctx, redisCli, consumerName, msg)
 		}
 	}
+}
+
+func processMessage(ctx context.Context, redisCli *redis.Client, consumerName string, msg redis.XMessage) {
+	taskMsg, err := parseTaskMessage(msg)
+	if err != nil {
+		logrus.Errorf("Failed to parse task message: %v", err)
+		redisCli.XAck(ctx, StreamName, GroupName, msg.ID)
+		redisCli.XDel(ctx, StreamName, msg.ID)
+		return
+	}
+	taskCtx, cancel := context.WithCancel(ctx)
+	taskCancelFuncsMutex.Lock()
+	taskCancelFuncs[taskMsg.TaskID] = cancel
+	taskCancelFuncsMutex.Unlock()
+
+	taskSemaphore <- struct{}{}
+	go func(msg redis.XMessage, taskMsg *TaskMessage, ctx context.Context) {
+		defer func() {
+			taskCancelFuncsMutex.Lock()
+			delete(taskCancelFuncs, taskMsg.TaskID)
+			taskCancelFuncsMutex.Unlock()
+			<-taskSemaphore
+		}()
+		processTaskWithContext(ctx, msg)
+		redisCli.XAck(ctx, StreamName, GroupName, msg.ID)
+	}(msg, taskMsg, taskCtx)
 }
 
 // 读取消费者组的消息
@@ -206,7 +196,7 @@ func readGroupMessages(ctx context.Context, redisCli *redis.Client, consumerName
 	}
 	streamsMessages, err := redisCli.XReadGroup(ctx, args).Result()
 	if err != nil {
-		if err == redis.Nil {
+		if errors.Is(err, redis.Nil) {
 			return []redis.XMessage{}, nil
 		}
 		return nil, err
@@ -221,24 +211,6 @@ func readGroupMessages(ctx context.Context, redisCli *redis.Client, consumerName
 // 生成唯一的消费者名称
 func generateUniqueConsumerName() string {
 	return fmt.Sprintf("consumer-%s", uuid.New().String())
-}
-
-// 读取消息
-func readMessages(ctx context.Context, client *redis.Client, streams []string, count int, block time.Duration) ([]redis.XMessage, error) {
-	entries, err := client.XReadGroup(ctx, &redis.XReadGroupArgs{
-		Group:    GroupName,
-		Consumer: ConsumerName,
-		Streams:  streams,
-		Count:    int64(count),
-		Block:    block,
-	}).Result()
-	if err != nil && err != redis.Nil {
-		return nil, err
-	}
-	if len(entries) > 0 && len(entries[0].Messages) > 0 {
-		return entries[0].Messages, nil
-	}
-	return nil, nil
 }
 
 // 任务消息结构
