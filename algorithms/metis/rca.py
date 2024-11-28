@@ -229,7 +229,16 @@ async def start_rca(params: Dict):
             input_file_paths=params,
             pool=pool,
         )
-        await evaluate("data", pool)
+        print("Data collection completed.")
+        try:
+            await asyncio.wait_for(evaluate("data", pool), timeout=30.0)
+            print("Evaluation completed.")
+        except asyncio.TimeoutError:
+            raise asyncio.TimeoutError("Evaluation timed out.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            raise
+
     result = Path("data") / "final_ranking.csv"
     Path("/app/output").mkdir(exist_ok=1, parents=1)
     if result.exists():
