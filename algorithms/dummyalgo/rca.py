@@ -1,7 +1,7 @@
 from typing import Dict
 from pprint import pprint
 import os
-
+import time
 
 def print_directory_tree(start_path, prefix=""):
     # 获取当前目录下的所有文件和子目录

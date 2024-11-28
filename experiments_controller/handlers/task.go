@@ -100,7 +100,7 @@ func GetTaskStatus(c *gin.Context) {
 	// 获取任务日志
 	logKey := fmt.Sprintf("task:%s:logs", taskID) // 使用专用的日志键
 	logs, err := executor.GetRedisClient().LRange(ctx, logKey, 0, -1).Result()
-	if err != nil && err != redis.Nil {
+	if err != nil && !errors.Is(err, redis.Nil) {
 		c.JSON(500, gin.H{"error": "Failed to retrieve logs"})
 		return
 	}
@@ -148,7 +148,7 @@ func GetTaskLogs(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	logs, err := executor.GetRedisClient().LRange(ctx, logKey, 0, -1).Result()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		logs = []string{}
 	} else if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to retrieve logs"})
@@ -307,4 +307,17 @@ func GetNamespacePod(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"namespace_info": res,
 	})
+}
+
+func WithdrawTask(c *gin.Context) {
+	id := c.Param("taskID")
+	if id == "" {
+		c.JSON(400, gin.H{"error": "Task id is required"})
+		return
+	}
+	err := executor.CancelTask(id)
+	if err != nil {
+		c.JSON(400, gin.H{"error": fmt.Sprintf("Cancel Task failed: %v", err)})
+		return
+	}
 }

@@ -1,9 +1,6 @@
-# This file will be moved into image workspace, and start the evaluation by running the script
-
 from rca import start_rca
 import os
 from pathlib import Path
-
 import inspect
 import asyncio
 

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -68,11 +69,16 @@ var (
 	redisOnce   sync.Once
 )
 
+var (
+	taskCancelFuncs      = make(map[string]context.CancelFunc)
+	taskCancelFuncsMutex sync.Mutex
+	taskSemaphore        = make(chan struct{}, 2) // 限制并发任务数为2
+)
+
 // 初始化函数
 func init() {
 	ctx := context.Background()
-	client := GetRedisClient()
-	initConsumerGroup(ctx, client)
+	initConsumerGroup(ctx)
 }
 
 // 获取 Redis 客户端
@@ -91,16 +97,25 @@ func GetRedisClient() *redis.Client {
 	})
 	return redisClient
 }
+func CancelTask(taskID string) error {
+	taskCancelFuncsMutex.Lock()
+	cancelFunc, exists := taskCancelFuncs[taskID]
+	taskCancelFuncsMutex.Unlock()
+	if !exists {
+		return fmt.Errorf("no running task with ID %s", taskID)
+	}
+	cancelFunc()
+	return nil
+}
 
 // 初始化消费者组
-func initConsumerGroup(ctx context.Context, client *redis.Client) {
-	err := client.XGroupCreateMkStream(ctx, StreamName, GroupName, "0").Err()
+func initConsumerGroup(ctx context.Context) {
+	err := GetRedisClient().XGroupCreateMkStream(ctx, StreamName, GroupName, "0").Err()
 	if err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
 		logrus.Fatalf("Failed to create consumer group: %v", err)
 	}
 }
 
-// 消费任务
 func ConsumeTasks() {
 	defer func() {
 		if r := recover(); r != nil {
@@ -109,17 +124,29 @@ func ConsumeTasks() {
 	}()
 
 	ctx := context.Background()
-	client := GetRedisClient()
+	redisCli := GetRedisClient()
+
+	// 生成唯一的消费者名称
+	consumerName := generateUniqueConsumerName()
+
+	// 创建消费者组（如果不存在）
+	err := redisCli.XGroupCreateMkStream(ctx, StreamName, GroupName, "$").Err()
+	if err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
+		logrus.Errorf("Failed to create consumer group: %v", err)
+		return
+	}
 
 	for {
-		messages, err := readMessages(ctx, client, []string{StreamName, "0"}, 1, 5*time.Second)
+		// 先读取 pending 的消息
+		messages, err := readGroupMessages(ctx, redisCli, consumerName, []string{StreamName, "0"}, 1, 5*time.Second)
 		if err != nil {
 			logrus.Errorf("Error reading from stream: %v", err)
 			time.Sleep(time.Second)
 			continue
 		}
 		if len(messages) == 0 {
-			messages, err = readMessages(ctx, client, []string{StreamName, ">"}, 1, 5*time.Second)
+			// 读取新的消息
+			messages, err = readGroupMessages(ctx, redisCli, consumerName, []string{StreamName, ">"}, 1, 5*time.Second)
 			if err != nil {
 				logrus.Errorf("Error reading from stream: %v", err)
 				time.Sleep(time.Second)
@@ -133,9 +160,67 @@ func ConsumeTasks() {
 		}
 
 		for _, msg := range messages {
-			processTask(msg)
+			taskMsg, err := parseTaskMessage(msg)
+			if err != nil {
+				logrus.Errorf("Failed to parse task message: %v", err)
+				// 确认并删除消息
+				redisCli.XAck(ctx, StreamName, GroupName, msg.ID)
+				redisCli.XDel(ctx, StreamName, msg.ID)
+				continue
+			}
+			// 创建可取消的上下文
+			taskCtx, cancel := context.WithCancel(context.Background())
+			// 存储取消函数
+			taskCancelFuncsMutex.Lock()
+			taskCancelFuncs[taskMsg.TaskID] = cancel
+			taskCancelFuncsMutex.Unlock()
+
+			// 等待信号量
+			taskSemaphore <- struct{}{}
+			go func(msg redis.XMessage, taskMsg *TaskMessage, ctx context.Context) {
+				defer func() {
+					// 移除取消函数
+					taskCancelFuncsMutex.Lock()
+					delete(taskCancelFuncs, taskMsg.TaskID)
+					taskCancelFuncsMutex.Unlock()
+					<-taskSemaphore // 释放信号量
+				}()
+				// 处理任务
+				processTaskWithContext(ctx, msg)
+				// 确认消息已处理
+				redisCli.XAck(ctx, StreamName, GroupName, msg.ID)
+			}(msg, taskMsg, taskCtx)
 		}
 	}
+}
+
+// 读取消费者组的消息
+func readGroupMessages(ctx context.Context, redisCli *redis.Client, consumerName string, streams []string, count int64, block time.Duration) ([]redis.XMessage, error) {
+	args := &redis.XReadGroupArgs{
+		Group:    GroupName,
+		Consumer: consumerName,
+		Streams:  streams,
+		Count:    count,
+		Block:    block,
+		NoAck:    false,
+	}
+	streamsMessages, err := redisCli.XReadGroup(ctx, args).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return []redis.XMessage{}, nil
+		}
+		return nil, err
+	}
+	var messages []redis.XMessage
+	for _, streamMsg := range streamsMessages {
+		messages = append(messages, streamMsg.Messages...)
+	}
+	return messages, nil
+}
+
+// 生成唯一的消费者名称
+func generateUniqueConsumerName() string {
+	return fmt.Sprintf("consumer-%s", uuid.New().String())
 }
 
 // 读取消息
@@ -164,17 +249,16 @@ type TaskMessage struct {
 	ParentTaskID string
 }
 
-// 处理任务
-func processTask(msg redis.XMessage) {
+func processTaskWithContext(ctx context.Context, msg redis.XMessage) {
 	logrus.Infof("Processing message ID: %s", msg.ID)
 	defer func() {
 		if r := recover(); r != nil {
 			logrus.Errorf("processTask panicked: %v\n%s", r, debug.Stack())
 		}
-		ctx := context.Background()
+		ackCtx := context.Background()
 		client := GetRedisClient()
-		client.XAck(ctx, StreamName, GroupName, msg.ID)
-		client.XDel(ctx, StreamName, msg.ID)
+		client.XAck(ackCtx, StreamName, GroupName, msg.ID)
+		client.XDel(ackCtx, StreamName, msg.ID)
 	}()
 
 	taskMsg, err := parseTaskMessage(msg)
@@ -189,16 +273,21 @@ func processTask(msg redis.XMessage) {
 	var execErr error
 	switch taskMsg.TaskType {
 	case TaskTypeFaultInjection:
-		execErr = executeFaultInjection(taskMsg.TaskID, taskMsg.Payload)
+		execErr = executeFaultInjection(ctx, taskMsg.TaskID, taskMsg.Payload)
 	case TaskTypeRunAlgorithm:
-		execErr = executeAlgorithm(taskMsg.TaskID, taskMsg.Payload)
+		execErr = executeAlgorithm(ctx, taskMsg.TaskID, taskMsg.Payload)
 	default:
 		execErr = fmt.Errorf("unknown task type: %s", taskMsg.TaskType)
 	}
 
 	if execErr != nil {
-		updateTaskStatus(taskMsg.TaskID, "Error", fmt.Sprintf("Task %s error, message: %s", taskMsg.TaskID, execErr))
-		logrus.Error(execErr)
+		if errors.Is(execErr, context.Canceled) {
+			updateTaskStatus(taskMsg.TaskID, "Canceled", fmt.Sprintf("Task %s was canceled", taskMsg.TaskID))
+			logrus.Infof("Task %s was canceled", taskMsg.TaskID)
+		} else {
+			updateTaskStatus(taskMsg.TaskID, "Error", fmt.Sprintf("Task %s error, message: %s", taskMsg.TaskID, execErr))
+			logrus.Error(execErr)
+		}
 	} else {
 		updateTaskStatus(taskMsg.TaskID, "Completed", fmt.Sprintf("Task %s completed", taskMsg.TaskID))
 		logrus.Infof("Task %s completed", taskMsg.TaskID)
@@ -243,10 +332,10 @@ type FaultInjectionPayload struct {
 }
 
 // 执行故障注入任务
-func executeFaultInjection(taskID string, payload map[string]interface{}) error {
+func executeFaultInjection(ctx context.Context, taskID string, payload map[string]interface{}) error {
 	logrus.Infof("Injecting fault, taskID: %s", taskID)
 
-	fiPayload, err := parseFaultInjectionPayload(payload)
+	fiPayload, err := ParseFaultInjectionPayload(payload)
 	if err != nil {
 		logrus.Error(err)
 		return err
@@ -276,18 +365,18 @@ func executeFaultInjection(taskID string, payload map[string]interface{}) error 
 		}
 	}
 
-	config := handler.ChaosConfig{
+	conf := handler.ChaosConfig{
 		Type:     handler.ChaosType(fiPayload.FaultType),
 		Spec:     chaosSpec,
 		Duration: fiPayload.Duration,
 	}
-	name := handler.Create(fiPayload.Namespace, fiPayload.Pod, config)
+	name := handler.Create(fiPayload.Namespace, fiPayload.Pod, conf)
 	if name == "" {
-		return fmt.Errorf("create chaos failed, config: %+v", config)
+		return fmt.Errorf("create chaos failed, conf: %+v", conf)
 	}
-	jsonData, err := json.Marshal(config)
+	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		logrus.Errorf("marshal config failed, config: %+v, err: %s", config, err)
+		logrus.Errorf("marshal conf failed, conf: %+v, err: %s", conf, err)
 		return err
 	}
 
@@ -315,7 +404,7 @@ func executeFaultInjection(taskID string, payload map[string]interface{}) error 
 }
 
 // 解析故障注入任务的 Payload
-func parseFaultInjectionPayload(payload map[string]interface{}) (*FaultInjectionPayload, error) {
+func ParseFaultInjectionPayload(payload map[string]interface{}) (*FaultInjectionPayload, error) {
 	namespace, ok := payload[InjectNamespace].(string)
 	if !ok || namespace == "" {
 		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectNamespace)
@@ -366,7 +455,7 @@ type AlgorithmExecutionPayload struct {
 }
 
 // 执行算法任务
-func executeAlgorithm(taskID string, payload map[string]interface{}) error {
+func executeAlgorithm(ctx context.Context, taskID string, payload map[string]interface{}) error {
 	algPayload, err := parseAlgorithmExecutionPayload(payload)
 	if err != nil {
 		return err
@@ -432,15 +521,15 @@ func executeAlgorithm(taskID string, payload map[string]interface{}) error {
 	}
 
 	rc := &Rcabench{}
-	con := rc.Evaluate(context.Background(), dag.Host().Directory(benchPath), dag.Host().Directory(algoPath), dag.Host().File(startScriptPath),
+	con := rc.Evaluate(ctx, dag.Host().Directory(benchPath), dag.Host().Directory(algoPath), dag.Host().File(startScriptPath),
 		startTime, endTime, startTime.Add(-20*time.Minute), startTime)
 
 	if config.GetBool("debug") {
-		_, err = con.Directory("/app/output").Export(context.Background(), "./output")
+		_, err = con.Directory("/app/output").Export(ctx, "./output")
 		if err != nil {
 			return fmt.Errorf("failed to export result, details: %s", err.Error())
 		}
-		_, err = con.Directory("/app/input").Export(context.Background(), "./input")
+		_, err = con.Directory("/app/input").Export(ctx, "./input")
 		if err != nil {
 			return fmt.Errorf("failed to export result, details: %s", err.Error())
 		}
