@@ -25,6 +25,7 @@ func New() *gin.Engine {
 	router.GET("/injection", handlers.GetInjectionPara)
 	router.GET("/namespacepod", handlers.GetNamespacePod)
 	router.GET("/evaluation", handlers.GetTaskResults)
+	router.DELETE("/task/:taskID", handlers.WithdrawTask)
 
 	return router
 }

@@ -90,6 +90,7 @@ func (m *Rcabench) Evaluate(
 	abnorStartTime, abnorEndTime, norStartTime, norEndTime time.Time,
 ) *dagger.Container {
 	return m.BuildAlgoRunnerImage(ctx, bench_dir, src, start_script, abnorStartTime, abnorEndTime, norStartTime, norEndTime).
+		WithExposedPort(9000).
 		WithExec([]string{"python", "run_exp.py"})
 }
 

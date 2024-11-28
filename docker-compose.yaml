@@ -8,8 +8,10 @@ services:
       - ./manifests/engine.toml:/etc/dagger/engine.toml
     working_dir: /app
     stdin_open: true
+    ports:
+      - "5678:5678"
     tty: true
-    network_mode: "host"
+#    network_mode: "host"
 
   redis:
     image: redis:8.0-M02-alpine3.20

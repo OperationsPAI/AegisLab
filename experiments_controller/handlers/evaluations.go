@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"dagger/rcabench/database"
+	"errors"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
-	"net/http"
 )
 
 type TaskWithResults struct {
@@ -39,8 +41,10 @@ func fetchExecutionDetails(db *gorm.DB, granularityID int) (*Execution, error) {
 	}
 
 	var detectorResult database.Detector
-	if err := db.Where("execution_id = ?", detectorExecution.ID).First(&detectorResult).Error; err != nil {
-		return nil, err
+	if err := db.Where("execution_id = ? AND issues != ?", detectorExecution.ID, "").First(&detectorResult).Error; err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
 	}
 
 	var granularityResult []database.GranularityResult
