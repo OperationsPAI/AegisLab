@@ -213,6 +213,16 @@ class RCABenchSDK:
         data = response.json()
         return NamespacePodInfo(namespace_info=data["namespace_info"])
 
+    def get_evaluation_result(self) -> List:
+        """
+        Retrieve all the evaluation result
+        """
+        url = f"{self.base_url}/evaluation"
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        return data
+    
     def withdraw_task(self, task_id: str) -> WithdrawResponse:
         """
         Withdraw a task by its ID.
