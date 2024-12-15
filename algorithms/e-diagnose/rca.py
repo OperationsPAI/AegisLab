@@ -1,9 +1,46 @@
-import pandas as pd
-import numpy as np
-import time
 from typing import List, Dict
-import argparse
-from typing import List, Tuple
+from pprint import pprint
+import json
+import numpy as np
+import os
+import pandas as pd
+
+TIME_ZONE = "Asia/Shanghai"
+
+
+def process_metric_csv(file_path: str) -> pd.DataFrame:
+    """
+    从 metrics.csv 文件中读取和处理指标数据。
+
+    参数:
+    - file_path (str): metrics.csv 文件路径。
+
+    返回:
+    - pd.DataFrame: 以时间戳和 Pod 作为索引，指标作为列名的数据框。
+    """
+    used_columns = ["TimeUnix", "MetricName", "Value", "ResourceAttributes"]
+    selected_columns = ["TimeStamp", "MetricName", "Value", "PodName"]
+    chunk_size = 10**6
+    metric_columns = None
+    selected_data = []
+
+    for chunk in pd.read_csv(file_path, chunksize=chunk_size, usecols=used_columns):
+        print(f"Initial chunk size: {chunk.shape}")
+
+        if not chunk.empty:
+            chunk = chunk.copy()
+            chunk["TimeStamp"] = pd.to_datetime(chunk["TimeUnix"], unit="ns").dt.tz_localize(TIME_ZONE)
+            chunk["PodName"] = chunk["ResourceAttributes"].apply(
+                lambda x: json.loads(x).get("k8s.deployment.name", None))
+            chunk = chunk[selected_columns].pivot_table(index=["TimeStamp", "PodName"], columns="MetricName", values="Value"
+                                                        ).reset_index()
+            metric_columns = chunk.columns.tolist()
+            selected_data.append(chunk)
+
+    if selected_data:
+        return pd.concat(selected_data, ignore_index=True)
+    else:
+        return pd.DataFrame(columns=metric_columns)
 
 
 def calculate_rho_squared(
@@ -24,19 +61,29 @@ def calculate_rho_squared(
         if column in df_abnormal.columns and column not in ["TimeStamp", "PodName"]:
             normal_data = df_normal[column].dropna()
             abnormal_data = df_abnormal[column].dropna()
+
+            # 截断法对齐数据
             min_length = min(len(normal_data), len(abnormal_data))
+
             if min_length < 2:
                 continue
+
+            normal_data = normal_data[:min_length]
+            abnormal_data = abnormal_data[:min_length]
+
             try:
                 cov_matrix = np.cov(normal_data, abnormal_data)
                 cov = cov_matrix[0, 1]
                 var_normal = normal_data.var()
                 var_abnormal = abnormal_data.var()
+
                 if var_normal > 0 and var_abnormal > 0:
                     rho_squared = (cov**2) / (var_normal * var_abnormal)
                     results[column] = rho_squared
-            except Exception:
+
+            except Exception as e:
                 continue
+
     return results
 
 
@@ -67,18 +114,17 @@ def diagnose_faults(
 
     for service in service_names:
         service_df = metric_data[metric_data["PodName"] == service].copy()
-        service_df = service_df.dropna(subset=["TimeStamp"])
-        service_df = service_df.sort_values("TimeStamp")
+        service_df = service_df.dropna(subset=["TimeStamp"]).sort_values("TimeStamp")
 
         for event in fault_list:
-            inject_timestamp = int(event["inject_timestamp"])
+            inject_timestamp = pd.to_datetime(event["inject_timestamp"]).value
             if inject_timestamp not in all_services:
                 all_services[inject_timestamp] = {}
 
-            normal_start = event["normal_range"][0]
-            normal_end = event["normal_range"][1]
-            abnormal_start = event["normal_range"][0]
-            abnormal_end = event["abnormal_range"][1]
+            normal_start = pd.to_datetime(event["normal_range"][0], unit="s").tz_localize(TIME_ZONE).value
+            normal_end = pd.to_datetime(event["normal_range"][1], unit="s").tz_localize(TIME_ZONE).value
+            abnormal_start = pd.to_datetime(event["abnormal_range"][0], unit="s").tz_localize(TIME_ZONE).value
+            abnormal_end = pd.to_datetime(event["abnormal_range"][1], unit="s").tz_localize(TIME_ZONE).value
 
             normal_range = service_df[
                 (service_df["TimeStamp"] >= normal_start)
@@ -88,6 +134,8 @@ def diagnose_faults(
                 (service_df["TimeStamp"] >= abnormal_start)
                 & (service_df["TimeStamp"] <= abnormal_end)
             ]
+
+            print(normal_range, abnormal_range)
 
             metric_scores = calculate_rho_squared(normal_range, abnormal_range)
             if metric_scores:
@@ -105,10 +153,9 @@ def diagnose_faults(
     # 扩展每个时间戳的 Top 服务为单独的行
     expanded_rows = []
     for _, row in top_services_df.iterrows():
-        timestamp = row["timestamp"]
         services = row["top_services"]
-        for service in services:
-            expanded_rows.append({"timestamp": timestamp, "pod": service})
+        for idx, service in enumerate(services):
+            expanded_rows.append({"level": "service", "result": service, "rank": idx+1, "confidence": 0})
 
     expanded_df = pd.DataFrame(expanded_rows)
 
@@ -117,21 +164,22 @@ def diagnose_faults(
 
 # IMPORTANT: do not change the function signature!!
 def start_rca(params: Dict):
+    pprint(params)
+    directory = "/app/output"
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    metric_file = params["metric_file"]
+    inject_timestamp_range = ["2024-12-15 10:18:37.45405+08:00"]
     normal_time_range = params["normal_time_range"]
     abnormal_time_range = params["abnormal_time_range"]
-    metric_file = params["metric_file"]
 
     if len(normal_time_range) == 0 or len(abnormal_time_range) == 0:
         print("There is no information of abnormal time, shutting down")
         return
 
-    selected_columns = ["TimeStamp", "MetricName", "Value", "PodName"]
-    df = pd.read_csv(metric_file, usecols=selected_columns, parse_dates=["TimeStamp"])
-    df_pivot = df.pivot_table(
-        index=["TimeStamp", "PodName"], columns="MetricName", values="Value"
-    ).reset_index()
-
-    df_pivot["TimeStamp"] = df_pivot["TimeStamp"].apply(lambda x: int(x.timestamp()))
+    metric_data = process_metric_csv(metric_file)
+    print(metric_data)
 
     if len(normal_time_range) < len(abnormal_time_range):
         normal_time_range.append(normal_time_range[-1])
@@ -142,12 +190,12 @@ def start_rca(params: Dict):
     for i in range(len(normal_time_range)):
         fault_list.append(
             {
+                "inject_timestamp": inject_timestamp_range[i],
                 "normal_range": normal_time_range[i],
                 "abnormal_range": abnormal_time_range[i],
             }
         )
 
-    metric_data = df_pivot
-    output_df = diagnose_faults(fault_list, metric_data)
-
-    print(output_df)
+    result = diagnose_faults(fault_list, metric_data)
+    if not result.empty:
+        result.to_csv("./output/result.csv", index=False)
