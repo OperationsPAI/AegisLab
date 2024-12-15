@@ -41,6 +41,7 @@ func (m *Rcabench) BuildBenchmarkDataImage(
 
 	return dag.Container().
 		WithServiceBinding("clickhouse", hostSrv).
+		WithEnvVariable("TIMEZONE", config.GetString("system.timezone")).
 		Build(workspace, dagger.ContainerBuildOpts{
 			BuildArgs: []dagger.BuildArg{
 				{
@@ -87,6 +88,7 @@ func (m *Rcabench) BuildAlgoRunnerImage(
 		WithFile("/app/rca.py", src.File("rca.py")).
 		WithFile("/app/run_exp.py", start_script).
 		WithEnvVariable("WORKSPACE", "/app").
+		WithEnvVariable("TIMEZONE", config.GetString("system.timezone")).
 		WithEnvVariable("ABNORMAL_START", strconv.Itoa(int(abnorStartTime.Unix()))).
 		WithEnvVariable("ABNORMAL_END", strconv.Itoa(int(abnorEndTime.Unix()))).
 		WithEnvVariable("NORMAL_START", strconv.Itoa(int(norStartTime.Unix()))).

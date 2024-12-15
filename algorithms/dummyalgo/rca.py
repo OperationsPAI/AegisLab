@@ -1,13 +1,13 @@
 from typing import Dict
 from pprint import pprint
 import os
-import time
 
 
 def print_directory_tree(start_path, prefix=""):
     # 获取当前目录下的所有文件和子目录
     items = os.listdir(start_path)
     items.sort()  # 可选：按字母排序
+
     for i, item in enumerate(items):
         # 确定是否是最后一个元素，用于绘制正确的符号
         is_last = i == len(items) - 1
