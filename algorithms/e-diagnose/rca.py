@@ -5,8 +5,6 @@ import numpy as np
 import os
 import pandas as pd
 
-TIME_ZONE = "Asia/Shanghai"
-
 
 def process_metric_csv(file_path: str) -> pd.DataFrame:
     """
@@ -29,7 +27,8 @@ def process_metric_csv(file_path: str) -> pd.DataFrame:
 
         if not chunk.empty:
             chunk = chunk.copy()
-            chunk["TimeStamp"] = pd.to_datetime(chunk["TimeUnix"], unit="ns").dt.tz_localize(TIME_ZONE)
+            chunk["TimeStamp"] = pd.to_datetime(
+                chunk["TimeUnix"], unit="ns").dt.tz_localize(os.environ["TIMEZONE"])
             chunk["PodName"] = chunk["ResourceAttributes"].apply(
                 lambda x: json.loads(x).get("k8s.deployment.name", None))
             chunk = chunk[selected_columns].pivot_table(index=["TimeStamp", "PodName"], columns="MetricName", values="Value"
@@ -81,7 +80,7 @@ def calculate_rho_squared(
                     rho_squared = (cov**2) / (var_normal * var_abnormal)
                     results[column] = rho_squared
 
-            except Exception as e:
+            except Exception:
                 continue
 
     return results
@@ -108,23 +107,29 @@ def diagnose_faults(
     results = []
     all_services = {}
 
-    metric_data["TimeStamp"] = pd.to_numeric(metric_data["TimeStamp"], errors="coerce")
+    metric_data["TimeStamp"] = pd.to_numeric(
+        metric_data["TimeStamp"], errors="coerce")
     metric_data["TimeStamp"] = metric_data["TimeStamp"]
     service_names = metric_data["PodName"].unique()
 
     for service in service_names:
         service_df = metric_data[metric_data["PodName"] == service].copy()
-        service_df = service_df.dropna(subset=["TimeStamp"]).sort_values("TimeStamp")
+        service_df = service_df.dropna(
+            subset=["TimeStamp"]).sort_values("TimeStamp")
 
         for event in fault_list:
             inject_timestamp = pd.to_datetime(event["inject_timestamp"]).value
             if inject_timestamp not in all_services:
                 all_services[inject_timestamp] = {}
 
-            normal_start = pd.to_datetime(event["normal_range"][0], unit="s").tz_localize(TIME_ZONE).value
-            normal_end = pd.to_datetime(event["normal_range"][1], unit="s").tz_localize(TIME_ZONE).value
-            abnormal_start = pd.to_datetime(event["abnormal_range"][0], unit="s").tz_localize(TIME_ZONE).value
-            abnormal_end = pd.to_datetime(event["abnormal_range"][1], unit="s").tz_localize(TIME_ZONE).value
+            normal_start = pd.to_datetime(
+                event["normal_range"][0], unit="s").value
+            normal_end = pd.to_datetime(
+                event["normal_range"][1], unit="s").value
+            abnormal_start = pd.to_datetime(
+                event["abnormal_range"][0], unit="s").value
+            abnormal_end = pd.to_datetime(
+                event["abnormal_range"][1], unit="s").value
 
             normal_range = service_df[
                 (service_df["TimeStamp"] >= normal_start)
@@ -135,8 +140,6 @@ def diagnose_faults(
                 & (service_df["TimeStamp"] <= abnormal_end)
             ]
 
-            print(normal_range, abnormal_range)
-
             metric_scores = calculate_rho_squared(normal_range, abnormal_range)
             if metric_scores:
                 max_score = max(metric_scores.values())
@@ -144,7 +147,8 @@ def diagnose_faults(
 
     # 为每个时间戳选择 Top N 服务
     for timestamp, services in all_services.items():
-        sorted_services = sorted(services.items(), key=lambda x: x[1], reverse=True)
+        sorted_services = sorted(
+            services.items(), key=lambda x: x[1], reverse=True)
         top_services = [service for service, _ in sorted_services[:top_n]]
         results.append({"timestamp": timestamp, "top_services": top_services})
 
@@ -155,7 +159,8 @@ def diagnose_faults(
     for _, row in top_services_df.iterrows():
         services = row["top_services"]
         for idx, service in enumerate(services):
-            expanded_rows.append({"level": "service", "result": service, "rank": idx+1, "confidence": 0})
+            expanded_rows.append(
+                {"level": "service", "result": service, "rank": idx+1, "confidence": 0})
 
     expanded_df = pd.DataFrame(expanded_rows)
 
@@ -179,7 +184,6 @@ def start_rca(params: Dict):
         return
 
     metric_data = process_metric_csv(metric_file)
-    print(metric_data)
 
     if len(normal_time_range) < len(abnormal_time_range):
         normal_time_range.append(normal_time_range[-1])

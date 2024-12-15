@@ -2,7 +2,6 @@ import os
 import clickhouse_connect
 import pandas as pd
 import subprocess
-from datetime import datetime
 
 
 namespace = "ts"
@@ -50,18 +49,18 @@ def check_clickhouse_health():
 
 def generate_metric(start_time, end_time) -> pd.DataFrame:
     query = f"""
-SELECT 
+SELECT
     TimeUnix,
-    MetricName, 
-    MetricDescription, 
-    Value, 
+    MetricName,
+    MetricDescription,
+    Value,
     ServiceName,
     MetricUnit,
     toJSONString(ResourceAttributes) AS ResourceAttributes,
     toJSONString(Attributes) AS Attributes
-FROM 
+FROM
     otel_metrics_gauge om
-WHERE 
+WHERE
     om.ResourceAttributes['k8s.namespace.name'] = '{namespace}'
     AND om.TimeUnix BETWEEN '{start_time}' AND '{end_time}'
     """
@@ -73,18 +72,18 @@ WHERE
 
 def generate_metric_sum(start_time, end_time) -> pd.DataFrame:
     query = f"""
-    SELECT 
+    SELECT
         TimeUnix,
-        MetricName, 
-        MetricDescription, 
-        Value, 
+        MetricName,
+        MetricDescription,
+        Value,
         ServiceName,
         MetricUnit,
         toJSONString(ResourceAttributes) AS ResourceAttributes,
         toJSONString(Attributes) AS Attributes
-    FROM 
+    FROM
         otel_metrics_sum omg
-    WHERE 
+    WHERE
         omg.ResourceAttributes['k8s.namespace.name'] = '{namespace}'
         AND omg.TimeUnix BETWEEN '{start_time}' AND '{end_time}'
     """
@@ -96,9 +95,9 @@ def generate_metric_sum(start_time, end_time) -> pd.DataFrame:
 
 def generate_metric_histogram(start_time, end_time) -> pd.DataFrame:
     query = f"""
-    SELECT 
+    SELECT
         TimeUnix,
-        MetricName, 
+        MetricName,
         ServiceName,
         MetricUnit,
         toJSONString(ResourceAttributes) AS ResourceAttributes,
@@ -110,9 +109,9 @@ def generate_metric_histogram(start_time, end_time) -> pd.DataFrame:
         Min,
         Max,
         AggregationTemporality
-    FROM 
+    FROM
         otel_metrics_histogram omh
-    WHERE 
+    WHERE
         omh.ResourceAttributes['k8s.namespace.name'] = '{namespace}'
         AND omh.TimeUnix BETWEEN '{start_time}' AND '{end_time}'
     """
@@ -125,10 +124,10 @@ def generate_metric_histogram(start_time, end_time) -> pd.DataFrame:
 
 def generate_log(start_time, end_time) -> pd.DataFrame:
     query = f"""
-    SELECT 
+    SELECT
         Timestamp,
-        TimestampTime, 
-        TraceId, 
+        TimestampTime,
+        TraceId,
         SpanId,
         SeverityText,
         SeverityNumber,
@@ -136,9 +135,9 @@ def generate_log(start_time, end_time) -> pd.DataFrame:
         Body,
         toJSONString(ResourceAttributes) AS ResourceAttributes,
         LogAttributes
-    FROM 
+    FROM
         otel_logs ol
-    WHERE 
+    WHERE
         ol.ResourceAttributes['service.namespace'] = '{namespace}'
         AND ol.Timestamp BETWEEN '{start_time}' AND '{end_time}'
     """
@@ -152,7 +151,7 @@ def generate_log(start_time, end_time) -> pd.DataFrame:
 def generate_trace(start_time, end_time) -> pd.DataFrame:
     query = f"""
     SELECT Timestamp,
-        TraceId, 
+        TraceId,
         SpanId,
         ParentSpanId,
         TraceState,
@@ -164,9 +163,9 @@ def generate_trace(start_time, end_time) -> pd.DataFrame:
         Duration,
         StatusCode,
         StatusMessage
-    FROM 
+    FROM
         otel_traces ot
-    WHERE 
+    WHERE
         ot.ResourceAttributes['service.namespace'] = '{namespace}'
         AND ot.Timestamp BETWEEN '{start_time}' AND '{end_time}'
     """
@@ -185,11 +184,11 @@ def generate_trace_id_ts(start_time, end_time) -> pd.DataFrame:
     # 定义查询语句
     query = f"""
     SELECT TraceId,
-        Start, 
+        Start,
         End
-    FROM 
+    FROM
         otel_traces_trace_id_ts
-    WHERE 
+    WHERE
         Start BETWEEN '{start_time}' AND '{end_time}'
         AND End BETWEEN '{start_time}' AND '{end_time}'
     """
@@ -243,7 +242,7 @@ def convert_to_clickhouse_time(unix_timestamp):
     """将 UNIX 时间戳转换为 ClickHouse 支持的时间格式"""
     return (
         pd.to_datetime(unix_timestamp, utc=True, unit="s")
-        .astimezone("Asia/Shanghai")
+        .astimezone(os.environ["TIMEZONE"])
         .strftime("%Y-%m-%d %H:%M:%S")
     )
 
@@ -279,10 +278,13 @@ if __name__ == "__main__":
     abnormal_end_time = abnormal_time_range[1]
 
     # 转换为 ClickHouse 格式
-    normal_start_time_clickhouse = convert_to_clickhouse_time(normal_start_time)
+    normal_start_time_clickhouse = convert_to_clickhouse_time(
+        normal_start_time)
     normal_end_time_clickhouse = convert_to_clickhouse_time(normal_end_time)
-    abnormal_start_time_clickhouse = convert_to_clickhouse_time(abnormal_start_time)
-    abnormal_end_time_clickhouse = convert_to_clickhouse_time(abnormal_end_time)
+    abnormal_start_time_clickhouse = convert_to_clickhouse_time(
+        abnormal_start_time)
+    abnormal_end_time_clickhouse = convert_to_clickhouse_time(
+        abnormal_end_time)
 
     print(
         "Normal Time Range (ClickHouse):",
@@ -302,12 +304,14 @@ if __name__ == "__main__":
 
     print("executing generate_metric")
     save_to_csv(
-        generate_metric(normal_start_time_clickhouse, abnormal_end_time_clickhouse),
+        generate_metric(normal_start_time_clickhouse,
+                        abnormal_end_time_clickhouse),
         "input/metrics.csv",
     )
     print("executing generate_metric_sum")
     save_to_csv(
-        generate_metric_sum(normal_start_time_clickhouse, abnormal_end_time_clickhouse),
+        generate_metric_sum(normal_start_time_clickhouse,
+                            abnormal_end_time_clickhouse),
         "input/metric_sum.csv",
     )
     print("executing generate_metric_histogram")
@@ -319,12 +323,14 @@ if __name__ == "__main__":
     )
     print("executing generate_log")
     save_to_csv(
-        generate_log(normal_start_time_clickhouse, abnormal_end_time_clickhouse),
+        generate_log(normal_start_time_clickhouse,
+                     abnormal_end_time_clickhouse),
         "input/logs.csv",
     )
     print("executing generate_trace")
     save_to_csv(
-        generate_trace(normal_start_time_clickhouse, abnormal_end_time_clickhouse),
+        generate_trace(normal_start_time_clickhouse,
+                       abnormal_end_time_clickhouse),
         "input/traces.csv",
     )
     print("executing generate_trace_id_ts")

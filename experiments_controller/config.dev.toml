@@ -1,8 +1,11 @@
 port = 8082
 debug = true
 
+[system]
+timezone = "Asia/Shanghai"
+
 [injection]
-namespace = ["ts"]  
+namespace = ["ts"]
 label = "app"
 
 [storage]
