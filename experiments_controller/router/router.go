@@ -5,6 +5,8 @@ import (
 	"dagger/rcabench/middleware"
 
 	"github.com/gin-contrib/cors"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,6 +28,6 @@ func New() *gin.Engine {
 	router.GET("/namespacepod", handlers.GetNamespacePod)
 	router.GET("/evaluation", handlers.GetTaskResults)
 	router.DELETE("/task/:taskID", handlers.WithdrawTask)
-
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	return router
 }
