@@ -4,7 +4,7 @@ go 1.23.2
 
 require (
 	dagger.io/dagger v0.14.0
-	github.com/CUHK-SE-Group/chaos-experiment v0.0.0-20241212121053-f5eb28da92a9
+	github.com/CUHK-SE-Group/chaos-experiment v0.0.0-20250104093055-2435ecb14a0b
 	github.com/gin-contrib/cors v1.7.2
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-logr/stdr v1.2.2
