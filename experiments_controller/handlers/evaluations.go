@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/k0kubun/pp/v3"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -97,6 +98,8 @@ func GetTaskResults(c *gin.Context) {
 		// 按算法分组
 		groupedResults[executionDetail.ExecutionRecord.Algo] = append(groupedResults[executionDetail.ExecutionRecord.Algo], *executionDetail)
 	}
+
+	pp.Println(groupedResults)
 
 	// 转化为TaskWithResults结构
 	var result []TaskWithResults

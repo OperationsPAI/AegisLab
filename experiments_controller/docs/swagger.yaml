@@ -1,0 +1,231 @@
+definitions:
+  database.Task:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      payload:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /algorithms/benchmarks:
+    get:
+      description: 返回算法和基准测试的文件列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回算法和基准的文件列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取算法和基准列表
+      tags:
+      - algorithms
+  /datasets:
+    get:
+      description: 返回已成功的故障注入数据集列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回数据集名称列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取数据集列表
+      tags:
+      - datasets
+  /injection/parameters:
+    get:
+      description: 获取可用的故障注入参数和类型映射
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回故障注入参数和类型映射
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取故障注入参数
+      tags:
+      - injection
+  /pods/namespaces:
+    get:
+      description: 返回指定命名空间中符合条件的 Pod 标签列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回命名空间和对应的 Pod 标签信息
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器内部错误，无法获取 Pod 标签
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取命名空间中的 Pod 标签
+      tags:
+      - pods
+  /tasks:
+    get:
+      description: 显示数据库中所有任务的记录
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: 返回 HTML 页面显示任务
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 显示所有任务
+      tags:
+      - tasks
+  /tasks/{taskID}:
+    get:
+      description: 根据任务 ID 查询任务的详细信息
+      parameters:
+      - description: 任务 ID
+        in: path
+        name: taskID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回任务详情
+          schema:
+            $ref: '#/definitions/database.Task'
+        "404":
+          description: 任务未找到
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取任务详情
+      tags:
+      - tasks
+  /tasks/{taskID}/logs:
+    get:
+      description: 根据任务 ID 查询任务执行过程中记录的日志
+      parameters:
+      - description: 任务 ID
+        in: path
+        name: taskID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回任务的日志列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取任务日志
+      tags:
+      - tasks
+  /tasks/{taskID}/status:
+    get:
+      description: 通过任务 ID 查询任务的执行状态和日志
+      parameters:
+      - description: 任务 ID
+        in: path
+        name: taskID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回任务状态和日志
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 任务未找到
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 查询任务状态
+      tags:
+      - tasks
+  /tasks/{taskID}/withdraw:
+    delete:
+      description: 通过任务 ID 取消正在执行的任务
+      parameters:
+      - description: 任务 ID
+        in: path
+        name: taskID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 任务撤回成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 任务 ID 无效或撤回失败
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 撤回任务
+      tags:
+      - tasks
+swagger: "2.0"

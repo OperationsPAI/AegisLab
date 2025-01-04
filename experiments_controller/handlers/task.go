@@ -27,6 +27,79 @@ var validTaskTypes = map[string]bool{
 	"EvaluateAlgorithm": true,
 }
 
+// GetTaskStatus 查询任务状态
+// @Summary 查询任务状态
+// @Description 通过任务 ID 查询任务的执行状态和日志
+// @Tags tasks
+// @Produce json
+// @Param taskID path string true "任务 ID"
+// @Success 200 {object} map[string]interface{} "返回任务状态和日志"
+// @Failure 404 {object} map[string]string "任务未找到"
+// @Failure 500 {object} map[string]string "服务器内部错误"
+// @Router /tasks/{taskID}/status [get]
+func GetTaskStatus(c *gin.Context) {
+	taskID := c.Param("taskID")
+	taskKey := fmt.Sprintf("task:%s:status", taskID) // 使用专用的状态键
+
+	ctx := c.Request.Context()
+
+	// 获取任务状态
+	status, err := executor.GetRedisClient().HGet(ctx, taskKey, "status").Result()
+	if err == redis.Nil {
+		c.JSON(404, gin.H{"error": "Task not found"})
+		return
+	} else if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to retrieve task status"})
+		return
+	}
+
+	// 获取任务日志
+	logKey := fmt.Sprintf("task:%s:logs", taskID) // 使用专用的日志键
+	logs, err := executor.GetRedisClient().LRange(ctx, logKey, 0, -1).Result()
+	if err != nil && !errors.Is(err, redis.Nil) {
+		c.JSON(500, gin.H{"error": "Failed to retrieve logs"})
+		return
+	}
+
+	// 返回任务状态和日志
+	c.JSON(200, gin.H{
+		"taskID": taskID,
+		"status": status,
+		"logs":   logs,
+	})
+}
+
+// ShowAllTasks 显示所有任务
+// @Summary 显示所有任务
+// @Description 显示数据库中所有任务的记录
+// @Tags tasks
+// @Produce html
+// @Success 200 "返回 HTML 页面显示任务"
+// @Failure 500 {object} map[string]string "服务器内部错误"
+// @Router /tasks [get]
+func ShowAllTasks(c *gin.Context) {
+	var tasks []database.Task
+	if err := database.DB.Find(&tasks).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to retrieve tasks"})
+		return
+	}
+
+	c.HTML(http.StatusOK, "tasks.html", gin.H{
+		"Tasks": tasks,
+	})
+}
+
+// SubmitTask 提交一个新任务到任务队列和数据库
+// @Summary 提交任务
+// @Description 提交一个指定类型的任务到系统
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param type query string true "任务类型 (FaultInjection, RunAlgorithm, EvaluateAlgorithm)"
+// @Param payload body object true "任务参数"
+// @Success 202 {object} map[string]string "返回任务 ID"
+// @Failure 400 {object} map[string]string "请求错误或无效参数"
+// @Failure 500 {object} map[string]string "服务器内部错误"
 func SubmitTask(c *gin.Context) {
 	taskType := c.Query("type")
 	if taskType == "" {
@@ -81,50 +154,16 @@ func SubmitTask(c *gin.Context) {
 	c.JSON(202, gin.H{"taskID": taskID, "message": "Task submitted successfully"})
 }
 
-func GetTaskStatus(c *gin.Context) {
-	taskID := c.Param("taskID")
-	taskKey := fmt.Sprintf("task:%s:status", taskID) // 使用专用的状态键
-
-	ctx := c.Request.Context()
-
-	// 获取任务状态
-	status, err := executor.GetRedisClient().HGet(ctx, taskKey, "status").Result()
-	if err == redis.Nil {
-		c.JSON(404, gin.H{"error": "Task not found"})
-		return
-	} else if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to retrieve task status"})
-		return
-	}
-
-	// 获取任务日志
-	logKey := fmt.Sprintf("task:%s:logs", taskID) // 使用专用的日志键
-	logs, err := executor.GetRedisClient().LRange(ctx, logKey, 0, -1).Result()
-	if err != nil && !errors.Is(err, redis.Nil) {
-		c.JSON(500, gin.H{"error": "Failed to retrieve logs"})
-		return
-	}
-
-	// 返回任务状态和日志
-	c.JSON(200, gin.H{
-		"taskID": taskID,
-		"status": status,
-		"logs":   logs,
-	})
-}
-
-func ShowAllTasks(c *gin.Context) {
-	var tasks []database.Task
-	if err := database.DB.Find(&tasks).Error; err != nil {
-		c.JSON(500, gin.H{"error": "Failed to retrieve tasks"})
-		return
-	}
-
-	c.HTML(http.StatusOK, "tasks.html", gin.H{
-		"Tasks": tasks,
-	})
-}
-
+// GetTaskDetails 获取任务详情
+// @Summary 获取任务详情
+// @Description 根据任务 ID 查询任务的详细信息
+// @Tags tasks
+// @Produce json
+// @Param taskID path string true "任务 ID"
+// @Success 200 {object} database.Task "返回任务详情"
+// @Failure 404 {object} map[string]string "任务未找到"
+// @Failure 500 {object} map[string]string "服务器内部错误"
+// @Router /tasks/{taskID} [get]
 func GetTaskDetails(c *gin.Context) {
 	taskID := c.Param("taskID")
 
@@ -141,6 +180,15 @@ func GetTaskDetails(c *gin.Context) {
 	c.JSON(200, task)
 }
 
+// GetTaskLogs 获取任务的日志
+// @Summary 获取任务日志
+// @Description 根据任务 ID 查询任务执行过程中记录的日志
+// @Tags tasks
+// @Produce json
+// @Param taskID path string true "任务 ID"
+// @Success 200 {object} map[string]interface{} "返回任务的日志列表"
+// @Failure 500 {object} map[string]string "服务器内部错误"
+// @Router /tasks/{taskID}/logs [get]
 func GetTaskLogs(c *gin.Context) {
 	taskID := c.Param("taskID")
 	logKey := fmt.Sprintf("task:%s:logs", taskID)
@@ -176,6 +224,14 @@ func getSubFiles(dir string) ([]string, error) {
 	return files, nil
 }
 
+// GetAlgoBench 获取算法和基准列表
+// @Summary 获取算法和基准列表
+// @Description 返回算法和基准测试的文件列表
+// @Tags algorithms
+// @Produce json
+// @Success 200 {object} map[string]interface{} "返回算法和基准的文件列表"
+// @Failure 500 {object} map[string]string "服务器内部错误"
+// @Router /algorithms/benchmarks [get]
 func GetAlgoBench(c *gin.Context) {
 	pwd, err := os.Getwd()
 	if err != nil {
@@ -207,6 +263,14 @@ func GetAlgoBench(c *gin.Context) {
 	})
 }
 
+// GetInjectionPara 获取注入参数
+// @Summary 获取故障注入参数
+// @Description 获取可用的故障注入参数和类型映射
+// @Tags injection
+// @Produce json
+// @Success 200 {object} map[string]interface{} "返回故障注入参数和类型映射"
+// @Failure 500 {object} map[string]string "服务器内部错误"
+// @Router /injection/parameters [get]
 func GetInjectionPara(c *gin.Context) {
 	choice := make(map[string][]handler.ActionSpace, 0)
 	for tp, spec := range handler.SpecMap {
@@ -224,6 +288,14 @@ func GetInjectionPara(c *gin.Context) {
 	})
 }
 
+// GetDatasets 获取数据集列表
+// @Summary 获取数据集列表
+// @Description 返回已成功的故障注入数据集列表
+// @Tags datasets
+// @Produce json
+// @Success 200 {object} map[string]interface{} "返回数据集名称列表"
+// @Failure 500 {object} map[string]string "服务器内部错误"
+// @Router /datasets [get]
 func GetDatasets(c *gin.Context) {
 	var faultRecords []database.FaultInjectionSchedule
 
@@ -294,6 +366,14 @@ func GetDatasets(c *gin.Context) {
 	})
 }
 
+// GetNamespacePod 获取命名空间中的 Pod 标签
+// @Summary 获取命名空间中的 Pod 标签
+// @Description 返回指定命名空间中符合条件的 Pod 标签列表
+// @Tags pods
+// @Produce json
+// @Success 200 {object} map[string]interface{} "返回命名空间和对应的 Pod 标签信息"
+// @Failure 500 {object} map[string]string "服务器内部错误，无法获取 Pod 标签"
+// @Router /pods/namespaces [get]
 func GetNamespacePod(c *gin.Context) {
 	res := make(map[string][]string)
 	for _, ns := range config.GetStringSlice("injection.namespace") {
@@ -309,6 +389,15 @@ func GetNamespacePod(c *gin.Context) {
 	})
 }
 
+// WithdrawTask 撤回任务
+// @Summary 撤回任务
+// @Description 通过任务 ID 取消正在执行的任务
+// @Tags tasks
+// @Produce json
+// @Param taskID path string true "任务 ID"
+// @Success 200 {object} map[string]string "任务撤回成功"
+// @Failure 400 {object} map[string]string "任务 ID 无效或撤回失败"
+// @Router /tasks/{taskID}/withdraw [delete]
 func WithdrawTask(c *gin.Context) {
 	id := c.Param("taskID")
 	if id == "" {

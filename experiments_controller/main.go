@@ -8,6 +8,8 @@ import (
 	"log"
 	"os"
 
+	_ "dagger/rcabench/docs"
+
 	"github.com/go-logr/stdr"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
