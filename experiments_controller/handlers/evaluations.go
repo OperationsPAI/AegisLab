@@ -31,6 +31,13 @@ type ConclusionACatK struct {
 	Hit    []int  `json:"hit"`
 }
 
+type ConclusionPrecisionk struct {
+	Metric string
+	Level  string
+	Sum    float64
+	Count  int
+}
+
 type TaskWithResults struct {
 	Algo        string      `json:"algo"`
 	Executions  []Execution `json:"executions"`
