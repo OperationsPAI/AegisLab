@@ -25,19 +25,6 @@ type Conclusion struct {
 	Rate   float64 `json:"rate"`
 }
 
-type ConclusionACatK struct {
-	Level  string `json:"level"`  // 例如 service level
-	Metric string `json:"metric"` // 例如 topk
-	Hit    []int  `json:"hit"`
-}
-
-type ConclusionPrecisionk struct {
-	Metric string
-	Level  string
-	Sum    float64
-	Count  int
-}
-
 type TaskWithResults struct {
 	Algo        string      `json:"algo"`
 	Executions  []Execution `json:"executions"`
