@@ -1,7 +1,7 @@
 services:
   dagger-engine:
-    image: registry.dagger.io/engine:v0.14.0
-    container_name: dagger-engine-v0.14.0
+    image: registry.dagger.io/engine:v0.15.1
+    container_name: dagger-engine-v0.15.1
     privileged: true
     volumes:
       - /var/lib/dagger:/var/lib/dagger
