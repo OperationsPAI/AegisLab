@@ -6,6 +6,7 @@ services:
     volumes:
       - /var/lib/dagger:/var/lib/dagger
       - ./manifests/engine.toml:/etc/dagger/engine.toml
+      - ./manifests/harbor.lab.pj.crt:/usr/local/share/ca-certificates/harbor.lab.pj.crt
     working_dir: /app
     stdin_open: true
     ports:
