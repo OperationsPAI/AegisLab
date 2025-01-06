@@ -6,7 +6,8 @@ insecure-entitlements = ["security.insecure"]
 address = ["tcp://0.0.0.0:5678"]
 
 [registry."10.10.10.240"]
-  http = true 
+  http = false
+  ca = ["/usr/local/share/ca-certificates/harbor.lab.pj.crt"]
 
 # [worker.oci]
 # env = [
