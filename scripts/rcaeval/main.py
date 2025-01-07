@@ -181,30 +181,3 @@ if __name__ == "__main__":
     import_algos = gen_code(results, mode, content)
     print(f"导入算法数目: {len(import_algos)}")
     print(f"导入算法名称: {import_algos}")
-
-    algos = [
-        "baro",
-        "mmbaro",
-        "mmnsigma",
-        "circa",
-        "cloudranger",
-        "fci_pagerank",
-        "ges_pagerank",
-        "granger_pagerank",
-        "lingam_pagerank",
-        "micro_diag",
-        "microcause",
-        "microrank",
-        "easyrca",
-        "cmlp_pagerank",
-        "ntlr_pagerank",
-        "pc_pagerank",
-        "fci_randomwalk",
-        "granger_randomwalk",
-        "lingam_randomwalk",
-        "ntlr_randomwalk",
-        "pc_randomwalk",
-        "tracerca",
-    ]
-
-    # delete_algos(algos)
