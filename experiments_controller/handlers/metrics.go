@@ -166,13 +166,21 @@ func accuracyk(executions []Execution) ([]*Conclusion, error) {
 					hitCount++
 				}
 			}
+
+			// 未能命中的情况下，命中率为 0
+			rate := 0.0
+			if len(value.Hit) != 0 {
+				rate = float64(hitCount) / float64(len(value.Hit))
+			}
+
 			results = append(results, &Conclusion{
 				Level:  value.Level,
 				Metric: value.Metric,
-				Rate:   float64(hitCount) / float64(len(value.Hit)),
+				Rate:   rate,
 			})
 		}
 	}
+
 	return results, nil
 }
 
