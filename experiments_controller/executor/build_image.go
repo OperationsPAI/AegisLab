@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,13 +13,17 @@ import (
 	"github.com/docker/cli/cli/config"
 	"github.com/k0kubun/pp/v3"
 	"github.com/moby/buildkit/client"
+	"github.com/moby/buildkit/frontend"
 	gateway "github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/auth/authprovider"
+	"github.com/moby/buildkit/util/bklog"
+	"github.com/moby/buildkit/util/progress/progressui"
 	"github.com/moby/buildkit/util/progress/progresswriter"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"github.com/tonistiigi/fsutil"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -102,17 +107,15 @@ func buildDockerfileAndPush(
 	attachable := []session.Attachable{
 		authprovider.NewDockerAuthProvider(dockerConfig, nil),
 	}
-
 	exports := []client.ExportEntry{
 		{
-			Type: "image",
+			Type: client.ExporterImage,
 			Attrs: map[string]string{
 				"name": options.ImageName,
 				"push": "true",
 			},
 		},
 	}
-
 	frontendAttrs := map[string]string{
 		"filename": filepath.Base(options.DockerfilePath),
 	}
@@ -123,34 +126,88 @@ func buildDockerfileAndPush(
 		frontendAttrs[fmt.Sprintf("build-arg:%s", k)] = v
 	}
 
+	dockerfileLocalMount, err := fsutil.NewFS(options.ContextDir)
+	if err != nil {
+		return errors.Wrap(err, "failed to create local mount for dockerfile")
+	}
+	cxtLocalMount, err := fsutil.NewFS(filepath.Dir(options.DockerfilePath))
+	if err != nil {
+		return errors.Wrap(err, "failed to create local mount for dockerfile")
+	}
 	solveOpt := client.SolveOpt{
 		Exports:       exports,
 		Session:       attachable,
 		Ref:           identity.NewID(),
 		Frontend:      "dockerfile.v0",
 		FrontendAttrs: frontendAttrs,
-		LocalDirs: map[string]string{
-			"dockerfile": filepath.Dir(options.DockerfilePath),
-			"context":    options.ContextDir,
+		LocalMounts: map[string]fsutil.FS{
+			"context":    cxtLocalMount,
+			"dockerfile": dockerfileLocalMount,
 		},
 	}
 	pp.Println(solveOpt)
-
-	pw, err := progresswriter.NewPrinter(ctx, os.Stderr, "plain")
+	traceFile, err := os.OpenFile("tracefile.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
+	var traceEnc *json.Encoder
+	if traceFile != nil {
+		defer traceFile.Close()
+		traceEnc = json.NewEncoder(traceFile)
 
-	eg, ctx2 := errgroup.WithContext(ctx)
-	eg.Go(func() error {
-		_, err := c.Build(ctx2, solveOpt, "buildctl-dockerfile",
-			func(ctx context.Context, gwClient gateway.Client) (*gateway.Result, error) {
-				return nil, nil
-			},
-			pw.Status(),
-		)
+		bklog.L.Infof("tracing logs to %s", traceFile.Name())
+	}
+	pw, err := progresswriter.NewPrinter(context.TODO(), os.Stderr, string(progressui.AutoMode))
+	if err != nil {
 		return err
+	}
+	mw := progresswriter.NewMultiWriter(pw)
+	eg, ctx2 := errgroup.WithContext(ctx)
+	if traceEnc != nil {
+		traceCh := make(chan *client.SolveStatus)
+		pw = progresswriter.Tee(pw, traceCh)
+		eg.Go(func() error {
+			for s := range traceCh {
+				if err := traceEnc.Encode(s); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
+	eg.Go(func() error {
+		sreq := gateway.SolveRequest{
+			Frontend:    solveOpt.Frontend,
+			FrontendOpt: solveOpt.FrontendAttrs,
+		}
+		sreq.CacheImports = make([]frontend.CacheOptionsEntry, len(solveOpt.CacheImports))
+		for i, e := range solveOpt.CacheImports {
+			sreq.CacheImports[i] = frontend.CacheOptionsEntry{
+				Type:  e.Type,
+				Attrs: e.Attrs,
+			}
+		}
+
+		resp, err := c.Build(ctx2, solveOpt, "buildctl-dockerfile",
+			func(ctx context.Context, c gateway.Client) (*gateway.Result, error) {
+				res, err := c.Solve(ctx, sreq)
+				if err != nil {
+					return nil, err
+				}
+				return res, err
+			},
+			progresswriter.ResetTime(mw.WithPrefix("", false)).Status(),
+		)
+		if err != nil {
+			bklog.G(ctx).Errorf("build failed: %v", err)
+		}
+		for k, v := range resp.ExporterResponse {
+			bklog.G(ctx).Debugf("exporter response: %s=%s", k, v)
+		}
+		return err
+
 	})
+
 	eg.Go(func() error {
 		<-pw.Done()
 		return pw.Err()
