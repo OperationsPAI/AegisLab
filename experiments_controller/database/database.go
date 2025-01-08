@@ -1,11 +1,12 @@
 package database
 
 import (
-	"dagger/rcabench/config"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/CUHK-SE-Group/rcabench/config"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"

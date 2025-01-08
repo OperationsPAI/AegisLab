@@ -1,8 +1,9 @@
 package router
 
 import (
-	"dagger/rcabench/handlers"
-	"dagger/rcabench/middleware"
+	"github.com/CUHK-SE-Group/rcabench/middleware"
+
+	"github.com/CUHK-SE-Group/rcabench/handlers"
 
 	"github.com/gin-contrib/cors"
 	swaggerFiles "github.com/swaggo/files"

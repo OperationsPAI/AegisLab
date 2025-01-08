@@ -1,14 +1,18 @@
 package main
 
 import (
-	"dagger/rcabench/config"
-	"dagger/rcabench/database"
-	"dagger/rcabench/executor"
-	"dagger/rcabench/router"
 	"log"
 	"os"
 
-	_ "dagger/rcabench/docs"
+	"github.com/CUHK-SE-Group/rcabench/router"
+
+	"github.com/CUHK-SE-Group/rcabench/executor"
+
+	"github.com/CUHK-SE-Group/rcabench/database"
+
+	"github.com/CUHK-SE-Group/rcabench/config"
+
+	_ "github.com/CUHK-SE-Group/rcabench/docs"
 
 	"github.com/go-logr/stdr"
 	"github.com/sirupsen/logrus"

@@ -12,7 +12,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"dagger/rcabench/database"
+	"github.com/CUHK-SE-Group/rcabench/database"
+
+	"github.com/CUHK-SE-Group/rcabench/client"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/sirupsen/logrus"
@@ -37,7 +39,7 @@ func CancelTask(taskID string) error {
 
 // 初始化消费者组
 func initConsumerGroup(ctx context.Context) {
-	err := GetRedisClient().XGroupCreateMkStream(ctx, StreamName, GroupName, "0").Err()
+	err := client.GetRedisClient().XGroupCreateMkStream(ctx, StreamName, GroupName, "0").Err()
 	if err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
 		logrus.Fatalf("Failed to create consumer group: %v", err)
 	}
@@ -51,7 +53,7 @@ func ConsumeTasks() {
 	}()
 
 	ctx := context.Background()
-	redisCli := GetRedisClient()
+	redisCli := client.GetRedisClient()
 
 	consumerName := generateUniqueConsumerName()
 
@@ -158,7 +160,7 @@ func processTaskWithContext(ctx context.Context, msg redis.XMessage) {
 			logrus.Errorf("processTask panicked: %v\n%s", r, debug.Stack())
 		}
 		ackCtx := context.Background()
-		client := GetRedisClient()
+		client := client.GetRedisClient()
 		client.XAck(ackCtx, StreamName, GroupName, msg.ID)
 		client.XDel(ackCtx, StreamName, msg.ID)
 	}()
@@ -180,6 +182,8 @@ func processTaskWithContext(ctx context.Context, msg redis.XMessage) {
 		execErr = executeAlgorithm(ctx, taskMsg.TaskID, taskMsg.Payload)
 	case TaskTypeBuildImages:
 		execErr = executeBuildImages(ctx, taskMsg.TaskID, taskMsg.Payload)
+	case TaskTypeBuildDataset:
+		execErr = executeBuildDataset(ctx, taskMsg.TaskID, taskMsg.Payload)
 	default:
 		execErr = fmt.Errorf("unknown task type: %s", taskMsg.TaskType)
 	}
@@ -229,7 +233,7 @@ func parseTaskMessage(msg redis.XMessage) (*TaskMessage, error) {
 // 更新任务状态
 func updateTaskStatus(taskID, status, message string) {
 	ctx := context.Background()
-	client := GetRedisClient()
+	client := client.GetRedisClient()
 
 	// 更新 Redis 中的任务状态
 	taskKey := fmt.Sprintf("task:%s:status", taskID)

@@ -2,8 +2,6 @@ package executor
 
 import (
 	"context"
-	"dagger/rcabench/config"
-	"dagger/rcabench/database"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -13,10 +11,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CUHK-SE-Group/rcabench/database"
+
+	"github.com/CUHK-SE-Group/rcabench/config"
+
 	"dagger.io/dagger/dag"
 	"gorm.io/gorm"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+type AlgorithmExecutionPayload struct {
+	Benchmark   string
+	Algorithm   string
+	DatasetName string
+}
 
 func executeAlgorithm(ctx context.Context, taskID string, payload map[string]interface{}) error {
 	algPayload, err := parseAlgorithmExecutionPayload(payload)

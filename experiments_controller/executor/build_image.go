@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	con "dagger/rcabench/config"
+	con "github.com/CUHK-SE-Group/rcabench/config"
 
 	"github.com/docker/cli/cli/config"
 	"github.com/k0kubun/pp/v3"

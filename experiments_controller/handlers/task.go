@@ -1,9 +1,6 @@
 package handlers
 
 import (
-	"dagger/rcabench/config"
-	"dagger/rcabench/database"
-	"dagger/rcabench/executor"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +8,12 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/CUHK-SE-Group/rcabench/executor"
+
+	"github.com/CUHK-SE-Group/rcabench/database"
+
+	"github.com/CUHK-SE-Group/rcabench/config"
 
 	"github.com/CUHK-SE-Group/chaos-experiment/client"
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
