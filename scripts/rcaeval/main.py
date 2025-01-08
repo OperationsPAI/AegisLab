@@ -7,9 +7,11 @@ import sys
 
 
 FILE_PATH = "/home/nn/workspace/lib/RCAEval/RCAEval/e2e/__init__.py"
+
 PWD = os.getcwd()
-TEMPLATE_DOCKERFILE = os.path.join(PWD, "scripts/rcaeval/resources/template.Dockerfile")
-TEMPLATE_PY = os.path.join(PWD, "scripts/rcaeval/resources/template.py")
+DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATE_DOCKERFILE = os.path.join(DIR, "resources/template.Dockerfile")
+TEMPLATE_PY = os.path.join(DIR, "resources/template.py")
 
 PY_NAME = "rca.py"
 DOCKERFILE_NAME = "builder.Dockerfile"
@@ -45,6 +47,10 @@ def extract_relative_imports(
 ) -> Dict[str, Union[bool, List[str]]]:
     """
     根据筛选条件获取所有算法
+
+    参数:
+    - init_file (str): RCAEval/RCAEval/e2e/__init__.py 文件路径。
+    - flag (bool): 判断 python 版本是否为 3.10.* 。
     """
     with open(init_file, "r") as file:
         content = file.read()
@@ -73,11 +79,16 @@ def extract_relative_imports(
     # 遍历AST节点
     for node in ast.walk(tree):
         if isinstance(node, ast.If):
-            temp = node.body if flag else node.orelse
+            stmts = node.body if flag else node.orelse
 
-            for child in temp:
-                if isinstance(child, ast.ImportFrom):
-                    handle_import_from(child)
+            for stmt in stmts:
+                if isinstance(stmt, ast.ImportFrom):
+                    handle_import_from(stmt)
+
+                if isinstance(stmt, ast.Try):
+                    for child in stmt.body:
+                        if isinstance(child, ast.ImportFrom):
+                            handle_import_from(child)
 
     return results
 
@@ -181,3 +192,31 @@ if __name__ == "__main__":
     import_algos = gen_code(results, mode, content)
     print(f"导入算法数目: {len(import_algos)}")
     print(f"导入算法名称: {import_algos}")
+
+    algos = [
+        "causalai",
+        "baro",
+        "mmbaro",
+        "mmnsigma",
+        "circa",
+        "cloudranger",
+        "fci_pagerank",
+        "ges_pagerank",
+        "granger_pagerank",
+        "lingam_pagerank",
+        "micro_diag",
+        "microcause",
+        "microrank",
+        "easyrca",
+        "cmlp_pagerank",
+        "ntlr_pagerank",
+        "pc_pagerank",
+        "fci_randomwalk",
+        "granger_randomwalk",
+        "lingam_randomwalk",
+        "ntlr_randomwalk",
+        "pc_randomwalk",
+        "tracerca",
+    ]
+
+    delete_algos(algos)
