@@ -17,19 +17,15 @@ def clean_span_name(span_name):
     )
 
     if "/verify/" in span_name:
-        span_name = re.sub(
-            r"(?<=/verify/)[a-zA-Z0-9]{6}(?=/|$)", "<code>", span_name)
+        span_name = re.sub(r"(?<=/verify/)[a-zA-Z0-9]{6}(?=/|$)", "<code>", span_name)
 
     if "/foodservice/foods/" in span_name:
         span_name = re.sub(r"/\d{4}-\d{2}-\d{2}", "/<date>", span_name)
 
-        locations = re.findall(
-            r"/([a-zA-Z]+)/([a-zA-Z]+)/[a-zA-Z0-9]+$", span_name)
+        locations = re.findall(r"/([a-zA-Z]+)/([a-zA-Z]+)/[a-zA-Z0-9]+$", span_name)
         if locations:
-            span_name = span_name.replace(
-                f"/{locations[0][0]}", "/<location>", 1)
-            span_name = span_name.replace(
-                f"/{locations[0][1]}", "/<location>", 1)
+            span_name = span_name.replace(f"/{locations[0][0]}", "/<location>", 1)
+            span_name = span_name.replace(f"/{locations[0][1]}", "/<location>", 1)
 
         span_name = re.sub(r"/[a-zA-Z0-9]+$", "/<train>", span_name)
 
@@ -60,8 +56,7 @@ def process_and_aggregate_csv(
         if not filtered_chunk.empty:
             filtered_chunk = filtered_chunk.copy()
             print("过滤时间前", filtered_chunk["Timestamp"])
-            filtered_chunk["Timestamp"] = pd.to_datetime(
-                filtered_chunk["Timestamp"])
+            filtered_chunk["Timestamp"] = pd.to_datetime(filtered_chunk["Timestamp"])
             print("转换时间后", filtered_chunk["Timestamp"])
             filtered_chunk = filtered_chunk[
                 (filtered_chunk["Timestamp"] >= start_time)
@@ -80,8 +75,7 @@ def process_and_aggregate_csv(
         data = pd.concat(selected_data, ignore_index=True)
     else:
         return pd.DataFrame(
-            columns=["SpanName", "AvgDuration",
-                     "SuccRate", "P90", "P95", "P99"]
+            columns=["SpanName", "AvgDuration", "SuccRate", "P90", "P95", "P99"]
         )
 
     aggregation = (
@@ -123,12 +117,9 @@ def compare_dataframes(normal_df, abnormal_df):
     merged_df["SuccRateChange"] = (
         merged_df["SuccRate_abnormal"] - merged_df["SuccRate_normal"]
     )
-    merged_df["P90Change"] = merged_df["P90_abnormal"] - \
-        merged_df["P90_normal"]
-    merged_df["P95Change"] = merged_df["P95_abnormal"] - \
-        merged_df["P95_normal"]
-    merged_df["P99Change"] = merged_df["P99_abnormal"] - \
-        merged_df["P99_normal"]
+    merged_df["P90Change"] = merged_df["P90_abnormal"] - merged_df["P90_normal"]
+    merged_df["P95Change"] = merged_df["P95_abnormal"] - merged_df["P95_normal"]
+    merged_df["P99Change"] = merged_df["P99_abnormal"] - merged_df["P99_normal"]
 
     # 筛选条件：成功率下降或平均时延、尾延迟上升
     filtered_df = merged_df[
