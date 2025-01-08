@@ -6,4 +6,4 @@ RUN apt-get update && apt-get install -y git
 
 RUN git clone --depth 1 https://github.com/Lincyaw/Nezha.git
 
-RUN cd Nezha && pip install --no-cache-dir -r requirements.txt
+# RUN cd Nezha && pip install --no-cache-dir -r requirements.txt
