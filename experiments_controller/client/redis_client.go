@@ -1,9 +1,10 @@
-package executor
+package client
 
 import (
 	"context"
-	"dagger/rcabench/config"
 	"sync"
+
+	"github.com/CUHK-SE-Group/rcabench/config"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/sirupsen/logrus"

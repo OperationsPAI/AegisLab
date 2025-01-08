@@ -2,11 +2,12 @@ package executor
 
 import (
 	"context"
-	"dagger/rcabench/database"
 	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
+
+	"github.com/CUHK-SE-Group/rcabench/database"
 
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/sirupsen/logrus"
@@ -70,7 +71,6 @@ func executeFaultInjection(ctx context.Context, taskID string, payload map[strin
 		return err
 	}
 
-	// 创建新的故障注入记录
 	faultRecord := database.FaultInjectionSchedule{
 		TaskID:          taskID,
 		FaultType:       fiPayload.FaultType,
@@ -84,7 +84,6 @@ func executeFaultInjection(ctx context.Context, taskID string, payload map[strin
 		UpdatedAt:       time.Now(),
 	}
 
-	// 写入数据库
 	if err := database.DB.Create(&faultRecord).Error; err != nil {
 		logrus.Errorf("Failed to write fault injection schedule to database: %v", err)
 		return fmt.Errorf("failed to write to database: %v", err)
@@ -93,7 +92,6 @@ func executeFaultInjection(ctx context.Context, taskID string, payload map[strin
 	return nil
 }
 
-// 解析故障注入任务的 Payload
 func ParseFaultInjectionPayload(payload map[string]interface{}) (*FaultInjectionPayload, error) {
 	namespace, ok := payload[InjectNamespace].(string)
 	if !ok || namespace == "" {
@@ -135,11 +133,4 @@ func ParseFaultInjectionPayload(payload map[string]interface{}) (*FaultInjection
 		Duration:   duration,
 		InjectSpec: injectSpec,
 	}, nil
-}
-
-// 算法执行任务的 Payload 结构
-type AlgorithmExecutionPayload struct {
-	Benchmark   string
-	Algorithm   string
-	DatasetName string
 }
