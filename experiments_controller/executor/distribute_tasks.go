@@ -178,6 +178,8 @@ func processTaskWithContext(ctx context.Context, msg redis.XMessage) {
 		execErr = executeFaultInjection(ctx, taskMsg.TaskID, taskMsg.Payload)
 	case TaskTypeRunAlgorithm:
 		execErr = executeAlgorithm(ctx, taskMsg.TaskID, taskMsg.Payload)
+	case TaskTypeBuildImages:
+		execErr = executeBuildImages(ctx, taskMsg.TaskID, taskMsg.Payload)
 	default:
 		execErr = fmt.Errorf("unknown task type: %s", taskMsg.TaskType)
 	}

@@ -22,9 +22,9 @@ import (
 )
 
 var validTaskTypes = map[string]bool{
-	"FaultInjection":    true,
-	"RunAlgorithm":      true,
-	"EvaluateAlgorithm": true,
+	string(executor.TaskTypeFaultInjection): true,
+	string(executor.TaskTypeBuildImages):    true,
+	string(executor.TaskTypeRunAlgorithm):   true,
 }
 
 // GetTaskStatus 查询任务状态
