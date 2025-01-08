@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-shared-pv
+spec:
+  capacity:
+    storage: 10Gi  
+  accessModes:
+    - ReadWriteMany  
+  persistentVolumeReclaimPolicy: Retain 
+  nfs:
+    path: /mnt/data  
+    server: 10.26.1.146  
+  mountOptions:
+    - vers=4  
+  # storageClassName: nfs-storage-class
