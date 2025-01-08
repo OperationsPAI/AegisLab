@@ -13,96 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"dagger.io/dagger"
 	"dagger.io/dagger/dag"
-	"github.com/CUHK-SE-Group/chaos-experiment/client"
-	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-type Rcabench struct{}
-
-func (m *Rcabench) BuildBenchmarkDataImage(
-	ctx context.Context,
-	src *dagger.Directory,
-	abnorStartTime, abnorEndTime, norStartTime, norEndTime time.Time,
-) *dagger.Container {
-	workspace := dag.Container().
-		WithEnvVariable("CACHEBUSTER", time.Now().String()). // 强制重新编译
-		WithDirectory("/app", src).
-		WithWorkdir("/app").
-		Directory("/app")
-
-	logrus.Infof("timestamp: %v %v %v %v", abnorStartTime, abnorEndTime, norStartTime, norEndTime)
-
-	hostSrv := dag.Host().Service([]dagger.PortForward{
-		{Frontend: 8123, Backend: 8123},
-	}, dagger.HostServiceOpts{Host: config.GetString("database.clickhouse_host")})
-
-	return dag.Container().
-		WithServiceBinding("clickhouse", hostSrv).
-		WithEnvVariable("TIMEZONE", config.GetString("system.timezone")).
-		Build(workspace, dagger.ContainerBuildOpts{
-			BuildArgs: []dagger.BuildArg{
-				{
-					Name:  "ABNORMAL_START_VAR",
-					Value: strconv.Itoa(int(abnorStartTime.Unix())),
-				},
-				{
-					Name:  "ABNORMAL_END_VAR",
-					Value: strconv.Itoa(int(abnorEndTime.Unix())),
-				},
-				{
-					Name:  "NORMAL_START_VAR",
-					Value: strconv.Itoa(int(norStartTime.Unix())),
-				},
-				{
-					Name:  "NORMAL_END_VAR",
-					Value: strconv.Itoa(int(norEndTime.Unix())),
-				},
-			},
-		}).WithExec([]string{"python", "prepare_inputs.py"})
-}
-
-func (m *Rcabench) BuildAlgoBuilderImage(ctx context.Context, src *dagger.Directory) *dagger.Container {
-	workspace := dag.Container().
-		WithDirectory("/app", src).
-		WithWorkdir("/app").
-		Directory("/app")
-
-	return dag.Container().
-		Build(workspace, dagger.ContainerBuildOpts{
-			Dockerfile: "builder.Dockerfile",
-		})
-}
-
-func (m *Rcabench) BuildAlgoRunnerImage(
-	ctx context.Context, bench_dir, src *dagger.Directory, start_script *dagger.File,
-	abnorStartTime, abnorEndTime, norStartTime, norEndTime time.Time,
-) *dagger.Container {
-	data := m.BuildBenchmarkDataImage(ctx, bench_dir, abnorStartTime, abnorEndTime, norStartTime, norEndTime)
-	builder := m.BuildAlgoBuilderImage(ctx, src)
-	runner := builder.
-		WithWorkdir("/app").
-		WithDirectory("/app/input", data.Directory("/app/input")).
-		WithFile("/app/rca.py", src.File("rca.py")).
-		WithFile("/app/run_exp.py", start_script).
-		WithEnvVariable("WORKSPACE", "/app").
-		WithEnvVariable("TIMEZONE", config.GetString("system.timezone")).
-		WithEnvVariable("ABNORMAL_START", strconv.Itoa(int(abnorStartTime.Unix()))).
-		WithEnvVariable("ABNORMAL_END", strconv.Itoa(int(abnorEndTime.Unix()))).
-		WithEnvVariable("NORMAL_START", strconv.Itoa(int(norStartTime.Unix()))).
-		WithEnvVariable("NORMAL_END", strconv.Itoa(int(norEndTime.Unix())))
-	return runner
-}
-func (m *Rcabench) Evaluate(
-	ctx context.Context, bench_dir, src *dagger.Directory, start_script *dagger.File,
-	abnorStartTime, abnorEndTime, norStartTime, norEndTime time.Time,
-) *dagger.Container {
-	return m.BuildAlgoRunnerImage(ctx, bench_dir, src, start_script, abnorStartTime, abnorEndTime, norStartTime, norEndTime).
-		WithExposedPort(9000).
-		WithExec([]string{"python", "run_exp.py"})
-}
 
 func executeAlgorithm(ctx context.Context, taskID string, payload map[string]interface{}) error {
 	algPayload, err := parseAlgorithmExecutionPayload(payload)
