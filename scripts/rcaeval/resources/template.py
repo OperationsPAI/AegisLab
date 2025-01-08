@@ -89,9 +89,16 @@ def diagnose_faults(
         inject_time = pd.to_datetime(event["inject_time"], unit="s").value
 
         out = nsigma(metric_data, inject_time, dataset="train-ticket", anomalies=None)
-        top_metrics = out["ranks"][:top_n]
-        top_services = [metric.split("_")[0] for metric in top_metrics]
 
+        unique_set = set()
+        top_services = []
+        for item in out["ranks"]:
+            service = item.split("_")[0]
+            if service not in unique_set:
+                unique_set.add(service)
+                top_services.append(service)
+
+        top_services = top_services[:top_n]
         results.append({"timestamp": inject_time, "top_services": top_services})
 
     top_services_df = pd.DataFrame(results)

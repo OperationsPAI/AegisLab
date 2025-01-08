@@ -37,34 +37,27 @@ if __name__ == "__main__":
 
     if ns == "hipster":
         normal_time1 = "2022-08-22 03:51"
-        path1 = dirname(__file__) + \
-            "/rca_data/2022-08-22/2022-08-22-fault_list.json"
+        path1 = dirname(__file__) + "/rca_data/2022-08-22/2022-08-22-fault_list.json"
 
         normal_time2 = "2022-08-23 17:00"
-        path2 = dirname(__file__) + \
-            "/rca_data/2022-08-23/2022-08-23-fault_list.json"
+        path2 = dirname(__file__) + "/rca_data/2022-08-23/2022-08-23-fault_list.json"
 
         log_template_miner = get_miner(ns)
         inject_list = [path1, path2]
         normal_time_list = [normal_time1, normal_time2]
         if level == "service":
-            logger.info(
-                "------- OnlineBoutique Result at service level -------")
-            evaluation_pod(normal_time_list, inject_list,
-                           ns, log_template_miner)
+            logger.info("------- OnlineBoutique Result at service level -------")
+            evaluation_pod(normal_time_list, inject_list, ns, log_template_miner)
         else:
-            logger.info(
-                "------- OnlineBoutique Result at inner service level -------")
+            logger.info("------- OnlineBoutique Result at inner service level -------")
             evaluation(normal_time_list, inject_list, ns, log_template_miner)
 
     elif ns == "ts":
         normal_time1 = "2023-01-29 08:50"
-        path1 = dirname(__file__) + \
-            "/rca_data/2023-01-29/2023-01-29-fault_list.json"
+        path1 = dirname(__file__) + "/rca_data/2023-01-29/2023-01-29-fault_list.json"
 
         normal_time2 = "2023-01-30 11:39"
-        path2 = dirname(__file__) + \
-            "/rca_data/2023-01-30/2023-01-30-fault_list.json"
+        path2 = dirname(__file__) + "/rca_data/2023-01-30/2023-01-30-fault_list.json"
 
         log_template_miner = get_miner(ns)
         inject_list = [path1, path2]
@@ -72,11 +65,9 @@ if __name__ == "__main__":
 
         if level == "service":
             logger.info("------- Trainticket Result at service level -------")
-            evaluation_pod(normal_time_list, inject_list,
-                           ns, log_template_miner)
+            evaluation_pod(normal_time_list, inject_list, ns, log_template_miner)
         else:
-            logger.info(
-                "------- Trainticket Result at inner service level -------")
+            logger.info("------- Trainticket Result at inner service level -------")
             evaluation(normal_time_list, inject_list, ns, log_template_miner)
 
     else:

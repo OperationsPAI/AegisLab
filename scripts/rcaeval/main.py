@@ -1,15 +1,18 @@
 from typing import Dict, List, Union
 import argparse
 import ast
+import io
 import os
 import shutil
+import subprocess
 import sys
-
+import tokenize
 
 FILE_PATH = "/home/nn/workspace/lib/RCAEval/RCAEval/e2e/__init__.py"
 
-PWD = os.getcwd()
 DIR = os.path.dirname(os.path.abspath(__file__))
+ALGORITHMS_DIR = os.path.join(os.getcwd(), "algorithms")
+
 TEMPLATE_DOCKERFILE = os.path.join(DIR, "resources/template.Dockerfile")
 TEMPLATE_PY = os.path.join(DIR, "resources/template.py")
 
@@ -93,50 +96,60 @@ def extract_relative_imports(
     return results
 
 
-class ReplaceAlgo(ast.NodeTransformer):
-    def __init__(self, new_algo: str, old_algo: str) -> None:
-        super().__init__()
-
-        self.new_algo = new_algo
-        self.old_algo = old_algo
-
-    def visit_ImportFrom(self, node):
-        if node.module == "RCAEval.e2e":
-            node.names = [
-                ast.alias(name=self.new_algo, asname=None)
-                if alias.name == self.old_algo
-                else alias
-                for alias in node.names
-            ]
-
-        return node
-
-    def visit_Name(self, node):
-        if node.id == self.old_algo:
-            node.id = self.new_algo
-
-        return node
-
-
 def replace_algo(content: str, new_algo: str, old_algo: str = "nsigma"):
-    tree = ast.parse(content)
+    tokens = tokenize.generate_tokens(io.StringIO(content).readline)
 
-    transformer = ReplaceAlgo(new_algo, old_algo)
-    modified_tree = transformer.visit(tree)
-    ast.fix_missing_locations(modified_tree)
+    modified_tokens = []
+    for token_type, token_string, _, _, _ in tokens:
+        if token_string == old_algo:
+            modified_tokens.append((token_type, new_algo))
+        else:
+            modified_tokens.append((token_type, token_string))
 
-    modified_code = ast.unparse(modified_tree)
+    modified_code = tokenize.untokenize(modified_tokens)
 
     return modified_code
 
 
-def gen_code(results, mode: str, content: str) -> List[str]:
+def format_code(library: str) -> None:
+    """
+    格式化生成的代码
+
+    参数:
+    - library (str): 格式化库。
+    """
+    if library == "ruff":
+        command = ["ruff", "format", ALGORITHMS_DIR]
+
+    result = subprocess.run(command, capture_output=True, text=True)
+
+    if result.returncode == 0:
+        print("格式化成功!")
+    else:
+        print(f"格式化失败: {result.stderr}")
+
+
+def gen_code(
+    results: Dict[str, Union[bool, List[str]]], library: str, mode: str, content: str
+) -> List[str]:
+    """
+    生成算法代码
+
+    参数:
+    - results (Dict[str, Union[bool, List[str]]]): 解析导入结果。
+    - library (str): 格式化库。
+    - mode (str): 算法调用资源类别。
+    - content (str): python 模版文件内容。
+
+    返回:
+        List[str]: 导入的算法列表。
+    """
     import_algos = []
 
     for _, result in results.items():
         if mode != ("cpu" if result["torch"] else "gpu"):
             for algo in result["algos"]:
-                algo_dir = os.path.join(PWD, f"algorithms/{algo}_rcaeval")
+                algo_dir = os.path.join(ALGORITHMS_DIR, f"{algo}_rcaeval")
                 if not os.path.exists(algo_dir):
                     os.makedirs(algo_dir)
 
@@ -149,13 +162,15 @@ def gen_code(results, mode: str, content: str) -> List[str]:
 
                 import_algos.append(algo)
 
+    format_code(library)
+
     return import_algos
 
 
 def delete_algos(algos: List[str]) -> None:
     for algo in algos:
         try:
-            shutil.rmtree(os.path.join(PWD, f"algorithms/{algo}_rcaeval"))
+            shutil.rmtree(os.path.join(ALGORITHMS_DIR, f"{algo}_rcaeval"))
         except Exception as e:
             print(f"删除算法{algo}错误: {e}")
 
@@ -165,6 +180,9 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "-f", "--file", type=str, help="__init__.py 文件路径", default=FILE_PATH
+    )
+    parser.add_argument(
+        "-l", "--format_library", type=str, help="格式化库", default="ruff"
     )
     parser.add_argument(
         "-m",
@@ -183,40 +201,17 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    file_path, mode, is_py310 = args.file, args.mode, args.is_py310
+    file_path, library, mode, is_py310 = (
+        args.file,
+        args.format_library,
+        args.mode,
+        args.is_py310,
+    )
     results = extract_relative_imports(file_path, is_py310)
 
     with open(TEMPLATE_PY, mode="r") as file:
         content = file.read()
 
-    import_algos = gen_code(results, mode, content)
-    print(f"导入算法数目: {len(import_algos)}")
-    print(f"导入算法名称: {import_algos}")
-
-    algos = [
-        "causalai",
-        "baro",
-        "mmbaro",
-        "mmnsigma",
-        "circa",
-        "cloudranger",
-        "fci_pagerank",
-        "ges_pagerank",
-        "granger_pagerank",
-        "lingam_pagerank",
-        "micro_diag",
-        "microcause",
-        "microrank",
-        "easyrca",
-        "cmlp_pagerank",
-        "ntlr_pagerank",
-        "pc_pagerank",
-        "fci_randomwalk",
-        "granger_randomwalk",
-        "lingam_randomwalk",
-        "ntlr_randomwalk",
-        "pc_randomwalk",
-        "tracerca",
-    ]
-
-    delete_algos(algos)
+    imported_algos = gen_code(results, library, mode, content)
+    print(f"导入算法数目: {len(imported_algos)}")
+    print(f"导入算法名称: {imported_algos}")
