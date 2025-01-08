@@ -6,6 +6,7 @@ type TaskType string
 const (
 	TaskTypeRunAlgorithm   TaskType = "RunAlgorithm"
 	TaskTypeFaultInjection TaskType = "FaultInjection"
+	TaskTypeBuildImages    TaskType = "BuildImages"
 )
 
 // Redis 消息字段
