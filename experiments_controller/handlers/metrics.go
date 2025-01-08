@@ -41,16 +41,24 @@ type ConclusionMAPk struct {
 	Count  int
 }
 
+type ConclustionMRR struct {
+	Metric string
+	Level  string
+	Sum    float64
+	Count  int
+}
+
 var (
 	metrics   = make(map[string]EvaluationMetric)
 	metricsMu sync.RWMutex
 )
 
 func init() {
-	RegisterMetric("AC@k", accuracyk)
+	RegisterMetric("A@k", accuracyk)
 	RegisterMetric("PR@k", precisionk)
 	RegisterMetric("Avg@k", avgk)
 	RegisterMetric("MAP@k", mapk)
+	RegisterMetric("MRR", mrr)
 }
 
 // 注册新的评估指标
@@ -218,7 +226,7 @@ func precisionk(executions []Execution) ([]*Conclusion, error) {
 			return nil, err
 		}
 
-		// 创建按级别分类的 ground truth 集合
+		// 创建按级别分类的 groundtruth 集合
 		groundtruthMap := make(map[string]map[string]struct{})
 		for _, gt := range groundtruth {
 			if _, exists := groundtruthMap[string(gt.Level)]; !exists {
@@ -523,6 +531,95 @@ func mapk(executions []Execution) ([]*Conclusion, error) {
 				Level:  value.Level,
 				Metric: value.Metric,
 				Rate:   mapkValue,
+			})
+		}
+	}
+
+	return results, nil
+}
+
+func mrr(executions []Execution) ([]*Conclusion, error) {
+	if len(executions) == 0 {
+		return nil, errors.New("execution history is empty")
+	}
+
+	levelGran := make(map[string]*ConclustionMRR)
+
+	for _, exexecution := range executions {
+		for _, g := range exexecution.GranularityResult {
+			if _, exists := levelGran[g.Level]; !exists {
+				levelGran[g.Level] = &ConclustionMRR{
+					Metric: "MRR",
+					Level:  g.Level,
+					Sum:    0.0,
+					Count:  0,
+				}
+			}
+		}
+	}
+
+	for _, execution := range executions {
+		groundtruth, err := parseConfigAndGetGroundTruth(execution)
+		if err != nil {
+			return nil, err
+		}
+
+		// 创建按级别分类的 groundtruth 集合
+		groundtruthMap := make(map[string]map[string]struct{})
+		for _, gt := range groundtruth {
+			if _, exists := groundtruthMap[string(gt.Level)]; !exists {
+				groundtruthMap[string(gt.Level)] = make(map[string]struct{})
+			}
+			groundtruthMap[string(gt.Level)][gt.Name] = struct{}{}
+		}
+
+		// 按级别收集所有预测结果，并按 Rank 排序
+		levelPredictions := make(map[string][]database.GranularityResult)
+		for _, g := range execution.GranularityResult {
+			levelPredictions[g.Level] = append(levelPredictions[g.Level], g)
+		}
+
+		for level, preds := range levelPredictions {
+			gtSet, exists := groundtruthMap[level]
+			if !exists || len(gtSet) == 0 {
+				continue
+			}
+
+			// 假设 preds 已经按 Rank 排序，如果没有排序需要排序
+			sort.Slice(preds, func(i, j int) bool {
+				return preds[i].Rank < preds[j].Rank
+			})
+
+			for _, pred := range preds {
+				if _, hit := gtSet[pred.Result]; hit {
+					if conclusion, exists := levelGran[level]; exists {
+						precision := 0.0
+						if pred.Rank != 0 {
+							precision = 1.0 / float64(pred.Rank)
+						}
+
+						conclusion.Sum += precision
+						conclusion.Count++
+					}
+				}
+			}
+		}
+	}
+
+	// 生成评估结果
+	var results []*Conclusion
+	for _, value := range levelGran {
+		if value.Count == 0 {
+			results = append(results, &Conclusion{
+				Level:  value.Level,
+				Metric: value.Metric,
+				Rate:   0.0, // 或者根据需求设定为其他默认值
+			})
+		} else {
+			results = append(results, &Conclusion{
+				Level:  value.Level,
+				Metric: value.Metric,
+				Rate:   value.Sum / float64(value.Count),
 			})
 		}
 	}
