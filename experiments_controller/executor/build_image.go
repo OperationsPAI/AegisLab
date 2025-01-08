@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -146,36 +145,55 @@ func buildDockerfileAndPush(
 		},
 	}
 	pp.Println(solveOpt)
-	traceFile, err := os.OpenFile("tracefile.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		return err
-	}
-	var traceEnc *json.Encoder
-	if traceFile != nil {
-		defer traceFile.Close()
-		traceEnc = json.NewEncoder(traceFile)
+	// traceFile, err := os.OpenFile("tracefile.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	// if err != nil {
+	// return err
+	// }
+	// var traceEnc *json.Encoder
+	// if traceFile != nil {
+	// 	defer traceFile.Close()
+	// 	traceEnc = json.NewEncoder(traceFile)
 
-		bklog.L.Infof("tracing logs to %s", traceFile.Name())
-	}
+	// 	bklog.L.Infof("tracing logs to %s", traceFile.Name())
+	// }
 	pw, err := progresswriter.NewPrinter(context.TODO(), os.Stderr, string(progressui.AutoMode))
 	if err != nil {
 		return err
 	}
 	mw := progresswriter.NewMultiWriter(pw)
-	eg, ctx2 := errgroup.WithContext(ctx)
-	if traceEnc != nil {
-		traceCh := make(chan *client.SolveStatus)
-		pw = progresswriter.Tee(pw, traceCh)
-		eg.Go(func() error {
-			for s := range traceCh {
-				if err := traceEnc.Encode(s); err != nil {
-					return err
-				}
-			}
-			return nil
-		})
+
+	var writers []progresswriter.Writer
+	for _, at := range attachable {
+		if s, ok := at.(interface {
+			SetLogger(progresswriter.Logger)
+		}); ok {
+			w := mw.WithPrefix("", false)
+			s.SetLogger(func(s *client.SolveStatus) {
+				w.Status() <- s
+			})
+			writers = append(writers, w)
+		}
 	}
+
+	eg, ctx2 := errgroup.WithContext(ctx)
+	// if traceEnc != nil {
+	// 	traceCh := make(chan *client.SolveStatus)
+	// 	pw = progresswriter.Tee(pw, traceCh)
+	// 	eg.Go(func() error {
+	// 		for s := range traceCh {
+	// 			if err := traceEnc.Encode(s); err != nil {
+	// 				return err
+	// 			}
+	// 		}
+	// 		return nil
+	// 	})
+	// }
 	eg.Go(func() error {
+		defer func() {
+			for _, w := range writers {
+				close(w.Status())
+			}
+		}()
 		sreq := gateway.SolveRequest{
 			Frontend:    solveOpt.Frontend,
 			FrontendOpt: solveOpt.FrontendAttrs,
@@ -188,16 +206,17 @@ func buildDockerfileAndPush(
 			}
 		}
 
-		resp, err := c.Build(ctx2, solveOpt, "buildctl-dockerfile",
+		resp, err := c.Build(ctx2, solveOpt, "buildctl",
 			func(ctx context.Context, c gateway.Client) (*gateway.Result, error) {
+				logrus.Info("begin to solve")
 				res, err := c.Solve(ctx, sreq)
-				if err != nil {
-					return nil, err
-				}
+				logrus.Info("fuck")
+
 				return res, err
 			},
 			progresswriter.ResetTime(mw.WithPrefix("", false)).Status(),
 		)
+		logrus.Info("build11 finished")
 		if err != nil {
 			bklog.G(ctx).Errorf("build failed: %v", err)
 		}
@@ -210,6 +229,7 @@ func buildDockerfileAndPush(
 
 	eg.Go(func() error {
 		<-pw.Done()
+		logrus.Info("build finished")
 		return pw.Err()
 	})
 
