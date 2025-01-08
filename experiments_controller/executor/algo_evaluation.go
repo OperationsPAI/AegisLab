@@ -17,7 +17,8 @@ import (
 
 	"dagger.io/dagger/dag"
 	"gorm.io/gorm"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
 )
 
 type AlgorithmExecutionPayload struct {
@@ -46,7 +47,7 @@ func executeAlgorithm(ctx context.Context, taskID string, payload map[string]int
 		startTime = faultRecord.StartTime
 		endTime = faultRecord.EndTime
 	} else if faultRecord.Status == database.DatasetInitial {
-		startTime, endTime, err = client.QueryCRDByName("ts", algPayload.DatasetName)
+		startTime, endTime, err = chaosCli.QueryCRDByName("ts", algPayload.DatasetName)
 		if err != nil {
 			return fmt.Errorf("failed to QueryCRDByName: %s, error: %v", algPayload.DatasetName, err)
 		}
