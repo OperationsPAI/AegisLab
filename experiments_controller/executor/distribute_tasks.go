@@ -26,6 +26,19 @@ var (
 	taskSemaphore        = make(chan struct{}, 2) // 限制并发任务数为2
 )
 
+// 初始化函数
+func init() {
+	ctx := context.Background()
+	initConsumerGroup(ctx)
+}
+
+// 初始化消费者组
+func initConsumerGroup(ctx context.Context) {
+	err := client.GetRedisClient().XGroupCreateMkStream(ctx, StreamName, GroupName, "0").Err()
+	if err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
+		logrus.Fatalf("Failed to create consumer group: %v", err)
+	}
+}
 func CancelTask(taskID string) error {
 	taskCancelFuncsMutex.Lock()
 	cancelFunc, exists := taskCancelFuncs[taskID]
@@ -35,14 +48,6 @@ func CancelTask(taskID string) error {
 	}
 	cancelFunc()
 	return nil
-}
-
-// 初始化消费者组
-func initConsumerGroup(ctx context.Context) {
-	err := client.GetRedisClient().XGroupCreateMkStream(ctx, StreamName, GroupName, "0").Err()
-	if err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
-		logrus.Fatalf("Failed to create consumer group: %v", err)
-	}
 }
 
 func ConsumeTasks() {

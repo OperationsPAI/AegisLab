@@ -13,9 +13,6 @@ import (
 
 	"github.com/CUHK-SE-Group/rcabench/database"
 
-	"github.com/CUHK-SE-Group/rcabench/config"
-
-	"dagger.io/dagger/dag"
 	"gorm.io/gorm"
 
 	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
@@ -92,48 +89,47 @@ func executeAlgorithm(ctx context.Context, taskID string, payload map[string]int
 		return fmt.Errorf("start script does not exist: %s", startScriptPath)
 	}
 
-	rc := &Rcabench{}
-	con := rc.Evaluate(ctx, dag.Host().Directory(benchPath), dag.Host().Directory(algoPath), dag.Host().File(startScriptPath),
-		startTime, endTime, startTime.Add(-20*time.Minute), startTime)
+	// con := Evaluate(ctx, dag.Host().Directory(benchPath), dag.Host().Directory(algoPath), dag.Host().File(startScriptPath),
+	// 	startTime, endTime, startTime.Add(-20*time.Minute), startTime)
 
-	if config.GetBool("debug") {
-		_, err = con.Directory("/app/output").Export(ctx, "./output")
-		if err != nil {
-			return fmt.Errorf("failed to export result, details: %s", err.Error())
-		}
-		_, err = con.Directory("/app/input").Export(ctx, "./input")
-		if err != nil {
-			return fmt.Errorf("failed to export result, details: %s", err.Error())
-		}
-	}
+	// if config.GetBool("debug") {
+	// 	_, err = con.Directory("/app/output").Export(ctx, "./output")
+	// 	if err != nil {
+	// 		return fmt.Errorf("failed to export result, details: %s", err.Error())
+	// 	}
+	// 	_, err = con.Directory("/app/input").Export(ctx, "./input")
+	// 	if err != nil {
+	// 		return fmt.Errorf("failed to export result, details: %s", err.Error())
+	// 	}
+	// }
 
-	content, err := con.File("/app/output/result.csv").Contents(context.Background())
-	if err != nil {
-		updateTaskStatus(taskID, "Running", "There is no result.csv file in /app/output, please check whether it is nomal")
-	} else {
-		results, err := readCSVContent2Result(content, executionResult.ID)
-		if err != nil {
-			return fmt.Errorf("convert result.csv to database struct failed: %v", err)
-		}
-		if err := database.DB.Create(&results).Error; err != nil {
-			return fmt.Errorf("save result.csv to database failed: %v", err)
-		}
-	}
+	// content, err := con.File("/app/output/result.csv").Contents(context.Background())
+	// if err != nil {
+	// 	updateTaskStatus(taskID, "Running", "There is no result.csv file in /app/output, please check whether it is nomal")
+	// } else {
+	// 	results, err := readCSVContent2Result(content, executionResult.ID)
+	// 	if err != nil {
+	// 		return fmt.Errorf("convert result.csv to database struct failed: %v", err)
+	// 	}
+	// 	if err := database.DB.Create(&results).Error; err != nil {
+	// 		return fmt.Errorf("save result.csv to database failed: %v", err)
+	// 	}
+	// }
 
-	conclusion, err := con.File("/app/output/conclusion.csv").Contents(context.Background())
-	if err != nil {
-		updateTaskStatus(taskID, "Running", "There is no conclusion.csv file in /app/output, please check whether it is nomal")
+	// conclusion, err := con.File("/app/output/conclusion.csv").Contents(context.Background())
+	// if err != nil {
+	// 	updateTaskStatus(taskID, "Running", "There is no conclusion.csv file in /app/output, please check whether it is nomal")
 
-	} else {
-		results, err := readDetectorCSV(conclusion, executionResult.ID)
-		if err != nil {
-			return fmt.Errorf("convert result.csv to database struct failed: %v", err)
-		}
-		fmt.Println(results)
-		if err := database.DB.Create(&results).Error; err != nil {
-			return fmt.Errorf("save conclusion.csv to database failed: %v", err)
-		}
-	}
+	// } else {
+	// 	results, err := readDetectorCSV(conclusion, executionResult.ID)
+	// 	if err != nil {
+	// 		return fmt.Errorf("convert result.csv to database struct failed: %v", err)
+	// 	}
+	// 	fmt.Println(results)
+	// 	if err := database.DB.Create(&results).Error; err != nil {
+	// 		return fmt.Errorf("save conclusion.csv to database failed: %v", err)
+	// 	}
+	// }
 	return nil
 }
 

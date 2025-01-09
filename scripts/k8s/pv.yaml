@@ -4,13 +4,13 @@ metadata:
   name: nfs-shared-pv
 spec:
   capacity:
-    storage: 10Gi  
+    storage: 1024Gi  
   accessModes:
     - ReadWriteMany  
   persistentVolumeReclaimPolicy: Retain 
   nfs:
-    path: /mnt/data  
+    path: /mnt/data/rcabench_dataset
     server: 10.26.1.146  
   mountOptions:
     - vers=4  
-  # storageClassName: nfs-storage-class
+  storageClassName: nfs-storage-class
