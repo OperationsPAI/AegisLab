@@ -5,17 +5,16 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/CUHK-SE-Group/rcabench/client"
+	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/database"
+	corev1 "k8s.io/api/core/v1"
 
 	"gorm.io/gorm"
-
-	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
 )
 
 type AlgorithmExecutionPayload struct {
@@ -39,24 +38,6 @@ func executeAlgorithm(ctx context.Context, taskID string, payload map[string]int
 		return fmt.Errorf("failed to query database for dataset: %s, error: %v", algPayload.DatasetName, err)
 	}
 
-	var startTime, endTime time.Time
-	if faultRecord.Status == database.DatasetSuccess {
-		startTime = faultRecord.StartTime
-		endTime = faultRecord.EndTime
-	} else if faultRecord.Status == database.DatasetInitial {
-		startTime, endTime, err = chaosCli.QueryCRDByName("ts", algPayload.DatasetName)
-		if err != nil {
-			return fmt.Errorf("failed to QueryCRDByName: %s, error: %v", algPayload.DatasetName, err)
-		}
-		if err := database.DB.Model(&faultRecord).Where("injection_name = ?", algPayload.DatasetName).
-			Updates(map[string]interface{}{
-				"start_time": startTime,
-				"end_time":   endTime,
-			}).Error; err != nil {
-			return fmt.Errorf("failed to update start_time and end_time for dataset: %s, error: %v", algPayload.DatasetName, err)
-		}
-	}
-
 	executionResult := database.ExecutionResult{
 		Dataset: faultRecord.ID,
 		TaskID:  taskID,
@@ -67,70 +48,50 @@ func executeAlgorithm(ctx context.Context, taskID string, payload map[string]int
 	}
 
 	updateTaskStatus(taskID, "Running", fmt.Sprintf("Running algorithm for task %s", taskID))
-
-	pwd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get current working directory: %v", err)
-	}
-
-	parentDir := filepath.Dir(pwd)
-
-	benchPath := filepath.Join(parentDir, "benchmarks", algPayload.Benchmark)
-	algoPath := filepath.Join(parentDir, "algorithms", algPayload.Algorithm)
-	startScriptPath := filepath.Join(parentDir, "experiments", "run_exp.py")
-
-	if _, err := os.Stat(benchPath); os.IsNotExist(err) {
-		return fmt.Errorf("benchmark directory does not exist: %s", benchPath)
-	}
-	if _, err := os.Stat(algoPath); os.IsNotExist(err) {
-		return fmt.Errorf("algorithm directory does not exist: %s", algoPath)
-	}
-	if _, err := os.Stat(startScriptPath); os.IsNotExist(err) {
-		return fmt.Errorf("start script does not exist: %s", startScriptPath)
-	}
-
-	// con := Evaluate(ctx, dag.Host().Directory(benchPath), dag.Host().Directory(algoPath), dag.Host().File(startScriptPath),
-	// 	startTime, endTime, startTime.Add(-20*time.Minute), startTime)
-
-	// if config.GetBool("debug") {
-	// 	_, err = con.Directory("/app/output").Export(ctx, "./output")
-	// 	if err != nil {
-	// 		return fmt.Errorf("failed to export result, details: %s", err.Error())
-	// 	}
-	// 	_, err = con.Directory("/app/input").Export(ctx, "./input")
-	// 	if err != nil {
-	// 		return fmt.Errorf("failed to export result, details: %s", err.Error())
-	// 	}
-	// }
-
-	// content, err := con.File("/app/output/result.csv").Contents(context.Background())
-	// if err != nil {
-	// 	updateTaskStatus(taskID, "Running", "There is no result.csv file in /app/output, please check whether it is nomal")
-	// } else {
-	// 	results, err := readCSVContent2Result(content, executionResult.ID)
-	// 	if err != nil {
-	// 		return fmt.Errorf("convert result.csv to database struct failed: %v", err)
-	// 	}
-	// 	if err := database.DB.Create(&results).Error; err != nil {
-	// 		return fmt.Errorf("save result.csv to database failed: %v", err)
-	// 	}
-	// }
-
-	// conclusion, err := con.File("/app/output/conclusion.csv").Contents(context.Background())
-	// if err != nil {
-	// 	updateTaskStatus(taskID, "Running", "There is no conclusion.csv file in /app/output, please check whether it is nomal")
-
-	// } else {
-	// 	results, err := readDetectorCSV(conclusion, executionResult.ID)
-	// 	if err != nil {
-	// 		return fmt.Errorf("convert result.csv to database struct failed: %v", err)
-	// 	}
-	// 	fmt.Println(results)
-	// 	if err := database.DB.Create(&results).Error; err != nil {
-	// 		return fmt.Errorf("save conclusion.csv to database failed: %v", err)
-	// 	}
-	// }
+	createAlgoJob(ctx, algPayload.DatasetName, fmt.Sprintf("%s|%s", algPayload.Algorithm, algPayload.DatasetName), "experiment", algPayload.Algorithm, []string{"python", "run_exp.py"})
 	return nil
+}
+func createAlgoJob(ctx context.Context, datasetname, jobname, namespace, image string, command []string) error {
+	fc := client.NewK8sClient()
+	restartPolicy := corev1.RestartPolicyNever
+	backoffLimit := int32(2)
+	parallelism := int32(1)
+	completions := int32(1)
+
+	tz := config.GetString("system.timezone")
+	if tz == "" {
+		tz = "Asia/Shanghai"
+	}
+	envVars := []corev1.EnvVar{
+		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", datasetname)},
+		{Name: "OUTPUT_PATH", Value: "/app/output"},
+		{Name: "TIMEZONE", Value: tz},
+		{Name: "WORKSPACE", Value: "/app"},
+	}
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "nfs-volume",
+			MountPath: "/data",
+		},
+	}
+	pvc := config.GetString("nfs.pvc_name")
+	if config.GetString("nfs.pvc_name") == "" {
+		pvc = "nfs-shared-pvc"
+	}
+	volumes := []corev1.Volume{
+		{
+			Name: "nfs-volume",
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: pvc,
+				},
+			},
+		},
+	}
+
+	err := client.CreateK8sJob(ctx, fc, namespace, jobname, image, command, restartPolicy,
+		backoffLimit, parallelism, completions, envVars, volumeMounts, volumes)
+	return err
 }
 
 // 解析算法执行任务的 Payload

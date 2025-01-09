@@ -13,9 +13,10 @@ import (
 
 	"github.com/CUHK-SE-Group/rcabench/database"
 
+	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
+	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/config"
 
-	"github.com/CUHK-SE-Group/chaos-experiment/client"
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
@@ -47,7 +48,7 @@ func GetTaskStatus(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// 获取任务状态
-	status, err := executor.GetRedisClient().HGet(ctx, taskKey, "status").Result()
+	status, err := client.GetRedisClient().HGet(ctx, taskKey, "status").Result()
 	if err == redis.Nil {
 		c.JSON(404, gin.H{"error": "Task not found"})
 		return
@@ -58,7 +59,7 @@ func GetTaskStatus(c *gin.Context) {
 
 	// 获取任务日志
 	logKey := fmt.Sprintf("task:%s:logs", taskID) // 使用专用的日志键
-	logs, err := executor.GetRedisClient().LRange(ctx, logKey, 0, -1).Result()
+	logs, err := client.GetRedisClient().LRange(ctx, logKey, 0, -1).Result()
 	if err != nil && !errors.Is(err, redis.Nil) {
 		c.JSON(500, gin.H{"error": "Failed to retrieve logs"})
 		return
@@ -128,7 +129,7 @@ func SubmitTask(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
-	_, err = executor.GetRedisClient().XAdd(ctx, &redis.XAddArgs{
+	_, err = client.GetRedisClient().XAdd(ctx, &redis.XAddArgs{
 		Stream: executor.StreamName,
 		Values: map[string]interface{}{
 			executor.RdbMsgTaskID:   taskID,
@@ -198,7 +199,7 @@ func GetTaskLogs(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
-	logs, err := executor.GetRedisClient().LRange(ctx, logKey, 0, -1).Result()
+	logs, err := client.GetRedisClient().LRange(ctx, logKey, 0, -1).Result()
 	if errors.Is(err, redis.Nil) {
 		logs = []string{}
 	} else if err != nil {
@@ -324,7 +325,7 @@ func GetDatasets(c *gin.Context) {
 
 		// 如果状态为初始，查询 CRD 并更新记录
 		if record.Status == database.DatasetInitial {
-			startTime, endTime, err = client.QueryCRDByName("ts", datasetName)
+			startTime, endTime, err = chaosCli.QueryCRDByName("ts", datasetName)
 			if err != nil {
 				logrus.Errorf("Failed to QueryCRDByName for dataset %s: %v", datasetName, err)
 
@@ -380,7 +381,7 @@ func GetDatasets(c *gin.Context) {
 func GetNamespacePod(c *gin.Context) {
 	res := make(map[string][]string)
 	for _, ns := range config.GetStringSlice("injection.namespace") {
-		labels, err := client.GetLabels(ns, config.GetString("injection.label"))
+		labels, err := chaosCli.GetLabels(ns, config.GetString("injection.label"))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get labels from namespace ts"})
 		}

@@ -44,7 +44,7 @@ func TestCreateGetDeleteK8sJob(t *testing.T) {
 	}
 
 	// Create
-	if err := CreateK8sJob(fc, namespace, jobName, image, command, restartPolicy,
+	if err := CreateK8sJob(context.Background(), fc, namespace, jobName, image, command, restartPolicy,
 		backoffLimit, parallelism, completions, envVars, volumeMounts, volumes); err != nil {
 		t.Fatalf("CreateK8sJob failed: %v", err)
 	}
@@ -61,7 +61,7 @@ func TestCreateGetDeleteK8sJob(t *testing.T) {
 
 	time.Sleep(5 * time.Second)
 	// Delete
-	if err := DeleteK8sJob(fc, namespace, jobName); err != nil {
+	if err := DeleteK8sJob(context.Background(), fc, namespace, jobName); err != nil {
 		t.Fatalf("DeleteK8sJob failed: %v", err)
 	}
 
