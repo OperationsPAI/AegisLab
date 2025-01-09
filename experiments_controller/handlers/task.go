@@ -13,10 +13,10 @@ import (
 
 	"github.com/CUHK-SE-Group/rcabench/database"
 
-	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
 	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/config"
 
+	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
