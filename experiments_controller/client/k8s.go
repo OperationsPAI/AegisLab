@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/k0kubun/pp/v3"
 	"github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -55,7 +54,7 @@ func NewK8sClient() client.Client {
 	return k8sClientInstance
 }
 
-func CreateK8sJob(k8sClient client.Client, namespace, jobName, image string, command []string, restartPolicy corev1.RestartPolicy, backoffLimit int32, parallelism, completions int32, envVars []corev1.EnvVar, volumeMounts []corev1.VolumeMount, volumes []corev1.Volume) error {
+func CreateK8sJob(ctx context.Context, k8sClient client.Client, namespace, jobName, image string, command []string, restartPolicy corev1.RestartPolicy, backoffLimit int32, parallelism, completions int32, envVars []corev1.EnvVar, volumeMounts []corev1.VolumeMount, volumes []corev1.Volume) error {
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
@@ -83,8 +82,7 @@ func CreateK8sJob(k8sClient client.Client, namespace, jobName, image string, com
 		},
 	}
 
-	pp.Print(job)
-	err := k8sClient.Create(context.TODO(), job)
+	err := k8sClient.Create(ctx, job)
 	if err != nil {
 		return fmt.Errorf("failed to create job: %v", err)
 	}
@@ -121,7 +119,7 @@ func GetK8sJob(k8sClient client.Client, namespace, jobName string) (*batchv1.Job
 	return job, nil
 }
 
-func DeleteK8sJob(k8sClient client.Client, namespace, jobName string) error {
+func DeleteK8sJob(ctx context.Context, k8sClient client.Client, namespace, jobName string) error {
 	// Delete the job
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -129,7 +127,7 @@ func DeleteK8sJob(k8sClient client.Client, namespace, jobName string) error {
 			Namespace: namespace,
 		},
 	}
-	err := k8sClient.Delete(context.TODO(), job)
+	err := k8sClient.Delete(ctx, job)
 	if err != nil {
 		return fmt.Errorf("failed to delete job: %v", err)
 	}
@@ -140,13 +138,13 @@ func DeleteK8sJob(k8sClient client.Client, namespace, jobName string) error {
 		client.InNamespace(namespace),
 		client.MatchingLabels{"job-name": jobName},
 	}
-	err = k8sClient.List(context.TODO(), podList, listOpts...)
+	err = k8sClient.List(ctx, podList, listOpts...)
 	if err != nil {
 		return fmt.Errorf("failed to list pods: %v", err)
 	}
 
 	for _, pod := range podList.Items {
-		err = k8sClient.Delete(context.TODO(), &pod)
+		err = k8sClient.Delete(ctx, &pod)
 		if err != nil {
 			return fmt.Errorf("failed to delete pod %s: %v", pod.Name, err)
 		}

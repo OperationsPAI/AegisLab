@@ -304,41 +304,36 @@ if __name__ == "__main__":
 
     os.makedirs(output_path, exist_ok=True)
 
-    print("executing generate_metric")
-    save_to_csv(
-        generate_metric(normal_start_time_clickhouse,
-                        abnormal_end_time_clickhouse),
-        f"{output_path}/metrics.csv",
-    )
-    print("executing generate_metric_sum")
-    save_to_csv(
-        generate_metric_sum(normal_start_time_clickhouse,
-                            abnormal_end_time_clickhouse),
-        f"{output_path}/metric_sum.csv",
-    )
-    print("executing generate_metric_histogram")
-    save_to_csv(
-        generate_metric_histogram(
-            normal_start_time_clickhouse, abnormal_end_time_clickhouse
-        ),
-        f"{output_path}/metrics_histogram.csv",
-    )
-    print("executing generate_log")
-    save_to_csv(
-        generate_log(normal_start_time_clickhouse,
-                     abnormal_end_time_clickhouse),
-        f"{output_path}/logs.csv",
-    )
-    print("executing generate_trace")
-    save_to_csv(
-        generate_trace(normal_start_time_clickhouse,
-                       abnormal_end_time_clickhouse),
-        f"{output_path}/traces.csv",
-    )
-    print("executing generate_trace_id_ts")
-    save_to_csv(
-        generate_trace_id_ts(
-            normal_start_time_clickhouse, abnormal_end_time_clickhouse
-        ),
-        f"{output_path}/trace_id_ts.csv",
-    )
+    normal_data = [
+        (generate_metric, "normal_metrics.csv"),
+        (generate_metric_sum, "normal_metric_sum.csv"),
+        (generate_metric_histogram, "normal_metrics_histogram.csv"),
+        (generate_log, "normal_logs.csv"),
+        (generate_trace, "normal_traces.csv"),
+        (generate_trace_id_ts, "normal_trace_id_ts.csv"),
+    ]
+
+
+    abnormal_data = [
+        (generate_metric, "abnormal_metrics.csv"),
+        (generate_metric_sum, "abnormal_metric_sum.csv"),
+        (generate_metric_histogram, "abnormal_metrics_histogram.csv"),
+        (generate_log, "abnormal_logs.csv"),
+        (generate_trace, "abnormal_traces.csv"),
+        (generate_trace_id_ts, "abnormal_trace_id_ts.csv"),
+    ]
+    
+    
+    for func, filename in normal_data:
+        print(f"executing {func.__name__}")
+        save_to_csv(
+            func(normal_start_time_clickhouse, normal_end_time_clickhouse),
+            f"{output_path}/{filename}",
+        )
+
+    for func, filename in abnormal_data:
+        print(f"executing {func.__name__}")
+        save_to_csv(
+            func(abnormal_start_time_clickhouse, abnormal_end_time_clickhouse),
+            f"{output_path}/{filename}",
+        )

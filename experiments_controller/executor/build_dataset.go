@@ -13,7 +13,6 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/database"
-	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -64,10 +63,10 @@ func executeBuildDataset(ctx context.Context, taskID string, payload map[string]
 			return fmt.Errorf("failed to update start_time and end_time for dataset: %s, error: %v", datasetPayload.DatasetName, err)
 		}
 	}
-	return createDatasetJob(datasetPayload.DatasetName, "ts", fmt.Sprintf("10.10.10.240/library/clickhouse_dataset:latest"), []string{"python", "/app/prepare_intputs.py"}, startTime, endTime)
+	return createDatasetJob(ctx, datasetPayload.DatasetName, "ts", fmt.Sprintf("10.10.10.240/library/clickhouse_dataset:latest"), []string{"python", "/app/prepare_intputs.py"}, startTime, endTime)
 }
 
-func createDatasetJob(jobname, namespace, image string, command []string, startTime, endTime time.Time) error {
+func createDatasetJob(ctx context.Context, jobname, namespace, image string, command []string, startTime, endTime time.Time) error {
 	fc := client.NewK8sClient()
 	restartPolicy := corev1.RestartPolicyNever
 	backoffLimit := int32(2)
@@ -93,7 +92,6 @@ func createDatasetJob(jobname, namespace, image string, command []string, startT
 			MountPath: "/data",
 		},
 	}
-	logrus.Infof("Creating dataset job, %s", config.GetString("nfs.pvc_name"))
 	pvc := config.GetString("nfs.pvc_name")
 	if config.GetString("nfs.pvc_name") == "" {
 		pvc = "nfs-shared-pvc"
@@ -109,7 +107,7 @@ func createDatasetJob(jobname, namespace, image string, command []string, startT
 		},
 	}
 
-	err := client.CreateK8sJob(fc, namespace, jobname, image, command, restartPolicy,
+	err := client.CreateK8sJob(ctx, fc, namespace, jobname, image, command, restartPolicy,
 		backoffLimit, parallelism, completions, envVars, volumeMounts, volumes)
 	return err
 }
