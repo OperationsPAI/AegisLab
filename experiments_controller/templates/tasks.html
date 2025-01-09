@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +12,7 @@
             max-height: 200px;
             overflow-y: auto;
         }
+
         .hidden {
             display: none;
         }
@@ -68,8 +70,8 @@
                     <h3 class="font-bold mb-2">Logs:</h3>
                     <ul class="list-disc ml-5">
                         ${parsedLogs
-                            .map(log => `<li><strong>${log.time}</strong>: ${log.message}</li>`)
-                            .join("")}
+                        .map(log => `<li><strong>${log.time}</strong>: ${log.message}</li>`)
+                        .join("")}
                     </ul>
                 `;
             } else {
@@ -206,7 +208,7 @@
                 let parametersValid = true;
                 const parameters = {};
 
-                if (specification){
+                if (specification) {
                     specification.forEach(param => {
                         const input = document.getElementById(`param-${param.FieldName}`);
                         let value = input.value.trim();
@@ -272,8 +274,9 @@
             });
 
             const data = await response.json();
+            console.log(data)
             if (response.ok) {
-                alert(`Task submitted successfully: ${data.taskID}`);
+                alert(`Tasks submitted successfully: ${data.taskIDs}`);
                 location.reload();
             } else {
                 alert(`Error: ${data.error}`);
@@ -388,12 +391,12 @@
             });
         }
 
-        document.addEventListener("DOMContentLoaded", function() {
+        document.addEventListener("DOMContentLoaded", function () {
             fetchAlgoBench();
             fetchInjectionData().then(() => {
                 const taskTypeSelect = document.getElementById('taskType');
 
-                taskTypeSelect.addEventListener('change', function() {
+                taskTypeSelect.addEventListener('change', function () {
                     const taskType = this.value;
                     if (taskType === 'RunAlgorithm') {
                         // 显示算法、基准和数据集选择
@@ -422,13 +425,13 @@
                     }
                 });
 
-                document.getElementById('faultTypeSelect').addEventListener('change', function() {
+                document.getElementById('faultTypeSelect').addEventListener('change', function () {
                     const selectedFaultTypeKey = this.value;
                     populateFaultParameters(selectedFaultTypeKey);
                 });
 
                 // 添加命名空间选择事件监听
-                document.getElementById('namespaceSelect').addEventListener('change', function() {
+                document.getElementById('namespaceSelect').addEventListener('change', function () {
                     const selectedNamespace = this.value;
                     populatePodSelect(selectedNamespace);
                 });
@@ -442,6 +445,7 @@
         });
     </script>
 </head>
+
 <body class="bg-gray-100">
 
     <div class="container mx-auto p-6">
@@ -449,10 +453,13 @@
 
         <div class="flex">
             <!-- Task Submission Form -->
-            <form id="taskForm" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-6 w-full" onsubmit="submitTask(event)">
+            <form id="taskForm" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-6 w-full"
+                onsubmit="submitTask(event)">
                 <div class="mb-4">
                     <label for="taskType" class="block text-gray-700 text-sm font-bold mb-2">Task Type</label>
-                    <select id="taskType" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                    <select id="taskType"
+                        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                        required>
                         <option value="FaultInjection">Fault Injection</option>
                         <option value="RunAlgorithm">Run Algorithm</option>
                     </select>
@@ -461,25 +468,31 @@
                 <!-- 故障注入选项（默认隐藏） -->
                 <div id="faultInjectionOptions" class="mb-4 hidden">
                     <label for="faultTypeSelect" class="block text-gray-700 text-sm font-bold mb-2">Fault Type</label>
-                    <select id="faultTypeSelect" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    <select id="faultTypeSelect"
+                        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                         <!-- 选项将由 JavaScript 动态填充 -->
                     </select>
                     <!-- 添加 Duration 输入字段 -->
                     <div class="mb-4 mt-4">
-                        <label for="durationInput" class="block text-gray-700 text-sm font-bold mb-2">Duration (minutes)</label>
-                        <input type="number" id="durationInput" name="Duration" min="1" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <label for="durationInput" class="block text-gray-700 text-sm font-bold mb-2">Duration
+                            (minutes)</label>
+                        <input type="number" id="durationInput" name="Duration" min="1"
+                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                     </div>
                     <!-- 添加命名空间选择 -->
                     <div class="mb-4 mt-4">
-                        <label for="namespaceSelect" class="block text-gray-700 text-sm font-bold mb-2">Namespace</label>
-                        <select id="namespaceSelect" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <label for="namespaceSelect"
+                            class="block text-gray-700 text-sm font-bold mb-2">Namespace</label>
+                        <select id="namespaceSelect"
+                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                             <!-- 选项将由 JavaScript 动态填充 -->
                         </select>
                     </div>
                     <!-- 添加 Pod 选择 -->
                     <div class="mb-4 mt-4">
                         <label for="podSelect" class="block text-gray-700 text-sm font-bold mb-2">Pod</label>
-                        <select id="podSelect" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <select id="podSelect"
+                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                             <!-- 选项将由 JavaScript 动态填充 -->
                         </select>
                     </div>
@@ -491,7 +504,8 @@
                 <!-- Algorithm Selection (hidden by default) -->
                 <div id="algorithmSelection" class="mb-4 hidden">
                     <label for="algorithmSelect" class="block text-gray-700 text-sm font-bold mb-2">Algorithm</label>
-                    <select id="algorithmSelect" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    <select id="algorithmSelect"
+                        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                         <!-- Options will be populated dynamically -->
                     </select>
                 </div>
@@ -499,7 +513,8 @@
                 <!-- Benchmark Selection (hidden by default) -->
                 <div id="benchmarkSelection" class="mb-4 hidden">
                     <label for="benchmarkSelect" class="block text-gray-700 text-sm font-bold mb-2">Benchmark</label>
-                    <select id="benchmarkSelect" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    <select id="benchmarkSelect"
+                        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                         <!-- Options will be populated dynamically -->
                     </select>
                 </div>
@@ -507,25 +522,32 @@
                 <!-- Dataset Selection (hidden by default) -->
                 <div id="datasetSelection" class="mb-4 hidden">
                     <label for="datasetSelect" class="block text-gray-700 text-sm font-bold mb-2">Dataset</label>
-                    <select id="datasetSelect" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    <select id="datasetSelect"
+                        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                         <!-- Options will be populated dynamically -->
                     </select>
                 </div>
 
                 <!-- Key-Value Pairs Container -->
                 <div id="keyValuePairsContainer" class="mb-4">
-                    <label for="keyValuePairs" class="block text-gray-700 text-sm font-bold mb-2">Payload (Key-Value Pairs)</label>
+                    <label for="keyValuePairs" class="block text-gray-700 text-sm font-bold mb-2">Payload (Key-Value
+                        Pairs)</label>
                     <div id="keyValuePairs" class="space-y-2">
                         <div class="flex space-x-4">
-                            <input type="text" placeholder="Key" class="shadow appearance-none border rounded w-1/2 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline key-input">
-                            <input type="text" placeholder="Value" class="shadow appearance-none border rounded w-1/2 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline value-input">
+                            <input type="text" placeholder="Key"
+                                class="shadow appearance-none border rounded w-1/2 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline key-input">
+                            <input type="text" placeholder="Value"
+                                class="shadow appearance-none border rounded w-1/2 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline value-input">
                         </div>
                     </div>
-                    <button type="button" class="mt-2 bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-4 rounded focus:outline-none focus:shadow-outline" onclick="addKeyValuePair()">Add Pair</button>
+                    <button type="button"
+                        class="mt-2 bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-4 rounded focus:outline-none focus:shadow-outline"
+                        onclick="addKeyValuePair()">Add Pair</button>
                 </div>
 
                 <div class="flex items-center justify-between">
-                    <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    <button type="submit"
+                        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
                         Submit Task
                     </button>
                 </div>
@@ -536,39 +558,40 @@
         <h2 class="text-xl font-bold mb-4">Tasks</h2>
         <div class="bg-white shadow-md rounded px-8 pt-6 pb-8">
             {{ if .Tasks }}
-                <div class="space-y-4">
-                    {{ range .Tasks }}
-                        <div class="border-b border-gray-200 pb-4">
-                            <div class="flex justify-between items-center">
-                                <div>
-                                    <p class="font-bold text-lg">Task ID: {{ .ID }}</p>
-                                    <p class="text-sm text-gray-600">Status: {{ .Status }}</p>
-                                </div>
-                                <button
-                                    id="toggle-btn-{{ .ID }}"
-                                    class="bg-blue-500 hover:bg-blue-700 text-white py-1 px-3 rounded focus:outline-none focus:shadow-outline"
-                                    onclick="toggleDetails('{{ .ID }}')">
-                                    Show Details
-                                </button>
-                            </div>
-
-                            <!-- Task Details and Logs -->
-                            <div id="details-{{ .ID }}" class="hidden bg-gray-100 mt-4 p-4 rounded">
-                                <div id="details-{{ .ID }}-content" class="mb-4">
-                                    <!-- Task details will be dynamically loaded here -->
-                                </div>
-                                <div id="logs-{{ .ID }}" class="log-container bg-white border rounded p-2 text-sm text-gray-700">
-                                    <!-- Task logs will be dynamically loaded here -->
-                                </div>
-                            </div>
+            <div class="space-y-4">
+                {{ range .Tasks }}
+                <div class="border-b border-gray-200 pb-4">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-lg">Task ID: {{ .ID }}</p>
+                            <p class="text-sm text-gray-600">Status: {{ .Status }}</p>
                         </div>
-                    {{ end }}
+                        <button id="toggle-btn-{{ .ID }}"
+                            class="bg-blue-500 hover:bg-blue-700 text-white py-1 px-3 rounded focus:outline-none focus:shadow-outline"
+                            onclick="toggleDetails('{{ .ID }}')">
+                            Show Details
+                        </button>
+                    </div>
+
+                    <!-- Task Details and Logs -->
+                    <div id="details-{{ .ID }}" class="hidden bg-gray-100 mt-4 p-4 rounded">
+                        <div id="details-{{ .ID }}-content" class="mb-4">
+                            <!-- Task details will be dynamically loaded here -->
+                        </div>
+                        <div id="logs-{{ .ID }}"
+                            class="log-container bg-white border rounded p-2 text-sm text-gray-700">
+                            <!-- Task logs will be dynamically loaded here -->
+                        </div>
+                    </div>
                 </div>
+                {{ end }}
+            </div>
             {{ else }}
-                <p class="text-gray-600">No tasks available.</p>
+            <p class="text-gray-600">No tasks available.</p>
             {{ end }}
         </div>
     </div>
 
 </body>
+
 </html>

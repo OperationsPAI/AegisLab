@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -21,10 +22,30 @@ import (
 	"gorm.io/gorm"
 )
 
-var validTaskTypes = map[string]bool{
-	"FaultInjection":    true,
-	"RunAlgorithm":      true,
-	"EvaluateAlgorithm": true,
+type DataHandler interface {
+	HandleData() error
+}
+
+type FaultInjectionData struct {
+	Duration        int                    `json:"duration"`
+	FaultType       string                 `json:"faultType"`
+	InjectNamespace string                 `json:"injectNamespace"`
+	InjectPod       string                 `json:"injectPod"`
+	Spec            map[string]interface{} `json:"spec"`
+}
+
+func (f *FaultInjectionData) HandleData() error {
+	return nil
+}
+
+type RunAlgorithmData struct {
+	Algorithm string `json:"algorithm"`
+	Benchmark string `json:"benchmark"`
+	Dataset   string `json:"dataset"`
+}
+
+func (r *RunAlgorithmData) HandleData() error {
+	return nil
 }
 
 // GetTaskStatus 查询任务状态
@@ -89,6 +110,28 @@ func ShowAllTasks(c *gin.Context) {
 	})
 }
 
+// 解析 json 数据至结构体
+func parseData[T DataHandler](body []byte) ([]interface{}, error) {
+	var singleData T
+	var dataSlice []T
+
+	var payloads []interface{}
+	if err := json.Unmarshal(body, &singleData); err != nil {
+		if err = json.Unmarshal(body, &dataSlice); err != nil {
+			return payloads, err
+		}
+
+		for _, data := range dataSlice {
+			payloads = append(payloads, data)
+		}
+
+		return payloads, err
+	}
+
+	payloads = append(payloads, singleData)
+	return payloads, nil
+}
+
 // SubmitTask 提交一个新任务到任务队列和数据库
 // @Summary 提交任务
 // @Description 提交一个指定类型的任务到系统
@@ -102,56 +145,83 @@ func ShowAllTasks(c *gin.Context) {
 // @Failure 500 {object} map[string]string "服务器内部错误"
 func SubmitTask(c *gin.Context) {
 	taskType := c.Query("type")
-	if taskType == "" {
-		c.JSON(400, gin.H{"error": "Task type is required"})
+
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
 		return
 	}
-	if !validTaskTypes[taskType] {
+
+	var payloads []interface{}
+	switch taskType {
+	case "FaultInjection":
+		payloads, err = parseData[*FaultInjectionData](body)
+		if err != nil {
+			c.JSON(400, gin.H{"error": "Invalid JSON payload"})
+			return
+		}
+		break
+	case "RunAlgorithm":
+		payloads, err = parseData[*RunAlgorithmData](body)
+		if err != nil {
+			c.JSON(400, gin.H{"error": "Invalid JSON payload"})
+			return
+		}
+		break
+	case "":
+		c.JSON(400, gin.H{"error": "Task type is required"})
+		return
+	default:
 		c.JSON(400, gin.H{"error": "Invalid task type"})
 		return
 	}
 
-	var payload map[string]interface{}
-	if err := c.BindJSON(&payload); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid JSON payload"})
+	var tasks []database.Task
+	var taskIDs []string
+	for _, payload := range payloads {
+		taskID := uuid.New().String()
+		jsonPayload, err := json.Marshal(payload)
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Failed to marshal payload"})
+			return
+		}
+
+		ctx := c.Request.Context()
+
+		_, err = executor.GetRedisClient().XAdd(ctx, &redis.XAddArgs{
+			Stream: executor.StreamName,
+			Values: map[string]interface{}{
+				executor.RdbMsgTaskID:   taskID,
+				executor.RdbMsgTaskType: taskType,
+				executor.RdbMsgPayload:  jsonPayload,
+			},
+		}).Result()
+
+		if err != nil {
+			c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to submit task, err: %s", err)})
+			return
+		}
+
+		task := database.Task{
+			ID:      taskID,
+			Type:    taskType,
+			Payload: string(jsonPayload),
+			Status:  "Pending",
+		}
+		tasks = append(tasks, task)
+	}
+
+	// 批量保存任务到 SQLite 数据库
+	if err := database.DB.Create(&tasks).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to save tasks to database"})
 		return
 	}
-	taskID := uuid.New().String()
-	jsonPayload, err := json.Marshal(payload)
-	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to marshal payload"})
-		return
+
+	for _, task := range tasks {
+		taskIDs = append(taskIDs, task.ID)
 	}
 
-	ctx := c.Request.Context()
-
-	_, err = executor.GetRedisClient().XAdd(ctx, &redis.XAddArgs{
-		Stream: executor.StreamName,
-		Values: map[string]interface{}{
-			executor.RdbMsgTaskID:   taskID,
-			executor.RdbMsgTaskType: taskType,
-			executor.RdbMsgPayload:  jsonPayload,
-		},
-	}).Result()
-
-	if err != nil {
-		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to submit task, err: %s", err)})
-		return
-	}
-
-	// 保存任务到 SQLite 数据库
-	task := database.Task{
-		ID:      taskID,
-		Type:    taskType,
-		Payload: string(jsonPayload),
-		Status:  "Pending",
-	}
-	if err := database.DB.Create(&task).Error; err != nil {
-		c.JSON(500, gin.H{"error": "Failed to save task to database"})
-		return
-	}
-
-	c.JSON(202, gin.H{"taskID": taskID, "message": "Task submitted successfully"})
+	c.JSON(http.StatusAccepted, gin.H{"taskIDs": taskIDs, "message": "Task submitted successfully"})
 }
 
 // GetTaskDetails 获取任务详情
