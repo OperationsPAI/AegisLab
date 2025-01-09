@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/k0kubun/pp/v3"
 	"github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -82,6 +83,7 @@ func CreateK8sJob(k8sClient client.Client, namespace, jobName, image string, com
 		},
 	}
 
+	pp.Print(job)
 	err := k8sClient.Create(context.TODO(), job)
 	if err != nil {
 		return fmt.Errorf("failed to create job: %v", err)

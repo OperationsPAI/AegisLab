@@ -16,3 +16,7 @@ run:
 
 gen:
 	python scripts/rcaeval/main.py -m cpu --is_py310
+
+
+bench:
+	docker buildx build -t 10.10.10.240/library/clickhouse_dataset:latest benchmarks/clickhouse --push

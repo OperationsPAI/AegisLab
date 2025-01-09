@@ -5,7 +5,7 @@ import subprocess
 
 
 namespace = "ts"
-clickhouse_host = "clickhouse"
+clickhouse_host = "10.10.10.58"
 username = "default"
 password = "password"
 client = clickhouse_connect.get_client(
@@ -271,6 +271,8 @@ if __name__ == "__main__":
     print("Normal Time Range (Unix):", normal_time_range)
     print("Abnormal Time Range (Unix):", abnormal_time_range)
 
+    output_path = os.environ.get("OUTPUT_PATH")
+    
     normal_start_time = normal_time_range[0]
     normal_end_time = normal_time_range[1]
 
@@ -300,43 +302,43 @@ if __name__ == "__main__":
             "The time range may not suitable for discontinuous time range, please check it."
         )
 
-    os.makedirs("input", exist_ok=True)
+    os.makedirs(output_path, exist_ok=True)
 
     print("executing generate_metric")
     save_to_csv(
         generate_metric(normal_start_time_clickhouse,
                         abnormal_end_time_clickhouse),
-        "input/metrics.csv",
+        f"{output_path}/metrics.csv",
     )
     print("executing generate_metric_sum")
     save_to_csv(
         generate_metric_sum(normal_start_time_clickhouse,
                             abnormal_end_time_clickhouse),
-        "input/metric_sum.csv",
+        f"{output_path}/metric_sum.csv",
     )
     print("executing generate_metric_histogram")
     save_to_csv(
         generate_metric_histogram(
             normal_start_time_clickhouse, abnormal_end_time_clickhouse
         ),
-        "input/metrics_histogram.csv",
+        f"{output_path}/metrics_histogram.csv",
     )
     print("executing generate_log")
     save_to_csv(
         generate_log(normal_start_time_clickhouse,
                      abnormal_end_time_clickhouse),
-        "input/logs.csv",
+        f"{output_path}/logs.csv",
     )
     print("executing generate_trace")
     save_to_csv(
         generate_trace(normal_start_time_clickhouse,
                        abnormal_end_time_clickhouse),
-        "input/traces.csv",
+        f"{output_path}/traces.csv",
     )
     print("executing generate_trace_id_ts")
     save_to_csv(
         generate_trace_id_ts(
             normal_start_time_clickhouse, abnormal_end_time_clickhouse
         ),
-        "input/trace_id_ts.csv",
+        f"{output_path}/trace_id_ts.csv",
     )

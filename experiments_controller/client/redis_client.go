@@ -16,12 +16,6 @@ var (
 	redisOnce   sync.Once
 )
 
-// 初始化函数
-func init() {
-	ctx := context.Background()
-	initConsumerGroup(ctx)
-}
-
 // 获取 Redis 客户端
 func GetRedisClient() *redis.Client {
 	redisOnce.Do(func() {

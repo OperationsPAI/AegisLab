@@ -20,3 +20,6 @@ host = "localhost:6379"
 [harbor]
 host = "10.10.10.240"
 repository = "10.10.10.240/library"
+
+[nfs]
+pvc_name = "nfs-shared-pvc"
