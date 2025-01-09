@@ -1,4 +1,129 @@
 definitions:
+  database.Detector:
+    properties:
+      avgDuration:
+        description: AvgDuration 是浮点类型
+        type: number
+      createdAt:
+        description: CreatedAt 自动设置为当前时间
+        type: string
+      execution_id:
+        description: ExecutionID 是主键
+        type: integer
+      id:
+        type: integer
+      issues:
+        description: Issues 字段类型为文本
+        type: string
+      p90:
+        description: P90 是浮点类型
+        type: number
+      p95:
+        description: P95 是浮点类型
+        type: number
+      p99:
+        description: P99 是浮点类型
+        type: number
+      spanName:
+        description: SpanName 数据库字段类型
+        type: string
+      succRate:
+        description: SuccRate 是浮点类型
+        type: number
+      updatedAt:
+        description: UpdatedAt 自动更新时间
+        type: string
+    type: object
+  database.ExecutionResult:
+    properties:
+      algo:
+        description: 使用的算法
+        type: string
+      created_at:
+        description: 创建时间
+        type: string
+      dataset:
+        description: 数据集标识
+        type: integer
+      id:
+        description: 唯一标识
+        type: integer
+      task_id:
+        description: 从属什么 taskid
+        type: string
+      updated_at:
+        description: 更新时间
+        type: string
+    type: object
+  database.FaultInjectionSchedule:
+    properties:
+      config:
+        description: 配置 JSON 格式
+        type: string
+      created_at:
+        description: 创建时间
+        type: string
+      description:
+        description: 描述（可选字段）
+        type: string
+      duration:
+        description: 故障持续时间
+        type: integer
+      end_time:
+        description: 预计故障结束时间
+        type: string
+      fault_type:
+        description: 故障类型
+        type: integer
+      id:
+        description: 唯一标识
+        type: integer
+      injection_name:
+        description: 在k8s资源里注入的名字
+        type: string
+      proposed_end_time:
+        description: 预计结束时间
+        type: string
+      start_time:
+        description: 预计故障开始时间
+        type: string
+      status:
+        description: '0: 初始状态，没有检查 1: 检查了，注入结束且成功 2: 检查了，注入结束且失败; 如果状态是 1，则可以用于数据集查询'
+        type: integer
+      task_id:
+        description: 从属什么 taskid
+        type: string
+      updated_at:
+        description: 更新时间
+        type: string
+    type: object
+  database.GranularityResult:
+    properties:
+      confidence:
+        description: 可信度（可选）
+        type: number
+      created_at:
+        description: 创建时间
+        type: string
+      execution_id:
+        description: 关联ExecutionResult的ID
+        type: integer
+      id:
+        description: 唯一标识
+        type: integer
+      level:
+        description: 粒度类型 (e.g., "service", "pod", "span", "metric")
+        type: string
+      rank:
+        description: 排序，表示top1, top2等
+        type: integer
+      result:
+        description: 定位结果，以逗号分隔
+        type: string
+      updated_at:
+        description: 更新时间
+        type: string
+    type: object
   database.Task:
     properties:
       created_at:
@@ -11,6 +136,43 @@ definitions:
         type: string
       type:
         type: string
+    type: object
+  handlers.Conclusion:
+    properties:
+      level:
+        description: 例如 service level
+        type: string
+      metric:
+        description: 例如 topk
+        type: string
+      rate:
+        type: number
+    type: object
+  handlers.Execution:
+    properties:
+      dataset:
+        $ref: '#/definitions/database.FaultInjectionSchedule'
+      detector_result:
+        $ref: '#/definitions/database.Detector'
+      execution_record:
+        $ref: '#/definitions/database.ExecutionResult'
+      granularity_results:
+        items:
+          $ref: '#/definitions/database.GranularityResult'
+        type: array
+    type: object
+  handlers.TaskWithResults:
+    properties:
+      algo:
+        type: string
+      conclusions:
+        items:
+          $ref: '#/definitions/handlers.Conclusion'
+        type: array
+      executions:
+        items:
+          $ref: '#/definitions/handlers.Execution'
+        type: array
     type: object
 info:
   contact: {}
@@ -55,6 +217,62 @@ paths:
       summary: 获取数据集列表
       tags:
       - datasets
+  /evaluation:
+    get:
+      description: 返回每种算法的执行历史记录
+      parameters:
+      - collectionFormat: csv
+        description: 执行结果 ID 数组
+        in: query
+        items:
+          type: string
+        name: execution_ids
+        type: array
+      - collectionFormat: csv
+        description: 算法名称数组
+        in: query
+        items:
+          type: string
+        name: algos
+        type: array
+      - collectionFormat: csv
+        description: 级别名称数组
+        in: query
+        items:
+          type: string
+        name: levels
+        type: array
+      - collectionFormat: csv
+        description: 指标名称数组
+        in: query
+        items:
+          type: string
+        name: metrics
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回算法的执行历史记录列表
+          schema:
+            items:
+              $ref: '#/definitions/handlers.TaskWithResults'
+            type: array
+        "400":
+          description: 输入执行结果 ID 无效
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取每种算法的执行历史记录
+      tags:
+      - evaluation
   /injection/parameters:
     get:
       description: 获取可用的故障注入参数和类型映射
