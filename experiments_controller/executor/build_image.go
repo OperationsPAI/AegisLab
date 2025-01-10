@@ -10,7 +10,6 @@ import (
 	con "github.com/CUHK-SE-Group/rcabench/config"
 
 	"github.com/docker/cli/cli/config"
-	"github.com/k0kubun/pp/v3"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/frontend"
 	gateway "github.com/moby/buildkit/frontend/gateway/client"
@@ -144,7 +143,6 @@ func buildDockerfileAndPush(
 			"dockerfile": dockerfileLocalMount,
 		},
 	}
-	pp.Println(solveOpt)
 	// traceFile, err := os.OpenFile("tracefile.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	// if err != nil {
 	// return err
