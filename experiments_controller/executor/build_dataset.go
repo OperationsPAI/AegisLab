@@ -67,7 +67,6 @@ func executeBuildDataset(ctx context.Context, taskID string, payload map[string]
 }
 
 func createDatasetJob(ctx context.Context, jobname, namespace, image string, command []string, startTime, endTime time.Time) error {
-	fc := client.NewK8sClient()
 	restartPolicy := corev1.RestartPolicyNever
 	backoffLimit := int32(2)
 	parallelism := int32(1)
@@ -107,7 +106,18 @@ func createDatasetJob(ctx context.Context, jobname, namespace, image string, com
 		},
 	}
 
-	err := client.CreateK8sJob(ctx, fc, namespace, jobname, image, command, restartPolicy,
-		backoffLimit, parallelism, completions, envVars, volumeMounts, volumes)
-	return err
+	return client.CreateK8sJob(ctx, client.JobConfig{
+		Namespace:     namespace,
+		JobName:       jobname,
+		Image:         image,
+		Command:       command,
+		RestartPolicy: restartPolicy,
+		BackoffLimit:  backoffLimit,
+		Parallelism:   parallelism,
+		Completions:   completions,
+		EnvVars:       envVars,
+		VolumeMounts:  volumeMounts,
+		Volumes:       volumes,
+		Labels:        map[string]string{"job_type": "create_dataset"},
+	})
 }

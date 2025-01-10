@@ -86,8 +86,19 @@ func createAlgoJob(ctx context.Context, datasetname, jobname, namespace, image s
 		},
 	}
 
-	err := client.CreateK8sJob(ctx, fc, namespace, jobname, image, command, restartPolicy,
-		backoffLimit, parallelism, completions, envVars, volumeMounts, volumes)
+	err := client.CreateK8sJob(ctx, client.JobConfig{
+		Namespace:     namespace,
+		JobName:       jobname,
+		Image:         image,
+		Command:       command,
+		RestartPolicy: restartPolicy,
+		BackoffLimit:  backoffLimit,
+		Parallelism:   parallelism,
+		Completions:   completions,
+		EnvVars:       envVars,
+		VolumeMounts:  volumeMounts,
+		Volumes:       volumes,
+	})
 	return err
 }
 
