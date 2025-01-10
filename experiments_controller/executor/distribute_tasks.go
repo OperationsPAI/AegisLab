@@ -189,6 +189,8 @@ func processTaskWithContext(ctx context.Context, msg redis.XMessage) {
 		execErr = executeBuildImages(ctx, taskMsg.TaskID, taskMsg.Payload)
 	case TaskTypeBuildDataset:
 		execErr = executeBuildDataset(ctx, taskMsg.TaskID, taskMsg.Payload)
+	case TaskTypeCollectResult:
+		execErr = executeBuildDataset(ctx, taskMsg.TaskID, taskMsg.Payload)
 	default:
 		execErr = fmt.Errorf("unknown task type: %s", taskMsg.TaskType)
 	}
