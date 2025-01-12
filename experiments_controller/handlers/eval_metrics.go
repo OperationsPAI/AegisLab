@@ -14,7 +14,6 @@ import (
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 )
 
-// 定义评估函数类型
 type EvaluationMetric func([]Execution) ([]*Conclusion, error)
 type ConclusionACatK struct {
 	Level  string `json:"level"`  // 例如 service level
