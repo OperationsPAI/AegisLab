@@ -86,19 +86,20 @@ func fetchExecutionDetails(db *gorm.DB, granularityID int) (*Execution, error) {
 }
 
 // GetTaskResults 获取每种算法的执行历史记录
-// @Summary 获取每种算法的执行历史记录
-// @Description 返回每种算法的执行历史记录
-// @Tags evaluation
-// @Produce json
-// @Param execution_ids query []string false "执行结果 ID 数组"
-// @Param algos query []string false "算法名称数组"
-// @Param levels query []string false "级别名称数组"
-// @Param metrics query []string false "指标名称数组"
-// @Success 200 {array} handlers.TaskWithResults "返回算法的执行历史记录列表"
-// @Failure 400 {object} map[string]string "输入执行结果 ID 无效"
-// @Failure 500 {object} map[string]string "服务器内部错误"
-// @Router /evaluation [get]
-func GetTaskResults(c *gin.Context) {
+//
+//	@Summary		获取每种算法的执行历史记录
+//	@Description	返回每种算法的执行历史记录
+//	@Tags			evaluation
+//	@Produce		json
+//	@Param			execution_ids	query		[]string					false	"执行结果 ID 数组"
+//	@Param			algos			query		[]string					false	"算法名称数组"
+//	@Param			levels			query		[]string					false	"级别名称数组"
+//	@Param			metrics			query		[]string					false	"指标名称数组"
+//	@Success		200				{array}		handlers.TaskWithResults	"返回算法的执行历史记录列表"
+//	@Failure		400				{object}	map[string]string			"输入执行结果 ID 无效"
+//	@Failure		500				{object}	map[string]string			"服务器内部错误"
+//	@Router			/api/v1/evaluation/getresult [post]
+func GetEvaluationResults(c *gin.Context) {
 	db := database.DB
 
 	// 获取 distinct execution_ids

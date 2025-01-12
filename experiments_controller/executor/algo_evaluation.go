@@ -49,7 +49,6 @@ func executeAlgorithm(ctx context.Context, taskID string, payload map[string]int
 	return createAlgoJob(ctx, algPayload.DatasetName, fmt.Sprintf("%s-%s", algPayload.Algorithm, algPayload.DatasetName), "experiment", fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), "detector", "1736407594138188514"), []string{"python", "run_exp.py"})
 }
 func createAlgoJob(ctx context.Context, datasetname, jobname, namespace, image string, command []string) error {
-	fc := client.NewK8sClient()
 	restartPolicy := corev1.RestartPolicyNever
 	backoffLimit := int32(2)
 	parallelism := int32(1)
