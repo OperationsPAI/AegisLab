@@ -32,7 +32,7 @@ func New() *gin.Engine {
 
 	algor := r.Group("/algo")
 	{
-		algor.POST("/get", handlers.GetAlgorithms)
+		algor.GET("/get", handlers.GetAlgorithms)
 	}
 
 	datasetr := r.Group("/dataset")
