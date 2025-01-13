@@ -10,12 +10,12 @@ builder:
 
 run:
 	docker compose down && \
-	docker compose up redis dagger-engine -d && \
+	docker compose up redis -d && \
 	cd experiments_controller && \
-	_EXPERIMENTAL_DAGGER_RUNNER_HOST=tcp://localhost:5678 go run main.go both --port 8082
+	go run main.go both --port 8082
 
 gen:
-	python scripts/rcaeval/main.py -m cpu --is_py310
+	python scripts/cmd/main.py
 
 
 bench:
