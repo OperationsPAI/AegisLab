@@ -130,6 +130,8 @@ def _write_algos(file_path: str, algos: List[str]) -> None:
 
 
 class Executor:
+    config_dict = {"rcaeval": "/home/nn/workspace/lib/RCAEval/RCAEval/e2e"}
+
     def __init__(self, console: Console, algo_library: str, src_dir: str):
         self.console = console
         self.algo_library = algo_library
@@ -186,9 +188,9 @@ class Executor:
         command = ["ruff", "format", ALGORITHMS_DIR]
         result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode == 0:
-            print("格式化成功!")
+            self.console.print("格式化成功!")
         else:
-            print(f"格式化失败: {result.stderr}")
+            self.console.print(f"格式化失败: {result.stderr}")
 
     def delete(self) -> None:
         """删除算法代码"""

@@ -32,13 +32,13 @@ func New() *gin.Engine {
 
 	algor := r.Group("/algo")
 	{
-		algor.GET("/get", handlers.GetAlgorithms)
+		algor.GET("/getlist", handlers.GetAlgorithmList)
 	}
 
 	datasetr := r.Group("/dataset")
 	{
-		datasetr.POST("/getlist", handlers.GetDatasetList)
-		datasetr.POST("/delete", handlers.DeleteDataset)
+		datasetr.GET("/getlist", handlers.GetDatasetList)
+		datasetr.DELETE("/delete", handlers.DeleteDataset)
 		datasetr.POST("/download", handlers.DownloadDataset)
 		datasetr.POST("/upload", handlers.UploadDataset)
 	}
