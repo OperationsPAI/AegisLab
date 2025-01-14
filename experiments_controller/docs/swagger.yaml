@@ -148,6 +148,15 @@ definitions:
       rate:
         type: number
     type: object
+  handlers.DatasetResp:
+    properties:
+      datasets:
+        items:
+          type: string
+        type: array
+      total:
+        type: integer
+    type: object
   handlers.Execution:
     properties:
       dataset:
@@ -160,6 +169,37 @@ definitions:
         items:
           $ref: '#/definitions/database.GranularityResult'
         type: array
+    type: object
+  handlers.GenericResponse-any:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  handlers.GenericResponse-array_handlers_GetAlgorithmResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        description: 泛型类型的数据
+        items:
+          $ref: '#/definitions/handlers.GetAlgorithmResp'
+        type: array
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
     type: object
   handlers.GenericResponse-array_handlers_InjectListResp:
     properties:
@@ -178,30 +218,14 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
-  handlers.GenericResponse-handlers_GetAlgorithmResp:
+  handlers.GenericResponse-handlers_DatasetResp:
     properties:
       code:
         description: 状态码
         type: integer
       data:
         allOf:
-        - $ref: '#/definitions/handlers.GetAlgorithmResp'
-        description: 泛型类型的数据
-      message:
-        description: 响应消息
-        type: string
-      timestamp:
-        description: 响应生成时间
-        type: integer
-    type: object
-  handlers.GenericResponse-handlers_GetDatasetResp:
-    properties:
-      code:
-        description: 状态码
-        type: integer
-      data:
-        allOf:
-        - $ref: '#/definitions/handlers.GetDatasetResp'
+        - $ref: '#/definitions/handlers.DatasetResp'
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -259,18 +283,6 @@ definitions:
         type: integer
     type: object
   handlers.GetAlgorithmResp:
-    properties:
-      name:
-        type: string
-    type: object
-  handlers.GetDatasetReq:
-    properties:
-      page_number:
-        type: integer
-      page_size:
-        type: integer
-    type: object
-  handlers.GetDatasetResp:
     properties:
       name:
         type: string
@@ -347,8 +359,8 @@ paths:
       summary: 获取算法和基准列表
       tags:
       - algorithms
-  /api/v1/algo/injectstatus:
-    post:
+  /api/v1/algo/getlist:
+    get:
       description: 获取算法列表
       parameters:
       - description: 请求体
@@ -363,20 +375,20 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-handlers_GetAlgorithmResp'
+            $ref: '#/definitions/handlers.GenericResponse-array_handlers_GetAlgorithmResp'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-handlers_GetAlgorithmResp'
+            $ref: '#/definitions/handlers.GenericResponse-any'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-handlers_GetAlgorithmResp'
+            $ref: '#/definitions/handlers.GenericResponse-any'
       summary: 获取算法列表
       tags:
       - algorithm
   /api/v1/dataset/delete:
-    post:
+    delete:
       description: 删除数据集数据
       responses: {}
       summary: 删除数据集数据
@@ -390,33 +402,37 @@ paths:
       tags:
       - algorithm
   /api/v1/dataset/getlist:
-    post:
+    get:
       description: 获取所有数据集列表
       parameters:
-      - description: 请求体
-        in: body
-        name: body
+      - description: 页面数目
+        in: query
+        name: page_num
         required: true
-        schema:
-          $ref: '#/definitions/handlers.GetDatasetReq'
+        type: integer
+      - description: 页面大小
+        in: query
+        name: page_size
+        required: true
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-handlers_GetDatasetResp'
+            $ref: '#/definitions/handlers.GenericResponse-handlers_DatasetResp'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-handlers_GetDatasetResp'
+            $ref: '#/definitions/handlers.GenericResponse-any'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-handlers_GetDatasetResp'
+            $ref: '#/definitions/handlers.GenericResponse-any'
       summary: 获取所有数据集列表
       tags:
-      - algorithm
+      - dataset
   /api/v1/dataset/upload:
     post:
       description: 上传数据集数据

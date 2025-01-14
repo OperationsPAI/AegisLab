@@ -16,22 +16,21 @@ type GetAlgorithmResp struct {
 	Name string `json:"name"`
 }
 
-// GetAlgorithms
+// GetAlgorithmList
 //
 //	@Summary		获取算法列表
 //	@Description	获取算法列表
 //	@Tags			algorithm
-//	@Produce		json
-//	@Consumes		application/json
+//	@Produce		application/json
 //	@Param			body	body		InjectReq	true	"请求体"
-//	@Success		200		{object}	GenericResponse[GetAlgorithmResp]
-//	@Failure		400		{object}	GenericResponse[GetAlgorithmResp]
-//	@Failure		500		{object}	GenericResponse[GetAlgorithmResp]
-//	@Router			/api/v1/algo/injectstatus [post]
-func GetAlgorithms(c *gin.Context) {
+//	@Success		200		{object}	GenericResponse[[]GetAlgorithmResp]
+//	@Failure		400		{object}	GenericResponse[any]
+//	@Failure		500		{object}	GenericResponse[any]
+//	@Router			/api/v1/algo/getlist [get]
+func GetAlgorithmList(c *gin.Context) {
 	pwd, err := os.Getwd()
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Get work directory failed"})
+		JSONResponse[interface{}](c, http.StatusInternalServerError, "Get work directory failed", nil)
 		return
 	}
 
@@ -40,7 +39,7 @@ func GetAlgorithms(c *gin.Context) {
 
 	algoFiles, err := getSubFiles(algoPath)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to list files in %s: %v", algoPath, err)})
+		JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("Failed to list files in %s: %v", algoPath, err), nil)
 		return
 	}
 
@@ -49,12 +48,12 @@ func GetAlgorithms(c *gin.Context) {
 		tomlPath := filepath.Join(algoPath, algoFile, "info.toml")
 		var algoResp GetAlgorithmResp
 		if _, err := toml.DecodeFile(tomlPath, &algoResp); err != nil {
-			c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to get info.toml in %s: %v", algoPath, err)})
+			JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("Failed to get info.toml in %s: %v", algoPath, err), nil)
 			return
 		}
 
 		algoResps = append(algoResps, algoResp)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"algorithms": algoResps})
+	JSONResponse(c, http.StatusOK, "OK", algoResps)
 }

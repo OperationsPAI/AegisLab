@@ -1,15 +1,12 @@
-from typing import Any, Dict
+from typing import Dict
 from rich.console import Console
 from rich.prompt import Prompt
 from utils import Executor
+import argparse
+import sys
 
 
-def get_input(prompt: str, default: Any = None) -> Any:
-    """获取用户输入"""
-    return Prompt.ask(prompt, default=default)
-
-
-def select_and_execute(config: Dict):
+def main(config: Dict):
     keys = list(config.keys())
     if "func" not in keys:
         selected_func_config = Prompt.ask(
@@ -19,7 +16,7 @@ def select_and_execute(config: Dict):
             show_choices=True,
         )
 
-        select_and_execute(config[selected_func_config])
+        main(config[selected_func_config])
     else:
         func = config["func"]
         kwargs = {}
@@ -41,9 +38,31 @@ def select_and_execute(config: Dict):
 if __name__ == "__main__":
     console = Console()
 
-    algo_library = get_input("请输入算法库名称", default="rcaeval")
-    src_dir = get_input(
-        "请输入算法库源位置", default="/home/nn/workspace/lib/RCAEval/RCAEval/e2e"
+    parser = argparse.ArgumentParser(description="批量导入算法程序")
+    parser.add_argument("-d", "--default", action="store_true", help="采用默认配置")
+
+    args = parser.parse_args()
+
+    if args.default:
+        executor = Executor(console, "rcaeval", Executor.config_dict["rcaeval"])
+        executor.create(mode="cpu")
+        sys.exit()
+
+    algo_libraries = list(Executor.config_dict.keys())
+    while True:
+        algo_library = Prompt.ask(
+            "选择算法库",
+            choices=algo_libraries,
+            default=algo_libraries[0],
+            show_choices=True,
+        )
+        if algo_library in algo_libraries:
+            break
+
+        console.print(f"输入算法库 [bold red]{algo_library}[/bold red] 不存在")
+
+    src_dir = Prompt.ask(
+        "请输入算法库源位置", default=Executor.config_dict[algo_library]
     )
     executor = Executor(console, algo_library, src_dir)
 
@@ -77,4 +96,4 @@ if __name__ == "__main__":
         },
     }
 
-    select_and_execute(config)
+    main(config)

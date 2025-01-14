@@ -15,7 +15,7 @@ func TestCreateDatasetJob(t *testing.T) {
 		t.Error(err)
 	}
 }
+
 func TestDeleteDatasetJob(t *testing.T) {
-	k8sClient := client.NewK8sClient()
-	client.DeleteK8sJob(context.Background(), k8sClient, "experiment", "testing")
+	client.DeleteK8sJob(context.Background(), "experiment", "testing")
 }
