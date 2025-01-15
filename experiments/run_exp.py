@@ -24,7 +24,7 @@ if __name__ == "__main__":
     if workspace == "":
         print("WARN: the INPUT_PATH environ is not defined")
         exit(1)
-        
+
     output_path = os.environ["OUTPUT_PATH"]
     if workspace == "":
         print("WARN: the OUTPUT_PATH environ is not defined")
@@ -35,27 +35,24 @@ if __name__ == "__main__":
     run_function(
         start_rca,
         {
-            "normal_log_file": input_path/ "normal_logs.csv",
-            "normal_trace_file": input_path/ "normal_traces.csv",
-            "normal_trace_id_ts_file": input_path/ "normal_trace_id_ts.csv",
+            "normal_log_file": input_path / "normal_logs.csv",
+            "normal_trace_file": input_path / "normal_traces.csv",
+            "normal_trace_id_ts_file": input_path / "normal_trace_id_ts.csv",
             "normal_metric_file": input_path / "normal_metrics.csv",
-            "normal_metric_sum_file": input_path/ "normal_metric_sum.csv",
+            "normal_metric_sum_file": input_path / "normal_metric_sum.csv",
             "normal_metric_summary_file": input_path / "normal_metrics_summary.csv",
             "normal_metric_histogram_file": input_path / "normal_metrics_histogram.csv",
-            "normal_event_file":input_path / "normal_events.csv",
+            "normal_event_file": input_path / "normal_events.csv",
             "normal_profiling_file": input_path / "normal_profilings.csv",
-            
-            "abnormal_log_file": input_path/ "abnormal_logs.csv",
-            "abnormal_trace_file": input_path/ "abnormal_traces.csv",
-            "abnormal_trace_id_ts_file": input_path/ "abnormal_trace_id_ts.csv",
+            "abnormal_log_file": input_path / "abnormal_logs.csv",
+            "abnormal_trace_file": input_path / "abnormal_traces.csv",
+            "abnormal_trace_id_ts_file": input_path / "abnormal_trace_id_ts.csv",
             "abnormal_metric_file": input_path / "abnormal_metrics.csv",
-            "abnormal_metric_sum_file": input_path/ "abnormal_metric_sum.csv",
+            "abnormal_metric_sum_file": input_path / "abnormal_metric_sum.csv",
             "abnormal_metric_summary_file": input_path / "abnormal_metrics_summary.csv",
-            "abnormal_metric_histogram_file": input_path / "abnormal_metrics_histogram.csv",
-            "abnormal_event_file":input_path / "abnormal_events.csv",
+            "abnormal_metric_histogram_file": input_path
+            / "abnormal_metrics_histogram.csv",
+            "abnormal_event_file": input_path / "abnormal_events.csv",
             "abnormal_profiling_file": input_path / "abnormal_profilings.csv",
-            
-            "output_path": output_path,
         },
     )
-    
