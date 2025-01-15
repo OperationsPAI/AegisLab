@@ -15,7 +15,7 @@ run:
 	go run main.go both --port 8082
 
 gen:
-	python scripts/cmd/main.py -d
+	python scripts/cmd/main.py --algo -d1
 
 
 bench:
