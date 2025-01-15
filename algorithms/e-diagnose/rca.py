@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import Dict
 from pprint import pprint
 import json
 import numpy as np
@@ -94,118 +94,113 @@ def calculate_rho_squared(
 
 
 def diagnose_faults(
-    fault_list: List[Dict],
-    metric_data: pd.DataFrame,
-    time_range: int = 300,
-    top_n: int = 5,
+    fault: Dict, metric_data: pd.DataFrame, top_n: int = 5
 ) -> pd.DataFrame:
     """
     诊断故障并返回每个时间戳的 Top N 服务。
 
     参数:
-        fault_list (List[Dict]): 故障事件列表，每个事件包含 'inject_timestamp'。
+        fault (Dict): 故障事件。
         metric_data (pd.DataFrame): 指标数据，包含 'TimeStamp', 'PodName' 和其他指标列。
-        time_range (int, optional): 时间范围（秒）。默认为300秒（5分钟）。
         top_n (int, optional): 每个时间戳选择的 Top N 服务。默认为5。
 
     返回:
         pd.DataFrame: 包含 'timestamp' 和 'pod' 的扩展数据框。
     """
-    results = []
     all_services = {}
 
     metric_data["TimeStamp"] = pd.to_numeric(metric_data["TimeStamp"], errors="coerce")
-    metric_data["TimeStamp"] = metric_data["TimeStamp"]
     service_names = metric_data["PodName"].unique()
+
+    normal_start = pd.to_datetime(
+        pd.to_numeric(fault["normal_range"][0], errors="coerce"), unit="s"
+    ).value
+    normal_end = pd.to_datetime(
+        pd.to_numeric(fault["normal_range"][1], errors="coerce"), unit="s"
+    ).value
+    abnormal_start = pd.to_datetime(
+        pd.to_numeric(fault["abnormal_range"][0], errors="coerce"), unit="s"
+    ).value
+    abnormal_end = pd.to_datetime(
+        pd.to_numeric(fault["abnormal_range"][1], errors="coerce"), unit="s"
+    ).value
 
     for service in service_names:
         service_df = metric_data[metric_data["PodName"] == service].copy()
         service_df = service_df.dropna(subset=["TimeStamp"]).sort_values("TimeStamp")
 
-        for event in fault_list:
-            inject_timestamp = pd.to_datetime(event["inject_timestamp"]).value
-            if inject_timestamp not in all_services:
-                all_services[inject_timestamp] = {}
+        normal_range = service_df[
+            (service_df["TimeStamp"] >= normal_start)
+            & (service_df["TimeStamp"] < normal_end)
+        ]
+        abnormal_range = service_df[
+            (service_df["TimeStamp"] >= abnormal_start)
+            & (service_df["TimeStamp"] <= abnormal_end)
+        ]
 
-            normal_start = pd.to_datetime(event["normal_range"][0], unit="s").value
-            normal_end = pd.to_datetime(event["normal_range"][1], unit="s").value
-            abnormal_start = pd.to_datetime(event["abnormal_range"][0], unit="s").value
-            abnormal_end = pd.to_datetime(event["abnormal_range"][1], unit="s").value
+        metric_scores = calculate_rho_squared(normal_range, abnormal_range)
+        if metric_scores:
+            max_score = max(metric_scores.values())
+            all_services[service] = max_score
 
-            normal_range = service_df[
-                (service_df["TimeStamp"] >= normal_start)
-                & (service_df["TimeStamp"] < normal_end)
-            ]
-            abnormal_range = service_df[
-                (service_df["TimeStamp"] >= abnormal_start)
-                & (service_df["TimeStamp"] <= abnormal_end)
-            ]
-
-            metric_scores = calculate_rho_squared(normal_range, abnormal_range)
-            if metric_scores:
-                max_score = max(metric_scores.values())
-                all_services[inject_timestamp][service] = max_score
+    print(all_services)
 
     # 为每个时间戳选择 Top N 服务
-    for timestamp, services in all_services.items():
-        sorted_services = sorted(services.items(), key=lambda x: x[1], reverse=True)
-        top_services = [service for service, _ in sorted_services[:top_n]]
-        results.append({"timestamp": timestamp, "top_services": top_services})
+    sorted_services = sorted(all_services.items(), key=lambda x: x[1], reverse=True)
+    top_services = [service for service, _ in sorted_services[:top_n]]
 
-    top_services_df = pd.DataFrame(results)
-
-    # 扩展每个时间戳的 Top 服务为单独的行
     expanded_rows = []
-    for _, row in top_services_df.iterrows():
-        services = row["top_services"]
-        for idx, service in enumerate(services):
-            expanded_rows.append(
-                {
-                    "level": "service",
-                    "result": service,
-                    "rank": idx + 1,
-                    "confidence": 0,
-                }
-            )
+    # 扩展每个时间戳的 Top 服务为单独的行
+    for idx, service in enumerate(top_services):
+        expanded_rows.append(
+            {
+                "level": "service",
+                "result": service,
+                "rank": idx + 1,
+                "confidence": 0,
+            }
+        )
 
     expanded_df = pd.DataFrame(expanded_rows)
-
     return expanded_df
 
 
 # IMPORTANT: do not change the function signature!!
 def start_rca(params: Dict):
     pprint(params)
-    directory = "/app/output"
-    if not os.path.exists(directory):
-        os.makedirs(directory)
 
-    metric_file = params["metric_file"]
-    inject_timestamp_range = ["2024-12-15 10:18:37.45405+08:00"]
-    normal_time_range = params["normal_time_range"]
-    abnormal_time_range = params["abnormal_time_range"]
+    normal_metric_data = process_metric_csv(params["normal_metric_file"])
+    abnormal_metric_data = process_metric_csv(params["normal_metric_file"])
+    metric_data = pd.concat(
+        [normal_metric_data, abnormal_metric_data], ignore_index=True
+    )
+    print(metric_data)
 
-    if len(normal_time_range) == 0 or len(abnormal_time_range) == 0:
-        print("There is no information of abnormal time, shutting down")
-        return
-
-    metric_data = process_metric_csv(metric_file)
-
-    if len(normal_time_range) < len(abnormal_time_range):
-        normal_time_range.append(normal_time_range[-1])
-    if len(abnormal_time_range) < len(normal_time_range):
-        abnormal_time_range.append(abnormal_time_range[-1])
-
-    fault_list = []
-    for i in range(len(normal_time_range)):
-        fault_list.append(
-            {
-                "inject_timestamp": inject_timestamp_range[i],
-                "normal_range": normal_time_range[i],
-                "abnormal_range": abnormal_time_range[i],
-            }
+    fault = {
+        "normal_range": [os.environ["NORMAL_START"], os.environ["NORMAL_END"]],
+        "abnormal_range": [os.environ["ABNORMAL_START"], os.environ["ABNORMAL_END"]],
+    }
+    result = diagnose_faults(fault, metric_data)
+    if not result.empty:
+        result.to_csv(
+            os.path.join(os.environ["output_path"], "result.csv"), index=False
         )
 
-    result = diagnose_faults(fault_list, metric_data)
-    if not result.empty:
-        result.to_csv("./output/result.csv", index=False)
+
+if __name__ == "__main__":
+    os.environ["TIMEZONE"] = "Asia/Shanghai"
+    fault = {
+        "normal_range": ["1736846420", "1736847620"],
+        "abnormal_range": ["1736847620", "1736847919"],
+    }
+    dir = "/mnt/nfs/rcabench_dataset/ts-ts-preserve-service-cpu-exhaustion-hs5lgx"
+    normal_metric_file = f"{dir}/normal_metrics.csv"
+    abnormal_metric_file = f"{dir}/abnormal_metrics.csv"
+
+    normal_metric_data = process_metric_csv(normal_metric_file)
+    abnormal_metric_data = process_metric_csv(abnormal_metric_file)
+    metric_data = pd.concat(
+        [normal_metric_data, abnormal_metric_data], ignore_index=True
+    )
+
+    result = diagnose_faults(fault, metric_data)

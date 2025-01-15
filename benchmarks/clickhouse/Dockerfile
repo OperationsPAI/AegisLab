@@ -2,11 +2,11 @@ FROM python:3.10-slim AS data_builder
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY ./benchmark/clickhouse/requirements.txt .
+
+COPY ./benchmark/clickhouse/prepare_inputs.py .
 
 RUN pip install -r requirements.txt
-
-COPY prepare_inputs.py .
 
 ARG ABNORMAL_START_VAR
 ARG ABNORMAL_END_VAR
