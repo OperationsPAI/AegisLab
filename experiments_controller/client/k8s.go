@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -50,51 +51,70 @@ type JobConfig struct {
 	Parallelism   int32
 	Completions   int32
 	EnvVars       []corev1.EnvVar
-	VolumeMounts  []corev1.VolumeMount
-	Volumes       []corev1.Volume
 	Labels        map[string]string // 用于自定义标签
 }
 
-func CreateK8sJob(ctx context.Context, config JobConfig) error {
+func CreateK8sJob(ctx context.Context, jobConfig JobConfig) error {
 	clientset := GetK8sClient()
 
-	job := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      config.JobName,
-			Namespace: config.Namespace,
-			Labels:    config.Labels,
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "nfs-volume",
+			MountPath: "/data",
 		},
-		Spec: batchv1.JobSpec{
-			Parallelism: &config.Parallelism,
-			Completions: &config.Completions,
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: config.Labels, // 给 Pod 应用相同的标签
-				},
-				Spec: corev1.PodSpec{
-					RestartPolicy: config.RestartPolicy,
-					Containers: []corev1.Container{
-						{
-							Name:         config.JobName,
-							Image:        config.Image,
-							Command:      config.Command,
-							Env:          config.EnvVars,
-							VolumeMounts: config.VolumeMounts,
-						},
-					},
-					Volumes: config.Volumes,
+	}
+	pvc := config.GetString("nfs.pvc_name")
+	if config.GetString("nfs.pvc_name") == "" {
+		pvc = "nfs-shared-pvc"
+	}
+	volumes := []corev1.Volume{
+		{
+			Name: "nfs-volume",
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: pvc,
 				},
 			},
-			BackoffLimit: &config.BackoffLimit,
 		},
 	}
 
-	_, err := clientset.BatchV1().Jobs(config.Namespace).Create(ctx, job, metav1.CreateOptions{})
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      jobConfig.JobName,
+			Namespace: jobConfig.Namespace,
+			Labels:    jobConfig.Labels,
+		},
+		Spec: batchv1.JobSpec{
+			Parallelism: &jobConfig.Parallelism,
+			Completions: &jobConfig.Completions,
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: jobConfig.Labels, // 给 Pod 应用相同的标签
+				},
+				Spec: corev1.PodSpec{
+					RestartPolicy: jobConfig.RestartPolicy,
+					Containers: []corev1.Container{
+						{
+							Name:         jobConfig.JobName,
+							Image:        jobConfig.Image,
+							Command:      jobConfig.Command,
+							Env:          jobConfig.EnvVars,
+							VolumeMounts: volumeMounts,
+						},
+					},
+					Volumes: volumes,
+				},
+			},
+			BackoffLimit: &jobConfig.BackoffLimit,
+		},
+	}
+
+	_, err := clientset.BatchV1().Jobs(jobConfig.Namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create job: %v", err)
 	}
 
-	logrus.Infof("Job %q created successfully in namespace %q.", config.JobName, config.Namespace)
+	logrus.Infof("Job %q created successfully in namespace %q.", job.Name, job.Namespace)
 	return nil
 }
 
@@ -185,6 +205,7 @@ func DeleteK8sJob(ctx context.Context, namespace, jobName string) error {
 	logrus.Infof("Job %q and its pods deleted successfully.", jobName)
 	return nil
 }
+
 func GetJobPodLogs(ctx context.Context, namespace, jobName string) (map[string]string, error) {
 	clientset := GetK8sClient()
 

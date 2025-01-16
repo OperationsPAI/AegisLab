@@ -63,10 +63,10 @@ func executeBuildDataset(ctx context.Context, taskID string, payload map[string]
 			return fmt.Errorf("failed to update start_time and end_time for dataset: %s, error: %v", datasetPayload.DatasetName, err)
 		}
 	}
-	return createDatasetJob(ctx, datasetPayload.DatasetName, "ts", fmt.Sprintf("10.10.10.240/library/clickhouse_dataset:latest"), []string{"python", "/app/prepare_intputs.py"}, startTime, endTime)
+	return createDatasetJob(ctx, datasetPayload.DatasetName, fmt.Sprintf("dataset-%s", datasetPayload.DatasetName), "ts", "10.10.10.240/library/clickhouse_dataset:latest", []string{"python", "/app/prepare_intputs.py"}, startTime, endTime)
 }
 
-func createDatasetJob(ctx context.Context, jobname, namespace, image string, command []string, startTime, endTime time.Time) error {
+func createDatasetJob(ctx context.Context, datasetName, jobname, namespace, image string, command []string, startTime, endTime time.Time) error {
 	restartPolicy := corev1.RestartPolicyNever
 	backoffLimit := int32(2)
 	parallelism := int32(1)
@@ -81,29 +81,10 @@ func createDatasetJob(ctx context.Context, jobname, namespace, image string, com
 		{Name: "NORMAL_END", Value: strconv.FormatInt(startTime.Unix(), 10)},
 		{Name: "ABNORMAL_START", Value: strconv.FormatInt(startTime.Unix(), 10)},
 		{Name: "ABNORMAL_END", Value: strconv.FormatInt(endTime.Unix(), 10)},
+		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", jobname)},
 		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", jobname)},
 		{Name: "TIMEZONE", Value: tz},
 		{Name: "WORKSPACE", Value: "/app"},
-	}
-	volumeMounts := []corev1.VolumeMount{
-		{
-			Name:      "nfs-volume",
-			MountPath: "/data",
-		},
-	}
-	pvc := config.GetString("nfs.pvc_name")
-	if config.GetString("nfs.pvc_name") == "" {
-		pvc = "nfs-shared-pvc"
-	}
-	volumes := []corev1.Volume{
-		{
-			Name: "nfs-volume",
-			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: pvc,
-				},
-			},
-		},
 	}
 
 	return client.CreateK8sJob(ctx, client.JobConfig{
@@ -116,8 +97,6 @@ func createDatasetJob(ctx context.Context, jobname, namespace, image string, com
 		Parallelism:   parallelism,
 		Completions:   completions,
 		EnvVars:       envVars,
-		VolumeMounts:  volumeMounts,
-		Volumes:       volumes,
 		Labels:        map[string]string{"job_type": "create_dataset"},
 	})
 }

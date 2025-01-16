@@ -1,23 +1,45 @@
 package executor
 
 import (
+	"bytes"
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/database"
+	"gorm.io/gorm"
 )
 
-func executeCollectResult(ctx context.Context, taskID string, payload map[string]interface{}) error {
-	return nil
+type ResultPayload struct {
+	DatasetName string
+	ExecutionID int
+}
+
+func parseResultPayload(payload map[string]interface{}) (*ResultPayload, error) {
+	datasetName, ok := payload[EvalPayloadDataset].(string)
+	if !ok || datasetName == "" {
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalPayloadDataset)
+	}
+	executionID, ok := payload["execution_id"].(int)
+	if !ok || executionID == 0 {
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", "execution_id")
+	}
+	return &ResultPayload{
+		DatasetName: datasetName,
+		ExecutionID: executionID,
+	}, nil
 }
 
 // 读取 CSV 内容并转换为结果
-func readCSVContent2Result(csvContent string, executionID int) ([]database.GranularityResult, error) {
-	reader := csv.NewReader(strings.NewReader(csvContent))
+func readCSVContent2Result(csvContent []byte, executionID int) ([]database.GranularityResult, error) {
+	reader := csv.NewReader(bytes.NewReader(csvContent))
 
 	// 读取表头
 	header, err := reader.Read()
@@ -161,4 +183,64 @@ func readDetectorCSV(csvContent string, executionID int) ([]database.Detector, e
 	}
 
 	return results, nil
+}
+
+func executeCollectResult(ctx context.Context, taskID string, payload map[string]interface{}) error {
+	resultPayload, err := parseResultPayload(payload)
+	if err != nil {
+		return err
+	}
+
+	var executionID int
+	if resultPayload.ExecutionID != 0 {
+		executionID = resultPayload.ExecutionID
+	} else {
+		var executionResult database.ExecutionResult
+		err = database.DB.Where("dataset = ?", resultPayload.DatasetName).First(&executionResult).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("no matching exeution result record found for dataset: %s", resultPayload.DatasetName)
+			}
+			return fmt.Errorf("failed to query exeution result for dataset: %s, error: %v", resultPayload.DatasetName, err)
+		}
+
+		executionID = executionResult.ID
+	}
+
+	path := config.GetString("nfs.path")
+	if path == "" {
+		path = "/mnt/nfs/rcabench_dataset"
+	}
+
+	resultCSV := filepath.Join(path, resultPayload.DatasetName, "result.csv")
+	content, err := os.ReadFile(resultCSV)
+	if err != nil {
+		updateTaskStatus(taskID, "Running", "There is no result.csv file, please check whether it is nomal")
+	} else {
+		results, err := readCSVContent2Result(content, executionID)
+		if err != nil {
+			return fmt.Errorf("convert result.csv to database struct failed: %v", err)
+		}
+
+		err = database.DB.Create(&results).Error
+		if err != nil {
+			return fmt.Errorf("save result.csv to database failed: %v", err)
+		}
+	}
+
+	conclusionCSV := filepath.Join(path, resultPayload.DatasetName, "conclusion.csv")
+	if err != nil {
+		updateTaskStatus(taskID, "Running", "There is no conclusion.csv file in /app/output, please check whether it is nomal")
+	} else {
+		results, err := readDetectorCSV(conclusionCSV, executionID)
+		if err != nil {
+			return fmt.Errorf("convert result.csv to database struct failed: %v", err)
+		}
+		fmt.Println(results)
+		if err := database.DB.Create(&results).Error; err != nil {
+			return fmt.Errorf("save conclusion.csv to database failed: %v", err)
+		}
+	}
+
+	return nil
 }
