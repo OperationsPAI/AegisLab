@@ -59,32 +59,12 @@ func createAlgoJob(ctx context.Context, datasetname, jobname, namespace, image s
 		{Name: "ABNORMAL_START", Value: strconv.FormatInt(startTime.Unix(), 10)},
 		{Name: "ABNORMAL_END", Value: strconv.FormatInt(endTime.Unix(), 10)},
 		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", datasetname)},
-		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", jobname)},
+		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", datasetname)},
 		{Name: "TIMEZONE", Value: tz},
 		{Name: "WORKSPACE", Value: "/app"},
 	}
-	volumeMounts := []corev1.VolumeMount{
-		{
-			Name:      "nfs-volume",
-			MountPath: "/data",
-		},
-	}
-	pvc := config.GetString("nfs.pvc_name")
-	if config.GetString("nfs.pvc_name") == "" {
-		pvc = "nfs-shared-pvc"
-	}
-	volumes := []corev1.Volume{
-		{
-			Name: "nfs-volume",
-			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: pvc,
-				},
-			},
-		},
-	}
 
-	err := client.CreateK8sJob(ctx, client.JobConfig{
+	return client.CreateK8sJob(ctx, client.JobConfig{
 		Namespace:     namespace,
 		JobName:       jobname,
 		Image:         image,
@@ -94,10 +74,8 @@ func createAlgoJob(ctx context.Context, datasetname, jobname, namespace, image s
 		Parallelism:   parallelism,
 		Completions:   completions,
 		EnvVars:       envVars,
-		VolumeMounts:  volumeMounts,
-		Volumes:       volumes,
+		Labels:        map[string]string{"job_type": "execute_algorithm"},
 	})
-	return err
 }
 
 func executeAlgorithm(ctx context.Context, taskID string, payload map[string]interface{}) error {

@@ -143,8 +143,6 @@ def diagnose_faults(
             max_score = max(metric_scores.values())
             all_services[service] = max_score
 
-    print(all_services)
-
     # 为每个时间戳选择 Top N 服务
     sorted_services = sorted(all_services.items(), key=lambda x: x[1], reverse=True)
     top_services = [service for service, _ in sorted_services[:top_n]]
@@ -170,11 +168,10 @@ def start_rca(params: Dict):
     pprint(params)
 
     normal_metric_data = process_metric_csv(params["normal_metric_file"])
-    abnormal_metric_data = process_metric_csv(params["normal_metric_file"])
+    abnormal_metric_data = process_metric_csv(params["abnormal_metric_file"])
     metric_data = pd.concat(
         [normal_metric_data, abnormal_metric_data], ignore_index=True
     )
-    print(metric_data)
 
     fault = {
         "normal_range": [os.environ["NORMAL_START"], os.environ["NORMAL_END"]],
@@ -183,24 +180,5 @@ def start_rca(params: Dict):
     result = diagnose_faults(fault, metric_data)
     if not result.empty:
         result.to_csv(
-            os.path.join(os.environ["output_path"], "result.csv"), index=False
+            os.path.join(os.environ["OUTPUT_PATH"], "result.csv"), index=False
         )
-
-
-if __name__ == "__main__":
-    os.environ["TIMEZONE"] = "Asia/Shanghai"
-    fault = {
-        "normal_range": ["1736846420", "1736847620"],
-        "abnormal_range": ["1736847620", "1736847919"],
-    }
-    dir = "/mnt/nfs/rcabench_dataset/ts-ts-preserve-service-cpu-exhaustion-hs5lgx"
-    normal_metric_file = f"{dir}/normal_metrics.csv"
-    abnormal_metric_file = f"{dir}/abnormal_metrics.csv"
-
-    normal_metric_data = process_metric_csv(normal_metric_file)
-    abnormal_metric_data = process_metric_csv(abnormal_metric_file)
-    metric_data = pd.concat(
-        [normal_metric_data, abnormal_metric_data], ignore_index=True
-    )
-
-    result = diagnose_faults(fault, metric_data)

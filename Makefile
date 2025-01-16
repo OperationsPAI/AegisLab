@@ -17,6 +17,7 @@ run:
 gen:
 	python scripts/cmd/main.py --algo -d1
 
-
-bench:
-	docker buildx build -t 10.10.10.240/library/clickhouse_dataset:latest benchmarks/clickhouse --push
+jobs:
+	kubectl get pods -n experiment
+pods:
+	kubectl get pods -n experiment

@@ -22,4 +22,5 @@ host = "10.10.10.240"
 repository = "10.10.10.240/library"
 
 [nfs]
+path = "/mnt/nfs/rcabench_dataset"
 pvc_name = "nfs-shared-pvc"
