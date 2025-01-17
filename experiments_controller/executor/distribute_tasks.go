@@ -12,8 +12,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/CUHK-SE-Group/rcabench/database"
-
 	"github.com/CUHK-SE-Group/rcabench/client"
 
 	"github.com/go-redis/redis/v8"
@@ -177,7 +175,6 @@ func processTaskWithContext(ctx context.Context, msg redis.XMessage) {
 	}
 
 	logrus.Infof("Executing task ID: %s", taskMsg.TaskID)
-	updateTaskStatus(taskMsg.TaskID, "Running", fmt.Sprintf("Task %s started of type %s", taskMsg.TaskID, taskMsg.TaskType))
 
 	var execErr error
 	switch taskMsg.TaskType {
@@ -197,15 +194,12 @@ func processTaskWithContext(ctx context.Context, msg redis.XMessage) {
 
 	if execErr != nil {
 		if errors.Is(execErr, context.Canceled) {
-			updateTaskStatus(taskMsg.TaskID, "Canceled", fmt.Sprintf("Task %s was canceled", taskMsg.TaskID))
+			Task.UpdateTaskStatus(taskMsg.TaskID, "Canceled", fmt.Sprintf("Task %s was canceled", taskMsg.TaskID))
 			logrus.Infof("Task %s was canceled", taskMsg.TaskID)
 		} else {
-			updateTaskStatus(taskMsg.TaskID, "Error", fmt.Sprintf("Task %s error, message: %s", taskMsg.TaskID, execErr))
+			Task.UpdateTaskStatus(taskMsg.TaskID, "Error", fmt.Sprintf("Task %s error, message: %s", taskMsg.TaskID, execErr))
 			logrus.Error(execErr)
 		}
-	} else {
-		updateTaskStatus(taskMsg.TaskID, "Completed", fmt.Sprintf("Task %s completed", taskMsg.TaskID))
-		logrus.Infof("Task %s completed", taskMsg.TaskID)
 	}
 }
 
@@ -235,31 +229,4 @@ func parseTaskMessage(msg redis.XMessage) (*TaskMessage, error) {
 		Payload:      payload,
 		ParentTaskID: parentTaskID,
 	}, nil
-}
-
-// 更新任务状态
-func updateTaskStatus(taskID, status, message string) {
-	ctx := context.Background()
-	client := client.GetRedisClient()
-
-	// 更新 Redis 中的任务状态
-	taskKey := fmt.Sprintf("task:%s:status", taskID)
-	if err := client.HSet(ctx, taskKey, "status", status).Err(); err != nil {
-		logrus.Errorf("Failed to update task status in Redis for task %s: %v", taskID, err)
-	}
-	if err := client.HSet(ctx, taskKey, "updated_at", time.Now().Format(time.RFC3339)).Err(); err != nil {
-		logrus.Errorf("Failed to update task updated_at in Redis for task %s: %v", taskID, err)
-	}
-
-	// 添加日志到 Redis
-	logKey := fmt.Sprintf("task:%s:logs", taskID)
-	if err := client.RPush(ctx, logKey, fmt.Sprintf("%s - %s", time.Now().Format(time.RFC3339), message)).Err(); err != nil {
-		logrus.Errorf("Failed to push log to Redis for task %s: %v", taskID, err)
-	}
-	logrus.Info(fmt.Sprintf("%s - %s", time.Now().Format(time.RFC3339), message))
-
-	// 更新 SQLite 中的任务状态
-	if err := database.DB.Model(&database.Task{}).Where("id = ?", taskID).Update("status", status).Error; err != nil {
-		logrus.Errorf("Failed to update task %s in SQLite: %v", taskID, err)
-	}
 }

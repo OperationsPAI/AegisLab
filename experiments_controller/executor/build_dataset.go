@@ -47,10 +47,10 @@ func executeBuildDataset(ctx context.Context, taskID string, payload map[string]
 	}
 
 	var startTime, endTime time.Time
-	if faultRecord.Status == database.DatasetSuccess {
+	if faultRecord.Status == DatasetSuccess {
 		startTime = faultRecord.StartTime
 		endTime = faultRecord.EndTime
-	} else if faultRecord.Status == database.DatasetInitial {
+	} else if faultRecord.Status == DatasetInitial {
 		startTime, endTime, err = chaosCli.QueryCRDByName("ts", datasetPayload.DatasetName)
 		if err != nil {
 			return fmt.Errorf("failed to QueryCRDByName: %s, error: %v", datasetPayload.DatasetName, err)
@@ -63,7 +63,7 @@ func executeBuildDataset(ctx context.Context, taskID string, payload map[string]
 			return fmt.Errorf("failed to update start_time and end_time for dataset: %s, error: %v", datasetPayload.DatasetName, err)
 		}
 	}
-	return createDatasetJob(ctx, datasetPayload.DatasetName, fmt.Sprintf("dataset-%s", datasetPayload.DatasetName), "ts", "10.10.10.240/library/clickhouse_dataset:latest", []string{"python", "/app/prepare_intputs.py"}, startTime, endTime)
+	return createDatasetJob(ctx, datasetPayload.DatasetName, fmt.Sprintf("dataset-%s", datasetPayload.DatasetName), config.GetString("k8s.namespace"), "10.10.10.240/library/clickhouse_dataset:latest", []string{"python", "/app/prepare_intputs.py"}, startTime, endTime)
 }
 
 func createDatasetJob(ctx context.Context, datasetName, jobname, namespace, image string, command []string, startTime, endTime time.Time) error {
@@ -97,6 +97,6 @@ func createDatasetJob(ctx context.Context, datasetName, jobname, namespace, imag
 		Parallelism:   parallelism,
 		Completions:   completions,
 		EnvVars:       envVars,
-		Labels:        map[string]string{"job_type": "create_dataset"},
+		Labels:        map[string]string{"job_type": "build_dataset"},
 	})
 }

@@ -12,20 +12,6 @@ import (
 	"gorm.io/gorm"
 )
 
-const (
-	DatasetInitial = 0
-	DatasetSuccess = 1
-	DatasetFailed  = 2
-	DatesetDeleted = 3
-)
-
-var DatasetStatusMap = map[int]string{
-	DatasetInitial: "initial",
-	DatasetSuccess: "success",
-	DatasetFailed:  "failed",
-	DatesetDeleted: "deleted",
-}
-
 // 全局 DB 对象
 var DB *gorm.DB
 

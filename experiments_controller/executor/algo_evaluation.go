@@ -10,16 +10,15 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/database"
-	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 
 	"gorm.io/gorm"
 )
 
 type AlgorithmExecutionPayload struct {
-	Benchmark   string
-	Algorithm   string
-	DatasetName string
+	Benchmark   string `json:"benchmark"`
+	Algorithm   string `json:"algorithm"`
+	DatasetName string `json:"dataset"`
 }
 
 // 解析算法执行任务的 Payload
@@ -43,7 +42,7 @@ func parseAlgorithmExecutionPayload(payload map[string]interface{}) (*AlgorithmE
 	}, nil
 }
 
-func createAlgoJob(ctx context.Context, datasetname, jobname, namespace, image string, command []string, startTime, endTime time.Time) error {
+func createAlgoJob(ctx context.Context, datasetname, jobname, namespace, image string, command []string, labels map[string]string, startTime, endTime time.Time) error {
 	restartPolicy := corev1.RestartPolicyNever
 	backoffLimit := int32(2)
 	parallelism := int32(1)
@@ -74,7 +73,7 @@ func createAlgoJob(ctx context.Context, datasetname, jobname, namespace, image s
 		Parallelism:   parallelism,
 		Completions:   completions,
 		EnvVars:       envVars,
-		Labels:        map[string]string{"job_type": "execute_algorithm"},
+		Labels:        labels,
 	})
 }
 
@@ -97,15 +96,16 @@ func executeAlgorithm(ctx context.Context, taskID string, payload map[string]int
 	endTime := faultRecord.EndTime
 
 	executionResult := database.ExecutionResult{
-		Dataset: faultRecord.ID,
 		TaskID:  taskID,
+		Dataset: faultRecord.ID,
 		Algo:    algPayload.Algorithm,
 	}
 	if err := database.DB.Create(&executionResult).Error; err != nil {
 		return fmt.Errorf("failed to create execution result: %v", err)
 	}
 
-	updateTaskStatus(taskID, "Running", fmt.Sprintf("Running algorithm for task %s", taskID))
-	logrus.Info("Algorithm job created")
-	return createAlgoJob(ctx, algPayload.DatasetName, fmt.Sprintf("%s-%s", algPayload.Algorithm, algPayload.DatasetName), "experiment", fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), "detector", "1736407594138188514"), []string{"python", "run_exp.py"}, startTime, endTime)
+	jobname := fmt.Sprintf("%s-%s", algPayload.Algorithm, algPayload.DatasetName)
+	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), algPayload.Algorithm, "latest")
+	labels := map[string]string{"job_type": "execute_algorithm", "task_id": taskID, "dataset": algPayload.DatasetName}
+	return createAlgoJob(ctx, algPayload.DatasetName, jobname, config.GetString("k8s.namespace"), image, []string{"python", "run_exp.py"}, labels, startTime, endTime)
 }
