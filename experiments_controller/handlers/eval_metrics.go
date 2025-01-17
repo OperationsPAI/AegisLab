@@ -7,11 +7,9 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/CUHK-SE-Group/rcabench/executor"
-
-	"github.com/CUHK-SE-Group/rcabench/database"
-
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
+	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/CUHK-SE-Group/rcabench/executor"
 )
 
 type EvaluationMetric func([]Execution) ([]*Conclusion, error)

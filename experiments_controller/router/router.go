@@ -18,7 +18,6 @@ func New() *gin.Engine {
 	config.AllowOrigins = []string{"http://localhost:3000", "http://localhost:5173"} // 允许来自前端服务器的请求
 	router.Use(middleware.Logging(), cors.New(config))
 	r := router.Group("/api/v1")
-	router.LoadHTMLGlob("templates/*")
 	// router.POST("/submit", handlers.SubmitTask)
 	// router.GET("/status/:taskID", handlers.GetTaskStatus)
 	// router.GET("/tasks", handlers.ShowAllTasks)
@@ -32,12 +31,13 @@ func New() *gin.Engine {
 
 	algor := r.Group("/algo")
 	{
-		algor.GET("/getlist", handlers.GetAlgorithmList)
+		algor.GET("", handlers.GetAlgorithmList)
+		algor.POST("", handlers.SubmitAlgorithmExecution)
 	}
 
 	datasetr := r.Group("/dataset")
 	{
-		datasetr.GET("/getlist", handlers.GetDatasetList)
+		datasetr.GET("", handlers.GetDatasetList)
 		datasetr.POST("/download", handlers.DownloadDataset)
 		datasetr.POST("/upload", handlers.UploadDataset)
 		datasetr.DELETE("/:datasetID", handlers.DeleteDataset)
@@ -45,21 +45,21 @@ func New() *gin.Engine {
 
 	evaluationr := r.Group("/evaluation")
 	{
-		evaluationr.POST("/getlist", handlers.GetEvaluationList)
-		evaluationr.POST("/cancel", handlers.CancelEvaluation)
-		evaluationr.POST("/getstatus", handlers.GetEvaluationStatus)
-		evaluationr.POST("/getlogs", handlers.GetEvaluationLogs)
-		evaluationr.POST("/submit", handlers.SubmitEvaluation)
-		evaluationr.POST("/getresult", handlers.GetEvaluationResults)
+		evaluationr.GET("", handlers.GetEvaluationList)
+		evaluationr.POST("", handlers.SubmitEvaluation)
+		evaluationr.POST("/:taskID/cancel", handlers.CancelEvaluation)
+		evaluationr.POST("/:taskID/logs", handlers.GetEvaluationLogs)
+		evaluationr.POST("/:taskID/result", handlers.GetEvaluationResults)
+		evaluationr.POST("/:taskID/status", handlers.GetEvaluationStatus)
 	}
 
 	injectr := r.Group("/injection")
 	{
-		injectr.POST("/cancel", handlers.CancelInjection)
-		injectr.GET("/getlist", handlers.GetInjectionList)
-		injectr.GET("/getpara", handlers.GetInjectionPara)
-		injectr.GET("/getstatus/:taskID", handlers.GetInjectionStatus)
-		injectr.POST("/submit", handlers.InjectFault)
+		injectr.GET("", handlers.GetInjectionList)
+		injectr.POST("", handlers.SubmitFaultInjection)
+		injectr.GET("/para", handlers.GetInjectionPara)
+		injectr.POST("/:taskID/cancel", handlers.CancelInjection)
+		injectr.GET("/:taskID/status", handlers.GetInjectionStatus)
 	}
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

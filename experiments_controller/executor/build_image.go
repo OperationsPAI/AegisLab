@@ -36,6 +36,7 @@ type BuildOptions struct {
 func executeBuildImages(ctx context.Context, taskID string, payload map[string]interface{}) error {
 	return buildAlgos()
 }
+
 func getAllSubDirectories(root string) ([]string, error) {
 	var directories []string
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {

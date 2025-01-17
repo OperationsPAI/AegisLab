@@ -44,8 +44,16 @@ type InjectResp struct {
 }
 
 type InjectStatusResp struct {
-	TaskID string   `json:"task_id"`
-	Logs   []string `json:"logs"`
+	Task InjectTask `json:"task"`
+	Logs []string   `json:"logs"`
+}
+
+type InjectTask struct {
+	ID        string                         `json:"id"`
+	Type      string                         `json:"type"`
+	Payload   executor.FaultInjectionPayload `json:"payload"`
+	Status    string                         `json:"status"`
+	CreatedAt time.Time                      `json:"created_at"`
 }
 
 // CancelInjection
@@ -92,7 +100,7 @@ func GetInjectionList(c *gin.Context) {
 		resps = append(resps, InjectListResp{
 			TaskID:     record.TaskID,
 			Name:       record.InjectionName,
-			Status:     database.DatasetStatusMap[record.Status],
+			Status:     DatasetStatusMap[record.Status],
 			InjectTime: record.StartTime,
 			Duration:   record.Duration,
 			FaultType:  chaos.ChaosTypeMap[chaos.ChaosType(record.FaultType)],
@@ -128,6 +136,21 @@ func GetInjectionStatus(c *gin.Context) {
 		return
 	}
 
+	var payload executor.FaultInjectionPayload
+	if err := json.Unmarshal([]byte(task.Payload), &payload); err != nil {
+		logrus.Error(fmt.Sprintf("Payload of inject record %s unmarshaling failed: %s", task.ID, err))
+		JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("Failed to unmarshal payload %s", taskID), nil)
+		return
+	}
+
+	injectTask := InjectTask{
+		ID:        task.ID,
+		Type:      task.Type,
+		Payload:   payload,
+		Status:    task.Status,
+		CreatedAt: task.CreatedAt,
+	}
+
 	logKey := fmt.Sprintf("task:%s:logs", taskID)
 	ctx := c.Request.Context()
 	logs, err := client.GetRedisClient().LRange(ctx, logKey, 0, -1).Result()
@@ -138,7 +161,7 @@ func GetInjectionStatus(c *gin.Context) {
 		return
 	}
 
-	JSONResponse(c, http.StatusOK, "", InjectStatusResp{TaskID: taskID, Logs: logs})
+	JSONResponse(c, http.StatusOK, "", InjectStatusResp{Task: injectTask, Logs: logs})
 }
 
 // GetInjectionPara 获取注入参数
@@ -175,22 +198,12 @@ func GetInjectionPara(c *gin.Context) {
 //	@Tags			injection
 //	@Produce		application/json
 //	@Consumes		application/json
-//	@Param			type	query		string							true	"任务类型"
 //	@Param			body	body		executor.FaultInjectionPayload	true	"请求体"
 //	@Success		200		{object}	GenericResponse[InjectResp]
 //	@Failure		400		{object}	GenericResponse[any]
 //	@Failure		500		{object}	GenericResponse[any]
 //	@Router			/api/v1/injection/submit [post]
-func InjectFault(c *gin.Context) {
-	var content string
-	var ok bool
-
-	taskType := c.Query("type")
-	if content, ok = checkTaskType(taskType); !ok {
-		JSONResponse[interface{}](c, http.StatusBadRequest, content, nil)
-		return
-	}
-
+func SubmitFaultInjection(c *gin.Context) {
 	var payload executor.FaultInjectionPayload
 	if err := c.BindJSON(&payload); err != nil {
 		JSONResponse[interface{}](c, http.StatusBadRequest, "Invalid JSON payload", nil)
@@ -204,7 +217,8 @@ func InjectFault(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	if content, ok = submitTask(ctx, taskType, jsonPayload); !ok {
+	content, ok := executor.Task.SubmitTask(ctx, "FaultInjection", jsonPayload)
+	if !ok {
 		JSONResponse[interface{}](c, http.StatusInternalServerError, content, nil)
 		return
 	}
@@ -214,5 +228,5 @@ func InjectFault(c *gin.Context) {
 		JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to unmarshal content to response", nil)
 		return
 	}
-	JSONResponse(c, http.StatusAccepted, "Fault injected successfully", resp)
+	JSONResponse(c, http.StatusAccepted, "Fault injection submitted successfully", resp)
 }

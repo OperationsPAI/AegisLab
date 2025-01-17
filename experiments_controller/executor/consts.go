@@ -4,6 +4,13 @@ package executor
 type TaskType string
 
 const (
+	DatasetInitial = 0
+	DatasetSuccess = 1
+	DatasetFailed  = 2
+	DatesetDeleted = 3
+)
+
+const (
 	TaskTypeRunAlgorithm   TaskType = "RunAlgorithm"
 	TaskTypeFaultInjection TaskType = "FaultInjection"
 	TaskTypeBuildImages    TaskType = "BuildImages"
@@ -21,9 +28,9 @@ const (
 
 // 不同任务类型的 Payload 键
 const (
+	EvalPayloadBench   = "benchmark"
 	EvalPayloadAlgo    = "algorithm"
 	EvalPayloadDataset = "dataset"
-	EvalPayloadBench   = "benchmark"
 
 	InjectDuration  = "duration"
 	InjectFaultType = "faultType"

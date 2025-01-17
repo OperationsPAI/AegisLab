@@ -8,6 +8,7 @@ import (
 
 	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
 	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/CUHK-SE-Group/rcabench/executor"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
@@ -22,8 +23,14 @@ type DatasetResp struct {
 	Datasets []string `json:"datasets"`
 }
 
+var DatasetStatusMap = map[int]string{
+	executor.DatasetInitial: "initial",
+	executor.DatasetSuccess: "success",
+	executor.DatasetFailed:  "failed",
+	executor.DatesetDeleted: "deleted",
+}
+
 var fieldMap = map[string]string{
-	"ID":       "datasetID",
 	"PageNum":  "page_num",
 	"PageSize": "page_size",
 }
@@ -43,8 +50,8 @@ var fieldMap = map[string]string{
 func GetDatasetList(c *gin.Context) {
 	// 获取查询参数并校验是否合法
 	var datasetReq DatasetReq
-	if err := c.ShouldBindQuery(&datasetReq); err != nil {
-		JSONResponse[interface{}](c, http.StatusBadRequest, convertValidationErrors(err, fieldMap), nil)
+	if err := c.BindQuery(&datasetReq); err != nil {
+		JSONResponse[interface{}](c, http.StatusBadRequest, executor.ConvertValidationErrors(err, fieldMap), nil)
 		return
 	}
 
@@ -60,7 +67,7 @@ func GetDatasetList(c *gin.Context) {
 
 	err := database.DB.
 		Model(&database.FaultInjectionSchedule{}).
-		Where("status = ?", database.DatasetSuccess).
+		Where("status = ?", executor.DatasetSuccess).
 		Where("proposed_end_time < ?", currentTime).
 		Count(&total).Error
 	if err != nil {
@@ -73,7 +80,7 @@ func GetDatasetList(c *gin.Context) {
 	var faultRecords []database.FaultInjectionSchedule
 
 	err = database.DB.
-		Where("status IN ?", []int{database.DatasetInitial, database.DatasetSuccess}).
+		Where("status IN ?", []int{executor.DatasetInitial, executor.DatasetSuccess}).
 		Where("proposed_end_time < ?", currentTime).
 		Offset(offset).
 		Limit(pageSize).
@@ -92,14 +99,14 @@ func GetDatasetList(c *gin.Context) {
 		var startTime, endTime time.Time
 
 		// 如果状态为初始，查询 CRD 并更新记录
-		if record.Status == database.DatasetInitial {
+		if record.Status == executor.DatasetInitial {
 			startTime, endTime, err = chaosCli.QueryCRDByName("ts", datasetName)
 			if err != nil {
 				logrus.Errorf("Failed to QueryCRDByName for dataset %s: %v", datasetName, err)
 
 				// 更新状态为失败
 				if updateErr := database.DB.Model(&record).Where("injection_name = ?", datasetName).
-					Update("status", database.DatasetFailed).Error; updateErr != nil {
+					Update("status", executor.DatasetFailed).Error; updateErr != nil {
 					logrus.Errorf("Failed to update status to DatasetFailed for dataset %s: %v", datasetName, updateErr)
 				}
 				continue
@@ -110,7 +117,7 @@ func GetDatasetList(c *gin.Context) {
 				Updates(map[string]interface{}{
 					"start_time": startTime,
 					"end_time":   endTime,
-					"status":     database.DatasetSuccess,
+					"status":     executor.DatasetSuccess,
 				}).Error; updateErr != nil {
 				logrus.Errorf("Failed to update record for dataset %s: %v", datasetName, updateErr)
 				continue
@@ -118,11 +125,11 @@ func GetDatasetList(c *gin.Context) {
 			// 更新成功的记录状态到内存
 			record.StartTime = startTime
 			record.EndTime = endTime
-			record.Status = database.DatasetSuccess
+			record.Status = executor.DatasetSuccess
 		}
 
 		// 仅保留状态为成功的记录
-		if record.Status == database.DatasetSuccess {
+		if record.Status == executor.DatasetSuccess {
 			successfulRecords = append(successfulRecords, record)
 		}
 	}
@@ -183,7 +190,7 @@ func DeleteDataset(c *gin.Context) {
 	err = database.DB.
 		Model(&faultRecord).
 		Where("id = ?", id).
-		Update("status", database.DatesetDeleted).Error
+		Update("status", executor.DatesetDeleted).Error
 	if err != nil {
 		logrus.Errorf("Failed to update status to DatasetDeleted for dataset %d: %v", id, err)
 		JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("Failed to delete dataset %d", id), nil)

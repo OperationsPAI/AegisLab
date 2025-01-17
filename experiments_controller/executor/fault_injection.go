@@ -77,7 +77,8 @@ func executeFaultInjection(ctx context.Context, taskID string, payload map[strin
 	}
 
 	// 更新任务状态
-	updateTaskStatus(taskID, "Running", fmt.Sprintf("Executing fault injection for task %s", taskID))
+	var taskExcutor TaskExecutor
+	taskExcutor.UpdateTaskStatus(taskID, "Running", fmt.Sprintf("Executing fault injection for task %s", taskID))
 
 	// 故障注入逻辑
 	var chaosSpec interface{}
@@ -121,7 +122,7 @@ func executeFaultInjection(ctx context.Context, taskID string, payload map[strin
 		Config:          string(jsonData),
 		Duration:        fiPayload.Duration,
 		Description:     fmt.Sprintf("Fault for task %s", taskID),
-		Status:          database.DatasetInitial,
+		Status:          DatasetInitial,
 		InjectionName:   name,
 		ProposedEndTime: time.Now().Add(time.Duration(fiPayload.Duration+2) * time.Minute),
 		CreatedAt:       time.Now(),

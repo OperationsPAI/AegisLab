@@ -215,7 +215,7 @@ func executeCollectResult(ctx context.Context, taskID string, payload map[string
 	resultCSV := filepath.Join(path, resultPayload.DatasetName, "result.csv")
 	content, err := os.ReadFile(resultCSV)
 	if err != nil {
-		updateTaskStatus(taskID, "Running", "There is no result.csv file, please check whether it is nomal")
+		Task.UpdateTaskStatus(taskID, "Error", "There is no result.csv file, please check whether it is nomal")
 	} else {
 		results, err := readCSVContent2Result(content, executionID)
 		if err != nil {
@@ -230,7 +230,7 @@ func executeCollectResult(ctx context.Context, taskID string, payload map[string
 
 	conclusionCSV := filepath.Join(path, resultPayload.DatasetName, "conclusion.csv")
 	if err != nil {
-		updateTaskStatus(taskID, "Running", "There is no conclusion.csv file in /app/output, please check whether it is nomal")
+		Task.UpdateTaskStatus(taskID, "Error", "There is no conclusion.csv file in /app/output, please check whether it is nomal")
 	} else {
 		results, err := readDetectorCSV(conclusionCSV, executionID)
 		if err != nil {

@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 
+	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/router"
 
 	"github.com/CUHK-SE-Group/rcabench/executor"
@@ -41,6 +43,10 @@ func main() {
 
 	config.Init(viper.GetString("conf"))
 
+	// 创建一个上下文
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	var producerCmd = &cobra.Command{
 		Use:   "producer",
 		Short: "Run as a producer",
@@ -77,6 +83,7 @@ func main() {
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
 			engine := router.New()
 			database.InitDB()
+			go client.InitK8s(ctx, executor.Task)
 			go executor.ConsumeTasks()
 			port := viper.GetString("port") // 从 Viper 获取最终端口
 			err := engine.Run(":" + port)

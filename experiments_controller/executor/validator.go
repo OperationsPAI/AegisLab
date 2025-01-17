@@ -1,4 +1,4 @@
-package handlers
+package executor
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-func convertValidationErrors(err error, fieldMap map[string]string) string {
+func ConvertValidationErrors(err error, fieldMap map[string]string) string {
 	var validationErrors validator.ValidationErrors
 	var ok bool
 	if validationErrors, ok = err.(validator.ValidationErrors); !ok {
