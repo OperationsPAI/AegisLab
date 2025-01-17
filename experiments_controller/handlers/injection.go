@@ -1,78 +1,51 @@
 package handlers
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
 	"time"
 
-	"github.com/CUHK-SE-Group/chaos-experiment/handler"
+	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
+	"github.com/CUHK-SE-Group/rcabench/client"
+	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/CUHK-SE-Group/rcabench/executor"
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
+	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 )
 
-type InjectReq struct {
-}
-type InjectResp struct {
-}
-type InjectListResp struct {
-	TaskID     string    `json:"task_id"`
-	Name       string    `json:"name"`
-	Status     string    `json:"status"`
-	InjectTime time.Time `json:"inject_time"`
-	Duration   int       `json:"duration"` // minutes
-	FaultType  string    `json:"fault_type"`
-	Para       string    `json:"para"`
-}
-type InjectStatusReq struct {
-	TaskID string `json:"task_id"`
-}
-type InjectStatusResp struct {
-}
 type InjectCancelReq struct {
 	TaskID string `json:"task_id"`
 }
+
 type InjectCancelResp struct {
 }
 
-// InjectFault
-//
-//	@Summary		注入故障
-//	@Description	注入故障
-//	@Tags			injection
-//	@Produce		json
-//	@Consumes		application/json
-//	@Param			body	body		InjectReq					true	"请求体"
-//	@Success		200		{array}		GenericResponse[InjectResp]	""
-//	@Failure		400		{object}	GenericResponse[InjectResp]	""
-//	@Failure		500		{object}	GenericResponse[InjectResp]	""
-//	@Router			/api/v1/injection/submit [post]
-func InjectFault(c *gin.Context) {
+type InjectListResp struct {
+	TaskID     string                         `json:"task_id"`
+	Name       string                         `json:"name"`
+	Status     string                         `json:"status"`
+	InjectTime time.Time                      `json:"inject_time"`
+	Duration   int                            `json:"duration"` // minutes
+	FaultType  string                         `json:"fault_type"`
+	Para       executor.FaultInjectionPayload `json:"para"`
 }
 
-// GetInjectionList
-//
-//	@Summary		获取注入列表和必要的简略信息
-//	@Description	获取注入列表和必要的简略信息
-//	@Tags			injection
-//	@Produce		json
-//	@Consumes		application/json
-//	@Success		200	{array}		GenericResponse[[]InjectListResp]
-//	@Failure		400	{object}	GenericResponse[[]InjectListResp]
-//	@Failure		500	{object}	GenericResponse[[]InjectListResp]
-//	@Router			/api/v1/injection/getlist [post]
-func GetInjectionList(c *gin.Context) {
+type InjectParaResp struct {
+	Specification map[string][]chaos.ActionSpace `json:"specification"`
+	KeyMap        map[chaos.ChaosType]string     `json:"keymap"`
 }
 
-// GetInjectionStatus
-//
-//	@Summary		获取注入列表和必要的简略信息
-//	@Description	获取注入列表和必要的简略信息
-//	@Tags			injection
-//	@Produce		json
-//	@Consumes		application/json
-//	@Param			body	body		InjectStatusReq	true	"请求体"
-//	@Success		200		{array}		GenericResponse[InjectStatusResp]
-//	@Failure		400		{object}	GenericResponse[InjectStatusResp]
-//	@Failure		500		{object}	GenericResponse[InjectStatusResp]
-//	@Router			/api/v1/injection/getstatus [post]
-func GetInjectionStatus(c *gin.Context) {
+type InjectResp struct {
+	TaskID string `json:"task_id"`
+}
+
+type InjectStatusResp struct {
+	TaskID string   `json:"task_id"`
+	Logs   []string `json:"logs"`
 }
 
 // CancelInjection
@@ -83,11 +56,89 @@ func GetInjectionStatus(c *gin.Context) {
 //	@Produce		json
 //	@Consumes		application/json
 //	@Param			body	body		InjectCancelReq	true	"请求体"
-//	@Success		200		{array}		GenericResponse[InjectCancelResp]
+//	@Success		200		{object}	GenericResponse[InjectCancelResp]
 //	@Failure		400		{object}	GenericResponse[InjectCancelResp]
 //	@Failure		500		{object}	GenericResponse[InjectCancelResp]
 //	@Router			/api/v1/injection/cancel [post]
 func CancelInjection(c *gin.Context) {
+}
+
+// GetInjectionList
+//
+//	@Summary		获取注入列表和必要的简略信息
+//	@Description	获取注入列表和必要的简略信息
+//	@Tags			injection
+//	@Produce		json
+//	@Consumes		application/json
+//	@Success		200	{object}		GenericResponse[[]InjectListResp]
+//	@Failure		400	{object}	GenericResponse[[]InjectListResp]
+//	@Failure		500	{object}	GenericResponse[[]InjectListResp]
+//	@Router			/api/v1/injection/getlist [post]
+func GetInjectionList(c *gin.Context) {
+	var faultRecords []database.FaultInjectionSchedule
+	if err := database.DB.Find(&faultRecords).Error; err != nil {
+		JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to retrieve tasks", nil)
+		return
+	}
+
+	var resps []InjectListResp
+	for _, record := range faultRecords {
+		var payload executor.FaultInjectionPayload
+		if err := json.Unmarshal([]byte(record.Config), &payload); err != nil {
+			logrus.Error(fmt.Sprintf("Payload of inject record %d unmarshaling failed: %s", record.ID, err))
+			continue
+		}
+
+		resps = append(resps, InjectListResp{
+			TaskID:     record.TaskID,
+			Name:       record.InjectionName,
+			Status:     database.DatasetStatusMap[record.Status],
+			InjectTime: record.StartTime,
+			Duration:   record.Duration,
+			FaultType:  chaos.ChaosTypeMap[chaos.ChaosType(record.FaultType)],
+			Para:       payload,
+		})
+	}
+
+	JSONResponse(c, http.StatusOK, "", resps)
+}
+
+// GetInjectionStatus
+//
+//	@Summary		获取单个注入的详细信息
+//	@Description	获取单个注入的详细信息
+//	@Tags			injection
+//	@Produce		json
+//	@Consumes		application/json
+//	@Param 			taskID 	path		string		true		"任务 ID"
+//	@Success		200		{objec}		GenericResponse[InjectStatusResp]
+//	@Failure		404		{object}	GenericResponse[any]
+//	@Failure		500		{object}	GenericResponse[any]
+//	@Router			/api/v1/injection/getstatus [get]
+func GetInjectionStatus(c *gin.Context) {
+	taskID := c.Param("taskID")
+
+	var task database.Task
+	if err := database.DB.First(&task, "id = ?", taskID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			JSONResponse[interface{}](c, http.StatusNotFound, "Task not found", nil)
+		} else {
+			JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("Failed to retrieve task %s", taskID), nil)
+		}
+		return
+	}
+
+	logKey := fmt.Sprintf("task:%s:logs", taskID)
+	ctx := c.Request.Context()
+	logs, err := client.GetRedisClient().LRange(ctx, logKey, 0, -1).Result()
+	if errors.Is(err, redis.Nil) {
+		logs = []string{}
+	} else if err != nil {
+		JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to retrieve logs", nil)
+		return
+	}
+
+	JSONResponse(c, http.StatusOK, "", InjectStatusResp{TaskID: taskID, Logs: logs})
 }
 
 // GetInjectionPara 获取注入参数
@@ -95,23 +146,73 @@ func CancelInjection(c *gin.Context) {
 //	@Summary		获取故障注入参数
 //	@Description	获取可用的故障注入参数和类型映射
 //	@Tags			injection
-//	@Produce		json
-//	@Success		200	{object}	map[string]interface{}	"返回故障注入参数和类型映射"
-//	@Failure		500	{object}	map[string]string		"服务器内部错误"
-//	@Router			/api/v1/injection/getpara [post]
+//	@Produce		application/json
+//	@Success		200	{object}	GenericResponse[InjectParaResp]	"返回故障注入参数和类型映射"
+//	@Failure		500	{object}	GenericResponse[ant]
+//	@Router			/api/v1/injection/getpara [get]
 func GetInjectionPara(c *gin.Context) {
-	choice := make(map[string][]handler.ActionSpace, 0)
-	for tp, spec := range handler.SpecMap {
-		actionSpace, err := handler.GenerateActionSpace(spec)
+	choice := make(map[string][]chaos.ActionSpace, 0)
+	for tp, spec := range chaos.SpecMap {
+		actionSpace, err := chaos.GenerateActionSpace(spec)
 		if err != nil {
-			c.JSON(500, gin.H{"error": "Failed to generate action space"})
+			JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to generate action space", nil)
 			return
 		}
-		name := handler.GetChaosTypeName(tp)
+
+		name := chaos.GetChaosTypeName(tp)
 		choice[name] = actionSpace
 	}
-	c.JSON(200, gin.H{
-		"specification": choice,
-		"keymap":        handler.ChaosTypeMap,
-	})
+
+	resp := InjectParaResp{Specification: choice, KeyMap: chaos.ChaosTypeMap}
+	JSONResponse[interface{}](c, http.StatusOK, "", resp)
+}
+
+// InjectFault
+// TODO 批量注入故障
+//
+//	@Summary		注入故障
+//	@Description	注入故障
+//	@Tags			injection
+//	@Produce		application/json
+//	@Consumes		application/json
+//	@Param			type	query		string							true	"任务类型"
+//	@Param			body	body		executor.FaultInjectionPayload	true	"请求体"
+//	@Success		200		{object}	GenericResponse[InjectResp]
+//	@Failure		400		{object}	GenericResponse[any]
+//	@Failure		500		{object}	GenericResponse[any]
+//	@Router			/api/v1/injection/submit [post]
+func InjectFault(c *gin.Context) {
+	var content string
+	var ok bool
+
+	taskType := c.Query("type")
+	if content, ok = checkTaskType(taskType); !ok {
+		JSONResponse[interface{}](c, http.StatusBadRequest, content, nil)
+		return
+	}
+
+	var payload executor.FaultInjectionPayload
+	if err := c.BindJSON(&payload); err != nil {
+		JSONResponse[interface{}](c, http.StatusBadRequest, "Invalid JSON payload", nil)
+		return
+	}
+
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to marshal payload", nil)
+		return
+	}
+
+	ctx := c.Request.Context()
+	if content, ok = submitTask(ctx, taskType, jsonPayload); !ok {
+		JSONResponse[interface{}](c, http.StatusInternalServerError, content, nil)
+		return
+	}
+
+	var resp InjectResp
+	if err := json.Unmarshal([]byte(content), &resp); err != nil {
+		JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to unmarshal content to response", nil)
+		return
+	}
+	JSONResponse(c, http.StatusAccepted, "Fault injected successfully", resp)
 }

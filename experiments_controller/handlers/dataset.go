@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
@@ -21,6 +23,7 @@ type DatasetResp struct {
 }
 
 var fieldMap = map[string]string{
+	"ID":       "datasetID",
 	"PageNum":  "page_num",
 	"PageSize": "page_size",
 }
@@ -31,11 +34,11 @@ var fieldMap = map[string]string{
 //	@Description	获取所有数据集列表
 //	@Tags			dataset
 //	@Produce		application/json
-//	@Param			page_num	query	int		true	"页面数目"
-//	@Param			page_size	query	int		true	"页面大小"
-//	@Success		200		{object}	GenericResponse[DatasetResp]
-//	@Failure		400		{object}	GenericResponse[any]
-//	@Failure		500		{object}	GenericResponse[any]
+//	@Param			page_num	query		int		true	"页面数目"
+//	@Param			page_size	query		int		true	"页面大小"
+//	@Success		200			{object}	GenericResponse[GetDatasetResp]
+//	@Failure		400			{object}	GenericResponse[any]
+//	@Failure		500			{object}	GenericResponse[any]
 //	@Router			/api/v1/dataset/getlist [get]
 func GetDatasetList(c *gin.Context) {
 	// 获取查询参数并校验是否合法
@@ -155,8 +158,37 @@ func UploadDataset(c *gin.Context) {
 //
 //	@Summary		删除数据集数据
 //	@Description	删除数据集数据
-//	@Tags			algorithm
+//	@Tags			dataset
+//	@Produce		application/json
+//	@Param			datasetID	path		int					true	"数据集 ID"
+//	@Success		200			{object}	GenericResponse[int]
+//	@Failure		400			{object}	GenericResponse[any]
+//	@Failure		500			{object}	GenericResponse[any]
 //	@Router			/api/v1/dataset/delete [delete]
 func DeleteDataset(c *gin.Context) {
+	idStr := c.Param("datasetID")
+	if idStr == "" {
+		JSONResponse[interface{}](c, http.StatusBadRequest, "Dataset id is required", nil)
+		return
+	}
 
+	var id int
+	var err error
+	if id, err = strconv.Atoi(idStr); err != nil {
+		JSONResponse[interface{}](c, http.StatusBadRequest, "Dataset id must be an integer", nil)
+		return
+	}
+
+	var faultRecord database.FaultInjectionSchedule
+	err = database.DB.
+		Model(&faultRecord).
+		Where("id = ?", id).
+		Update("status", database.DatesetDeleted).Error
+	if err != nil {
+		logrus.Errorf("Failed to update status to DatasetDeleted for dataset %d: %v", id, err)
+		JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("Failed to delete dataset %d", id), nil)
+		return
+	}
+
+	JSONResponse[interface{}](c, http.StatusOK, "Delete dataset successfully", id)
 }

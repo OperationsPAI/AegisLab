@@ -22,7 +22,6 @@ type GetAlgorithmResp struct {
 //	@Description	获取算法列表
 //	@Tags			algorithm
 //	@Produce		application/json
-//	@Param			body	body		InjectReq	true	"请求体"
 //	@Success		200		{object}	GenericResponse[[]GetAlgorithmResp]
 //	@Failure		400		{object}	GenericResponse[any]
 //	@Failure		500		{object}	GenericResponse[any]

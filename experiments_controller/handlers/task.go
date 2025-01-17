@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,6 +29,19 @@ var validTaskTypes = map[string]bool{
 	string(executor.TaskTypeFaultInjection): true,
 	string(executor.TaskTypeBuildImages):    true,
 	string(executor.TaskTypeRunAlgorithm):   true,
+}
+
+// checkTaskType 检查任务类型
+func checkTaskType(taskType string) (string, bool) {
+	if taskType == "" {
+		return "Task type is required", false
+	}
+
+	if !validTaskTypes[taskType] {
+		return "Invalid task type", false
+	}
+
+	return taskType, true
 }
 
 // GetTaskStatus 查询任务状态
@@ -95,43 +109,11 @@ func ShowAllTasks(c *gin.Context) {
 }
 
 // SubmitTask 提交一个新任务到任务队列和数据库
-//
-//	@Summary		提交任务
-//	@Description	提交一个指定类型的任务到系统
-//	@Tags			tasks
-//	@Accept			json
-//	@Produce		json
-//	@Param			type	query		string				true	"任务类型 (FaultInjection, RunAlgorithm, EvaluateAlgorithm)"
-//	@Param			payload	body		object				true	"任务参数"
-//	@Success		202		{object}	map[string]string	"返回任务 ID"
-//	@Failure		400		{object}	map[string]string	"请求错误或无效参数"
-//	@Failure		500		{object}	map[string]string	"服务器内部错误"
-func SubmitTask(c *gin.Context) {
-	taskType := c.Query("type")
-	if taskType == "" {
-		c.JSON(400, gin.H{"error": "Task type is required"})
-		return
-	}
-	if !validTaskTypes[taskType] {
-		c.JSON(400, gin.H{"error": "Invalid task type"})
-		return
-	}
-
-	var payload map[string]interface{}
-	if err := c.BindJSON(&payload); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid JSON payload"})
-		return
-	}
+func submitTask(ctx context.Context, taskType string, jsonPayload []byte) (string, bool) {
 	taskID := uuid.New().String()
-	jsonPayload, err := json.Marshal(payload)
-	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to marshal payload"})
-		return
-	}
 
-	ctx := c.Request.Context()
-
-	_, err = client.GetRedisClient().XAdd(ctx, &redis.XAddArgs{
+	// 提交任务到 Redis 任务队列
+	_, err := client.GetRedisClient().XAdd(ctx, &redis.XAddArgs{
 		Stream: executor.StreamName,
 		Values: map[string]interface{}{
 			executor.RdbMsgTaskID:   taskID,
@@ -139,10 +121,9 @@ func SubmitTask(c *gin.Context) {
 			executor.RdbMsgPayload:  jsonPayload,
 		},
 	}).Result()
-
 	if err != nil {
-		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to submit task, err: %s", err)})
-		return
+		logrus.Errorf("Failed to submit task, err: %s", err)
+		return "Failed to submit task", false
 	}
 
 	// 保存任务到 SQLite 数据库
@@ -153,11 +134,19 @@ func SubmitTask(c *gin.Context) {
 		Status:  "Pending",
 	}
 	if err := database.DB.Create(&task).Error; err != nil {
-		c.JSON(500, gin.H{"error": "Failed to save task to database"})
-		return
+		logrus.Errorf("Failed to save task to database, err: %s", err)
+		return "Failed to save task to database", false
 	}
 
-	c.JSON(202, gin.H{"taskID": taskID, "message": "Task submitted successfully"})
+	content := map[string]interface{}{"task_id": taskID}
+
+	var jsonContent []byte
+	jsonContent, err = json.Marshal(content)
+	if err != nil {
+		return "Failed to marshal content", false
+	}
+
+	return string(jsonContent), true
 }
 
 // GetTaskDetails 获取任务详情
