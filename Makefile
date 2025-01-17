@@ -14,10 +14,14 @@ run:
 	cd experiments_controller && \
 	go run main.go both --port 8082
 
+swagger:
+	cd experiments_controller && swag init
+
 gen:
 	python scripts/cmd/main.py --algo -d1
 
 jobs:
-	kubectl get pods -n experiment
+	kubectl get jobs -n experiment
+
 pods:
 	kubectl get pods -n experiment

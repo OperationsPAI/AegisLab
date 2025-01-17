@@ -38,9 +38,9 @@ func New() *gin.Engine {
 	datasetr := r.Group("/dataset")
 	{
 		datasetr.GET("/getlist", handlers.GetDatasetList)
-		datasetr.DELETE("/delete", handlers.DeleteDataset)
 		datasetr.POST("/download", handlers.DownloadDataset)
 		datasetr.POST("/upload", handlers.UploadDataset)
+		datasetr.DELETE("/:datasetID", handlers.DeleteDataset)
 	}
 
 	evaluationr := r.Group("/evaluation")
@@ -55,11 +55,11 @@ func New() *gin.Engine {
 
 	injectr := r.Group("/injection")
 	{
-		injectr.POST("/submit", handlers.InjectFault)
-		injectr.POST("/getlist", handlers.GetInjectionList)
-		injectr.POST("/getstatus", handlers.GetInjectionStatus)
 		injectr.POST("/cancel", handlers.CancelInjection)
-		injectr.POST("/getpara", handlers.GetInjectionPara)
+		injectr.GET("/getlist", handlers.GetInjectionList)
+		injectr.GET("/getpara", handlers.GetInjectionPara)
+		injectr.GET("/getstatus/:taskID", handlers.GetInjectionStatus)
+		injectr.POST("/submit", handlers.InjectFault)
 	}
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

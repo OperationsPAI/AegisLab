@@ -55,17 +55,6 @@ const docTemplate = `{
                     "algorithm"
                 ],
                 "summary": "获取算法列表",
-                "parameters": [
-                    {
-                        "description": "请求体",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handlers.InjectReq"
-                        }
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -91,11 +80,42 @@ const docTemplate = `{
         "/api/v1/dataset/delete": {
             "delete": {
                 "description": "删除数据集数据",
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
-                    "algorithm"
+                    "dataset"
                 ],
                 "summary": "删除数据集数据",
-                "responses": {}
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "数据集 ID",
+                        "name": "datasetID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GenericResponse-int"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GenericResponse-any"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/dataset/download": {
@@ -138,7 +158,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.GenericResponse-handlers_DatasetResp"
+                            "$ref": "#/definitions/handlers.GenericResponse-handlers_GetDatasetResp"
                         }
                     },
                     "400": {
@@ -463,10 +483,16 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "injection"
+                    "Injection"
                 ],
                 "summary": "注入故障",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "任务类型",
+                        "name": "type",
+                        "in": "query"
+                    },
                     {
                         "description": "请求体",
                         "name": "body",
@@ -481,22 +507,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/handlers.GenericResponse-handlers_InjectResp"
-                            }
+                            "$ref": "#/definitions/handlers.GenericResponse-handlers_InjectResp"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.GenericResponse-handlers_InjectResp"
+                            "$ref": "#/definitions/handlers.GenericResponse-any"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.GenericResponse-handlers_InjectResp"
+                            "$ref": "#/definitions/handlers.GenericResponse-any"
                         }
                     }
                 }
@@ -972,20 +995,6 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.DatasetResp": {
-            "type": "object",
-            "properties": {
-                "datasets": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
         "handlers.Execution": {
             "type": "object",
             "properties": {
@@ -1074,7 +1083,7 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.GenericResponse-handlers_DatasetResp": {
+        "handlers.GenericResponse-handlers_GetDatasetResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -1085,7 +1094,7 @@ const docTemplate = `{
                     "description": "泛型类型的数据",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/handlers.DatasetResp"
+                            "$ref": "#/definitions/handlers.GetDatasetResp"
                         }
                     ]
                 },
@@ -1174,11 +1183,46 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.GenericResponse-int": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "type": "integer"
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
         "handlers.GetAlgorithmResp": {
             "type": "object",
             "properties": {
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "handlers.GetDatasetResp": {
+            "type": "object",
+            "properties": {
+                "datasets": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -1224,7 +1268,12 @@ const docTemplate = `{
             "type": "object"
         },
         "handlers.InjectResp": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "task_id": {
+                    "type": "string"
+                }
+            }
         },
         "handlers.InjectStatusReq": {
             "type": "object",

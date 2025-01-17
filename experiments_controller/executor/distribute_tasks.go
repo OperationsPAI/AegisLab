@@ -190,7 +190,7 @@ func processTaskWithContext(ctx context.Context, msg redis.XMessage) {
 	case TaskTypeBuildDataset:
 		execErr = executeBuildDataset(ctx, taskMsg.TaskID, taskMsg.Payload)
 	case TaskTypeCollectResult:
-		execErr = executeBuildDataset(ctx, taskMsg.TaskID, taskMsg.Payload)
+		execErr = executeCollectResult(ctx, taskMsg.TaskID, taskMsg.Payload)
 	default:
 		execErr = fmt.Errorf("unknown task type: %s", taskMsg.TaskType)
 	}
@@ -257,6 +257,7 @@ func updateTaskStatus(taskID, status, message string) {
 		logrus.Errorf("Failed to push log to Redis for task %s: %v", taskID, err)
 	}
 	logrus.Info(fmt.Sprintf("%s - %s", time.Now().Format(time.RFC3339), message))
+
 	// 更新 SQLite 中的任务状态
 	if err := database.DB.Model(&database.Task{}).Where("id = ?", taskID).Update("status", status).Error; err != nil {
 		logrus.Errorf("Failed to update task %s in SQLite: %v", taskID, err)

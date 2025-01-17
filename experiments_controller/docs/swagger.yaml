@@ -148,15 +148,6 @@ definitions:
       rate:
         type: number
     type: object
-  handlers.DatasetResp:
-    properties:
-      datasets:
-        items:
-          type: string
-        type: array
-      total:
-        type: integer
-    type: object
   handlers.Execution:
     properties:
       dataset:
@@ -218,14 +209,14 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
-  handlers.GenericResponse-handlers_DatasetResp:
+  handlers.GenericResponse-handlers_GetDatasetResp:
     properties:
       code:
         description: 状态码
         type: integer
       data:
         allOf:
-        - $ref: '#/definitions/handlers.DatasetResp'
+        - $ref: '#/definitions/handlers.GetDatasetResp'
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -282,10 +273,34 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
+  handlers.GenericResponse-int:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        description: 泛型类型的数据
+        type: integer
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
   handlers.GetAlgorithmResp:
     properties:
       name:
         type: string
+    type: object
+  handlers.GetDatasetResp:
+    properties:
+      datasets:
+        items:
+          type: string
+        type: array
+      total:
+        type: integer
     type: object
   handlers.InjectCancelReq:
     properties:
@@ -315,6 +330,9 @@ definitions:
   handlers.InjectReq:
     type: object
   handlers.InjectResp:
+    properties:
+      task_id:
+        type: string
     type: object
   handlers.InjectStatusReq:
     properties:
@@ -362,13 +380,6 @@ paths:
   /api/v1/algo/getlist:
     get:
       description: 获取算法列表
-      parameters:
-      - description: 请求体
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.InjectReq'
       produces:
       - application/json
       responses:
@@ -390,10 +401,30 @@ paths:
   /api/v1/dataset/delete:
     delete:
       description: 删除数据集数据
-      responses: {}
+      parameters:
+      - description: 数据集 ID
+        in: path
+        name: datasetID
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.GenericResponse-int'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.GenericResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.GenericResponse-any'
       summary: 删除数据集数据
       tags:
-      - algorithm
+      - dataset
   /api/v1/dataset/download:
     post:
       description: 下载数据集数据
@@ -421,7 +452,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-handlers_DatasetResp'
+            $ref: '#/definitions/handlers.GenericResponse-handlers_GetDatasetResp'
         "400":
           description: Bad Request
           schema:
@@ -638,6 +669,10 @@ paths:
     post:
       description: 注入故障
       parameters:
+      - description: 任务类型
+        in: query
+        name: type
+        type: string
       - description: 请求体
         in: body
         name: body
@@ -650,20 +685,18 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/handlers.GenericResponse-handlers_InjectResp'
-            type: array
+            $ref: '#/definitions/handlers.GenericResponse-handlers_InjectResp'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-handlers_InjectResp'
+            $ref: '#/definitions/handlers.GenericResponse-any'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-handlers_InjectResp'
+            $ref: '#/definitions/handlers.GenericResponse-any'
       summary: 注入故障
       tags:
-      - injection
+      - Injection
   /datasets:
     get:
       description: 返回已成功的故障注入数据集列表

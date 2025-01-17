@@ -25,10 +25,10 @@ const (
 	EvalPayloadDataset = "dataset"
 	EvalPayloadBench   = "benchmark"
 
+	InjectDuration  = "duration"
 	InjectFaultType = "faultType"
 	InjectNamespace = "injectNamespace"
 	InjectPod       = "injectPod"
-	InjectDuration  = "duration"
 	InjectSpec      = "spec"
 )
 

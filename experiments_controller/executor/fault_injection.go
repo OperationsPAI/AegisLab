@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/CUHK-SE-Group/rcabench/database"
@@ -15,11 +14,56 @@ import (
 
 // 故障注入任务的 Payload 结构
 type FaultInjectionPayload struct {
-	Namespace  string
-	Pod        string
-	FaultType  int
-	Duration   int
-	InjectSpec map[string]int
+	Duration   int            `json:"duration"`
+	FaultType  int            `json:"faultType"`
+	Namespace  string         `json:"injectNamespace"`
+	Pod        string         `json:"injectPod"`
+	InjectSpec map[string]int `json:"spec"`
+}
+
+func ParseFaultInjectionPayload(payload map[string]interface{}) (*FaultInjectionPayload, error) {
+	durationFloat, ok := payload[InjectDuration].(float64)
+	if !ok || durationFloat <= 0 {
+		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectDuration)
+	}
+	duration := int(durationFloat)
+
+	faultTypeFloat, ok := payload[InjectFaultType].(float64)
+	if !ok || faultTypeFloat <= 0 {
+		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectFaultType)
+	}
+	faultType := int(faultTypeFloat)
+
+	namespace, ok := payload[InjectNamespace].(string)
+	if !ok || namespace == "" {
+		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectNamespace)
+	}
+
+	pod, ok := payload[InjectPod].(string)
+	if !ok || pod == "" {
+		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectPod)
+	}
+
+	injectSpecMap, ok := payload[InjectSpec].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectSpec)
+	}
+	injectSpec := make(map[string]int)
+	for k, v := range injectSpecMap {
+		floatVal, ok := v.(float64)
+		if !ok {
+			return nil, fmt.Errorf("invalid value for key '%s' in injectSpec", k)
+		}
+		injectSpec[k] = int(floatVal)
+	}
+
+	return &FaultInjectionPayload{
+		Namespace:  namespace,
+		Pod:        pod,
+		FaultType:  faultType,
+		Duration:   duration,
+		InjectSpec: injectSpec,
+	}, nil
 }
 
 // 执行故障注入任务
@@ -90,47 +134,4 @@ func executeFaultInjection(ctx context.Context, taskID string, payload map[strin
 	}
 
 	return nil
-}
-
-func ParseFaultInjectionPayload(payload map[string]interface{}) (*FaultInjectionPayload, error) {
-	namespace, ok := payload[InjectNamespace].(string)
-	if !ok || namespace == "" {
-		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectNamespace)
-	}
-	pod, ok := payload[InjectPod].(string)
-	if !ok || pod == "" {
-		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectPod)
-	}
-	faultTypeStr, ok := payload[InjectFaultType].(string)
-	if !ok || faultTypeStr == "" {
-		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectFaultType)
-	}
-	faultType, err := strconv.Atoi(faultTypeStr)
-	if err != nil {
-		return nil, fmt.Errorf("invalid faultType value: %v", err)
-	}
-	durationFloat, ok := payload[InjectDuration].(float64)
-	if !ok {
-		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectDuration)
-	}
-	duration := int(durationFloat)
-	injectSpecMap, ok := payload[InjectSpec].(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectSpec)
-	}
-	injectSpec := make(map[string]int)
-	for k, v := range injectSpecMap {
-		floatVal, ok := v.(float64)
-		if !ok {
-			return nil, fmt.Errorf("invalid value for key '%s' in injectSpec", k)
-		}
-		injectSpec[k] = int(floatVal)
-	}
-	return &FaultInjectionPayload{
-		Namespace:  namespace,
-		Pod:        pod,
-		FaultType:  faultType,
-		Duration:   duration,
-		InjectSpec: injectSpec,
-	}, nil
 }
