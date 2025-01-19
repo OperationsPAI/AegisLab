@@ -9,6 +9,7 @@ import (
 
 	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	corev1 "k8s.io/api/core/v1"
 
@@ -23,17 +24,17 @@ type AlgorithmExecutionPayload struct {
 
 // 解析算法执行任务的 Payload
 func parseAlgorithmExecutionPayload(payload map[string]interface{}) (*AlgorithmExecutionPayload, error) {
-	benchmark, ok := payload[EvalBench].(string)
+	benchmark, ok := payload[consts.EvalBench].(string)
 	if !ok || benchmark == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalBench)
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", consts.EvalBench)
 	}
-	algorithm, ok := payload[EvalAlgo].(string)
+	algorithm, ok := payload[consts.EvalAlgo].(string)
 	if !ok || algorithm == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalAlgo)
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", consts.EvalAlgo)
 	}
-	datasetName, ok := payload[EvalDataset].(string)
+	datasetName, ok := payload[consts.EvalDataset].(string)
 	if !ok || datasetName == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalDataset)
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", consts.EvalDataset)
 	}
 	return &AlgorithmExecutionPayload{
 		Benchmark:   benchmark,
@@ -107,10 +108,10 @@ func executeAlgorithm(ctx context.Context, taskID string, payload map[string]int
 	jobname := fmt.Sprintf("%s-%s", algPayload.Algorithm, algPayload.DatasetName)
 	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), algPayload.Algorithm, "latest")
 	labels := map[string]string{
-		"job_type":         "execute_algorithm",
-		"task_id":          taskID,
-		CollectDataset:     algPayload.DatasetName,
-		CollectExecutionID: fmt.Sprint(executionResult.ID),
+		consts.LabelDataset:     algPayload.DatasetName,
+		consts.LabelExecutionID: fmt.Sprint(executionResult.ID),
+		consts.LabelJobType:     string(consts.TaskTypeRunAlgorithm),
+		consts.LabelTaskID:      taskID,
 	}
 
 	return createAlgoJob(ctx, algPayload.DatasetName, jobname, config.GetString("k8s.namespace"), image, []string{"python", "run_exp.py"}, labels, startTime, endTime)

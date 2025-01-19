@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/CUHK-SE-Group/rcabench/client"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
@@ -28,11 +29,11 @@ func (t *TaskExecutor) SubmitTask(ctx context.Context, taskType string, jsonPayl
 
 	// 提交任务到 Redis 任务队列
 	_, err := client.GetRedisClient().XAdd(ctx, &redis.XAddArgs{
-		Stream: StreamName,
+		Stream: consts.StreamName,
 		Values: map[string]interface{}{
-			RdbMsgTaskID:   taskID,
-			RdbMsgTaskType: taskType,
-			RdbMsgPayload:  jsonPayload,
+			consts.RdbMsgTaskID:   taskID,
+			consts.RdbMsgTaskType: taskType,
+			consts.RdbMsgPayload:  jsonPayload,
 		},
 	}).Result()
 	if err != nil {
