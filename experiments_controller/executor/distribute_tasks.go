@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/CUHK-SE-Group/rcabench/client"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/sirupsen/logrus"
@@ -32,7 +33,7 @@ func init() {
 
 // 初始化消费者组
 func initConsumerGroup(ctx context.Context) {
-	err := client.GetRedisClient().XGroupCreateMkStream(ctx, StreamName, GroupName, "0").Err()
+	err := client.GetRedisClient().XGroupCreateMkStream(ctx, consts.StreamName, consts.GroupName, "0").Err()
 	if err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
 		logrus.Fatalf("Failed to create consumer group: %v", err)
 	}
@@ -60,13 +61,13 @@ func ConsumeTasks() {
 
 	consumerName := generateUniqueConsumerName()
 
-	err := redisCli.XGroupCreateMkStream(ctx, StreamName, GroupName, "$").Err()
+	err := redisCli.XGroupCreateMkStream(ctx, consts.StreamName, consts.GroupName, "$").Err()
 	if err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
 		logrus.Errorf("Failed to create consumer group: %v", err)
 		return
 	}
 
-	messages, err := readGroupMessages(ctx, redisCli, consumerName, []string{StreamName, "0"}, 10, 0)
+	messages, err := readGroupMessages(ctx, redisCli, consumerName, []string{consts.StreamName, "0"}, 10, 0)
 	if err != nil {
 		logrus.Panicf("Error reading from group messages: %v", err)
 	}
@@ -75,7 +76,7 @@ func ConsumeTasks() {
 	}
 
 	for {
-		messages, err = readGroupMessages(ctx, redisCli, consumerName, []string{StreamName, ">"}, 1, 5*time.Second)
+		messages, err = readGroupMessages(ctx, redisCli, consumerName, []string{consts.StreamName, ">"}, 1, 5*time.Second)
 		if err != nil {
 			logrus.Errorf("Error reading from stream: %v", err)
 			time.Sleep(time.Second)
@@ -97,8 +98,8 @@ func processMessage(ctx context.Context, redisCli *redis.Client, consumerName st
 	taskMsg, err := parseTaskMessage(msg)
 	if err != nil {
 		logrus.Errorf("Failed to parse task message: %v", err)
-		redisCli.XAck(ctx, StreamName, GroupName, msg.ID)
-		redisCli.XDel(ctx, StreamName, msg.ID)
+		redisCli.XAck(ctx, consts.StreamName, consts.GroupName, msg.ID)
+		redisCli.XDel(ctx, consts.StreamName, msg.ID)
 		return
 	}
 	taskCtx, cancel := context.WithCancel(ctx)
@@ -115,14 +116,14 @@ func processMessage(ctx context.Context, redisCli *redis.Client, consumerName st
 			<-taskSemaphore
 		}()
 		processTaskWithContext(ctx, msg)
-		redisCli.XAck(ctx, StreamName, GroupName, msg.ID)
+		redisCli.XAck(ctx, consts.StreamName, consts.GroupName, msg.ID)
 	}(msg, taskMsg, taskCtx)
 }
 
 // 读取消费者组的消息
 func readGroupMessages(ctx context.Context, redisCli *redis.Client, consumerName string, streams []string, count int64, block time.Duration) ([]redis.XMessage, error) {
 	args := &redis.XReadGroupArgs{
-		Group:    GroupName,
+		Group:    consts.GroupName,
 		Consumer: consumerName,
 		Streams:  streams,
 		Count:    count,
@@ -151,7 +152,7 @@ func generateUniqueConsumerName() string {
 // 任务消息结构
 type TaskMessage struct {
 	TaskID       string
-	TaskType     TaskType
+	TaskType     consts.TaskType
 	Payload      map[string]interface{}
 	ParentTaskID string
 }
@@ -164,8 +165,8 @@ func processTaskWithContext(ctx context.Context, msg redis.XMessage) {
 		}
 		ackCtx := context.Background()
 		client := client.GetRedisClient()
-		client.XAck(ackCtx, StreamName, GroupName, msg.ID)
-		client.XDel(ackCtx, StreamName, msg.ID)
+		client.XAck(ackCtx, consts.StreamName, consts.GroupName, msg.ID)
+		client.XDel(ackCtx, consts.StreamName, msg.ID)
 	}()
 
 	taskMsg, err := parseTaskMessage(msg)
@@ -178,15 +179,15 @@ func processTaskWithContext(ctx context.Context, msg redis.XMessage) {
 
 	var execErr error
 	switch taskMsg.TaskType {
-	case TaskTypeFaultInjection:
+	case consts.TaskTypeFaultInjection:
 		execErr = executeFaultInjection(ctx, taskMsg.TaskID, taskMsg.Payload)
-	case TaskTypeRunAlgorithm:
+	case consts.TaskTypeRunAlgorithm:
 		execErr = executeAlgorithm(ctx, taskMsg.TaskID, taskMsg.Payload)
-	case TaskTypeBuildImages:
+	case consts.TaskTypeBuildImages:
 		execErr = executeBuildImages(ctx, taskMsg.TaskID, taskMsg.Payload)
-	case TaskTypeBuildDataset:
+	case consts.TaskTypeBuildDataset:
 		execErr = executeBuildDataset(ctx, taskMsg.TaskID, taskMsg.Payload)
-	case TaskTypeCollectResult:
+	case consts.TaskTypeCollectResult:
 		execErr = executeCollectResult(ctx, taskMsg.TaskID, taskMsg.Payload)
 	default:
 		execErr = fmt.Errorf("unknown task type: %s", taskMsg.TaskType)
@@ -205,16 +206,16 @@ func processTaskWithContext(ctx context.Context, msg redis.XMessage) {
 
 // 解析任务消息
 func parseTaskMessage(msg redis.XMessage) (*TaskMessage, error) {
-	taskID, ok := msg.Values[RdbMsgTaskID].(string)
+	taskID, ok := msg.Values[consts.RdbMsgTaskID].(string)
 	if !ok {
 		return nil, fmt.Errorf("invalid or missing taskID in message")
 	}
-	taskTypeStr, ok := msg.Values[RdbMsgTaskType].(string)
+	taskTypeStr, ok := msg.Values[consts.RdbMsgTaskType].(string)
 	if !ok {
 		return nil, fmt.Errorf("invalid or missing taskType in message")
 	}
-	taskType := TaskType(taskTypeStr)
-	jsonPayload, ok := msg.Values[RdbMsgPayload].(string)
+	taskType := consts.TaskType(taskTypeStr)
+	jsonPayload, ok := msg.Values[consts.RdbMsgPayload].(string)
 	if !ok {
 		return nil, fmt.Errorf("invalid or missing payload in message")
 	}
@@ -222,7 +223,7 @@ func parseTaskMessage(msg redis.XMessage) (*TaskMessage, error) {
 	if err := json.Unmarshal([]byte(jsonPayload), &payload); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal payload: %v", err)
 	}
-	parentTaskID, _ := msg.Values[RdbMsgParentTaskID].(string)
+	parentTaskID, _ := msg.Values[consts.RdbMsgParentTaskID].(string)
 	return &TaskMessage{
 		TaskID:       taskID,
 		TaskType:     taskType,

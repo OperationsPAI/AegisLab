@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
@@ -22,31 +23,31 @@ type FaultInjectionPayload struct {
 }
 
 func ParseFaultInjectionPayload(payload map[string]interface{}) (*FaultInjectionPayload, error) {
-	durationFloat, ok := payload[InjectDuration].(float64)
+	durationFloat, ok := payload[consts.InjectDuration].(float64)
 	if !ok || durationFloat <= 0 {
-		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectDuration)
+		return nil, fmt.Errorf("invalid or missing '%s' in payload", consts.InjectDuration)
 	}
 	duration := int(durationFloat)
 
-	faultTypeFloat, ok := payload[InjectFaultType].(float64)
+	faultTypeFloat, ok := payload[consts.InjectFaultType].(float64)
 	if !ok || faultTypeFloat <= 0 {
-		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectFaultType)
+		return nil, fmt.Errorf("invalid or missing '%s' in payload", consts.InjectFaultType)
 	}
 	faultType := int(faultTypeFloat)
 
-	namespace, ok := payload[InjectNamespace].(string)
+	namespace, ok := payload[consts.InjectNamespace].(string)
 	if !ok || namespace == "" {
-		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectNamespace)
+		return nil, fmt.Errorf("invalid or missing '%s' in payload", consts.InjectNamespace)
 	}
 
-	pod, ok := payload[InjectPod].(string)
+	pod, ok := payload[consts.InjectPod].(string)
 	if !ok || pod == "" {
-		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectPod)
+		return nil, fmt.Errorf("invalid or missing '%s' in payload", consts.InjectPod)
 	}
 
-	injectSpecMap, ok := payload[InjectSpec].(map[string]interface{})
+	injectSpecMap, ok := payload[consts.InjectSpec].(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectSpec)
+		return nil, fmt.Errorf("invalid or missing '%s' in payload", consts.InjectSpec)
 	}
 	injectSpec := make(map[string]int)
 	for k, v := range injectSpecMap {
@@ -121,7 +122,7 @@ func executeFaultInjection(ctx context.Context, taskID string, payload map[strin
 		Config:          string(jsonData),
 		Duration:        fiPayload.Duration,
 		Description:     fmt.Sprintf("Fault for task %s", taskID),
-		Status:          DatasetInitial,
+		Status:          consts.DatasetInitial,
 		InjectionName:   name,
 		ProposedEndTime: time.Now().Add(time.Duration(fiPayload.Duration+2) * time.Minute),
 		CreatedAt:       time.Now(),

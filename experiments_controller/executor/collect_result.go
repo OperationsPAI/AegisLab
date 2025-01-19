@@ -8,10 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 )
 
@@ -21,13 +21,13 @@ type ResultPayload struct {
 }
 
 func parseResultPayload(payload map[string]interface{}) (*ResultPayload, error) {
-	datasetName, ok := payload[CollectDataset].(string)
+	datasetName, ok := payload[consts.CollectDataset].(string)
 	if !ok || datasetName == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", CollectDataset)
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", consts.CollectDataset)
 	}
-	executionID, ok := payload[CollectExecutionID].(int)
-	if !ok || executionID == 0 {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", CollectExecutionID)
+	executionID, err := strconv.Atoi(payload[consts.CollectExecutionID].(string))
+	if err != nil || executionID == 0 {
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", consts.CollectExecutionID)
 	}
 	return &ResultPayload{
 		DatasetName: datasetName,
@@ -91,8 +91,8 @@ func readCSVContent2Result(csvContent []byte, executionID int) ([]database.Granu
 	return results, nil
 }
 
-func readDetectorCSV(csvContent string, executionID int) ([]database.Detector, error) {
-	reader := csv.NewReader(strings.NewReader(csvContent))
+func readDetectorCSV(csvContent []byte, executionID int) ([]database.Detector, error) {
+	reader := csv.NewReader(bytes.NewReader(csvContent))
 
 	// 读取表头
 	header, err := reader.Read()
@@ -208,22 +208,22 @@ func (t *TaskExecutor) CollectResult(taskID string, payload map[string]interface
 			return fmt.Errorf("convert result.csv to database struct failed: %v", err)
 		}
 
-		err = database.DB.Create(&results).Error
-		if err != nil {
+		if err = database.DB.Create(&results).Error; err != nil {
 			return fmt.Errorf("save result.csv to database failed: %v", err)
 		}
 	}
 
 	conclusionCSV := filepath.Join(path, resultPayload.DatasetName, "conclusion.csv")
+	content, err = os.ReadFile(conclusionCSV)
 	if err != nil {
 		Task.UpdateTaskStatus(taskID, "Error", "There is no conclusion.csv file in /app/output, please check whether it is nomal")
 	} else {
-		results, err := readDetectorCSV(conclusionCSV, resultPayload.ExecutionID)
+		results, err := readDetectorCSV(content, resultPayload.ExecutionID)
 		if err != nil {
-			return fmt.Errorf("convert result.csv to database struct failed: %v", err)
+			return fmt.Errorf("convert conclusion.csv to database struct failed: %v", err)
 		}
-		fmt.Println(results)
-		if err := database.DB.Create(&results).Error; err != nil {
+
+		if err = database.DB.Create(&results).Error; err != nil {
 			return fmt.Errorf("save conclusion.csv to database failed: %v", err)
 		}
 	}

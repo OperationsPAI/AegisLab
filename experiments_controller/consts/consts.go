@@ -1,4 +1,4 @@
-package executor
+package consts
 
 // 定义任务类型
 type TaskType string
@@ -47,4 +47,11 @@ const (
 	StreamName   = "task_stream"
 	GroupName    = "task_consumer_group"
 	ConsumerName = "task_consumer"
+)
+
+const (
+	LabelDataset     = "dataset"
+	LabelExecutionID = "execution_id"
+	LabelJobType     = "job_type"
+	LabelTaskID      = "task_id"
 )

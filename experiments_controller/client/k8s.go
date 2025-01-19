@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/CUHK-SE-Group/rcabench/config"
-	"github.com/k0kubun/pp/v3"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -79,8 +79,8 @@ func getJobInformer(ctx context.Context, callback Callback) {
 			logrus.Infof("Job %s created successfully in namespace %s", job.Name, job.Namespace)
 
 			var message string
-			switch job.Labels["job_type"] {
-			case "execute_algorithm":
+			switch job.Labels[consts.LabelJobType] {
+			case string(consts.TaskTypeRunAlgorithm):
 				message = fmt.Sprintf("Running algorithm for task %s", taskID)
 			}
 			callback.UpdateTaskStatus(taskID, "Running", message)
@@ -91,14 +91,18 @@ func getJobInformer(ctx context.Context, callback Callback) {
 
 			if callback != nil && oldJob.Name == newJob.Name {
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {
-					taskID := newJob.Labels["task_id"]
+					taskID := newJob.Labels[consts.LabelTaskID]
 					callback.UpdateTaskStatus(taskID, "Completed", fmt.Sprintf("Task %s completed", taskID))
 
-					if newJob.Labels["job_type"] == "execute_algorithm" {
-						dataset := newJob.Labels["dataset"]
-						payload := map[string]interface{}{"dataset": dataset, "execution_id": newJob.Labels["execution_id"]}
+					if newJob.Labels[consts.LabelJobType] == string(consts.TaskTypeRunAlgorithm) {
+						dataset := newJob.Labels[consts.LabelDataset]
+						payload := map[string]interface{}{
+							consts.CollectDataset:     dataset,
+							consts.CollectExecutionID: newJob.Labels[consts.LabelExecutionID],
+						}
 						if err := callback.CollectResult(taskID, payload); err != nil {
 							logrus.Error(err)
+							return
 						}
 
 						logrus.Infof("Result of dataset %s collected", dataset)
