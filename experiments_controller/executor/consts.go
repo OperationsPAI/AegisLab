@@ -28,9 +28,12 @@ const (
 
 // 不同任务类型的 Payload 键
 const (
-	EvalPayloadBench   = "benchmark"
-	EvalPayloadAlgo    = "algorithm"
-	EvalPayloadDataset = "dataset"
+	CollectDataset     = "dataset"
+	CollectExecutionID = "execution_id"
+
+	EvalBench   = "benchmark"
+	EvalAlgo    = "algorithm"
+	EvalDataset = "dataset"
 
 	InjectDuration  = "duration"
 	InjectFaultType = "faultType"

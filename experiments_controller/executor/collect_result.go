@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/csv"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,7 +13,6 @@ import (
 
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/database"
-	"gorm.io/gorm"
 )
 
 type ResultPayload struct {
@@ -23,13 +21,13 @@ type ResultPayload struct {
 }
 
 func parseResultPayload(payload map[string]interface{}) (*ResultPayload, error) {
-	datasetName, ok := payload[EvalPayloadDataset].(string)
+	datasetName, ok := payload[CollectDataset].(string)
 	if !ok || datasetName == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalPayloadDataset)
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", CollectDataset)
 	}
-	executionID, ok := payload["execution_id"].(int)
+	executionID, ok := payload[CollectExecutionID].(int)
 	if !ok || executionID == 0 {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", "execution_id")
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", CollectExecutionID)
 	}
 	return &ResultPayload{
 		DatasetName: datasetName,
@@ -186,25 +184,13 @@ func readDetectorCSV(csvContent string, executionID int) ([]database.Detector, e
 }
 
 func executeCollectResult(ctx context.Context, taskID string, payload map[string]interface{}) error {
+	return Task.CollectResult(taskID, payload)
+}
+
+func (t *TaskExecutor) CollectResult(taskID string, payload map[string]interface{}) error {
 	resultPayload, err := parseResultPayload(payload)
 	if err != nil {
 		return err
-	}
-
-	var executionID int
-	if resultPayload.ExecutionID != 0 {
-		executionID = resultPayload.ExecutionID
-	} else {
-		var executionResult database.ExecutionResult
-		err = database.DB.Where("dataset = ?", resultPayload.DatasetName).First(&executionResult).Error
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return fmt.Errorf("no matching exeution result record found for dataset: %s", resultPayload.DatasetName)
-			}
-			return fmt.Errorf("failed to query exeution result for dataset: %s, error: %v", resultPayload.DatasetName, err)
-		}
-
-		executionID = executionResult.ID
 	}
 
 	path := config.GetString("nfs.path")
@@ -217,7 +203,7 @@ func executeCollectResult(ctx context.Context, taskID string, payload map[string
 	if err != nil {
 		Task.UpdateTaskStatus(taskID, "Error", "There is no result.csv file, please check whether it is nomal")
 	} else {
-		results, err := readCSVContent2Result(content, executionID)
+		results, err := readCSVContent2Result(content, resultPayload.ExecutionID)
 		if err != nil {
 			return fmt.Errorf("convert result.csv to database struct failed: %v", err)
 		}
@@ -232,7 +218,7 @@ func executeCollectResult(ctx context.Context, taskID string, payload map[string
 	if err != nil {
 		Task.UpdateTaskStatus(taskID, "Error", "There is no conclusion.csv file in /app/output, please check whether it is nomal")
 	} else {
-		results, err := readDetectorCSV(conclusionCSV, executionID)
+		results, err := readDetectorCSV(conclusionCSV, resultPayload.ExecutionID)
 		if err != nil {
 			return fmt.Errorf("convert result.csv to database struct failed: %v", err)
 		}

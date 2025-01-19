@@ -34,6 +34,7 @@ type JobConfig struct {
 }
 
 type Callback interface {
+	CollectResult(taskID string, payload map[string]interface{}) error
 	UpdateTaskStatus(taskID, status, message string)
 }
 
@@ -74,10 +75,15 @@ func getJobInformer(ctx context.Context, callback Callback) {
 	jobInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			job := obj.(*batchv1.Job)
-			pp.Println(job.Labels)
 			taskID := job.Labels["task_id"]
 			logrus.Infof("Job %s created successfully in namespace %s", job.Name, job.Namespace)
-			callback.UpdateTaskStatus(taskID, "Running", fmt.Sprintf("Running algorithm for task %s", taskID))
+
+			var message string
+			switch job.Labels["job_type"] {
+			case "execute_algorithm":
+				message = fmt.Sprintf("Running algorithm for task %s", taskID)
+			}
+			callback.UpdateTaskStatus(taskID, "Running", message)
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldJob := oldObj.(*batchv1.Job)
@@ -87,6 +93,17 @@ func getJobInformer(ctx context.Context, callback Callback) {
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {
 					taskID := newJob.Labels["task_id"]
 					callback.UpdateTaskStatus(taskID, "Completed", fmt.Sprintf("Task %s completed", taskID))
+
+					if newJob.Labels["job_type"] == "execute_algorithm" {
+						dataset := newJob.Labels["dataset"]
+						payload := map[string]interface{}{"dataset": dataset, "execution_id": newJob.Labels["execution_id"]}
+						if err := callback.CollectResult(taskID, payload); err != nil {
+							logrus.Error(err)
+						}
+
+						logrus.Infof("Result of dataset %s collected", dataset)
+					}
+
 				}
 			}
 		},
