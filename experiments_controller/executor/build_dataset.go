@@ -22,9 +22,9 @@ type DatasetPayload struct {
 }
 
 func parseDatasetPayload(payload map[string]interface{}) (*DatasetPayload, error) {
-	datasetName, ok := payload[EvalPayloadDataset].(string)
+	datasetName, ok := payload[EvalDataset].(string)
 	if !ok || datasetName == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalPayloadDataset)
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalDataset)
 	}
 	return &DatasetPayload{
 		DatasetName: datasetName,

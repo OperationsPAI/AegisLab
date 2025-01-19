@@ -23,17 +23,17 @@ type AlgorithmExecutionPayload struct {
 
 // 解析算法执行任务的 Payload
 func parseAlgorithmExecutionPayload(payload map[string]interface{}) (*AlgorithmExecutionPayload, error) {
-	benchmark, ok := payload[EvalPayloadBench].(string)
+	benchmark, ok := payload[EvalBench].(string)
 	if !ok || benchmark == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalPayloadBench)
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalBench)
 	}
-	algorithm, ok := payload[EvalPayloadAlgo].(string)
+	algorithm, ok := payload[EvalAlgo].(string)
 	if !ok || algorithm == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalPayloadAlgo)
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalAlgo)
 	}
-	datasetName, ok := payload[EvalPayloadDataset].(string)
+	datasetName, ok := payload[EvalDataset].(string)
 	if !ok || datasetName == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalPayloadDataset)
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalDataset)
 	}
 	return &AlgorithmExecutionPayload{
 		Benchmark:   benchmark,
@@ -106,6 +106,12 @@ func executeAlgorithm(ctx context.Context, taskID string, payload map[string]int
 
 	jobname := fmt.Sprintf("%s-%s", algPayload.Algorithm, algPayload.DatasetName)
 	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), algPayload.Algorithm, "latest")
-	labels := map[string]string{"job_type": "execute_algorithm", "task_id": taskID, "dataset": algPayload.DatasetName}
+	labels := map[string]string{
+		"job_type":         "execute_algorithm",
+		"task_id":          taskID,
+		CollectDataset:     algPayload.DatasetName,
+		CollectExecutionID: fmt.Sprint(executionResult.ID),
+	}
+
 	return createAlgoJob(ctx, algPayload.DatasetName, jobname, config.GetString("k8s.namespace"), image, []string{"python", "run_exp.py"}, labels, startTime, endTime)
 }

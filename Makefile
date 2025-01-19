@@ -11,6 +11,7 @@ builder:
 run:
 	docker compose down && \
 	docker compose up redis -d && \
+	kubectl delete jobs --all -n experiment && \
 	cd experiments_controller && \
 	go run main.go both --port 8082
 
