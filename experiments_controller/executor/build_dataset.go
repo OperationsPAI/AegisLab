@@ -12,7 +12,6 @@ import (
 	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
 	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/config"
-	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"gorm.io/gorm"
 )
@@ -23,9 +22,9 @@ type DatasetPayload struct {
 }
 
 func parseDatasetPayload(payload map[string]interface{}) (*DatasetPayload, error) {
-	datasetName, ok := payload[consts.EvalDataset].(string)
+	datasetName, ok := payload[EvalDataset].(string)
 	if !ok || datasetName == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", consts.EvalDataset)
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalDataset)
 	}
 	return &DatasetPayload{
 		DatasetName: datasetName,
@@ -48,10 +47,10 @@ func executeBuildDataset(ctx context.Context, taskID string, payload map[string]
 	}
 
 	var startTime, endTime time.Time
-	if faultRecord.Status == consts.DatasetSuccess {
+	if faultRecord.Status == DatasetSuccess {
 		startTime = faultRecord.StartTime
 		endTime = faultRecord.EndTime
-	} else if faultRecord.Status == consts.DatasetInitial {
+	} else if faultRecord.Status == DatasetInitial {
 		startTime, endTime, err = chaosCli.QueryCRDByName("ts", datasetPayload.DatasetName)
 		if err != nil {
 			return fmt.Errorf("failed to QueryCRDByName: %s, error: %v", datasetPayload.DatasetName, err)

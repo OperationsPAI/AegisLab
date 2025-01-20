@@ -83,7 +83,7 @@ func main() {
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
 			engine := router.New()
 			database.InitDB()
-			go client.InitK8s(ctx, executor.Task)
+			go client.InitK8s(ctx, executor.Exec)
 			go executor.ConsumeTasks()
 			port := viper.GetString("port") // 从 Viper 获取最终端口
 			err := engine.Run(":" + port)

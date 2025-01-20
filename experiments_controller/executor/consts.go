@@ -1,4 +1,6 @@
-package consts
+package executor
+
+type TaskStatus string
 
 // 定义任务类型
 type TaskType string
@@ -8,6 +10,12 @@ const (
 	DatasetSuccess = 1
 	DatasetFailed  = 2
 	DatesetDeleted = 3
+)
+
+const (
+	TaskStatusCanceled TaskStatus = "Canceled"
+	TaskStatusError    TaskStatus = "Error"
+	TaskStatusRunning  TaskStatus = "Running"
 )
 
 const (

@@ -91,7 +91,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	content, ok := executor.Task.SubmitTask(ctx, "RunAlgorithm", jsonPayload)
+	content, ok := executor.SubmitTask(ctx, "RunAlgorithm", jsonPayload)
 	if !ok {
 		JSONResponse[interface{}](c, http.StatusInternalServerError, content, nil)
 		return

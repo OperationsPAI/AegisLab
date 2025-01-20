@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/CUHK-SE-Group/rcabench/config"
-	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 )
 
@@ -21,13 +20,13 @@ type ResultPayload struct {
 }
 
 func parseResultPayload(payload map[string]interface{}) (*ResultPayload, error) {
-	datasetName, ok := payload[consts.CollectDataset].(string)
+	datasetName, ok := payload[CollectDataset].(string)
 	if !ok || datasetName == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", consts.CollectDataset)
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", CollectDataset)
 	}
-	executionID, err := strconv.Atoi(payload[consts.CollectExecutionID].(string))
+	executionID, err := strconv.Atoi(payload[CollectExecutionID].(string))
 	if err != nil || executionID == 0 {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", consts.CollectExecutionID)
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", CollectExecutionID)
 	}
 	return &ResultPayload{
 		DatasetName: datasetName,
@@ -184,10 +183,10 @@ func readDetectorCSV(csvContent []byte, executionID int) ([]database.Detector, e
 }
 
 func executeCollectResult(ctx context.Context, taskID string, payload map[string]interface{}) error {
-	return Task.CollectResult(taskID, payload)
+	return collectResult(taskID, payload)
 }
 
-func (t *TaskExecutor) CollectResult(taskID string, payload map[string]interface{}) error {
+func collectResult(taskID string, payload map[string]interface{}) error {
 	resultPayload, err := parseResultPayload(payload)
 	if err != nil {
 		return err
@@ -201,7 +200,7 @@ func (t *TaskExecutor) CollectResult(taskID string, payload map[string]interface
 	resultCSV := filepath.Join(path, resultPayload.DatasetName, "result.csv")
 	content, err := os.ReadFile(resultCSV)
 	if err != nil {
-		Task.UpdateTaskStatus(taskID, "Error", "There is no result.csv file, please check whether it is nomal")
+		updateTaskStatus(taskID, "Error", "There is no result.csv file, please check whether it is nomal")
 	} else {
 		results, err := readCSVContent2Result(content, resultPayload.ExecutionID)
 		if err != nil {
@@ -216,7 +215,7 @@ func (t *TaskExecutor) CollectResult(taskID string, payload map[string]interface
 	conclusionCSV := filepath.Join(path, resultPayload.DatasetName, "conclusion.csv")
 	content, err = os.ReadFile(conclusionCSV)
 	if err != nil {
-		Task.UpdateTaskStatus(taskID, "Error", "There is no conclusion.csv file in /app/output, please check whether it is nomal")
+		updateTaskStatus(taskID, "Error", "There is no conclusion.csv file in /app/output, please check whether it is nomal")
 	} else {
 		results, err := readDetectorCSV(content, resultPayload.ExecutionID)
 		if err != nil {

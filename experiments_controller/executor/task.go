@@ -7,33 +7,23 @@ import (
 	"time"
 
 	"github.com/CUHK-SE-Group/rcabench/client"
-	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
-type TaskExecutor struct {
-}
-
-var Task *TaskExecutor
-
-func Init() {
-	Task = &TaskExecutor{}
-}
-
 // 提交一个新任务到任务队列和数据库
-func (t *TaskExecutor) SubmitTask(ctx context.Context, taskType string, jsonPayload []byte) (string, bool) {
+func SubmitTask(ctx context.Context, taskType string, jsonPayload []byte) (string, bool) {
 	taskID := uuid.New().String()
 
 	// 提交任务到 Redis 任务队列
 	_, err := client.GetRedisClient().XAdd(ctx, &redis.XAddArgs{
-		Stream: consts.StreamName,
+		Stream: StreamName,
 		Values: map[string]interface{}{
-			consts.RdbMsgTaskID:   taskID,
-			consts.RdbMsgTaskType: taskType,
-			consts.RdbMsgPayload:  jsonPayload,
+			RdbMsgTaskID:   taskID,
+			RdbMsgTaskType: taskType,
+			RdbMsgPayload:  jsonPayload,
 		},
 	}).Result()
 	if err != nil {
@@ -65,7 +55,7 @@ func (t *TaskExecutor) SubmitTask(ctx context.Context, taskType string, jsonPayl
 }
 
 // 更新任务状态
-func (t *TaskExecutor) UpdateTaskStatus(taskID, status, message string) {
+func updateTaskStatus(taskID string, status TaskStatus, message string) {
 	ctx := context.Background()
 	client := client.GetRedisClient()
 
