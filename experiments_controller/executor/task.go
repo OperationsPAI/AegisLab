@@ -55,7 +55,7 @@ func SubmitTask(ctx context.Context, taskType string, jsonPayload []byte) (strin
 }
 
 // 更新任务状态
-func updateTaskStatus(taskID string, status TaskStatus, message string) {
+func updateTaskStatus(taskID, status, message string) {
 	ctx := context.Background()
 	client := client.GetRedisClient()
 

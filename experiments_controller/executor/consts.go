@@ -1,7 +1,5 @@
 package executor
 
-type TaskStatus string
-
 // 定义任务类型
 type TaskType string
 
@@ -13,9 +11,9 @@ const (
 )
 
 const (
-	TaskStatusCanceled TaskStatus = "Canceled"
-	TaskStatusError    TaskStatus = "Error"
-	TaskStatusRunning  TaskStatus = "Running"
+	TaskStatusCanceled string = "Canceled"
+	TaskStatusError    string = "Error"
+	TaskStatusRunning  string = "Running"
 )
 
 const (
