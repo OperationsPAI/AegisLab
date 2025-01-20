@@ -217,7 +217,7 @@ func SubmitFaultInjection(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	content, ok := executor.Task.SubmitTask(ctx, "FaultInjection", jsonPayload)
+	content, ok := executor.SubmitTask(ctx, "FaultInjection", jsonPayload)
 	if !ok {
 		JSONResponse[interface{}](c, http.StatusInternalServerError, content, nil)
 		return

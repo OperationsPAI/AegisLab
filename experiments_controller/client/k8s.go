@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/CUHK-SE-Group/rcabench/config"
-	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -34,8 +33,8 @@ type JobConfig struct {
 }
 
 type Callback interface {
-	CollectResult(taskID string, payload map[string]interface{}) error
-	UpdateTaskStatus(taskID, status, message string)
+	AddFunc(labels map[string]string)
+	UpdateFunc(labels map[string]string)
 }
 
 var k8sClient *kubernetes.Clientset
@@ -75,15 +74,8 @@ func getJobInformer(ctx context.Context, callback Callback) {
 	jobInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			job := obj.(*batchv1.Job)
-			taskID := job.Labels["task_id"]
 			logrus.Infof("Job %s created successfully in namespace %s", job.Name, job.Namespace)
-
-			var message string
-			switch job.Labels[consts.LabelJobType] {
-			case string(consts.TaskTypeRunAlgorithm):
-				message = fmt.Sprintf("Running algorithm for task %s", taskID)
-			}
-			callback.UpdateTaskStatus(taskID, "Running", message)
+			callback.AddFunc(job.Labels)
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldJob := oldObj.(*batchv1.Job)
@@ -91,23 +83,7 @@ func getJobInformer(ctx context.Context, callback Callback) {
 
 			if callback != nil && oldJob.Name == newJob.Name {
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {
-					taskID := newJob.Labels[consts.LabelTaskID]
-					callback.UpdateTaskStatus(taskID, "Completed", fmt.Sprintf("Task %s completed", taskID))
-
-					if newJob.Labels[consts.LabelJobType] == string(consts.TaskTypeRunAlgorithm) {
-						dataset := newJob.Labels[consts.LabelDataset]
-						payload := map[string]interface{}{
-							consts.CollectDataset:     dataset,
-							consts.CollectExecutionID: newJob.Labels[consts.LabelExecutionID],
-						}
-						if err := callback.CollectResult(taskID, payload); err != nil {
-							logrus.Error(err)
-							return
-						}
-
-						logrus.Infof("Result of dataset %s collected", dataset)
-					}
-
+					callback.UpdateFunc(newJob.Labels)
 				}
 			}
 		},
