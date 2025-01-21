@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CUHK-SE-Group/rcabench/database"
-
+	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
+	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/sirupsen/logrus"
 )
 
@@ -19,6 +19,7 @@ type FaultInjectionPayload struct {
 	Namespace  string         `json:"injectNamespace"`
 	Pod        string         `json:"injectPod"`
 	InjectSpec map[string]int `json:"spec"`
+	Benchmark  *string        `json:"benchmark,omitempty"`
 }
 
 func ParseFaultInjectionPayload(payload map[string]interface{}) (*FaultInjectionPayload, error) {
@@ -57,19 +58,51 @@ func ParseFaultInjectionPayload(payload map[string]interface{}) (*FaultInjection
 		injectSpec[k] = int(floatVal)
 	}
 
+	var benchmark *string
+	benchmarkStr, ok := payload[BuildBenchmark].(string)
+	if ok && benchmarkStr != "" {
+		benchmark = &benchmarkStr
+	}
+
 	return &FaultInjectionPayload{
 		Namespace:  namespace,
 		Pod:        pod,
 		FaultType:  faultType,
 		Duration:   duration,
 		InjectSpec: injectSpec,
+		Benchmark:  benchmark,
 	}, nil
+}
+
+func checkExecutionTime(faultRecord database.FaultInjectionSchedule, namespace string) (time.Time, time.Time, error) {
+	var startTime, endTime time.Time
+
+	datasetName := faultRecord.InjectionName
+
+	if faultRecord.Status == DatasetSuccess {
+		startTime = faultRecord.StartTime
+		endTime = faultRecord.EndTime
+	} else if faultRecord.Status == DatasetInitial {
+		var err error
+		startTime, endTime, err = chaosCli.QueryCRDByName(namespace, datasetName)
+		if err != nil {
+			return startTime, endTime, fmt.Errorf("failed to QueryCRDByName: %s, error: %v", datasetName, err)
+		}
+
+		if err := database.DB.Model(&faultRecord).Where("injection_name = ?", datasetName).
+			Updates(map[string]interface{}{
+				"start_time": startTime,
+				"end_time":   endTime,
+			}).Error; err != nil {
+			return startTime, endTime, fmt.Errorf("failed to update start_time and end_time for dataset: %s, error: %v", datasetName, err)
+		}
+	}
+
+	return startTime, endTime, nil
 }
 
 // 执行故障注入任务
 func executeFaultInjection(ctx context.Context, taskID string, payload map[string]interface{}) error {
-	logrus.Infof("Injecting fault, taskID: %s", taskID)
-
 	fiPayload, err := ParseFaultInjectionPayload(payload)
 	if err != nil {
 		logrus.Error(err)
@@ -77,7 +110,7 @@ func executeFaultInjection(ctx context.Context, taskID string, payload map[strin
 	}
 
 	// 更新任务状态
-	updateTaskStatus(taskID, "Running", fmt.Sprintf("Executing fault injection for task %s", taskID))
+	updateTaskStatus(taskID, TaskStatusRunning, fmt.Sprintf("Executing fault injection for task %s", taskID))
 
 	// 故障注入逻辑
 	var chaosSpec interface{}
@@ -131,6 +164,37 @@ func executeFaultInjection(ctx context.Context, taskID string, payload map[strin
 	if err := database.DB.Create(&faultRecord).Error; err != nil {
 		logrus.Errorf("Failed to write fault injection schedule to database: %v", err)
 		return fmt.Errorf("failed to write to database: %v", err)
+	}
+
+	if fiPayload.Benchmark != nil {
+		time.AfterFunc(2*time.Minute, func() {
+			startTime, endTime, err := checkExecutionTime(faultRecord, fiPayload.Namespace)
+			if err != nil {
+				logrus.Errorf("Failed to checkExecutionTime for dataset %s: %v", name, err)
+				return
+			}
+
+			updateTaskStatus(taskID, TaskStatusCompleted, fmt.Sprintf("Task %s completed", taskID))
+
+			datasetPayload := map[string]interface{}{
+				BuildBenchmark: *fiPayload.Benchmark,
+				BuildDataset:   name,
+				BuildNamespace: fiPayload.Namespace,
+				BuildStartTime: startTime,
+				BuildEndTime:   endTime,
+			}
+
+			var jsonPayload []byte
+			if jsonPayload, err = json.Marshal(datasetPayload); err != nil {
+				logrus.Errorf("Failed to update record for dataset %s: %v", name, err)
+				return
+			}
+
+			if content, ok := SubmitTask(ctx, string(TaskTypeBuildDataset), jsonPayload); !ok {
+				logrus.Error(content)
+				return
+			}
+		})
 	}
 
 	return nil

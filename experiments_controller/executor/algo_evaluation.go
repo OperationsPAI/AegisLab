@@ -27,14 +27,17 @@ func parseAlgorithmExecutionPayload(payload map[string]interface{}) (*AlgorithmE
 	if !ok || benchmark == "" {
 		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalBench)
 	}
+
 	algorithm, ok := payload[EvalAlgo].(string)
 	if !ok || algorithm == "" {
 		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalAlgo)
 	}
+
 	datasetName, ok := payload[EvalDataset].(string)
 	if !ok || datasetName == "" {
 		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalDataset)
 	}
+
 	return &AlgorithmExecutionPayload{
 		Benchmark:   benchmark,
 		Algorithm:   algorithm,
@@ -42,7 +45,7 @@ func parseAlgorithmExecutionPayload(payload map[string]interface{}) (*AlgorithmE
 	}, nil
 }
 
-func createAlgoJob(ctx context.Context, datasetname, jobname, namespace, image string, command []string, labels map[string]string, startTime, endTime time.Time) error {
+func createAlgoJob(ctx context.Context, datasetName, jobName, jobNamespace, image string, command []string, labels map[string]string, jobEnv *client.JobEnv) error {
 	restartPolicy := corev1.RestartPolicyNever
 	backoffLimit := int32(2)
 	parallelism := int32(1)
@@ -53,19 +56,19 @@ func createAlgoJob(ctx context.Context, datasetname, jobname, namespace, image s
 		tz = "Asia/Shanghai"
 	}
 	envVars := []corev1.EnvVar{
-		{Name: "NORMAL_START", Value: strconv.FormatInt(startTime.Add(-20*time.Minute).Unix(), 10)},
-		{Name: "NORMAL_END", Value: strconv.FormatInt(startTime.Unix(), 10)},
-		{Name: "ABNORMAL_START", Value: strconv.FormatInt(startTime.Unix(), 10)},
-		{Name: "ABNORMAL_END", Value: strconv.FormatInt(endTime.Unix(), 10)},
-		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", datasetname)},
-		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", datasetname)},
+		{Name: "NORMAL_START", Value: strconv.FormatInt(jobEnv.StartTime.Add(-20*time.Minute).Unix(), 10)},
+		{Name: "NORMAL_END", Value: strconv.FormatInt(jobEnv.StartTime.Unix(), 10)},
+		{Name: "ABNORMAL_START", Value: strconv.FormatInt(jobEnv.StartTime.Unix(), 10)},
+		{Name: "ABNORMAL_END", Value: strconv.FormatInt(jobEnv.EndTime.Unix(), 10)},
+		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", datasetName)},
+		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", datasetName)},
 		{Name: "TIMEZONE", Value: tz},
 		{Name: "WORKSPACE", Value: "/app"},
 	}
 
 	return client.CreateK8sJob(ctx, client.JobConfig{
-		Namespace:     namespace,
-		JobName:       jobname,
+		Namespace:     jobNamespace,
+		JobName:       jobName,
 		Image:         image,
 		Command:       command,
 		RestartPolicy: restartPolicy,
@@ -107,11 +110,15 @@ func executeAlgorithm(ctx context.Context, taskID string, payload map[string]int
 	jobname := fmt.Sprintf("%s-%s", algPayload.Algorithm, algPayload.DatasetName)
 	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), algPayload.Algorithm, "latest")
 	labels := map[string]string{
-		LabelDataset:     algPayload.DatasetName,
-		LabelExecutionID: fmt.Sprint(executionResult.ID),
 		LabelJobType:     string(TaskTypeRunAlgorithm),
 		LabelTaskID:      taskID,
+		LabelDataset:     algPayload.DatasetName,
+		LabelExecutionID: fmt.Sprint(executionResult.ID),
+	}
+	jobEnv := &client.JobEnv{
+		StartTime: startTime,
+		EndTime:   endTime,
 	}
 
-	return createAlgoJob(ctx, algPayload.DatasetName, jobname, config.GetString("k8s.namespace"), image, []string{"python", "run_exp.py"}, labels, startTime, endTime)
+	return createAlgoJob(ctx, algPayload.DatasetName, jobname, config.GetString("k8s.namespace"), image, []string{"python", "run_exp.py"}, labels, jobEnv)
 }

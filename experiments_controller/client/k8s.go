@@ -32,6 +32,12 @@ type JobConfig struct {
 	Labels        map[string]string // 用于自定义标签
 }
 
+type JobEnv struct {
+	Namespace string
+	StartTime time.Time
+	EndTime   time.Time
+}
+
 type Callback interface {
 	AddFunc(labels map[string]string)
 	UpdateFunc(labels map[string]string)
@@ -89,7 +95,7 @@ func getJobInformer(ctx context.Context, callback Callback) {
 		},
 		DeleteFunc: func(obj interface{}) {
 			job := obj.(*batchv1.Job)
-			logrus.Info("Job deleted:", job.Name)
+			logrus.Infof("Job %s deleted successfully in namespace %s", job.Name, job.Namespace)
 		},
 	})
 

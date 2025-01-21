@@ -11,9 +11,10 @@ const (
 )
 
 const (
-	TaskStatusCanceled string = "Canceled"
-	TaskStatusError    string = "Error"
-	TaskStatusRunning  string = "Running"
+	TaskStatusCanceled  string = "Canceled"
+	TaskStatusCompleted string = "Completed"
+	TaskStatusError     string = "Error"
+	TaskStatusRunning   string = "Running"
 )
 
 const (
@@ -34,6 +35,12 @@ const (
 
 // 不同任务类型的 Payload 键
 const (
+	BuildBenchmark = "benchmark"
+	BuildDataset   = "dataset"
+	BuildNamespace = "namespace"
+	BuildStartTime = "start_time"
+	BuildEndTime   = "end_time"
+
 	CollectDataset     = "dataset"
 	CollectExecutionID = "execution_id"
 
@@ -41,11 +48,12 @@ const (
 	EvalAlgo    = "algorithm"
 	EvalDataset = "dataset"
 
-	InjectDuration  = "duration"
-	InjectFaultType = "faultType"
-	InjectNamespace = "injectNamespace"
-	InjectPod       = "injectPod"
-	InjectSpec      = "spec"
+	InjectDuration       = "duration"
+	InjectFaultType      = "faultType"
+	InjectNamespace      = "injectNamespace"
+	InjectPod            = "injectPod"
+	InjectSpec           = "spec"
+	InjectDatasetPayload = "dataset_payload"
 )
 
 // Redis 流和消费者组配置
@@ -56,8 +64,10 @@ const (
 )
 
 const (
-	LabelDataset     = "dataset"
-	LabelExecutionID = "execution_id"
 	LabelJobType     = "job_type"
 	LabelTaskID      = "task_id"
+	LabelDataset     = "dataset"
+	LabelExecutionID = "execution_id"
+	LabelStartTime   = "start_time"
+	LabelEndTime     = "end_time"
 )
