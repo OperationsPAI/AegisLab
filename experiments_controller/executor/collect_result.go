@@ -24,10 +24,12 @@ func parseResultPayload(payload map[string]interface{}) (*ResultPayload, error) 
 	if !ok || datasetName == "" {
 		return nil, fmt.Errorf("missing or invalid '%s' key in payload", CollectDataset)
 	}
-	executionID, err := strconv.Atoi(payload[CollectExecutionID].(string))
-	if err != nil || executionID == 0 {
+
+	executionID, ok := payload[CollectExecutionID].(int)
+	if !ok || executionID == 0 {
 		return nil, fmt.Errorf("missing or invalid '%s' key in payload", CollectExecutionID)
 	}
+
 	return &ResultPayload{
 		DatasetName: datasetName,
 		ExecutionID: executionID,
