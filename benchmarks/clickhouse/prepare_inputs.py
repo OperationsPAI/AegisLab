@@ -4,7 +4,7 @@ import pandas as pd
 import subprocess
 
 
-namespace = "ts"
+namespace = os.environ["NAMESPACE"]
 clickhouse_host = "10.10.10.58"
 username = "default"
 password = "password"
@@ -272,7 +272,7 @@ if __name__ == "__main__":
     print("Abnormal Time Range (Unix):", abnormal_time_range)
 
     output_path = os.environ.get("OUTPUT_PATH")
-    
+
     normal_start_time = normal_time_range[0]
     normal_end_time = normal_time_range[1]
 
@@ -280,13 +280,10 @@ if __name__ == "__main__":
     abnormal_end_time = abnormal_time_range[1]
 
     # 转换为 ClickHouse 格式
-    normal_start_time_clickhouse = convert_to_clickhouse_time(
-        normal_start_time)
+    normal_start_time_clickhouse = convert_to_clickhouse_time(normal_start_time)
     normal_end_time_clickhouse = convert_to_clickhouse_time(normal_end_time)
-    abnormal_start_time_clickhouse = convert_to_clickhouse_time(
-        abnormal_start_time)
-    abnormal_end_time_clickhouse = convert_to_clickhouse_time(
-        abnormal_end_time)
+    abnormal_start_time_clickhouse = convert_to_clickhouse_time(abnormal_start_time)
+    abnormal_end_time_clickhouse = convert_to_clickhouse_time(abnormal_end_time)
 
     print(
         "Normal Time Range (ClickHouse):",
@@ -313,7 +310,6 @@ if __name__ == "__main__":
         (generate_trace_id_ts, "normal_trace_id_ts.csv"),
     ]
 
-
     abnormal_data = [
         (generate_metric, "abnormal_metrics.csv"),
         (generate_metric_sum, "abnormal_metric_sum.csv"),
@@ -322,8 +318,7 @@ if __name__ == "__main__":
         (generate_trace, "abnormal_traces.csv"),
         (generate_trace_id_ts, "abnormal_trace_id_ts.csv"),
     ]
-    
-    
+
     for func, filename in normal_data:
         print(f"executing {func.__name__}")
         save_to_csv(

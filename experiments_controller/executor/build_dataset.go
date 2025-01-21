@@ -9,64 +9,67 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
 	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
 type DatasetPayload struct {
-	Benchmark   string
-	DatasetName string
+	Benchmark   string     `json:"benchmark"`
+	DatasetName string     `json:"dataset"`
+	Namespace   string     `json:"namespace"`
+	StartTime   *time.Time `json:"start_time,omitempty"`
+	EndTime     *time.Time `json:"end_time,omitempty"`
 }
 
 func parseDatasetPayload(payload map[string]interface{}) (*DatasetPayload, error) {
-	datasetName, ok := payload[EvalDataset].(string)
-	if !ok || datasetName == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalDataset)
+	benchmark, ok := payload[BuildBenchmark].(string)
+	if !ok || benchmark == "" {
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", BuildBenchmark)
 	}
+
+	datasetName, ok := payload[BuildDataset].(string)
+	if !ok || datasetName == "" {
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", BuildDataset)
+	}
+
+	namespace, ok := payload[BuildNamespace].(string)
+	if !ok || namespace == "" {
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", BuildNamespace)
+	}
+
+	var startTime, endTime *time.Time
+	startTimeStr, ok := payload[BuildStartTime].(string)
+	if !ok {
+		parsedTime, err := time.Parse(time.RFC3339, startTimeStr)
+		if err != nil {
+			return nil, fmt.Errorf("missing or invalid '%s' key in payload", BuildStartTime)
+		}
+
+		startTime = &parsedTime
+	}
+	endTimeStr, ok := payload[BuildEndTime].(string)
+	if !ok {
+		parsedTime, err := time.Parse(time.RFC3339, endTimeStr)
+		if err != nil {
+			return nil, fmt.Errorf("missing or invalid '%s' key in payload", BuildEndTime)
+		}
+
+		endTime = &parsedTime
+	}
+
 	return &DatasetPayload{
+		Benchmark:   benchmark,
 		DatasetName: datasetName,
+		Namespace:   namespace,
+		StartTime:   startTime,
+		EndTime:     endTime,
 	}, nil
 }
 
-func executeBuildDataset(ctx context.Context, taskID string, payload map[string]interface{}) error {
-	datasetPayload, err := parseDatasetPayload(payload)
-	if err != nil {
-		return err
-	}
-
-	var faultRecord database.FaultInjectionSchedule
-	err = database.DB.Where("injection_name = ?", datasetPayload.DatasetName).First(&faultRecord).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("no matching fault injection record found for dataset: %s", datasetPayload.DatasetName)
-		}
-		return fmt.Errorf("failed to query database for dataset: %s, error: %v", datasetPayload.DatasetName, err)
-	}
-
-	var startTime, endTime time.Time
-	if faultRecord.Status == DatasetSuccess {
-		startTime = faultRecord.StartTime
-		endTime = faultRecord.EndTime
-	} else if faultRecord.Status == DatasetInitial {
-		startTime, endTime, err = chaosCli.QueryCRDByName("ts", datasetPayload.DatasetName)
-		if err != nil {
-			return fmt.Errorf("failed to QueryCRDByName: %s, error: %v", datasetPayload.DatasetName, err)
-		}
-		if err := database.DB.Model(&faultRecord).Where("injection_name = ?", datasetPayload.DatasetName).
-			Updates(map[string]interface{}{
-				"start_time": startTime,
-				"end_time":   endTime,
-			}).Error; err != nil {
-			return fmt.Errorf("failed to update start_time and end_time for dataset: %s, error: %v", datasetPayload.DatasetName, err)
-		}
-	}
-	return createDatasetJob(ctx, datasetPayload.DatasetName, fmt.Sprintf("dataset-%s", datasetPayload.DatasetName), config.GetString("k8s.namespace"), "10.10.10.240/library/clickhouse_dataset:latest", []string{"python", "/app/prepare_intputs.py"}, startTime, endTime)
-}
-
-func createDatasetJob(ctx context.Context, datasetName, jobname, namespace, image string, command []string, startTime, endTime time.Time) error {
+func createDatasetJob(ctx context.Context, datasetName, jobName, jobNamespace, image string, command []string, labels map[string]string, jobEnv *client.JobEnv) error {
 	restartPolicy := corev1.RestartPolicyNever
 	backoffLimit := int32(2)
 	parallelism := int32(1)
@@ -77,19 +80,20 @@ func createDatasetJob(ctx context.Context, datasetName, jobname, namespace, imag
 		tz = "Asia/Shanghai"
 	}
 	envVars := []corev1.EnvVar{
-		{Name: "NORMAL_START", Value: strconv.FormatInt(startTime.Add(-20*time.Minute).Unix(), 10)},
-		{Name: "NORMAL_END", Value: strconv.FormatInt(startTime.Unix(), 10)},
-		{Name: "ABNORMAL_START", Value: strconv.FormatInt(startTime.Unix(), 10)},
-		{Name: "ABNORMAL_END", Value: strconv.FormatInt(endTime.Unix(), 10)},
-		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", jobname)},
-		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", jobname)},
+		{Name: "NORMAL_START", Value: strconv.FormatInt(jobEnv.StartTime.Add(-20*time.Minute).Unix(), 10)},
+		{Name: "NORMAL_END", Value: strconv.FormatInt(jobEnv.StartTime.Unix(), 10)},
+		{Name: "ABNORMAL_START", Value: strconv.FormatInt(jobEnv.StartTime.Unix(), 10)},
+		{Name: "ABNORMAL_END", Value: strconv.FormatInt(jobEnv.EndTime.Unix(), 10)},
+		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", datasetName)},
+		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", datasetName)},
+		{Name: "NAMESPACE", Value: jobEnv.Namespace},
 		{Name: "TIMEZONE", Value: tz},
 		{Name: "WORKSPACE", Value: "/app"},
 	}
 
 	return client.CreateK8sJob(ctx, client.JobConfig{
-		Namespace:     namespace,
-		JobName:       jobname,
+		Namespace:     jobNamespace,
+		JobName:       jobName,
 		Image:         image,
 		Command:       command,
 		RestartPolicy: restartPolicy,
@@ -97,6 +101,52 @@ func createDatasetJob(ctx context.Context, datasetName, jobname, namespace, imag
 		Parallelism:   parallelism,
 		Completions:   completions,
 		EnvVars:       envVars,
-		Labels:        map[string]string{"job_type": "build_dataset"},
+		Labels:        labels,
 	})
+}
+
+func executeBuildDataset(ctx context.Context, taskID string, payload map[string]interface{}) error {
+	datasetPayload, err := parseDatasetPayload(payload)
+	if err != nil {
+		return err
+	}
+
+	datasetName := datasetPayload.DatasetName
+
+	var startTime, endTime time.Time
+	if datasetPayload.StartTime != nil && datasetPayload.EndTime != nil {
+		startTime = *datasetPayload.StartTime
+		endTime = *datasetPayload.EndTime
+	} else {
+		var faultRecord database.FaultInjectionSchedule
+		err = database.DB.Where("injection_name = ?", datasetName).First(&faultRecord).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("no matching fault injection record found for dataset: %s", datasetName)
+			}
+			return fmt.Errorf("failed to query database for dataset: %s, error: %v", datasetName, err)
+		}
+
+		startTime, endTime, err = checkExecutionTime(faultRecord, "ts")
+		if err != nil {
+			logrus.Errorf("Failed to checkExecutionTime for dataset %s: %v", datasetName, err)
+		}
+	}
+
+	jobName := fmt.Sprintf("dataset-%s", datasetName)
+	image := fmt.Sprintf("%s/%s_dataset:latest", config.GetString("harbor.repository"), datasetPayload.Benchmark)
+	labels := map[string]string{
+		LabelJobType:   string(TaskTypeBuildDataset),
+		LabelTaskID:    taskID,
+		LabelDataset:   datasetPayload.DatasetName,
+		LabelStartTime: strconv.FormatInt(startTime.Unix(), 10),
+		LabelEndTime:   strconv.FormatInt(endTime.Unix(), 10),
+	}
+	jobEnv := &client.JobEnv{
+		Namespace: datasetPayload.Namespace,
+		StartTime: startTime,
+		EndTime:   endTime,
+	}
+
+	return createDatasetJob(ctx, datasetName, jobName, config.GetString("k8s.namespace"), image, []string{"python", "prepare_inputs.py"}, labels, jobEnv)
 }
