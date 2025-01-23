@@ -13,6 +13,12 @@ path = "/var/lib/rcabench/tasks.db"
 
 [database]
 clickhouse_host = "10.10.10.58"
+mysql_user="root"
+mysql_password="yourpassword"
+mysql_host="10.10.10.220"
+mysql_port="31506"
+mysql_db="rcabench"
+
 
 [redis]
 host = "localhost:6379"

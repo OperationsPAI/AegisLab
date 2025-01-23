@@ -1,13 +1,15 @@
 package database
 
 import (
-	"log"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/sirupsen/logrus"
 
+	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -27,23 +29,23 @@ type Task struct {
 // FaultInjectionSchedule 模型
 type FaultInjectionSchedule struct {
 	ID              int       `gorm:"primaryKey;autoIncrement" json:"id"` // 唯一标识
-	TaskID          string    `gorm:"index" json:"task_id"`               //从属什么 taskid
+	TaskID          string    `gorm:"index" json:"task_id"`               // 从属什么 taskid
 	FaultType       int       `json:"fault_type" gorm:"index"`            // 故障类型
 	Config          string    `json:"config"`                             // 配置 JSON 格式
 	Duration        int       `json:"duration"`                           // 故障持续时间
-	StartTime       time.Time `json:"start_time"`                         // 预计故障开始时间
-	EndTime         time.Time `json:"end_time"`                           // 预计故障结束时间
+	StartTime       time.Time `gorm:"default:null" json:"start_time"`     // 预计故障开始时间
+	EndTime         time.Time `gorm:"default:null" json:"end_time"`       // 预计故障结束时间
 	Status          int       `json:"status"`                             // 0: 初始状态，没有检查 1: 检查了，注入结束且成功 2: 检查了，注入结束且失败; 如果状态是 1，则可以用于数据集查询
 	Description     string    `json:"description"`                        // 描述（可选字段）
 	InjectionName   string    `gorm:"unique,index" json:"injection_name"` // 在k8s资源里注入的名字
-	ProposedEndTime time.Time `json:"proposed_end_time"`                  //预计结束时间
+	ProposedEndTime time.Time `json:"proposed_end_time"`                  // 预计结束时间
 	CreatedAt       time.Time `json:"created_at"`                         // 创建时间
 	UpdatedAt       time.Time `json:"updated_at"`                         // 更新时间
 }
 
 type ExecutionResult struct {
 	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"` // 唯一标识
-	TaskID    string    `gorm:"index" json:"task_id"`               //从属什么 taskid
+	TaskID    string    `gorm:"index" json:"task_id"`               // 从属什么 taskid
 	Dataset   int       `json:"dataset" gorm:"index,unique"`        // 数据集标识
 	Algo      string    `json:"algo"`                               // 使用的算法
 	CreatedAt time.Time `json:"created_at"`                         // 创建时间
@@ -77,20 +79,32 @@ type Detector struct {
 
 func InitDB() {
 	var err error
-	dbPath := config.GetString("storage.path")
+	mysqlUser := config.GetString("database.mysql_user")
+	mysqlPassWord := config.GetString("database.mysql_password")
+	mysqlHost := config.GetString("database.mysql_host")
+	mysqlPort := config.GetString("database.mysql_port")
+	mysqlDBName := config.GetString("database.mysql_db")
 
-	if err = ensureDirForFile(dbPath); err != nil {
-		log.Fatalf("Failed to ensure database directory: %v", err)
-	}
-
-	DB, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	mysqlDSN := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", mysqlUser, mysqlPassWord, mysqlHost, mysqlPort, mysqlDBName)
+	DB, err = gorm.Open(mysql.Open(mysqlDSN), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		logrus.Errorf("Failed to connect to database: %v", err)
+
+		dbPath := config.GetString("storage.path")
+
+		if err = ensureDirForFile(dbPath); err != nil {
+			logrus.Fatalf("Failed to ensure database directory: %v", err)
+		}
+
+		DB, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+		if err != nil {
+			logrus.Fatalf("Failed to connect to database: %v", err)
+		}
 	}
 
 	err = DB.AutoMigrate(&Task{}, &FaultInjectionSchedule{}, &ExecutionResult{}, &GranularityResult{}, &Detector{})
 	if err != nil {
-		log.Fatalf("Failed to migrate database: %v", err)
+		logrus.Fatalf("Failed to migrate database: %v", err)
 	}
 }
 
