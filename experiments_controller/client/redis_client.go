@@ -19,6 +19,8 @@ var (
 // 获取 Redis 客户端
 func GetRedisClient() *redis.Client {
 	redisOnce.Do(func() {
+
+		logrus.Infof("Connecting to Redis %s", config.GetString("redis.host"))
 		redisClient = redis.NewClient(&redis.Options{
 			Addr:     config.GetString("redis.host"),
 			Password: "",
