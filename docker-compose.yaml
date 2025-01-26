@@ -1,34 +1,17 @@
 services:
-  dagger-engine:
-    image: registry.dagger.io/engine:v0.15.1
-    container_name: dagger-engine-v0.15.1
-    privileged: true
-    volumes:
-      - /var/lib/dagger:/var/lib/dagger
-      - ./manifests/engine.toml:/etc/dagger/engine.toml
-      - ./manifests/harbor.lab.pj.crt:/usr/local/share/ca-certificates/harbor.lab.pj.crt
-    working_dir: /app
-    stdin_open: true
-    ports:
-      - "5678:5678"
-    tty: true
-#    network_mode: "host"
-
   redis:
     image: redis:8.0-M02-alpine3.20
     container_name: redis
     # ports:
       # - "6379:6379"
-    network_mode: "host"
     restart: always
 
-  experiments-controller:
+  exp:
     build:
       context: ./experiments_controller
     container_name: experiments-controller
     environment:
       GOPRIVATE: "github.com/CUHK-SE-Group/chaos-experiment"
-      _EXPERIMENTAL_DAGGER_RUNNER_HOST: "tcp://localhost:5678"
       ENV: "prod"
     command: ["/app/experiments_controller/experiments_controller", "both", "--port", "8081"]
     volumes:
@@ -41,6 +24,22 @@ services:
       - ./data:/var/lib/rcabench
       - ./output:/app/experiments_controller/output
     working_dir: /app/experiments_controller
-    network_mode: "host"
     depends_on:
       - redis
+      - mariadb
+
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb
+    environment:
+      MYSQL_ROOT_PASSWORD: yourpassword
+      MYSQL_DATABASE: rcabench
+      MYSQL_USER: root
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    restart: always
+
+volumes:
+  mariadb_data:

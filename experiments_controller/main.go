@@ -2,26 +2,36 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
+	"path"
+	"runtime"
 
 	"github.com/CUHK-SE-Group/rcabench/client"
-	"github.com/CUHK-SE-Group/rcabench/router"
-
-	"github.com/CUHK-SE-Group/rcabench/executor"
-
-	"github.com/CUHK-SE-Group/rcabench/database"
-
 	"github.com/CUHK-SE-Group/rcabench/config"
-
+	"github.com/CUHK-SE-Group/rcabench/database"
 	_ "github.com/CUHK-SE-Group/rcabench/docs"
-
+	"github.com/CUHK-SE-Group/rcabench/executor"
+	"github.com/CUHK-SE-Group/rcabench/router"
 	"github.com/go-logr/stdr"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	k8slogger "sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+func init() {
+	logrus.SetReportCaller(true)
+	logrus.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+		CallerPrettyfier: func(f *runtime.Frame) (string, string) {
+			filename := path.Base(f.File)
+			return "", fmt.Sprintf("%s:%d", filename, f.Line)
+		},
+	})
+	logrus.Info("Logger initialized")
+}
 
 func main() {
 	var port string
@@ -36,7 +46,7 @@ func main() {
 	}
 
 	rootCmd.PersistentFlags().StringVarP(&port, "port", "p", "8080", "Port to run the server on")
-	rootCmd.PersistentFlags().StringVarP(&conf, "conf", "c", "", "Path to configuration file")
+	rootCmd.PersistentFlags().StringVarP(&conf, "conf", "c", "/etc/rcabench/config.prod.toml", "Path to configuration file")
 
 	viper.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port"))
 	viper.BindPFlag("conf", rootCmd.PersistentFlags().Lookup("conf"))
@@ -92,11 +102,9 @@ func main() {
 			}
 		},
 	}
-
 	rootCmd.AddCommand(producerCmd, consumerCmd, bothCmd)
-
 	if err := rootCmd.Execute(); err != nil {
-		logrus.Println(err)
+		logrus.Println(err.Error())
 		os.Exit(1)
 	}
 }

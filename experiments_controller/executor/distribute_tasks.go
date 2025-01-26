@@ -24,12 +24,6 @@ var (
 	taskSemaphore        = make(chan struct{}, 2) // 限制并发任务数为2
 )
 
-// 初始化函数
-func init() {
-	ctx := context.Background()
-	initConsumerGroup(ctx)
-}
-
 // 初始化消费者组
 func initConsumerGroup(ctx context.Context) {
 	err := client.GetRedisClient().XGroupCreateMkStream(ctx, StreamName, GroupName, "0").Err()
@@ -56,6 +50,7 @@ func ConsumeTasks() {
 	}()
 
 	ctx := context.Background()
+	initConsumerGroup(ctx)
 	redisCli := client.GetRedisClient()
 
 	consumerName := generateUniqueConsumerName()
