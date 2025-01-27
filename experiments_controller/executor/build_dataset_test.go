@@ -3,16 +3,35 @@ package executor
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/CUHK-SE-Group/rcabench/client"
+	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/google/uuid"
 )
 
 func TestCreateDatasetJob(t *testing.T) {
-	datasetname := "ts-ts-preserve-service-cpu-exhaustion-hs5lgx"
+	datasetName := "ts-ts-preserve-service-cpu-exhaustion-hs5lgx"
 	startTime := parseTime("2025-01-14 17:40:20+08:00")
 	endTime := parseTime("2025-01-14 17:45:19+08:00")
-	err := createDatasetJob(context.Background(), datasetname, fmt.Sprintf("dataset-%s", datasetname), "experiment", fmt.Sprintf("10.10.10.240/library/clickhouse_dataset:latest"), []string{"python", "prepare_inputs.py"}, "ts", "1", startTime, endTime)
+
+	jobName := fmt.Sprintf("dataset-%s", datasetName)
+	image := fmt.Sprintf("%s/%s_dataset:latest", config.GetString("harbor.repository"), "clickhouse")
+	labels := map[string]string{
+		LabelJobType:   string(TaskTypeBuildDataset),
+		LabelTaskID:    uuid.New().String(),
+		LabelDataset:   datasetName,
+		LabelStartTime: strconv.FormatInt(startTime.Unix(), 10),
+		LabelEndTime:   strconv.FormatInt(endTime.Unix(), 10),
+	}
+	jobEnv := &client.JobEnv{
+		Namespace: "ts",
+		StartTime: startTime,
+		EndTime:   endTime,
+	}
+
+	err := createDatasetJob(context.Background(), datasetName, jobName, config.GetString("k8s.namespace"), image, []string{"python", "prepare_inputs.py"}, labels, jobEnv)
 	if err != nil {
 		t.Error(err)
 	}

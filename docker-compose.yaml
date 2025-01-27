@@ -2,6 +2,21 @@ services:
   redis:
     image: redis:8.0-M02-alpine3.20
     container_name: redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb
+    environment:
+      MYSQL_DATABASE: rcabench
+      MYSQL_ROOT_PASSWORD: yourpassword
+      MYSQL_USER: root
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
     restart: always
 
   exp:
@@ -27,19 +42,6 @@ services:
     depends_on:
       - redis
       - mariadb
-
-  mariadb:
-    image: mariadb:latest
-    container_name: mariadb
-    environment:
-      MYSQL_ROOT_PASSWORD: yourpassword
-      MYSQL_DATABASE: rcabench
-      MYSQL_USER: root
-    volumes:
-      - mariadb_data:/var/lib/mysql
-    ports:
-      - "3306:3306"
-    restart: always
 
 volumes:
   mariadb_data:

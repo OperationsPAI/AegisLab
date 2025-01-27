@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/CUHK-SE-Group/rcabench/client"
+	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/google/uuid"
 )
 
 func parseTime(timeStr string) time.Time {
@@ -17,12 +19,24 @@ func parseTime(timeStr string) time.Time {
 
 func TestCreateAlgoJob(t *testing.T) {
 	algo := "e-diagnose"
-	datasetname := "ts-ts-preserve-service-cpu-exhaustion-hs5lgx"
-	jobname := fmt.Sprintf("%s-%s", algo, datasetname)
-	image := "10.10.10.240/library/e-diagnose:latest"
+	datasetName := "ts-ts-preserve-service-cpu-exhaustion-hs5lgx"
 	startTime := parseTime("2025-01-14 17:40:20+08:00")
 	endTime := parseTime("2025-01-14 17:45:19+08:00")
-	err := createAlgoJob(context.Background(), datasetname, jobname, "experiment", image, []string{"python", "run_exp.py"}, map[string]string{}, startTime, endTime)
+
+	jobName := fmt.Sprintf("%s-%s", algo, datasetName)
+	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), algo, "latest")
+	labels := map[string]string{
+		LabelJobType:     string(TaskTypeRunAlgorithm),
+		LabelTaskID:      uuid.New().String(),
+		LabelDataset:     datasetName,
+		LabelExecutionID: fmt.Sprint(1),
+	}
+	jobEnv := &client.JobEnv{
+		StartTime: startTime,
+		EndTime:   endTime,
+	}
+
+	err := createAlgoJob(context.Background(), datasetName, jobName, "experiment", image, []string{"python", "run_exp.py"}, labels, jobEnv)
 	time.Sleep(time.Second * 5)
 	if err != nil {
 		t.Error(err)
@@ -32,8 +46,10 @@ func TestCreateAlgoJob(t *testing.T) {
 func TestDeleteAlgoJob(t *testing.T) {
 	algo := "e-diagnose"
 	datasetname := "ts-ts-preserve-service-cpu-exhaustion-hs5lgx"
-	jobname := fmt.Sprintf("%s-%s", algo, datasetname)
-	err := client.DeleteK8sJob(context.Background(), "experiment", jobname)
+
+	jobName := fmt.Sprintf("%s-%s", algo, datasetname)
+
+	err := client.DeleteK8sJob(context.Background(), "experiment", jobName)
 	time.Sleep(time.Second * 5)
 	if err != nil {
 		t.Error(err)

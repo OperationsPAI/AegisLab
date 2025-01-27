@@ -58,7 +58,7 @@ func GetEvaluationStatus(c *gin.Context) {
 //	@Consumes		application/json
 //	@Param			type	query		string								true	"任务类型"
 //	@Param			body	body		executor.AlgorithmExecutionPayload	true	"请求体"
-//	@Success		200		{object}	GenericResponse[EvaluateResp]
+//	@Success		200		{object}	GenericResponse[EvalResp]
 //	@Failure		400		{object}	GenericResponse[any]
 //	@Failure		500		{object}	GenericResponse[any]
 //	@Router			/api/v1/evaluation [post]

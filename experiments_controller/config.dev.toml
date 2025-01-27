@@ -1,5 +1,6 @@
 port = 8082
 debug = true
+workspace = "/home/nn/workspace/rcabench"
 
 [system]
 timezone = "Asia/Shanghai"
@@ -15,8 +16,8 @@ path = "./tasks.db"
 clickhouse_host = "10.10.10.58"
 mysql_user="root"
 mysql_password="yourpassword"
-mysql_host="10.10.10.220"
-mysql_port="31506"
+mysql_host="localhost"
+mysql_port="3306"
 mysql_db="rcabench"
 
 

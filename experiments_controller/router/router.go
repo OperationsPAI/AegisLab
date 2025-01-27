@@ -18,50 +18,48 @@ func New() *gin.Engine {
 	config.AllowOrigins = []string{"http://localhost:3000", "http://localhost:5173"} // 允许来自前端服务器的请求
 	router.Use(middleware.Logging(), cors.New(config))
 	r := router.Group("/api/v1")
-	// router.POST("/submit", handlers.SubmitTask)
-	// router.GET("/status/:taskID", handlers.GetTaskStatus)
-	// router.GET("/tasks", handlers.ShowAllTasks)
-	// router.GET("/task/:taskID/details", handlers.GetTaskDetails)
-	// router.GET("/task/:taskID/logs", handlers.GetTaskLogs)
-	// router.GET("/algobench", handlers.GetAlgoBench)
-	// router.GET("/datasets", handlers.GetDatasets)
-	// router.GET("/injection", handlers.GetInjectionPara)
-	// router.GET("/namespacepod", handlers.GetNamespacePod)
-	// router.DELETE("/task/:taskID", handlers.WithdrawTask)
 
-	algor := r.Group("/algo")
+	algorithms := r.Group("/algorithms")
 	{
-		algor.GET("", handlers.GetAlgorithmList)
-		algor.POST("", handlers.SubmitAlgorithmExecution)
+		algorithms.GET("", handlers.GetAlgorithmList)
+		algorithms.POST("", handlers.SubmitAlgorithmExecution)
 	}
 
-	datasetr := r.Group("/dataset")
+	datasets := r.Group("/datasets")
 	{
-		datasetr.GET("", handlers.GetDatasetList)
-		datasetr.POST("/download", handlers.DownloadDataset)
-		datasetr.POST("/upload", handlers.UploadDataset)
-		datasetr.DELETE("/:datasetID", handlers.DeleteDataset)
+		datasets.DELETE("/:dataset_id", handlers.DeleteDataset)
+		datasets.GET("", handlers.GetDatasetList)
+		datasets.POST("/download", handlers.DownloadDataset)
+		datasets.POST("/upload", handlers.UploadDataset)
 	}
 
-	evaluationr := r.Group("/evaluation")
+	evaluations := r.Group("/evaluations")
 	{
-		evaluationr.GET("", handlers.GetEvaluationList)
-		evaluationr.POST("", handlers.SubmitEvaluation)
-		evaluationr.POST("/:taskID/cancel", handlers.CancelEvaluation)
-		evaluationr.POST("/:taskID/logs", handlers.GetEvaluationLogs)
-		evaluationr.POST("/:taskID/result", handlers.GetEvaluationResults)
-		evaluationr.POST("/:taskID/status", handlers.GetEvaluationStatus)
+		evaluations.GET("", handlers.GetEvaluationList)
+		evaluations.POST("", handlers.SubmitEvaluation)
+
+		tasks := evaluations.Group("/:evaluation_id")
+		{
+			tasks.GET("/logs", handlers.GetEvaluationLogs)
+			tasks.GET("/results", handlers.GetEvaluationResults)
+			tasks.GET("/status", handlers.GetEvaluationStatus)
+			tasks.PUT("/cancel", handlers.CancelEvaluation)
+		}
 	}
 
-	injectr := r.Group("/injection")
+	injections := r.Group("/injections")
 	{
-		injectr.GET("", handlers.GetInjectionList)
-		injectr.POST("", handlers.SubmitFaultInjection)
-		injectr.GET("/para", handlers.GetInjectionPara)
-		injectr.POST("/:taskID/cancel", handlers.CancelInjection)
-		injectr.GET("/:taskID/status", handlers.GetInjectionStatus)
+		injections.GET("", handlers.GetInjectionList)
+		injections.GET("/parameters", handlers.GetInjectionParameters)
+		injections.POST("", handlers.SubmitFaultInjection)
+
+		tasks := injections.Group("/:injection_id")
+		{
+			tasks.GET("/status", handlers.GetInjectionStatus)
+			tasks.PUT("/cancel", handlers.CancelInjection)
+		}
 	}
 
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	router.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	return router
 }
