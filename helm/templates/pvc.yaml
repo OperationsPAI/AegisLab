@@ -1,0 +1,28 @@
+{{- if .Values.persistence.mariadb.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mariadb-data
+spec:
+  accessModes:
+    - {{ .Values.persistence.mariadb.accessMode }}
+  {{- if .Values.persistence.mariadb.storageClass }}
+  storageClassName: {{ .Values.persistence.mariadb.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.mariadb.size }}
+{{- end }}
+
+{{- if .Values.persistence.data.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rcabench-data
+spec:
+  accessModes:
+    - {{ .Values.persistence.data.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.data.size }}
+{{- end }}

@@ -57,13 +57,8 @@ func getAllSubDirectories(root string) ([]string, error) {
 }
 
 func buildAlgos() error {
-	pwd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get current working directory: %v", err)
-	}
-
-	parentDir := filepath.Dir(pwd)
-	algos, err := getAllSubDirectories(filepath.Join(parentDir, "algorithms"))
+	wd := con.GetString("workspace")
+	algos, err := getAllSubDirectories(filepath.Join(wd, "algorithms"))
 	if err != nil {
 		return err
 	}

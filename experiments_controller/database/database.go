@@ -86,6 +86,7 @@ func InitDB() {
 	mysqlDBName := config.GetString("database.mysql_db")
 
 	mysqlDSN := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", mysqlUser, mysqlPassWord, mysqlHost, mysqlPort, mysqlDBName)
+	logrus.Info("Connecting to MySQL ", mysqlDSN)
 	DB, err = gorm.Open(mysql.Open(mysqlDSN), &gorm.Config{})
 	if err != nil {
 		logrus.Errorf("Failed to connect to database: %v", err)

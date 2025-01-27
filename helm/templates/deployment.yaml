@@ -1,0 +1,107 @@
+# Redis
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:8.0-M02-alpine3.20
+        ports:
+        - containerPort: 6379
+
+---
+# MariaDB
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mariadb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mariadb
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      containers:
+      - name: mariadb
+        image: mariadb:latest
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: {{ .Values.config.mysqlRootPassword }}
+        - name: MYSQL_DATABASE
+          value: rcabench
+        - name: MYSQL_USER
+          value: root
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: mariadb-data
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mariadb-data
+        persistentVolumeClaim:
+          claimName: mariadb-data
+
+---
+# exp 应用
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: exp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: exp
+  template:
+    metadata:
+      labels:
+        app: exp
+    spec:
+      containers:
+      - name: exp
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["/app/exp", "both", "--port", "8081"]
+        ports:
+        - containerPort: 8081
+        env:
+        - name: GOPRIVATE
+          value: "github.com/CUHK-SE-Group/chaos-experiment"
+        - name: ENV
+          value: "prod"
+        volumeMounts:
+        - name: config
+          mountPath: /etc/rcabench/config.prod.toml
+          subPath: config.prod.toml
+        - name: kube-config
+          mountPath: /root/.kube/config
+          subPath: config      
+        - name: data
+          mountPath: /var/lib/rcabench
+      volumes:
+      - name: config
+        configMap:
+          name: rcabench-config
+      - name: kube-config
+        secret:
+          secretName: kube-config
+          items:                        
+          - key: kubeconfig            
+            path: config               
+      - name: data
+        persistentVolumeClaim:
+          claimName: nfs-shared-pvc
