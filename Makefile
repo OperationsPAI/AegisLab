@@ -29,7 +29,12 @@ ports:
 build:
 	docker build -t 10.10.10.240/library/rcabench:latest -f experiments_controller/Dockerfile .
 	docker push 10.10.10.240/library/rcabench:latest
+
+install:
 	helm install rcabench ./helm -n experiment
 
-delete:
+upgrade:
+	helm upgrade rcabench ./helm -n experiment
+
+uninstall:
 	helm uninstall rcabench -n experiment
