@@ -107,7 +107,7 @@ func executeAlgorithm(ctx context.Context, taskID string, payload map[string]int
 		return fmt.Errorf("failed to create execution result: %v", err)
 	}
 
-	jobname := fmt.Sprintf("%s-%s", algPayload.Algorithm, algPayload.DatasetName)
+	jobName := fmt.Sprintf("%s-%s", algPayload.Algorithm, algPayload.DatasetName)
 	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), algPayload.Algorithm, "latest")
 	labels := map[string]string{
 		LabelJobType:     string(TaskTypeRunAlgorithm),
@@ -120,5 +120,5 @@ func executeAlgorithm(ctx context.Context, taskID string, payload map[string]int
 		EndTime:   endTime,
 	}
 
-	return createAlgoJob(ctx, algPayload.DatasetName, jobname, config.GetString("k8s.namespace"), image, []string{"python", "run_exp.py"}, labels, jobEnv)
+	return createAlgoJob(ctx, algPayload.DatasetName, jobName, config.GetString("k8s.namespace"), image, []string{"python", "run_exp.py"}, labels, jobEnv)
 }

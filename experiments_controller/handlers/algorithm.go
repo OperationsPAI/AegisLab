@@ -37,19 +37,20 @@ func GetAlgorithmList(c *gin.Context) {
 	parentDir := config.GetString("workspace")
 	algoPath := filepath.Join(parentDir, "algorithms")
 
-	algoFiles, err := utils.GetSubFiles(algoPath)
+	algoDirs, err := utils.GetAllSubDirectories(algoPath)
 	if err != nil {
 		JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("Failed to list files in %s: %v", algoPath, err), nil)
 		return
 	}
 
+	tomlName := "info.toml"
 	var algoResps []GetAlgorithmResp
-	for _, algoFile := range algoFiles {
-		tomlPath := filepath.Join(algoPath, algoFile, "info.toml")
+	for _, algoDir := range algoDirs {
+		tomlPath := filepath.Join(algoDir, tomlName)
 
 		var algoResp GetAlgorithmResp
 		if _, err := toml.DecodeFile(tomlPath, &algoResp); err != nil {
-			logrus.Error(fmt.Sprintf("Failed to get info.toml in %s: %v", algoPath, err))
+			logrus.Error(fmt.Sprintf("Failed to get %s in %s: %v", tomlName, algoDir, err))
 			continue
 		}
 		algoResps = append(algoResps, algoResp)

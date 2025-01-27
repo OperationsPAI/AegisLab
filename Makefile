@@ -3,13 +3,16 @@ PWD := $(shell pwd)
 
 run:
 	docker compose down && \
-	docker compose up redis -d && \
+	docker compose up redis mariadb -d && \
 	kubectl delete jobs --all -n experiment && \
 	cd experiments_controller && \
 	go run main.go both --port 8082
 
 swagger:
-	cd experiments_controller && swag init
+	swag init \
+  	-d ./experiments_controller \
+  	--parseDependency \
+  	--parseDepth 1
 
 gen:
 	python scripts/cmd/main.py --algo -d1

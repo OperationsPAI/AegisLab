@@ -124,7 +124,7 @@ func GetInjectionList(c *gin.Context) {
 //	@Failure		500		{object}	GenericResponse[any]
 //	@Router			/api/v1/injection/getstatus [get]
 func GetInjectionStatus(c *gin.Context) {
-	taskID := c.Param("taskID")
+	taskID := c.Param("injection_id")
 
 	var task database.Task
 	if err := database.DB.First(&task, "id = ?", taskID).Error; err != nil {
@@ -171,9 +171,9 @@ func GetInjectionStatus(c *gin.Context) {
 //	@Tags			injection
 //	@Produce		application/json
 //	@Success		200	{object}	GenericResponse[InjectParaResp]	"返回故障注入参数和类型映射"
-//	@Failure		500	{object}	GenericResponse[ant]
+//	@Failure		500	{object}	GenericResponse[any]
 //	@Router			/api/v1/injection/getpara [get]
-func GetInjectionPara(c *gin.Context) {
+func GetInjectionParameters(c *gin.Context) {
 	choice := make(map[string][]chaos.ActionSpace, 0)
 	for tp, spec := range chaos.SpecMap {
 		actionSpace, err := chaos.GenerateActionSpace(spec)

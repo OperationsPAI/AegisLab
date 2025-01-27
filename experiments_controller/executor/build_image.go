@@ -8,6 +8,7 @@ import (
 	"time"
 
 	con "github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/CUHK-SE-Group/rcabench/utils"
 
 	"github.com/docker/cli/cli/config"
 	"github.com/moby/buildkit/client"
@@ -37,60 +38,39 @@ func executeBuildImages(ctx context.Context, taskID string, payload map[string]i
 	return buildAlgos()
 }
 
-func getAllSubDirectories(root string) ([]string, error) {
-	var directories []string
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() && path != root {
-			absPath, err := filepath.Abs(path)
-			if err != nil {
-				return err
-			}
-			directories = append(directories, absPath)
-		}
-		return nil
-	})
-
-	return directories, err
-}
-
 func buildAlgos() error {
 	wd := con.GetString("workspace")
-	algos, err := getAllSubDirectories(filepath.Join(wd, "algorithms"))
+	algos, err := utils.GetAllSubDirectories(filepath.Join(wd, "algorithms"))
 	if err != nil {
 		return err
 	}
 
 	var eg errgroup.Group
 	for _, algo := range algos {
-		a := algo
 		eg.Go(func() error {
-			return buildAlgo(a, nil, a)
+			return buildAlgo(algo, nil, wd)
 		})
 	}
 	return eg.Wait()
 }
 
-func buildAlgo(algopath string, args map[string]string, ctxDir string) error {
-	logrus.Infof("building algo %s...", algopath)
-	algoName := filepath.Base(algopath)
+func buildAlgo(algoDir string, args map[string]string, ctxDir string) error {
+	logrus.Infof("building algo %s...", algoDir)
+	algoName := filepath.Base(algoDir)
 	t := time.Now().UnixNano()
+
 	err := buildDockerfileAndPush(context.Background(), BuildOptions{
-		DockerfilePath: fmt.Sprintf("%s/builder.Dockerfile", algopath), // todo: remove the absolute path
+		DockerfilePath: filepath.Join(algoDir, "builder.Dockerfile"), // todo: remove the absolute path
 		ImageName:      fmt.Sprintf("%s/%s:%d", con.GetString("harbor.repository"), algoName, t),
 		BuildArgs:      args,
 		ContextDir:     ctxDir,
 		Target:         "",
 	})
-	return errors.Wrap(err, fmt.Sprintf("build algo %s failed", algopath))
+
+	return errors.Wrap(err, fmt.Sprintf("Build algo %s failed", algoDir))
 }
 
-func buildDockerfileAndPush(
-	ctx context.Context,
-	options BuildOptions,
-) error {
+func buildDockerfileAndPush(ctx context.Context, options BuildOptions) error {
 	c, err := client.New(ctx, con.GetString("buildkitd_address"))
 	if err != nil {
 		return errors.Wrapf(err, "could not connect to buildkitd at %s", con.GetString("buildkitd_address"))
@@ -120,13 +100,13 @@ func buildDockerfileAndPush(
 		frontendAttrs[fmt.Sprintf("build-arg:%s", k)] = v
 	}
 
-	dockerfileLocalMount, err := fsutil.NewFS(options.ContextDir)
+	ctxLocalMount, err := fsutil.NewFS(options.ContextDir)
 	if err != nil {
-		return errors.Wrap(err, "failed to create local mount for dockerfile")
+		return errors.Wrap(err, "Failed to create local mount for context")
 	}
-	cxtLocalMount, err := fsutil.NewFS(filepath.Dir(options.DockerfilePath))
+	dockerfileLocalMount, err := fsutil.NewFS(filepath.Dir(options.DockerfilePath))
 	if err != nil {
-		return errors.Wrap(err, "failed to create local mount for dockerfile")
+		return errors.Wrap(err, "Failed to create local mount for dockerfile")
 	}
 	solveOpt := client.SolveOpt{
 		Exports:       exports,
@@ -135,21 +115,10 @@ func buildDockerfileAndPush(
 		Frontend:      "dockerfile.v0",
 		FrontendAttrs: frontendAttrs,
 		LocalMounts: map[string]fsutil.FS{
-			"context":    cxtLocalMount,
+			"context":    ctxLocalMount,
 			"dockerfile": dockerfileLocalMount,
 		},
 	}
-	// traceFile, err := os.OpenFile("tracefile.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-	// if err != nil {
-	// return err
-	// }
-	// var traceEnc *json.Encoder
-	// if traceFile != nil {
-	// 	defer traceFile.Close()
-	// 	traceEnc = json.NewEncoder(traceFile)
-
-	// 	bklog.L.Infof("tracing logs to %s", traceFile.Name())
-	// }
 	pw, err := progresswriter.NewPrinter(context.TODO(), os.Stderr, string(progressui.AutoMode))
 	if err != nil {
 		return err
@@ -170,18 +139,6 @@ func buildDockerfileAndPush(
 	}
 
 	eg, ctx2 := errgroup.WithContext(ctx)
-	// if traceEnc != nil {
-	// 	traceCh := make(chan *client.SolveStatus)
-	// 	pw = progresswriter.Tee(pw, traceCh)
-	// 	eg.Go(func() error {
-	// 		for s := range traceCh {
-	// 			if err := traceEnc.Encode(s); err != nil {
-	// 				return err
-	// 			}
-	// 		}
-	// 		return nil
-	// 	})
-	// }
 	eg.Go(func() error {
 		defer func() {
 			for _, w := range writers {
@@ -204,15 +161,14 @@ func buildDockerfileAndPush(
 			func(ctx context.Context, c gateway.Client) (*gateway.Result, error) {
 				logrus.Info("begin to solve")
 				res, err := c.Solve(ctx, sreq)
-				logrus.Info("fuck")
 
 				return res, err
 			},
 			progresswriter.ResetTime(mw.WithPrefix("", false)).Status(),
 		)
-		logrus.Info("build11 finished")
+		logrus.Info("Build finished")
 		if err != nil {
-			bklog.G(ctx).Errorf("build failed: %v", err)
+			bklog.G(ctx).Errorf("Build failed: %v", err)
 		}
 		for k, v := range resp.ExporterResponse {
 			bklog.G(ctx).Debugf("exporter response: %s=%s", k, v)
@@ -223,12 +179,12 @@ func buildDockerfileAndPush(
 
 	eg.Go(func() error {
 		<-pw.Done()
-		logrus.Info("build finished")
+		logrus.Info("Build finished")
 		return pw.Err()
 	})
 
 	if err := eg.Wait(); err != nil {
-		return errors.Wrap(err, "failed to build and push image")
+		return errors.Wrap(err, "Failed to build and push image")
 	}
 
 	return nil

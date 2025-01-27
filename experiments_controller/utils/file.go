@@ -1,18 +1,28 @@
 package utils
 
-import "os"
+import (
+	"os"
+	"path/filepath"
+)
 
-func GetSubFiles(dir string) ([]string, error) {
-	var files []string
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			files = append(files, entry.Name())
+// 获取所有子目录
+func GetAllSubDirectories(root string) ([]string, error) {
+	var directories []string
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
 		}
-	}
-	return files, nil
+
+		if info.IsDir() && path != root {
+			absPath, err := filepath.Abs(path)
+			if err != nil {
+				return err
+			}
+			directories = append(directories, absPath)
+		}
+
+		return nil
+	})
+
+	return directories, err
 }
