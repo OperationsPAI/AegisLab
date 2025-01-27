@@ -23,6 +23,9 @@ jobs:
 pods:
 	kubectl get pods -n experiment
 
+ports:
+	kubectl port-forward svc/exp -n experiment --address 0.0.0.0 8081:8081 &
+
 build:
 	docker build -t 10.10.10.240/library/rcabench:latest -f experiments_controller/Dockerfile .
 	docker push 10.10.10.240/library/rcabench:latest
