@@ -79,8 +79,8 @@ func CancelInjection(c *gin.Context) {
 //	@Produce		json
 //	@Consumes		application/json
 //	@Success		200	{object}		GenericResponse[[]InjectListResp]
-//	@Failure		400	{object}	GenericResponse[[]InjectListResp]
-//	@Failure		500	{object}	GenericResponse[[]InjectListResp]
+//	@Failure		400	{object}		GenericResponse[[]InjectListResp]
+//	@Failure		500	{object}		GenericResponse[[]InjectListResp]
 //	@Router			/api/v1/injection/getlist [post]
 func GetInjectionList(c *gin.Context) {
 	var faultRecords []database.FaultInjectionSchedule
@@ -164,13 +164,13 @@ func GetInjectionStatus(c *gin.Context) {
 	JSONResponse(c, http.StatusOK, "", InjectStatusResp{Task: injectTask, Logs: logs})
 }
 
-// GetInjectionPara 获取注入参数
+// GetInjectionParameters
 //
 //	@Summary		获取故障注入参数
 //	@Description	获取可用的故障注入参数和类型映射
 //	@Tags			injection
-//	@Produce		application/json
-//	@Success		200	{object}	GenericResponse[InjectParaResp]	"返回故障注入参数和类型映射"
+//	@Produce		json
+//	@Success		200	{object}	GenericResponse[InjectParaResp]
 //	@Failure		500	{object}	GenericResponse[any]
 //	@Router			/api/v1/injection/getpara [get]
 func GetInjectionParameters(c *gin.Context) {
@@ -196,7 +196,7 @@ func GetInjectionParameters(c *gin.Context) {
 //	@Summary		注入故障
 //	@Description	注入故障
 //	@Tags			injection
-//	@Produce		application/json
+//	@Produce		json
 //	@Consumes		application/json
 //	@Param			body	body		executor.FaultInjectionPayload	true	"请求体"
 //	@Success		200		{object}	GenericResponse[InjectResp]
