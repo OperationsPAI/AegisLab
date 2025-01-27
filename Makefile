@@ -1,12 +1,5 @@
 PWD := $(shell pwd)
 
-builder:
-	docker run -itd \
-		-v /var/lib/dagger \
-		--name dagger-engine-v0.14.0 \
-		--privileged \
-		-v $(PWD)/manifests/engine.toml:/etc/dagger/engine.toml \
-		registry.dagger.io/engine:v0.14.0
 
 run:
 	docker compose down && \
@@ -26,3 +19,11 @@ jobs:
 
 pods:
 	kubectl get pods -n experiment
+
+build:
+	docker build -t 10.10.10.240/library/rcabench:latest -f experiments_controller/Dockerfile .
+	docker push 10.10.10.240/library/rcabench:latest
+	helm install rcabench ./helm -n experiment
+
+delete:
+	helm uninstall rcabench -n experiment

@@ -1,5 +1,6 @@
 port = 8080
 debug = false
+workspace = "/app"
 
 [system]
 timezone = "Asia/Shanghai"
