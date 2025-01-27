@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
+	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/executor"
 	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/gin-gonic/gin"
@@ -34,13 +34,7 @@ type AlgorithmExecutionResp struct {
 //	@Failure		500		{object}	GenericResponse[any]
 //	@Router			/api/v1/algo/getlist [get]
 func GetAlgorithmList(c *gin.Context) {
-	pwd, err := os.Getwd()
-	if err != nil {
-		JSONResponse[interface{}](c, http.StatusInternalServerError, "Get work directory failed", nil)
-		return
-	}
-
-	parentDir := filepath.Dir(pwd)
+	parentDir := config.GetString("workspace")
 	algoPath := filepath.Join(parentDir, "algorithms")
 
 	algoFiles, err := utils.GetSubFiles(algoPath)

@@ -1,0 +1,21 @@
+# values.yaml
+image:
+  repository: 10.10.10.240/library/rcabench
+  tag: latest
+  pullPolicy: Always
+
+config:
+  port: 8081
+  mysqlPassword: yourpassword
+  mysqlRootPassword: yourpassword
+
+persistence:
+  data:
+    enabled: false
+    accessMode: ReadWriteMany
+    size: 1Gi
+  mariadb:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    storageClass: ""

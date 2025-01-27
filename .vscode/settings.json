@@ -1,0 +1,27 @@
+{
+  // go
+  "go.gopath": "/home/nn/go",
+  "go.goroot": "/usr/local/go",
+  // Run Lint tool on save.
+  "go.lintOnSave": "file",
+  "go.formatTool": "gofmt",
+  // Specifies Lint tool name.
+  "go.lintTool": "golangci-lint",
+  // Flags to pass to Lint tool (e.g. ["-min_confidence=.8"])
+  "go.lintFlags": ["--fast"],
+  "go.coverOnSave": false,
+  "go.toolsManagement.autoUpdate": true,
+  "[go]": {
+    "editor.insertSpaces": false,
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    },
+    "editor.suggest.snippetsPreventQuickSuggestions": false
+  },
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff"
+  },
+  "editor.formatOnSave": true,
+  "makefile.configureOnOpen": false
+}

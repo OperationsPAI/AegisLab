@@ -30,6 +30,7 @@ func Init(configPath string) {
 	logrus.Printf("配置文件加载成功: %v; configPath: %v, ", viper.ConfigFileUsed(), configPath)
 
 	viper.AutomaticEnv()
+	logrus.Info(viper.AllSettings())
 }
 
 // Get 获取配置项的值
