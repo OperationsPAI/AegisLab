@@ -4,38 +4,38 @@ metadata:
   name: rcabench-config
 data:
   config.prod.toml: |
-    port = 8080
-    debug = false
-    workspace = "/app"
+    port = {{ .Values.configmap.port }}
+    debug = {{ .Values.configmap.debug }}
+    workspace = "{{ .Values.configmap.workspace }}"
 
     [system]
-    timezone = "Asia/Shanghai"
+    timezone = "{{ .Values.configmap.system.timezone }}"
 
     [injection]
-    namespace = ["ts"]
-    label = "app"
+    namespace = {{ toYaml .Values.configmap.injection.namespace | nindent 4 }}
+    label = "{{ .Values.configmap.injection.label }}"
 
     [storage]
-    path = "/var/lib/rcabench/tasks.db"
+    path = "{{ .Values.configmap.storage.path }}"
 
     [database]
-    clickhouse_host = "10.10.10.58"
-    mysql_user="root"
-    mysql_password="{{ .Values.config.mysqlPassword }}"
-    mysql_host="mariadb"
-    mysql_port="3306"
-    mysql_db="rcabench"
+    clickhouse_host = "{{ .Values.configmap.database.clickhouse_host }}"
+    mysql_user = "{{ .Values.configmap.database.mysql_user }}"
+    mysql_password = "{{ .Values.configmap.database.mysql_password }}"
+    mysql_host = "{{ .Values.configmap.database.mysql_host }}"
+    mysql_port = "{{ .Values.configmap.database.mysql_port }}"
+    mysql_db = "{{ .Values.configmap.database.mysql_db }}"
 
     [redis]
-    host = "redis:6379"
+    host = "{{ .Values.configmap.redis.host }}"
 
     [harbor]
-    host = "10.10.10.240"
-    repository = "10.10.10.240/library"
+    host = "{{ .Values.configmap.harbor.host }}"
+    repository = "{{ .Values.configmap.harbor.repository }}"
 
     [k8s]
-    namespace = "experiment"
+    namespace = "{{ .Values.configmap.k8s.namespace }}"
 
     [nfs]
-    path = "/mnt/nfs/rcabench_dataset"
-    pvc_name = "nfs-shared-pvc"
+    path = "{{ .Values.configmap.nfs.path }}"
+    pvc_name = "{{ .Values.configmap.nfs.pvc_name }}"
