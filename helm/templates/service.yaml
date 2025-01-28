@@ -17,11 +17,13 @@ kind: Service
 metadata:
   name: mariadb
 spec:
+  type: NodePort
   selector:
     app: mariadb
   ports:
   - port: 3306
     targetPort: 3306
+    nodePort: 32336
 
 ---
 # exp Service
