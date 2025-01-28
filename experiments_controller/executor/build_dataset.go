@@ -105,8 +105,8 @@ func createDatasetJob(ctx context.Context, datasetName, jobName, jobNamespace, i
 	})
 }
 
-func executeBuildDataset(ctx context.Context, taskID string, payload map[string]interface{}) error {
-	datasetPayload, err := parseDatasetPayload(payload)
+func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
+	datasetPayload, err := parseDatasetPayload(task.Payload)
 	if err != nil {
 		return err
 	}
@@ -137,7 +137,7 @@ func executeBuildDataset(ctx context.Context, taskID string, payload map[string]
 	image := fmt.Sprintf("%s/%s_dataset:latest", config.GetString("harbor.repository"), datasetPayload.Benchmark)
 	labels := map[string]string{
 		LabelJobType:   string(TaskTypeBuildDataset),
-		LabelTaskID:    taskID,
+		LabelTaskID:    task.TaskID,
 		LabelDataset:   datasetPayload.DatasetName,
 		LabelStartTime: strconv.FormatInt(startTime.Unix(), 10),
 		LabelEndTime:   strconv.FormatInt(endTime.Unix(), 10),

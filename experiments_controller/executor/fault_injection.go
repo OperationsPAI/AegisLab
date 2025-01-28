@@ -102,15 +102,15 @@ func checkExecutionTime(faultRecord database.FaultInjectionSchedule, namespace s
 }
 
 // 执行故障注入任务
-func executeFaultInjection(ctx context.Context, taskID string, payload map[string]interface{}) error {
-	fiPayload, err := ParseFaultInjectionPayload(payload)
+func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
+	fiPayload, err := ParseFaultInjectionPayload(task.Payload)
 	if err != nil {
 		logrus.Error(err)
 		return err
 	}
 
 	// 更新任务状态
-	updateTaskStatus(taskID, TaskStatusRunning, fmt.Sprintf("Executing fault injection for task %s", taskID))
+	updateTaskStatus(task.TaskID, TaskStatusRunning, fmt.Sprintf("Executing fault injection for task %s", task.TaskID))
 
 	// 故障注入逻辑
 	var chaosSpec interface{}
@@ -142,18 +142,18 @@ func executeFaultInjection(ctx context.Context, taskID string, payload map[strin
 	if name == "" {
 		return fmt.Errorf("create chaos failed, conf: %+v", conf)
 	}
-	jsonData, err := json.Marshal(payload)
+	jsonData, err := json.Marshal(task.Payload)
 	if err != nil {
 		logrus.Errorf("marshal conf failed, conf: %+v, err: %s", conf, err)
 		return err
 	}
 
 	faultRecord := database.FaultInjectionSchedule{
-		TaskID:          taskID,
+		TaskID:          task.TaskID,
 		FaultType:       fiPayload.FaultType,
 		Config:          string(jsonData),
 		Duration:        fiPayload.Duration,
-		Description:     fmt.Sprintf("Fault for task %s", taskID),
+		Description:     fmt.Sprintf("Fault for task %s", task.TaskID),
 		Status:          DatasetInitial,
 		InjectionName:   name,
 		ProposedEndTime: time.Now().Add(time.Duration(fiPayload.Duration+2) * time.Minute),
@@ -174,7 +174,7 @@ func executeFaultInjection(ctx context.Context, taskID string, payload map[strin
 				return
 			}
 
-			updateTaskStatus(taskID, TaskStatusCompleted, fmt.Sprintf("Task %s completed", taskID))
+			updateTaskStatus(task.TaskID, TaskStatusCompleted, fmt.Sprintf("Task %s completed", task.TaskID))
 
 			datasetPayload := map[string]interface{}{
 				BuildBenchmark: *fiPayload.Benchmark,
@@ -184,14 +184,11 @@ func executeFaultInjection(ctx context.Context, taskID string, payload map[strin
 				BuildEndTime:   endTime,
 			}
 
-			var jsonPayload []byte
-			if jsonPayload, err = json.Marshal(datasetPayload); err != nil {
-				logrus.Errorf("Failed to update record for dataset %s: %v", name, err)
-				return
-			}
-
-			if content, ok := SubmitTask(ctx, string(TaskTypeBuildDataset), jsonPayload); !ok {
-				logrus.Error(content)
+			if _, err := SubmitTask(ctx, &UnifiedTask{
+				Type:    TaskTypeBuildDataset,
+				Payload: datasetPayload,
+			}); err != nil {
+				logrus.Error(err)
 				return
 			}
 		})

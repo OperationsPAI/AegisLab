@@ -80,7 +80,9 @@ func main() {
 			database.InitDB()
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
 			logrus.Println("Running as consumer")
+			go executor.StartScheduler(ctx)
 			executor.ConsumeTasks()
+
 		},
 	}
 

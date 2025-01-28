@@ -184,8 +184,8 @@ func readDetectorCSV(csvContent []byte, executionID int) ([]database.Detector, e
 	return results, nil
 }
 
-func executeCollectResult(ctx context.Context, taskID string, payload map[string]interface{}) error {
-	return collectResult(taskID, payload)
+func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
+	return collectResult(task.TaskID, task.Payload)
 }
 
 func collectResult(taskID string, payload map[string]interface{}) error {

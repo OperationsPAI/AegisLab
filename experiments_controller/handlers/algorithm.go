@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -79,23 +78,17 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 		return
 	}
 
-	jsonPayload, err := json.Marshal(payload)
-	if err != nil {
-		JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to marshal payload", nil)
-		return
-	}
-
 	ctx := c.Request.Context()
-	content, ok := executor.SubmitTask(ctx, "RunAlgorithm", jsonPayload)
-	if !ok {
-		JSONResponse[interface{}](c, http.StatusInternalServerError, content, nil)
+	id, err := executor.SubmitTask(ctx, &executor.UnifiedTask{
+		Type:    executor.TaskTypeRunAlgorithm,
+		Payload: StructToMap(payload),
+	})
+	if err != nil {
+		JSONResponse[interface{}](c, http.StatusInternalServerError, id, nil)
 		return
 	}
 
-	var resp AlgorithmExecutionResp
-	if err := json.Unmarshal([]byte(content), &resp); err != nil {
-		JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to unmarshal content to response", nil)
-		return
-	}
-	JSONResponse(c, http.StatusAccepted, "Algorithm Execution submitted successfully", resp)
+	JSONResponse(c, http.StatusAccepted, "Algorithm Execution submitted successfully", AlgorithmExecutionResp{
+		TaskID: id,
+	})
 }

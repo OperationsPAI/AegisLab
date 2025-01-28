@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"reflect"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -20,4 +21,22 @@ func JSONResponse[T any](c *gin.Context, code int, message string, data T) {
 		Data:      data,
 		Timestamp: time.Now().Unix(),
 	})
+}
+
+func StructToMap(obj interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+	t := reflect.TypeOf(obj)
+	v := reflect.ValueOf(obj)
+
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		// 获取 JSON 标签名，如果没有则用字段名
+		tag := field.Tag.Get("json")
+		if tag == "" {
+			tag = field.Name
+		}
+		result[tag] = v.Field(i).Interface()
+	}
+
+	return result
 }
