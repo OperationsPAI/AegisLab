@@ -19,11 +19,14 @@ var DB *gorm.DB
 
 // Task 模型
 type Task struct {
-	ID        string    `gorm:"primaryKey" json:"id"`
-	Type      string    `json:"type"`
-	Payload   string    `json:"payload"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
+	ID          string    `gorm:"primaryKey" json:"id"`
+	Type        string    `json:"type"`
+	Immediate   bool      `json:"immediate"`
+	ExecuteTime int64     `json:"execute_time"`
+	CronExpr    string    `json:"cron_expr,omitempty"`
+	Payload     string    `json:"payload"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // FaultInjectionSchedule 模型

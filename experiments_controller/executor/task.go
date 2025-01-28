@@ -70,6 +70,24 @@ func SubmitTask(ctx context.Context, task *UnifiedTask) (string, error) {
 		task.TaskID = uuid.NewString()
 	}
 
+	jsonPayload, err := json.Marshal(task.Payload)
+	if err != nil {
+		return "", err
+	}
+	t := database.Task{
+		ID:          task.TaskID,
+		Type:        string(task.Type),
+		Payload:     string(jsonPayload),
+		Immediate:   task.Immediate,
+		ExecuteTime: task.ExecuteTime,
+		CronExpr:    task.CronExpr,
+		Status:      "Pending",
+	}
+	if err := database.DB.Create(&t).Error; err != nil {
+		logrus.Errorf("Failed to save task to database, err: %s", err)
+		return "Failed to save task to database", err
+	}
+
 	if task.Immediate {
 		return task.TaskID, submitImmediateTask(ctx, task)
 	}
