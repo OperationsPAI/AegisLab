@@ -6,7 +6,6 @@ image:
 
 config:
   port: 8081
-  mysqlPassword: yourpassword
   mysqlRootPassword: yourpassword
 
 configmap:
@@ -23,7 +22,7 @@ configmap:
   database:
     clickhouse_host: "10.10.10.58"
     mysql_user: "root"
-    mysql_password: "{{ .Values.config.mysqlPassword }}"
+    mysql_password: "yourpassword"
     mysql_host: "mariadb"
     mysql_port: "3306"
     mysql_db: "rcabench"

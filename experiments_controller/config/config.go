@@ -24,11 +24,18 @@ func Init(configPath string) {
 	viper.AddConfigPath("/etc/rcabench")
 	viper.AddConfigPath(".")
 
+	// 加载配置文件
 	if err := viper.ReadInConfig(); err != nil {
-		logrus.Fatalf("读取配置文件失败: %v", err)
+		// 打印错误详情
+		if parseErr, ok := err.(*viper.ConfigParseError); ok {
+			logrus.Fatalf("配置文件解析失败: %v\n详细信息: %v", parseErr, parseErr.Error())
+		} else {
+			logrus.Fatalf("读取配置文件失败: %v", err)
+		}
 	}
 	logrus.Printf("配置文件加载成功: %v; configPath: %v, ", viper.ConfigFileUsed(), configPath)
 
+	// 自动绑定环境变量
 	viper.AutomaticEnv()
 	logrus.Info(viper.AllSettings())
 }
