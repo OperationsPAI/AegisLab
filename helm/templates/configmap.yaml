@@ -12,7 +12,7 @@ data:
     timezone = "{{ .Values.configmap.system.timezone }}"
 
     [injection]
-    namespace = {{ toYaml .Values.configmap.injection.namespace | nindent 4 }}
+    namespace = [{{ .Values.configmap.injection.namespace | join "\", \"" | quote }}]
     label = "{{ .Values.configmap.injection.label }}"
 
     [storage]
@@ -39,3 +39,13 @@ data:
     [nfs]
     path = "{{ .Values.configmap.nfs.path }}"
     pvc_name = "{{ .Values.configmap.nfs.pvc_name }}"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mariadb-config
+data:
+  my.cnf: |
+    [mysqld]
+    bind-address = 0.0.0.0
