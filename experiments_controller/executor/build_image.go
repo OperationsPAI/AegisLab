@@ -34,7 +34,7 @@ type BuildOptions struct {
 	ContextDir     string
 }
 
-func executeBuildImages(ctx context.Context, taskID string, payload map[string]interface{}) error {
+func executeBuildImages(ctx context.Context, task *UnifiedTask) error {
 	return buildAlgos()
 }
 

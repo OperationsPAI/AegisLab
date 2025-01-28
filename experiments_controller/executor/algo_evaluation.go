@@ -80,8 +80,8 @@ func createAlgoJob(ctx context.Context, datasetName, jobName, jobNamespace, imag
 	})
 }
 
-func executeAlgorithm(ctx context.Context, taskID string, payload map[string]interface{}) error {
-	algPayload, err := parseAlgorithmExecutionPayload(payload)
+func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
+	algPayload, err := parseAlgorithmExecutionPayload(task.Payload)
 	if err != nil {
 		return err
 	}
@@ -99,7 +99,7 @@ func executeAlgorithm(ctx context.Context, taskID string, payload map[string]int
 	endTime := faultRecord.EndTime
 
 	executionResult := database.ExecutionResult{
-		TaskID:  taskID,
+		TaskID:  task.TaskID,
 		Dataset: faultRecord.ID,
 		Algo:    algPayload.Algorithm,
 	}
@@ -111,7 +111,7 @@ func executeAlgorithm(ctx context.Context, taskID string, payload map[string]int
 	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), algPayload.Algorithm, "latest")
 	labels := map[string]string{
 		LabelJobType:     string(TaskTypeRunAlgorithm),
-		LabelTaskID:      taskID,
+		LabelTaskID:      task.TaskID,
 		LabelDataset:     algPayload.DatasetName,
 		LabelExecutionID: fmt.Sprint(executionResult.ID),
 	}
