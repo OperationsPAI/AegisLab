@@ -19,7 +19,7 @@ type FaultInjectionPayload struct {
 	Namespace  string         `json:"injectNamespace"`
 	Pod        string         `json:"injectPod"`
 	InjectSpec map[string]int `json:"spec"`
-	Benchmark  *string        `json:"benchmark,omitempty"`
+	Benchmark  *string        `json:"benchmark"`
 }
 
 func ParseFaultInjectionPayload(payload map[string]interface{}) (*FaultInjectionPayload, error) {
@@ -103,9 +103,11 @@ func checkExecutionTime(faultRecord database.FaultInjectionSchedule, namespace s
 
 // 执行故障注入任务
 func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
+	logrus.Infof("Executing fault injection task %+v", task)
+
 	fiPayload, err := ParseFaultInjectionPayload(task.Payload)
+	logrus.Infof("Parsed fault injection payload: %+v", fiPayload)
 	if err != nil {
-		logrus.Error(err)
 		return err
 	}
 
@@ -167,8 +169,10 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	}
 
 	if fiPayload.Benchmark != nil {
+		logrus.Info("Scheduling build dataset task")
 		time.AfterFunc(2*time.Minute, func() {
 			startTime, endTime, err := checkExecutionTime(faultRecord, fiPayload.Namespace)
+			logrus.Infof("checkExecutionTime for dataset %s, startTime: %v, endTime: %v", name, startTime, endTime)
 			if err != nil {
 				logrus.Errorf("Failed to checkExecutionTime for dataset %s: %v", name, err)
 				return
@@ -184,9 +188,10 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 				BuildEndTime:   endTime,
 			}
 
-			if _, err := SubmitTask(ctx, &UnifiedTask{
-				Type:    TaskTypeBuildDataset,
-				Payload: datasetPayload,
+			if _, err := SubmitTask(context.Background(), &UnifiedTask{
+				Type:      TaskTypeBuildDataset,
+				Payload:   datasetPayload,
+				Immediate: true,
 			}); err != nil {
 				logrus.Error(err)
 				return

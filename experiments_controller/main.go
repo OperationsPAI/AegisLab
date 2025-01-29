@@ -80,9 +80,9 @@ func main() {
 			database.InitDB()
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
 			logrus.Println("Running as consumer")
+			go client.InitK8s(ctx, executor.Exec)
 			go executor.StartScheduler(ctx)
 			executor.ConsumeTasks()
-
 		},
 	}
 
@@ -97,6 +97,7 @@ func main() {
 			database.InitDB()
 			go client.InitK8s(ctx, executor.Exec)
 			go executor.ConsumeTasks()
+			go executor.StartScheduler(ctx)
 			port := viper.GetString("port") // 从 Viper 获取最终端口
 			err := engine.Run(":" + port)
 			if err != nil {
