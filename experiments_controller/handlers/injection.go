@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -209,11 +210,12 @@ func SubmitFaultInjection(c *gin.Context) {
 		JSONResponse[interface{}](c, http.StatusBadRequest, "Invalid JSON payload", nil)
 		return
 	}
+	logrus.Infof("Received fault injection payload: %+v", payload)
 
-	ctx := c.Request.Context()
-	id, err := executor.SubmitTask(ctx, &executor.UnifiedTask{
-		Type:    executor.TaskTypeFaultInjection,
-		Payload: StructToMap(payload),
+	id, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
+		Type:      executor.TaskTypeFaultInjection,
+		Payload:   StructToMap(payload),
+		Immediate: true,
 	})
 	if err != nil {
 		JSONResponse[interface{}](c, http.StatusInternalServerError, id, nil)

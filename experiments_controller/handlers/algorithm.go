@@ -80,8 +80,9 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 
 	ctx := c.Request.Context()
 	id, err := executor.SubmitTask(ctx, &executor.UnifiedTask{
-		Type:    executor.TaskTypeRunAlgorithm,
-		Payload: StructToMap(payload),
+		Type:      executor.TaskTypeRunAlgorithm,
+		Payload:   StructToMap(payload),
+		Immediate: true,
 	})
 	if err != nil {
 		JSONResponse[interface{}](c, http.StatusInternalServerError, id, nil)
