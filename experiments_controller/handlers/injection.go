@@ -199,28 +199,35 @@ func GetInjectionParameters(c *gin.Context) {
 //	@Tags			injection
 //	@Produce		json
 //	@Consumes		application/json
-//	@Param			body	body		executor.FaultInjectionPayload	true	"请求体"
+//	@Param			body	body		[]executor.FaultInjectionPayload	true	"请求体"
 //	@Success		200		{object}	GenericResponse[InjectResp]
 //	@Failure		400		{object}	GenericResponse[any]
 //	@Failure		500		{object}	GenericResponse[any]
 //	@Router			/api/v1/injection/submit [post]
 func SubmitFaultInjection(c *gin.Context) {
-	var payload executor.FaultInjectionPayload
-	if err := c.BindJSON(&payload); err != nil {
+	var payloads []executor.FaultInjectionPayload // 改为接收数组
+	if err := c.BindJSON(&payloads); err != nil {
 		JSONResponse[interface{}](c, http.StatusBadRequest, "Invalid JSON payload", nil)
 		return
 	}
-	logrus.Infof("Received fault injection payload: %+v", payload)
+	logrus.Infof("Received fault injection payloads: %+v", payloads)
 
-	id, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
-		Type:      executor.TaskTypeFaultInjection,
-		Payload:   StructToMap(payload),
-		Immediate: true,
-	})
-	if err != nil {
-		JSONResponse[interface{}](c, http.StatusInternalServerError, id, nil)
-		return
+	var ids []string
+	t := time.Now()
+	for _, payload := range payloads {
+		id, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
+			Type:        executor.TaskTypeFaultInjection,
+			Payload:     StructToMap(payload),
+			Immediate:   false,
+			ExecuteTime: t.Unix(),
+		})
+		if err != nil {
+			JSONResponse[interface{}](c, http.StatusInternalServerError, id, nil)
+			return
+		}
+		t = t.Add(time.Duration(payload.Duration)*time.Minute + 10*time.Minute) // add the duration
+		ids = append(ids, id)
 	}
 
-	JSONResponse(c, http.StatusAccepted, "Fault injection submitted successfully", id)
+	JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", ids)
 }
