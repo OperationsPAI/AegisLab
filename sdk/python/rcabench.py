@@ -1,6 +1,8 @@
 import requests
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Union
+from pprint import pprint
+from dataclasses import asdict
 
 
 @dataclass
@@ -52,15 +54,6 @@ class WithdrawResponse:
 
 
 @dataclass
-class FaultInjectionPayload:
-    fault_type: int
-    duration: int
-    namespace: str
-    pod: str
-    spec: Optional[Dict[str, Union[int, float]]] = None
-
-
-@dataclass
 class RunAlgorithmPayload:
     algorithm: str
     benchmark: str
@@ -76,44 +69,11 @@ class RCABenchSDK:
         """
         self.base_url = base_url.rstrip("/")
 
-    def submit_task(
-        self,
-        task_type: str,
-        payload: Union[FaultInjectionPayload, RunAlgorithmPayload, Dict],
-    ) -> TaskResponse:
-        """
-        Submit a task to the server.
-
-        :param task_type: Type of the task (e.g., "FaultInjection", "RunAlgorithm")
-        :param payload: Task-specific payload (structured based on task type)
-        :return: TaskResponse object
-        """
-        url = f"{self.base_url}/submit?type={task_type}"
-
-        # 根据类型转换 payload 为字典
-        if isinstance(payload, FaultInjectionPayload):
-            payload_data = {
-                "faultType": str(payload.fault_type),
-                "duration": payload.duration,
-                "injectNamespace": payload.namespace,
-                "injectPod": payload.pod,
-                "spec": payload.spec or {},
-            }
-        elif isinstance(payload, RunAlgorithmPayload):
-            payload_data = {
-                "algorithm": payload.algorithm,
-                "benchmark": payload.benchmark,
-                "dataset": payload.dataset,
-            }
-        elif isinstance(payload, dict):
-            payload_data = payload  # 对于键值对任务，直接传递字典
-        else:
-            raise ValueError("Invalid payload type provided.")
-
-        response = requests.post(url, json=payload_data)
-        response.raise_for_status()
-        data = response.json()
-        return TaskResponse(taskID=data["taskID"], message=data["message"])
+    def inject(self, payload: List[Dict]) -> TaskResponse:
+        url = f"{self.base_url}/api/v1/injections"
+        json_payload = [item for item in payload]  # 正确转换
+        resp = requests.post(url, json=json_payload)
+        return resp.json()
 
     def get_task_status(self, task_id: str) -> TaskStatus:
         """
@@ -181,10 +141,10 @@ class RCABenchSDK:
 
         :return: InjectionParameters object
         """
-        url = f"{self.base_url}/injection"
+        url = f"{self.base_url}/api/v1/injections/parameters"
         response = requests.get(url)
         response.raise_for_status()
-        data = response.json()
+        data = response.json()["data"]
         return InjectionParameters(
             specification=data["specification"], keymap=data["keymap"]
         )
@@ -207,11 +167,10 @@ class RCABenchSDK:
 
         :return: NamespacePodInfo object
         """
-        url = f"{self.base_url}/namespacepod"
+        url = f"{self.base_url}/api/v1/injections/namespaces"
         response = requests.get(url)
-        response.raise_for_status()
         data = response.json()
-        return NamespacePodInfo(namespace_info=data["namespace_info"])
+        return NamespacePodInfo(namespace_info=data["data"])
 
     def get_evaluation_result(self) -> List:
         """
@@ -222,7 +181,7 @@ class RCABenchSDK:
         response.raise_for_status()
         data = response.json()
         return data
-    
+
     def withdraw_task(self, task_id: str) -> WithdrawResponse:
         """
         Withdraw a task by its ID.

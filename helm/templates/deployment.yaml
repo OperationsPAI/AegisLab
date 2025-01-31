@@ -133,12 +133,18 @@ spec:
         - name: config
           mountPath: /etc/rcabench/config.prod.toml
           subPath: config.prod.toml  
+        - name: kube-config
+          mountPath: /root/.kube
       volumes:
       - name: config
         configMap:
           name: rcabench-config         
-
-
+      - name: kube-config
+        secret:
+          secretName: kube-config
+          items:                        
+          - key: kubeconfig            
+            path: config   
 ---
 # exp 应用
 apiVersion: apps/v1

@@ -52,6 +52,7 @@ type UnifiedTask struct {
 	CronExpr    string                 `json:"cron_expr,omitempty"`
 	RetryPolicy RetryPolicy            `json:"retry_policy"`
 	Payload     map[string]interface{} `json:"payload"`
+	TraceID     string                 `json:"trace_id,omitempty"`
 }
 
 type RetryPolicy struct {
@@ -261,7 +262,7 @@ func processTask(ctx context.Context, taskData string) {
 		logrus.Warnf("Invalid task data: %v", err)
 		return
 	}
-	logrus.Infof("Dealing with task %s, type: %s, %v, %v", task.TaskID, task.Type, task.Immediate, task.ExecuteTime)
+	logrus.Infof("Dealing with task %s, type: %s, traceID: %s", task.TaskID, task.Type, task.TraceID)
 
 	startTime := time.Now()
 	tasksProcessed.WithLabelValues(string(task.Type), "started").Inc()

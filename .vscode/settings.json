@@ -8,7 +8,9 @@
   // Specifies Lint tool name.
   "go.lintTool": "golangci-lint",
   // Flags to pass to Lint tool (e.g. ["-min_confidence=.8"])
-  "go.lintFlags": ["--fast"],
+  "go.lintFlags": [
+    "--fast"
+  ],
   "go.coverOnSave": false,
   "go.toolsManagement.autoUpdate": true,
   "[go]": {
@@ -23,5 +25,14 @@
     "editor.defaultFormatter": "charliermarsh.ruff"
   },
   "editor.formatOnSave": true,
-  "makefile.configureOnOpen": false
+  "makefile.configureOnOpen": false,
+  "python.testing.unittestArgs": [
+    "-v",
+    "-s",
+    "./sdk",
+    "-p",
+    "test_*.py"
+  ],
+  "python.testing.pytestEnabled": false,
+  "python.testing.unittestEnabled": true
 }
