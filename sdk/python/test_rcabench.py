@@ -1,5 +1,5 @@
 import unittest
-from rcabench import RCABenchSDK, FaultInjectionPayload, RunAlgorithmPayload
+from rcabench import RCABenchSDK, RunAlgorithmPayload
 from pprint import pprint
 import random
 
@@ -43,7 +43,7 @@ class InjectHelper:
 
 class TestRCABenchSDK(unittest.TestCase):
     def test_submit_injection(self):
-        base_url = "http://localhost:8082"  # 替换为实际服务器地址
+        base_url = "http://10.10.10.220:32080"  # 替换为实际服务器地址
         sdk = RCABenchSDK(base_url)
 
         injection_params = sdk.get_injection_parameters()
@@ -53,24 +53,27 @@ class TestRCABenchSDK(unittest.TestCase):
         namespace_pod_info = sdk.get_namespace_pod()
         namespace = random.choice(list(namespace_pod_info.namespace_info.keys()))
         pod = random.choice(namespace_pod_info.namespace_info[namespace])
-        task_response = sdk.submit_task(
-            "FaultInjection",
-            FaultInjectionPayload(
-                fault_type=params["fault_type"],
-                duration=random.randint(5, 10),
-                namespace=namespace,
-                pod=pod,
-                spec=params["inject_spec"],
-            ),
-        )
+
+        faults = [
+            {
+                "faultType": params["fault_type"],
+                "duration": random.randint(5, 10),
+                "injectNamespace": namespace,
+                "injectPod": pod,
+                "spec": params["inject_spec"],
+                "benchmark": "clickhouse",
+            }
+        ]
+        task_response = sdk.inject(faults)
+        pprint(faults)
         pprint(task_response)
 
-        task_id = task_response.taskID
-        status_response = sdk.get_task_status(task_id)
-        pprint(status_response)
+        # for task_id in task_response["data"]:
+        #     status_response = sdk.get_task_status(task_id)
+        #     pprint(status_response)
 
-        details = sdk.get_task_details(task_id)
-        pprint(details)
+        #     details = sdk.get_task_details(task_id)
+        #     pprint(details)
 
     def test_submit_evaluation(self):
         base_url = "http://localhost:8082"
@@ -98,4 +101,4 @@ class TestRCABenchSDK(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestRCABenchSDK().test_submit_injection()

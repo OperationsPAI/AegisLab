@@ -83,6 +83,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 		Type:      executor.TaskTypeRunAlgorithm,
 		Payload:   StructToMap(payload),
 		Immediate: true,
+		TraceID:   c.GetString("traceID"),
 	})
 	if err != nil {
 		JSONResponse[interface{}](c, http.StatusInternalServerError, id, nil)

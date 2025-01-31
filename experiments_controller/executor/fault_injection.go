@@ -170,7 +170,7 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 
 	if fiPayload.Benchmark != nil {
 		logrus.Info("Scheduling build dataset task")
-		time.AfterFunc(2*time.Minute, func() {
+		time.AfterFunc(time.Duration(fiPayload.Duration+2)*time.Minute, func() {
 			startTime, endTime, err := checkExecutionTime(faultRecord, fiPayload.Namespace)
 			logrus.Infof("checkExecutionTime for dataset %s, startTime: %v, endTime: %v", name, startTime, endTime)
 			if err != nil {
@@ -192,6 +192,7 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 				Type:      TaskTypeBuildDataset,
 				Payload:   datasetPayload,
 				Immediate: true,
+				TraceID:   task.TraceID,
 			}); err != nil {
 				logrus.Error(err)
 				return
