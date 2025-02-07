@@ -81,7 +81,7 @@ func createDatasetJob(ctx context.Context, datasetName, jobName, jobNamespace, i
 		tz = "Asia/Shanghai"
 	}
 	envVars := []corev1.EnvVar{
-		{Name: "NORMAL_START", Value: strconv.FormatInt(jobEnv.StartTime.Add(-20*time.Minute).Unix(), 10)},
+		{Name: "NORMAL_START", Value: strconv.FormatInt(jobEnv.StartTime.Add(-time.Duration(config.GetInt("injection.interval"))*time.Minute).Unix(), 10)},
 		{Name: "NORMAL_END", Value: strconv.FormatInt(jobEnv.StartTime.Unix(), 10)},
 		{Name: "ABNORMAL_START", Value: strconv.FormatInt(jobEnv.StartTime.Unix(), 10)},
 		{Name: "ABNORMAL_END", Value: strconv.FormatInt(jobEnv.EndTime.Unix(), 10)},

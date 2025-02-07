@@ -16,7 +16,7 @@ func New() *gin.Engine {
 	router := gin.Default()
 	config := cors.DefaultConfig()
 	config.AllowOrigins = []string{"http://localhost:3000", "http://localhost:5173"} // 允许来自前端服务器的请求
-	router.Use(middleware.Logging(), middleware.TraceID(), cors.New(config))
+	router.Use(middleware.Logging(), middleware.GroupID(), cors.New(config))
 	r := router.Group("/api/v1")
 
 	algorithms := r.Group("/algorithms")
@@ -29,8 +29,8 @@ func New() *gin.Engine {
 	{
 		datasets.DELETE("/:dataset_id", handlers.DeleteDataset)
 		datasets.GET("", handlers.GetDatasetList)
-		datasets.POST("", handlers.BuildDataset)
-		datasets.POST("/download", handlers.DownloadDataset)
+		datasets.GET("/download", handlers.DownloadDataset)
+		datasets.POST("", handlers.SubmitDatasetBuilding)
 		datasets.POST("/upload", handlers.UploadDataset)
 	}
 

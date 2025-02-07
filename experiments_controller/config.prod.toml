@@ -7,6 +7,7 @@ timezone = "Asia/Shanghai"
 
 [injection]
 namespace = ["ts"]
+interval = 10
 label = "app"
 
 [storage]

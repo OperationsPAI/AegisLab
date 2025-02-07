@@ -7,6 +7,11 @@ build:
 run:
 	skaffold debug --default-repo=10.10.10.240/library
 
+debug:
+	docker compose down && \
+	docker compose up redis mariadb -d && \
+	cd experiments_controller && go run main.go both --port 8082
+
 swagger:
 	swag init \
   	-d ./experiments_controller \
