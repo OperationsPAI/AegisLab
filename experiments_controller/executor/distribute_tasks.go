@@ -38,10 +38,10 @@ func dispatchTask(ctx context.Context, task *UnifiedTask) error {
 	}
 
 	if err != nil {
-		updateTaskStatus(task.TaskID, "Error", err.Error())
+		updateTaskStatus(task.TaskID, TaskStatusError, err.Error())
 		return err
 	}
 
-	updateTaskStatus(task.TaskID, "Completed", "")
+	updateTaskStatus(task.TaskID, TaskStatusCompleted, "")
 	return nil
 }

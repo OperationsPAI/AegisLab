@@ -14,7 +14,11 @@ import (
 )
 
 // GetAlgorithmResp
-type GetAlgorithmResp struct {
+type AlgorithmListResp struct {
+	Algorithms []string `json:"algorithms"`
+}
+
+type AlgorithmToml struct {
 	Name string `json:"name"`
 }
 
@@ -43,19 +47,19 @@ func GetAlgorithmList(c *gin.Context) {
 	}
 
 	tomlName := "info.toml"
-	var algoResps []GetAlgorithmResp
+	var algorithms []string
 	for _, algoDir := range algoDirs {
 		tomlPath := filepath.Join(algoDir, tomlName)
 
-		var algoResp GetAlgorithmResp
-		if _, err := toml.DecodeFile(tomlPath, &algoResp); err != nil {
+		var algoToml AlgorithmToml
+		if _, err := toml.DecodeFile(tomlPath, &algoToml); err != nil {
 			logrus.Error(fmt.Sprintf("Failed to get %s in %s: %v", tomlName, algoDir, err))
 			continue
 		}
-		algoResps = append(algoResps, algoResp)
+		algorithms = append(algorithms, algoToml.Name)
 	}
 
-	JSONResponse(c, http.StatusOK, "OK", algoResps)
+	JSONResponse(c, http.StatusOK, "OK", AlgorithmListResp{Algorithms: algorithms})
 }
 
 // GetAlgorithmList

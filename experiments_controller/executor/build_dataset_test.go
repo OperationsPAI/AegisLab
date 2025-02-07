@@ -6,10 +6,20 @@ import (
 	"strconv"
 	"testing"
 
+	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
 	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/google/uuid"
 )
+
+func TestQueryCRDByName(t *testing.T) {
+	namespace := "ts"
+	datasetName := "ts-ts-preserve-service-request-abort-fhkpjm"
+	// datasetName := "ts-ts-preserve-service-cpu-exhaustion-rtlt6h"
+	if _, _, err := chaosCli.QueryCRDByName(namespace, datasetName); err != nil {
+		t.Error(err)
+	}
+}
 
 func TestCreateDatasetJob(t *testing.T) {
 	datasetName := "ts-ts-preserve-service-cpu-exhaustion-hs5lgx"
