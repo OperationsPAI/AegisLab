@@ -14,6 +14,7 @@ const (
 	TaskStatusCanceled  string = "Canceled"
 	TaskStatusCompleted string = "Completed"
 	TaskStatusError     string = "Error"
+	TaskStatusPending   string = "Pending"
 	TaskStatusRunning   string = "Running"
 )
 

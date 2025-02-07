@@ -27,7 +27,17 @@ type DatasetResp struct {
 }
 
 type DatasetDownloadReq struct {
-	Datasets []string `json:"datasets" binding:"required,min=1,dive,required"`
+	GroupIDs []string `form:"group_ids" binding:"required"`
+}
+
+type JoinedResult struct {
+	GroupID string `gorm:"column:group_id"`
+	Dataset string `gorm:"column:injection_name"`
+}
+
+type GroupedResult struct {
+	GroupID  string
+	Datasets []string
 }
 
 var DatasetStatusMap = map[int]string{
@@ -40,6 +50,48 @@ var DatasetStatusMap = map[int]string{
 var DatasetFieldMap = map[string]string{
 	"PageNum":  "page_num",
 	"PageSize": "page_size",
+}
+
+// BuildDataset
+//
+//	@Summary		制作数据集
+//	@Description	制作数据集
+//	@Tags			dataset
+//	@Produce		json
+//	@Consumes		application/json
+//	@Param			body	body		[]executor.DatasetPayload	true	"请求体"
+//	@Success		200		{object}	GenericResponse[BuildResp]
+//	@Failure		400		{object}	GenericResponse[any]
+//	@Failure		500		{object}	GenericResponse[any]
+//	@Router			/api/v1/datasets [post]
+func SubmitDatasetBuilding(c *gin.Context) {
+	groupID := c.GetString("groupID")
+	logrus.Infof("SubmitDatasetBuilding, groupID: %s", groupID)
+
+	var payloads []executor.DatasetPayload
+	if err := c.BindJSON(&payloads); err != nil {
+		JSONResponse[interface{}](c, http.StatusBadRequest, "Invalid JSON payload", nil)
+		return
+	}
+	logrus.Infof("Received building dataset payloads: %+v", payloads)
+
+	var ids []string
+	for _, payload := range payloads {
+		id, err := executor.SubmitTask(c.Request.Context(), &executor.UnifiedTask{
+			Type:      executor.TaskTypeBuildDataset,
+			Payload:   StructToMap(payload),
+			Immediate: true,
+			GroupID:   groupID,
+		})
+		if err != nil {
+			JSONResponse[interface{}](c, http.StatusInternalServerError, id, nil)
+			return
+		}
+
+		ids = append(ids, id)
+	}
+
+	JSONResponse(c, http.StatusAccepted, "Dataset building submitted successfully", SubmitResp{GroupID: groupID, TaskIDs: ids})
 }
 
 // GetDatasetList 获取数据集列表（带分页）
@@ -110,65 +162,91 @@ func GetDatasetList(c *gin.Context) {
 //	@Tags			dataset
 //	@Produce		application/zip
 //	@Consumes		application/json
-//	@Param			body		body		executor.FaultInjectionPayload	true	"下载请求参数"
 //	@Success		200			{string} 	binary 		"ZIP 文件流"
 //	@Failure		400			{object}	GenericResponse[any] "参数绑定错误"
 //	@Failure		403			{object}	GenericResponse[any] "非法路径访问"
 //	@Failure		500			{object}	GenericResponse[any] "文件打包失败"
 //	@Router			/api/v1/datasets/download [get]
 func DownloadDataset(c *gin.Context) {
+	filename := "package"
+	excludeRules := []utils.ExculdeRule{{Pattern: "result.csv", IsGlob: false}}
+
 	var req DatasetDownloadReq
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.BindQuery(&req); err != nil {
 		JSONResponse[interface{}](c, http.StatusBadRequest, executor.FormatErrorMessage(err, DatasetFieldMap), nil)
 		return
 	}
 
-	excludeRules := []utils.ExculdeRule{{Pattern: "result.csv", IsGlob: false}}
+	var joinedResults []JoinedResult
+	if err := database.DB.
+		Model(&database.FaultInjectionSchedule{}).
+		Joins("JOIN tasks ON tasks.id = fault_injection_schedules.task_id").
+		Where("tasks.group_id IN ?", req.GroupIDs).
+		Select("tasks.group_id, fault_injection_schedules.injection_name").
+		Scan(&joinedResults).
+		Error; err != nil {
+		JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to query datasets", nil)
+		return
+	}
+
+	groupedResults := make(map[string][]string)
+	for _, joinedResult := range joinedResults {
+		if _, exists := groupedResults[joinedResult.GroupID]; !exists {
+			groupedResults[joinedResult.GroupID] = []string{}
+		}
+		groupedResults[joinedResult.GroupID] = append(groupedResults[joinedResult.GroupID], joinedResult.Dataset)
+	}
 
 	// 预先检查所有数据集路径合法性
-	for _, dataset := range req.Datasets {
-		workDir := filepath.Join(config.GetString("nfs.path"), dataset)
-		if !utils.IsAllowedPath(workDir) {
-			JSONResponse[interface{}](c, http.StatusForbidden, "Invalid path access", nil)
-			return
+	for _, datasets := range groupedResults {
+		for _, dataset := range datasets {
+			workDir := filepath.Join(config.GetString("nfs.path"), dataset)
+			if !utils.IsAllowedPath(workDir) {
+				JSONResponse[interface{}](c, http.StatusForbidden, "Invalid path access", nil)
+				return
+			}
 		}
 	}
 
 	// 设置响应头
 	c.Header("Content-Type", "application/zip")
-	c.Header("Content-Disposition", "attachment; filename=packages.zip")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.zip", filename))
 
 	zipWriter := zip.NewWriter(c.Writer)
 	defer zipWriter.Close()
 
-	for _, dataset := range req.Datasets {
-		workDir := filepath.Join(config.GetString("nfs.path"), dataset)
+	for groupID, datasets := range groupedResults {
+		folderName := filepath.Join(filename, groupID)
 
-		err := filepath.WalkDir(workDir, func(path string, dir fs.DirEntry, err error) error {
-			if err != nil || dir.IsDir() {
-				return err
-			}
+		for _, dataset := range datasets {
+			workDir := filepath.Join(config.GetString("nfs.path"), dataset)
 
-			relPath, _ := filepath.Rel(workDir, path)
-			fullRelPath := filepath.Join(filepath.Base(workDir), relPath)
-			fileName := filepath.Base(path)
-
-			// 应用排除规则
-			for _, rule := range excludeRules {
-				if utils.MatchFile(fileName, rule) {
-					return nil
+			err := filepath.WalkDir(workDir, func(path string, dir fs.DirEntry, err error) error {
+				if err != nil || dir.IsDir() {
+					return err
 				}
+
+				relPath, _ := filepath.Rel(workDir, path)
+				fullRelPath := filepath.Join(folderName, filepath.Base(workDir), relPath)
+				fileName := filepath.Base(path)
+
+				// 应用排除规则
+				for _, rule := range excludeRules {
+					if utils.MatchFile(fileName, rule) {
+						return nil
+					}
+				}
+
+				// 转换路径分隔符为/
+				zipPath := filepath.ToSlash(fullRelPath)
+				return utils.AddToZip(zipWriter, path, zipPath)
+			})
+
+			if err != nil {
+				c.Error(fmt.Errorf("packaging failed: %v", err))
+				c.AbortWithStatus(http.StatusInternalServerError)
+				return
 			}
-
-			// 转换路径分隔符为/
-			zipPath := filepath.ToSlash(fullRelPath)
-			return utils.AddToZip(zipWriter, path, zipPath)
-		})
-
-		if err != nil {
-			c.Error(fmt.Errorf("packaging failed: %v", err))
-			c.AbortWithStatus(http.StatusInternalServerError)
-			return
 		}
 	}
 }

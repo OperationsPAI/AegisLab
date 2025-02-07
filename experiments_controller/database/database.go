@@ -26,6 +26,8 @@ type Task struct {
 	CronExpr    string    `json:"cron_expr,omitempty"`
 	Payload     string    `json:"payload"`
 	Status      string    `json:"status"`
+	TraceID     string    `json:"trace_id"`
+	GroupID     string    `json:"group_id"`
 	CreatedAt   time.Time `json:"created_at"`
 }
 

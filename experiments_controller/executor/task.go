@@ -53,6 +53,7 @@ type UnifiedTask struct {
 	RetryPolicy RetryPolicy            `json:"retry_policy"`
 	Payload     map[string]interface{} `json:"payload"`
 	TraceID     string                 `json:"trace_id,omitempty"`
+	GroupID     string                 `json:"group_id,omitempty"`
 }
 
 type RetryPolicy struct {
@@ -70,6 +71,9 @@ func SubmitTask(ctx context.Context, task *UnifiedTask) (string, error) {
 	if task.TaskID == "" {
 		task.TaskID = uuid.NewString()
 	}
+	if task.TraceID == "" {
+		task.TraceID = uuid.NewString()
+	}
 
 	jsonPayload, err := json.Marshal(task.Payload)
 	if err != nil {
@@ -82,7 +86,9 @@ func SubmitTask(ctx context.Context, task *UnifiedTask) (string, error) {
 		Immediate:   task.Immediate,
 		ExecuteTime: task.ExecuteTime,
 		CronExpr:    task.CronExpr,
-		Status:      "Pending",
+		Status:      TaskStatusPending,
+		TraceID:     task.TraceID,
+		GroupID:     task.GroupID,
 	}
 	if err := database.DB.Create(&t).Error; err != nil {
 		logrus.Errorf("Failed to save task to database, err: %s", err)
@@ -262,7 +268,7 @@ func processTask(ctx context.Context, taskData string) {
 		logrus.Warnf("Invalid task data: %v", err)
 		return
 	}
-	logrus.Infof("Dealing with task %s, type: %s, traceID: %s", task.TaskID, task.Type, task.TraceID)
+	logrus.Infof("Dealing with task %s, type: %s, groupID: %s", task.TaskID, task.Type, task.GroupID)
 
 	startTime := time.Now()
 	tasksProcessed.WithLabelValues(string(task.Type), "started").Inc()

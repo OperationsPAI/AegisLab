@@ -5,11 +5,13 @@ import (
 	"github.com/google/uuid"
 )
 
-func TraceID() gin.HandlerFunc {
+func GroupID() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		traceID := uuid.New().String()
-		c.Set("traceID", traceID)
-		c.Writer.Header().Set("X-Trace-ID", traceID)
-		c.Next()
+		if c.Request.Method == "POST" {
+			groupID := uuid.New().String()
+			c.Set("groupID", groupID)
+			c.Writer.Header().Set("X-Group-ID", groupID)
+			c.Next()
+		}
 	}
 }

@@ -193,6 +193,7 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 				Payload:   datasetPayload,
 				Immediate: true,
 				TraceID:   task.TraceID,
+				GroupID:   task.GroupID,
 			}); err != nil {
 				logrus.Error(err)
 				return
