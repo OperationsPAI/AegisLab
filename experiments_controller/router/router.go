@@ -29,6 +29,7 @@ func New() *gin.Engine {
 	{
 		datasets.DELETE("/:dataset_id", handlers.DeleteDataset)
 		datasets.GET("", handlers.GetDatasetList)
+		datasets.POST("", handlers.BuildDataset)
 		datasets.POST("/download", handlers.DownloadDataset)
 		datasets.POST("/upload", handlers.UploadDataset)
 	}
@@ -52,7 +53,7 @@ func New() *gin.Engine {
 		injections.GET("", handlers.GetInjectionList)
 		injections.GET("/parameters", handlers.GetInjectionParameters)
 		injections.POST("", handlers.SubmitFaultInjection)
-		injections.GET("/namespaces", handlers.GetNamespacePod)
+		injections.GET("/namespace_pods", handlers.GetNamespacePods)
 
 		tasks := injections.Group("/:injection_id")
 		{

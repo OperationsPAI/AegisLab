@@ -77,12 +77,12 @@ func ParseFaultInjectionPayload(payload map[string]interface{}) (*FaultInjection
 func checkExecutionTime(faultRecord database.FaultInjectionSchedule, namespace string) (time.Time, time.Time, error) {
 	var startTime, endTime time.Time
 
-	datasetName := faultRecord.InjectionName
-
 	if faultRecord.Status == DatasetSuccess {
 		startTime = faultRecord.StartTime
 		endTime = faultRecord.EndTime
 	} else if faultRecord.Status == DatasetInitial {
+		datasetName := faultRecord.InjectionName
+
 		var err error
 		startTime, endTime, err = chaosCli.QueryCRDByName(namespace, datasetName)
 		if err != nil {
@@ -184,8 +184,8 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 				BuildBenchmark: *fiPayload.Benchmark,
 				BuildDataset:   name,
 				BuildNamespace: fiPayload.Namespace,
-				BuildStartTime: startTime,
-				BuildEndTime:   endTime,
+				BuildStartTime: &startTime,
+				BuildEndTime:   &endTime,
 			}
 
 			if _, err := SubmitTask(context.Background(), &UnifiedTask{

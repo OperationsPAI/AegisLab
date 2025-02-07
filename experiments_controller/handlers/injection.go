@@ -37,13 +37,17 @@ type InjectListResp struct {
 	Para       executor.FaultInjectionPayload `json:"para"`
 }
 
+type InjectNamespacePodResp struct {
+	NamespaceInfo map[string][]string `json:"namespace_info"`
+}
+
 type InjectParaResp struct {
 	Specification map[string][]chaos.ActionSpace `json:"specification"`
 	KeyMap        map[chaos.ChaosType]string     `json:"keymap"`
 }
 
 type InjectResp struct {
-	TaskID string `json:"task_id"`
+	TaskIDs []string `json:"task_ids"`
 }
 
 type InjectStatusResp struct {
@@ -86,7 +90,7 @@ func CancelInjection(c *gin.Context) {
 //	@Success		200	{object}		GenericResponse[[]InjectListResp]
 //	@Failure		400	{object}		GenericResponse[[]InjectListResp]
 //	@Failure		500	{object}		GenericResponse[[]InjectListResp]
-//	@Router			/api/v1/injection/getlist [post]
+//	@Router			/api/v1/injections/getlist [post]
 func GetInjectionList(c *gin.Context) {
 	traceID := c.GetString("traceID")
 	logrus.Infof("GetInjectionList called, traceID: %s", traceID)
@@ -183,7 +187,7 @@ func GetInjectionStatus(c *gin.Context) {
 //	@Produce		json
 //	@Success		200	{object}	GenericResponse[InjectParaResp]
 //	@Failure		500	{object}	GenericResponse[any]
-//	@Router			/api/v1/injection/getpara [get]
+//	@Router			/api/v1/injections/getpara [get]
 func GetInjectionParameters(c *gin.Context) {
 	traceID := c.GetString("traceID")
 	logrus.Infof("GetInjectionParameters called, traceID: %s", traceID)
@@ -205,7 +209,6 @@ func GetInjectionParameters(c *gin.Context) {
 }
 
 // InjectFault
-// TODO 批量注入故障
 //
 //	@Summary		注入故障
 //	@Description	注入故障
@@ -216,7 +219,7 @@ func GetInjectionParameters(c *gin.Context) {
 //	@Success		200		{object}	GenericResponse[InjectResp]
 //	@Failure		400		{object}	GenericResponse[any]
 //	@Failure		500		{object}	GenericResponse[any]
-//	@Router			/api/v1/injection/submit [post]
+//	@Router			/api/v1/injections [post]
 func SubmitFaultInjection(c *gin.Context) {
 	traceID := c.GetString("traceID")
 	logrus.Infof("SubmitFaultInjection called, traceID: %s", traceID)
@@ -246,29 +249,30 @@ func SubmitFaultInjection(c *gin.Context) {
 		ids = append(ids, id)
 	}
 
-	JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", ids)
+	JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", InjectResp{TaskIDs: ids})
 }
 
 // GetNamespacePod 获取命名空间中的 Pod 标签
 // @Summary 获取命名空间中的 Pod 标签
 // @Description 返回指定命名空间中符合条件的 Pod 标签列表
-// @Tags pods
+// @Tags	injection
 // @Produce json
-// @Success 200 {object} map[string]interface{} "返回命名空间和对应的 Pod 标签信息"
-// @Failure 500 {object} map[string]string "服务器内部错误，无法获取 Pod 标签"
+// @Success 200 {object} InjectNamespacePodResp "返回命名空间和对应的 Pod 标签信息"
+// @Failure 500 {object} any "服务器内部错误，无法获取 Pod 标签"
 //
-//	@Router			/api/v1/injection/namespaces [get]
-func GetNamespacePod(c *gin.Context) {
+//	@Router			/api/v1/injections/namespace_pods [get]
+func GetNamespacePods(c *gin.Context) {
 	traceID := c.GetString("traceID")
 	logrus.Infof("GetNamespacePod called, traceID: %s", traceID)
 
-	res := make(map[string][]string)
+	namespaceInfo := make(map[string][]string)
 	for _, ns := range config.GetStringSlice("injection.namespace") {
 		labels, err := cli.GetLabels(ns, config.GetString("injection.label"))
 		if err != nil {
-			JSONResponse(c, http.StatusInternalServerError, "Failed to get labels from namespace ts", "")
+			JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("Failed to get labels from namespace %s", ns), nil)
 		}
-		res[ns] = labels
+		namespaceInfo[ns] = labels
 	}
-	JSONResponse(c, http.StatusOK, "", res)
+
+	JSONResponse(c, http.StatusOK, "OK", InjectNamespacePodResp{NamespaceInfo: namespaceInfo})
 }

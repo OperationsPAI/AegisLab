@@ -1,12 +1,11 @@
 PWD := $(shell pwd)
+NS 	?= experiment
 
+build:
+	skaffold run --default-repo=10.10.10.240/library
 
 run:
-	docker compose down && \
-	docker compose up redis mariadb -d && \
-	kubectl delete jobs --all -n experiment && \
-	cd experiments_controller && \
-	go run main.go both --port 8082
+	skaffold debug --default-repo=10.10.10.240/library
 
 swagger:
 	swag init \
@@ -18,23 +17,10 @@ gen:
 	python scripts/cmd/main.py --algo -d1
 
 jobs:
-	kubectl get jobs -n experiment
+	kubectl get jobs -n $(NS)
 
 pods:
-	kubectl get pods -n experiment
+	kubectl get pods -n $(NS)
 
 ports:
-	kubectl port-forward svc/exp -n experiment --address 0.0.0.0 8081:8081 &
-
-build:
-	docker build -t 10.10.10.240/library/rcabench:latest -f experiments_controller/Dockerfile .
-	docker push 10.10.10.240/library/rcabench:latest
-
-install:
-	helm install rcabench ./helm -n experiment
-
-upgrade:
-	helm upgrade rcabench ./helm -n experiment
-
-uninstall:
-	helm uninstall rcabench -n experiment
+	kubectl port-forward svc/exp -n $(NS) --address 0.0.0.0 8081:8081 &

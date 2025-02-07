@@ -90,6 +90,9 @@ func getJobInformer(ctx context.Context, callback Callback) {
 			if callback != nil && oldJob.Name == newJob.Name {
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {
 					callback.UpdateFunc(newJob.Labels)
+					if err := DeleteK8sJob(context.Background(), config.GetString("k8s.namespace"), newJob.Name); err != nil {
+						logrus.Error(err)
+					}
 				}
 			}
 		},
@@ -226,29 +229,15 @@ func GetK8sJob(ctx context.Context, namespace, jobName string) (*batchv1.Job, er
 }
 
 func DeleteK8sJob(ctx context.Context, namespace, jobName string) error {
-	// Delete the job
-	err := k8sClient.BatchV1().Jobs(namespace).Delete(ctx, jobName, metav1.DeleteOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to delete job: %v", err)
+	deletePolicy := metav1.DeletePropagationBackground
+	deleteOptions := metav1.DeleteOptions{
+		PropagationPolicy: &deletePolicy,
 	}
 
-	// Delete the pods associated with the job
-	podList, err := k8sClient.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("job-name=%s", jobName),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to list pods: %v", err)
+	if err := k8sClient.BatchV1().Jobs(namespace).Delete(ctx, jobName, deleteOptions); err != nil {
+		return fmt.Errorf("Failed to delete job %s:%v", jobName, err)
 	}
 
-	for _, pod := range podList.Items {
-		err := k8sClient.CoreV1().Pods(namespace).Delete(ctx, pod.Name, metav1.DeleteOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to delete pod %s: %v", pod.Name, err)
-		}
-		logrus.Infof("Pod %q deleted successfully.", pod.Name)
-	}
-
-	logrus.Infof("Job %q and its pods deleted successfully.", jobName)
 	return nil
 }
 

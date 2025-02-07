@@ -42,15 +42,25 @@ class InjectHelper:
 
 
 class TestRCABenchSDK(unittest.TestCase):
+    def __init__(self, methodName="runTest"):
+        super().__init__(methodName)
+        self.base_url = "http://10.10.10.220:32080"
+        self.sdk = RCABenchSDK(self.base_url)
+
+    def test_get_algorithms(self):
+        print(self.sdk.get_algorithms())
+
     def test_submit_injection(self):
         base_url = "http://10.10.10.220:32080"  # 替换为实际服务器地址
         sdk = RCABenchSDK(base_url)
 
         injection_params = sdk.get_injection_parameters()
-        helper = InjectHelper(injection_params.specification, injection_params.keymap)
+        helper = InjectHelper(
+            specification=injection_params.specification, keymap=injection_params.keymap
+        )
         params = helper.generate_injection_dict()
 
-        namespace_pod_info = sdk.get_namespace_pod()
+        namespace_pod_info = sdk.get_injection_namespace_pod_info()
         namespace = random.choice(list(namespace_pod_info.namespace_info.keys()))
         pod = random.choice(namespace_pod_info.namespace_info[namespace])
 

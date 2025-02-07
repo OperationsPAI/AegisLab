@@ -1,8 +1,7 @@
+import inspect
 import requests
 from dataclasses import dataclass
-from typing import List, Dict, Optional, Union
-from pprint import pprint
-from dataclasses import asdict
+from typing import Any, List, Dict, Optional
 
 
 @dataclass
@@ -61,136 +60,58 @@ class RunAlgorithmPayload:
 
 
 class RCABenchSDK:
+    URL_DICT = {
+        "get_algorithms": "{}/algorithms",
+        "inject": "{}/injections",
+        "get_injection_parameters": "{}/injections/parameters",
+        "get_injection_namespace_pod_info": "{}/injections/namespace_pods",
+    }
+
     def __init__(self, base_url: str):
         """
         Initialize the SDK with the base URL of the server.
 
         :param base_url: Base URL of the RCABench server, e.g., "http://localhost:8080"
         """
-        self.base_url = base_url.rstrip("/")
+        self.base_url = base_url.rstrip("/") + "/api/v1"
 
-    def inject(self, payload: List[Dict]) -> TaskResponse:
-        url = f"{self.base_url}/api/v1/injections"
-        json_payload = [item for item in payload]  # 正确转换
-        resp = requests.post(url, json=json_payload)
-        return resp.json()
+    @staticmethod
+    def _get_parent_function_name():
+        stack = inspect.stack()
+        parent_frame = stack[2]
+        return parent_frame.function
 
-    def get_task_status(self, task_id: str) -> TaskStatus:
-        """
-        Get the status of a task.
-
-        :param task_id: ID of the task
-        :return: TaskStatus object
-        """
-        url = f"{self.base_url}/status/{task_id}"
+    def _get(self, task_id: Optional[str] = None) -> Any:
+        url = self.URL_DICT[self._get_parent_function_name()].format(self.base_url)
+        if task_id:
+            url = url.format(task_id)
         response = requests.get(url)
         response.raise_for_status()
-        data = response.json()
-        return TaskStatus(
-            taskID=data["taskID"], status=data["status"], logs=data["logs"]
-        )
+        return response.json()
 
-    def get_task_details(self, task_id: str) -> TaskDetails:
-        """
-        Get the details of a specific task.
+    def _post(self, payload: List[Dict]) -> requests.Response:
+        url = self.URL_DICT[self._get_parent_function_name()].format(self.base_url)
+        json_payload = [item for item in payload]
+        return requests.post(url, json=json_payload)
 
-        :param task_id: ID of the task
-        :return: TaskDetails object
-        """
-        url = f"{self.base_url}/task/{task_id}/details"
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
-        return TaskDetails(
-            id=data["id"],
-            type=data["type"],
-            payload=data["payload"],
-            status=data["status"],
-        )
-
-    def get_task_logs(self, task_id: str) -> List[str]:
-        """
-        Retrieve the logs of a specific task.
-
-        :param task_id: ID of the task
-        :return: List of log entries
-        """
-        url = f"{self.base_url}/task/{task_id}/logs"
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
-        return data["logs"]
-
-    def get_algo_bench(self) -> AlgoBenchResponse:
+    def get_algorithms(self) -> AlgoBenchResponse:
         """
         Retrieve available benchmarks and algorithms.
 
         :return: AlgoBenchResponse object
         """
-        url = f"{self.base_url}/algobench"
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
-        return AlgoBenchResponse(
-            benchmarks=data["benchmarks"], algorithms=data["algorithms"]
-        )
+        data = self._get()["data"]
+        return AlgoBenchResponse(algorithms=data["algorithms"])
+
+    def inject(self, payload: List[Dict]) -> TaskResponse:
+        return self._post(payload).json()
 
     def get_injection_parameters(self) -> InjectionParameters:
-        """
-        Retrieve chaos injection parameters.
-
-        :return: InjectionParameters object
-        """
-        url = f"{self.base_url}/api/v1/injections/parameters"
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()["data"]
+        data = self._get()["data"]
         return InjectionParameters(
             specification=data["specification"], keymap=data["keymap"]
         )
 
-    def get_datasets(self) -> DatasetResponse:
-        """
-        Retrieve available datasets.
-
-        :return: DatasetResponse object
-        """
-        url = f"{self.base_url}/datasets"
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
-        return DatasetResponse(datasets=data["datasets"])
-
-    def get_namespace_pod(self) -> NamespacePodInfo:
-        """
-        Retrieve namespace and pod information.
-
-        :return: NamespacePodInfo object
-        """
-        url = f"{self.base_url}/api/v1/injections/namespaces"
-        response = requests.get(url)
-        data = response.json()
-        return NamespacePodInfo(namespace_info=data["data"])
-
-    def get_evaluation_result(self) -> List:
-        """
-        Retrieve all the evaluation result
-        """
-        url = f"{self.base_url}/evaluation"
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
-        return data
-
-    def withdraw_task(self, task_id: str) -> WithdrawResponse:
-        """
-        Withdraw a task by its ID.
-
-        :param task_id: ID of the task to withdraw
-        :return: WithdrawResponse object
-        """
-        url = f"{self.base_url}/task/{task_id}"
-        response = requests.delete(url)
-        response.raise_for_status()
-        data = response.json()
-        return WithdrawResponse(message=data["message"])
+    def get_injection_namespace_pod_info(self) -> NamespacePodInfo:
+        data = self._get()["data"]
+        return NamespacePodInfo(namespace_info=data["namespace_info"])

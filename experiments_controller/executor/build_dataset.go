@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -122,14 +123,20 @@ func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
 		err = database.DB.Where("injection_name = ?", datasetName).First(&faultRecord).Error
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return fmt.Errorf("no matching fault injection record found for dataset: %s", datasetName)
+				return fmt.Errorf("No matching fault injection record found for dataset: %s", datasetName)
 			}
 			return fmt.Errorf("failed to query database for dataset: %s, error: %v", datasetName, err)
 		}
 
-		startTime, endTime, err = checkExecutionTime(faultRecord, "ts")
+		var fiPayload FaultInjectionPayload
+		if err = json.Unmarshal([]byte(faultRecord.Config), &fiPayload); err != nil {
+			return fmt.Errorf("Failed to unmarshal fault injection payload for dataset %s: %v", datasetName, err)
+		}
+		logrus.Infof("Parsed fault injection payload: %+v", fiPayload)
+
+		startTime, endTime, err = checkExecutionTime(faultRecord, fiPayload.Namespace)
 		if err != nil {
-			logrus.Errorf("Failed to checkExecutionTime for dataset %s: %v", datasetName, err)
+			return fmt.Errorf("Failed to checkExecutionTime for dataset %s: %v", datasetName, err)
 		}
 	}
 
