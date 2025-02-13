@@ -16,14 +16,19 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type DatasetReq struct {
+type Dataset struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+type DatasetListReq struct {
 	PageNum  *int `form:"page_num" binding:"required,min=1"`
 	PageSize *int `form:"page_size" binding:"required,min=5,max=20"`
 }
 
-type DatasetResp struct {
-	Total    int64    `json:"total"`
-	Datasets []string `json:"datasets"`
+type DatasetListResp struct {
+	Total    int64     `json:"total"`
+	Datasets []Dataset `json:"datasets"`
 }
 
 type DatasetDownloadReq struct {
@@ -108,7 +113,7 @@ func SubmitDatasetBuilding(c *gin.Context) {
 //	@Router			/api/v1/datasets [get]
 func GetDatasetList(c *gin.Context) {
 	// 获取查询参数并校验是否合法
-	var datasetReq DatasetReq
+	var datasetReq DatasetListReq
 	if err := c.BindQuery(&datasetReq); err != nil {
 		JSONResponse[interface{}](c, http.StatusBadRequest, executor.FormatErrorMessage(err, DatasetFieldMap), nil)
 		return
@@ -135,7 +140,7 @@ func GetDatasetList(c *gin.Context) {
 	// 查询分页数据
 	var faultRecords []database.FaultInjectionSchedule
 	err = database.DB.
-		Select("injection_name").
+		Select("id,injection_name").
 		Where("status = ?", executor.DatasetSuccess).
 		Offset(offset).
 		Limit(pageSize).
@@ -146,10 +151,11 @@ func GetDatasetList(c *gin.Context) {
 		return
 	}
 
-	var datasetResp DatasetResp
+	var datasetResp DatasetListResp
 	datasetResp.Total = total
 	for _, record := range faultRecords {
-		datasetResp.Datasets = append(datasetResp.Datasets, record.InjectionName)
+		dataset := Dataset{ID: record.ID, Name: record.InjectionName}
+		datasetResp.Datasets = append(datasetResp.Datasets, dataset)
 	}
 
 	JSONResponse(c, http.StatusOK, "OK", datasetResp)
@@ -243,8 +249,9 @@ func DownloadDataset(c *gin.Context) {
 			})
 
 			if err != nil {
-				c.Error(fmt.Errorf("packaging failed: %v", err))
-				c.AbortWithStatus(http.StatusInternalServerError)
+				delete(c.Writer.Header(), "Content-Disposition")
+				c.Header("Content-Type", "application/json; charset=utf-8")
+				JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("packaging failed: %v", err), nil)
 				return
 			}
 		}
@@ -270,7 +277,7 @@ func UploadDataset(c *gin.Context) {
 //	@Success		200			{object}	GenericResponse[int]
 //	@Failure		400			{object}	GenericResponse[any]
 //	@Failure		500			{object}	GenericResponse[any]
-//	@Router			/api/v1/dataset/delete [delete]
+//	@Router			/api/v1/datasets/delete [delete]
 func DeleteDataset(c *gin.Context) {
 	idStr := c.Param("datasetID")
 	if idStr == "" {
