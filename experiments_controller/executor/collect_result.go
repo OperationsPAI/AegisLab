@@ -195,9 +195,6 @@ func collectResult(taskID string, payload map[string]interface{}) error {
 	}
 
 	path := config.GetString("nfs.path")
-	if path == "" {
-		path = "/mnt/nfs/rcabench_dataset"
-	}
 
 	resultCSV := filepath.Join(path, resultPayload.DatasetName, "result.csv")
 	content, err := os.ReadFile(resultCSV)

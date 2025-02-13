@@ -34,7 +34,7 @@ configmap:
   k8s:
     namespace: "experiment"
   nfs:
-    path: "/mnt/nfs/rcabench_dataset"
+    path: "/var/lib/rcabench"
     pvc_name: "nfs-shared-pvc"
 
 persistence:

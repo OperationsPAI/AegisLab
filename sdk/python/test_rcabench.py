@@ -44,6 +44,7 @@ class InjectHelper:
 class TestRCABenchSDK(unittest.TestCase):
     def __init__(self, methodName="runTest"):
         super().__init__(methodName)
+        # 替换为实际服务器地址
         self.base_url = "http://10.10.10.220:32080"
         self.sdk = RCABenchSDK(self.base_url)
 
@@ -51,31 +52,39 @@ class TestRCABenchSDK(unittest.TestCase):
         print(self.sdk.get_algorithms())
 
     def test_submit_injection(self):
-        base_url = "http://10.10.10.220:32080"  # 替换为实际服务器地址
-        sdk = RCABenchSDK(base_url)
+        n_trail = 10
+        excluded_pods = ["mysql"]
 
-        injection_params = sdk.get_injection_parameters()
+        injection_params = self.sdk.get_injection_parameters()
         helper = InjectHelper(
             specification=injection_params.specification, keymap=injection_params.keymap
         )
-        params = helper.generate_injection_dict()
 
-        namespace_pod_info = sdk.get_injection_namespace_pod_info()
+        namespace_pod_info = self.sdk.get_injection_namespace_pod_info()
         namespace = random.choice(list(namespace_pod_info.namespace_info.keys()))
-        pod = random.choice(namespace_pod_info.namespace_info[namespace])
+        pprint(namespace_pod_info)
 
-        faults = [
-            {
-                "faultType": params["fault_type"],
-                "duration": random.randint(5, 10),
-                "injectNamespace": namespace,
-                "injectPod": pod,
-                "spec": params["inject_spec"],
-                "benchmark": "clickhouse",
-            }
-        ]
-        task_response = sdk.inject(faults)
+        faults = []
+        for _ in range(n_trail):
+            pod = random.choice(namespace_pod_info.namespace_info[namespace])
+            params = helper.generate_injection_dict()
+            while params["fault_type"] in excluded_pods:
+                params = helper.generate_injection_dict()
+
+            faults.append(
+                {
+                    "faultType": params["fault_type"],
+                    "duration": random.randint(5, 10),
+                    "injectNamespace": namespace,
+                    "injectPod": pod,
+                    "spec": params["inject_spec"],
+                    "benchmark": "clickhouse",
+                }
+            )
+
         pprint(faults)
+
+        task_response = self.sdk.inject(faults)
         pprint(task_response)
 
         # for task_id in task_response["data"]:

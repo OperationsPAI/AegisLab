@@ -7,7 +7,7 @@ timezone = "Asia/Shanghai"
 
 [injection]
 namespace = ["ts"]
-interval = 10
+interval = 2
 label = "app"
 
 [storage]
@@ -33,5 +33,5 @@ repository = "10.10.10.240/library"
 namespace = "experiment"
 
 [nfs]
-path = "/mnt/nfs/rcabench_dataset"
+path = "/var/lib/rcabench"
 pvc_name = "nfs-shared-pvc"
