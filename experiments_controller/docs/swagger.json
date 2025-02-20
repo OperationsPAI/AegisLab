@@ -34,38 +34,179 @@
                 }
             }
         },
-        "/datasets": {
+        "/api/v1/algo/getlist": {
             "get": {
-                "description": "返回已成功的故障注入数据集列表",
+                "description": "获取算法列表",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "datasets"
+                    "algorithm"
                 ],
-                "summary": "获取数据集列表",
+                "summary": "获取算法列表",
                 "responses": {
                     "200": {
-                        "description": "返回数据集名称列表",
+                        "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/handlers.GenericResponse-array_handlers_GetAlgorithmResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/handlers.GenericResponse-any"
                         }
                     }
                 }
             }
         },
-        "/evaluation": {
+        "/api/v1/dataset/delete": {
+            "delete": {
+                "description": "删除数据集数据",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "dataset"
+                ],
+                "summary": "删除数据集数据",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "数据集 ID",
+                        "name": "datasetID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GenericResponse-int"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/dataset/download": {
+            "post": {
+                "description": "下载数据集数据",
+                "tags": [
+                    "algorithm"
+                ],
+                "summary": "下载数据集数据",
+                "responses": {}
+            }
+        },
+        "/api/v1/dataset/getlist": {
             "get": {
+                "description": "获取所有数据集列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "dataset"
+                ],
+                "summary": "获取所有数据集列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "页面数目",
+                        "name": "page_num",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页面大小",
+                        "name": "page_size",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GenericResponse-handlers_GetDatasetResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/dataset/upload": {
+            "post": {
+                "description": "上传数据集数据",
+                "tags": [
+                    "algorithm"
+                ],
+                "summary": "上传数据集数据",
+                "responses": {}
+            }
+        },
+        "/api/v1/evaluation/cancel": {
+            "post": {
+                "description": "取消评估的执行",
+                "tags": [
+                    "evaluation"
+                ],
+                "summary": "取消评估的执行",
+                "responses": {}
+            }
+        },
+        "/api/v1/evaluation/getlist": {
+            "post": {
+                "description": "获取评估列表",
+                "tags": [
+                    "evaluation"
+                ],
+                "summary": "获取评估列表",
+                "responses": {}
+            }
+        },
+        "/api/v1/evaluation/getlogs": {
+            "post": {
+                "description": "查看评估的日志",
+                "tags": [
+                    "evaluation"
+                ],
+                "summary": "查看评估的日志",
+                "responses": {}
+            }
+        },
+        "/api/v1/evaluation/getresult": {
+            "post": {
                 "description": "返回每种算法的执行历史记录",
                 "produces": [
                     "application/json"
@@ -147,8 +288,109 @@
                 }
             }
         },
-        "/injection/parameters": {
-            "get": {
+        "/api/v1/evaluation/getstatus": {
+            "post": {
+                "description": "查看评估状态",
+                "tags": [
+                    "evaluation"
+                ],
+                "summary": "查看评估状态",
+                "responses": {}
+            }
+        },
+        "/api/v1/evaluation/submit": {
+            "post": {
+                "description": "提交评估",
+                "tags": [
+                    "evaluation"
+                ],
+                "summary": "提交评估",
+                "responses": {}
+            }
+        },
+        "/api/v1/injection/cancel": {
+            "post": {
+                "description": "取消注入",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "injection"
+                ],
+                "summary": "取消注入",
+                "parameters": [
+                    {
+                        "description": "请求体",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.InjectCancelReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.GenericResponse-handlers_InjectCancelResp"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GenericResponse-handlers_InjectCancelResp"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GenericResponse-handlers_InjectCancelResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/injection/getlist": {
+            "post": {
+                "description": "获取注入列表和必要的简略信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "injection"
+                ],
+                "summary": "获取注入列表和必要的简略信息",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.GenericResponse-array_handlers_InjectListResp"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GenericResponse-array_handlers_InjectListResp"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GenericResponse-array_handlers_InjectListResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/injection/getpara": {
+            "post": {
                 "description": "获取可用的故障注入参数和类型映射",
                 "produces": [
                     "application/json"
@@ -160,6 +402,131 @@
                 "responses": {
                     "200": {
                         "description": "返回故障注入参数和类型映射",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/injection/getstatus": {
+            "post": {
+                "description": "获取注入列表和必要的简略信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "injection"
+                ],
+                "summary": "获取注入列表和必要的简略信息",
+                "parameters": [
+                    {
+                        "description": "请求体",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.InjectStatusReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.GenericResponse-handlers_InjectStatusResp"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GenericResponse-handlers_InjectStatusResp"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GenericResponse-handlers_InjectStatusResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/injection/submit": {
+            "post": {
+                "description": "注入故障",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Injection"
+                ],
+                "summary": "注入故障",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "任务类型",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "description": "请求体",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.InjectReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GenericResponse-handlers_InjectResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/datasets": {
+            "get": {
+                "description": "返回已成功的故障注入数据集列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "datasets"
+                ],
+                "summary": "获取数据集列表",
+                "responses": {
+                    "200": {
+                        "description": "返回数据集名称列表",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -636,6 +1003,277 @@
                     }
                 }
             }
+        },
+        "handlers.GenericResponse-any": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据"
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.GenericResponse-array_handlers_GetAlgorithmResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.GetAlgorithmResp"
+                    }
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.GenericResponse-array_handlers_InjectListResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.InjectListResp"
+                    }
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.GenericResponse-handlers_GetDatasetResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/handlers.GetDatasetResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.GenericResponse-handlers_InjectCancelResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/handlers.InjectCancelResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.GenericResponse-handlers_InjectResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/handlers.InjectResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.GenericResponse-handlers_InjectStatusResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/handlers.InjectStatusResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.GenericResponse-int": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "type": "integer"
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.GetAlgorithmResp": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.GetDatasetResp": {
+            "type": "object",
+            "properties": {
+                "datasets": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.InjectCancelReq": {
+            "type": "object",
+            "properties": {
+                "task_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.InjectCancelResp": {
+            "type": "object"
+        },
+        "handlers.InjectListResp": {
+            "type": "object",
+            "properties": {
+                "duration": {
+                    "description": "minutes",
+                    "type": "integer"
+                },
+                "fault_type": {
+                    "type": "string"
+                },
+                "inject_time": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "para": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "task_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.InjectReq": {
+            "type": "object"
+        },
+        "handlers.InjectResp": {
+            "type": "object",
+            "properties": {
+                "task_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.InjectStatusReq": {
+            "type": "object",
+            "properties": {
+                "task_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.InjectStatusResp": {
+            "type": "object"
         },
         "handlers.TaskWithResults": {
             "type": "object",

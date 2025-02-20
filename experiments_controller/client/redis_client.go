@@ -1,9 +1,10 @@
-package executor
+package client
 
 import (
 	"context"
-	"dagger/rcabench/config"
 	"sync"
+
+	"github.com/CUHK-SE-Group/rcabench/config"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/sirupsen/logrus"
@@ -15,15 +16,11 @@ var (
 	redisOnce   sync.Once
 )
 
-// 初始化函数
-func init() {
-	ctx := context.Background()
-	initConsumerGroup(ctx)
-}
-
 // 获取 Redis 客户端
 func GetRedisClient() *redis.Client {
 	redisOnce.Do(func() {
+
+		logrus.Infof("Connecting to Redis %s", config.GetString("redis.host"))
 		redisClient = redis.NewClient(&redis.Options{
 			Addr:     config.GetString("redis.host"),
 			Password: "",

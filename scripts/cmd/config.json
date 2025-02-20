@@ -1,0 +1,18 @@
+{
+    "algo": {
+        "library": {
+            "rcaeval": {
+                "algo": "nsigma",
+                "path": "/home/nn/workspace/lib/RCAEval/RCAEval/e2e"
+            }
+        },
+        "module_name": "main.py",
+        "toml_name": "info.toml"
+    },
+    "harbor": {
+        "host": "10.10.10.240",
+        "username": "anon",
+        "password": "Anon12345",
+        "repository": "10.10.10.240/library"
+    }
+}

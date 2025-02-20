@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rcabench-config
+data:
+  config.prod.toml: |
+    port = {{ .Values.configmap.port }}
+    debug = {{ .Values.configmap.debug }}
+    workspace = "{{ .Values.configmap.workspace }}"
+
+    [system]
+    timezone = "{{ .Values.configmap.system.timezone }}"
+
+    [injection]
+    namespace = [{{ .Values.configmap.injection.namespace | join "\", \"" | quote }}]
+    label = "{{ .Values.configmap.injection.label }}"
+
+    [storage]
+    path = "{{ .Values.configmap.storage.path }}"
+
+    [database]
+    clickhouse_host = "{{ .Values.configmap.database.clickhouse_host }}"
+    mysql_user = "{{ .Values.configmap.database.mysql_user }}"
+    mysql_password = "{{ .Values.configmap.database.mysql_password }}"
+    mysql_host = "{{ .Values.configmap.database.mysql_host }}"
+    mysql_port = "{{ .Values.configmap.database.mysql_port }}"
+    mysql_db = "{{ .Values.configmap.database.mysql_db }}"
+
+    [redis]
+    host = "{{ .Values.configmap.redis.host }}"
+
+    [harbor]
+    host = "{{ .Values.configmap.harbor.host }}"
+    repository = "{{ .Values.configmap.harbor.repository }}"
+
+    [k8s]
+    namespace = "{{ .Values.configmap.k8s.namespace }}"
+
+    [nfs]
+    path = "{{ .Values.configmap.nfs.path }}"
+    pvc_name = "{{ .Values.configmap.nfs.pvc_name }}"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mariadb-config
+data:
+  my.cnf: |
+    [mysqld]
+    bind-address = 0.0.0.0

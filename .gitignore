@@ -167,3 +167,4 @@ input
 output
 *.db
 .idea
+.vscode

@@ -161,6 +161,186 @@ definitions:
           $ref: '#/definitions/database.GranularityResult'
         type: array
     type: object
+  handlers.GenericResponse-any:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  handlers.GenericResponse-array_handlers_GetAlgorithmResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        description: 泛型类型的数据
+        items:
+          $ref: '#/definitions/handlers.GetAlgorithmResp'
+        type: array
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  handlers.GenericResponse-array_handlers_InjectListResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        description: 泛型类型的数据
+        items:
+          $ref: '#/definitions/handlers.InjectListResp'
+        type: array
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  handlers.GenericResponse-handlers_GetDatasetResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/handlers.GetDatasetResp'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  handlers.GenericResponse-handlers_InjectCancelResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/handlers.InjectCancelResp'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  handlers.GenericResponse-handlers_InjectResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/handlers.InjectResp'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  handlers.GenericResponse-handlers_InjectStatusResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/handlers.InjectStatusResp'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  handlers.GenericResponse-int:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        description: 泛型类型的数据
+        type: integer
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  handlers.GetAlgorithmResp:
+    properties:
+      name:
+        type: string
+    type: object
+  handlers.GetDatasetResp:
+    properties:
+      datasets:
+        items:
+          type: string
+        type: array
+      total:
+        type: integer
+    type: object
+  handlers.InjectCancelReq:
+    properties:
+      task_id:
+        type: string
+    type: object
+  handlers.InjectCancelResp:
+    type: object
+  handlers.InjectListResp:
+    properties:
+      duration:
+        description: minutes
+        type: integer
+      fault_type:
+        type: string
+      inject_time:
+        type: string
+      name:
+        type: string
+      para:
+        type: string
+      status:
+        type: string
+      task_id:
+        type: string
+    type: object
+  handlers.InjectReq:
+    type: object
+  handlers.InjectResp:
+    properties:
+      task_id:
+        type: string
+    type: object
+  handlers.InjectStatusReq:
+    properties:
+      task_id:
+        type: string
+    type: object
+  handlers.InjectStatusResp:
+    type: object
   handlers.TaskWithResults:
     properties:
       algo:
@@ -197,28 +377,123 @@ paths:
       summary: 获取算法和基准列表
       tags:
       - algorithms
-  /datasets:
+  /api/v1/algo/getlist:
     get:
-      description: 返回已成功的故障注入数据集列表
+      description: 获取算法列表
       produces:
       - application/json
       responses:
         "200":
-          description: 返回数据集名称列表
+          description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/handlers.GenericResponse-array_handlers_GetAlgorithmResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.GenericResponse-any'
         "500":
-          description: 服务器内部错误
+          description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: 获取数据集列表
+            $ref: '#/definitions/handlers.GenericResponse-any'
+      summary: 获取算法列表
       tags:
-      - datasets
-  /evaluation:
+      - algorithm
+  /api/v1/dataset/delete:
+    delete:
+      description: 删除数据集数据
+      parameters:
+      - description: 数据集 ID
+        in: path
+        name: datasetID
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.GenericResponse-int'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.GenericResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.GenericResponse-any'
+      summary: 删除数据集数据
+      tags:
+      - dataset
+  /api/v1/dataset/download:
+    post:
+      description: 下载数据集数据
+      responses: {}
+      summary: 下载数据集数据
+      tags:
+      - algorithm
+  /api/v1/dataset/getlist:
     get:
+      description: 获取所有数据集列表
+      parameters:
+      - description: 页面数目
+        in: query
+        name: page_num
+        required: true
+        type: integer
+      - description: 页面大小
+        in: query
+        name: page_size
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.GenericResponse-handlers_GetDatasetResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.GenericResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.GenericResponse-any'
+      summary: 获取所有数据集列表
+      tags:
+      - dataset
+  /api/v1/dataset/upload:
+    post:
+      description: 上传数据集数据
+      responses: {}
+      summary: 上传数据集数据
+      tags:
+      - algorithm
+  /api/v1/evaluation/cancel:
+    post:
+      description: 取消评估的执行
+      responses: {}
+      summary: 取消评估的执行
+      tags:
+      - evaluation
+  /api/v1/evaluation/getlist:
+    post:
+      description: 获取评估列表
+      responses: {}
+      summary: 获取评估列表
+      tags:
+      - evaluation
+  /api/v1/evaluation/getlogs:
+    post:
+      description: 查看评估的日志
+      responses: {}
+      summary: 查看评估的日志
+      tags:
+      - evaluation
+  /api/v1/evaluation/getresult:
+    post:
       description: 返回每种算法的执行历史记录
       parameters:
       - collectionFormat: csv
@@ -273,8 +548,75 @@ paths:
       summary: 获取每种算法的执行历史记录
       tags:
       - evaluation
-  /injection/parameters:
-    get:
+  /api/v1/evaluation/getstatus:
+    post:
+      description: 查看评估状态
+      responses: {}
+      summary: 查看评估状态
+      tags:
+      - evaluation
+  /api/v1/evaluation/submit:
+    post:
+      description: 提交评估
+      responses: {}
+      summary: 提交评估
+      tags:
+      - evaluation
+  /api/v1/injection/cancel:
+    post:
+      description: 取消注入
+      parameters:
+      - description: 请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.InjectCancelReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.GenericResponse-handlers_InjectCancelResp'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.GenericResponse-handlers_InjectCancelResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.GenericResponse-handlers_InjectCancelResp'
+      summary: 取消注入
+      tags:
+      - injection
+  /api/v1/injection/getlist:
+    post:
+      description: 获取注入列表和必要的简略信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.GenericResponse-array_handlers_InjectListResp'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.GenericResponse-array_handlers_InjectListResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.GenericResponse-array_handlers_InjectListResp'
+      summary: 获取注入列表和必要的简略信息
+      tags:
+      - injection
+  /api/v1/injection/getpara:
+    post:
       description: 获取可用的故障注入参数和类型映射
       produces:
       - application/json
@@ -293,6 +635,88 @@ paths:
       summary: 获取故障注入参数
       tags:
       - injection
+  /api/v1/injection/getstatus:
+    post:
+      description: 获取注入列表和必要的简略信息
+      parameters:
+      - description: 请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.InjectStatusReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.GenericResponse-handlers_InjectStatusResp'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.GenericResponse-handlers_InjectStatusResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.GenericResponse-handlers_InjectStatusResp'
+      summary: 获取注入列表和必要的简略信息
+      tags:
+      - injection
+  /api/v1/injection/submit:
+    post:
+      description: 注入故障
+      parameters:
+      - description: 任务类型
+        in: query
+        name: type
+        type: string
+      - description: 请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.InjectReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.GenericResponse-handlers_InjectResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.GenericResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.GenericResponse-any'
+      summary: 注入故障
+      tags:
+      - Injection
+  /datasets:
+    get:
+      description: 返回已成功的故障注入数据集列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回数据集名称列表
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取数据集列表
+      tags:
+      - datasets
   /pods/namespaces:
     get:
       description: 返回指定命名空间中符合条件的 Pod 标签列表

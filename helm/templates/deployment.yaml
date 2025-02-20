@@ -1,0 +1,222 @@
+# Redis
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:8.0-M02-alpine3.20
+          ports:
+            - containerPort: 6379
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mariadb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mariadb
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      initContainers:
+        - name: set-root-permissions
+          image: mariadb:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              # 将文件写入临时目录 /tmp/init
+              echo "CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';" > /tmp/init/init.sql
+              echo "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;" >> /tmp/init/init.sql
+              echo "FLUSH PRIVILEGES;" >> /tmp/init/init.sql
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: "{{ .Values.config.mysqlRootPassword }}"
+          volumeMounts:
+            - name: init-scripts
+              mountPath: /tmp/init # 关键挂载点
+      containers:
+        - name: mariadb
+          image: mariadb:latest
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: "{{ .Values.config.mysqlRootPassword }}"
+            - name: MYSQL_DATABASE
+              value: rcabench
+            - name: MYSQL_USER
+              value: root
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: mariadb-data
+              mountPath: /var/lib/mysql
+            - name: init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+            - name: mariadb-config
+              mountPath: /etc/mysql/conf.d/my.cnf
+              subPath: my.cnf
+      volumes:
+        - name: mariadb-data
+          persistentVolumeClaim:
+            claimName: mariadb-data
+        - name: init-scripts
+          emptyDir: {}
+        - name: mariadb-config
+          configMap:
+            name: mariadb-config
+
+---
+# exp 应用
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: producer
+  template:
+    metadata:
+      labels:
+        app: producer
+    spec:
+      initContainers:
+        - name: wait-for-redis
+          image: busybox:1.35
+          command:
+            - sh
+            - -c
+            - >
+              while ! nc -z redis 6379; do
+                echo "Waiting for Redis...";
+                sleep 3;
+              done;
+        - name: wait-for-mariadb
+          image: busybox:1.35
+          command:
+            - sh
+            - -c
+            - >
+              while ! nc -z mariadb 3306; do
+                echo "Waiting for MariaDB...";
+                sleep 3;
+              done;
+      containers:
+        - name: exp
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: "{{ .Values.image.pullPolicy }}"
+          command: ["/app/exp", "producer", "--port", "8081"]
+          ports:
+            - containerPort: 8081
+          env:
+            - name: GOPRIVATE
+              value: "github.com/CUHK-SE-Group/chaos-experiment"
+            - name: ENV
+              value: "prod"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/rcabench/config.prod.toml
+              subPath: config.prod.toml
+            - name: kube-config
+              mountPath: /root/.kube/config
+              subPath: config
+            - name: data
+              mountPath: /var/lib/rcabench
+      volumes:
+        - name: config
+          configMap:
+            name: rcabench-config
+        - name: kube-config
+          secret:
+            secretName: kube-config
+            items:
+              - key: kubeconfig
+                path: config
+        - name: data
+          persistentVolumeClaim:
+            claimName: nfs-shared-pvc
+---
+# exp 应用
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: consumer
+  template:
+    metadata:
+      labels:
+        app: consumer
+    spec:
+      initContainers:
+        - name: wait-for-redis
+          image: busybox:1.35
+          command:
+            - sh
+            - -c
+            - >
+              while ! nc -z redis 6379; do
+                echo "Waiting for Redis...";
+                sleep 3;
+              done;
+        - name: wait-for-mariadb
+          image: busybox:1.35
+          command:
+            - sh
+            - -c
+            - >
+              while ! nc -z mariadb 3306; do
+                echo "Waiting for MariaDB...";
+                sleep 3;
+              done;
+      containers:
+        - name: exp
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: "{{ .Values.image.pullPolicy }}"
+          command: ["/app/exp", "consumer"]
+          env:
+            - name: GOPRIVATE
+              value: "github.com/CUHK-SE-Group/chaos-experiment"
+            - name: ENV
+              value: "prod"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/rcabench/config.prod.toml
+              subPath: config.prod.toml
+            - name: kube-config
+              mountPath: /root/.kube/config
+              subPath: config
+            - name: data
+              mountPath: /var/lib/rcabench
+      volumes:
+        - name: config
+          configMap:
+            name: rcabench-config
+        - name: kube-config
+          secret:
+            secretName: kube-config
+            items:
+              - key: kubeconfig
+                path: config
+        - name: data
+          persistentVolumeClaim:
+            claimName: nfs-shared-pvc
