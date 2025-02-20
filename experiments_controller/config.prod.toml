@@ -1,11 +1,13 @@
 port = 8080
 debug = false
+workspace = "/app"
 
 [system]
 timezone = "Asia/Shanghai"
 
 [injection]
 namespace = ["ts"]
+interval = 2
 label = "app"
 
 [storage]
@@ -13,6 +15,23 @@ path = "/var/lib/rcabench/tasks.db"
 
 [database]
 clickhouse_host = "10.10.10.58"
+mysql_user="root"
+mysql_password="yourpassword"
+mysql_host="mariadb"
+mysql_port="3306"
+mysql_db="rcabench"
+
 
 [redis]
-host = "localhost:6379"
+host = "redis:6379"
+
+[harbor]
+host = "10.10.10.240"
+repository = "10.10.10.240/library"
+
+[k8s]
+namespace = "experiment"
+
+[nfs]
+path = "/var/lib/rcabench"
+pvc_name = "nfs-shared-pvc"

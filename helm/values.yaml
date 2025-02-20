@@ -1,0 +1,49 @@
+# values.yaml
+image:
+  repository: 10.10.10.240/library/rcabench
+  tag: latest
+  pullPolicy: Always
+
+config:
+  port: 8081
+  mysqlRootPassword: yourpassword
+
+configmap:
+  port: 8080
+  debug: false
+  workspace: "/app"
+  system:
+    timezone: "Asia/Shanghai"
+  injection:
+    namespace: ["ts"]
+    label: "app"
+  storage:
+    path: "/var/lib/rcabench/tasks.db"
+  database:
+    clickhouse_host: "10.10.10.58"
+    mysql_user: "root"
+    mysql_password: "yourpassword"
+    mysql_host: "mariadb"
+    mysql_port: "3306"
+    mysql_db: "rcabench"
+  redis:
+    host: "redis:6379"
+  harbor:
+    host: "10.10.10.240"
+    repository: "10.10.10.240/library"
+  k8s:
+    namespace: "experiment"
+  nfs:
+    path: "/var/lib/rcabench"
+    pvc_name: "nfs-shared-pvc"
+
+persistence:
+  data:
+    enabled: false
+    accessMode: ReadWriteMany
+    size: 1Gi
+  mariadb:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    storageClass: ""

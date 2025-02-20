@@ -20,43 +20,39 @@ if __name__ == "__main__":
     if workspace == "":
         print("WARN: the WORKSPACE environ is not defined, using default '/app'")
         workspace = "/app"
+    input_path = os.environ["INPUT_PATH"]
+    if workspace == "":
+        print("WARN: the INPUT_PATH environ is not defined")
+        exit(1)
+
+    output_path = os.environ["OUTPUT_PATH"]
+    if workspace == "":
+        print("WARN: the OUTPUT_PATH environ is not defined")
+        output_path = "/app/output"
     base_path = Path(workspace)
-
-    normal_time_range = (
-        [
-            (
-                int(os.environ["NORMAL_START"]),
-                int(os.environ["NORMAL_END"]),
-            )
-        ]
-        if os.environ.get("NORMAL_START") and os.environ.get("NORMAL_END")
-        else []
-    )
-
-    abnormal_time_range = (
-        [
-            (
-                int(os.environ["ABNORMAL_START"]),
-                int(os.environ["ABNORMAL_END"]),
-            )
-        ]
-        if os.environ.get("ABNORMAL_START") and os.environ.get("ABNORMAL_END")
-        else []
-    )
+    input_path = Path(input_path)
 
     run_function(
         start_rca,
         {
-            "log_file": base_path / "input" / "logs.csv",
-            "trace_file": base_path / "input" / "traces.csv",
-            "trace_id_ts_file": base_path / "input" / "trace_id_ts.csv",
-            "metric_file": base_path / "input" / "metrics.csv",
-            "metric_sum_file": base_path / "input" / "metric_sum.csv",
-            "metric_summary_file": base_path / "input" / "metrics_summary.csv",
-            "metric_histogram_file": base_path / "input" / "metrics_histogram.csv",
-            "event_file": base_path / "input" / "events.csv",
-            "profiling_file": base_path / "input" / "profilings.csv",
-            "normal_time_range": normal_time_range,
-            "abnormal_time_range": abnormal_time_range,
+            "normal_log_file": input_path / "normal_logs.csv",
+            "normal_trace_file": input_path / "normal_traces.csv",
+            "normal_trace_id_ts_file": input_path / "normal_trace_id_ts.csv",
+            "normal_metric_file": input_path / "normal_metrics.csv",
+            "normal_metric_sum_file": input_path / "normal_metric_sum.csv",
+            "normal_metric_summary_file": input_path / "normal_metrics_summary.csv",
+            "normal_metric_histogram_file": input_path / "normal_metrics_histogram.csv",
+            "normal_event_file": input_path / "normal_events.csv",
+            "normal_profiling_file": input_path / "normal_profilings.csv",
+            "abnormal_log_file": input_path / "abnormal_logs.csv",
+            "abnormal_trace_file": input_path / "abnormal_traces.csv",
+            "abnormal_trace_id_ts_file": input_path / "abnormal_trace_id_ts.csv",
+            "abnormal_metric_file": input_path / "abnormal_metrics.csv",
+            "abnormal_metric_sum_file": input_path / "abnormal_metric_sum.csv",
+            "abnormal_metric_summary_file": input_path / "abnormal_metrics_summary.csv",
+            "abnormal_metric_histogram_file": input_path
+            / "abnormal_metrics_histogram.csv",
+            "abnormal_event_file": input_path / "abnormal_events.csv",
+            "abnormal_profiling_file": input_path / "abnormal_profilings.csv",
         },
     )

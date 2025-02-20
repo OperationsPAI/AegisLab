@@ -1,7 +1,10 @@
-FROM python:3.10-slim AS builder
+FROM 10.10.10.240/library/pandas:latest AS builder
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY ./algorithms/e-diagnose .
 
-RUN pip install --no-cache-dir -r requirements.txt
+COPY ./experiments/run_exp.py .
+
+
+

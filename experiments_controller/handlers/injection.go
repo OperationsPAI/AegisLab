@@ -1,0 +1,265 @@
+package handlers
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"time"
+
+	cli "github.com/CUHK-SE-Group/chaos-experiment/client"
+	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
+	"github.com/CUHK-SE-Group/rcabench/client"
+	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/CUHK-SE-Group/rcabench/executor"
+	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
+	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
+)
+
+type InjectCancelReq struct {
+	TaskID string `json:"task_id"`
+}
+
+type InjectCancelResp struct {
+}
+
+type InjectListResp struct {
+	TaskID     string                         `json:"task_id"`
+	Name       string                         `json:"name"`
+	Status     string                         `json:"status"`
+	InjectTime time.Time                      `json:"inject_time"`
+	Duration   int                            `json:"duration"` // minutes
+	FaultType  string                         `json:"fault_type"`
+	Para       executor.FaultInjectionPayload `json:"para"`
+}
+
+type InjectNamespacePodResp struct {
+	NamespaceInfo map[string][]string `json:"namespace_info"`
+}
+
+type InjectParaResp struct {
+	Specification map[string][]chaos.ActionSpace `json:"specification"`
+	KeyMap        map[chaos.ChaosType]string     `json:"keymap"`
+}
+
+type InjectStatusResp struct {
+	Task InjectTask `json:"task"`
+	Logs []string   `json:"logs"`
+}
+
+type InjectTask struct {
+	ID        string                         `json:"id"`
+	Type      string                         `json:"type"`
+	Payload   executor.FaultInjectionPayload `json:"payload"`
+	Status    string                         `json:"status"`
+	CreatedAt time.Time                      `json:"created_at"`
+}
+
+type SubmitResp struct {
+	GroupID string   `json:"group_id"`
+	TaskIDs []string `json:"task_ids"`
+}
+
+// CancelInjection
+//
+//	@Summary		取消注入
+//	@Description	取消注入
+//	@Tags			injection
+//	@Produce		json
+//	@Consumes		application/json
+//	@Param			body	body		InjectCancelReq	true	"请求体"
+//	@Success		200		{object}	GenericResponse[InjectCancelResp]
+//	@Failure		400		{object}	GenericResponse[InjectCancelResp]
+//	@Failure		500		{object}	GenericResponse[InjectCancelResp]
+//	@Router			/api/v1/injection/cancel [post]
+func CancelInjection(c *gin.Context) {
+}
+
+// GetInjectionList
+//
+//	@Summary		获取注入列表和必要的简略信息
+//	@Description	获取注入列表和必要的简略信息
+//	@Tags			injection
+//	@Produce		json
+//	@Consumes		application/json
+//	@Success		200	{object}		GenericResponse[[]InjectListResp]
+//	@Failure		400	{object}		GenericResponse[[]InjectListResp]
+//	@Failure		500	{object}		GenericResponse[[]InjectListResp]
+//	@Router			/api/v1/injections/getlist [post]
+func GetInjectionList(c *gin.Context) {
+	var faultRecords []database.FaultInjectionSchedule
+	if err := database.DB.Find(&faultRecords).Error; err != nil {
+		JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to retrieve tasks", nil)
+		return
+	}
+
+	var resps []InjectListResp
+	for _, record := range faultRecords {
+		var payload executor.FaultInjectionPayload
+		if err := json.Unmarshal([]byte(record.Config), &payload); err != nil {
+			logrus.Error(fmt.Sprintf("Payload of inject record %d unmarshaling failed: %s", record.ID, err))
+			continue
+		}
+
+		resps = append(resps, InjectListResp{
+			TaskID:     record.TaskID,
+			Name:       record.InjectionName,
+			Status:     DatasetStatusMap[record.Status],
+			InjectTime: record.StartTime,
+			Duration:   record.Duration,
+			FaultType:  chaos.ChaosTypeMap[chaos.ChaosType(record.FaultType)],
+			Para:       payload,
+		})
+	}
+
+	JSONResponse(c, http.StatusOK, "", resps)
+}
+
+// GetInjectionStatus
+//
+//	@Summary		获取单个注入的详细信息
+//	@Description	获取单个注入的详细信息
+//	@Tags			injection
+//	@Produce		json
+//	@Consumes		application/json
+//	@Param 			taskID 	path		string		true		"任务 ID"
+//	@Success		200		{objec}		GenericResponse[InjectStatusResp]
+//	@Failure		404		{object}	GenericResponse[any]
+//	@Failure		500		{object}	GenericResponse[any]
+//	@Router			/api/v1/injection/getstatus [get]
+func GetInjectionStatus(c *gin.Context) {
+	taskID := c.Param("injection_id")
+
+	var task database.Task
+	if err := database.DB.First(&task, "id = ?", taskID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			JSONResponse[interface{}](c, http.StatusNotFound, "Task not found", nil)
+		} else {
+			JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("Failed to retrieve task %s", taskID), nil)
+		}
+		return
+	}
+
+	var payload executor.FaultInjectionPayload
+	if err := json.Unmarshal([]byte(task.Payload), &payload); err != nil {
+		logrus.Error(fmt.Sprintf("Payload of inject record %s unmarshaling failed: %s", task.ID, err))
+		JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("Failed to unmarshal payload %s", taskID), nil)
+		return
+	}
+
+	injectTask := InjectTask{
+		ID:        task.ID,
+		Type:      task.Type,
+		Payload:   payload,
+		Status:    task.Status,
+		CreatedAt: task.CreatedAt,
+	}
+
+	logKey := fmt.Sprintf("task:%s:logs", taskID)
+	ctx := c.Request.Context()
+	logs, err := client.GetRedisClient().LRange(ctx, logKey, 0, -1).Result()
+	if errors.Is(err, redis.Nil) {
+		logs = []string{}
+	} else if err != nil {
+		JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to retrieve logs", nil)
+		return
+	}
+
+	JSONResponse(c, http.StatusOK, "", InjectStatusResp{Task: injectTask, Logs: logs})
+}
+
+// GetInjectionParameters
+//
+//	@Summary		获取故障注入参数
+//	@Description	获取可用的故障注入参数和类型映射
+//	@Tags			injection
+//	@Produce		json
+//	@Success		200	{object}	GenericResponse[InjectParaResp]
+//	@Failure		500	{object}	GenericResponse[any]
+//	@Router			/api/v1/injections/getpara [get]
+func GetInjectionParameters(c *gin.Context) {
+	choice := make(map[string][]chaos.ActionSpace, 0)
+	for tp, spec := range chaos.SpecMap {
+		actionSpace, err := chaos.GenerateActionSpace(spec)
+		if err != nil {
+			JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to generate action space", nil)
+			return
+		}
+
+		name := chaos.GetChaosTypeName(tp)
+		choice[name] = actionSpace
+	}
+
+	resp := InjectParaResp{Specification: choice, KeyMap: chaos.ChaosTypeMap}
+	JSONResponse[interface{}](c, http.StatusOK, "", resp)
+}
+
+// InjectFault
+//
+//	@Summary		注入故障
+//	@Description	注入故障
+//	@Tags			injection
+//	@Produce		json
+//	@Consumes		application/json
+//	@Param			body	body		[]executor.FaultInjectionPayload	true	"请求体"
+//	@Success		200		{object}	GenericResponse[InjectResp]
+//	@Failure		400		{object}	GenericResponse[any]
+//	@Failure		500		{object}	GenericResponse[any]
+//	@Router			/api/v1/injections [post]
+func SubmitFaultInjection(c *gin.Context) {
+	groupID := c.GetString("groupID")
+	logrus.Infof("SubmitFaultInjection called, groupID: %s", groupID)
+
+	var payloads []executor.FaultInjectionPayload // 改为接收数组
+	if err := c.BindJSON(&payloads); err != nil {
+		JSONResponse[interface{}](c, http.StatusBadRequest, "Invalid JSON payload", nil)
+		return
+	}
+	logrus.Infof("Received fault injection payloads: %+v", payloads)
+
+	var ids []string
+	t := time.Now()
+	for _, payload := range payloads {
+		id, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
+			Type:        executor.TaskTypeFaultInjection,
+			Payload:     StructToMap(payload),
+			Immediate:   false,
+			ExecuteTime: t.Unix(),
+			GroupID:     groupID,
+		})
+		if err != nil {
+			JSONResponse[interface{}](c, http.StatusInternalServerError, id, nil)
+			return
+		}
+		t = t.Add(time.Duration(payload.Duration)*time.Minute + time.Duration(config.GetInt("injection.interval"))*time.Minute)
+		ids = append(ids, id)
+	}
+
+	JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", SubmitResp{GroupID: groupID, TaskIDs: ids})
+}
+
+// GetNamespacePod 获取命名空间中的 Pod 标签
+//
+//	@Summary 获取命名空间中的 Pod 标签
+//	@Description 返回指定命名空间中符合条件的 Pod 标签列表
+//	@Tags	injection
+//	@Produce json
+//	@Success 200 {object} InjectNamespacePodResp "返回命名空间和对应的 Pod 标签信息"
+//	@Failure 500 {object} any "服务器内部错误，无法获取 Pod 标签"
+//	@Router			/api/v1/injections/namespace_pods [get]
+func GetNamespacePods(c *gin.Context) {
+	namespaceInfo := make(map[string][]string)
+	for _, ns := range config.GetStringSlice("injection.namespace") {
+		labels, err := cli.GetLabels(ns, config.GetString("injection.label"))
+		if err != nil {
+			JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("Failed to get labels from namespace %s", ns), nil)
+		}
+		namespaceInfo[ns] = labels
+	}
+
+	JSONResponse(c, http.StatusOK, "OK", InjectNamespacePodResp{NamespaceInfo: namespaceInfo})
+}

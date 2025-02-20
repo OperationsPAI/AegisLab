@@ -1,0 +1,41 @@
+# Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+spec:
+  selector:
+    app: redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+
+---
+# MariaDB Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb
+spec:
+  type: NodePort
+  selector:
+    app: mariadb
+  ports:
+  - port: 3306
+    targetPort: 3306
+    nodePort: 32336
+
+---
+# exp Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: exp
+spec:
+  type: NodePort
+  selector:
+    app: producer
+  ports:
+  - port: 8081
+    targetPort: 8081
+    nodePort: 32080
