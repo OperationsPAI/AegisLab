@@ -12,6 +12,7 @@ import (
 type JobLabel struct {
 	JobType     string
 	TaskID      string
+	Algorithm   *string
 	Dataset     string
 	ExecutionID *int
 	StartTime   *time.Time
@@ -37,6 +38,11 @@ func parseJobLabel(labels map[string]string) (*JobLabel, error) {
 	dataset, ok := labels[LabelDataset]
 	if !ok || dataset == "" {
 		return nil, fmt.Errorf("missing or invalid '%s' key in payload", LabelDataset)
+	}
+
+	var algorithm *string
+	if algo, ok := labels[LabelAlgo]; ok {
+		algorithm = &algo
 	}
 
 	var executionID *int
@@ -74,6 +80,7 @@ func parseJobLabel(labels map[string]string) (*JobLabel, error) {
 	return &JobLabel{
 		JobType:     jobType,
 		TaskID:      taskID,
+		Algorithm:   algorithm,
 		Dataset:     dataset,
 		ExecutionID: executionID,
 		StartTime:   startTime,
@@ -95,6 +102,7 @@ func (e *Executor) AddFunc(labels map[string]string) {
 	case string(TaskTypeRunAlgorithm):
 		message = fmt.Sprintf("Running algorithm for task %s", jobLabel.TaskID)
 	}
+
 	updateTaskStatus(jobLabel.TaskID, TaskStatusRunning, message)
 }
 
@@ -119,7 +127,7 @@ func (e *Executor) UpdateFunc(labels map[string]string) {
 		if err := database.DB.
 			Model(&faultRecord).
 			Where("injection_name = ?", jobLabel.Dataset).
-			Updates(map[string]interface{}{
+			Updates(map[string]any{
 				"start_time": *jobLabel.StartTime,
 				"end_time":   *jobLabel.EndTime,
 				"status":     DatasetSuccess,
@@ -130,7 +138,8 @@ func (e *Executor) UpdateFunc(labels map[string]string) {
 	}
 
 	if jobLabel.JobType == string(TaskTypeRunAlgorithm) {
-		payload := map[string]interface{}{
+		payload := map[string]any{
+			CollectAlgorithm:   *jobLabel.Algorithm,
 			CollectDataset:     jobLabel.Dataset,
 			CollectExecutionID: *jobLabel.ExecutionID,
 		}

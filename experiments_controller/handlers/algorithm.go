@@ -27,7 +27,7 @@ type AlgorithmToml struct {
 //	@Summary		获取算法列表
 //	@Description	获取算法列表
 //	@Tags			algorithm
-//	@Produce		json
+//	@Produce		application/json
 //	@Success		200		{object}	GenericResponse[AlgorithmResp]
 //	@Failure		400		{object}	GenericResponse[any]
 //	@Failure		500		{object}	GenericResponse[any]
@@ -63,7 +63,7 @@ func GetAlgorithmList(c *gin.Context) {
 //	@Summary		执行算法
 //	@Description	执行算法
 //	@Tags			algorithm
-//	@Produce		json
+//	@Produce		application/json
 //	@Consumes		application/json
 //	@Param			body	body		[]executor.AlgorithmExecutionPayload	true	"请求体"
 //	@Success		200		{object}	GenericResponse[SubmitResp]

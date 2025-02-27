@@ -180,7 +180,7 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 
 			updateTaskStatus(task.TaskID, TaskStatusCompleted, fmt.Sprintf("Task %s completed", task.TaskID))
 
-			datasetPayload := map[string]interface{}{
+			datasetPayload := map[string]any{
 				BuildBenchmark: *fiPayload.Benchmark,
 				BuildDataset:   name,
 				BuildNamespace: fiPayload.Namespace,

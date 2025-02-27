@@ -22,7 +22,7 @@ type AlgorithmExecutionPayload struct {
 }
 
 // 解析算法执行任务的 Payload
-func parseAlgorithmExecutionPayload(payload map[string]interface{}) (*AlgorithmExecutionPayload, error) {
+func parseAlgorithmExecutionPayload(payload map[string]any) (*AlgorithmExecutionPayload, error) {
 	benchmark, ok := payload[EvalBench].(string)
 	if !ok || benchmark == "" {
 		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalBench)

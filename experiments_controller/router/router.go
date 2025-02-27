@@ -16,7 +16,7 @@ func New() *gin.Engine {
 	router := gin.Default()
 	config := cors.DefaultConfig()
 	config.AllowOrigins = []string{"http://localhost:3000", "http://localhost:5173"} // 允许来自前端服务器的请求
-	router.Use(middleware.Logging(), middleware.GroupID(), cors.New(config))
+	router.Use(middleware.Logging(), middleware.GroupID(), middleware.SSEPath(), cors.New(config))
 	r := router.Group("/api/v1")
 
 	algorithms := r.Group("/algorithms")
@@ -41,14 +41,15 @@ func New() *gin.Engine {
 
 	injections := r.Group("/injections")
 	{
-		injections.GET("", handlers.GetInjectionList)
 		injections.GET("/parameters", handlers.GetInjectionParameters)
+		injections.GET("", handlers.GetInjectionList)
 		injections.POST("", handlers.SubmitFaultInjection)
 		injections.GET("/namespace_pods", handlers.GetNamespacePods)
 
-		tasks := injections.Group("/:injection_id")
+		tasks := injections.Group("/:task_id")
 		{
-			tasks.GET("/status", handlers.GetInjectionStatus)
+			tasks.GET("", handlers.GetInjectionDetail)
+			tasks.GET("/stream", handlers.StreamInjection)
 			tasks.PUT("/cancel", handlers.CancelInjection)
 		}
 	}
