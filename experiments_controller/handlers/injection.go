@@ -27,7 +27,7 @@ type InjectCancelReq struct {
 type InjectCancelResp struct {
 }
 
-type InjectListResp struct {
+type InjectListResult struct {
 	TaskID     string                         `json:"task_id"`
 	Name       string                         `json:"name"`
 	Status     string                         `json:"status"`
@@ -35,6 +35,10 @@ type InjectListResp struct {
 	Duration   int                            `json:"duration"` // minutes
 	FaultType  string                         `json:"fault_type"`
 	Para       executor.FaultInjectionPayload `json:"para"`
+}
+
+type InjectListResp struct {
+	Results []InjectListResult `json:"result"`
 }
 
 type InjectNamespacePodResp struct {
@@ -93,11 +97,11 @@ func CancelInjection(c *gin.Context) {
 func GetInjectionList(c *gin.Context) {
 	var faultRecords []database.FaultInjectionSchedule
 	if err := database.DB.Find(&faultRecords).Error; err != nil {
-		JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to retrieve tasks", nil)
+		JSONResponse[any](c, http.StatusInternalServerError, "Failed to retrieve tasks", nil)
 		return
 	}
 
-	var resps []InjectListResp
+	var results []InjectListResult
 	for _, record := range faultRecords {
 		var payload executor.FaultInjectionPayload
 		if err := json.Unmarshal([]byte(record.Config), &payload); err != nil {
@@ -105,7 +109,7 @@ func GetInjectionList(c *gin.Context) {
 			continue
 		}
 
-		resps = append(resps, InjectListResp{
+		results = append(results, InjectListResult{
 			TaskID:     record.TaskID,
 			Name:       record.InjectionName,
 			Status:     DatasetStatusMap[record.Status],
@@ -116,7 +120,7 @@ func GetInjectionList(c *gin.Context) {
 		})
 	}
 
-	JSONResponse(c, http.StatusOK, "", resps)
+	SuccessResponse(c, InjectListResp{Results: results})
 }
 
 // GetInjectionStatus
@@ -137,9 +141,9 @@ func GetInjectionStatus(c *gin.Context) {
 	var task database.Task
 	if err := database.DB.First(&task, "id = ?", taskID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			JSONResponse[interface{}](c, http.StatusNotFound, "Task not found", nil)
+			JSONResponse[any](c, http.StatusNotFound, "Task not found", nil)
 		} else {
-			JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("Failed to retrieve task %s", taskID), nil)
+			JSONResponse[any](c, http.StatusInternalServerError, fmt.Sprintf("Failed to retrieve task %s", taskID), nil)
 		}
 		return
 	}
@@ -147,7 +151,7 @@ func GetInjectionStatus(c *gin.Context) {
 	var payload executor.FaultInjectionPayload
 	if err := json.Unmarshal([]byte(task.Payload), &payload); err != nil {
 		logrus.Error(fmt.Sprintf("Payload of inject record %s unmarshaling failed: %s", task.ID, err))
-		JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("Failed to unmarshal payload %s", taskID), nil)
+		JSONResponse[any](c, http.StatusInternalServerError, fmt.Sprintf("Failed to unmarshal payload %s", taskID), nil)
 		return
 	}
 
@@ -165,11 +169,11 @@ func GetInjectionStatus(c *gin.Context) {
 	if errors.Is(err, redis.Nil) {
 		logs = []string{}
 	} else if err != nil {
-		JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to retrieve logs", nil)
+		JSONResponse[any](c, http.StatusInternalServerError, "Failed to retrieve logs", nil)
 		return
 	}
 
-	JSONResponse(c, http.StatusOK, "", InjectStatusResp{Task: injectTask, Logs: logs})
+	SuccessResponse(c, InjectStatusResp{Task: injectTask, Logs: logs})
 }
 
 // GetInjectionParameters
@@ -186,7 +190,7 @@ func GetInjectionParameters(c *gin.Context) {
 	for tp, spec := range chaos.SpecMap {
 		actionSpace, err := chaos.GenerateActionSpace(spec)
 		if err != nil {
-			JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to generate action space", nil)
+			JSONResponse[any](c, http.StatusInternalServerError, "Failed to generate action space", nil)
 			return
 		}
 
@@ -194,8 +198,7 @@ func GetInjectionParameters(c *gin.Context) {
 		choice[name] = actionSpace
 	}
 
-	resp := InjectParaResp{Specification: choice, KeyMap: chaos.ChaosTypeMap}
-	JSONResponse[interface{}](c, http.StatusOK, "", resp)
+	SuccessResponse(c, InjectParaResp{Specification: choice, KeyMap: chaos.ChaosTypeMap})
 }
 
 // InjectFault
@@ -216,7 +219,7 @@ func SubmitFaultInjection(c *gin.Context) {
 
 	var payloads []executor.FaultInjectionPayload // 改为接收数组
 	if err := c.BindJSON(&payloads); err != nil {
-		JSONResponse[interface{}](c, http.StatusBadRequest, "Invalid JSON payload", nil)
+		JSONResponse[any](c, http.StatusBadRequest, "Invalid JSON payload", nil)
 		return
 	}
 	logrus.Infof("Received fault injection payloads: %+v", payloads)
@@ -232,7 +235,7 @@ func SubmitFaultInjection(c *gin.Context) {
 			GroupID:     groupID,
 		})
 		if err != nil {
-			JSONResponse[interface{}](c, http.StatusInternalServerError, id, nil)
+			JSONResponse[any](c, http.StatusInternalServerError, id, nil)
 			return
 		}
 		t = t.Add(time.Duration(payload.Duration)*time.Minute + time.Duration(config.GetInt("injection.interval"))*time.Minute)
@@ -256,7 +259,7 @@ func GetNamespacePods(c *gin.Context) {
 	for _, ns := range config.GetStringSlice("injection.namespace") {
 		labels, err := cli.GetLabels(ns, config.GetString("injection.label"))
 		if err != nil {
-			JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("Failed to get labels from namespace %s", ns), nil)
+			JSONResponse[any](c, http.StatusInternalServerError, fmt.Sprintf("Failed to get labels from namespace %s", ns), nil)
 		}
 		namespaceInfo[ns] = labels
 	}

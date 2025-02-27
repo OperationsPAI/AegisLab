@@ -37,15 +37,6 @@ func New() *gin.Engine {
 	evaluations := r.Group("/evaluations")
 	{
 		evaluations.GET("", handlers.GetEvaluationList)
-		evaluations.POST("", handlers.SubmitEvaluation)
-
-		tasks := evaluations.Group("/:evaluation_id")
-		{
-			tasks.GET("/logs", handlers.GetEvaluationLogs)
-			tasks.GET("/results", handlers.GetEvaluationResults)
-			tasks.GET("/status", handlers.GetEvaluationStatus)
-			tasks.PUT("/cancel", handlers.CancelEvaluation)
-		}
 	}
 
 	injections := r.Group("/injections")

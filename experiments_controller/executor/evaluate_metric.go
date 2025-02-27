@@ -1,4 +1,4 @@
-package handlers
+package executor
 
 import (
 	"encoding/json"
@@ -9,10 +9,22 @@ import (
 
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/database"
-	"github.com/CUHK-SE-Group/rcabench/executor"
 )
 
-type EvaluationMetric func([]Execution) ([]*Conclusion, error)
+type Execution struct {
+	Dataset            database.FaultInjectionSchedule `json:"dataset"`
+	DetectorResult     database.Detector               `json:"detector_result"`
+	ExecutionRecord    database.ExecutionResult        `json:"execution_record"`
+	GranularityResults []database.GranularityResult    `json:"granularity_results"`
+}
+
+type Conclusion struct {
+	Level  string  `json:"level"`  // 例如 service level
+	Metric string  `json:"metric"` // 例如 topk
+	Rate   float64 `json:"rate"`
+}
+
+type EvaluateMetric func([]Execution) ([]*Conclusion, error)
 type ConclusionACatK struct {
 	Level  string `json:"level"`  // 例如 service level
 	Metric string `json:"metric"` // 例如 topk
@@ -48,7 +60,7 @@ type ConclustionMRR struct {
 }
 
 var (
-	metrics   = make(map[string]EvaluationMetric)
+	metrics   = make(map[string]EvaluateMetric)
 	metricsMu sync.RWMutex
 )
 
@@ -61,7 +73,7 @@ func init() {
 }
 
 // 注册新的评估指标
-func RegisterMetric(name string, metric EvaluationMetric) error {
+func RegisterMetric(name string, metric EvaluateMetric) error {
 	if name == "" {
 		return errors.New("metric name cannot be empty")
 	}
@@ -81,11 +93,11 @@ func RegisterMetric(name string, metric EvaluationMetric) error {
 }
 
 // 获取所有已注册的评估指标
-func GetMetrics() map[string]EvaluationMetric {
+func GetMetrics() map[string]EvaluateMetric {
 	metricsMu.RLock()
 	defer metricsMu.RUnlock()
 
-	copiedMetrics := make(map[string]EvaluationMetric, len(metrics))
+	copiedMetrics := make(map[string]EvaluateMetric, len(metrics))
 	for k, v := range metrics {
 		copiedMetrics[k] = v
 	}
@@ -99,7 +111,7 @@ func parseConfigAndGetGroundTruth(execution Execution) ([]handler.Groudtruth, er
 		return nil, err
 	}
 
-	conf, err := executor.ParseFaultInjectionPayload(payload)
+	conf, err := ParseFaultInjectionPayload(payload)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +137,7 @@ func accuracyk(executions []Execution) ([]*Conclusion, error) {
 	levelGran := make(map[string]map[string]*ConclusionACatK)
 
 	// 初始化级别
-	for _, g := range executions[0].GranularityResult {
+	for _, g := range executions[0].GranularityResults {
 		levelGran[g.Level] = map[string]*ConclusionACatK{
 			"AC@1": {Metric: "AC@1", Level: g.Level},
 			"AC@3": {Metric: "AC@3", Level: g.Level},
@@ -140,7 +152,7 @@ func accuracyk(executions []Execution) ([]*Conclusion, error) {
 			return nil, err
 		}
 
-		for _, g := range execution.GranularityResult {
+		for _, g := range execution.GranularityResults {
 			for _, gt := range groundtruth {
 				if gt.Level == handler.Level(g.Level) && g.Result == gt.Name {
 					hitLevels := []string{"AC@1", "AC@3", "AC@5"}
@@ -202,7 +214,7 @@ func precisionk(executions []Execution) ([]*Conclusion, error) {
 
 	// 初始化所有可能的粒度级别和对应的 PR@k
 	for _, execution := range executions {
-		for _, g := range execution.GranularityResult {
+		for _, g := range execution.GranularityResults {
 			if _, exists := levelGran[g.Level]; !exists {
 				levelGran[g.Level] = make(map[string]*ConclusionPrecisionk)
 				for _, k := range ks {
@@ -236,7 +248,7 @@ func precisionk(executions []Execution) ([]*Conclusion, error) {
 
 		// 按级别收集所有预测结果，并按 Rank 排序
 		levelPredictions := make(map[string][]database.GranularityResult)
-		for _, g := range execution.GranularityResult {
+		for _, g := range execution.GranularityResults {
 			levelPredictions[g.Level] = append(levelPredictions[g.Level], g)
 		}
 
@@ -323,7 +335,7 @@ func avgk(executions []Execution) ([]*Conclusion, error) {
 
 	// 初始化所有可能的粒度级别和对应的 Avg@k
 	for _, execution := range executions {
-		for _, g := range execution.GranularityResult {
+		for _, g := range execution.GranularityResults {
 			if _, exists := levelGran[g.Level]; !exists {
 				levelGran[g.Level] = &ConclusionAvgk{
 					Metric: "Avg@k",
@@ -353,7 +365,7 @@ func avgk(executions []Execution) ([]*Conclusion, error) {
 
 		// 按级别收集所有预测结果，并按 Rank 排序
 		levelPredictions := make(map[string][]database.GranularityResult)
-		for _, g := range execution.GranularityResult {
+		for _, g := range execution.GranularityResults {
 			levelPredictions[g.Level] = append(levelPredictions[g.Level], g)
 		}
 
@@ -440,7 +452,7 @@ func mapk(executions []Execution) ([]*Conclusion, error) {
 
 	// 初始化所有可能的粒度级别和对应的 MAP@k
 	for _, execution := range executions {
-		for _, g := range execution.GranularityResult {
+		for _, g := range execution.GranularityResults {
 			if _, exists := levelGran[g.Level]; !exists {
 				levelGran[g.Level] = &ConclusionMAPk{
 					Metric: "MAP@k",
@@ -470,7 +482,7 @@ func mapk(executions []Execution) ([]*Conclusion, error) {
 
 		// 按级别收集所有预测结果，并按 Rank 排序
 		levelPredictions := make(map[string][]database.GranularityResult)
-		for _, g := range execution.GranularityResult {
+		for _, g := range execution.GranularityResults {
 			levelPredictions[g.Level] = append(levelPredictions[g.Level], g)
 		}
 
@@ -545,7 +557,7 @@ func mrr(executions []Execution) ([]*Conclusion, error) {
 	levelGran := make(map[string]*ConclustionMRR)
 
 	for _, exexecution := range executions {
-		for _, g := range exexecution.GranularityResult {
+		for _, g := range exexecution.GranularityResults {
 			if _, exists := levelGran[g.Level]; !exists {
 				levelGran[g.Level] = &ConclustionMRR{
 					Metric: "MRR",
@@ -574,7 +586,7 @@ func mrr(executions []Execution) ([]*Conclusion, error) {
 
 		// 按级别收集所有预测结果，并按 Rank 排序
 		levelPredictions := make(map[string][]database.GranularityResult)
-		for _, g := range execution.GranularityResult {
+		for _, g := range execution.GranularityResults {
 			levelPredictions[g.Level] = append(levelPredictions[g.Level], g)
 		}
 
