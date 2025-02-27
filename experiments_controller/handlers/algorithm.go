@@ -38,7 +38,7 @@ func GetAlgorithmList(c *gin.Context) {
 
 	algoDirs, err := utils.GetAllSubDirectories(algoPath)
 	if err != nil {
-		JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("Failed to list files in %s: %v", algoPath, err), nil)
+		JSONResponse[any](c, http.StatusInternalServerError, fmt.Sprintf("Failed to list files in %s: %v", algoPath, err), nil)
 		return
 	}
 
@@ -55,7 +55,7 @@ func GetAlgorithmList(c *gin.Context) {
 		algorithms = append(algorithms, algoToml.Name)
 	}
 
-	JSONResponse(c, http.StatusOK, "OK", AlgorithmResp{Algorithms: algorithms})
+	SuccessResponse(c, AlgorithmResp{Algorithms: algorithms})
 }
 
 // SubmitAlgorithmExecution
@@ -76,7 +76,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 
 	var payloads []executor.AlgorithmExecutionPayload
 	if err := c.BindJSON(&payloads); err != nil {
-		JSONResponse[interface{}](c, http.StatusBadRequest, "Invalid JSON payload", nil)
+		JSONResponse[any](c, http.StatusBadRequest, "Invalid JSON payload", nil)
 		return
 	}
 	logrus.Infof("Received executing algorithm payloads: %+v", payloads)
@@ -90,7 +90,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 			GroupID:   groupID,
 		})
 		if err != nil {
-			JSONResponse[interface{}](c, http.StatusInternalServerError, id, nil)
+			JSONResponse[any](c, http.StatusInternalServerError, id, nil)
 			return
 		}
 

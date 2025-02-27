@@ -51,7 +51,7 @@ type FaultInjectionSchedule struct {
 type ExecutionResult struct {
 	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"` // 唯一标识
 	TaskID    string    `gorm:"index" json:"task_id"`               // 从属什么 taskid
-	Dataset   int       `json:"dataset" gorm:"index,unique"`        // 数据集标识
+	Dataset   int       `gorm:"index,unique" json:"dataset"`        // 数据集标识
 	Algo      string    `json:"algo"`                               // 使用的算法
 	CreatedAt time.Time `json:"created_at"`                         // 创建时间
 	UpdatedAt time.Time `json:"updated_at"`                         // 更新时间

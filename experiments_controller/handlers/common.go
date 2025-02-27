@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"net/http"
 	"reflect"
 	"time"
 
@@ -18,6 +19,15 @@ func JSONResponse[T any](c *gin.Context, code int, message string, data T) {
 	c.JSON(code, GenericResponse[T]{
 		Code:      code,
 		Message:   message,
+		Data:      data,
+		Timestamp: time.Now().Unix(),
+	})
+}
+
+func SuccessResponse[T any](c *gin.Context, data T) {
+	c.JSON(http.StatusOK, GenericResponse[T]{
+		Code:      http.StatusOK,
+		Message:   "Success",
 		Data:      data,
 		Timestamp: time.Now().Unix(),
 	})

@@ -75,7 +75,7 @@ func SubmitDatasetBuilding(c *gin.Context) {
 
 	var payloads []executor.DatasetPayload
 	if err := c.BindJSON(&payloads); err != nil {
-		JSONResponse[interface{}](c, http.StatusBadRequest, "Invalid JSON payload", nil)
+		JSONResponse[any](c, http.StatusBadRequest, "Invalid JSON payload", nil)
 		return
 	}
 	logrus.Infof("Received building dataset payloads: %+v", payloads)
@@ -89,7 +89,7 @@ func SubmitDatasetBuilding(c *gin.Context) {
 			GroupID:   groupID,
 		})
 		if err != nil {
-			JSONResponse[interface{}](c, http.StatusInternalServerError, id, nil)
+			JSONResponse[any](c, http.StatusInternalServerError, id, nil)
 			return
 		}
 
@@ -115,7 +115,7 @@ func GetDatasetList(c *gin.Context) {
 	// 获取查询参数并校验是否合法
 	var datasetReq DatasetListReq
 	if err := c.BindQuery(&datasetReq); err != nil {
-		JSONResponse[interface{}](c, http.StatusBadRequest, executor.FormatErrorMessage(err, DatasetFieldMap), nil)
+		JSONResponse[any](c, http.StatusBadRequest, executor.FormatErrorMessage(err, DatasetFieldMap), nil)
 		return
 	}
 
@@ -133,7 +133,7 @@ func GetDatasetList(c *gin.Context) {
 		Count(&total).Error
 	if err != nil {
 		logrus.Errorf("Failed to count fault injection schedules: %v", err)
-		JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to retrieve datasets", nil)
+		JSONResponse[any](c, http.StatusInternalServerError, "Failed to retrieve datasets", nil)
 		return
 	}
 
@@ -147,7 +147,7 @@ func GetDatasetList(c *gin.Context) {
 		Find(&faultRecords).Error
 	if err != nil {
 		logrus.Errorf("Failed to query fault injection schedules with pagination: %v", err)
-		JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to retrieve datasets", nil)
+		JSONResponse[any](c, http.StatusInternalServerError, "Failed to retrieve datasets", nil)
 		return
 	}
 
@@ -158,7 +158,7 @@ func GetDatasetList(c *gin.Context) {
 		datasetResp.Datasets = append(datasetResp.Datasets, dataset)
 	}
 
-	JSONResponse(c, http.StatusOK, "OK", datasetResp)
+	SuccessResponse(c, datasetResp)
 }
 
 // DownloadDataset 处理数据集下载请求
@@ -179,7 +179,7 @@ func DownloadDataset(c *gin.Context) {
 
 	var req DatasetDownloadReq
 	if err := c.BindQuery(&req); err != nil {
-		JSONResponse[interface{}](c, http.StatusBadRequest, executor.FormatErrorMessage(err, DatasetFieldMap), nil)
+		JSONResponse[any](c, http.StatusBadRequest, executor.FormatErrorMessage(err, DatasetFieldMap), nil)
 		return
 	}
 
@@ -191,7 +191,7 @@ func DownloadDataset(c *gin.Context) {
 		Select("tasks.group_id, fault_injection_schedules.injection_name").
 		Scan(&joinedResults).
 		Error; err != nil {
-		JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to query datasets", nil)
+		JSONResponse[any](c, http.StatusInternalServerError, "Failed to query datasets", nil)
 		return
 	}
 
@@ -208,7 +208,7 @@ func DownloadDataset(c *gin.Context) {
 		for _, dataset := range datasets {
 			workDir := filepath.Join(config.GetString("nfs.path"), dataset)
 			if !utils.IsAllowedPath(workDir) {
-				JSONResponse[interface{}](c, http.StatusForbidden, "Invalid path access", nil)
+				JSONResponse[any](c, http.StatusForbidden, "Invalid path access", nil)
 				return
 			}
 		}
@@ -251,7 +251,7 @@ func DownloadDataset(c *gin.Context) {
 			if err != nil {
 				delete(c.Writer.Header(), "Content-Disposition")
 				c.Header("Content-Type", "application/json; charset=utf-8")
-				JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("packaging failed: %v", err), nil)
+				JSONResponse[any](c, http.StatusInternalServerError, fmt.Sprintf("packaging failed: %v", err), nil)
 				return
 			}
 		}
@@ -281,14 +281,14 @@ func UploadDataset(c *gin.Context) {
 func DeleteDataset(c *gin.Context) {
 	idStr := c.Param("datasetID")
 	if idStr == "" {
-		JSONResponse[interface{}](c, http.StatusBadRequest, "Dataset id is required", nil)
+		JSONResponse[any](c, http.StatusBadRequest, "Dataset id is required", nil)
 		return
 	}
 
 	var id int
 	var err error
 	if id, err = strconv.Atoi(idStr); err != nil {
-		JSONResponse[interface{}](c, http.StatusBadRequest, "Dataset id must be an integer", nil)
+		JSONResponse[any](c, http.StatusBadRequest, "Dataset id must be an integer", nil)
 		return
 	}
 
@@ -299,9 +299,9 @@ func DeleteDataset(c *gin.Context) {
 		Update("status", executor.DatesetDeleted).Error
 	if err != nil {
 		logrus.Errorf("Failed to update status to DatasetDeleted for dataset %d: %v", id, err)
-		JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("Failed to delete dataset %d", id), nil)
+		JSONResponse[any](c, http.StatusInternalServerError, fmt.Sprintf("Failed to delete dataset %d", id), nil)
 		return
 	}
 
-	JSONResponse[interface{}](c, http.StatusOK, "Delete dataset successfully", id)
+	JSONResponse(c, http.StatusOK, "Delete dataset successfully", id)
 }

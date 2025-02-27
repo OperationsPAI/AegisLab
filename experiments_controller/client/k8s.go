@@ -90,9 +90,9 @@ func getJobInformer(ctx context.Context, callback Callback) {
 			if callback != nil && oldJob.Name == newJob.Name {
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {
 					callback.UpdateFunc(newJob.Labels)
-					// if err := DeleteK8sJob(context.Background(), config.GetString("k8s.namespace"), newJob.Name); err != nil {
-					// 	logrus.Error(err)
-					// }
+					if err := DeleteK8sJob(context.Background(), config.GetString("k8s.namespace"), newJob.Name); err != nil {
+						logrus.Error(err)
+					}
 				}
 			}
 		},
