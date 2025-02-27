@@ -15,13 +15,19 @@ import (
 )
 
 type ResultPayload struct {
-	DatasetName string
+	Algorithm   string
+	Dataset     string
 	ExecutionID int
 }
 
-func parseResultPayload(payload map[string]interface{}) (*ResultPayload, error) {
-	datasetName, ok := payload[CollectDataset].(string)
-	if !ok || datasetName == "" {
+func parseResultPayload(payload map[string]any) (*ResultPayload, error) {
+	algorithm, ok := payload[CollectAlgorithm].(string)
+	if !ok || algorithm == "" {
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", CollectAlgorithm)
+	}
+
+	dataset, ok := payload[CollectDataset].(string)
+	if !ok || dataset == "" {
 		return nil, fmt.Errorf("missing or invalid '%s' key in payload", CollectDataset)
 	}
 
@@ -31,7 +37,7 @@ func parseResultPayload(payload map[string]interface{}) (*ResultPayload, error) 
 	}
 
 	return &ResultPayload{
-		DatasetName: datasetName,
+		Dataset:     dataset,
 		ExecutionID: executionID,
 	}, nil
 }
@@ -188,7 +194,7 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 	return collectResult(task.TaskID, task.Payload)
 }
 
-func collectResult(taskID string, payload map[string]interface{}) error {
+func collectResult(taskID string, payload map[string]any) error {
 	resultPayload, err := parseResultPayload(payload)
 	if err != nil {
 		return err
@@ -196,7 +202,26 @@ func collectResult(taskID string, payload map[string]interface{}) error {
 
 	path := config.GetString("nfs.path")
 
-	resultCSV := filepath.Join(path, resultPayload.DatasetName, "result.csv")
+	if resultPayload.Algorithm == "detector" {
+		conclusionCSV := filepath.Join(path, resultPayload.Dataset, "conclusion.csv")
+		content, err := os.ReadFile(conclusionCSV)
+		if err != nil {
+			updateTaskStatus(taskID, "Error", "There is no conclusion.csv file in /app/output, please check whether it is nomal")
+		} else {
+			results, err := readDetectorCSV(content, resultPayload.ExecutionID)
+			if err != nil {
+				return fmt.Errorf("convert conclusion.csv to database struct failed: %v", err)
+			}
+
+			if err = database.DB.Create(&results).Error; err != nil {
+				return fmt.Errorf("save conclusion.csv to database failed: %v", err)
+			}
+		}
+
+		return nil
+	}
+
+	resultCSV := filepath.Join(path, resultPayload.Dataset, "result.csv")
 	content, err := os.ReadFile(resultCSV)
 	if err != nil {
 		updateTaskStatus(taskID, "Error", "There is no result.csv file, please check whether it is nomal")
@@ -208,21 +233,6 @@ func collectResult(taskID string, payload map[string]interface{}) error {
 
 		if err = database.DB.Create(&results).Error; err != nil {
 			return fmt.Errorf("save result.csv to database failed: %v", err)
-		}
-	}
-
-	conclusionCSV := filepath.Join(path, resultPayload.DatasetName, "conclusion.csv")
-	content, err = os.ReadFile(conclusionCSV)
-	if err != nil {
-		updateTaskStatus(taskID, "Error", "There is no conclusion.csv file in /app/output, please check whether it is nomal")
-	} else {
-		results, err := readDetectorCSV(content, resultPayload.ExecutionID)
-		if err != nil {
-			return fmt.Errorf("convert conclusion.csv to database struct failed: %v", err)
-		}
-
-		if err = database.DB.Create(&results).Error; err != nil {
-			return fmt.Errorf("save conclusion.csv to database failed: %v", err)
 		}
 	}
 

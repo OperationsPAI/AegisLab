@@ -33,8 +33,8 @@ func SuccessResponse[T any](c *gin.Context, data T) {
 	})
 }
 
-func StructToMap(obj interface{}) map[string]interface{} {
-	result := make(map[string]interface{})
+func StructToMap(obj any) map[string]any {
+	result := make(map[string]any)
 	t := reflect.TypeOf(obj)
 	v := reflect.ValueOf(obj)
 

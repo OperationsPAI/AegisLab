@@ -78,12 +78,12 @@ func getJobInformer(ctx context.Context, callback Callback) {
 	)
 
 	jobInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			job := obj.(*batchv1.Job)
 			logrus.Infof("Job %s created successfully in namespace %s", job.Name, job.Namespace)
 			callback.AddFunc(job.Labels)
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			oldJob := oldObj.(*batchv1.Job)
 			newJob := newObj.(*batchv1.Job)
 
@@ -96,7 +96,7 @@ func getJobInformer(ctx context.Context, callback Callback) {
 				}
 			}
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			job := obj.(*batchv1.Job)
 			logrus.Infof("Job %s deleted successfully in namespace %s", job.Name, job.Namespace)
 		},

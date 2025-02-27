@@ -41,7 +41,7 @@ func Init(configPath string) {
 }
 
 // Get 获取配置项的值
-func Get(key string) interface{} {
+func Get(key string) any {
 	return viper.Get(key)
 }
 
@@ -76,17 +76,17 @@ func GetIntSlice(key string) []int {
 }
 
 // GetMap 获取映射类型的配置项
-func GetMap(key string) map[string]interface{} {
+func GetMap(key string) map[string]any {
 	return viper.GetStringMap(key)
 }
 
 // GetList 获取任意列表类型的配置项
-func GetList(key string) []interface{} {
+func GetList(key string) []any {
 	value := viper.Get(key)
 	if value == nil {
 		return nil
 	}
-	if list, ok := value.([]interface{}); ok {
+	if list, ok := value.([]any); ok {
 		return list
 	}
 	return nil

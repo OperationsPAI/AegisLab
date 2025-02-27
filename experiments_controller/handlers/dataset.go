@@ -104,7 +104,7 @@ func SubmitDatasetBuilding(c *gin.Context) {
 //	@Summary		分页查询数据集列表
 //	@Description	获取状态为成功的注入数据集列表（支持分页参数）
 //	@Tags			dataset
-//	@Produce		application/json
+//	@Produce		json
 //	@Param			page_num	query		int		true	"页码（从1开始）" minimum(1) default(1)
 //	@Param			page_size	query		int		true	"每页数量" minimum(1) maximum(100) default(20)
 //	@Success		200			{object}	GenericResponse[DatasetResp] "成功响应"

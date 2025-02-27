@@ -42,6 +42,7 @@ const (
 	BuildStartTime = "start_time"
 	BuildEndTime   = "end_time"
 
+	CollectAlgorithm   = "algorithm"
 	CollectDataset     = "dataset"
 	CollectExecutionID = "execution_id"
 
@@ -67,6 +68,7 @@ const (
 const (
 	LabelJobType     = "job_type"
 	LabelTaskID      = "task_id"
+	LabelAlgo        = "algorithm"
 	LabelDataset     = "dataset"
 	LabelExecutionID = "execution_id"
 	LabelStartTime   = "start_time"

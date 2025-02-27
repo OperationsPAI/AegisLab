@@ -25,7 +25,7 @@ type DatasetPayload struct {
 	EndTime     *time.Time `json:"end_time,omitempty"`
 }
 
-func parseDatasetPayload(payload map[string]interface{}) (*DatasetPayload, error) {
+func parseDatasetPayload(payload map[string]any) (*DatasetPayload, error) {
 	benchmark, ok := payload[BuildBenchmark].(string)
 	if !ok || benchmark == "" {
 		return nil, fmt.Errorf("missing or invalid '%s' key in payload", BuildBenchmark)

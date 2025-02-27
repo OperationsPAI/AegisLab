@@ -106,7 +106,7 @@ func GetMetrics() map[string]EvaluateMetric {
 
 // 解析配置并获取 ground truth 的公共函数
 func parseConfigAndGetGroundTruth(execution Execution) ([]handler.Groudtruth, error) {
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(execution.Dataset.Config), &payload); err != nil {
 		return nil, err
 	}

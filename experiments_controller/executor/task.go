@@ -45,15 +45,15 @@ var (
 
 // UnifiedTask 统一任务结构
 type UnifiedTask struct {
-	TaskID      string                 `json:"task_id"`
-	Type        TaskType               `json:"type"`
-	Immediate   bool                   `json:"immediate"`
-	ExecuteTime int64                  `json:"execute_time"`
-	CronExpr    string                 `json:"cron_expr,omitempty"`
-	RetryPolicy RetryPolicy            `json:"retry_policy"`
-	Payload     map[string]interface{} `json:"payload"`
-	TraceID     string                 `json:"trace_id,omitempty"`
-	GroupID     string                 `json:"group_id,omitempty"`
+	TaskID      string         `json:"task_id"`
+	Type        TaskType       `json:"type"`
+	Immediate   bool           `json:"immediate"`
+	ExecuteTime int64          `json:"execute_time"`
+	CronExpr    string         `json:"cron_expr,omitempty"`
+	RetryPolicy RetryPolicy    `json:"retry_policy"`
+	Payload     map[string]any `json:"payload"`
+	TraceID     string         `json:"trace_id,omitempty"`
+	GroupID     string         `json:"group_id,omitempty"`
 }
 
 type RetryPolicy struct {
@@ -389,6 +389,7 @@ func CancelTask(taskID string) error {
 	if exists || err == nil {
 		return nil
 	}
+
 	return fmt.Errorf("task %s not found", taskID)
 }
 
@@ -412,36 +413,39 @@ func removeFromZSet(ctx context.Context, cli *redis.Client, key, taskID string) 
 			return true
 		}
 	}
+
 	return false
 }
 
 func removeFromList(ctx context.Context, cli *redis.Client, key, taskID string) (bool, error) {
 	// 高效列表删除Lua脚本
 	var removeFromListScript = redis.NewScript(`
-local key = KEYS[1]
-local taskID = ARGV[1]
-local count = 0
+		local key = KEYS[1]
+		local taskID = ARGV[1]
+		local count = 0
 
-for i=0, redis.call('LLEN', key)-1 do
-	local item = redis.call('LINDEX', key, i)
-	if item then
-		local task = cjson.decode(item)
-		if task.task_id == taskID then
-			redis.call('LSET', key, i, "__DELETED__")
-			count = count + 1
+		for i=0, redis.call('LLEN', key)-1 do
+			local item = redis.call('LINDEX', key, i)
+			if item then
+				local task = cjson.decode(item)
+				if task.task_id == taskID then
+					redis.call('LSET', key, i, "__DELETED__")
+					count = count + 1
+				end
+			end
 		end
-	end
-end
 
-if count > 0 then
-	redis.call('LREM', key, count, "__DELETED__")
-end
-return count
-`)
+		if count > 0 then
+			redis.call('LREM', key, count, "__DELETED__")
+		end
+		
+		return count
+	`)
 	result, err := removeFromListScript.Run(ctx, cli, []string{key}, taskID).Int()
 	if err != nil {
 		return false, fmt.Errorf("failed to remove from list: %w", err)
 	}
+
 	return result > 0, nil
 }
 
@@ -452,13 +456,13 @@ func updateTaskStatus(taskID, status, message string) {
 
 	// Redis事务
 	pipe := redisCli.TxPipeline()
+	log := fmt.Sprintf("[%s] %s", status, message)
 	statusKey := fmt.Sprintf("task:%s:status", taskID)
 	pipe.HSet(ctx, statusKey,
 		"status", status,
 		"updated_at", time.Now().Unix(),
 	)
-	pipe.RPush(ctx, fmt.Sprintf("task:%s:logs", taskID),
-		fmt.Sprintf("[%s] %s", status, message))
+	pipe.RPush(ctx, fmt.Sprintf("task:%s:logs", taskID), log)
 	if _, err := pipe.Exec(ctx); err != nil {
 		logrus.Errorf("Failed to update task status: %v", err)
 	}
@@ -472,6 +476,8 @@ func updateTaskStatus(taskID, status, message string) {
 		return
 	}
 	tx.Commit()
+
+	redisCli.Publish(ctx, fmt.Sprintf("task:%s:channel", taskID), log)
 }
 
 func calculateExecuteTime(task *UnifiedTask) (int64, error) {
