@@ -29,8 +29,8 @@ func TestCreateDatasetJob(t *testing.T) {
 	jobName := fmt.Sprintf("dataset-%s", datasetName)
 	image := fmt.Sprintf("%s/%s_dataset:latest", config.GetString("harbor.repository"), "clickhouse")
 	labels := map[string]string{
-		LabelJobType:   string(TaskTypeBuildDataset),
 		LabelTaskID:    uuid.New().String(),
+		LabelTaskType:  string(TaskTypeRunAlgorithm),
 		LabelDataset:   datasetName,
 		LabelStartTime: strconv.FormatInt(startTime.Unix(), 10),
 		LabelEndTime:   strconv.FormatInt(endTime.Unix(), 10),

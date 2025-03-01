@@ -26,12 +26,8 @@ const (
 	TaskTypeCollectResult  TaskType = "CollectResult"
 )
 
-// Redis 消息字段
 const (
-	RdbMsgTaskID       = "taskID"
-	RdbMsgTaskType     = "taskType"
-	RdbMsgPayload      = "payload"
-	RdbMsgParentTaskID = "parentTaskID"
+	TaskMsgCompleted string = "Task %s completed"
 )
 
 // 不同任务类型的 Payload 键
@@ -65,10 +61,29 @@ const (
 	ConsumerName = "task_consumer"
 )
 
+// Redis 记录名称
 const (
-	LabelJobType     = "job_type"
+	LogFormat  = "[%s] %s"
+	LogKey     = "task:%s:logs"
+	StatusKey  = "task:%s:status"
+	SubChannel = "trace:%s:channel"
+)
+
+// Redis 订阅消息字段
+const (
+	RdbMsgStatus      = "status"
+	RdbMsgTaskType    = "task_type"
+	RdbMsgDataset     = "dataset"
+	RdbMsgExecutionID = "execution_id"
+)
+
+// K8s Job Label 字段
+const (
 	LabelTaskID      = "task_id"
-	LabelAlgo        = "algorithm"
+	LabelTraceID     = "trace_id"
+	LabelGroupID     = "group_id"
+	LabelTaskType    = "task_type"
+	LabelAlgorithm   = "algorithm"
 	LabelDataset     = "dataset"
 	LabelExecutionID = "execution_id"
 	LabelStartTime   = "start_time"

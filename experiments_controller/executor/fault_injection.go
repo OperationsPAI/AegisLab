@@ -111,11 +111,15 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		return err
 	}
 
-	// 更新任务状态
-	updateTaskStatus(task.TaskID, TaskStatusRunning, fmt.Sprintf("Executing fault injection for task %s", task.TaskID))
+	updateTaskStatus(task.TaskID, task.TraceID,
+		fmt.Sprintf("Executing fault injection for task %s", task.TaskID),
+		map[string]any{
+			RdbMsgStatus:   TaskStatusRunning,
+			RdbMsgTaskType: task.Type,
+		})
 
 	// 故障注入逻辑
-	var chaosSpec interface{}
+	var chaosSpec any
 	spec := handler.SpecMap[handler.ChaosType(fiPayload.FaultType)]
 	if spec != nil {
 		actionSpace, err := handler.GenerateActionSpace(spec)
@@ -178,7 +182,12 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 				return
 			}
 
-			updateTaskStatus(task.TaskID, TaskStatusCompleted, fmt.Sprintf("Task %s completed", task.TaskID))
+			updateTaskStatus(task.TaskID, task.TraceID,
+				fmt.Sprintf(TaskMsgCompleted, task.TaskID),
+				map[string]any{
+					RdbMsgStatus:   TaskStatusCompleted,
+					RdbMsgTaskType: task.Type,
+				})
 
 			datasetPayload := map[string]any{
 				BuildBenchmark: *fiPayload.Benchmark,
