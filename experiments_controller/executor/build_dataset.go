@@ -143,8 +143,10 @@ func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
 	jobName := fmt.Sprintf("dataset-%s", datasetName)
 	image := fmt.Sprintf("%s/%s_dataset:latest", config.GetString("harbor.repository"), datasetPayload.Benchmark)
 	labels := map[string]string{
-		LabelJobType:   string(TaskTypeBuildDataset),
 		LabelTaskID:    task.TaskID,
+		LabelTraceID:   task.TraceID,
+		LabelGroupID:   task.GroupID,
+		LabelTaskType:  string(TaskTypeBuildDataset),
 		LabelDataset:   datasetPayload.DatasetName,
 		LabelStartTime: strconv.FormatInt(startTime.Unix(), 10),
 		LabelEndTime:   strconv.FormatInt(endTime.Unix(), 10),

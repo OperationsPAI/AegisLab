@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
+	"sync"
 	"time"
 
 	cli "github.com/CUHK-SE-Group/chaos-experiment/client"
@@ -19,10 +21,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
-
-type InjectReq struct {
-	TaskID string `uri:"task_id" binding:"required"`
-}
 
 type InjectCancelResp struct {
 }
@@ -68,6 +66,11 @@ type SubmitResp struct {
 	TaskIDs []string `json:"task_ids"`
 }
 
+var (
+	reLog     *regexp.Regexp
+	reLogOnce sync.Once
+)
+
 // CancelInjection
 //
 //	@Summary		取消注入
@@ -96,28 +99,33 @@ func CancelInjection(c *gin.Context) {
 //	@Failure		500		{object}	GenericResponse[any]
 //	@Router			/api/v1/injections [get]
 func GetInjectionDetail(c *gin.Context) {
-	var injectReq InjectReq
-	if err := c.ShouldBindUri(&injectReq); err != nil {
-		JSONResponse[any](c, http.StatusBadRequest, "Invalid JSON payload", nil)
+	var taskReq TaskReq
+	if err := c.BindUri(&taskReq); err != nil {
+		JSONResponse[any](c, http.StatusBadRequest, "Invalid URI", nil)
 		return
 	}
 
-	taskID := injectReq.TaskID
+	logEntry := logrus.WithField("task_id", taskReq.TaskID)
 
 	var task database.Task
-	if err := database.DB.First(&task, "id = ?", taskID).Error; err != nil {
+	if err := database.DB.Where("tasks.id = ?", taskReq.TaskID).First(&task).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			JSONResponse[any](c, http.StatusNotFound, "Task not found", nil)
+			message := "Task not found"
+			logEntry.WithError(err).Error(message)
+			JSONResponse[any](c, http.StatusNotFound, message, nil)
 		} else {
-			JSONResponse[any](c, http.StatusInternalServerError, fmt.Sprintf("Failed to retrieve task %s", taskID), nil)
+			message := "Failed to retrieve task of injection"
+			logEntry.WithError(err).Error(message)
+			JSONResponse[any](c, http.StatusInternalServerError, message, nil)
 		}
+
 		return
 	}
 
 	var payload executor.FaultInjectionPayload
 	if err := json.Unmarshal([]byte(task.Payload), &payload); err != nil {
-		logrus.Error(fmt.Sprintf("Payload of inject record %s unmarshaling failed: %s", task.ID, err))
-		JSONResponse[any](c, http.StatusInternalServerError, fmt.Sprintf("Failed to unmarshal payload %s", taskID), nil)
+		logEntry.WithError(err).Error("Failed to unmarshal payload of injection record")
+		JSONResponse[any](c, http.StatusInternalServerError, "Failed to unmarshal payload", nil)
 		return
 	}
 
@@ -129,7 +137,7 @@ func GetInjectionDetail(c *gin.Context) {
 		CreatedAt: task.CreatedAt,
 	}
 
-	logKey := fmt.Sprintf("task:%s:logs", taskID)
+	logKey := fmt.Sprintf("task:%s:logs", task.ID)
 	ctx := c.Request.Context()
 	logs, err := client.GetRedisClient().LRange(ctx, logKey, 0, -1).Result()
 	if errors.Is(err, redis.Nil) {
@@ -142,14 +150,51 @@ func GetInjectionDetail(c *gin.Context) {
 	SuccessResponse(c, InjectDetailResp{Task: injectTask, Logs: logs})
 }
 
+// StreamInjection
+//
+//	@Summary      获取任务状态事件流
+//	@Description  通过Server-Sent Events (SSE) 实时注入任务的执行状态更新，直到任务完成或连接关闭
+//	@Tags         injection
+//	@Produce      text/event-stream
+//	@Consumes	  application/json
+//	@Param        task_id  path      string  				true  "需要监控的任务ID"
+//	@Success      200      {object}  nil     				"成功建立SSE连接，持续推送事件流"
+//	@Failure      400      {object}  GenericResponse[any]	"无效的任务ID格式"
+//	@Failure      404      {object}  GenericResponse[any]  	"指定ID的任务不存在"
+//	@Failure      500      {object}  GenericResponse[any]  	"服务器内部错误"
+//	@Router       /api/v1/injection/{task_id}/stream [get]
 func StreamInjection(c *gin.Context) {
-	var injectReq InjectReq
-	if err := c.BindUri(&injectReq); err != nil {
-		JSONResponse[any](c, http.StatusBadRequest, "Invalid JSON payload", nil)
+	var taskReq TaskReq
+	if err := c.BindUri(&taskReq); err != nil {
+		JSONResponse[any](c, http.StatusBadRequest, "Invalid URI", nil)
 		return
 	}
 
-	pubsub := client.GetRedisClient().Subscribe(c, fmt.Sprintf("task:%s:channel", injectReq.TaskID))
+	logEntry := logrus.WithField("task_id", taskReq.TaskID)
+
+	var task database.Task
+	if err := database.DB.Where("tasks.id = ?", taskReq.TaskID).First(&task).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			message := "Task not found"
+			logEntry.WithError(err).Error(message)
+			JSONResponse[any](c, http.StatusNotFound, message, nil)
+		} else {
+			message := "Failed to retrieve task of injection"
+			logEntry.WithError(err).Error(message)
+			JSONResponse[any](c, http.StatusInternalServerError, message, nil)
+		}
+
+		return
+	}
+
+	var payload executor.FaultInjectionPayload
+	if err := json.Unmarshal([]byte(task.Payload), &payload); err != nil {
+		logEntry.WithError(err).Error("Failed to unmarshal payload of injection record")
+		JSONResponse[any](c, http.StatusInternalServerError, "Failed to unmarshal payload", nil)
+		return
+	}
+
+	pubsub := client.GetRedisClient().Subscribe(c, fmt.Sprintf(executor.SubChannel, task.TraceID))
 	defer pubsub.Close()
 
 	for {
@@ -157,8 +202,39 @@ func StreamInjection(c *gin.Context) {
 		case message := <-pubsub.Channel():
 			c.SSEvent("update", message.Payload)
 			c.Writer.Flush()
+
+			var rdbMsg executor.RdbMsg
+			if err := json.Unmarshal([]byte(message.Payload), &rdbMsg); err != nil {
+				msg := "Failed to unmarshal payload of redis message"
+				logEntry.WithError(err).Error(msg)
+
+				c.SSEvent("error", map[string]string{
+					"error":   msg,
+					"details": err.Error(),
+				})
+				c.Writer.Flush()
+
+				return
+			}
+
+			// 主动退出函数，关闭连接
+			expectedTaskType := executor.TaskTypeFaultInjection
+			if payload.Benchmark != nil {
+				expectedTaskType = executor.TaskTypeBuildDataset
+			}
+
+			switch rdbMsg.Status {
+			case executor.TaskStatusCompleted:
+				if rdbMsg.Type == expectedTaskType {
+					return
+				}
+			case executor.TaskStatusError:
+				return
+			}
+
 		case <-c.Writer.CloseNotify():
 			return
+
 		case <-c.Done():
 			return
 		}

@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"time"
@@ -10,8 +11,10 @@ import (
 )
 
 type JobLabel struct {
-	JobType     string
 	TaskID      string
+	TraceID     string
+	GroupID     string
+	Type        TaskType
 	Algorithm   *string
 	Dataset     string
 	ExecutionID *int
@@ -25,14 +28,24 @@ type Executor struct {
 var Exec *Executor
 
 func parseJobLabel(labels map[string]string) (*JobLabel, error) {
-	jobType, ok := labels[LabelJobType]
-	if !ok || jobType == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", LabelJobType)
-	}
-
 	taskID, ok := labels[LabelTaskID]
 	if !ok || taskID == "" {
 		return nil, fmt.Errorf("missing or invalid '%s' key in payload", LabelTaskID)
+	}
+
+	traceID, ok := labels[LabelTraceID]
+	if !ok || traceID == "" {
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", LabelTraceID)
+	}
+
+	groupID, ok := labels[LabelGroupID]
+	if !ok || groupID == "" {
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", LabelGroupID)
+	}
+
+	taskType, ok := labels[LabelTaskType]
+	if !ok || taskType == "" {
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", LabelTaskType)
 	}
 
 	dataset, ok := labels[LabelDataset]
@@ -41,7 +54,7 @@ func parseJobLabel(labels map[string]string) (*JobLabel, error) {
 	}
 
 	var algorithm *string
-	if algo, ok := labels[LabelAlgo]; ok {
+	if algo, ok := labels[LabelAlgorithm]; ok {
 		algorithm = &algo
 	}
 
@@ -78,8 +91,10 @@ func parseJobLabel(labels map[string]string) (*JobLabel, error) {
 	}
 
 	return &JobLabel{
-		JobType:     jobType,
 		TaskID:      taskID,
+		TraceID:     traceID,
+		GroupID:     groupID,
+		Type:        TaskType(taskType),
 		Algorithm:   algorithm,
 		Dataset:     dataset,
 		ExecutionID: executionID,
@@ -96,14 +111,19 @@ func (e *Executor) AddFunc(labels map[string]string) {
 	}
 
 	var message string
-	switch jobLabel.JobType {
-	case string(TaskTypeBuildDataset):
+	switch jobLabel.Type {
+	case TaskTypeBuildDataset:
 		message = fmt.Sprintf("Building dataset for task %s", jobLabel.TaskID)
-	case string(TaskTypeRunAlgorithm):
+	case TaskTypeRunAlgorithm:
 		message = fmt.Sprintf("Running algorithm for task %s", jobLabel.TaskID)
 	}
 
-	updateTaskStatus(jobLabel.TaskID, TaskStatusRunning, message)
+	updateTaskStatus(jobLabel.TaskID, jobLabel.TraceID,
+		message,
+		map[string]any{
+			RdbMsgStatus:   TaskStatusRunning,
+			RdbMsgTaskType: jobLabel.Type,
+		})
 }
 
 func (e *Executor) UpdateFunc(labels map[string]string) {
@@ -113,10 +133,16 @@ func (e *Executor) UpdateFunc(labels map[string]string) {
 		return
 	}
 
-	updateTaskStatus(jobLabel.TaskID, TaskStatusCompleted, fmt.Sprintf("Task %s completed", jobLabel.TaskID))
+	if jobLabel.Type == TaskTypeBuildDataset {
+		logrus.Infof(fmt.Sprintf("Dataset %s built", jobLabel.Dataset))
 
-	if jobLabel.JobType == string(TaskTypeBuildDataset) {
-		logrus.Infof("Dataset %s built", jobLabel.Dataset)
+		updateTaskStatus(jobLabel.TaskID, jobLabel.TraceID,
+			fmt.Sprintf(TaskMsgCompleted, jobLabel.TaskID),
+			map[string]any{
+				RdbMsgStatus:   TaskStatusCompleted,
+				RdbMsgTaskType: jobLabel.Type,
+				RdbMsgDataset:  jobLabel.Dataset,
+			})
 
 		if jobLabel.StartTime == nil || jobLabel.EndTime == nil {
 			logrus.Errorf("Failed to update record for dataset %s: %v", jobLabel.Dataset, err)
@@ -137,18 +163,35 @@ func (e *Executor) UpdateFunc(labels map[string]string) {
 		return
 	}
 
-	if jobLabel.JobType == string(TaskTypeRunAlgorithm) {
+	if jobLabel.Type == TaskTypeRunAlgorithm {
+		algorithm := *jobLabel.Algorithm
+		executionID := *jobLabel.ExecutionID
+		logrus.Infof(fmt.Sprintf("Algorithm %s executed", algorithm))
+
+		updateTaskStatus(jobLabel.TaskID, jobLabel.TraceID,
+			fmt.Sprintf(TaskMsgCompleted, jobLabel.TaskID),
+			map[string]any{
+				RdbMsgStatus:      TaskStatusCompleted,
+				RdbMsgTaskType:    jobLabel.Type,
+				RdbMsgExecutionID: executionID,
+			})
+
 		payload := map[string]any{
-			CollectAlgorithm:   *jobLabel.Algorithm,
+			CollectAlgorithm:   algorithm,
 			CollectDataset:     jobLabel.Dataset,
-			CollectExecutionID: *jobLabel.ExecutionID,
+			CollectExecutionID: executionID,
 		}
-		if err := collectResult(jobLabel.TaskID, payload); err != nil {
+		if _, err := SubmitTask(context.Background(), &UnifiedTask{
+			Type:      TaskTypeCollectResult,
+			Payload:   payload,
+			Immediate: true,
+			TraceID:   jobLabel.TraceID,
+			GroupID:   jobLabel.GroupID,
+		}); err != nil {
 			logrus.Error(err)
 			return
 		}
 
-		logrus.Infof("Result of dataset %s collected", jobLabel.Dataset)
 		return
 	}
 }

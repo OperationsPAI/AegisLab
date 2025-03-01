@@ -61,6 +61,11 @@ type RetryPolicy struct {
 	BackoffSec  int `json:"backoff_sec"`
 }
 
+type RdbMsg struct {
+	Status string   `json:"status"`
+	Type   TaskType `json:"task_type"`
+}
+
 var (
 	taskCancelFuncs      = make(map[string]context.CancelFunc)
 	taskCancelFuncsMutex sync.RWMutex
@@ -449,35 +454,58 @@ func removeFromList(ctx context.Context, cli *redis.Client, key, taskID string) 
 	return result > 0, nil
 }
 
+func parseRdbMsg(payload map[string]any) (*RdbMsg, error) {
+	status, ok := payload[RdbMsgStatus].(string)
+	if !ok || status == "" {
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", RdbMsgStatus)
+	}
+
+	return &RdbMsg{
+		Status: status,
+	}, nil
+}
+
 // 事务型状态更新
-func updateTaskStatus(taskID, status, message string) {
+func updateTaskStatus(taskID, traceID, message string, payload map[string]any) {
 	ctx := context.Background()
 	redisCli := client.GetRedisClient()
 
+	rdbMsg, err := parseRdbMsg(payload)
+	if err != nil {
+		logrus.WithField("task_id", taskID).Error(err)
+		return
+	}
+
 	// Redis事务
 	pipe := redisCli.TxPipeline()
-	log := fmt.Sprintf("[%s] %s", status, message)
-	statusKey := fmt.Sprintf("task:%s:status", taskID)
-	pipe.HSet(ctx, statusKey,
-		"status", status,
+	pipe.HSet(ctx, fmt.Sprintf(StatusKey, taskID),
+		"status", rdbMsg.Status,
 		"updated_at", time.Now().Unix(),
 	)
-	pipe.RPush(ctx, fmt.Sprintf("task:%s:logs", taskID), log)
+
+	pipe.RPush(ctx, fmt.Sprintf(LogKey, taskID), fmt.Sprintf(LogFormat, rdbMsg.Status, message))
 	if _, err := pipe.Exec(ctx); err != nil {
-		logrus.Errorf("Failed to update task status: %v", err)
+		logrus.WithField("task_id", taskID).WithError(err).Error("Failed to update task status")
+		return
 	}
 
 	// 数据库事务
 	tx := database.DB.Begin()
 	if err := tx.Model(&database.Task{}).
 		Where("id = ?", taskID).
-		Update("status", status).Error; err != nil {
+		Update("status", rdbMsg.Status).Error; err != nil {
 		tx.Rollback()
 		return
 	}
 	tx.Commit()
 
-	redisCli.Publish(ctx, fmt.Sprintf("task:%s:channel", taskID), log)
+	msg, err := json.Marshal(payload)
+	if err != nil {
+		logrus.WithField("task_id", taskID).WithError(err).Error("Failed to marshal payload")
+		return
+	}
+
+	redisCli.Publish(ctx, fmt.Sprintf(SubChannel, traceID), msg)
 }
 
 func calculateExecuteTime(task *UnifiedTask) (int64, error) {

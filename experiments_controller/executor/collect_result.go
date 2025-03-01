@@ -14,29 +14,31 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/database"
 )
 
-type ResultPayload struct {
+type CollectPayload struct {
 	Algorithm   string
 	Dataset     string
 	ExecutionID int
 }
 
-func parseResultPayload(payload map[string]any) (*ResultPayload, error) {
+func parseCollectPayload(payload map[string]any) (*CollectPayload, error) {
 	algorithm, ok := payload[CollectAlgorithm].(string)
 	if !ok || algorithm == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", CollectAlgorithm)
+		return nil, fmt.Errorf("Missing or invalid '%s' key in payload", CollectAlgorithm)
 	}
 
 	dataset, ok := payload[CollectDataset].(string)
 	if !ok || dataset == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", CollectDataset)
+		return nil, fmt.Errorf("Missing or invalid '%s' key in payload", CollectDataset)
 	}
 
-	executionID, ok := payload[CollectExecutionID].(int)
-	if !ok || executionID == 0 {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", CollectExecutionID)
+	executionIDFloat, ok := payload[CollectExecutionID].(float64)
+	if !ok || executionIDFloat == 0.0 {
+		return nil, fmt.Errorf("Missing '%s' key in payload", CollectExecutionID)
 	}
+	executionID := int(executionIDFloat)
 
-	return &ResultPayload{
+	return &CollectPayload{
+		Algorithm:   algorithm,
 		Dataset:     dataset,
 		ExecutionID: executionID,
 	}, nil
@@ -191,42 +193,36 @@ func readDetectorCSV(csvContent []byte, executionID int) ([]database.Detector, e
 }
 
 func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
-	return collectResult(task.TaskID, task.Payload)
-}
-
-func collectResult(taskID string, payload map[string]any) error {
-	resultPayload, err := parseResultPayload(payload)
+	collectPayload, err := parseCollectPayload(task.Payload)
 	if err != nil {
 		return err
 	}
 
 	path := config.GetString("nfs.path")
 
-	if resultPayload.Algorithm == "detector" {
-		conclusionCSV := filepath.Join(path, resultPayload.Dataset, "conclusion.csv")
+	if collectPayload.Algorithm == "detector" {
+		conclusionCSV := filepath.Join(path, collectPayload.Dataset, "conclusion.csv")
 		content, err := os.ReadFile(conclusionCSV)
 		if err != nil {
-			updateTaskStatus(taskID, "Error", "There is no conclusion.csv file in /app/output, please check whether it is nomal")
-		} else {
-			results, err := readDetectorCSV(content, resultPayload.ExecutionID)
-			if err != nil {
-				return fmt.Errorf("convert conclusion.csv to database struct failed: %v", err)
-			}
-
-			if err = database.DB.Create(&results).Error; err != nil {
-				return fmt.Errorf("save conclusion.csv to database failed: %v", err)
-			}
+			return fmt.Errorf("There is no conclusion.csv file, please check whether it is nomal")
 		}
 
-		return nil
-	}
+		results, err := readDetectorCSV(content, collectPayload.ExecutionID)
+		if err != nil {
+			return fmt.Errorf("Failed to convert conclusion.csv to database struct: %v", err)
+		}
 
-	resultCSV := filepath.Join(path, resultPayload.Dataset, "result.csv")
-	content, err := os.ReadFile(resultCSV)
-	if err != nil {
-		updateTaskStatus(taskID, "Error", "There is no result.csv file, please check whether it is nomal")
+		if err = database.DB.Create(&results).Error; err != nil {
+			return fmt.Errorf("Failed to save conclusion.csv to database: %v", err)
+		}
 	} else {
-		results, err := readCSVContent2Result(content, resultPayload.ExecutionID)
+		resultCSV := filepath.Join(path, collectPayload.Dataset, "result.csv")
+		content, err := os.ReadFile(resultCSV)
+		if err != nil {
+			return fmt.Errorf("There is no result.csv file, please check whether it is nomal")
+		}
+
+		results, err := readCSVContent2Result(content, collectPayload.ExecutionID)
 		if err != nil {
 			return fmt.Errorf("convert result.csv to database struct failed: %v", err)
 		}
@@ -235,6 +231,13 @@ func collectResult(taskID string, payload map[string]any) error {
 			return fmt.Errorf("save result.csv to database failed: %v", err)
 		}
 	}
+
+	updateTaskStatus(task.TaskID, task.TraceID,
+		fmt.Sprintf(TaskMsgCompleted, task.TaskID),
+		map[string]any{
+			RdbMsgStatus:   TaskStatusCompleted,
+			RdbMsgTaskType: TaskTypeCollectResult,
+		})
 
 	return nil
 }

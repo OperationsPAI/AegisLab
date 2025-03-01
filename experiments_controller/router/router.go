@@ -23,6 +23,11 @@ func New() *gin.Engine {
 	{
 		algorithms.GET("", handlers.GetAlgorithmList)
 		algorithms.POST("", handlers.SubmitAlgorithmExecution)
+
+		tasks := algorithms.Group("/:task_id")
+		{
+			tasks.GET("/stream", handlers.StreamAlgorithmExecution)
+		}
 	}
 
 	datasets := r.Group("/datasets")

@@ -38,7 +38,13 @@ func dispatchTask(ctx context.Context, task *UnifiedTask) error {
 	}
 
 	if err != nil {
-		updateTaskStatus(task.TaskID, TaskStatusError, err.Error())
+		updateTaskStatus(task.TaskID, task.TraceID,
+			err.Error(),
+			map[string]any{
+				RdbMsgStatus:   TaskStatusError,
+				RdbMsgTaskType: TaskTypeCollectResult,
+			})
+
 		return err
 	}
 

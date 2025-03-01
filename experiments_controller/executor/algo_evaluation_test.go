@@ -26,8 +26,8 @@ func TestCreateAlgoJob(t *testing.T) {
 	jobName := fmt.Sprintf("%s-%s", algo, datasetName)
 	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), algo, "latest")
 	labels := map[string]string{
-		LabelJobType:     string(TaskTypeRunAlgorithm),
 		LabelTaskID:      uuid.New().String(),
+		LabelTaskType:    string(TaskTypeRunAlgorithm),
 		LabelDataset:     datasetName,
 		LabelExecutionID: fmt.Sprint(1),
 	}

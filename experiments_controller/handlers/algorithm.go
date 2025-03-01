@@ -1,16 +1,22 @@
 package handlers
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
+	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/executor"
 	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/k0kubun/pp/v3"
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 )
 
 // GetAlgorithmResp
@@ -56,6 +62,85 @@ func GetAlgorithmList(c *gin.Context) {
 	}
 
 	SuccessResponse(c, AlgorithmResp{Algorithms: algorithms})
+}
+
+// StreamAlgorithm
+//
+//	@Summary      获取任务状态事件流
+//	@Description  通过Server-Sent Events (SSE) 实时推送算法任务的执行状态更新，直到任务完成或连接关闭
+//	@Tags         algorithm
+//	@Produce      text/event-stream
+//	@Consumes	  application/json
+//	@Param        task_id  path      string  				true  "需要监控的任务ID"
+//	@Success      200      {object}  nil     				"成功建立SSE连接，持续推送事件流"
+//	@Failure      400      {object}  GenericResponse[any]	"无效的任务ID格式"
+//	@Failure      404      {object}  GenericResponse[any]  	"指定ID的任务不存在"
+//	@Failure      500      {object}  GenericResponse[any]  	"服务器内部错误"
+//	@Router       /api/v1/algorithm/{task_id}/stream [get]
+func StreamAlgorithmExecution(c *gin.Context) {
+	var taskReq TaskReq
+	if err := c.BindUri(&taskReq); err != nil {
+		JSONResponse[any](c, http.StatusBadRequest, "Invalid URI", nil)
+		return
+	}
+
+	logEntry := logrus.WithField("task_id", taskReq.TaskID)
+
+	var task database.Task
+	if err := database.DB.Where("tasks.id = ?", taskReq.TaskID).First(&task).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			message := "Task not found"
+			logEntry.WithError(err).Error(message)
+			JSONResponse[any](c, http.StatusNotFound, message, nil)
+		} else {
+			message := "Failed to retrieve task of algorithm execution"
+			logEntry.WithError(err).Error(message)
+			JSONResponse[any](c, http.StatusInternalServerError, message, nil)
+		}
+
+		return
+	}
+
+	pubsub := client.GetRedisClient().Subscribe(c, fmt.Sprintf(executor.SubChannel, task.TraceID))
+	defer pubsub.Close()
+
+	for {
+		select {
+		case message := <-pubsub.Channel():
+			c.SSEvent("update", message.Payload)
+			pp.Println(message.Payload)
+			c.Writer.Flush()
+
+			var rdbMsg executor.RdbMsg
+			if err := json.Unmarshal([]byte(message.Payload), &rdbMsg); err != nil {
+				msg := "Failed to unmarshal payload of redis message"
+				logEntry.WithError(err).Error(msg)
+
+				c.SSEvent("error", map[string]string{
+					"error":   msg,
+					"details": err.Error(),
+				})
+				c.Writer.Flush()
+
+				return
+			}
+
+			// 主动退出函数，关闭连接
+			if rdbMsg.Status == executor.TaskStatusCompleted && rdbMsg.Type == executor.TaskTypeCollectResult {
+				return
+			}
+
+			if rdbMsg.Status == executor.TaskStatusError {
+				return
+			}
+
+		case <-c.Writer.CloseNotify():
+			return
+
+		case <-c.Done():
+			return
+		}
+	}
 }
 
 // SubmitAlgorithmExecution
