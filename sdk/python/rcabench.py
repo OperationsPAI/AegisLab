@@ -1,66 +1,12 @@
-from typing import Any, List, Dict, Optional
-from dataclasses import dataclass
-import inspect
+from typing import Any, AsyncGenerator, Dict, List, Optional
+from client import AsyncSSEClient, TaskManager
+from contextlib import asynccontextmanager
+from entity import *
+import aiohttp
+import asyncio
 import requests
 
-
-@dataclass
-class TaskResponse:
-    group_id: str
-    task_ids: List[str]
-
-
-@dataclass
-class TaskStatus:
-    taskID: str
-    status: str
-    logs: List[str]
-
-
-@dataclass
-class TaskDetails:
-    id: str
-    type: str
-    payload: str
-    status: str
-
-
-@dataclass
-class AlgorithmResp:
-    algorithms: List[str]
-
-
-@dataclass
-class EvaluationResp:
-    results: List
-
-
-@dataclass
-class InjectionParameters:
-    specification: Dict[str, List[Dict]]
-    keymap: Dict[str, str]
-
-
-@dataclass
-class NamespacePodInfo:
-    namespace_info: Dict[str, List[str]]
-
-
-@dataclass
-class DatasetResponse:
-    datasets: List[str]
-
-
-@dataclass
-class WithdrawResponse:
-    message: str
-
-
-@dataclass
-class RunAlgorithmPayload:
-    algorithm: str
-    benchmark: str
-    dataset: str
+CLIENT_NAME = "SSE-{task_id}"
 
 
 class BaseRouter:
@@ -79,7 +25,6 @@ class Algorithm(BaseRouter):
     URL_ENDPOINTS = {
         "execute": "",
         "list": "/list",
-        "get_stream": "/{task_id}/stream",
     }
 
     def execute(self, payload: List[Dict]) -> TaskResponse:
@@ -93,11 +38,6 @@ class Algorithm(BaseRouter):
         url = self._build_url(self.URL_ENDPOINTS["list"])
         data = self.sdk._get(url)["data"]
         return AlgorithmResp(algorithms=data["algorithms"])
-
-    def get_stream(self, task_id: str) -> List[str]:
-        endpoint = self.URL_ENDPOINTS["get_stream"].format(task_id=task_id)
-        url = self._build_url(endpoint)
-        return self.sdk._process_stream(url)
 
 
 class Evaluation(BaseRouter):
@@ -120,7 +60,6 @@ class Injection(BaseRouter):
         "execute": "",
         "get_namespace_pod_info": "/namespace_pods",
         "get_parameters": "/parameters",
-        "get_stream": "/{task_id}/stream",
     }
 
     def execute(self, payload: List[Dict]) -> TaskResponse:
@@ -139,14 +78,9 @@ class Injection(BaseRouter):
             specification=data["specification"], keymap=data["keymap"]
         )
 
-    def get_stream(self, task_id: str) -> List[str]:
-        endpoint = self.URL_ENDPOINTS["get_stream"].format(task_id=task_id)
-        url = self._build_url(endpoint)
-        return self.sdk._process_stream(url, task_id)
-
 
 class RCABenchSDK:
-    def __init__(self, base_url: str):
+    def __init__(self, base_url: str, max_connections: int = 10):
         """
         Initialize the SDK with the base URL of the server.
 
@@ -157,11 +91,10 @@ class RCABenchSDK:
         self.evaluation = Evaluation(self)
         self.injection = Injection(self)
 
-    @staticmethod
-    def _get_parent_function_name():
-        stack = inspect.stack()
-        parent_frame = stack[2]
-        return parent_frame.function
+        self.task_manager = TaskManager()
+        self.conn_pool = asyncio.Queue(max_connections)
+        self.active_connections = set()
+        self.loop = asyncio.get_event_loop()
 
     def _get(
         self, url: str, params: Optional[Dict] = None, stream: bool = False
@@ -179,24 +112,69 @@ class RCABenchSDK:
         response.raise_for_status()
         return response.json()
 
-    def _process_stream(self, url: str) -> List[str]:
-        response = self._get(url, stream=True)
-        lines = []
-
+    @asynccontextmanager
+    async def _get_session(self) -> AsyncGenerator[aiohttp.ClientSession, None]:
+        session = await self.conn_pool.get()
         try:
-            # 持续读取事件流
-            for line in response.iter_lines():
-                if line:
-                    # 解码字节流（过滤心跳包的空行）
-                    decoded_line = line.decode("utf-8")
-                    print(decoded_line)
-                    lines.append(decoded_line)
-
-        except KeyboardInterrupt:
-            print("Manual connection termination")
-        except Exception as e:
-            print(f"Connection error: {str(e)}")
+            yield session
         finally:
-            response.close()
+            await self.conn_pool.put(session)
 
-        return lines
+    async def _create_sse_client(self, task_id: str, url: str) -> AsyncSSEClient:
+        url = f"{self.base_url}{url}"
+        return AsyncSSEClient(self.task_manager, task_id, url)
+
+    async def _stream_task(self, task_id: str, url: str) -> None:
+        retries = 0
+        max_retries = 3
+
+        sse_client = await self._create_sse_client(task_id, url)
+        self.active_connections.add(task_id)
+
+        while retries < max_retries:
+            try:
+                await sse_client.connect()
+                break
+            except aiohttp.ClientError:
+                retries += 1
+                await asyncio.sleep(2**retries)
+
+        self.active_connections.discard(task_id)
+
+    async def start_stream(self, task_id: str, url: str) -> None:
+        """启动一个独立的SSE流"""
+        asyncio.create_task(
+            self._stream_task(task_id, url.format(task_id=task_id)),
+            name=CLIENT_NAME.format(task_id=task_id),
+        )
+
+    async def start_multiple_stream(
+        self, task_ids: List[str], url: str, timeout: Optional[float] = None
+    ) -> None:
+        """批量启动多个SSE流"""
+        for task_id in task_ids:
+            await self.start_stream(task_id, url.format(task_id=task_id))
+
+        report = await self.task_manager.wait_all(timeout)
+        await self._cleanup()
+
+        return report
+
+    async def stop_stream(self, task_id: str):
+        """停止指定SSE流"""
+        for task in asyncio.all_tasks():
+            if task.get_name() == CLIENT_NAME.format(task_id=task_id):
+                task.cancel()
+                break
+
+    async def stop_all_streams(self):
+        """停止所有SSE流"""
+        for task_id in list(self.active_connections):
+            await self.stop_stream(task_id)
+
+    async def _cleanup(self):
+        """清理所有资源"""
+        await self.stop_all_streams()
+        while not self.conn_pool.empty():
+            session = await self.conn_pool.get()
+            await session.close()
