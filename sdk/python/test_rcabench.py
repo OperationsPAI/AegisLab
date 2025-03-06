@@ -1,9 +1,8 @@
-from typing import Dict, List, Optional
+from typing import List
 from rcabench import RCABenchSDK, RunAlgorithmPayload
 from pprint import pprint
-import json
+import asyncio
 import random
-import unittest
 
 
 class InjectHelper:
@@ -43,9 +42,8 @@ class InjectHelper:
         }
 
 
-class TestRCABenchSDK(unittest.TestCase):
-    def __init__(self, url: str, methodName="runTest"):
-        super().__init__(methodName)
+class TestRCABenchSDK:
+    def __init__(self, url: str):
         # 替换为实际服务器地址
         self.base_url = url
         self.sdk = RCABenchSDK(self.base_url)
@@ -114,38 +112,6 @@ class TestRCABenchSDK(unittest.TestCase):
 
         return task_response
 
-    @staticmethod
-    def _parse_json(message: str) -> Optional[str]:
-        lines = message.strip().split("\n")
-
-        data_parts = []
-        for line in lines:
-            data_part = line[len("data:") :].strip()
-            data_parts.append(data_part)
-
-        combined_data = "".join(data_parts)
-
-        result_dict = None
-        try:
-            result_dict = json.loads(combined_data)
-        except json.JSONDecodeError as e:
-            print(f"Failed to parse json: {e}")
-
-        return result_dict
-
-    def _get_stream_results(self, response: Dict, stream_func, key: str) -> List[str]:
-        results = []
-        for task_id in response["task_ids"]:
-            lines = stream_func(task_id)
-            for line in lines:
-                if line.startswith("data"):
-                    result_dict = self._parse_json(line)
-                    value = result_dict.get(key, None)
-                    if value:
-                        results.append(value)
-
-        return results
-
     def test_injection_and_building(self) -> List[str]:
         injection_payload = [
             {
@@ -168,7 +134,7 @@ class TestRCABenchSDK(unittest.TestCase):
 
         return datasets
 
-    def test_algorithm_and_collection(
+    async def test_algorithm_and_collection(
         self, algorithms: List[str], datasets: List[str]
     ) -> List[str]:
         algorithm_payload = []
@@ -187,20 +153,26 @@ class TestRCABenchSDK(unittest.TestCase):
         algorithm_resp = self.sdk.algorithm.execute(algorithm_payload)
         pprint(algorithm_resp)
 
-        execution_ids = self._get_stream_results(
-            algorithm_resp, self.sdk.algorithm.get_stream, "execution_id"
+        task_ids = algorithm_resp["task_ids"]
+
+        report = await self.sdk.start_multiple_stream(
+            task_ids, url="/algorithms/{task_id}/stream", timeout=30
         )
-        pprint(execution_ids)
+        print(report)
 
-        return execution_ids
-
-    def test_workflow(self, algorithms: List[str]) -> List[str]:
-        pass
+    def test_pipeline(self, algorithms: List[str]) -> List[str]:
+        self.sdk.evaluation.execute()
 
 
 if __name__ == "__main__":
     url = "http://localhost:8082"
-    TestRCABenchSDK(url).test_algorithm_and_collection(
-        algorithms=["e-diagnose"],
-        datasets=["ts-ts-preserve-service-cpu-exhaustion-7wqhd5"],
-    )
+    sdk = TestRCABenchSDK(url)
+    try:
+        asyncio.run(
+            sdk.test_algorithm_and_collection(
+                algorithms=["e-diagnose", "e-diagnose"],
+                datasets=["ts-ts-preserve-service-cpu-exhaustion-7wqhd5"],
+            )
+        )
+    except KeyboardInterrupt:
+        print("Shutting down...")
