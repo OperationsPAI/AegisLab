@@ -1,5 +1,5 @@
 from typing import List
-from rcabench import RCABenchSDK, RunAlgorithmPayload
+from .rcabench import RCABenchSDK, RunAlgorithmPayload
 from pprint import pprint
 import asyncio
 import random
