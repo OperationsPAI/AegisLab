@@ -1,7 +1,13 @@
 from typing import Any, AsyncGenerator, Dict, List, Optional
 from .client import AsyncSSEClient, TaskManager
 from contextlib import asynccontextmanager
-from .entity import *
+from .entity import (
+    TaskResponse,
+    AlgorithmResp,
+    EvaluationResp,
+    NamespacePodInfo,
+    InjectionParameters,
+)
 import aiohttp
 import asyncio
 import requests
@@ -150,7 +156,7 @@ class RCABenchSDK:
 
     async def start_multiple_stream(
         self, task_ids: List[str], url: str, timeout: Optional[float] = None
-    ) -> None:
+    ) -> Dict[str, Any]:
         """批量启动多个SSE流"""
         for task_id in task_ids:
             await self.start_stream(task_id, url.format(task_id=task_id))
