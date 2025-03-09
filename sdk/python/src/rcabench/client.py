@@ -18,7 +18,7 @@ class TaskManager:
             self.close_event.clear()
 
     async def remove_task(
-        self, task_id: str, result: Any = None, error: Exception = None
+        self, task_id: str, result: Any = None, error: Exception | None = None
     ) -> None:
         async with self.lock:
             self.active_tasks.discard(task_id)
@@ -50,8 +50,8 @@ class AsyncSSEClient:
         self.url = url
         self._close = False
 
-    async def _process_line(self, line: bytes):
-        line = line.decode()
+    async def _process_line(self, line_bytes: bytes):
+        line = line_bytes.decode()
         if line.startswith("data"):
             lines = line.strip().split("\n")
 
