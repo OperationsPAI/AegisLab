@@ -36,7 +36,7 @@ spec:
     spec:
       initContainers:
         - name: set-root-permissions
-          image: mariadb:latest
+          image: mariadb:11.8.1-noble-rc
           command: ["/bin/sh", "-c"]
           args:
             - |
