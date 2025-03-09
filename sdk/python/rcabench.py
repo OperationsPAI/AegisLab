@@ -63,16 +63,16 @@ class Injection(BaseRouter):
     }
 
     def execute(self, payload: List[Dict]) -> TaskResponse:
-        url = self.URL_ENDPOINTS["execute"]
+        url = self._build_url(self.URL_ENDPOINTS["execute"])
         return self.sdk._post(url, payload)["data"]
 
     def get_namespace_pod_info(self) -> NamespacePodInfo:
-        url = self.URL_ENDPOINTS["get_namespace_pod_info"]
+        url = self._build_url(self.URL_ENDPOINTS["get_namespace_pod_info"])
         data = self.sdk._get(url)["data"]
         return NamespacePodInfo(namespace_info=data["namespace_info"])
 
     def get_parameters(self) -> InjectionParameters:
-        url = self.URL_ENDPOINTS["get_parameters"]
+        url = self._build_url(self.URL_ENDPOINTS["get_parameters"])
         data = self.sdk._get(url)["data"]
         return InjectionParameters(
             specification=data["specification"], keymap=data["keymap"]
