@@ -1,7 +1,7 @@
 from typing import Any, AsyncGenerator, Dict, List, Optional
-from client import AsyncSSEClient, TaskManager
+from .client import AsyncSSEClient, TaskManager
 from contextlib import asynccontextmanager
-from entity import *
+from .entity import *
 import aiohttp
 import asyncio
 import requests
