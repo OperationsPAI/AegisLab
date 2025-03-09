@@ -12,3 +12,7 @@ dependencies = [
     "wheel>=0.45.1",
 ]
 
+# default settings of `uv init --lib`
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
