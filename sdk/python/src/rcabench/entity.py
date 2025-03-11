@@ -3,12 +3,6 @@ from dataclasses import dataclass
 
 
 @dataclass
-class TaskResponse:
-    group_id: str
-    task_ids: List[str]
-
-
-@dataclass
 class TaskStatus:
     taskID: str
     status: str
@@ -29,6 +23,18 @@ class AlgorithmResp:
 
 
 @dataclass
+class Dataset:
+    id: int
+    name: str
+
+
+@dataclass
+class DatasetResp:
+    total: int
+    datasets: List[Dataset]
+
+
+@dataclass
 class EvaluationResp:
     results: List
 
@@ -45,11 +51,6 @@ class NamespacePodInfo:
 
 
 @dataclass
-class DatasetResponse:
-    datasets: List[str]
-
-
-@dataclass
 class WithdrawResponse:
     message: str
 
@@ -59,3 +60,9 @@ class RunAlgorithmPayload:
     algorithm: str
     benchmark: str
     dataset: str
+
+
+@dataclass
+class SubmitResp:
+    group_id: str
+    task_ids: List[str]
