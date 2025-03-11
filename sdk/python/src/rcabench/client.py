@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional, Union
-from error import HttpClientError
-from logger import CustomLogger
+from .error import HttpClientError
+from .logger import CustomLogger
 from requests.adapters import HTTPAdapter
 from requests.exceptions import HTTPError, RequestException, Timeout
 import aiohttp

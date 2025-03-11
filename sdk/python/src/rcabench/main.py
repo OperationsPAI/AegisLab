@@ -1,6 +1,6 @@
 from typing import Any, Dict, List
-from logger import CustomLogger
-from rcabench import RCABenchSDK
+from .logger import CustomLogger
+from .rcabench import RCABenchSDK
 import asyncio
 import os
 import random
