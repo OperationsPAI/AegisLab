@@ -6,30 +6,13 @@ import (
 	"net/http"
 
 	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
-
-type EvaluationListReq struct {
-	ExecutionIDs []int    `form:"execution_ids"`
-	Algos        []string `form:"algorithms"`
-	Levels       []string `form:"levels"`
-	Metrics      []string `form:"metrics"`
-	Rank         *int     `form:"rank"`
-}
-
-type EvaluationListResp struct {
-	Results []TaskResult `json:"results"`
-}
-
-type TaskResult struct {
-	Algo        string                `json:"algorithm"`
-	Executions  []executor.Execution  `json:"executions"`
-	Conclusions []executor.Conclusion `json:"conclusions"`
-}
 
 // 将查询参数数组转换为集合
 func convertQueryArrayToSet(params []string) map[string]bool {
@@ -99,35 +82,36 @@ func fetchExecution(executionID, rank int) (*executor.Execution, error) {
 //	@Failure		500				{object}	GenericResponse[any]		"服务器内部错误"
 //	@Router			/api/v1/evaluations [get]
 func GetEvaluationList(c *gin.Context) {
-	var evaluationReq EvaluationListReq
-	if err := c.BindQuery(&evaluationReq); err != nil {
-		JSONResponse[any](c, http.StatusBadRequest, executor.FormatErrorMessage(err, DatasetFieldMap), nil)
+	var req dto.EvaluationListReq
+	if err := c.BindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, dto.FormatErrorMessage(err, map[string]string{}))
 		return
 	}
 
-	algoSet := convertQueryArrayToSet(evaluationReq.Algos)
-	levelSet := convertQueryArrayToSet(evaluationReq.Levels)
-	metricSet := convertQueryArrayToSet(evaluationReq.Metrics)
+	algoSet := convertQueryArrayToSet(req.Algoritms)
+	levelSet := convertQueryArrayToSet(req.Levels)
+	metricSet := convertQueryArrayToSet(req.Metrics)
 	rank := 5
-	if evaluationReq.Rank != nil {
-		rank = *evaluationReq.Rank
+	if req.Rank != nil {
+		rank = *req.Rank
 	}
 
-	if len(evaluationReq.ExecutionIDs) == 0 {
+	if len(req.ExecutionIDs) == 0 {
 		err := database.DB.
 			Model(&database.GranularityResult{}).
 			Select("DISTINCT execution_id").
-			Pluck("execution_id", &evaluationReq.ExecutionIDs).Error
+			Pluck("execution_id", &req.ExecutionIDs).Error
 		if err != nil {
-			logrus.WithError(err).Error("Failed to query distinct execution_ids")
-			JSONResponse[any](c, http.StatusInternalServerError, "Failed to query distinct execution_ids", nil)
+			message := "Failed to query distinct execution_ids"
+			logrus.WithError(err).Error(message)
+			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
 		}
 	}
 
 	// 使用map按算法分组Execution结果
 	groupedResults := make(map[string][]executor.Execution)
-	for _, executionID := range evaluationReq.ExecutionIDs {
+	for _, executionID := range req.ExecutionIDs {
 		execution, err := fetchExecution(executionID, rank)
 		if err != nil {
 			logrus.WithError(err).WithField("execution_id", executionID).Error("Failed to fetch execution details")
@@ -141,10 +125,10 @@ func GetEvaluationList(c *gin.Context) {
 	}
 
 	// 转化为TaskWithResults结构, 表示每个算法，在不同的执行里的信息
-	var taskResults []TaskResult
-	for algo, executions := range groupedResults {
-		taskResult := TaskResult{
-			Algo:       algo,
+	var items []dto.EvaluationItem
+	for algorithm, executions := range groupedResults {
+		item := dto.EvaluationItem{
+			Algorithm:  algorithm,
 			Executions: executions,
 		}
 
@@ -154,20 +138,20 @@ func GetEvaluationList(c *gin.Context) {
 				if err != nil {
 					message := fmt.Sprintf("Failed to calculate metric %s", metric)
 					logrus.WithError(err).Errorf(message)
-					JSONResponse[any](c, http.StatusInternalServerError, message, nil)
+					dto.ErrorResponse(c, http.StatusInternalServerError, message)
 					return
 				}
 
 				for _, conclusion := range conclusions {
 					if len(levelSet) == 0 || levelSet[conclusion.Level] {
-						taskResult.Conclusions = append(taskResult.Conclusions, *conclusion)
+						item.Conclusions = append(item.Conclusions, *conclusion)
 					}
 				}
 			}
 		}
 
-		taskResults = append(taskResults, taskResult)
+		items = append(items, item)
 	}
 
-	SuccessResponse(c, EvaluationListResp{Results: taskResults})
+	dto.SuccessResponse(c, dto.EvaluationListResp{Results: items})
 }
