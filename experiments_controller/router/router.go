@@ -26,17 +26,16 @@ func New() *gin.Engine {
 
 		tasks := algorithms.Group("/:task_id")
 		{
-			tasks.GET("/stream", handlers.StreamAlgorithmExecution)
+			tasks.GET("/stream", handlers.StreamTask)
 		}
 	}
 
 	datasets := r.Group("/datasets")
 	{
-		datasets.DELETE("/:dataset_id", handlers.DeleteDataset)
+		datasets.DELETE("", handlers.DeleteDataset)
 		datasets.GET("", handlers.GetDatasetList)
 		datasets.GET("/download", handlers.DownloadDataset)
 		datasets.POST("", handlers.SubmitDatasetBuilding)
-		datasets.POST("/upload", handlers.UploadDataset)
 	}
 
 	evaluations := r.Group("/evaluations")
@@ -54,7 +53,7 @@ func New() *gin.Engine {
 		tasks := injections.Group("/:task_id")
 		{
 			tasks.GET("", handlers.GetInjectionDetail)
-			tasks.GET("/stream", handlers.StreamInjection)
+			tasks.GET("/stream", handlers.StreamTask)
 			tasks.PUT("/cancel", handlers.CancelInjection)
 		}
 	}

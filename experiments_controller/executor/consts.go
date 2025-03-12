@@ -74,6 +74,7 @@ const (
 	RdbMsgStatus      = "status"
 	RdbMsgTaskType    = "task_type"
 	RdbMsgDataset     = "dataset"
+	RdbMsgError       = "error"
 	RdbMsgExecutionID = "execution_id"
 )
 

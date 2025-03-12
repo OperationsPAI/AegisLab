@@ -63,6 +63,7 @@ type RetryPolicy struct {
 
 type RdbMsg struct {
 	Status string   `json:"status"`
+	Error  *string  `json:"error"`
 	Type   TaskType `json:"task_type"`
 }
 

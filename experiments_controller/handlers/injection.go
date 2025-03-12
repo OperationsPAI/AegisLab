@@ -15,56 +15,14 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
+	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
-
-type InjectCancelResp struct {
-}
-
-type InjectDetailResp struct {
-	Task InjectTask `json:"task"`
-	Logs []string   `json:"logs"`
-}
-
-type InjectListResult struct {
-	TaskID     string                         `json:"task_id"`
-	Name       string                         `json:"name"`
-	Status     string                         `json:"status"`
-	InjectTime time.Time                      `json:"inject_time"`
-	Duration   int                            `json:"duration"` // minutes
-	FaultType  string                         `json:"fault_type"`
-	Para       executor.FaultInjectionPayload `json:"para"`
-}
-
-type InjectListResp struct {
-	Results []InjectListResult `json:"result"`
-}
-
-type InjectNamespacePodResp struct {
-	NamespaceInfo map[string][]string `json:"namespace_info"`
-}
-
-type InjectParaResp struct {
-	Specification map[string][]chaos.ActionSpace `json:"specification"`
-	KeyMap        map[chaos.ChaosType]string     `json:"keymap"`
-}
-
-type InjectTask struct {
-	ID        string                         `json:"id"`
-	Type      string                         `json:"type"`
-	Payload   executor.FaultInjectionPayload `json:"payload"`
-	Status    string                         `json:"status"`
-	CreatedAt time.Time                      `json:"created_at"`
-}
-
-type SubmitResp struct {
-	GroupID string   `json:"group_id"`
-	TaskIDs []string `json:"task_ids"`
-}
 
 var (
 	reLog     *regexp.Regexp
@@ -99,9 +57,16 @@ func CancelInjection(c *gin.Context) {
 //	@Failure		500		{object}	GenericResponse[any]
 //	@Router			/api/v1/injections [get]
 func GetInjectionDetail(c *gin.Context) {
-	var taskReq TaskReq
+	// 获取查询参数并校验是否合法
+	var req dto.InjectionListReq
+	if err := c.BindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, dto.FormatErrorMessage(err, map[string]string{}))
+		return
+	}
+
+	var taskReq dto.TaskReq
 	if err := c.BindUri(&taskReq); err != nil {
-		JSONResponse[any](c, http.StatusBadRequest, "Invalid URI", nil)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid URI")
 		return
 	}
 
@@ -112,11 +77,11 @@ func GetInjectionDetail(c *gin.Context) {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			message := "Task not found"
 			logEntry.WithError(err).Error(message)
-			JSONResponse[any](c, http.StatusNotFound, message, nil)
+			dto.ErrorResponse(c, http.StatusNotFound, message)
 		} else {
 			message := "Failed to retrieve task of injection"
 			logEntry.WithError(err).Error(message)
-			JSONResponse[any](c, http.StatusInternalServerError, message, nil)
+			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		}
 
 		return
@@ -124,12 +89,13 @@ func GetInjectionDetail(c *gin.Context) {
 
 	var payload executor.FaultInjectionPayload
 	if err := json.Unmarshal([]byte(task.Payload), &payload); err != nil {
+		message := "Failed to unmarshal payload of injection record"
 		logEntry.WithError(err).Error("Failed to unmarshal payload of injection record")
-		JSONResponse[any](c, http.StatusInternalServerError, "Failed to unmarshal payload", nil)
+		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		return
 	}
 
-	injectTask := InjectTask{
+	injectTask := dto.InjectionTask{
 		ID:        task.ID,
 		Type:      task.Type,
 		Payload:   payload,
@@ -143,108 +109,19 @@ func GetInjectionDetail(c *gin.Context) {
 	if errors.Is(err, redis.Nil) {
 		logs = []string{}
 	} else if err != nil {
-		JSONResponse[any](c, http.StatusInternalServerError, "Failed to retrieve logs", nil)
+		message := "Failed to retrieve logs"
+		logrus.WithError(err).Error(message)
+		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		return
 	}
 
-	SuccessResponse(c, InjectDetailResp{Task: injectTask, Logs: logs})
-}
-
-// StreamInjection
-//
-//	@Summary      获取任务状态事件流
-//	@Description  通过Server-Sent Events (SSE) 实时注入任务的执行状态更新，直到任务完成或连接关闭
-//	@Tags         injection
-//	@Produce      text/event-stream
-//	@Consumes	  application/json
-//	@Param        task_id  path      string  				true  "需要监控的任务ID"
-//	@Success      200      {object}  nil     				"成功建立SSE连接，持续推送事件流"
-//	@Failure      400      {object}  GenericResponse[any]	"无效的任务ID格式"
-//	@Failure      404      {object}  GenericResponse[any]  	"指定ID的任务不存在"
-//	@Failure      500      {object}  GenericResponse[any]  	"服务器内部错误"
-//	@Router       /api/v1/injection/{task_id}/stream [get]
-func StreamInjection(c *gin.Context) {
-	var taskReq TaskReq
-	if err := c.BindUri(&taskReq); err != nil {
-		JSONResponse[any](c, http.StatusBadRequest, "Invalid URI", nil)
-		return
-	}
-
-	logEntry := logrus.WithField("task_id", taskReq.TaskID)
-
-	var task database.Task
-	if err := database.DB.Where("tasks.id = ?", taskReq.TaskID).First(&task).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			message := "Task not found"
-			logEntry.WithError(err).Error(message)
-			JSONResponse[any](c, http.StatusNotFound, message, nil)
-		} else {
-			message := "Failed to retrieve task of injection"
-			logEntry.WithError(err).Error(message)
-			JSONResponse[any](c, http.StatusInternalServerError, message, nil)
-		}
-
-		return
-	}
-
-	var payload executor.FaultInjectionPayload
-	if err := json.Unmarshal([]byte(task.Payload), &payload); err != nil {
-		logEntry.WithError(err).Error("Failed to unmarshal payload of injection record")
-		JSONResponse[any](c, http.StatusInternalServerError, "Failed to unmarshal payload", nil)
-		return
-	}
-
-	pubsub := client.GetRedisClient().Subscribe(c, fmt.Sprintf(executor.SubChannel, task.TraceID))
-	defer pubsub.Close()
-
-	for {
-		select {
-		case message := <-pubsub.Channel():
-			c.SSEvent("update", message.Payload)
-			c.Writer.Flush()
-
-			var rdbMsg executor.RdbMsg
-			if err := json.Unmarshal([]byte(message.Payload), &rdbMsg); err != nil {
-				msg := "Failed to unmarshal payload of redis message"
-				logEntry.WithError(err).Error(msg)
-
-				c.SSEvent("error", map[string]string{
-					"error":   msg,
-					"details": err.Error(),
-				})
-				c.Writer.Flush()
-
-				return
-			}
-
-			// 主动退出函数，关闭连接
-			expectedTaskType := executor.TaskTypeFaultInjection
-			if payload.Benchmark != nil {
-				expectedTaskType = executor.TaskTypeBuildDataset
-			}
-
-			switch rdbMsg.Status {
-			case executor.TaskStatusCompleted:
-				if rdbMsg.Type == expectedTaskType {
-					return
-				}
-			case executor.TaskStatusError:
-				return
-			}
-
-		case <-c.Writer.CloseNotify():
-			return
-
-		case <-c.Done():
-			return
-		}
-	}
+	dto.SuccessResponse(c, dto.InjectionDetailResp{Task: injectTask, Logs: logs})
 }
 
 // GetInjectionList
 //
-//	@Summary		获取注入列表和必要的简略信息
-//	@Description	获取注入列表和必要的简略信息
+//	@Summary		分页查询注入记录列表
+//	@Description	获取注入记录列表（支持分页参数）
 //	@Tags			injection
 //	@Produce		json
 //	@Consumes		application/json
@@ -253,32 +130,64 @@ func StreamInjection(c *gin.Context) {
 //	@Failure		500	{object}		GenericResponse[[]InjectListResp]
 //	@Router			/api/v1/injections/getlist [post]
 func GetInjectionList(c *gin.Context) {
-	var faultRecords []database.FaultInjectionSchedule
-	if err := database.DB.Find(&faultRecords).Error; err != nil {
-		JSONResponse[any](c, http.StatusInternalServerError, "Failed to retrieve tasks", nil)
+	var req dto.InjectionListReq
+	if err := c.BindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, dto.FormatErrorMessage(err, map[string]string{}))
 		return
 	}
 
-	var results []InjectListResult
-	for _, record := range faultRecords {
+	pageNum := *req.PageNum
+	pageSize := *req.PageSize
+
+	db := database.DB.Model(&database.FaultInjectionSchedule{}).Where("status != ?", executor.DatesetDeleted)
+	db.Scopes(
+		database.Sort("proposed_end_time desc"),
+		database.Paginate(pageNum, pageSize),
+	).Select("SQL_CALC_FOUND_ROWS *")
+
+	// 查询总记录数
+	var total int64
+	if err := db.Raw("SELECT FOUND_ROWS()").Scan(&total).Error; err != nil {
+		message := "Failed to count injection schedules"
+		logrus.WithError(err).Error(message)
+		dto.ErrorResponse(c, http.StatusInternalServerError, message)
+		return
+	}
+
+	// 查询分页数据
+	var records []database.FaultInjectionSchedule
+	if err := db.Find(&records).Error; err != nil {
+		message := "Failed to retrieve injections"
+		logrus.WithError(err).Error(message)
+		dto.ErrorResponse(c, http.StatusInternalServerError, message)
+		return
+	}
+
+	var injections []dto.InjectionItem
+	for _, record := range records {
 		var payload executor.FaultInjectionPayload
 		if err := json.Unmarshal([]byte(record.Config), &payload); err != nil {
-			logrus.Error(fmt.Sprintf("Payload of inject record %d unmarshaling failed: %s", record.ID, err))
+			logrus.WithField("id", record.ID).WithError(err).Error("Failed t unmarshal payload of injection")
 			continue
 		}
 
-		results = append(results, InjectListResult{
-			TaskID:     record.TaskID,
-			Name:       record.InjectionName,
-			Status:     DatasetStatusMap[record.Status],
-			InjectTime: record.StartTime,
-			Duration:   record.Duration,
-			FaultType:  chaos.ChaosTypeMap[chaos.ChaosType(record.FaultType)],
-			Para:       payload,
+		injections = append(injections, dto.InjectionItem{
+			ID:              record.ID,
+			TaskID:          record.TaskID,
+			FaultType:       chaos.ChaosTypeMap[chaos.ChaosType(record.FaultType)],
+			Name:            record.InjectionName,
+			Status:          dto.DatasetStatusMap[record.Status],
+			InjectTime:      record.StartTime,
+			ProposedEndTime: record.ProposedEndTime,
+			Duration:        record.Duration,
+			Payload:         payload,
 		})
 	}
 
-	SuccessResponse(c, InjectListResp{Results: results})
+	dto.SuccessResponse(c, &dto.PaginationResp[dto.InjectionItem]{
+		Total: total,
+		Data:  injections,
+	})
 }
 
 // GetInjectionParameters
@@ -295,7 +204,9 @@ func GetInjectionParameters(c *gin.Context) {
 	for tp, spec := range chaos.SpecMap {
 		actionSpace, err := chaos.GenerateActionSpace(spec)
 		if err != nil {
-			JSONResponse[any](c, http.StatusInternalServerError, "Failed to generate action space", nil)
+			message := "Failed to generate action space"
+			logrus.WithError(err).Error(message)
+			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
 		}
 
@@ -303,10 +214,10 @@ func GetInjectionParameters(c *gin.Context) {
 		choice[name] = actionSpace
 	}
 
-	SuccessResponse(c, InjectParaResp{Specification: choice, KeyMap: chaos.ChaosTypeMap})
+	dto.SuccessResponse(c, dto.InjectionParaResp{Specification: choice, KeyMap: chaos.ChaosTypeMap})
 }
 
-// InjectFault
+// SubmitFaultInjection
 //
 //	@Summary		注入故障
 //	@Description	注入故障
@@ -324,7 +235,7 @@ func SubmitFaultInjection(c *gin.Context) {
 
 	var payloads []executor.FaultInjectionPayload // 改为接收数组
 	if err := c.BindJSON(&payloads); err != nil {
-		JSONResponse[any](c, http.StatusBadRequest, "Invalid JSON payload", nil)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid JSON payload")
 		return
 	}
 	logrus.Infof("Received fault injection payloads: %+v", payloads)
@@ -334,20 +245,20 @@ func SubmitFaultInjection(c *gin.Context) {
 	for _, payload := range payloads {
 		id, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
 			Type:        executor.TaskTypeFaultInjection,
-			Payload:     StructToMap(payload),
+			Payload:     utils.StructToMap(payload),
 			Immediate:   false,
 			ExecuteTime: t.Unix(),
 			GroupID:     groupID,
 		})
 		if err != nil {
-			JSONResponse[any](c, http.StatusInternalServerError, id, nil)
+			dto.ErrorResponse(c, http.StatusInternalServerError, id)
 			return
 		}
 		t = t.Add(time.Duration(payload.Duration)*time.Minute + time.Duration(config.GetInt("injection.interval"))*time.Minute)
 		ids = append(ids, id)
 	}
 
-	JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", SubmitResp{GroupID: groupID, TaskIDs: ids})
+	dto.JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", dto.SubmitResp{GroupID: groupID, TaskIDs: ids})
 }
 
 // GetNamespacePod 获取命名空间中的 Pod 标签
@@ -364,10 +275,12 @@ func GetNamespacePods(c *gin.Context) {
 	for _, ns := range config.GetStringSlice("injection.namespace") {
 		labels, err := cli.GetLabels(ns, config.GetString("injection.label"))
 		if err != nil {
-			JSONResponse[any](c, http.StatusInternalServerError, fmt.Sprintf("Failed to get labels from namespace %s", ns), nil)
+			message := "Failed to get labels"
+			logrus.WithField("namespace", ns).WithError(err).Error(message)
+			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		}
 		namespaceInfo[ns] = labels
 	}
 
-	JSONResponse(c, http.StatusOK, "OK", InjectNamespacePodResp{NamespaceInfo: namespaceInfo})
+	dto.SuccessResponse(c, dto.InjectionNamespaceInfoResp{NamespaceInfo: namespaceInfo})
 }
