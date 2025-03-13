@@ -11,7 +11,6 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
 	"github.com/gin-gonic/gin"
-	"github.com/k0kubun/pp/v3"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -28,7 +27,6 @@ import (
 //	@Failure      400      {object}  GenericResponse[any]	"无效的任务ID格式"
 //	@Failure      404      {object}  GenericResponse[any]  	"指定ID的任务不存在"
 //	@Failure      500      {object}  GenericResponse[any]  	"服务器内部错误"
-//	@Router       /api/v1/injection/{task_id}/stream [get]
 func StreamTask(c *gin.Context) {
 	var req dto.TaskReq
 	if err := c.BindUri(&req); err != nil {
@@ -80,7 +78,6 @@ func StreamTask(c *gin.Context) {
 		select {
 		case message := <-pubsub.Channel():
 			c.SSEvent("update", message.Payload)
-			pp.Println(message.Payload)
 			c.Writer.Flush()
 
 			var rdbMsg executor.RdbMsg

@@ -126,72 +126,77 @@ func (e *Executor) AddFunc(labels map[string]string) {
 		})
 }
 
-func (e *Executor) UpdateFunc(labels map[string]string) {
+func (e *Executor) UpdateFunc(labels map[string]string, status string) {
 	jobLabel, err := parseJobLabel(labels)
 	if err != nil {
 		logrus.Error(err)
 		return
 	}
 
-	if jobLabel.Type == TaskTypeBuildDataset {
-		logrus.Infof(fmt.Sprintf("Dataset %s built", jobLabel.Dataset))
+	if status == TaskStatusCompleted {
+		if jobLabel.Type == TaskTypeBuildDataset {
+			logrus.Infof(fmt.Sprintf("Dataset %s built", jobLabel.Dataset))
 
-		updateTaskStatus(jobLabel.TaskID, jobLabel.TraceID,
-			fmt.Sprintf(TaskMsgCompleted, jobLabel.TaskID),
-			map[string]any{
-				RdbMsgStatus:   TaskStatusCompleted,
-				RdbMsgTaskType: jobLabel.Type,
-				RdbMsgDataset:  jobLabel.Dataset,
-			})
+			updateTaskStatus(jobLabel.TaskID, jobLabel.TraceID,
+				fmt.Sprintf(TaskMsgCompleted, jobLabel.TaskID),
+				map[string]any{
+					RdbMsgStatus:   TaskStatusCompleted,
+					RdbMsgTaskType: jobLabel.Type,
+					RdbMsgDataset:  jobLabel.Dataset,
+				})
 
-		if jobLabel.StartTime == nil || jobLabel.EndTime == nil {
-			logrus.Errorf("Failed to update record for dataset %s: %v", jobLabel.Dataset, err)
+			if jobLabel.StartTime == nil || jobLabel.EndTime == nil {
+				logrus.Errorf("Failed to update record for dataset %s: %v", jobLabel.Dataset, err)
+				return
+			}
+
+			var faultRecord database.FaultInjectionSchedule
+			if err := database.DB.
+				Model(&faultRecord).
+				Where("injection_name = ?", jobLabel.Dataset).
+				Updates(map[string]any{
+					"start_time": *jobLabel.StartTime,
+					"end_time":   *jobLabel.EndTime,
+					"status":     DatasetSuccess,
+				}).Error; err != nil {
+				logrus.Errorf("Failed to update record for dataset %s: %v", jobLabel.Dataset, err)
+			}
 			return
 		}
 
-		var faultRecord database.FaultInjectionSchedule
-		if err := database.DB.
-			Model(&faultRecord).
-			Where("injection_name = ?", jobLabel.Dataset).
-			Updates(map[string]any{
-				"start_time": *jobLabel.StartTime,
-				"end_time":   *jobLabel.EndTime,
-				"status":     DatasetSuccess,
-			}).Error; err != nil {
-			logrus.Errorf("Failed to update record for dataset %s: %v", jobLabel.Dataset, err)
+		if jobLabel.Type == TaskTypeRunAlgorithm {
+			algorithm := *jobLabel.Algorithm
+			executionID := *jobLabel.ExecutionID
+			logrus.Infof(fmt.Sprintf("Algorithm %s executed", algorithm))
+
+			updateTaskStatus(jobLabel.TaskID, jobLabel.TraceID,
+				fmt.Sprintf(TaskMsgCompleted, jobLabel.TaskID),
+				map[string]any{
+					RdbMsgStatus:      TaskStatusCompleted,
+					RdbMsgTaskType:    jobLabel.Type,
+					RdbMsgExecutionID: executionID,
+				})
+
+			payload := map[string]any{
+				CollectAlgorithm:   algorithm,
+				CollectDataset:     jobLabel.Dataset,
+				CollectExecutionID: executionID,
+			}
+			if _, err := SubmitTask(context.Background(), &UnifiedTask{
+				Type:      TaskTypeCollectResult,
+				Payload:   payload,
+				Immediate: true,
+				TraceID:   jobLabel.TraceID,
+				GroupID:   jobLabel.GroupID,
+			}); err != nil {
+				logrus.Error(err)
+				return
+			}
+
+			return
 		}
-		return
 	}
 
-	if jobLabel.Type == TaskTypeRunAlgorithm {
-		algorithm := *jobLabel.Algorithm
-		executionID := *jobLabel.ExecutionID
-		logrus.Infof(fmt.Sprintf("Algorithm %s executed", algorithm))
-
-		updateTaskStatus(jobLabel.TaskID, jobLabel.TraceID,
-			fmt.Sprintf(TaskMsgCompleted, jobLabel.TaskID),
-			map[string]any{
-				RdbMsgStatus:      TaskStatusCompleted,
-				RdbMsgTaskType:    jobLabel.Type,
-				RdbMsgExecutionID: executionID,
-			})
-
-		payload := map[string]any{
-			CollectAlgorithm:   algorithm,
-			CollectDataset:     jobLabel.Dataset,
-			CollectExecutionID: executionID,
-		}
-		if _, err := SubmitTask(context.Background(), &UnifiedTask{
-			Type:      TaskTypeCollectResult,
-			Payload:   payload,
-			Immediate: true,
-			TraceID:   jobLabel.TraceID,
-			GroupID:   jobLabel.GroupID,
-		}); err != nil {
-			logrus.Error(err)
-			return
-		}
-
-		return
+	if status == TaskStatusError {
 	}
 }
