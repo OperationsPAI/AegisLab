@@ -34,13 +34,14 @@ type JobConfig struct {
 
 type JobEnv struct {
 	Namespace string
+	Service   string
 	StartTime time.Time
 	EndTime   time.Time
 }
 
 type Callback interface {
 	AddFunc(labels map[string]string)
-	UpdateFunc(labels map[string]string)
+	UpdateFunc(labels map[string]string, status string)
 }
 
 var k8sClient *kubernetes.Clientset
@@ -89,10 +90,14 @@ func getJobInformer(ctx context.Context, callback Callback) {
 
 			if callback != nil && oldJob.Name == newJob.Name {
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {
-					callback.UpdateFunc(newJob.Labels)
+					callback.UpdateFunc(newJob.Labels, "Completed")
 					if err := DeleteK8sJob(context.Background(), config.GetString("k8s.namespace"), newJob.Name); err != nil {
 						logrus.Error(err)
 					}
+				}
+
+				if oldJob.Status.Failed == 0 && newJob.Status.Failed > 0 {
+					callback.UpdateFunc(newJob.Labels, "Error")
 				}
 			}
 		},
@@ -169,7 +174,7 @@ func CreateK8sJob(ctx context.Context, jobConfig JobConfig) error {
 
 	_, err := k8sClient.BatchV1().Jobs(jobConfig.Namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to create job: %v", err)
+		return fmt.Errorf("Failed to create job: %v", err)
 	}
 
 	return nil

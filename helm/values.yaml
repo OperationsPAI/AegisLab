@@ -31,6 +31,8 @@ configmap:
   harbor:
     host: "10.10.10.240"
     repository: "10.10.10.240/library"
+    username: "admin"
+    password: "Harbor12345"
   k8s:
     namespace: "experiment"
   nfs:

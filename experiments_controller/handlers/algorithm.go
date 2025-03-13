@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/CUHK-SE-Group/rcabench/config"
@@ -24,15 +25,24 @@ import (
 //	@Success		200		{object}	GenericResponse[AlgorithmResp]
 //	@Failure		400		{object}	GenericResponse[any]
 //	@Failure		500		{object}	GenericResponse[any]
-//	@Router			/api/v1/algo/getlist [get]
+//	@Router			/api/v1/algorithms [get]
 func GetAlgorithmList(c *gin.Context) {
 	parentDir := config.GetString("workspace")
-	algoPath := filepath.Join(parentDir, "algorithms")
 
+	algoPath := filepath.Join(parentDir, "algorithms")
 	algoDirs, err := utils.GetAllSubDirectories(algoPath)
 	if err != nil {
 		message := "Failed to list files"
 		logrus.WithField("algo_path", algoPath).WithError(err).Error(message)
+		dto.ErrorResponse(c, http.StatusInternalServerError, message)
+		return
+	}
+
+	benchPath := filepath.Join(parentDir, "benchmarks")
+	benchDirs, err := utils.GetAllSubDirectories(benchPath)
+	if err != nil {
+		message := "Failed to list files"
+		logrus.WithField("bench_path", benchPath).WithError(err).Error(message)
 		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		return
 	}
@@ -70,7 +80,12 @@ func GetAlgorithmList(c *gin.Context) {
 		algorithms = append(algorithms, name)
 	}
 
-	dto.SuccessResponse(c, dto.AlgorithmListResp{Algorithms: algorithms})
+	var benchmarks []string
+	for _, benchDir := range benchDirs {
+		benchmarks = append(benchmarks, filepath.Base(benchDir))
+	}
+
+	dto.SuccessResponse(c, dto.AlgorithmListResp{Algorithms: algorithms, Benchmarks: benchmarks})
 }
 
 // SubmitAlgorithmExecution
@@ -84,7 +99,7 @@ func GetAlgorithmList(c *gin.Context) {
 //	@Success		200		{object}	GenericResponse[SubmitResp]
 //	@Failure		400		{object}	GenericResponse[any]
 //	@Failure		500		{object}	GenericResponse[any]
-//	@Router			/api/v1/algorithm [post]
+//	@Router			/api/v1/algorithms [post]
 func SubmitAlgorithmExecution(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	logrus.Infof("SubmitAlgorithmExecution called, groupID: %s", groupID)
@@ -96,6 +111,27 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 	}
 
 	logrus.Infof("Received executing algorithm payloads: %+v", payloads)
+
+	parts := strings.Split(config.GetString("harbor.repository"), "/")
+	harborConfig := utils.HarborConfig{
+		Host:     config.GetString("harbor.host"),
+		Project:  parts[len(parts)-1],
+		Username: config.GetString("harbor.username"),
+		Password: config.GetString("harbor.password"),
+	}
+
+	for i := range payloads {
+		if payloads[i].Tag == "" {
+			harborConfig.Repo = payloads[i].Algorithm
+			tag, err := utils.GetLatestTag(harborConfig)
+			if err != nil {
+				logrus.WithError(err).Error("Failed to get latest tag")
+				return
+			}
+
+			payloads[i].Tag = tag
+		}
+	}
 
 	var taskIDs []string
 	for _, payload := range payloads {
@@ -116,4 +152,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 	}
 
 	dto.JSONResponse(c, http.StatusAccepted, "Algorithm Execution submitted successfully", dto.SubmitResp{GroupID: groupID, TaskIDs: taskIDs})
+}
+
+func UploadAlgorithm(c *gin.Context) {
 }

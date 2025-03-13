@@ -19,29 +19,45 @@ type AlgorithmExecutionPayload struct {
 	Benchmark   string `json:"benchmark"`
 	Algorithm   string `json:"algorithm"`
 	DatasetName string `json:"dataset"`
+	Service     string `json:"service"`
+	Tag         string `json:"tag"`
 }
 
 // 解析算法执行任务的 Payload
 func parseAlgorithmExecutionPayload(payload map[string]any) (*AlgorithmExecutionPayload, error) {
+	message := "missing or invalid '%s' key in payload"
+
 	benchmark, ok := payload[EvalBench].(string)
 	if !ok || benchmark == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalBench)
+		return nil, fmt.Errorf(message, EvalBench)
 	}
 
 	algorithm, ok := payload[EvalAlgo].(string)
 	if !ok || algorithm == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalAlgo)
+		return nil, fmt.Errorf(message, EvalAlgo)
 	}
 
 	datasetName, ok := payload[EvalDataset].(string)
 	if !ok || datasetName == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", EvalDataset)
+		return nil, fmt.Errorf(message, EvalDataset)
+	}
+
+	service, ok := payload[EvalService].(string)
+	if !ok {
+		return nil, fmt.Errorf(message, EvalService)
+	}
+
+	tag, ok := payload[EvalTag].(string)
+	if !ok || tag == "" {
+		return nil, fmt.Errorf(message, EvalTag)
 	}
 
 	return &AlgorithmExecutionPayload{
 		Benchmark:   benchmark,
 		Algorithm:   algorithm,
 		DatasetName: datasetName,
+		Service:     service,
+		Tag:         tag,
 	}, nil
 }
 
@@ -62,6 +78,7 @@ func createAlgoJob(ctx context.Context, datasetName, jobName, jobNamespace, imag
 		{Name: "ABNORMAL_END", Value: strconv.FormatInt(jobEnv.EndTime.Unix(), 10)},
 		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", datasetName)},
 		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", datasetName)},
+		{Name: "SERVICE", Value: jobEnv.Service},
 		{Name: "TIMEZONE", Value: tz},
 		{Name: "WORKSPACE", Value: "/app"},
 	}
@@ -108,7 +125,7 @@ func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
 	}
 
 	jobName := fmt.Sprintf("%s-%s", algoPayload.Algorithm, algoPayload.DatasetName)
-	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), algoPayload.Algorithm, "latest")
+	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), algoPayload.Algorithm, algoPayload.Tag)
 	labels := map[string]string{
 		LabelTaskID:      task.TaskID,
 		LabelTraceID:     task.TraceID,
@@ -119,6 +136,7 @@ func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
 		LabelExecutionID: fmt.Sprint(executionResult.ID),
 	}
 	jobEnv := &client.JobEnv{
+		Service:   algoPayload.Service,
 		StartTime: startTime,
 		EndTime:   endTime,
 	}

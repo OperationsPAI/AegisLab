@@ -45,6 +45,8 @@ const (
 	EvalBench   = "benchmark"
 	EvalAlgo    = "algorithm"
 	EvalDataset = "dataset"
+	EvalService = "service"
+	EvalTag     = "tag"
 
 	InjectDuration       = "duration"
 	InjectFaultType      = "faultType"
