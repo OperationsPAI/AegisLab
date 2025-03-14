@@ -33,7 +33,7 @@ data:
     host = "{{ .Values.configmap.harbor.host }}"
     repository = "{{ .Values.configmap.harbor.repository }}"
     username = "{{ .Values.configmap.harbor.username }}"
-    password = ""{{ .Values.configmap.harbor.password }}""
+    password = "{{ .Values.configmap.harbor.password }}"
 
     [k8s]
     namespace = "{{ .Values.configmap.k8s.namespace }}"
