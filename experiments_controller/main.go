@@ -8,12 +8,13 @@ import (
 	"path"
 	"runtime"
 
-	"github.com/CUHK-SE-Group/rcabench/client"
+	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	_ "github.com/CUHK-SE-Group/rcabench/docs"
 	"github.com/CUHK-SE-Group/rcabench/executor"
 	"github.com/CUHK-SE-Group/rcabench/router"
+	nested "github.com/antonfisher/nested-logrus-formatter"
 	"github.com/go-logr/stdr"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -23,12 +24,14 @@ import (
 
 func init() {
 	logrus.SetReportCaller(true)
-	logrus.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
-		CallerPrettyfier: func(f *runtime.Frame) (string, string) {
+	logrus.SetFormatter(&nested.Formatter{
+		CustomCallerFormatter: func(f *runtime.Frame) string {
 			filename := path.Base(f.File)
-			return "", fmt.Sprintf("%s:%d", filename, f.Line)
+			return fmt.Sprintf(" (%s:%d)", filename, f.Line)
 		},
+		FieldsOrder:     []string{"component", "category"},
+		HideKeys:        true,
+		TimestampFormat: "2006-01-02 15:04:05",
 	})
 	logrus.Info("Logger initialized")
 }
@@ -53,10 +56,10 @@ func main() {
 
 	config.Init(viper.GetString("conf"))
 
-	// 创建一个上下文
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Producer 子命令
 	var producerCmd = &cobra.Command{
 		Use:   "producer",
 		Short: "Run as a producer",
@@ -80,7 +83,7 @@ func main() {
 			database.InitDB()
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
 			logrus.Println("Running as consumer")
-			go client.InitK8s(ctx, executor.Exec)
+			go k8s.Init(ctx, executor.Exec)
 			go executor.StartScheduler(ctx)
 			executor.ConsumeTasks()
 		},
@@ -95,7 +98,7 @@ func main() {
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
 			engine := router.New()
 			database.InitDB()
-			go client.InitK8s(ctx, executor.Exec)
+			go k8s.Init(ctx, executor.Exec)
 			go executor.ConsumeTasks()
 			go executor.StartScheduler(ctx)
 			port := viper.GetString("port") // 从 Viper 获取最终端口
@@ -105,6 +108,7 @@ func main() {
 			}
 		},
 	}
+
 	rootCmd.AddCommand(producerCmd, consumerCmd, bothCmd)
 	if err := rootCmd.Execute(); err != nil {
 		logrus.Println(err.Error())

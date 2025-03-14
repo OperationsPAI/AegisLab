@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/CUHK-SE-Group/rcabench/client"
+	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	corev1 "k8s.io/api/core/v1"
@@ -61,7 +61,7 @@ func parseAlgorithmExecutionPayload(payload map[string]any) (*AlgorithmExecution
 	}, nil
 }
 
-func createAlgoJob(ctx context.Context, datasetName, jobName, jobNamespace, image string, command []string, labels map[string]string, jobEnv *client.JobEnv) error {
+func createAlgoJob(ctx context.Context, datasetName, jobName, jobNamespace, image string, command []string, labels map[string]string, jobEnv *k8s.JobEnv) error {
 	restartPolicy := corev1.RestartPolicyNever
 	backoffLimit := int32(2)
 	parallelism := int32(1)
@@ -83,7 +83,7 @@ func createAlgoJob(ctx context.Context, datasetName, jobName, jobNamespace, imag
 		{Name: "WORKSPACE", Value: "/app"},
 	}
 
-	return client.CreateK8sJob(ctx, client.JobConfig{
+	return k8s.CreateJob(ctx, k8s.JobConfig{
 		Namespace:     jobNamespace,
 		JobName:       jobName,
 		Image:         image,
@@ -135,7 +135,7 @@ func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
 		LabelDataset:     algoPayload.DatasetName,
 		LabelExecutionID: fmt.Sprint(executionResult.ID),
 	}
-	jobEnv := &client.JobEnv{
+	jobEnv := &k8s.JobEnv{
 		Service:   algoPayload.Service,
 		StartTime: startTime,
 		EndTime:   endTime,

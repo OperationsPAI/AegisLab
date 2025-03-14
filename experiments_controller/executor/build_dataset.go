@@ -10,7 +10,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/CUHK-SE-Group/rcabench/client"
+	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/sirupsen/logrus"
@@ -70,7 +70,7 @@ func parseDatasetPayload(payload map[string]any) (*DatasetPayload, error) {
 	}, nil
 }
 
-func createDatasetJob(ctx context.Context, datasetName, jobName, jobNamespace, image string, command []string, labels map[string]string, jobEnv *client.JobEnv) error {
+func createDatasetJob(ctx context.Context, datasetName, jobName, jobNamespace, image string, command []string, labels map[string]string, jobEnv *k8s.JobEnv) error {
 	restartPolicy := corev1.RestartPolicyNever
 	backoffLimit := int32(2)
 	parallelism := int32(1)
@@ -92,7 +92,7 @@ func createDatasetJob(ctx context.Context, datasetName, jobName, jobNamespace, i
 		{Name: "WORKSPACE", Value: "/app"},
 	}
 
-	return client.CreateK8sJob(ctx, client.JobConfig{
+	return k8s.CreateJob(ctx, k8s.JobConfig{
 		Namespace:     jobNamespace,
 		JobName:       jobName,
 		Image:         image,
@@ -151,7 +151,7 @@ func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
 		LabelStartTime: strconv.FormatInt(startTime.Unix(), 10),
 		LabelEndTime:   strconv.FormatInt(endTime.Unix(), 10),
 	}
-	jobEnv := &client.JobEnv{
+	jobEnv := &k8s.JobEnv{
 		Namespace: datasetPayload.Namespace,
 		StartTime: startTime,
 		EndTime:   endTime,

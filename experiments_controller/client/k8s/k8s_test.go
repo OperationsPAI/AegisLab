@@ -1,4 +1,4 @@
-package client
+package k8s
 
 import (
 	"context"
@@ -22,7 +22,7 @@ func TestCreateGetDeleteK8sJob(t *testing.T) {
 	}
 
 	// Step 1: Create Job
-	if err := CreateK8sJob(context.Background(), JobConfig{
+	if err := CreateJob(context.Background(), JobConfig{
 		Namespace:     namespace,
 		JobName:       jobName,
 		Image:         image,
@@ -38,7 +38,7 @@ func TestCreateGetDeleteK8sJob(t *testing.T) {
 	t.Logf("Job %s created successfully.", jobName)
 
 	// Step 2: Get Job
-	job, err := GetK8sJob(context.Background(), namespace, jobName)
+	job, err := GetJob(context.Background(), namespace, jobName)
 	if err != nil {
 		t.Fatalf("GetK8sJob failed: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestCreateGetDeleteK8sJob(t *testing.T) {
 	}
 
 	// Step 5: Delete Job
-	if err := DeleteK8sJob(context.Background(), namespace, jobName); err != nil {
+	if err := DeleteJob(context.Background(), namespace, jobName); err != nil {
 		t.Fatalf("DeleteK8sJob failed: %v", err)
 	}
 	t.Logf("Job %s and its associated pods deleted successfully.", jobName)
