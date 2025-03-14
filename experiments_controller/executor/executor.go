@@ -103,7 +103,7 @@ func parseJobLabel(labels map[string]string) (*JobLabel, error) {
 	}, nil
 }
 
-func (e *Executor) AddFunc(labels map[string]string) {
+func (e *Executor) HandleJobAdd(labels map[string]string) {
 	jobLabel, err := parseJobLabel(labels)
 	if err != nil {
 		logrus.Error(err)
@@ -126,7 +126,7 @@ func (e *Executor) AddFunc(labels map[string]string) {
 		})
 }
 
-func (e *Executor) UpdateFunc(labels map[string]string, status string) {
+func (e *Executor) HandleJobUpdate(labels map[string]string, status string) {
 	jobLabel, err := parseJobLabel(labels)
 	if err != nil {
 		logrus.Error(err)

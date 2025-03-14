@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CUHK-SE-Group/rcabench/client"
+	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/google/uuid"
 )
@@ -35,7 +35,7 @@ func TestCreateAlgoJob(t *testing.T) {
 		LabelDataset:     datasetName,
 		LabelExecutionID: fmt.Sprint(1),
 	}
-	jobEnv := &client.JobEnv{
+	jobEnv := &k8s.JobEnv{
 		StartTime: startTime,
 		EndTime:   endTime,
 	}
@@ -53,7 +53,7 @@ func TestDeleteAlgoJob(t *testing.T) {
 
 	jobName := fmt.Sprintf("%s-%s", algo, datasetname)
 
-	err := client.DeleteK8sJob(context.Background(), "experiment", jobName)
+	err := k8s.DeleteJob(context.Background(), "experiment", jobName)
 	time.Sleep(time.Second * 5)
 	if err != nil {
 		t.Error(err)

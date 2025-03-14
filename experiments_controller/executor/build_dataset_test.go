@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
-	"github.com/CUHK-SE-Group/rcabench/client"
+	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/google/uuid"
 )
@@ -35,7 +35,7 @@ func TestCreateDatasetJob(t *testing.T) {
 		LabelStartTime: strconv.FormatInt(startTime.Unix(), 10),
 		LabelEndTime:   strconv.FormatInt(endTime.Unix(), 10),
 	}
-	jobEnv := &client.JobEnv{
+	jobEnv := &k8s.JobEnv{
 		Namespace: "ts",
 		StartTime: startTime,
 		EndTime:   endTime,
@@ -49,5 +49,5 @@ func TestCreateDatasetJob(t *testing.T) {
 
 func TestDeleteDatasetJob(t *testing.T) {
 	jobname := "ts-ts-preserve-service-cpu-exhaustion-hs5lgx"
-	client.DeleteK8sJob(context.Background(), "experiment", jobname)
+	k8s.DeleteJob(context.Background(), "experiment", jobname)
 }
