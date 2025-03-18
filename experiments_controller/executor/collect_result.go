@@ -12,6 +12,7 @@ import (
 
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/k0kubun/pp/v3"
 )
 
 type CollectPayload struct {
@@ -231,6 +232,8 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 			return fmt.Errorf("save result.csv to database failed: %v", err)
 		}
 	}
+
+	pp.Println(task.TraceID)
 
 	updateTaskStatus(task.TaskID, task.TraceID,
 		fmt.Sprintf(TaskMsgCompleted, task.TaskID),

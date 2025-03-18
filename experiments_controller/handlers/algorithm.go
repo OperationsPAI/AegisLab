@@ -133,9 +133,9 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 		}
 	}
 
-	var taskIDs []string
+	var traces []dto.Trace
 	for _, payload := range payloads {
-		taskID, err := executor.SubmitTask(c.Request.Context(), &executor.UnifiedTask{
+		taskID, traceID, err := executor.SubmitTask(c.Request.Context(), &executor.UnifiedTask{
 			Type:      executor.TaskTypeRunAlgorithm,
 			Payload:   utils.StructToMap(payload),
 			Immediate: true,
@@ -143,15 +143,15 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 		})
 		if err != nil {
 			message := "Failed to submit task"
-			logrus.WithField("task_id", taskID).WithError(err).Error(message)
+			logrus.Error(message)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
 		}
 
-		taskIDs = append(taskIDs, taskID)
+		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID})
 	}
 
-	dto.JSONResponse(c, http.StatusAccepted, "Algorithm Execution submitted successfully", dto.SubmitResp{GroupID: groupID, TaskIDs: taskIDs})
+	dto.JSONResponse(c, http.StatusAccepted, "Algorithm Execution submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
 }
 
 func UploadAlgorithm(c *gin.Context) {

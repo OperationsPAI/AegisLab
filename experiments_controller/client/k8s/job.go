@@ -94,7 +94,7 @@ func DeleteJob(ctx context.Context, namespace, jobName string) error {
 	}
 
 	if err := k8sClient.BatchV1().Jobs(namespace).Delete(ctx, jobName, deleteOptions); err != nil {
-		return fmt.Errorf("Failed to delete job %s:%v", jobName, err)
+		return err
 	}
 
 	return nil
@@ -103,7 +103,7 @@ func DeleteJob(ctx context.Context, namespace, jobName string) error {
 func GetJob(ctx context.Context, namespace, jobName string) (*batchv1.Job, error) {
 	job, err := k8sClient.BatchV1().Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get job: %v", err)
+		return nil, fmt.Errorf("Failed to get job: %v", err)
 	}
 	return job, nil
 }
@@ -113,7 +113,7 @@ func GetJobPodLogs(ctx context.Context, namespace, jobName string) (map[string]s
 		LabelSelector: fmt.Sprintf("job-name=%s", jobName),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to list pods: %v", err)
+		return nil, fmt.Errorf("Failed to list pods: %v", err)
 	}
 
 	logsMap := make(map[string]string)

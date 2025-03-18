@@ -21,24 +21,32 @@ type DatasetPayload struct {
 	Benchmark   string     `json:"benchmark"`
 	DatasetName string     `json:"dataset"`
 	Namespace   string     `json:"namespace"`
+	Service     string     `json:"service"`
 	StartTime   *time.Time `json:"start_time,omitempty"`
 	EndTime     *time.Time `json:"end_time,omitempty"`
 }
 
 func parseDatasetPayload(payload map[string]any) (*DatasetPayload, error) {
+	message := "missing or invalid '%s' key in payload"
+
 	benchmark, ok := payload[BuildBenchmark].(string)
 	if !ok || benchmark == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", BuildBenchmark)
+		return nil, fmt.Errorf(message, BuildBenchmark)
 	}
 
 	datasetName, ok := payload[BuildDataset].(string)
 	if !ok || datasetName == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", BuildDataset)
+		return nil, fmt.Errorf(message, BuildDataset)
 	}
 
 	namespace, ok := payload[BuildNamespace].(string)
 	if !ok || namespace == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", BuildNamespace)
+		return nil, fmt.Errorf(message, BuildNamespace)
+	}
+
+	service, ok := payload[BuildService].(string)
+	if !ok || namespace == "" {
+		return nil, fmt.Errorf(message, BuildService)
 	}
 
 	var startTime, endTime *time.Time
@@ -65,6 +73,7 @@ func parseDatasetPayload(payload map[string]any) (*DatasetPayload, error) {
 		Benchmark:   benchmark,
 		DatasetName: datasetName,
 		Namespace:   namespace,
+		Service:     service,
 		StartTime:   startTime,
 		EndTime:     endTime,
 	}, nil
@@ -88,6 +97,7 @@ func createDatasetJob(ctx context.Context, datasetName, jobName, jobNamespace, i
 		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", datasetName)},
 		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", datasetName)},
 		{Name: "NAMESPACE", Value: jobEnv.Namespace},
+		{Name: "SERVICE", Value: jobEnv.Service},
 		{Name: "TIMEZONE", Value: tz},
 		{Name: "WORKSPACE", Value: "/app"},
 	}
@@ -141,7 +151,7 @@ func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
 	}
 
 	jobName := fmt.Sprintf("dataset-%s", datasetName)
-	image := fmt.Sprintf("%s/%s_dataset:latest", config.GetString("harbor.repository"), datasetPayload.Benchmark)
+	image := fmt.Sprintf("%s/%s_dataset:%s", config.GetString("harbor.repository"), datasetPayload.Benchmark, config.GetString("image.tag"))
 	labels := map[string]string{
 		LabelTaskID:    task.TaskID,
 		LabelTraceID:   task.TraceID,
@@ -153,6 +163,7 @@ func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
 	}
 	jobEnv := &k8s.JobEnv{
 		Namespace: datasetPayload.Namespace,
+		Service:   datasetPayload.Service,
 		StartTime: startTime,
 		EndTime:   endTime,
 	}

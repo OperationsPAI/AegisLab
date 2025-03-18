@@ -240,10 +240,10 @@ func SubmitFaultInjection(c *gin.Context) {
 	}
 	logrus.Infof("Received fault injection payloads: %+v", payloads)
 
-	var ids []string
 	t := time.Now()
+	var traces []dto.Trace
 	for _, payload := range payloads {
-		id, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
+		taskID, traceID, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
 			Type:        executor.TaskTypeFaultInjection,
 			Payload:     utils.StructToMap(payload),
 			Immediate:   false,
@@ -251,14 +251,16 @@ func SubmitFaultInjection(c *gin.Context) {
 			GroupID:     groupID,
 		})
 		if err != nil {
-			dto.ErrorResponse(c, http.StatusInternalServerError, id)
+			message := "Failed to submit task"
+			logrus.Error(message)
+			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
 		}
 		t = t.Add(time.Duration(payload.Duration)*time.Minute + time.Duration(config.GetInt("injection.interval"))*time.Minute)
-		ids = append(ids, id)
+		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID})
 	}
 
-	dto.JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", dto.SubmitResp{GroupID: groupID, TaskIDs: ids})
+	dto.JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
 }
 
 // GetNamespacePod 获取命名空间中的 Pod 标签

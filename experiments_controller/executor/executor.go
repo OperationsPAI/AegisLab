@@ -182,7 +182,7 @@ func (e *Executor) HandleJobUpdate(labels map[string]string, status string) {
 				CollectDataset:     jobLabel.Dataset,
 				CollectExecutionID: executionID,
 			}
-			if _, err := SubmitTask(context.Background(), &UnifiedTask{
+			if _, _, err := SubmitTask(context.Background(), &UnifiedTask{
 				Type:      TaskTypeCollectResult,
 				Payload:   payload,
 				Immediate: true,
@@ -199,4 +199,8 @@ func (e *Executor) HandleJobUpdate(labels map[string]string, status string) {
 
 	if status == TaskStatusError {
 	}
+}
+
+func (e *Executor) HandlePodUpdate() {
+
 }

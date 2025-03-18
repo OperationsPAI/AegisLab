@@ -44,23 +44,25 @@ func SubmitDatasetBuilding(c *gin.Context) {
 	}
 	logrus.Infof("Received building dataset payloads: %+v", payloads)
 
-	var ids []string
+	var traces []dto.Trace
 	for _, payload := range payloads {
-		id, err := executor.SubmitTask(c.Request.Context(), &executor.UnifiedTask{
+		taskID, traceID, err := executor.SubmitTask(c.Request.Context(), &executor.UnifiedTask{
 			Type:      executor.TaskTypeBuildDataset,
 			Payload:   utils.StructToMap(payload),
 			Immediate: true,
 			GroupID:   groupID,
 		})
 		if err != nil {
-			dto.ErrorResponse(c, http.StatusInternalServerError, id)
+			message := "Failed to submit task"
+			logrus.Error(message)
+			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
 		}
 
-		ids = append(ids, id)
+		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID})
 	}
 
-	dto.JSONResponse(c, http.StatusAccepted, "Dataset building submitted successfully", dto.SubmitResp{GroupID: groupID, TaskIDs: ids})
+	dto.JSONResponse(c, http.StatusAccepted, "Dataset building submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
 }
 
 // GetDatasetList
