@@ -35,6 +35,7 @@ const (
 	BuildBenchmark = "benchmark"
 	BuildDataset   = "dataset"
 	BuildNamespace = "namespace"
+	BuildService   = "service"
 	BuildStartTime = "start_time"
 	BuildEndTime   = "end_time"
 
@@ -91,4 +92,11 @@ const (
 	LabelExecutionID = "execution_id"
 	LabelStartTime   = "start_time"
 	LabelEndTime     = "end_time"
+)
+
+// sse 事件类型
+const (
+	EventEnd    = "end"
+	EventError  = "error"
+	EventUpdate = "update"
 )

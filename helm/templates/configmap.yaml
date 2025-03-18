@@ -26,6 +26,9 @@ data:
     mysql_port = "{{ .Values.configmap.database.mysql_port }}"
     mysql_db = "{{ .Values.configmap.database.mysql_db }}"
 
+    [image]
+    tag = "{{ .Values.configmap.image.tag }}"
+
     [redis]
     host = "{{ .Values.configmap.redis.host }}"
 

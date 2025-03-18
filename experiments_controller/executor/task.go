@@ -73,7 +73,7 @@ var (
 )
 
 // SubmitTask 提交任务入口
-func SubmitTask(ctx context.Context, task *UnifiedTask) (string, error) {
+func SubmitTask(ctx context.Context, task *UnifiedTask) (string, string, error) {
 	if task.TaskID == "" {
 		task.TaskID = uuid.NewString()
 	}
@@ -83,7 +83,7 @@ func SubmitTask(ctx context.Context, task *UnifiedTask) (string, error) {
 
 	jsonPayload, err := json.Marshal(task.Payload)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	t := database.Task{
 		ID:          task.TaskID,
@@ -97,14 +97,14 @@ func SubmitTask(ctx context.Context, task *UnifiedTask) (string, error) {
 		GroupID:     task.GroupID,
 	}
 	if err := database.DB.Create(&t).Error; err != nil {
-		logrus.Errorf("Failed to save task to database, err: %s", err)
-		return "Failed to save task to database", err
+		logrus.Errorf("Failed to save task to database, err: %v", err)
+		return "", "", err
 	}
 
 	if task.Immediate {
-		return task.TaskID, submitImmediateTask(ctx, task)
+		return task.TaskID, task.TraceID, submitImmediateTask(ctx, task)
 	}
-	return task.TaskID, submitDelayedTask(ctx, task)
+	return task.TaskID, task.TraceID, submitDelayedTask(ctx, task)
 }
 
 func submitImmediateTask(ctx context.Context, task *UnifiedTask) error {
@@ -200,14 +200,14 @@ func ProcessDelayedTasks(ctx context.Context) {
 	for _, taskData := range result {
 		var task UnifiedTask
 		if err := json.Unmarshal([]byte(taskData), &task); err != nil {
-			logrus.Warnf("Failed to parse task: %v", err)
+			logrus.WithError(err).Warn("Failed to parse task")
 			continue
 		}
 
 		if task.CronExpr != "" {
 			nextTime, err := cronNextTime(task.CronExpr)
 			if err != nil {
-				logrus.Warnf("Invalid cron expr: %v", err)
+				logrus.WithError(err).Warn("Invalid cron expr")
 				handleCronRescheduleFailure(ctx, &task)
 				continue
 			}
@@ -271,7 +271,7 @@ func processTask(ctx context.Context, taskData string) {
 
 	var task UnifiedTask
 	if err := json.Unmarshal([]byte(taskData), &task); err != nil {
-		logrus.Warnf("Invalid task data: %v", err)
+		logrus.WithError(err).Warn("Invalid task data")
 		return
 	}
 	logrus.Infof("Dealing with task %s, type: %s, groupID: %s", task.TaskID, task.Type, task.GroupID)
@@ -291,6 +291,7 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 	registerCancelFunc(task.TaskID, retryCancel)
 	defer unregisterCancelFunc(task.TaskID)
 
+	var err error
 	for attempt := 0; attempt <= task.RetryPolicy.MaxAttempts; attempt++ {
 		if attempt > 0 {
 			select {
@@ -302,21 +303,30 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 		}
 
 		taskCtx, _ := context.WithCancel(retryCtx)
-		err := dispatchTask(taskCtx, task)
+		err = dispatchTask(taskCtx, task)
 		if err == nil {
 			tasksProcessed.WithLabelValues(string(task.Type), "success").Inc()
 			return
 		}
 
 		if errors.Is(err, context.Canceled) {
-			logrus.Infof("Task %s canceled", task.TaskID)
+			logrus.WithField("task_id", task.TaskID).Info("Task canceled")
 			return
 		}
-		logrus.Warnf("Task %s attempt %d failed: %v", task.TaskID, attempt+1, err)
+
+		logrus.WithField("task_id", task.TaskID).WithError(err).Warnf("Attempt %d failed", attempt+1)
 	}
 
 	tasksProcessed.WithLabelValues(string(task.Type), "failed").Inc()
 	handleFinalFailure(ctx, task)
+
+	message := err.Error()
+	updateTaskStatus(task.TaskID, task.TraceID,
+		message,
+		map[string]any{
+			RdbMsgStatus: TaskStatusError,
+			RdbMsgError:  message,
+		})
 }
 
 // 注册取消函数
@@ -341,7 +351,7 @@ func handleFinalFailure(ctx context.Context, task *UnifiedTask) {
 		Score:  float64(deadLetterTime),
 		Member: taskData,
 	})
-	logrus.Errorf("Task %s failed after %d attempts", task.TaskID, task.RetryPolicy.MaxAttempts)
+	logrus.WithField("task_id", task.TaskID).Errorf("Failed after %d attempts", task.RetryPolicy.MaxAttempts)
 }
 
 // 分布式并发控制
@@ -357,7 +367,7 @@ func acquireConcurrencyLock(ctx context.Context) bool {
 func releaseConcurrencyLock(ctx context.Context) {
 	redisCli := client.GetRedisClient()
 	if err := redisCli.Decr(ctx, ConcurrencyLockKey).Err(); err != nil {
-		logrus.Warnf("Error releasing concurrency lock: %v", err)
+		logrus.WithError(err).Warn("Error releasing concurrency lock")
 	}
 }
 
@@ -413,7 +423,7 @@ func removeFromZSet(ctx context.Context, cli *redis.Client, key, taskID string) 
 		var t UnifiedTask
 		if json.Unmarshal([]byte(member), &t) == nil && t.TaskID == taskID {
 			if err := cli.ZRem(ctx, key, member).Err(); err != nil {
-				logrus.Warnf("Failed to remove from ZSet: %v", err)
+				logrus.WithError(err).Warn("Failed to remove from ZSet")
 				return false
 			}
 			return true

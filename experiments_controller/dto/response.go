@@ -24,9 +24,14 @@ type PaginationResp[T any] struct {
 	Data  []T   `json:"-"`
 }
 
+type Trace struct {
+	TraceID    string `json:"trace_id"`
+	HeadTaskID string `json:"head_task_id"`
+}
+
 type SubmitResp struct {
-	GroupID string   `json:"group_id"`
-	TaskIDs []string `json:"task_ids"`
+	GroupID string  `json:"group_id"`
+	Traces  []Trace `json:"traces"`
 }
 
 func (p *PaginationResp[T]) MarshalJSON() ([]byte, error) {

@@ -193,11 +193,12 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 				BuildBenchmark: *fiPayload.Benchmark,
 				BuildDataset:   name,
 				BuildNamespace: fiPayload.Namespace,
+				BuildService:   fiPayload.Pod,
 				BuildStartTime: &startTime,
 				BuildEndTime:   &endTime,
 			}
 
-			if _, err := SubmitTask(context.Background(), &UnifiedTask{
+			if _, _, err := SubmitTask(context.Background(), &UnifiedTask{
 				Type:      TaskTypeBuildDataset,
 				Payload:   datasetPayload,
 				Immediate: true,

@@ -26,6 +26,8 @@ configmap:
     mysql_host: "mariadb"
     mysql_port: "3306"
     mysql_db: "rcabench"
+  image:
+    tag: "latest"
   redis:
     host: "redis:6379"
   harbor:

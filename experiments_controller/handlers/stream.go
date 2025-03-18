@@ -11,6 +11,7 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
 	"github.com/gin-gonic/gin"
+	"github.com/k0kubun/pp/v3"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -55,9 +56,9 @@ func StreamTask(c *gin.Context) {
 	defer pubsub.Close()
 
 	// 主动退出函数，关闭连接
-	expectedTaskType := executor.TaskType(task.Status)
+	expectedTaskType := executor.TaskType(task.Type)
 
-	switch executor.TaskType(task.Status) {
+	switch executor.TaskType(task.Type) {
 	case executor.TaskTypeRunAlgorithm:
 		expectedTaskType = executor.TaskTypeCollectResult
 	case executor.TaskTypeFaultInjection:
@@ -77,7 +78,8 @@ func StreamTask(c *gin.Context) {
 	for {
 		select {
 		case message := <-pubsub.Channel():
-			c.SSEvent("update", message.Payload)
+			c.SSEvent(executor.EventUpdate, message.Payload)
+			pp.Println(message.Payload)
 			c.Writer.Flush()
 
 			var rdbMsg executor.RdbMsg
@@ -85,7 +87,7 @@ func StreamTask(c *gin.Context) {
 				msg := "Failed to unmarshal payload of redis message"
 				logEntry.WithError(err).Error(msg)
 
-				c.SSEvent("error", map[string]string{
+				c.SSEvent(executor.EventError, map[string]string{
 					"error":   msg,
 					"details": err.Error(),
 				})
@@ -97,13 +99,17 @@ func StreamTask(c *gin.Context) {
 			switch rdbMsg.Status {
 			case executor.TaskStatusCompleted:
 				if rdbMsg.Type == expectedTaskType {
+					c.SSEvent(executor.EventEnd, nil)
+					c.Writer.Flush()
+
 					return
 				}
 			case executor.TaskStatusError:
-				c.SSEvent("error", map[string]string{
+				c.SSEvent(executor.EventError, map[string]string{
 					"error":   fmt.Sprintf("Failed to execute task %s", task.ID),
 					"details": *rdbMsg.Error,
 				})
+				c.SSEvent(executor.EventEnd, nil)
 				c.Writer.Flush()
 
 				return
