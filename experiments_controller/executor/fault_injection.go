@@ -90,7 +90,7 @@ func checkExecutionTime(faultRecord database.FaultInjectionSchedule, namespace s
 		}
 
 		if err := database.DB.Model(&faultRecord).Where("injection_name = ?", datasetName).
-			Updates(map[string]interface{}{
+			Updates(map[string]any{
 				"start_time": startTime,
 				"end_time":   endTime,
 			}).Error; err != nil {
