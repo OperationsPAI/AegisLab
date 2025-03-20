@@ -11,6 +11,7 @@ debug:
 	docker compose down && \
 	docker compose up redis mariadb -d && \
 	kubectl delete jobs --all -n experiment && \
+	# sh scripts/k8s/delete_crds.sh ts && \
 	cd experiments_controller && go run main.go both --port 8082
 
 swagger:

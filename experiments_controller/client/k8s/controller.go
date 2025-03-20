@@ -5,13 +5,21 @@ import (
 	"fmt"
 	"time"
 
+	"slices"
+
+	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -34,24 +42,105 @@ type Callback interface {
 }
 
 type Controller struct {
-	jobInformer cache.SharedIndexInformer
-	podInformer cache.SharedIndexInformer
+	crdInformers map[schema.GroupVersionResource]cache.SharedIndexInformer
+	jobInformer  cache.SharedIndexInformer
+	podInformer  cache.SharedIndexInformer
 }
 
-func NewController() *Controller {
+func NewController(restConfig *rest.Config) *Controller {
 	factory := informers.NewSharedInformerFactoryWithOptions(
 		k8sClient,
 		resyncPeriod,
 		informers.WithNamespace(config.GetString("k8s.namespace")),
 	)
 
+	dynamicClient, err := dynamic.NewForConfig(restConfig)
+	if err != nil {
+		logrus.Error(err)
+		return nil
+	}
+
+	chaosGVRs := make([]schema.GroupVersionResource, 0, len(chaosCli.GetCRDMapping()))
+	for gvr := range chaosCli.GetCRDMapping() {
+		chaosGVRs = append(chaosGVRs, gvr)
+	}
+
+	// 初始化所有 CRD Informer
+	chaosFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
+		dynamicClient,
+		resyncPeriod,
+		metav1.NamespaceAll,
+		nil,
+	)
+
+	crdInformers := make(map[schema.GroupVersionResource]cache.SharedIndexInformer)
+	for _, gvr := range chaosGVRs {
+		crdInformers[gvr] = chaosFactory.ForResource(gvr).Informer()
+	}
+
 	return &Controller{
-		jobInformer: factory.Batch().V1().Jobs().Informer(),
-		podInformer: factory.Core().V1().Pods().Informer(),
+		crdInformers: crdInformers,
+		jobInformer:  factory.Batch().V1().Jobs().Informer(),
+		podInformer:  factory.Core().V1().Pods().Informer(),
 	}
 }
 
 func (c *Controller) initEventHandlers(callback Callback) {
+	for gvr, informer := range c.crdInformers {
+		informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj any) {
+				u := obj.(*unstructured.Unstructured)
+				if isTargetNamespace(u.GetNamespace()) {
+					logrus.WithFields(logrus.Fields{
+						"type":      gvr.Resource,
+						"namespace": u.GetNamespace(),
+						"name":      u.GetName(),
+					}).Info("Chaos experiment created successfully")
+				}
+			},
+			UpdateFunc: func(oldObj, newObj any) {
+				oldU := oldObj.(*unstructured.Unstructured)
+				newU := newObj.(*unstructured.Unstructured)
+
+				if callback != nil && oldU.GetName() == newU.GetName() && isTargetNamespace(newU.GetNamespace()) {
+					logEntry := logrus.WithFields(logrus.Fields{
+						"type":      gvr.Resource,
+						"namespace": newU.GetNamespace(),
+						"name":      newU.GetName(),
+					})
+
+					oldConditions, _, _ := unstructured.NestedSlice(oldU.Object, "status", "conditions")
+					newConditions, _, _ := unstructured.NestedSlice(newU.Object, "status", "conditions")
+
+					// 解析关键条件状态
+					oldAllInjected := getCRDConditionStatus(oldConditions, "AllInjected")
+					oldAllRecovered := getCRDConditionStatus(oldConditions, "AllRecovered")
+
+					newAllInjected := getCRDConditionStatus(newConditions, "AllInjected")
+					newAllRecovered := getCRDConditionStatus(newConditions, "AllRecovered")
+
+					if !oldAllInjected && newAllInjected {
+						logEntry.Infof("All targets injected in chaos experiment")
+					}
+
+					if !oldAllRecovered && newAllRecovered {
+						logEntry.Infof("All targets recoverd in chaos experiment")
+					}
+				}
+			},
+			DeleteFunc: func(obj any) {
+				u := obj.(*unstructured.Unstructured)
+				if isTargetNamespace(u.GetNamespace()) {
+					logrus.WithFields(logrus.Fields{
+						"type":      gvr.Resource,
+						"namespace": u.GetNamespace(),
+						"name":      u.GetName(),
+					}).Info("Chaos experiment deleted successfully")
+				}
+			},
+		})
+	}
+
 	c.jobInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
 			job := obj.(*batchv1.Job)
@@ -66,7 +155,7 @@ func (c *Controller) initEventHandlers(callback Callback) {
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {
 					callback.HandleJobUpdate(newJob.Labels, "Completed")
 					if err := DeleteJob(context.Background(), config.GetString("k8s.namespace"), newJob.Name); err != nil {
-						logrus.WithField("namespace", newJob.Namespace).WithField("job_name", newJob.Name).WithError(err).Error("Failed to delete")
+						logrus.WithField("namespace", newJob.Namespace).WithField("job_name", newJob.Name).Errorf("Failed to delete: %v", err)
 					}
 				}
 
@@ -127,11 +216,19 @@ func (c *Controller) Run(ctx context.Context, callback Callback) {
 
 	c.initEventHandlers(callback)
 
-	logrus.Info("Starting k8s controller")
+	logrus.Info("Starting informer controller")
+	for _, informer := range c.crdInformers {
+		go informer.Run(ctx.Done())
+	}
 	go c.jobInformer.Run(ctx.Done())
 	go c.podInformer.Run(ctx.Done())
 
-	if !cache.WaitForCacheSync(ctx.Done(), c.jobInformer.HasSynced, c.podInformer.HasSynced) {
+	allSyncs := []cache.InformerSynced{c.jobInformer.HasSynced, c.podInformer.HasSynced}
+	for _, informer := range c.crdInformers {
+		allSyncs = append(allSyncs, informer.HasSynced)
+	}
+
+	if !cache.WaitForCacheSync(ctx.Done(), allSyncs...) {
 		message := "Timed out waiting for caches to sync"
 		runtime.HandleError(fmt.Errorf(message))
 		logrus.Error(message)
@@ -139,7 +236,28 @@ func (c *Controller) Run(ctx context.Context, callback Callback) {
 	}
 
 	<-ctx.Done()
-	logrus.Info("Stopping informer...")
+	logrus.Info("Stopping informer controller...")
+}
+
+func isTargetNamespace(namespace string) bool {
+	return slices.Contains(config.GetStringSlice("injection.namespace"), namespace)
+}
+
+func getCRDConditionStatus(conditions []any, conditionType string) bool {
+	for _, c := range conditions {
+		condition, ok := c.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		t, _, _ := unstructured.NestedString(condition, "type")
+		status, _, _ := unstructured.NestedString(condition, "status")
+		if t == conditionType {
+			return status == "True"
+		}
+	}
+
+	return false
 }
 
 func checkPodReason(pod *corev1.Pod, reason string) bool {
