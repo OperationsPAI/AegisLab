@@ -103,6 +103,61 @@ func parseJobLabel(labels map[string]string) (*JobLabel, error) {
 	}, nil
 }
 
+func (e *Executor) HandleCRDUpdate(namespace, pod, name string) {
+	taskID := checkDatasetIndex(name)
+	if taskID == "" {
+		return
+	}
+
+	benchmark := getTaskMeta(taskID, MetaBenchmark)
+	if benchmark == "" {
+		return
+	}
+
+	traceID := getTaskMeta(taskID, MetaTraceID)
+	if traceID == "" {
+		return
+	}
+
+	groupID := getTaskMeta(taskID, MetaGroupID)
+	if groupID == "" {
+		return
+	}
+
+	updateTaskStatus(taskID, traceID,
+		fmt.Sprintf(TaskMsgCompleted, taskID),
+		map[string]any{
+			RdbMsgStatus:   TaskStatusCompleted,
+			RdbMsgTaskType: TaskTypeFaultInjection,
+		})
+
+	startTime, endTime, err := checkExecutionTime(name, namespace)
+	logrus.Infof("checkExecutionTime for dataset %s, startTime: %v, endTime: %v", name, startTime, endTime)
+	if err != nil {
+		logrus.Errorf("Failed to checkExecutionTime for dataset %s: %v", name, err)
+		return
+	}
+
+	datasetPayload := map[string]any{
+		BuildBenchmark: benchmark,
+		BuildDataset:   name,
+		BuildNamespace: namespace,
+		BuildService:   pod,
+		BuildStartTime: &startTime,
+		BuildEndTime:   &endTime,
+	}
+	if _, _, err := SubmitTask(context.Background(), &UnifiedTask{
+		Type:      TaskTypeBuildDataset,
+		Payload:   datasetPayload,
+		Immediate: true,
+		TraceID:   traceID,
+		GroupID:   groupID,
+	}); err != nil {
+		logrus.Error(err)
+		return
+	}
+}
+
 func (e *Executor) HandleJobAdd(labels map[string]string) {
 	jobLabel, err := parseJobLabel(labels)
 	if err != nil {

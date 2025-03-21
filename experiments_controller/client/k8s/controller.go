@@ -8,15 +8,16 @@ import (
 	"slices"
 
 	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
-	"github.com/CUHK-SE-Group/rcabench/config"
-	"github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/CUHK-SE-Group/rcabench/utils"
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/rest"
@@ -36,6 +37,7 @@ type JobEnv struct {
 }
 
 type Callback interface {
+	HandleCRDUpdate(namespace, pod, name string)
 	HandleJobAdd(labels map[string]string)
 	HandleJobUpdate(labels map[string]string, status string)
 	HandlePodUpdate()
@@ -54,12 +56,6 @@ func NewController(restConfig *rest.Config) *Controller {
 		informers.WithNamespace(config.GetString("k8s.namespace")),
 	)
 
-	dynamicClient, err := dynamic.NewForConfig(restConfig)
-	if err != nil {
-		logrus.Error(err)
-		return nil
-	}
-
 	chaosGVRs := make([]schema.GroupVersionResource, 0, len(chaosCli.GetCRDMapping()))
 	for gvr := range chaosCli.GetCRDMapping() {
 		chaosGVRs = append(chaosGVRs, gvr)
@@ -67,7 +63,7 @@ func NewController(restConfig *rest.Config) *Controller {
 
 	// 初始化所有 CRD Informer
 	chaosFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
-		dynamicClient,
+		k8sDynamicClient,
 		resyncPeriod,
 		metav1.NamespaceAll,
 		nil,
@@ -125,6 +121,24 @@ func (c *Controller) initEventHandlers(callback Callback) {
 
 					if !oldAllRecovered && newAllRecovered {
 						logEntry.Infof("All targets recoverd in chaos experiment")
+
+						kind := newU.GetKind()
+						pod, _, _ := unstructured.NestedString(newU.Object, "spec", "selector", "labelSelectors", "app")
+
+						chaosGVRMapping := make(map[string]schema.GroupVersionResource)
+						for gvr, obj := range chaosCli.GetCRDMapping() {
+							chaosGVRMapping[utils.GetTypeName(obj)] = gvr
+						}
+
+						gvr, ok := chaosGVRMapping[kind]
+						if !ok {
+							logEntry.Error("The gvr resource can not be found")
+						}
+
+						callback.HandleCRDUpdate(newU.GetNamespace(), pod, newU.GetName())
+						if err := DeleteCRD(context.Background(), gvr, newU.GetNamespace(), newU.GetName()); err != nil {
+							logEntry.Errorf("Failed to delete CRD: %v", err)
+						}
 					}
 				}
 			},
@@ -155,7 +169,7 @@ func (c *Controller) initEventHandlers(callback Callback) {
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {
 					callback.HandleJobUpdate(newJob.Labels, "Completed")
 					if err := DeleteJob(context.Background(), config.GetString("k8s.namespace"), newJob.Name); err != nil {
-						logrus.WithField("namespace", newJob.Namespace).WithField("job_name", newJob.Name).Errorf("Failed to delete: %v", err)
+						logrus.WithField("namespace", newJob.Namespace).WithField("job_name", newJob.Name).Errorf("Failed to delete job: %v", err)
 					}
 				}
 

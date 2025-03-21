@@ -9,7 +9,7 @@ import (
 )
 
 func dispatchTask(ctx context.Context, task *UnifiedTask) error {
-	logrus.Infof("Executing task ID: [%s]", task.TaskID)
+	logrus.WithField("task_id", task.TaskID).Info("Executing task")
 	defer func() {
 		if r := recover(); r != nil {
 			logrus.Errorf("Task panic: %v\n%s", r, debug.Stack())

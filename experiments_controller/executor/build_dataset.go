@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/CUHK-SE-Group/rcabench/client/k8s"
@@ -116,6 +117,26 @@ func createDatasetJob(ctx context.Context, datasetName, jobName, jobNamespace, i
 	})
 }
 
+func checkExecutionTime(datasetName, namespace string) (time.Time, time.Time, error) {
+	var startTime, endTime time.Time
+	var err error
+	startTime, endTime, err = chaosCli.QueryCRDByName(namespace, datasetName)
+	if err != nil {
+		return startTime, endTime, fmt.Errorf("Failed to QueryCRDByName: %v", err)
+	}
+
+	if err := database.DB.Model(&database.FaultInjectionSchedule{}).
+		Where("injection_name = ?", datasetName).
+		Updates(map[string]any{
+			"start_time": startTime,
+			"end_time":   endTime,
+		}).Error; err != nil {
+		return startTime, endTime, err
+	}
+
+	return startTime, endTime, nil
+}
+
 func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
 	datasetPayload, err := parseDatasetPayload(task.Payload)
 	if err != nil {
@@ -144,7 +165,7 @@ func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
 		}
 		logrus.Infof("Parsed fault injection payload: %+v", fiPayload)
 
-		startTime, endTime, err = checkExecutionTime(faultRecord, fiPayload.Namespace)
+		startTime, endTime, err = checkExecutionTime(faultRecord.InjectionName, fiPayload.Namespace)
 		if err != nil {
 			return fmt.Errorf("Failed to checkExecutionTime for dataset %s: %v", datasetName, err)
 		}
