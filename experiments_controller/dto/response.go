@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"reflect"
 	"strings"
 	"time"
 
@@ -39,21 +38,7 @@ func (p *PaginationResp[T]) MarshalJSON() ([]byte, error) {
 
 	// 获取类型 T 的实际类型
 	var t T
-	tType := reflect.TypeOf(t)
-	if tType != nil && tType.Kind() == reflect.Ptr {
-		tType = tType.Elem()
-	}
-
-	// 处理指针类型
-	if tType.Kind() == reflect.Ptr {
-		tType = tType.Elem()
-	}
-
-	// 处理匿名类型或无效类型
-	typeName := "item"
-	if tType != nil {
-		typeName = tType.Name()
-	}
+	typeName := utils.GetTypeName(t)
 
 	snakeCase := utils.ToSnakeCase(typeName)
 	dataKey := fmt.Sprintf("%ss", strings.Split(snakeCase, "_")[0])

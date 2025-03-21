@@ -68,8 +68,16 @@ const (
 const (
 	LogFormat  = "[%s] %s"
 	LogKey     = "task:%s:logs"
+	MetaKey    = "task:%s:meta"
 	StatusKey  = "task:%s:status"
 	SubChannel = "trace:%s:channel"
+)
+
+// Redis Meta 属性名称
+const (
+	MetaBenchmark = "benchmark"
+	MetaGroupID   = "group_id"
+	MetaTraceID   = "trace_id"
 )
 
 // Redis 订阅消息字段

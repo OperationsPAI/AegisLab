@@ -21,12 +21,13 @@ import (
 
 // 常量定义
 const (
-	DelayedQueueKey    = "task:delayed"
-	ReadyQueueKey      = "task:ready"
-	DeadLetterKey      = "task:dead"
-	TaskIndexKey       = "task:index"
-	ConcurrencyLockKey = "task:concurrency_lock"
-	MaxConcurrency     = 20
+	DelayedQueueKey     = "task:delayed"
+	ReadyQueueKey       = "task:ready"
+	DeadLetterKey       = "task:dead"
+	TaskIndexKey        = "task:index"
+	TaskDatasetIndexKey = "task:dataset_index"
+	ConcurrencyLockKey  = "task:concurrency_lock"
+	MaxConcurrency      = 20
 )
 
 // 监控指标
@@ -474,6 +475,62 @@ func parseRdbMsg(payload map[string]any) (*RdbMsg, error) {
 	return &RdbMsg{
 		Status: status,
 	}, nil
+}
+
+func addDatasetIndex(taskID, name string) {
+	ctx := context.Background()
+	redisCli := client.GetRedisClient()
+
+	pipe := redisCli.TxPipeline()
+	pipe.HSet(ctx, TaskDatasetIndexKey, name, taskID)
+
+	if _, err := pipe.Exec(ctx); err != nil {
+		logrus.WithField("dataset", name).WithField("task_id", taskID).Error("Failed to build index")
+		return
+	}
+}
+
+func checkDatasetIndex(name string) string {
+	ctx := context.Background()
+	redisCli := client.GetRedisClient()
+
+	taskID, err := redisCli.HGet(ctx, TaskDatasetIndexKey, name).Result()
+	if err != nil {
+		logrus.WithField("dataset", name).Errorf("The name is not in dataset index: %v", err)
+	}
+
+	return taskID
+}
+
+func addTaskMeta(taskID string, values ...any) {
+	ctx := context.Background()
+	redisCli := client.GetRedisClient()
+
+	pipe := redisCli.TxPipeline()
+	pipe.HSet(ctx, fmt.Sprintf(MetaKey, taskID), values...)
+
+	if _, err := pipe.Exec(ctx); err != nil {
+		logrus.WithField("task_id", taskID).Errorf("Failed to store task meta: %v", err)
+		return
+	}
+}
+
+func getTaskMeta(taskID, field string) string {
+	ctx := context.Background()
+	redisCli := client.GetRedisClient()
+
+	if taskID == "" {
+		logrus.Error("The task_id can not be blank")
+		return ""
+	}
+
+	value, err := redisCli.HGet(ctx, fmt.Sprintf(MetaKey, taskID), field).Result()
+	if err != nil {
+		logrus.WithField("task_id", taskID).Errorf("The field is not in meta: %v", err)
+		return ""
+	}
+
+	return value
 }
 
 // 事务型状态更新

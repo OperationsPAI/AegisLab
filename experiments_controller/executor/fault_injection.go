@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/sirupsen/logrus"
@@ -22,7 +21,7 @@ type FaultInjectionPayload struct {
 	Benchmark  *string        `json:"benchmark"`
 }
 
-func ParseFaultInjectionPayload(payload map[string]interface{}) (*FaultInjectionPayload, error) {
+func ParseFaultInjectionPayload(payload map[string]any) (*FaultInjectionPayload, error) {
 	durationFloat, ok := payload[InjectDuration].(float64)
 	if !ok || durationFloat <= 0 {
 		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectDuration)
@@ -74,49 +73,15 @@ func ParseFaultInjectionPayload(payload map[string]interface{}) (*FaultInjection
 	}, nil
 }
 
-func checkExecutionTime(faultRecord database.FaultInjectionSchedule, namespace string) (time.Time, time.Time, error) {
-	var startTime, endTime time.Time
-
-	if faultRecord.Status == DatasetSuccess {
-		startTime = faultRecord.StartTime
-		endTime = faultRecord.EndTime
-	} else if faultRecord.Status == DatasetInitial {
-		datasetName := faultRecord.InjectionName
-
-		var err error
-		startTime, endTime, err = chaosCli.QueryCRDByName(namespace, datasetName)
-		if err != nil {
-			return startTime, endTime, fmt.Errorf("failed to QueryCRDByName: %s, error: %v", datasetName, err)
-		}
-
-		if err := database.DB.Model(&faultRecord).Where("injection_name = ?", datasetName).
-			Updates(map[string]any{
-				"start_time": startTime,
-				"end_time":   endTime,
-			}).Error; err != nil {
-			return startTime, endTime, fmt.Errorf("failed to update start_time and end_time for dataset: %s, error: %v", datasetName, err)
-		}
-	}
-
-	return startTime, endTime, nil
-}
-
 // 执行故障注入任务
 func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
-	logrus.Infof("Executing fault injection task %+v", task)
+	logrus.Info(task)
 
 	fiPayload, err := ParseFaultInjectionPayload(task.Payload)
 	logrus.Infof("Parsed fault injection payload: %+v", fiPayload)
 	if err != nil {
 		return err
 	}
-
-	updateTaskStatus(task.TaskID, task.TraceID,
-		fmt.Sprintf("Executing fault injection for task %s", task.TaskID),
-		map[string]any{
-			RdbMsgStatus:   TaskStatusRunning,
-			RdbMsgTaskType: task.Type,
-		})
 
 	// 故障注入逻辑
 	var chaosSpec any
@@ -150,8 +115,24 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	}
 	jsonData, err := json.Marshal(task.Payload)
 	if err != nil {
-		logrus.Errorf("marshal conf failed, conf: %+v, err: %s", conf, err)
+		logrus.Errorf("Failed to marshal conf: %+v, err: %s", conf, err)
 		return err
+	}
+
+	updateTaskStatus(task.TaskID, task.TraceID,
+		fmt.Sprintf("Executing fault injection for task %s", task.TaskID),
+		map[string]any{
+			RdbMsgStatus:   TaskStatusRunning,
+			RdbMsgTaskType: TaskTypeFaultInjection,
+		})
+
+	addDatasetIndex(task.TaskID, name)
+	if fiPayload.Benchmark != nil {
+		addTaskMeta(task.TaskID,
+			"benchmark", *fiPayload.Benchmark,
+			"trace_id", task.TraceID,
+			"group_id", task.GroupID,
+		)
 	}
 
 	faultRecord := database.FaultInjectionSchedule{
@@ -166,49 +147,9 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}
-
 	if err := database.DB.Create(&faultRecord).Error; err != nil {
 		logrus.Errorf("Failed to write fault injection schedule to database: %v", err)
 		return fmt.Errorf("failed to write to database: %v", err)
-	}
-
-	if fiPayload.Benchmark != nil {
-		logrus.Info("Scheduling build dataset task")
-		time.AfterFunc(time.Duration(fiPayload.Duration+2)*time.Minute, func() {
-			startTime, endTime, err := checkExecutionTime(faultRecord, fiPayload.Namespace)
-			logrus.Infof("checkExecutionTime for dataset %s, startTime: %v, endTime: %v", name, startTime, endTime)
-			if err != nil {
-				logrus.Errorf("Failed to checkExecutionTime for dataset %s: %v", name, err)
-				return
-			}
-
-			updateTaskStatus(task.TaskID, task.TraceID,
-				fmt.Sprintf(TaskMsgCompleted, task.TaskID),
-				map[string]any{
-					RdbMsgStatus:   TaskStatusCompleted,
-					RdbMsgTaskType: task.Type,
-				})
-
-			datasetPayload := map[string]any{
-				BuildBenchmark: *fiPayload.Benchmark,
-				BuildDataset:   name,
-				BuildNamespace: fiPayload.Namespace,
-				BuildService:   fiPayload.Pod,
-				BuildStartTime: &startTime,
-				BuildEndTime:   &endTime,
-			}
-
-			if _, _, err := SubmitTask(context.Background(), &UnifiedTask{
-				Type:      TaskTypeBuildDataset,
-				Payload:   datasetPayload,
-				Immediate: true,
-				TraceID:   task.TraceID,
-				GroupID:   task.GroupID,
-			}); err != nil {
-				logrus.Error(err)
-				return
-			}
-		})
 	}
 
 	return nil
