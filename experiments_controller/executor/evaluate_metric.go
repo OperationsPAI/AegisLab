@@ -7,6 +7,8 @@ import (
 	"sort"
 	"sync"
 
+	"maps"
+
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/database"
 )
@@ -98,9 +100,7 @@ func GetMetrics() map[string]EvaluateMetric {
 	defer metricsMu.RUnlock()
 
 	copiedMetrics := make(map[string]EvaluateMetric, len(metrics))
-	for k, v := range metrics {
-		copiedMetrics[k] = v
-	}
+	maps.Copy(copiedMetrics, metrics)
 	return copiedMetrics
 }
 
@@ -111,7 +111,7 @@ func parseConfigAndGetGroundTruth(execution Execution) ([]handler.Groudtruth, er
 		return nil, err
 	}
 
-	conf, err := GetInjectionMeta(payload)
+	conf, err := getInjectionMetaFromPayload(payload)
 	if err != nil {
 		return nil, err
 	}

@@ -35,7 +35,7 @@ type Task struct {
 type FaultInjectionSchedule struct {
 	ID              int       `gorm:"primaryKey;autoIncrement" json:"id"` // 唯一标识
 	TaskID          string    `gorm:"index" json:"task_id"`               // 从属什么 taskid
-	FaultType       int       `json:"fault_type" gorm:"index"`            // 故障类型
+	FaultType       int       `gorm:"index" json:"fault_type"`            // 故障类型
 	Config          string    `json:"config"`                             // 配置 JSON 格式
 	Duration        int       `json:"duration"`                           // 故障持续时间
 	StartTime       time.Time `gorm:"default:null" json:"start_time"`     // 预计故障开始时间
@@ -52,7 +52,7 @@ type ExecutionResult struct {
 	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"` // 唯一标识
 	TaskID    string    `gorm:"index" json:"task_id"`               // 从属什么 taskid
 	Dataset   int       `gorm:"index,unique" json:"dataset"`        // 数据集标识
-	Algo      string    `json:"algo"`                               // 使用的算法
+	Algorithm string    `json:"algorithm"`                          // 使用的算法
 	CreatedAt time.Time `json:"created_at"`                         // 创建时间
 	UpdatedAt time.Time `json:"updated_at"`                         // 更新时间
 }

@@ -1,4 +1,4 @@
-package dto
+package handlers
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ func formatOtherError(err error) string {
 	return message
 }
 
-func FormatErrorMessage(err error, fieldMap map[string]string) string {
+func formatErrorMessage(err error, fieldMap map[string]string) string {
 	var validationErrors validator.ValidationErrors
 	var ok bool
 	if validationErrors, ok = err.(validator.ValidationErrors); !ok {
@@ -42,4 +42,17 @@ func FormatErrorMessage(err error, fieldMap map[string]string) string {
 	}
 
 	return message
+}
+
+func validateSortOrder(sort string) (string, error) {
+	switch sort {
+	case "asc":
+		return "created_at ASC", nil
+	case "desc":
+		return "created_at DESC", nil
+	case "":
+		return "created_at DESC", nil // 默认排序
+	default:
+		return "", fmt.Errorf("invalid sort parameter: %s", sort)
+	}
 }

@@ -15,16 +15,63 @@ import (
 	"gorm.io/gorm"
 )
 
-type AlgorithmExecutionPayload struct {
-	Benchmark   string `json:"benchmark"`
-	Algorithm   string `json:"algorithm"`
-	DatasetName string `json:"dataset"`
-	Service     string `json:"service"`
-	Tag         string `json:"tag"`
+type AlgorithmExecutionMeta struct {
+	Benchmark   string
+	Algorithm   string
+	DatasetName string
+	Service     string
+	Tag         string
+}
+
+func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
+	meta, err := getAlgorithmPayloadMeta(task.Payload)
+	if err != nil {
+		return err
+	}
+
+	var faultRecord database.FaultInjectionSchedule
+	err = database.DB.Where("injection_name = ?", meta.DatasetName).First(&faultRecord).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("no matching fault injection record found for dataset: %s", meta.DatasetName)
+		}
+		return fmt.Errorf("failed to query database for dataset: %s, error: %v", meta.DatasetName, err)
+	}
+
+	startTime := faultRecord.StartTime
+	endTime := faultRecord.EndTime
+
+	executionResult := database.ExecutionResult{
+		TaskID:    task.TaskID,
+		Dataset:   faultRecord.ID,
+		Algorithm: meta.Algorithm,
+	}
+	if err := database.DB.Create(&executionResult).Error; err != nil {
+		return fmt.Errorf("failed to create execution result: %v", err)
+	}
+
+	jobName := fmt.Sprintf("%s-%s", meta.Algorithm, meta.DatasetName)
+	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), meta.Algorithm, meta.Tag)
+	labels := map[string]string{
+		LabelTaskID:      task.TaskID,
+		LabelTraceID:     task.TraceID,
+		LabelGroupID:     task.GroupID,
+		LabelTaskType:    string(TaskTypeRunAlgorithm),
+		LabelAlgorithm:   meta.Algorithm,
+		LabelDataset:     meta.DatasetName,
+		LabelExecutionID: fmt.Sprint(executionResult.ID),
+	}
+	jobEnv := &k8s.JobEnv{
+		Service:   meta.Service,
+		StartTime: startTime,
+		EndTime:   endTime,
+	}
+
+	return createAlgoJob(ctx, meta.DatasetName, jobName, config.GetString("k8s.namespace"), image, []string{"python", "run_exp.py"}, labels, jobEnv)
 }
 
 // 解析算法执行任务的 Payload
-func parseAlgorithmExecutionPayload(payload map[string]any) (*AlgorithmExecutionPayload, error) {
+func getAlgorithmPayloadMeta(payload map[string]any) (*AlgorithmExecutionMeta, error) {
 	message := "missing or invalid '%s' key in payload"
 
 	benchmark, ok := payload[EvalBench].(string)
@@ -52,7 +99,7 @@ func parseAlgorithmExecutionPayload(payload map[string]any) (*AlgorithmExecution
 		return nil, fmt.Errorf(message, EvalTag)
 	}
 
-	return &AlgorithmExecutionPayload{
+	return &AlgorithmExecutionMeta{
 		Benchmark:   benchmark,
 		Algorithm:   algorithm,
 		DatasetName: datasetName,
@@ -95,51 +142,4 @@ func createAlgoJob(ctx context.Context, datasetName, jobName, jobNamespace, imag
 		EnvVars:       envVars,
 		Labels:        labels,
 	})
-}
-
-func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
-	algoPayload, err := parseAlgorithmExecutionPayload(task.Payload)
-	if err != nil {
-		return err
-	}
-
-	var faultRecord database.FaultInjectionSchedule
-	err = database.DB.Where("injection_name = ?", algoPayload.DatasetName).First(&faultRecord).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("no matching fault injection record found for dataset: %s", algoPayload.DatasetName)
-		}
-		return fmt.Errorf("failed to query database for dataset: %s, error: %v", algoPayload.DatasetName, err)
-	}
-
-	startTime := faultRecord.StartTime
-	endTime := faultRecord.EndTime
-
-	executionResult := database.ExecutionResult{
-		TaskID:  task.TaskID,
-		Dataset: faultRecord.ID,
-		Algo:    algoPayload.Algorithm,
-	}
-	if err := database.DB.Create(&executionResult).Error; err != nil {
-		return fmt.Errorf("failed to create execution result: %v", err)
-	}
-
-	jobName := fmt.Sprintf("%s-%s", algoPayload.Algorithm, algoPayload.DatasetName)
-	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), algoPayload.Algorithm, algoPayload.Tag)
-	labels := map[string]string{
-		LabelTaskID:      task.TaskID,
-		LabelTraceID:     task.TraceID,
-		LabelGroupID:     task.GroupID,
-		LabelTaskType:    string(TaskTypeRunAlgorithm),
-		LabelAlgorithm:   algoPayload.Algorithm,
-		LabelDataset:     algoPayload.DatasetName,
-		LabelExecutionID: fmt.Sprint(executionResult.ID),
-	}
-	jobEnv := &k8s.JobEnv{
-		Service:   algoPayload.Service,
-		StartTime: startTime,
-		EndTime:   endTime,
-	}
-
-	return createAlgoJob(ctx, algoPayload.DatasetName, jobName, config.GetString("k8s.namespace"), image, []string{"python", "run_exp.py"}, labels, jobEnv)
 }

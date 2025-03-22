@@ -84,7 +84,7 @@ func fetchExecution(executionID, rank int) (*executor.Execution, error) {
 func GetEvaluationList(c *gin.Context) {
 	var req dto.EvaluationListReq
 	if err := c.BindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, dto.FormatErrorMessage(err, map[string]string{}))
+		dto.ErrorResponse(c, http.StatusBadRequest, formatErrorMessage(err, map[string]string{}))
 		return
 	}
 
@@ -118,9 +118,9 @@ func GetEvaluationList(c *gin.Context) {
 			continue
 		}
 
-		algo := execution.ExecutionRecord.Algo
-		if len(algoSet) == 0 || algoSet[algo] {
-			groupedResults[algo] = append(groupedResults[algo], *execution)
+		algorithm := execution.ExecutionRecord.Algorithm
+		if len(algoSet) == 0 || algoSet[algorithm] {
+			groupedResults[algorithm] = append(groupedResults[algorithm], *execution)
 		}
 	}
 

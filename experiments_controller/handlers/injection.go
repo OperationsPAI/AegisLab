@@ -59,13 +59,6 @@ func CancelInjection(c *gin.Context) {
 //	@Failure		500		{object}	GenericResponse[any]
 //	@Router			/api/v1/injections [get]
 func GetInjectionDetail(c *gin.Context) {
-	// 获取查询参数并校验是否合法
-	var req dto.InjectionListReq
-	if err := c.BindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, dto.FormatErrorMessage(err, map[string]string{}))
-		return
-	}
-
 	var taskReq dto.TaskReq
 	if err := c.BindUri(&taskReq); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid URI")
@@ -134,7 +127,7 @@ func GetInjectionDetail(c *gin.Context) {
 func GetInjectionList(c *gin.Context) {
 	var req dto.InjectionListReq
 	if err := c.BindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, dto.FormatErrorMessage(err, map[string]string{}))
+		dto.ErrorResponse(c, http.StatusBadRequest, formatErrorMessage(err, map[string]string{}))
 		return
 	}
 

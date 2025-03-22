@@ -93,6 +93,11 @@ const (
 	RdbMsgExecutionID = "execution_id"
 )
 
+// K8s Job 名称
+const (
+	DatasetJobName = "dataset"
+)
+
 // K8s Job Label 字段
 const (
 	LabelTaskID      = "task_id"

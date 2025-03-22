@@ -6,9 +6,9 @@ type AlgorithmListResp struct {
 }
 
 type AlgorithmExecutionPayload struct {
-	Benchmark   string  `json:"benchmark"`
-	Algorithm   string  `json:"algorithm"`
-	DatasetName string  `json:"dataset"`
-	Service     string  `json:"service"`
-	Tag         *string `json:"tag"`
+	Benchmark   string `json:"benchmark"`
+	Algorithm   string `json:"algorithm"`
+	DatasetName string `json:"dataset"`
+	Service     string `json:"service"`
+	Tag         string `json:"tag"`
 }

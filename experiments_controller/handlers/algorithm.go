@@ -95,7 +95,7 @@ func GetAlgorithmList(c *gin.Context) {
 //	@Tags			algorithm
 //	@Produce		application/json
 //	@Consumes		application/json
-//	@Param			body	body		[]executor.AlgorithmExecutionPayload	true	"请求体"
+//	@Param			body	body		[]dto.AlgorithmExecutionPayload	true	"请求体"
 //	@Success		200		{object}	GenericResponse[SubmitResp]
 //	@Failure		400		{object}	GenericResponse[any]
 //	@Failure		500		{object}	GenericResponse[any]
@@ -104,7 +104,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	logrus.Infof("SubmitAlgorithmExecution called, groupID: %s", groupID)
 
-	var payloads []executor.AlgorithmExecutionPayload
+	var payloads []dto.AlgorithmExecutionPayload
 	if err := c.BindJSON(&payloads); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid JSON payload")
 		return

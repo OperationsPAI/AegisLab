@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
+	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -65,6 +67,68 @@ func SubmitDatasetBuilding(c *gin.Context) {
 	dto.JSONResponse(c, http.StatusAccepted, "Dataset building submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
 }
 
+func QueryDataset(c *gin.Context) {
+	var req dto.QueryDatasetReq
+	if err := c.BindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, formatErrorMessage(err, dto.PaginationFieldMap))
+		return
+	}
+
+	sortOrder, err := validateSortOrder(req.Sort)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	fiRecord, err := repository.GetInjectionRecordByDataset(req.Name)
+	if err != nil {
+		logrus.Errorf("failed to get fault injection record: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to retrieve injection data")
+		return
+	}
+
+	logEntry := logrus.WithField("dataset", req.Name)
+
+	meta, err := executor.ParseInjectionMeta(fiRecord.Config)
+	if err != nil {
+		logEntry.Errorf("Failed to parse injection config: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Invalid injection configuration")
+		return
+	}
+
+	detectorRecord, err := repository.GetDetectorRecordByDatasetID(fiRecord.ID)
+	if err != nil {
+		logEntry.Errorf("Failed to retrieve detector record: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load execution data")
+		return
+	}
+
+	executionRecords, err := repository.GetExecutionRecordsByDatasetID(fiRecord.ID, sortOrder)
+	if err != nil {
+		logEntry.Error("Failed to retrieve execution records")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load execution data")
+		return
+	}
+
+	if len(executionRecords) == 0 {
+		logEntry.Info("No execution records found for dataset")
+	}
+
+	dto.SuccessResponse(c, &dto.QueryDatasetResp{
+		Param: dto.InjectionParam{
+			Duration:  meta.Duration,
+			FaultType: handler.ChaosTypeMap[handler.ChaosType(meta.FaultType)],
+			Namespace: meta.Namespace,
+			Pod:       meta.Pod,
+			Spec:      meta.InjectSpec,
+		},
+		StartTime:        fiRecord.StartTime,
+		EndTime:          fiRecord.EndTime,
+		DetectorResult:   detectorRecord,
+		ExecutionResults: executionRecords,
+	})
+}
+
 // GetDatasetList
 //
 //	@Summary		分页查询数据集列表
@@ -81,7 +145,7 @@ func GetDatasetList(c *gin.Context) {
 	// 获取查询参数并校验是否合法
 	var req dto.DatasetListReq
 	if err := c.BindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, dto.FormatErrorMessage(err, dto.PaginationFieldMap))
+		dto.ErrorResponse(c, http.StatusBadRequest, formatErrorMessage(err, dto.PaginationFieldMap))
 		return
 	}
 
@@ -141,7 +205,7 @@ func DownloadDataset(c *gin.Context) {
 
 	var req dto.DatasetDownloadReq
 	if err := c.BindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, dto.FormatErrorMessage(err, dto.PaginationFieldMap))
+		dto.ErrorResponse(c, http.StatusBadRequest, formatErrorMessage(err, dto.PaginationFieldMap))
 		return
 	}
 
