@@ -93,7 +93,7 @@ func parseDatasetPayload(payload map[string]any) (*DatasetMeta, error) {
 			return nil, fmt.Errorf("failed to query database for dataset: %s, error: %v", datasetName, err)
 		}
 
-		injectionMeta, err := GetInjectionMeta(payload)
+		injectionMeta, err := getInjectionMetaFromPayload(payload)
 		if err != nil {
 			return nil, err
 		}
@@ -178,7 +178,7 @@ func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
 		return err
 	}
 
-	jobName := fmt.Sprintf("dataset-%s", datasetMeta.Name)
+	jobName := fmt.Sprintf("%s-%s", DatasetJobName, datasetMeta.Name)
 	image := fmt.Sprintf("%s/%s_dataset:%s", config.GetString("harbor.repository"), datasetMeta.Benchmark, config.GetString("image.tag"))
 	labels := map[string]string{
 		LabelTaskID:    task.TaskID,

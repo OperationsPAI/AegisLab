@@ -26,7 +26,7 @@ type downstreamConfig struct {
 	PreDuration int
 }
 
-func GetInjectionMeta(payload map[string]any) (*InjectionMeta, error) {
+func getInjectionMetaFromPayload(payload map[string]any) (*InjectionMeta, error) {
 	message := "invalid or missing '%s' in payload"
 
 	faultTypeFloat, ok := payload[InjectFaultType].(float64)
@@ -101,7 +101,7 @@ func getDownstreamConfig(payload map[string]any) (*downstreamConfig, error) {
 func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	logrus.Info(task)
 
-	meta, err := GetInjectionMeta(task.Payload)
+	meta, err := getInjectionMetaFromPayload(task.Payload)
 	logrus.Infof("Parsed fault injection meta: %+v", meta)
 	if err != nil {
 		return err
@@ -180,4 +180,12 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	}
 
 	return err
+}
+
+func ParseInjectionMeta(config string) (*InjectionMeta, error) {
+	var meta InjectionMeta
+	if err := json.Unmarshal([]byte(config), &meta); err != nil {
+		return nil, fmt.Errorf("config unmarshal error: %w", err)
+	}
+	return &meta, nil
 }
