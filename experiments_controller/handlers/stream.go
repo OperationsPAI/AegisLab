@@ -40,11 +40,11 @@ func StreamTask(c *gin.Context) {
 	if err := database.DB.Where("tasks.id = ?", req.TaskID).First(&task).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			message := "Task not found"
-			logEntry.WithError(err).Error(message)
+			logEntry.Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusNotFound, message)
 		} else {
 			message := "Failed to retrieve task of injection"
-			logEntry.WithError(err).Error(message)
+			logEntry.Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		}
 
@@ -64,7 +64,7 @@ func StreamTask(c *gin.Context) {
 		var payload dto.InjectionPayload
 		if err := json.Unmarshal([]byte(task.Payload), &payload); err != nil {
 			message := "Failed to unmarshal payload of injection record"
-			logEntry.WithError(err).Error(message)
+			logEntry.Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
 		}

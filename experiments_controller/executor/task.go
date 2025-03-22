@@ -106,7 +106,7 @@ func SubmitTask(ctx context.Context, task *UnifiedTask) (string, string, error) 
 		GroupID:     task.GroupID,
 	}
 	if err := database.DB.Create(&t).Error; err != nil {
-		logrus.Errorf("Failed to save task to database, err: %v", err)
+		logrus.Errorf("failed to save task to database, err: %v", err)
 		return "", "", err
 	}
 
@@ -202,27 +202,27 @@ func ProcessDelayedTasks(ctx context.Context) {
 	).StringSlice()
 
 	if err != nil && err != redis.Nil {
-		logrus.Errorf("Scheduler error: %v", err)
+		logrus.Errorf("scheduler error: %v", err)
 		return
 	}
 
 	for _, taskData := range result {
 		var task UnifiedTask
 		if err := json.Unmarshal([]byte(taskData), &task); err != nil {
-			logrus.WithError(err).Warn("Failed to parse task")
+			logrus.Warnf("failed to parse task: %v", err)
 			continue
 		}
 
 		if task.CronExpr != "" {
 			nextTime, err := cronNextTime(task.CronExpr)
 			if err != nil {
-				logrus.WithError(err).Warn("Invalid cron expr")
+				logrus.Warnf("invalid cron expr: %v", err)
 				handleCronRescheduleFailure(ctx, &task)
 				continue
 			}
 			task.ExecuteTime = nextTime.Unix()
 			if err := submitDelayedTask(ctx, &task); err != nil {
-				logrus.Errorf("Failed to reschedule cron task %s: %v", task.TaskID, err)
+				logrus.Errorf("failed to reschedule cron task %s: %v", task.TaskID, err)
 				handleCronRescheduleFailure(ctx, &task)
 			}
 		}
@@ -241,7 +241,7 @@ func handleCronRescheduleFailure(ctx context.Context, task *UnifiedTask) {
 func ConsumeTasks() {
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Errorf("Consumer panic: %v", r)
+			logrus.Errorf("consumer panic: %v", r)
 		}
 	}()
 	logrus.Info("start consume tasks")
@@ -274,13 +274,13 @@ func processTask(ctx context.Context, taskData string) {
 	defer releaseConcurrencyLock(ctx)
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Errorf("Task panic: %v\n%s", r, debug.Stack())
+			logrus.Errorf("task panic: %v\n%s", r, debug.Stack())
 		}
 	}()
 
 	var task UnifiedTask
 	if err := json.Unmarshal([]byte(taskData), &task); err != nil {
-		logrus.WithError(err).Warn("Invalid task data")
+		logrus.Warnf("invalid task data: %v", err)
 		return
 	}
 	logrus.Infof("Dealing with task %s, type: %s, groupID: %s", task.TaskID, task.Type, task.GroupID)
@@ -360,7 +360,7 @@ func handleFinalFailure(ctx context.Context, task *UnifiedTask) {
 		Score:  float64(deadLetterTime),
 		Member: taskData,
 	})
-	logrus.WithField("task_id", task.TaskID).Errorf("Failed after %d attempts", task.RetryPolicy.MaxAttempts)
+	logrus.WithField("task_id", task.TaskID).Errorf("failed after %d attempts", task.RetryPolicy.MaxAttempts)
 }
 
 // 分布式并发控制
@@ -376,7 +376,7 @@ func acquireConcurrencyLock(ctx context.Context) bool {
 func releaseConcurrencyLock(ctx context.Context) {
 	redisCli := client.GetRedisClient()
 	if err := redisCli.Decr(ctx, ConcurrencyLockKey).Err(); err != nil {
-		logrus.WithError(err).Warn("Error releasing concurrency lock")
+		logrus.Warnf("error releasing concurrency lock: %v", err)
 	}
 }
 
@@ -432,7 +432,7 @@ func removeFromZSet(ctx context.Context, cli *redis.Client, key, taskID string) 
 		var t UnifiedTask
 		if json.Unmarshal([]byte(member), &t) == nil && t.TaskID == taskID {
 			if err := cli.ZRem(ctx, key, member).Err(); err != nil {
-				logrus.WithError(err).Warn("Failed to remove from ZSet")
+				logrus.Warnf("failed to remove from ZSet: %v", err)
 				return false
 			}
 			return true
@@ -493,7 +493,7 @@ func addDatasetIndex(taskID, name string) {
 	pipe.HSet(ctx, TaskDatasetIndexKey, name, taskID)
 
 	if _, err := pipe.Exec(ctx); err != nil {
-		logrus.WithField("dataset", name).WithField("task_id", taskID).Error("Failed to build index")
+		logrus.WithField("dataset", name).WithField("task_id", taskID).Error("failed to build index")
 		return
 	}
 }
@@ -504,7 +504,7 @@ func checkDatasetIndex(name string) string {
 
 	taskID, err := redisCli.HGet(ctx, TaskDatasetIndexKey, name).Result()
 	if err != nil {
-		logrus.WithField("dataset", name).Errorf("The name is not in dataset index: %v", err)
+		logrus.WithField("dataset", name).Errorf("the name is not in dataset index: %v", err)
 	}
 
 	return taskID
@@ -518,14 +518,14 @@ func addTaskMeta(taskID string, values ...any) {
 	pipe.HSet(ctx, fmt.Sprintf(MetaKey, taskID), values...)
 
 	if _, err := pipe.Exec(ctx); err != nil {
-		logrus.WithField("task_id", taskID).Errorf("Failed to store task meta: %v", err)
+		logrus.WithField("task_id", taskID).Errorf("failed to store task meta: %v", err)
 		return
 	}
 }
 
 func getTaskMeta(taskID string) (*TaskMeta, error) {
 	if taskID == "" {
-		message := "The task_id can not be blank"
+		message := "the task_id can not be blank"
 		logrus.Error(message)
 		return nil, fmt.Errorf(message)
 	}
@@ -535,12 +535,12 @@ func getTaskMeta(taskID string) (*TaskMeta, error) {
 
 	result, err := redisCli.HGetAll(ctx, fmt.Sprintf(MetaKey, taskID)).Result()
 	if err != nil {
-		logrus.WithField("task_id", taskID).Errorf("Failed to read metadata: %v", err)
+		logrus.WithField("task_id", taskID).Errorf("failed to read metadata: %v", err)
 		return nil, err
 	}
 
 	if len(result) == 0 {
-		message := "Task metadata does not exist"
+		message := "task metadata does not exist"
 		logrus.WithField("task_id", taskID).Warn(message)
 		return nil, fmt.Errorf(message)
 	}
@@ -552,12 +552,12 @@ func getTaskMeta(taskID string) (*TaskMeta, error) {
 		WeaklyTypedInput: true, // 启用弱类型转换
 	})
 	if err != nil {
-		logrus.WithField("task_id", taskID).Errorf("Failed to create decoder: %v", err)
+		logrus.WithField("task_id", taskID).Errorf("failed to create decoder: %v", err)
 		return nil, err
 	}
 
 	if err := decoder.Decode(result); err != nil {
-		logrus.WithField("task_id", taskID).Errorf("Failed to parse metadata: %v", err)
+		logrus.WithField("task_id", taskID).Errorf("failed to parse metadata: %v", err)
 		return nil, err
 	}
 
@@ -584,7 +584,7 @@ func updateTaskStatus(taskID, traceID, message string, payload map[string]any) {
 
 	pipe.RPush(ctx, fmt.Sprintf(LogKey, taskID), fmt.Sprintf(LogFormat, rdbMsg.Status, message))
 	if _, err := pipe.Exec(ctx); err != nil {
-		logrus.WithField("task_id", taskID).WithError(err).Error("Failed to update task status")
+		logrus.WithField("task_id", taskID).Errorf("failed to update task status: %v", err)
 		return
 	}
 
@@ -600,7 +600,7 @@ func updateTaskStatus(taskID, traceID, message string, payload map[string]any) {
 
 	msg, err := json.Marshal(payload)
 	if err != nil {
-		logrus.WithField("task_id", taskID).WithError(err).Error("Failed to marshal payload")
+		logrus.WithField("task_id", taskID).Errorf("failed to marshal payload: %v", err)
 		return
 	}
 

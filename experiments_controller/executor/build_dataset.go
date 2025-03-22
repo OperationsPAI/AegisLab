@@ -100,7 +100,7 @@ func parseDatasetPayload(payload map[string]any) (*DatasetMeta, error) {
 
 		startTime, endTime, err = checkExecutionTime(faultRecord.InjectionName, injectionMeta.Namespace)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to checkExecutionTime for dataset %s: %v", datasetName, err)
+			return nil, fmt.Errorf("failed to checkExecutionTime for dataset %s: %v", datasetName, err)
 		}
 	}
 
@@ -152,16 +152,16 @@ func createDatasetJob(ctx context.Context, datasetName, jobName, jobNamespace, i
 	})
 }
 
-func checkExecutionTime(datasetName, namespace string) (time.Time, time.Time, error) {
+func checkExecutionTime(dataset, namespace string) (time.Time, time.Time, error) {
 	var startTime, endTime time.Time
 	var err error
-	startTime, endTime, err = chaosCli.QueryCRDByName(namespace, datasetName)
+	startTime, endTime, err = chaosCli.QueryCRDByName(namespace, dataset)
 	if err != nil {
 		return startTime, endTime, fmt.Errorf("Failed to QueryCRDByName: %v", err)
 	}
 
 	if err := database.DB.Model(&database.FaultInjectionSchedule{}).
-		Where("injection_name = ?", datasetName).
+		Where("injection_name = ?", dataset).
 		Updates(map[string]any{
 			"start_time": startTime,
 			"end_time":   endTime,

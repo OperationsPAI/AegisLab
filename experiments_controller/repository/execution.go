@@ -5,7 +5,6 @@ import (
 
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/dto"
-	"github.com/k0kubun/pp/v3"
 )
 
 func GetExecutionRecordsByDatasetID(datasetID int, sortOrder string) ([]dto.ExecutionRecord, error) {
@@ -52,14 +51,10 @@ func GetExecutionRecordsByDatasetID(datasetID int, sortOrder string) ([]dto.Exec
 		}
 	}
 
-	pp.Println(resultMap)
-
 	var results []dto.ExecutionRecord
 	for _, exec := range executions {
 		results = append(results, resultMap[exec.ID])
 	}
-
-	pp.Println(results)
 
 	return results, nil
 }

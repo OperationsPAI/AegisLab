@@ -55,7 +55,7 @@ func SubmitDatasetBuilding(c *gin.Context) {
 			GroupID:   groupID,
 		})
 		if err != nil {
-			message := "Failed to submit task"
+			message := "failed to submit task"
 			logrus.Error(message)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
@@ -91,14 +91,14 @@ func QueryDataset(c *gin.Context) {
 
 	meta, err := executor.ParseInjectionMeta(fiRecord.Config)
 	if err != nil {
-		logEntry.Errorf("Failed to parse injection config: %v", err)
+		logEntry.Errorf("failed to parse injection config: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Invalid injection configuration")
 		return
 	}
 
 	detectorRecord, err := repository.GetDetectorRecordByDatasetID(fiRecord.ID)
 	if err != nil {
-		logEntry.Errorf("Failed to retrieve detector record: %v", err)
+		logEntry.Errorf("failed to retrieve detector record: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load execution data")
 		return
 	}
@@ -161,8 +161,8 @@ func GetDatasetList(c *gin.Context) {
 	// 查询总记录数
 	var total int64
 	if err := db.Raw("SELECT FOUND_ROWS()").Scan(&total).Error; err != nil {
-		message := "Failed to count injection schedules"
-		logrus.WithError(err).Error(message)
+		message := "failed to count injection schedules"
+		logrus.Errorf("%s: %v", message, err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		return
 	}
@@ -170,8 +170,8 @@ func GetDatasetList(c *gin.Context) {
 	// 查询分页数据
 	var records []database.FaultInjectionSchedule
 	if err := db.Select("id, injection_name").Find(&records).Error; err != nil {
-		message := "Failed to retrieve datasets"
-		logrus.WithError(err).Error(message)
+		message := "failed to retrieve datasets"
+		logrus.Errorf("%s: %v", message, err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		return
 	}
@@ -217,8 +217,8 @@ func DownloadDataset(c *gin.Context) {
 		Select("tasks.group_id, fault_injection_schedules.injection_name").
 		Scan(&joinedResults).
 		Error; err != nil {
-		message := "Failed to query datasets"
-		logrus.WithError(err).Error(message)
+		message := "failed to query datasets"
+		logrus.Errorf("%s: %v", message, err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to query datasets")
 		return
 	}
@@ -236,7 +236,7 @@ func DownloadDataset(c *gin.Context) {
 		for _, dataset := range datasets {
 			workDir := filepath.Join(config.GetString("nfs.path"), dataset)
 			if !utils.IsAllowedPath(workDir) {
-				message := "Invalid path access"
+				message := "invalid path access"
 				logrus.WithField("path", workDir).Error(message)
 				dto.ErrorResponse(c, http.StatusForbidden, message)
 				return
@@ -281,8 +281,8 @@ func DownloadDataset(c *gin.Context) {
 			if err != nil {
 				delete(c.Writer.Header(), "Content-Disposition")
 				c.Header("Content-Type", "application/json; charset=utf-8")
-				message := "Failed to packcage"
-				logrus.WithError(err).Error(message)
+				message := "failed to packcage"
+				logrus.Errorf("%s: %v", message, err)
 				dto.ErrorResponse(c, http.StatusInternalServerError, message)
 				return
 			}
@@ -324,8 +324,8 @@ func DeleteDataset(c *gin.Context) {
 		Where("id IN ? AND status != ?", req.IDs, executor.DatesetDeleted).
 		Pluck("id", &existingIDs).
 		Error; err != nil {
-		message := "Failed to query datasets"
-		logrus.WithError(err).Error(message)
+		message := "failed to query datasets"
+		logrus.Errorf("%s: %v", message, err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		return
 	}
@@ -341,8 +341,8 @@ func DeleteDataset(c *gin.Context) {
 		Where("id IN ?", existingIDs).
 		Update("status", executor.DatesetDeleted).
 		Error; err != nil {
-		message := "Failed to delete datasets"
-		logrus.WithError(err).Error(message)
+		message := "failed to delete datasets"
+		logrus.Errorf("%s: %v", message, err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		return
 	}
