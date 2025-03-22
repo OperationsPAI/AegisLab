@@ -9,6 +9,7 @@ import (
 	"time"
 
 	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
+	"github.com/k0kubun/pp/v3"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/CUHK-SE-Group/rcabench/client/k8s"
@@ -22,6 +23,7 @@ type DatasetPayload struct {
 	Benchmark   string     `json:"benchmark"`
 	DatasetName string     `json:"dataset"`
 	Namespace   string     `json:"namespace"`
+	PreDuration int        `json:"pre_duration"`
 	Service     string     `json:"service"`
 	StartTime   *time.Time `json:"start_time,omitempty"`
 	EndTime     *time.Time `json:"end_time,omitempty"`
@@ -44,6 +46,13 @@ func parseDatasetPayload(payload map[string]any) (*DatasetPayload, error) {
 	if !ok || namespace == "" {
 		return nil, fmt.Errorf(message, BuildNamespace)
 	}
+
+	pp.Println(payload)
+	preDurationFloat, ok := payload[BuildPreDuration].(float64)
+	if !ok || preDurationFloat <= 0 {
+		return nil, fmt.Errorf("invalid or missing '%s' in payload", BuildPreDuration)
+	}
+	preDuration := int(preDurationFloat)
 
 	service, ok := payload[BuildService].(string)
 	if !ok || namespace == "" {
@@ -74,6 +83,7 @@ func parseDatasetPayload(payload map[string]any) (*DatasetPayload, error) {
 		Benchmark:   benchmark,
 		DatasetName: datasetName,
 		Namespace:   namespace,
+		PreDuration: preDuration,
 		Service:     service,
 		StartTime:   startTime,
 		EndTime:     endTime,
@@ -91,7 +101,7 @@ func createDatasetJob(ctx context.Context, datasetName, jobName, jobNamespace, i
 		tz = "Asia/Shanghai"
 	}
 	envVars := []corev1.EnvVar{
-		{Name: "NORMAL_START", Value: strconv.FormatInt(jobEnv.StartTime.Add(-time.Duration(config.GetInt("injection.interval"))*time.Minute).Unix(), 10)},
+		{Name: "NORMAL_START", Value: strconv.FormatInt(jobEnv.StartTime.Add(-time.Duration(jobEnv.PreDuration)*time.Minute).Unix(), 10)},
 		{Name: "NORMAL_END", Value: strconv.FormatInt(jobEnv.StartTime.Unix(), 10)},
 		{Name: "ABNORMAL_START", Value: strconv.FormatInt(jobEnv.StartTime.Unix(), 10)},
 		{Name: "ABNORMAL_END", Value: strconv.FormatInt(jobEnv.EndTime.Unix(), 10)},
@@ -183,10 +193,11 @@ func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
 		LabelEndTime:   strconv.FormatInt(endTime.Unix(), 10),
 	}
 	jobEnv := &k8s.JobEnv{
-		Namespace: datasetPayload.Namespace,
-		Service:   datasetPayload.Service,
-		StartTime: startTime,
-		EndTime:   endTime,
+		Namespace:   datasetPayload.Namespace,
+		Service:     datasetPayload.Service,
+		PreDuration: datasetPayload.PreDuration,
+		StartTime:   startTime,
+		EndTime:     endTime,
 	}
 
 	return createDatasetJob(ctx, datasetName, jobName, config.GetString("k8s.namespace"), image, []string{"python", "prepare_inputs.py"}, labels, jobEnv)

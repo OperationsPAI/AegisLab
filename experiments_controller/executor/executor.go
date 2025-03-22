@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/k0kubun/pp/v3"
 	"github.com/sirupsen/logrus"
 )
 
@@ -109,22 +110,15 @@ func (e *Executor) HandleCRDUpdate(namespace, pod, name string) {
 		return
 	}
 
-	benchmark := getTaskMeta(taskID, MetaBenchmark)
-	if benchmark == "" {
+	meta, err := getTaskMeta(taskID)
+	if err != nil {
+		logrus.Errorf("Failed to obtain task metadata")
 		return
 	}
 
-	traceID := getTaskMeta(taskID, MetaTraceID)
-	if traceID == "" {
-		return
-	}
+	pp.Println(meta)
 
-	groupID := getTaskMeta(taskID, MetaGroupID)
-	if groupID == "" {
-		return
-	}
-
-	updateTaskStatus(taskID, traceID,
+	updateTaskStatus(taskID, meta.TraceID,
 		fmt.Sprintf(TaskMsgCompleted, taskID),
 		map[string]any{
 			RdbMsgStatus:   TaskStatusCompleted,
@@ -132,26 +126,27 @@ func (e *Executor) HandleCRDUpdate(namespace, pod, name string) {
 		})
 
 	startTime, endTime, err := checkExecutionTime(name, namespace)
-	logrus.Infof("checkExecutionTime for dataset %s, startTime: %v, endTime: %v", name, startTime, endTime)
+	logrus.Infof("Check execution time for dataset %s, startTime: %v, endTime: %v", name, startTime, endTime)
 	if err != nil {
-		logrus.Errorf("Failed to checkExecutionTime for dataset %s: %v", name, err)
+		logrus.WithField("dataset", name).Errorf("Failed to check execution time for dataset: %v", err)
 		return
 	}
 
 	datasetPayload := map[string]any{
-		BuildBenchmark: benchmark,
-		BuildDataset:   name,
-		BuildNamespace: namespace,
-		BuildService:   pod,
-		BuildStartTime: &startTime,
-		BuildEndTime:   &endTime,
+		BuildBenchmark:   meta.Benchmark,
+		BuildDataset:     name,
+		BuildNamespace:   namespace,
+		BuildPreDuration: meta.PreDuration,
+		BuildService:     pod,
+		BuildStartTime:   &startTime,
+		BuildEndTime:     &endTime,
 	}
 	if _, _, err := SubmitTask(context.Background(), &UnifiedTask{
 		Type:      TaskTypeBuildDataset,
 		Payload:   datasetPayload,
 		Immediate: true,
-		TraceID:   traceID,
-		GroupID:   groupID,
+		TraceID:   meta.TraceID,
+		GroupID:   meta.GroupID,
 	}); err != nil {
 		logrus.Error(err)
 		return
