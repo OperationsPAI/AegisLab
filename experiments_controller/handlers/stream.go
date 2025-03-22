@@ -61,7 +61,7 @@ func StreamTask(c *gin.Context) {
 	case executor.TaskTypeRunAlgorithm:
 		expectedTaskType = executor.TaskTypeCollectResult
 	case executor.TaskTypeFaultInjection:
-		var payload executor.FaultInjectionPayload
+		var payload dto.InjectionPayload
 		if err := json.Unmarshal([]byte(task.Payload), &payload); err != nil {
 			message := "Failed to unmarshal payload of injection record"
 			logEntry.WithError(err).Error(message)
@@ -69,7 +69,7 @@ func StreamTask(c *gin.Context) {
 			return
 		}
 
-		if payload.Benchmark != nil {
+		if payload.Benchmark != "" {
 			expectedTaskType = executor.TaskTypeBuildDataset
 		}
 	}

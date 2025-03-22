@@ -10,23 +10,31 @@ import (
 	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 )
+
+type ResouceType string
 
 const (
 	jobKind      = "Job"
 	resyncPeriod = 10 * time.Second
+
+	CRDResourceType ResouceType = "CRD"
+	JobResourceType ResouceType = "Job"
 )
 
 type JobEnv struct {
@@ -41,13 +49,21 @@ type Callback interface {
 	HandleCRDUpdate(namespace, pod, name string)
 	HandleJobAdd(labels map[string]string)
 	HandleJobUpdate(labels map[string]string, status string)
-	HandlePodUpdate()
+}
+
+type QueueItem struct {
+	Type      ResouceType
+	Namespace string
+	Name      string
+	GVR       *schema.GroupVersionResource
 }
 
 type Controller struct {
 	crdInformers map[schema.GroupVersionResource]cache.SharedIndexInformer
 	jobInformer  cache.SharedIndexInformer
 	podInformer  cache.SharedIndexInformer
+
+	queue workqueue.TypedRateLimitingInterface[QueueItem]
 }
 
 func NewController(restConfig *rest.Config) *Controller {
@@ -75,88 +91,135 @@ func NewController(restConfig *rest.Config) *Controller {
 		crdInformers[gvr] = chaosFactory.ForResource(gvr).Informer()
 	}
 
+	queue := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[QueueItem]())
+
 	return &Controller{
 		crdInformers: crdInformers,
 		jobInformer:  factory.Batch().V1().Jobs().Informer(),
 		podInformer:  factory.Core().V1().Pods().Informer(),
+		queue:        queue,
 	}
 }
 
-func (c *Controller) initEventHandlers(callback Callback) {
-	for gvr, informer := range c.crdInformers {
-		informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj any) {
-				u := obj.(*unstructured.Unstructured)
-				if isTargetNamespace(u.GetNamespace()) {
-					logrus.WithFields(logrus.Fields{
-						"type":      gvr.Resource,
-						"namespace": u.GetNamespace(),
-						"name":      u.GetName(),
-					}).Info("Chaos experiment created successfully")
-				}
-			},
-			UpdateFunc: func(oldObj, newObj any) {
-				oldU := oldObj.(*unstructured.Unstructured)
-				newU := newObj.(*unstructured.Unstructured)
+func (c *Controller) Run(ctx context.Context, callback Callback) {
+	defer runtime.HandleCrash()
+	defer c.queue.ShutDown()
 
-				if callback != nil && oldU.GetName() == newU.GetName() && isTargetNamespace(newU.GetNamespace()) {
-					logEntry := logrus.WithFields(logrus.Fields{
-						"type":      gvr.Resource,
-						"namespace": newU.GetNamespace(),
-						"name":      newU.GetName(),
-					})
+	c.registerEventHandlers(callback)
 
-					oldConditions, _, _ := unstructured.NestedSlice(oldU.Object, "status", "conditions")
-					newConditions, _, _ := unstructured.NestedSlice(newU.Object, "status", "conditions")
+	logrus.Info("Starting informer controller")
+	for _, informer := range c.crdInformers {
+		go informer.Run(ctx.Done())
+	}
+	go c.jobInformer.Run(ctx.Done())
+	go c.podInformer.Run(ctx.Done())
 
-					// 解析关键条件状态
-					oldAllInjected := getCRDConditionStatus(oldConditions, "AllInjected")
-					oldAllRecovered := getCRDConditionStatus(oldConditions, "AllRecovered")
-
-					newAllInjected := getCRDConditionStatus(newConditions, "AllInjected")
-					newAllRecovered := getCRDConditionStatus(newConditions, "AllRecovered")
-
-					if !oldAllInjected && newAllInjected {
-						logEntry.Infof("All targets injected in chaos experiment")
-					}
-
-					if !oldAllRecovered && newAllRecovered {
-						logEntry.Infof("All targets recoverd in chaos experiment")
-
-						kind := newU.GetKind()
-						pod, _, _ := unstructured.NestedString(newU.Object, "spec", "selector", "labelSelectors", "app")
-
-						chaosGVRMapping := make(map[string]schema.GroupVersionResource)
-						for gvr, obj := range chaosCli.GetCRDMapping() {
-							chaosGVRMapping[utils.GetTypeName(obj)] = gvr
-						}
-
-						gvr, ok := chaosGVRMapping[kind]
-						if !ok {
-							logEntry.Error("The gvr resource can not be found")
-						}
-
-						callback.HandleCRDUpdate(newU.GetNamespace(), pod, newU.GetName())
-						if err := DeleteCRD(context.Background(), gvr, newU.GetNamespace(), newU.GetName()); err != nil {
-							logEntry.Errorf("Failed to delete CRD: %v", err)
-						}
-					}
-				}
-			},
-			DeleteFunc: func(obj any) {
-				u := obj.(*unstructured.Unstructured)
-				if isTargetNamespace(u.GetNamespace()) {
-					logrus.WithFields(logrus.Fields{
-						"type":      gvr.Resource,
-						"namespace": u.GetNamespace(),
-						"name":      u.GetName(),
-					}).Info("Chaos experiment deleted successfully")
-				}
-			},
-		})
+	allSyncs := []cache.InformerSynced{c.jobInformer.HasSynced, c.podInformer.HasSynced}
+	for _, informer := range c.crdInformers {
+		allSyncs = append(allSyncs, informer.HasSynced)
 	}
 
-	c.jobInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if !cache.WaitForCacheSync(ctx.Done(), allSyncs...) {
+		message := "Timed out waiting for caches to sync"
+		runtime.HandleError(fmt.Errorf(message))
+		logrus.Error(message)
+		return
+	}
+
+	go wait.Until(c.runWorker, time.Second, ctx.Done())
+
+	<-ctx.Done()
+	logrus.Info("Stopping informer controller...")
+}
+
+func (c *Controller) registerEventHandlers(callback Callback) {
+	for gvr, informer := range c.crdInformers {
+		informer.AddEventHandler(c.genCRDEventHandlerFuncs(gvr, callback))
+	}
+
+	c.jobInformer.AddEventHandler(c.genJobEventHandlerFuncs(callback))
+
+	c.podInformer.AddEventHandler(c.genPodEventHandlerFuncs())
+}
+
+func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, callback Callback) cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {
+			u := obj.(*unstructured.Unstructured)
+			if isTargetNamespace(u.GetNamespace()) {
+				logrus.WithFields(logrus.Fields{
+					"type":      gvr.Resource,
+					"namespace": u.GetNamespace(),
+					"name":      u.GetName(),
+				}).Info("Chaos experiment created successfully")
+			}
+		},
+		UpdateFunc: func(oldObj, newObj any) {
+			oldU := oldObj.(*unstructured.Unstructured)
+			newU := newObj.(*unstructured.Unstructured)
+
+			if callback != nil && oldU.GetName() == newU.GetName() && isTargetNamespace(newU.GetNamespace()) {
+				logEntry := logrus.WithFields(logrus.Fields{
+					"type":      gvr.Resource,
+					"namespace": newU.GetNamespace(),
+					"name":      newU.GetName(),
+				})
+
+				oldConditions, _, _ := unstructured.NestedSlice(oldU.Object, "status", "conditions")
+				newConditions, _, _ := unstructured.NestedSlice(newU.Object, "status", "conditions")
+
+				// 解析关键条件状态
+				oldAllInjected := getCRDConditionStatus(oldConditions, "AllInjected")
+				oldAllRecovered := getCRDConditionStatus(oldConditions, "AllRecovered")
+
+				newAllInjected := getCRDConditionStatus(newConditions, "AllInjected")
+				newAllRecovered := getCRDConditionStatus(newConditions, "AllRecovered")
+
+				if !oldAllInjected && newAllInjected {
+					logEntry.Infof("All targets injected in chaos experiment")
+				}
+
+				if !oldAllRecovered && newAllRecovered {
+					logEntry.Infof("All targets recoverd in chaos experiment")
+
+					kind := newU.GetKind()
+					pod, _, _ := unstructured.NestedString(newU.Object, "spec", "selector", "labelSelectors", "app")
+
+					chaosGVRMapping := make(map[string]schema.GroupVersionResource)
+					for gvr, obj := range chaosCli.GetCRDMapping() {
+						chaosGVRMapping[utils.GetTypeName(obj)] = gvr
+					}
+
+					gvr, ok := chaosGVRMapping[kind]
+					if !ok {
+						logEntry.Error("The gvr resource can not be found")
+					}
+
+					callback.HandleCRDUpdate(newU.GetNamespace(), pod, newU.GetName())
+					c.queue.Add(QueueItem{
+						Type:      CRDResourceType,
+						Namespace: newU.GetNamespace(),
+						Name:      newU.GetName(),
+						GVR:       &gvr,
+					})
+				}
+			}
+		},
+		DeleteFunc: func(obj any) {
+			u := obj.(*unstructured.Unstructured)
+			if isTargetNamespace(u.GetNamespace()) {
+				logrus.WithFields(logrus.Fields{
+					"type":      gvr.Resource,
+					"namespace": u.GetNamespace(),
+					"name":      u.GetName(),
+				}).Info("Chaos experiment deleted successfully")
+			}
+		},
+	}
+}
+
+func (c *Controller) genJobEventHandlerFuncs(callback Callback) cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
 			job := obj.(*batchv1.Job)
 			logrus.WithField("namespace", job.Namespace).WithField("job_name", job.Name).Info("Job created successfully")
@@ -169,9 +232,11 @@ func (c *Controller) initEventHandlers(callback Callback) {
 			if callback != nil && oldJob.Name == newJob.Name {
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {
 					callback.HandleJobUpdate(newJob.Labels, "Completed")
-					if err := DeleteJob(context.Background(), config.GetString("k8s.namespace"), newJob.Name); err != nil {
-						logrus.WithField("namespace", newJob.Namespace).WithField("job_name", newJob.Name).Errorf("Failed to delete job: %v", err)
-					}
+					c.queue.Add(QueueItem{
+						Type:      JobResourceType,
+						Namespace: newJob.Namespace,
+						Name:      newJob.Name,
+					})
 				}
 
 				if oldJob.Status.Failed == 0 && newJob.Status.Failed > 0 {
@@ -183,9 +248,11 @@ func (c *Controller) initEventHandlers(callback Callback) {
 			job := obj.(*batchv1.Job)
 			logrus.WithField("namespace", job.Namespace).WithField("job_name", job.Name).Infof("Job deleted successfully")
 		},
-	})
+	}
+}
 
-	c.podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+func (c *Controller) genPodEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj any) {
 			newPod := newObj.(*corev1.Pod)
 
@@ -223,35 +290,51 @@ func (c *Controller) initEventHandlers(callback Callback) {
 			pod := obj.(*corev1.Pod)
 			logrus.WithField("namespace", pod.Namespace).WithField("pod_name", pod.Name).Infof("Pod deleted successfully")
 		},
-	})
+	}
 }
 
-func (c *Controller) Run(ctx context.Context, callback Callback) {
-	defer runtime.HandleCrash()
-
-	c.initEventHandlers(callback)
-
-	logrus.Info("Starting informer controller")
-	for _, informer := range c.crdInformers {
-		go informer.Run(ctx.Done())
+func (c *Controller) runWorker() {
+	for c.processQueueItem() {
 	}
-	go c.jobInformer.Run(ctx.Done())
-	go c.podInformer.Run(ctx.Done())
+}
 
-	allSyncs := []cache.InformerSynced{c.jobInformer.HasSynced, c.podInformer.HasSynced}
-	for _, informer := range c.crdInformers {
-		allSyncs = append(allSyncs, informer.HasSynced)
+func (c *Controller) processQueueItem() bool {
+	item, quit := c.queue.Get()
+	if quit {
+		return false
 	}
 
-	if !cache.WaitForCacheSync(ctx.Done(), allSyncs...) {
-		message := "Timed out waiting for caches to sync"
-		runtime.HandleError(fmt.Errorf(message))
-		logrus.Error(message)
-		return
+	defer c.queue.Done(item)
+
+	var err error
+	switch item.Type {
+	case CRDResourceType:
+		if item.GVR == nil {
+			logrus.Error("The groupVersionResource can not be nil")
+			c.queue.Forget(item)
+			return true
+		}
+		err = DeleteCRD(context.Background(), *item.GVR, item.Namespace, item.Name)
+	case JobResourceType:
+		err = DeleteJob(context.Background(), item.Namespace, item.Name)
+	default:
+		logrus.Errorf("Unknown resource type: %s", item.Type)
+		return true
 	}
 
-	<-ctx.Done()
-	logrus.Info("Stopping informer controller...")
+	if err != nil {
+		if errors.IsNotFound(err) {
+			logrus.Warnf("%s already deleted: %v", item.Type, err)
+			c.queue.Forget(item)
+			return true
+		}
+		logrus.WithField("namespace", item.Namespace).WithField("name", item.Name).Error(err)
+		c.queue.AddRateLimited(item)
+		return true
+	}
+
+	c.queue.Forget(item)
+	return true
 }
 
 func isTargetNamespace(namespace string) bool {

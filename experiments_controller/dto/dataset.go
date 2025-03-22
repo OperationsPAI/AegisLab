@@ -1,6 +1,8 @@
 package dto
 
 import (
+	"time"
+
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/executor"
 )
@@ -20,6 +22,16 @@ type DatasetItem struct {
 
 type DatasetListReq struct {
 	PaginationReq
+}
+
+type DatasetPayload struct {
+	Benchmark   string     `json:"benchmark"`
+	DatasetName string     `json:"dataset"`
+	Namespace   string     `json:"namespace"`
+	PreDuration int        `json:"pre_duration"`
+	Service     string     `json:"service"`
+	StartTime   *time.Time `json:"start_time,omitempty"`
+	EndTime     *time.Time `json:"end_time,omitempty"`
 }
 
 func ConvertToDatasetItem(f *database.FaultInjectionSchedule) *DatasetItem {

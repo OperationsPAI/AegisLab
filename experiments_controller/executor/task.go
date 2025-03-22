@@ -13,7 +13,6 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
-	"github.com/k0kubun/pp/v3"
 	"github.com/mitchellh/mapstructure"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -545,8 +544,6 @@ func getTaskMeta(taskID string) (*TaskMeta, error) {
 		logrus.WithField("task_id", taskID).Warn(message)
 		return nil, fmt.Errorf(message)
 	}
-
-	pp.Println(result)
 
 	var meta TaskMeta
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{

@@ -16,15 +16,15 @@ type InjectionDetailResp struct {
 }
 
 type InjectionItem struct {
-	ID              int                            `json:"id"`
-	TaskID          string                         `json:"task_id"`
-	FaultType       string                         `json:"fault_type"`
-	Name            string                         `gorm:"column:injection_name" json:"name"`
-	Status          string                         `json:"status"`
-	InjectTime      time.Time                      `gorm:"column:start_time" json:"inject_time"`
-	ProposedEndTime time.Time                      `json:"proposed_end_time"`
-	Duration        int                            `json:"duration"`
-	Payload         executor.FaultInjectionPayload `gorm:"-" json:"payload"`
+	ID              int                    `json:"id"`
+	TaskID          string                 `json:"task_id"`
+	FaultType       string                 `json:"fault_type"`
+	Name            string                 `gorm:"column:injection_name" json:"name"`
+	Status          string                 `json:"status"`
+	InjectTime      time.Time              `gorm:"column:start_time" json:"inject_time"`
+	ProposedEndTime time.Time              `json:"proposed_end_time"`
+	Duration        int                    `json:"duration"`
+	Payload         executor.InjectionMeta `gorm:"-" json:"payload"`
 }
 
 type InjectionListReq struct {
@@ -41,8 +41,15 @@ type InjectionParaResp struct {
 }
 
 type InjectionPayload struct {
-	executor.FaultInjectionPayload
+	FaultDuration int            `json:"fault_duration"`
+	FaultType     int            `json:"fault_type"`
+	Namespace     string         `json:"inject_namespace"`
+	Pod           string         `json:"inject_pod"`
+	InjectSpec    map[string]int `json:"spec"`
+
+	Benchmark     string     `json:"benchmark"`
 	ExecutionTime *time.Time `json:"execution_time,omitempty"`
+	PreDuration   int        `json:"pre_duration"`
 }
 
 type timeRange struct {
@@ -89,9 +96,9 @@ func (r *InjectionSubmitReq) CheckConflicts() bool {
 }
 
 type InjectionTask struct {
-	ID        string                         `json:"id"`
-	Type      string                         `json:"type"`
-	Payload   executor.FaultInjectionPayload `json:"payload"`
-	Status    string                         `json:"status"`
-	CreatedAt time.Time                      `json:"created_at"`
+	ID        string           `json:"id"`
+	Type      string           `json:"type"`
+	Payload   InjectionPayload `json:"payload"`
+	Status    string           `json:"status"`
+	CreatedAt time.Time        `json:"created_at"`
 }

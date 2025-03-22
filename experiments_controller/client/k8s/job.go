@@ -10,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -87,14 +88,37 @@ func CreateJob(ctx context.Context, jobConfig JobConfig) error {
 	return nil
 }
 
-func DeleteJob(ctx context.Context, namespace, jobName string) error {
+func DeleteJob(ctx context.Context, namespace, name string) error {
 	deletePolicy := metav1.DeletePropagationBackground
 	deleteOptions := metav1.DeleteOptions{
 		PropagationPolicy: &deletePolicy,
 	}
 
-	if err := k8sClient.BatchV1().Jobs(namespace).Delete(ctx, jobName, deleteOptions); err != nil {
-		return err
+	logEntry := logrus.WithField("namespace", namespace).WithField("name", name)
+
+	// 1. 先检查 Job 是否存在及状态
+	job, err := k8sClient.BatchV1().Jobs(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("Failed to get Job: %v", err)
+	}
+
+	// 2. 检查是否已在删除中
+	if !job.GetDeletionTimestamp().IsZero() {
+		logEntry.Info("Job is already being deleted")
+		return nil
+	}
+
+	// 3. 执行删除（幂等操作）
+	err = k8sClient.BatchV1().Jobs(namespace).Delete(ctx, name, deleteOptions)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+
+		return fmt.Errorf("Failed to delete Job: %v", err)
 	}
 
 	return nil
