@@ -1,6 +1,12 @@
 package repository
 
-import "github.com/CUHK-SE-Group/rcabench/database"
+import (
+	"fmt"
+	"time"
+
+	"github.com/CUHK-SE-Group/rcabench/consts"
+	"github.com/CUHK-SE-Group/rcabench/database"
+)
 
 func GetInjectionRecordByDataset(name string) (*database.FaultInjectionSchedule, error) {
 	var record database.FaultInjectionSchedule
@@ -9,5 +15,42 @@ func GetInjectionRecordByDataset(name string) (*database.FaultInjectionSchedule,
 		Where("injection_name = ? AND status = ?", name, 1).
 		First(&record).
 		Error
+
 	return &record, err
+}
+
+func UpdateStatusByDataset(name string, status int) error {
+	return updateRecord(name, map[string]interface{}{
+		"status": status,
+	})
+}
+
+func UpdateTimeByDataset(name string, startTime, endTime time.Time) error {
+	return updateRecord(name, map[string]interface{}{
+		"start_time": startTime,
+		"end_time":   endTime,
+		"status":     consts.DatasetInjectSuccess,
+	})
+}
+
+func updateRecord(name string, updates map[string]interface{}) error {
+	if len(updates) == 0 {
+		return fmt.Errorf("empty update fields")
+	}
+
+	var record database.FaultInjectionSchedule
+	result := database.DB.
+		Model(&record).
+		Where("injection_name = ?", name).
+		Updates(updates)
+
+	if result.Error != nil {
+		return fmt.Errorf("failed to update record: %v", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("no records updated")
+	}
+
+	return nil
 }

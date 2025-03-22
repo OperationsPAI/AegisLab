@@ -9,6 +9,7 @@ import (
 
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
@@ -49,7 +50,7 @@ func SubmitDatasetBuilding(c *gin.Context) {
 	var traces []dto.Trace
 	for _, payload := range payloads {
 		taskID, traceID, err := executor.SubmitTask(c.Request.Context(), &executor.UnifiedTask{
-			Type:      executor.TaskTypeBuildDataset,
+			Type:      consts.TaskTypeBuildDataset,
 			Payload:   utils.StructToMap(payload),
 			Immediate: true,
 			GroupID:   groupID,
@@ -152,7 +153,9 @@ func GetDatasetList(c *gin.Context) {
 	pageNum := *req.PageNum
 	pageSize := *req.PageSize
 
-	db := database.DB.Model(&database.FaultInjectionSchedule{}).Where("status = ?", executor.DatasetSuccess)
+	db := database.DB.
+		Model(&database.FaultInjectionSchedule{}).
+		Where("status = ?", consts.DatasetBuildSuccess)
 	db.Scopes(
 		database.Sort("created_at desc"),
 		database.Paginate(pageNum, pageSize),
@@ -213,7 +216,7 @@ func DownloadDataset(c *gin.Context) {
 	if err := database.DB.
 		Model(&database.FaultInjectionSchedule{}).
 		Joins("JOIN tasks ON tasks.id = fault_injection_schedules.task_id").
-		Where("tasks.group_id IN ? AND fault_injection_schedules.status = ?", req.GroupIDs, executor.DatasetSuccess).
+		Where("tasks.group_id IN ? AND fault_injection_schedules.status = ?", req.GroupIDs, consts.DatasetBuildSuccess).
 		Select("tasks.group_id, fault_injection_schedules.injection_name").
 		Scan(&joinedResults).
 		Error; err != nil {
@@ -321,7 +324,7 @@ func DeleteDataset(c *gin.Context) {
 	if err := database.DB.
 		Model(&database.FaultInjectionSchedule{}).
 		Select("id").
-		Where("id IN ? AND status != ?", req.IDs, executor.DatesetDeleted).
+		Where("id IN ? AND status != ?", req.IDs, consts.DatesetDeleted).
 		Pluck("id", &existingIDs).
 		Error; err != nil {
 		message := "failed to query datasets"
@@ -339,7 +342,7 @@ func DeleteDataset(c *gin.Context) {
 	if err := database.DB.
 		Model(&database.FaultInjectionSchedule{}).
 		Where("id IN ?", existingIDs).
-		Update("status", executor.DatesetDeleted).
+		Update("status", consts.DatesetDeleted).
 		Error; err != nil {
 		message := "failed to delete datasets"
 		logrus.Errorf("%s: %v", message, err)

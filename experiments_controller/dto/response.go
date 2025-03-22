@@ -70,7 +70,7 @@ func SuccessResponse[T any](c *gin.Context, data T) {
 }
 
 func ErrorResponse(c *gin.Context, code int, message string) {
-	c.JSON(http.StatusOK, GenericResponse[any]{
+	c.JSON(code, GenericResponse[any]{
 		Code:    code,
 		Message: message,
 	})

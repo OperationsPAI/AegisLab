@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/sirupsen/logrus"
 )
@@ -29,25 +30,25 @@ type downstreamConfig struct {
 func getInjectionMetaFromPayload(payload map[string]any) (*InjectionMeta, error) {
 	message := "invalid or missing '%s' in payload"
 
-	faultTypeFloat, ok := payload[InjectFaultType].(float64)
+	faultTypeFloat, ok := payload[consts.InjectFaultType].(float64)
 	if !ok || faultTypeFloat <= 0 {
-		return nil, fmt.Errorf(message, InjectFaultType)
+		return nil, fmt.Errorf(message, consts.InjectFaultType)
 	}
 	faultType := int(faultTypeFloat)
 
-	namespace, ok := payload[InjectNamespace].(string)
+	namespace, ok := payload[consts.InjectNamespace].(string)
 	if !ok || namespace == "" {
-		return nil, fmt.Errorf(message, InjectNamespace)
+		return nil, fmt.Errorf(message, consts.InjectNamespace)
 	}
 
-	pod, ok := payload[InjectPod].(string)
+	pod, ok := payload[consts.InjectPod].(string)
 	if !ok || pod == "" {
-		return nil, fmt.Errorf(message, InjectPod)
+		return nil, fmt.Errorf(message, consts.InjectPod)
 	}
 
-	injectSpecMap, ok := payload[InjectSpec].(map[string]any)
+	injectSpecMap, ok := payload[consts.InjectSpec].(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf(message, InjectSpec)
+		return nil, fmt.Errorf(message, consts.InjectSpec)
 	}
 	injectSpec := make(map[string]int)
 	for k, v := range injectSpecMap {
@@ -58,9 +59,9 @@ func getInjectionMetaFromPayload(payload map[string]any) (*InjectionMeta, error)
 		injectSpec[k] = int(floatVal)
 	}
 
-	durationFloat, ok := payload[InjectFaultDuration].(float64)
+	durationFloat, ok := payload[consts.InjectFaultDuration].(float64)
 	if !ok || durationFloat <= 0 {
-		return nil, fmt.Errorf(message, InjectFaultDuration)
+		return nil, fmt.Errorf(message, consts.InjectFaultDuration)
 	}
 	duration := int(durationFloat)
 
@@ -77,17 +78,17 @@ func getDownstreamConfig(payload map[string]any) (*downstreamConfig, error) {
 	message := "invalid or missing '%s' in payload"
 
 	var benchmark string
-	if _, exists := payload[InjectBenchmark]; !exists {
+	if _, exists := payload[consts.InjectBenchmark]; !exists {
 		return nil, nil
 	}
-	benchmark, ok := payload[InjectBenchmark].(string)
+	benchmark, ok := payload[consts.InjectBenchmark].(string)
 	if !ok {
-		return nil, fmt.Errorf(message, InjectBenchmark)
+		return nil, fmt.Errorf(message, consts.InjectBenchmark)
 	}
 
-	preDurationFloat, ok := payload[InjectPreDuration].(float64)
+	preDurationFloat, ok := payload[consts.InjectPreDuration].(float64)
 	if !ok || preDurationFloat <= 0 {
-		return nil, fmt.Errorf(message, InjectFaultDuration)
+		return nil, fmt.Errorf(message, consts.InjectFaultDuration)
 	}
 	preDuration := int(preDurationFloat)
 
@@ -146,8 +147,8 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	updateTaskStatus(task.TaskID, task.TraceID,
 		fmt.Sprintf("Executing fault injection for task %s", task.TaskID),
 		map[string]any{
-			RdbMsgStatus:   TaskStatusRunning,
-			RdbMsgTaskType: TaskTypeFaultInjection,
+			consts.RdbMsgStatus:   consts.TaskStatusRunning,
+			consts.RdbMsgTaskType: consts.TaskTypeFaultInjection,
 		})
 
 	faultRecord := database.FaultInjectionSchedule{
@@ -156,14 +157,14 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		Config:          string(jsonData),
 		Duration:        meta.Duration,
 		Description:     fmt.Sprintf("Fault for task %s", task.TaskID),
-		Status:          DatasetInitial,
+		Status:          consts.DatasetInitial,
 		InjectionName:   name,
 		ProposedEndTime: time.Now().Add(time.Duration(meta.Duration) * time.Minute),
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}
 	if err := database.DB.Create(&faultRecord).Error; err != nil {
-		logrus.Errorf("Failed to write fault injection schedule to database: %v", err)
+		logrus.Errorf("failed to write fault injection schedule to database: %v", err)
 		return fmt.Errorf("failed to write to database: %v", err)
 	}
 
@@ -172,10 +173,10 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	config, err := getDownstreamConfig(task.Payload)
 	if config != nil {
 		addTaskMeta(task.TaskID,
-			MetaBenchmark, config.Benchmark,
-			MetaPreDuration, config.PreDuration,
-			MetaTraceID, task.TraceID,
-			MetaGroupID, task.GroupID,
+			consts.MetaBenchmark, config.Benchmark,
+			consts.MetaPreDuration, config.PreDuration,
+			consts.MetaTraceID, task.TraceID,
+			consts.MetaGroupID, task.GroupID,
 		)
 	}
 

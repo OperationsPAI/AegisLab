@@ -9,6 +9,7 @@ import (
 
 	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	corev1 "k8s.io/api/core/v1"
 
@@ -53,13 +54,13 @@ func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
 	jobName := fmt.Sprintf("%s-%s", meta.Algorithm, meta.DatasetName)
 	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), meta.Algorithm, meta.Tag)
 	labels := map[string]string{
-		LabelTaskID:      task.TaskID,
-		LabelTraceID:     task.TraceID,
-		LabelGroupID:     task.GroupID,
-		LabelTaskType:    string(TaskTypeRunAlgorithm),
-		LabelAlgorithm:   meta.Algorithm,
-		LabelDataset:     meta.DatasetName,
-		LabelExecutionID: fmt.Sprint(executionResult.ID),
+		consts.LabelTaskID:      task.TaskID,
+		consts.LabelTraceID:     task.TraceID,
+		consts.LabelGroupID:     task.GroupID,
+		consts.LabelTaskType:    string(consts.TaskTypeRunAlgorithm),
+		consts.LabelAlgorithm:   meta.Algorithm,
+		consts.LabelDataset:     meta.DatasetName,
+		consts.LabelExecutionID: fmt.Sprint(executionResult.ID),
 	}
 	jobEnv := &k8s.JobEnv{
 		Service:   meta.Service,
@@ -74,29 +75,29 @@ func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
 func getAlgorithmPayloadMeta(payload map[string]any) (*AlgorithmExecutionMeta, error) {
 	message := "missing or invalid '%s' key in payload"
 
-	benchmark, ok := payload[EvalBench].(string)
+	benchmark, ok := payload[consts.EvalBench].(string)
 	if !ok || benchmark == "" {
-		return nil, fmt.Errorf(message, EvalBench)
+		return nil, fmt.Errorf(message, consts.EvalBench)
 	}
 
-	algorithm, ok := payload[EvalAlgo].(string)
+	algorithm, ok := payload[consts.EvalAlgo].(string)
 	if !ok || algorithm == "" {
-		return nil, fmt.Errorf(message, EvalAlgo)
+		return nil, fmt.Errorf(message, consts.EvalAlgo)
 	}
 
-	datasetName, ok := payload[EvalDataset].(string)
+	datasetName, ok := payload[consts.EvalDataset].(string)
 	if !ok || datasetName == "" {
-		return nil, fmt.Errorf(message, EvalDataset)
+		return nil, fmt.Errorf(message, consts.EvalDataset)
 	}
 
-	service, ok := payload[EvalService].(string)
+	service, ok := payload[consts.EvalService].(string)
 	if !ok {
-		return nil, fmt.Errorf(message, EvalService)
+		return nil, fmt.Errorf(message, consts.EvalService)
 	}
 
-	tag, ok := payload[EvalTag].(string)
+	tag, ok := payload[consts.EvalTag].(string)
 	if !ok || tag == "" {
-		return nil, fmt.Errorf(message, EvalTag)
+		return nil, fmt.Errorf(message, consts.EvalTag)
 	}
 
 	return &AlgorithmExecutionMeta{

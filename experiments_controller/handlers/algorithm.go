@@ -9,6 +9,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
 	"github.com/CUHK-SE-Group/rcabench/utils"
@@ -136,7 +137,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 	var traces []dto.Trace
 	for _, payload := range payloads {
 		taskID, traceID, err := executor.SubmitTask(c.Request.Context(), &executor.UnifiedTask{
-			Type:      executor.TaskTypeRunAlgorithm,
+			Type:      consts.TaskTypeRunAlgorithm,
 			Payload:   utils.StructToMap(payload),
 			Immediate: true,
 			GroupID:   groupID,

@@ -11,50 +11,37 @@ import (
 
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/CUHK-SE-Group/rcabench/dto"
 )
 
-type Execution struct {
-	Dataset            database.FaultInjectionSchedule `json:"dataset"`
-	DetectorResult     database.Detector               `json:"detector_result"`
-	ExecutionRecord    database.ExecutionResult        `json:"execution_record"`
-	GranularityResults []database.GranularityResult    `json:"granularity_results"`
-}
-
-type Conclusion struct {
-	Level  string  `json:"level"`  // 例如 service level
-	Metric string  `json:"metric"` // 例如 topk
-	Rate   float64 `json:"rate"`
-}
-
-type EvaluateMetric func([]Execution) ([]*Conclusion, error)
-type ConclusionACatK struct {
+type conclusionACatK struct {
 	Level  string `json:"level"`  // 例如 service level
 	Metric string `json:"metric"` // 例如 topk
 	Hit    []int  `json:"hit"`
 }
 
-type ConclusionPrecisionk struct {
+type conclusionPrecisionk struct {
 	Metric string
 	Level  string
 	Sum    float64
 	Count  int
 }
 
-type ConclusionAvgk struct {
+type conclusionAvgk struct {
 	Metric string
 	Level  string
 	Sum    float64
 	Count  int
 }
 
-type ConclusionMAPk struct {
+type conclusionMAPk struct {
 	Metric string
 	Level  string
 	Sum    float64
 	Count  int
 }
 
-type ConclustionMRR struct {
+type conclustionMRR struct {
 	Metric string
 	Level  string
 	Sum    float64
@@ -62,7 +49,7 @@ type ConclustionMRR struct {
 }
 
 var (
-	metrics   = make(map[string]EvaluateMetric)
+	metrics   = make(map[string]dto.EvaluateMetric)
 	metricsMu sync.RWMutex
 )
 
@@ -75,7 +62,7 @@ func init() {
 }
 
 // 注册新的评估指标
-func RegisterMetric(name string, metric EvaluateMetric) error {
+func RegisterMetric(name string, metric dto.EvaluateMetric) error {
 	if name == "" {
 		return errors.New("metric name cannot be empty")
 	}
@@ -95,17 +82,17 @@ func RegisterMetric(name string, metric EvaluateMetric) error {
 }
 
 // 获取所有已注册的评估指标
-func GetMetrics() map[string]EvaluateMetric {
+func GetMetrics() map[string]dto.EvaluateMetric {
 	metricsMu.RLock()
 	defer metricsMu.RUnlock()
 
-	copiedMetrics := make(map[string]EvaluateMetric, len(metrics))
+	copiedMetrics := make(map[string]dto.EvaluateMetric, len(metrics))
 	maps.Copy(copiedMetrics, metrics)
 	return copiedMetrics
 }
 
 // 解析配置并获取 ground truth 的公共函数
-func parseConfigAndGetGroundTruth(execution Execution) ([]handler.Groudtruth, error) {
+func parseConfigAndGetGroundTruth(execution dto.Execution) ([]handler.Groudtruth, error) {
 	var payload map[string]any
 	if err := json.Unmarshal([]byte(execution.Dataset.Config), &payload); err != nil {
 		return nil, err
@@ -129,16 +116,16 @@ func parseConfigAndGetGroundTruth(execution Execution) ([]handler.Groudtruth, er
 }
 
 // AC@k 评估逻辑
-func accuracyk(executions []Execution) ([]*Conclusion, error) {
+func accuracyk(executions []dto.Execution) ([]*dto.Conclusion, error) {
 	if len(executions) == 0 {
 		return nil, errors.New("execution history is empty")
 	}
 
-	levelGran := make(map[string]map[string]*ConclusionACatK)
+	levelGran := make(map[string]map[string]*conclusionACatK)
 
 	// 初始化级别
 	for _, g := range executions[0].GranularityResults {
-		levelGran[g.Level] = map[string]*ConclusionACatK{
+		levelGran[g.Level] = map[string]*conclusionACatK{
 			"AC@1": {Metric: "AC@1", Level: g.Level},
 			"AC@3": {Metric: "AC@3", Level: g.Level},
 			"AC@5": {Metric: "AC@5", Level: g.Level},
@@ -176,7 +163,7 @@ func accuracyk(executions []Execution) ([]*Conclusion, error) {
 	}
 
 	// 生成评估结果
-	var results []*Conclusion
+	var results []*dto.Conclusion
 	for _, acMap := range levelGran {
 		for _, value := range acMap {
 			hitCount := 0
@@ -192,7 +179,7 @@ func accuracyk(executions []Execution) ([]*Conclusion, error) {
 				rate = float64(hitCount) / float64(len(value.Hit))
 			}
 
-			results = append(results, &Conclusion{
+			results = append(results, &dto.Conclusion{
 				Level:  value.Level,
 				Metric: value.Metric,
 				Rate:   rate,
@@ -204,22 +191,22 @@ func accuracyk(executions []Execution) ([]*Conclusion, error) {
 }
 
 // Precision@k 评估逻辑
-func precisionk(executions []Execution) ([]*Conclusion, error) {
+func precisionk(executions []dto.Execution) ([]*dto.Conclusion, error) {
 	if len(executions) == 0 {
 		return nil, errors.New("execution history is empty")
 	}
 
 	ks := []int{1, 3, 5}
-	levelGran := make(map[string]map[string]*ConclusionPrecisionk)
+	levelGran := make(map[string]map[string]*conclusionPrecisionk)
 
 	// 初始化所有可能的粒度级别和对应的 PR@k
 	for _, execution := range executions {
 		for _, g := range execution.GranularityResults {
 			if _, exists := levelGran[g.Level]; !exists {
-				levelGran[g.Level] = make(map[string]*ConclusionPrecisionk)
+				levelGran[g.Level] = make(map[string]*conclusionPrecisionk)
 				for _, k := range ks {
 					metric := fmt.Sprintf("PR@%d", k)
-					levelGran[g.Level][metric] = &ConclusionPrecisionk{
+					levelGran[g.Level][metric] = &conclusionPrecisionk{
 						Metric: metric,
 						Level:  g.Level,
 						Sum:    0.0,
@@ -301,17 +288,17 @@ func precisionk(executions []Execution) ([]*Conclusion, error) {
 	}
 
 	// 生成评估结果
-	var results []*Conclusion
+	var results []*dto.Conclusion
 	for _, prMap := range levelGran {
 		for _, value := range prMap {
 			if value.Count == 0 {
-				results = append(results, &Conclusion{
+				results = append(results, &dto.Conclusion{
 					Level:  value.Level,
 					Metric: value.Metric,
 					Rate:   0.0, // 或者根据需求设定为其他默认值
 				})
 			} else {
-				results = append(results, &Conclusion{
+				results = append(results, &dto.Conclusion{
 					Level:  value.Level,
 					Metric: value.Metric,
 					Rate:   value.Sum / float64(value.Count),
@@ -324,20 +311,20 @@ func precisionk(executions []Execution) ([]*Conclusion, error) {
 }
 
 // Avg@k 评估逻辑
-func avgk(executions []Execution) ([]*Conclusion, error) {
+func avgk(executions []dto.Execution) ([]*dto.Conclusion, error) {
 	if len(executions) == 0 {
 		return nil, errors.New("execution history is empty")
 	}
 
 	ks := []int{1, 3, 5}
 	K := len(ks)
-	levelGran := make(map[string]*ConclusionAvgk)
+	levelGran := make(map[string]*conclusionAvgk)
 
 	// 初始化所有可能的粒度级别和对应的 Avg@k
 	for _, execution := range executions {
 		for _, g := range execution.GranularityResults {
 			if _, exists := levelGran[g.Level]; !exists {
-				levelGran[g.Level] = &ConclusionAvgk{
+				levelGran[g.Level] = &conclusionAvgk{
 					Metric: "Avg@k",
 					Level:  g.Level,
 					Sum:    0.0,
@@ -419,17 +406,17 @@ func avgk(executions []Execution) ([]*Conclusion, error) {
 	}
 
 	// 生成评估结果
-	var results []*Conclusion
+	var results []*dto.Conclusion
 	for _, value := range levelGran {
 		if value.Count == 0 {
-			results = append(results, &Conclusion{
+			results = append(results, &dto.Conclusion{
 				Level:  value.Level,
 				Metric: value.Metric,
 				Rate:   0.0, // 或者根据需求设定为其他默认值
 			})
 		} else {
 			avgK := value.Sum / float64(value.Count)
-			results = append(results, &Conclusion{
+			results = append(results, &dto.Conclusion{
 				Level:  value.Level,
 				Metric: value.Metric,
 				Rate:   avgK,
@@ -441,20 +428,20 @@ func avgk(executions []Execution) ([]*Conclusion, error) {
 }
 
 // MAP@k 评估逻辑
-func mapk(executions []Execution) ([]*Conclusion, error) {
+func mapk(executions []dto.Execution) ([]*dto.Conclusion, error) {
 	if len(executions) == 0 {
 		return nil, errors.New("execution history is empty")
 	}
 
 	ks := []int{1, 3, 5}
 	K := len(ks)
-	levelGran := make(map[string]*ConclusionMAPk)
+	levelGran := make(map[string]*conclusionMAPk)
 
 	// 初始化所有可能的粒度级别和对应的 MAP@k
 	for _, execution := range executions {
 		for _, g := range execution.GranularityResults {
 			if _, exists := levelGran[g.Level]; !exists {
-				levelGran[g.Level] = &ConclusionMAPk{
+				levelGran[g.Level] = &conclusionMAPk{
 					Metric: "MAP@k",
 					Level:  g.Level,
 					Sum:    0.0,
@@ -528,17 +515,17 @@ func mapk(executions []Execution) ([]*Conclusion, error) {
 	}
 
 	// 生成评估结果
-	var results []*Conclusion
+	var results []*dto.Conclusion
 	for _, value := range levelGran {
 		if value.Count == 0 {
-			results = append(results, &Conclusion{
+			results = append(results, &dto.Conclusion{
 				Level:  value.Level,
 				Metric: value.Metric,
 				Rate:   0.0, // 或者根据需求设定为其他默认值
 			})
 		} else {
 			mapkValue := value.Sum / float64(value.Count)
-			results = append(results, &Conclusion{
+			results = append(results, &dto.Conclusion{
 				Level:  value.Level,
 				Metric: value.Metric,
 				Rate:   mapkValue,
@@ -549,17 +536,17 @@ func mapk(executions []Execution) ([]*Conclusion, error) {
 	return results, nil
 }
 
-func mrr(executions []Execution) ([]*Conclusion, error) {
+func mrr(executions []dto.Execution) ([]*dto.Conclusion, error) {
 	if len(executions) == 0 {
 		return nil, errors.New("execution history is empty")
 	}
 
-	levelGran := make(map[string]*ConclustionMRR)
+	levelGran := make(map[string]*conclustionMRR)
 
 	for _, exexecution := range executions {
 		for _, g := range exexecution.GranularityResults {
 			if _, exists := levelGran[g.Level]; !exists {
-				levelGran[g.Level] = &ConclustionMRR{
+				levelGran[g.Level] = &conclustionMRR{
 					Metric: "MRR",
 					Level:  g.Level,
 					Sum:    0.0,
@@ -618,16 +605,16 @@ func mrr(executions []Execution) ([]*Conclusion, error) {
 	}
 
 	// 生成评估结果
-	var results []*Conclusion
+	var results []*dto.Conclusion
 	for _, value := range levelGran {
 		if value.Count == 0 {
-			results = append(results, &Conclusion{
+			results = append(results, &dto.Conclusion{
 				Level:  value.Level,
 				Metric: value.Metric,
 				Rate:   0.0, // 或者根据需求设定为其他默认值
 			})
 		} else {
-			results = append(results, &Conclusion{
+			results = append(results, &dto.Conclusion{
 				Level:  value.Level,
 				Metric: value.Metric,
 				Rate:   value.Sum / float64(value.Count),

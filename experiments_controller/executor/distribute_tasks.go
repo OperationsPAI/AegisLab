@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime/debug"
 
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/sirupsen/logrus"
 )
 
@@ -18,19 +19,19 @@ func dispatchTask(ctx context.Context, task *UnifiedTask) error {
 
 	var err error
 	switch task.Type {
-	case TaskTypeFaultInjection:
+	case consts.TaskTypeFaultInjection:
 		logrus.Debug("executeFaultInjection")
 		err = executeFaultInjection(ctx, task)
-	case TaskTypeRunAlgorithm:
+	case consts.TaskTypeRunAlgorithm:
 		logrus.Debug("executeAlgorithm")
 		err = executeAlgorithm(ctx, task)
-	case TaskTypeBuildImages:
+	case consts.TaskTypeBuildImages:
 		logrus.Debug("executeBuildImages")
 		err = executeBuildImages(ctx, task)
-	case TaskTypeBuildDataset:
+	case consts.TaskTypeBuildDataset:
 		logrus.Debug("executeBuildDataset")
 		err = executeBuildDataset(ctx, task)
-	case TaskTypeCollectResult:
+	case consts.TaskTypeCollectResult:
 		logrus.Debug("executeCollectResult")
 		err = executeCollectResult(ctx, task)
 	default:
