@@ -103,7 +103,7 @@ func GetEvaluationList(c *gin.Context) {
 			Pluck("execution_id", &req.ExecutionIDs).Error
 		if err != nil {
 			message := "Failed to query distinct execution_ids"
-			logrus.WithError(err).Error(message)
+			logrus.Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
 		}

@@ -120,7 +120,7 @@ func (c *Controller) Run(ctx context.Context, callback Callback) {
 	}
 
 	if !cache.WaitForCacheSync(ctx.Done(), allSyncs...) {
-		message := "Timed out waiting for caches to sync"
+		message := "timed out waiting for caches to sync"
 		runtime.HandleError(fmt.Errorf(message))
 		logrus.Error(message)
 		return
@@ -275,11 +275,16 @@ func (c *Controller) genPodEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 					if checkPodReason(newPod, reason) {
 						job, err := GetJob(context.TODO(), newPod.Namespace, jobOwnerRef.Name)
 						if err != nil {
-							logrus.WithField("job_name", jobOwnerRef.Name).WithError(err)
+							logrus.WithField("job_name", jobOwnerRef.Name).Error(err)
 						}
 
 						if job != nil {
 							handlePodError(newPod, job, reason)
+							c.queue.Add(QueueItem{
+								Type:      JobResourceType,
+								Namespace: job.Namespace,
+								Name:      job.Name,
+							})
 							break
 						}
 					}
@@ -318,7 +323,7 @@ func (c *Controller) processQueueItem() bool {
 	case JobResourceType:
 		err = DeleteJob(context.Background(), item.Namespace, item.Name)
 	default:
-		logrus.Errorf("Unknown resource type: %s", item.Type)
+		logrus.Errorf("unknown resource type: %s", item.Type)
 		return true
 	}
 
@@ -384,7 +389,7 @@ func handlePodError(pod *corev1.Pod, job *batchv1.Job, reason string) {
 		FieldSelector: fmt.Sprintf("involvedObject.name=%s", pod.Name),
 	})
 	if err != nil {
-		logrus.WithField("pod_name", pod.Name).WithError(err).Errorf("Failed to get events for Pod")
+		logrus.WithField("pod_name", pod.Name).Errorf("failed to get events for Pod: %v", err)
 		return
 	}
 
@@ -395,14 +400,9 @@ func handlePodError(pod *corev1.Pod, job *batchv1.Job, reason string) {
 		}
 	}
 
-	fields := logrus.Fields{
+	logrus.WithFields(logrus.Fields{
 		"job_name": job.Name,
 		"pod_name": pod.Name,
 		"reason":   reason,
-	}
-	logrus.WithFields(fields).Error(messages)
-
-	if err := DeleteJob(context.TODO(), job.Namespace, job.Name); err != nil {
-		logrus.WithField("namespace", job.Namespace).WithField("job_name", job.Name).WithError(err).Error("Failed to delete Job")
-	}
+	}).Error(messages)
 }

@@ -71,11 +71,11 @@ func GetInjectionDetail(c *gin.Context) {
 	if err := database.DB.Where("tasks.id = ?", taskReq.TaskID).First(&task).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			message := "Task not found"
-			logEntry.WithError(err).Error(message)
+			logEntry.Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusNotFound, message)
 		} else {
 			message := "Failed to retrieve task of injection"
-			logEntry.WithError(err).Error(message)
+			logEntry.Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		}
 
@@ -105,7 +105,7 @@ func GetInjectionDetail(c *gin.Context) {
 		logs = []string{}
 	} else if err != nil {
 		message := "Failed to retrieve logs"
-		logrus.WithError(err).Error(message)
+		logrus.Errorf("%s: %v", message, err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		return
 	}
@@ -144,7 +144,7 @@ func GetInjectionList(c *gin.Context) {
 	var total int64
 	if err := db.Raw("SELECT FOUND_ROWS()").Scan(&total).Error; err != nil {
 		message := "Failed to count injection schedules"
-		logrus.WithError(err).Error(message)
+		logrus.Errorf("%s: %v", message, err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		return
 	}
@@ -153,7 +153,7 @@ func GetInjectionList(c *gin.Context) {
 	var records []database.FaultInjectionSchedule
 	if err := db.Find(&records).Error; err != nil {
 		message := "Failed to retrieve injections"
-		logrus.WithError(err).Error(message)
+		logrus.Errorf("%s: %v", message, err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		return
 	}
@@ -200,7 +200,7 @@ func GetInjectionParameters(c *gin.Context) {
 		actionSpace, err := chaos.GenerateActionSpace(spec)
 		if err != nil {
 			message := "Failed to generate action space"
-			logrus.WithError(err).Error(message)
+			logrus.Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
 		}
@@ -287,7 +287,7 @@ func GetNamespacePods(c *gin.Context) {
 		labels, err := cli.GetLabels(ns, config.GetString("injection.label"))
 		if err != nil {
 			message := "Failed to get labels"
-			logrus.WithField("namespace", ns).WithError(err).Error(message)
+			logrus.WithField("namespace", ns).Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		}
 		namespaceInfo[ns] = labels

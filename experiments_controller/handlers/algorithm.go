@@ -32,8 +32,8 @@ func GetAlgorithmList(c *gin.Context) {
 	algoPath := filepath.Join(parentDir, "algorithms")
 	algoDirs, err := utils.GetAllSubDirectories(algoPath)
 	if err != nil {
-		message := "Failed to list files"
-		logrus.WithField("algo_path", algoPath).WithError(err).Error(message)
+		message := "failed to list files"
+		logrus.WithField("algo_path", algoPath).Errorf("%s: %v", message, err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		return
 	}
@@ -41,8 +41,8 @@ func GetAlgorithmList(c *gin.Context) {
 	benchPath := filepath.Join(parentDir, "benchmarks")
 	benchDirs, err := utils.GetAllSubDirectories(benchPath)
 	if err != nil {
-		message := "Failed to list files"
-		logrus.WithField("bench_path", benchPath).WithError(err).Error(message)
+		message := "failed to list files"
+		logrus.WithField("bench_path", benchPath).Errorf("%s: %v", message, err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		return
 	}
@@ -54,16 +54,16 @@ func GetAlgorithmList(c *gin.Context) {
 
 		data, err := os.ReadFile(tomlPath)
 		if err != nil {
-			message := "Failed to read toml file"
-			logrus.WithField("toml_path", tomlPath).WithError(err).Error(message)
+			message := "failed to read toml file"
+			logrus.WithField("toml_path", tomlPath).Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
 		}
 
 		var config map[string]any
 		if err := toml.Unmarshal(data, &config); err != nil {
-			message := "Failed to parse toml file"
-			logrus.WithField("toml_path", tomlPath).WithError(err).Error(message)
+			message := "failed to parse toml file"
+			logrus.WithField("toml_path", tomlPath).Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
 		}
@@ -71,8 +71,8 @@ func GetAlgorithmList(c *gin.Context) {
 		field := "name"
 		name, ok := utils.GetTomlString(config, field)
 		if !ok {
-			message := fmt.Sprintf("Missing field in %s", tomlPath)
-			logrus.WithField("field", field).WithError(err).Error(message)
+			message := fmt.Sprintf("missing field in %s", tomlPath)
+			logrus.WithField("field", field).Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
 		}
@@ -125,7 +125,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 			harborConfig.Repo = payloads[i].Algorithm
 			tag, err := utils.GetLatestTag(harborConfig)
 			if err != nil {
-				logrus.WithError(err).Error("Failed to get latest tag")
+				logrus.Errorf("failed to get latest tag: %v", err)
 				return
 			}
 
@@ -142,7 +142,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 			GroupID:   groupID,
 		})
 		if err != nil {
-			message := "Failed to submit task"
+			message := "failed to submit task"
 			logrus.Error(message)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
