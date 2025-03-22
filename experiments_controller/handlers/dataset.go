@@ -37,7 +37,7 @@ func SubmitDatasetBuilding(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	logrus.Infof("SubmitDatasetBuilding, groupID: %s", groupID)
 
-	var payloads []executor.DatasetPayload
+	var payloads []dto.DatasetPayload
 	if err := c.BindJSON(&payloads); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid JSON payload")
 		return

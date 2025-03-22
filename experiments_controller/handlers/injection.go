@@ -89,7 +89,7 @@ func GetInjectionDetail(c *gin.Context) {
 		return
 	}
 
-	var payload executor.FaultInjectionPayload
+	var payload dto.InjectionPayload
 	if err := json.Unmarshal([]byte(task.Payload), &payload); err != nil {
 		message := "Failed to unmarshal payload of injection record"
 		logEntry.WithError(err).Error("Failed to unmarshal payload of injection record")
@@ -167,8 +167,8 @@ func GetInjectionList(c *gin.Context) {
 
 	var injections []dto.InjectionItem
 	for _, record := range records {
-		var payload executor.FaultInjectionPayload
-		if err := json.Unmarshal([]byte(record.Config), &payload); err != nil {
+		var meta executor.InjectionMeta
+		if err := json.Unmarshal([]byte(record.Config), &meta); err != nil {
 			logrus.WithField("id", record.ID).WithError(err).Error("Failed t unmarshal payload of injection")
 			continue
 		}
@@ -182,7 +182,7 @@ func GetInjectionList(c *gin.Context) {
 			InjectTime:      record.StartTime,
 			ProposedEndTime: record.ProposedEndTime,
 			Duration:        record.Duration,
-			Payload:         payload,
+			Payload:         meta,
 		})
 	}
 
@@ -262,7 +262,7 @@ func SubmitFaultInjection(c *gin.Context) {
 	for _, payload := range req.Payloads {
 		taskID, traceID, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
 			Type:        executor.TaskTypeFaultInjection,
-			Payload:     utils.StructToMap(payload.FaultInjectionPayload),
+			Payload:     utils.StructToMap(payload),
 			Immediate:   false,
 			ExecuteTime: payload.ExecutionTime.Unix(),
 			GroupID:     groupID,

@@ -111,7 +111,7 @@ func parseConfigAndGetGroundTruth(execution Execution) ([]handler.Groudtruth, er
 		return nil, err
 	}
 
-	conf, err := ParseFaultInjectionPayload(payload)
+	conf, err := GetInjectionMeta(payload)
 	if err != nil {
 		return nil, err
 	}

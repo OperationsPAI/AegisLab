@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/CUHK-SE-Group/rcabench/database"
-	"github.com/k0kubun/pp/v3"
 	"github.com/sirupsen/logrus"
 )
 
@@ -116,8 +115,6 @@ func (e *Executor) HandleCRDUpdate(namespace, pod, name string) {
 		return
 	}
 
-	pp.Println(meta)
-
 	updateTaskStatus(taskID, meta.TraceID,
 		fmt.Sprintf(TaskMsgCompleted, taskID),
 		map[string]any{
@@ -138,8 +135,8 @@ func (e *Executor) HandleCRDUpdate(namespace, pod, name string) {
 		BuildNamespace:   namespace,
 		BuildPreDuration: meta.PreDuration,
 		BuildService:     pod,
-		BuildStartTime:   &startTime,
-		BuildEndTime:     &endTime,
+		BuildStartTime:   startTime,
+		BuildEndTime:     endTime,
 	}
 	if _, _, err := SubmitTask(context.Background(), &UnifiedTask{
 		Type:      TaskTypeBuildDataset,
@@ -249,8 +246,4 @@ func (e *Executor) HandleJobUpdate(labels map[string]string, status string) {
 
 	if status == TaskStatusError {
 	}
-}
-
-func (e *Executor) HandlePodUpdate() {
-
 }

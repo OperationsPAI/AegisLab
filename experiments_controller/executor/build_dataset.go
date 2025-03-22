@@ -2,34 +2,45 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
 	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
-	"github.com/k0kubun/pp/v3"
+	"gorm.io/gorm"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/database"
-	"github.com/sirupsen/logrus"
-	"gorm.io/gorm"
 )
 
-type DatasetPayload struct {
-	Benchmark   string     `json:"benchmark"`
-	DatasetName string     `json:"dataset"`
-	Namespace   string     `json:"namespace"`
-	PreDuration int        `json:"pre_duration"`
-	Service     string     `json:"service"`
-	StartTime   *time.Time `json:"start_time,omitempty"`
-	EndTime     *time.Time `json:"end_time,omitempty"`
+type DatasetMeta struct {
+	Benchmark   string
+	Namespace   string
+	Name        string
+	PreDuration int
+	Service     string
+	StartTime   time.Time
+	EndTime     time.Time
 }
 
-func parseDatasetPayload(payload map[string]any) (*DatasetPayload, error) {
+func parseTimeFromPayload(payload map[string]any, key string) (*time.Time, error) {
+	timeStr, ok := payload[key].(string)
+	if !ok {
+		return nil, fmt.Errorf("%s must be a string", key)
+	}
+
+	t, err := time.Parse(time.RFC3339, timeStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid %s format: %v", key, err)
+	}
+
+	return &t, nil
+}
+
+func parseDatasetPayload(payload map[string]any) (*DatasetMeta, error) {
 	message := "missing or invalid '%s' key in payload"
 
 	benchmark, ok := payload[BuildBenchmark].(string)
@@ -47,10 +58,9 @@ func parseDatasetPayload(payload map[string]any) (*DatasetPayload, error) {
 		return nil, fmt.Errorf(message, BuildNamespace)
 	}
 
-	pp.Println(payload)
 	preDurationFloat, ok := payload[BuildPreDuration].(float64)
 	if !ok || preDurationFloat <= 0 {
-		return nil, fmt.Errorf("invalid or missing '%s' in payload", BuildPreDuration)
+		return nil, fmt.Errorf(message, BuildPreDuration)
 	}
 	preDuration := int(preDurationFloat)
 
@@ -59,30 +69,45 @@ func parseDatasetPayload(payload map[string]any) (*DatasetPayload, error) {
 		return nil, fmt.Errorf(message, BuildService)
 	}
 
-	var startTime, endTime *time.Time
-	startTimeStr, ok := payload[BuildStartTime].(string)
-	if !ok {
-		parsedTime, err := time.Parse(time.RFC3339, startTimeStr)
-		if err != nil {
-			return nil, fmt.Errorf("missing or invalid '%s' key in payload", BuildStartTime)
-		}
-
-		startTime = &parsedTime
-	}
-	endTimeStr, ok := payload[BuildEndTime].(string)
-	if !ok {
-		parsedTime, err := time.Parse(time.RFC3339, endTimeStr)
-		if err != nil {
-			return nil, fmt.Errorf("missing or invalid '%s' key in payload", BuildEndTime)
-		}
-
-		endTime = &parsedTime
+	startTimePtr, err := parseTimeFromPayload(payload, BuildStartTime)
+	if err != nil {
+		return nil, fmt.Errorf(message, BuildStartTime)
 	}
 
-	return &DatasetPayload{
+	endTimePtr, err := parseTimeFromPayload(payload, BuildEndTime)
+	if err != nil {
+		return nil, fmt.Errorf(message, BuildEndTime)
+	}
+
+	var startTime, endTime time.Time
+	if startTimePtr != nil && endTimePtr != nil {
+		startTime = *startTimePtr
+		endTime = *endTimePtr
+	} else {
+		var faultRecord database.FaultInjectionSchedule
+		err := database.DB.Where("injection_name = ?", datasetName).First(&faultRecord).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, fmt.Errorf("No matching fault injection record found for dataset: %s", datasetName)
+			}
+			return nil, fmt.Errorf("failed to query database for dataset: %s, error: %v", datasetName, err)
+		}
+
+		injectionMeta, err := GetInjectionMeta(payload)
+		if err != nil {
+			return nil, err
+		}
+
+		startTime, endTime, err = checkExecutionTime(faultRecord.InjectionName, injectionMeta.Namespace)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to checkExecutionTime for dataset %s: %v", datasetName, err)
+		}
+	}
+
+	return &DatasetMeta{
 		Benchmark:   benchmark,
-		DatasetName: datasetName,
 		Namespace:   namespace,
+		Name:        datasetName,
 		PreDuration: preDuration,
 		Service:     service,
 		StartTime:   startTime,
@@ -148,57 +173,29 @@ func checkExecutionTime(datasetName, namespace string) (time.Time, time.Time, er
 }
 
 func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
-	datasetPayload, err := parseDatasetPayload(task.Payload)
+	datasetMeta, err := parseDatasetPayload(task.Payload)
 	if err != nil {
 		return err
 	}
 
-	datasetName := datasetPayload.DatasetName
-
-	var startTime, endTime time.Time
-	if datasetPayload.StartTime != nil && datasetPayload.EndTime != nil {
-		startTime = *datasetPayload.StartTime
-		endTime = *datasetPayload.EndTime
-	} else {
-		var faultRecord database.FaultInjectionSchedule
-		err = database.DB.Where("injection_name = ?", datasetName).First(&faultRecord).Error
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return fmt.Errorf("No matching fault injection record found for dataset: %s", datasetName)
-			}
-			return fmt.Errorf("failed to query database for dataset: %s, error: %v", datasetName, err)
-		}
-
-		var fiPayload FaultInjectionPayload
-		if err = json.Unmarshal([]byte(faultRecord.Config), &fiPayload); err != nil {
-			return fmt.Errorf("Failed to unmarshal fault injection payload for dataset %s: %v", datasetName, err)
-		}
-		logrus.Infof("Parsed fault injection payload: %+v", fiPayload)
-
-		startTime, endTime, err = checkExecutionTime(faultRecord.InjectionName, fiPayload.Namespace)
-		if err != nil {
-			return fmt.Errorf("Failed to checkExecutionTime for dataset %s: %v", datasetName, err)
-		}
-	}
-
-	jobName := fmt.Sprintf("dataset-%s", datasetName)
-	image := fmt.Sprintf("%s/%s_dataset:%s", config.GetString("harbor.repository"), datasetPayload.Benchmark, config.GetString("image.tag"))
+	jobName := fmt.Sprintf("dataset-%s", datasetMeta.Name)
+	image := fmt.Sprintf("%s/%s_dataset:%s", config.GetString("harbor.repository"), datasetMeta.Benchmark, config.GetString("image.tag"))
 	labels := map[string]string{
 		LabelTaskID:    task.TaskID,
 		LabelTraceID:   task.TraceID,
 		LabelGroupID:   task.GroupID,
 		LabelTaskType:  string(TaskTypeBuildDataset),
-		LabelDataset:   datasetPayload.DatasetName,
-		LabelStartTime: strconv.FormatInt(startTime.Unix(), 10),
-		LabelEndTime:   strconv.FormatInt(endTime.Unix(), 10),
+		LabelDataset:   datasetMeta.Name,
+		LabelStartTime: strconv.FormatInt(datasetMeta.StartTime.Unix(), 10),
+		LabelEndTime:   strconv.FormatInt(datasetMeta.EndTime.Unix(), 10),
 	}
 	jobEnv := &k8s.JobEnv{
-		Namespace:   datasetPayload.Namespace,
-		Service:     datasetPayload.Service,
-		PreDuration: datasetPayload.PreDuration,
-		StartTime:   startTime,
-		EndTime:     endTime,
+		Namespace:   datasetMeta.Namespace,
+		Service:     datasetMeta.Service,
+		PreDuration: datasetMeta.PreDuration,
+		StartTime:   datasetMeta.StartTime,
+		EndTime:     datasetMeta.EndTime,
 	}
 
-	return createDatasetJob(ctx, datasetName, jobName, config.GetString("k8s.namespace"), image, []string{"python", "prepare_inputs.py"}, labels, jobEnv)
+	return createDatasetJob(ctx, datasetMeta.Name, jobName, config.GetString("k8s.namespace"), image, []string{"python", "prepare_inputs.py"}, labels, jobEnv)
 }
