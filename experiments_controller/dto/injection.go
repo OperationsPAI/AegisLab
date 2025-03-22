@@ -4,7 +4,6 @@ import (
 	"time"
 
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
-	"github.com/CUHK-SE-Group/rcabench/executor"
 )
 
 type InjectCancelResp struct {
@@ -16,15 +15,15 @@ type InjectionDetailResp struct {
 }
 
 type InjectionItem struct {
-	ID              int                    `json:"id"`
-	TaskID          string                 `json:"task_id"`
-	FaultType       string                 `json:"fault_type"`
-	Name            string                 `gorm:"column:injection_name" json:"name"`
-	Status          string                 `json:"status"`
-	InjectTime      time.Time              `gorm:"column:start_time" json:"inject_time"`
-	ProposedEndTime time.Time              `json:"proposed_end_time"`
-	Duration        int                    `json:"duration"`
-	Payload         executor.InjectionMeta `gorm:"-" json:"payload"`
+	ID              int            `json:"id"`
+	TaskID          string         `json:"task_id"`
+	FaultType       string         `json:"fault_type"`
+	Name            string         `gorm:"column:injection_name" json:"name"`
+	Status          string         `json:"status"`
+	InjectTime      time.Time      `gorm:"column:start_time" json:"inject_time"`
+	ProposedEndTime time.Time      `json:"proposed_end_time"`
+	Duration        int            `json:"duration"`
+	Param           InjectionParam `gorm:"-" json:"param"`
 }
 
 type InjectionListReq struct {

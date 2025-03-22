@@ -1,13 +1,15 @@
-package executor
+package consts
 
 // 定义任务类型
 type TaskType string
 
 const (
-	DatasetInitial = 0
-	DatasetSuccess = 1
-	DatasetFailed  = 2
-	DatesetDeleted = 3
+	DatasetInitial       = 0
+	DatasetInjectSuccess = 1
+	DatasetInjectFailed  = 2
+	DatasetBuildSuccess  = 3
+	DatasetBuildFailed   = 4
+	DatesetDeleted       = 5
 )
 
 const (

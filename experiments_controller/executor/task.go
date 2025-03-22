@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/CUHK-SE-Group/rcabench/client"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
@@ -47,15 +48,15 @@ var (
 
 // UnifiedTask 统一任务结构
 type UnifiedTask struct {
-	TaskID      string         `json:"task_id"`
-	Type        TaskType       `json:"type"`
-	Immediate   bool           `json:"immediate"`
-	ExecuteTime int64          `json:"execute_time"`
-	CronExpr    string         `json:"cron_expr,omitempty"`
-	RetryPolicy RetryPolicy    `json:"retry_policy"`
-	Payload     map[string]any `json:"payload"`
-	TraceID     string         `json:"trace_id,omitempty"`
-	GroupID     string         `json:"group_id,omitempty"`
+	TaskID      string          `json:"task_id"`
+	Type        consts.TaskType `json:"type"`
+	Immediate   bool            `json:"immediate"`
+	ExecuteTime int64           `json:"execute_time"`
+	CronExpr    string          `json:"cron_expr,omitempty"`
+	RetryPolicy RetryPolicy     `json:"retry_policy"`
+	Payload     map[string]any  `json:"payload"`
+	TraceID     string          `json:"trace_id,omitempty"`
+	GroupID     string          `json:"group_id,omitempty"`
 }
 
 type RetryPolicy struct {
@@ -64,9 +65,9 @@ type RetryPolicy struct {
 }
 
 type RdbMsg struct {
-	Status string   `json:"status"`
-	Error  *string  `json:"error"`
-	Type   TaskType `json:"task_type"`
+	Status string          `json:"status"`
+	Error  *string         `json:"error"`
+	Type   consts.TaskType `json:"task_type"`
 }
 
 type TaskMeta struct {
@@ -101,7 +102,7 @@ func SubmitTask(ctx context.Context, task *UnifiedTask) (string, string, error) 
 		Immediate:   task.Immediate,
 		ExecuteTime: task.ExecuteTime,
 		CronExpr:    task.CronExpr,
-		Status:      TaskStatusPending,
+		Status:      consts.TaskStatusPending,
 		TraceID:     task.TraceID,
 		GroupID:     task.GroupID,
 	}
@@ -333,8 +334,8 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 	updateTaskStatus(task.TaskID, task.TraceID,
 		message,
 		map[string]any{
-			RdbMsgStatus: TaskStatusError,
-			RdbMsgError:  message,
+			consts.RdbMsgStatus: consts.TaskStatusError,
+			consts.RdbMsgError:  message,
 		})
 }
 
@@ -475,9 +476,9 @@ func removeFromList(ctx context.Context, cli *redis.Client, key, taskID string) 
 }
 
 func parseRdbMsg(payload map[string]any) (*RdbMsg, error) {
-	status, ok := payload[RdbMsgStatus].(string)
+	status, ok := payload[consts.RdbMsgStatus].(string)
 	if !ok || status == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", RdbMsgStatus)
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", consts.RdbMsgStatus)
 	}
 
 	return &RdbMsg{
@@ -515,7 +516,7 @@ func addTaskMeta(taskID string, values ...any) {
 	redisCli := client.GetRedisClient()
 
 	pipe := redisCli.TxPipeline()
-	pipe.HSet(ctx, fmt.Sprintf(MetaKey, taskID), values...)
+	pipe.HSet(ctx, fmt.Sprintf(consts.MetaKey, taskID), values...)
 
 	if _, err := pipe.Exec(ctx); err != nil {
 		logrus.WithField("task_id", taskID).Errorf("failed to store task meta: %v", err)
@@ -533,7 +534,7 @@ func getTaskMeta(taskID string) (*TaskMeta, error) {
 	ctx := context.Background()
 	redisCli := client.GetRedisClient()
 
-	result, err := redisCli.HGetAll(ctx, fmt.Sprintf(MetaKey, taskID)).Result()
+	result, err := redisCli.HGetAll(ctx, fmt.Sprintf(consts.MetaKey, taskID)).Result()
 	if err != nil {
 		logrus.WithField("task_id", taskID).Errorf("failed to read metadata: %v", err)
 		return nil, err
@@ -577,12 +578,12 @@ func updateTaskStatus(taskID, traceID, message string, payload map[string]any) {
 
 	// Redis事务
 	pipe := redisCli.TxPipeline()
-	pipe.HSet(ctx, fmt.Sprintf(StatusKey, taskID),
+	pipe.HSet(ctx, fmt.Sprintf(consts.StatusKey, taskID),
 		"status", rdbMsg.Status,
 		"updated_at", time.Now().Unix(),
 	)
 
-	pipe.RPush(ctx, fmt.Sprintf(LogKey, taskID), fmt.Sprintf(LogFormat, rdbMsg.Status, message))
+	pipe.RPush(ctx, fmt.Sprintf(consts.LogKey, taskID), fmt.Sprintf(consts.LogFormat, rdbMsg.Status, message))
 	if _, err := pipe.Exec(ctx); err != nil {
 		logrus.WithField("task_id", taskID).Errorf("failed to update task status: %v", err)
 		return
@@ -604,7 +605,7 @@ func updateTaskStatus(taskID, traceID, message string, payload map[string]any) {
 		return
 	}
 
-	redisCli.Publish(ctx, fmt.Sprintf(SubChannel, traceID), msg)
+	redisCli.Publish(ctx, fmt.Sprintf(consts.SubChannel, traceID), msg)
 }
 
 func calculateExecuteTime(task *UnifiedTask) (int64, error) {

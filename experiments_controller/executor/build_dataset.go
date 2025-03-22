@@ -13,6 +13,7 @@ import (
 
 	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 )
 
@@ -43,40 +44,40 @@ func parseTimeFromPayload(payload map[string]any, key string) (*time.Time, error
 func parseDatasetPayload(payload map[string]any) (*DatasetMeta, error) {
 	message := "missing or invalid '%s' key in payload"
 
-	benchmark, ok := payload[BuildBenchmark].(string)
+	benchmark, ok := payload[consts.BuildBenchmark].(string)
 	if !ok || benchmark == "" {
-		return nil, fmt.Errorf(message, BuildBenchmark)
+		return nil, fmt.Errorf(message, consts.BuildBenchmark)
 	}
 
-	datasetName, ok := payload[BuildDataset].(string)
+	datasetName, ok := payload[consts.BuildDataset].(string)
 	if !ok || datasetName == "" {
-		return nil, fmt.Errorf(message, BuildDataset)
+		return nil, fmt.Errorf(message, consts.BuildDataset)
 	}
 
-	namespace, ok := payload[BuildNamespace].(string)
+	namespace, ok := payload[consts.BuildNamespace].(string)
 	if !ok || namespace == "" {
-		return nil, fmt.Errorf(message, BuildNamespace)
+		return nil, fmt.Errorf(message, consts.BuildNamespace)
 	}
 
-	preDurationFloat, ok := payload[BuildPreDuration].(float64)
+	preDurationFloat, ok := payload[consts.BuildPreDuration].(float64)
 	if !ok || preDurationFloat <= 0 {
-		return nil, fmt.Errorf(message, BuildPreDuration)
+		return nil, fmt.Errorf(message, consts.BuildPreDuration)
 	}
 	preDuration := int(preDurationFloat)
 
-	service, ok := payload[BuildService].(string)
+	service, ok := payload[consts.BuildService].(string)
 	if !ok || namespace == "" {
-		return nil, fmt.Errorf(message, BuildService)
+		return nil, fmt.Errorf(message, consts.BuildService)
 	}
 
-	startTimePtr, err := parseTimeFromPayload(payload, BuildStartTime)
+	startTimePtr, err := parseTimeFromPayload(payload, consts.BuildStartTime)
 	if err != nil {
-		return nil, fmt.Errorf(message, BuildStartTime)
+		return nil, fmt.Errorf(message, consts.BuildStartTime)
 	}
 
-	endTimePtr, err := parseTimeFromPayload(payload, BuildEndTime)
+	endTimePtr, err := parseTimeFromPayload(payload, consts.BuildEndTime)
 	if err != nil {
-		return nil, fmt.Errorf(message, BuildEndTime)
+		return nil, fmt.Errorf(message, consts.BuildEndTime)
 	}
 
 	var startTime, endTime time.Time
@@ -178,16 +179,16 @@ func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
 		return err
 	}
 
-	jobName := fmt.Sprintf("%s-%s", DatasetJobName, datasetMeta.Name)
+	jobName := fmt.Sprintf("%s-%s", consts.DatasetJobName, datasetMeta.Name)
 	image := fmt.Sprintf("%s/%s_dataset:%s", config.GetString("harbor.repository"), datasetMeta.Benchmark, config.GetString("image.tag"))
 	labels := map[string]string{
-		LabelTaskID:    task.TaskID,
-		LabelTraceID:   task.TraceID,
-		LabelGroupID:   task.GroupID,
-		LabelTaskType:  string(TaskTypeBuildDataset),
-		LabelDataset:   datasetMeta.Name,
-		LabelStartTime: strconv.FormatInt(datasetMeta.StartTime.Unix(), 10),
-		LabelEndTime:   strconv.FormatInt(datasetMeta.EndTime.Unix(), 10),
+		consts.LabelTaskID:    task.TaskID,
+		consts.LabelTraceID:   task.TraceID,
+		consts.LabelGroupID:   task.GroupID,
+		consts.LabelTaskType:  string(consts.TaskTypeBuildDataset),
+		consts.LabelDataset:   datasetMeta.Name,
+		consts.LabelStartTime: strconv.FormatInt(datasetMeta.StartTime.Unix(), 10),
+		consts.LabelEndTime:   strconv.FormatInt(datasetMeta.EndTime.Unix(), 10),
 	}
 	jobEnv := &k8s.JobEnv{
 		Namespace:   datasetMeta.Namespace,

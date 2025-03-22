@@ -3,8 +3,8 @@ package dto
 import (
 	"time"
 
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
-	"github.com/CUHK-SE-Group/rcabench/executor"
 )
 
 type DatasetDeleteReq struct {
@@ -85,8 +85,10 @@ func ConvertToDatasetItem(f *database.FaultInjectionSchedule) *DatasetItem {
 }
 
 var DatasetStatusMap = map[int]string{
-	executor.DatasetInitial: "initial",
-	executor.DatasetSuccess: "success",
-	executor.DatasetFailed:  "failed",
-	executor.DatesetDeleted: "deleted",
+	consts.DatasetInitial:       "initial",
+	consts.DatasetInjectSuccess: "inject_success",
+	consts.DatasetInjectFailed:  "inject_failed",
+	consts.DatasetBuildSuccess:  "build_success",
+	consts.DatasetBuildFailed:   "build_failed",
+	consts.DatesetDeleted:       "deleted",
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 )
 
@@ -21,19 +22,19 @@ type CollectPayload struct {
 }
 
 func parseCollectPayload(payload map[string]any) (*CollectPayload, error) {
-	algorithm, ok := payload[CollectAlgorithm].(string)
+	algorithm, ok := payload[consts.CollectAlgorithm].(string)
 	if !ok || algorithm == "" {
-		return nil, fmt.Errorf("Missing or invalid '%s' key in payload", CollectAlgorithm)
+		return nil, fmt.Errorf("Missing or invalid '%s' key in payload", consts.CollectAlgorithm)
 	}
 
-	dataset, ok := payload[CollectDataset].(string)
+	dataset, ok := payload[consts.CollectDataset].(string)
 	if !ok || dataset == "" {
-		return nil, fmt.Errorf("Missing or invalid '%s' key in payload", CollectDataset)
+		return nil, fmt.Errorf("Missing or invalid '%s' key in payload", consts.CollectDataset)
 	}
 
-	executionIDFloat, ok := payload[CollectExecutionID].(float64)
+	executionIDFloat, ok := payload[consts.CollectExecutionID].(float64)
 	if !ok || executionIDFloat == 0.0 {
-		return nil, fmt.Errorf("Missing '%s' key in payload", CollectExecutionID)
+		return nil, fmt.Errorf("Missing '%s' key in payload", consts.CollectExecutionID)
 	}
 	executionID := int(executionIDFloat)
 
@@ -233,10 +234,10 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 	}
 
 	updateTaskStatus(task.TaskID, task.TraceID,
-		fmt.Sprintf(TaskMsgCompleted, task.TaskID),
+		fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
 		map[string]any{
-			RdbMsgStatus:   TaskStatusCompleted,
-			RdbMsgTaskType: TaskTypeCollectResult,
+			consts.RdbMsgStatus:   consts.TaskStatusCompleted,
+			consts.RdbMsgTaskType: consts.TaskTypeCollectResult,
 		})
 
 	return nil

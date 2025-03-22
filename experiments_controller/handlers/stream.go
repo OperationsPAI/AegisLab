@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/CUHK-SE-Group/rcabench/client"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
@@ -51,16 +52,16 @@ func StreamTask(c *gin.Context) {
 		return
 	}
 
-	pubsub := client.GetRedisClient().Subscribe(c, fmt.Sprintf(executor.SubChannel, task.TraceID))
+	pubsub := client.GetRedisClient().Subscribe(c, fmt.Sprintf(consts.SubChannel, task.TraceID))
 	defer pubsub.Close()
 
 	// 主动退出函数，关闭连接
-	expectedTaskType := executor.TaskType(task.Type)
+	expectedTaskType := consts.TaskType(task.Type)
 
-	switch executor.TaskType(task.Type) {
-	case executor.TaskTypeRunAlgorithm:
-		expectedTaskType = executor.TaskTypeCollectResult
-	case executor.TaskTypeFaultInjection:
+	switch consts.TaskType(task.Type) {
+	case consts.TaskTypeRunAlgorithm:
+		expectedTaskType = consts.TaskTypeCollectResult
+	case consts.TaskTypeFaultInjection:
 		var payload dto.InjectionPayload
 		if err := json.Unmarshal([]byte(task.Payload), &payload); err != nil {
 			message := "Failed to unmarshal payload of injection record"
@@ -70,14 +71,14 @@ func StreamTask(c *gin.Context) {
 		}
 
 		if payload.Benchmark != "" {
-			expectedTaskType = executor.TaskTypeBuildDataset
+			expectedTaskType = consts.TaskTypeBuildDataset
 		}
 	}
 
 	for {
 		select {
 		case message := <-pubsub.Channel():
-			c.SSEvent(executor.EventUpdate, message.Payload)
+			c.SSEvent(consts.EventUpdate, message.Payload)
 			c.Writer.Flush()
 
 			var rdbMsg executor.RdbMsg
@@ -85,7 +86,7 @@ func StreamTask(c *gin.Context) {
 				msg := "Failed to unmarshal payload of redis message"
 				logEntry.WithError(err).Error(msg)
 
-				c.SSEvent(executor.EventError, map[string]string{
+				c.SSEvent(consts.EventError, map[string]string{
 					"error":   msg,
 					"details": err.Error(),
 				})
@@ -95,19 +96,19 @@ func StreamTask(c *gin.Context) {
 			}
 
 			switch rdbMsg.Status {
-			case executor.TaskStatusCompleted:
+			case consts.TaskStatusCompleted:
 				if rdbMsg.Type == expectedTaskType {
-					c.SSEvent(executor.EventEnd, nil)
+					c.SSEvent(consts.EventEnd, nil)
 					c.Writer.Flush()
 
 					return
 				}
-			case executor.TaskStatusError:
-				c.SSEvent(executor.EventError, map[string]string{
+			case consts.TaskStatusError:
+				c.SSEvent(consts.EventError, map[string]string{
 					"error":   fmt.Sprintf("Failed to execute task %s", task.ID),
 					"details": *rdbMsg.Error,
 				})
-				c.SSEvent(executor.EventEnd, nil)
+				c.SSEvent(consts.EventEnd, nil)
 				c.Writer.Flush()
 
 				return

@@ -28,7 +28,7 @@ func convertQueryArrayToSet(params []string) map[string]bool {
 }
 
 // 查询Execution相关数据并返回Execution对象
-func fetchExecution(executionID, rank int) (*executor.Execution, error) {
+func fetchExecution(executionID, rank int) (*dto.Execution, error) {
 	db := database.DB
 
 	var execution database.ExecutionResult
@@ -59,7 +59,7 @@ func fetchExecution(executionID, rank int) (*executor.Execution, error) {
 		return nil, err
 	}
 
-	return &executor.Execution{
+	return &dto.Execution{
 		Dataset:            dataset,
 		DetectorResult:     detectorResult,
 		ExecutionRecord:    execution,
@@ -110,7 +110,7 @@ func GetEvaluationList(c *gin.Context) {
 	}
 
 	// 使用map按算法分组Execution结果
-	groupedResults := make(map[string][]executor.Execution)
+	groupedResults := make(map[string][]dto.Execution)
 	for _, executionID := range req.ExecutionIDs {
 		execution, err := fetchExecution(executionID, rank)
 		if err != nil {

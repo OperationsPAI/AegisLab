@@ -13,9 +13,11 @@ import (
 	"time"
 
 	cli "github.com/CUHK-SE-Group/chaos-experiment/client"
+	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
@@ -134,7 +136,7 @@ func GetInjectionList(c *gin.Context) {
 	pageNum := *req.PageNum
 	pageSize := *req.PageSize
 
-	db := database.DB.Model(&database.FaultInjectionSchedule{}).Where("status != ?", executor.DatesetDeleted)
+	db := database.DB.Model(&database.FaultInjectionSchedule{}).Where("status != ?", consts.DatesetDeleted)
 	db.Scopes(
 		database.Sort("proposed_end_time desc"),
 		database.Paginate(pageNum, pageSize),
@@ -160,10 +162,18 @@ func GetInjectionList(c *gin.Context) {
 
 	var injections []dto.InjectionItem
 	for _, record := range records {
-		var meta executor.InjectionMeta
-		if err := json.Unmarshal([]byte(record.Config), &meta); err != nil {
-			logrus.WithField("id", record.ID).WithError(err).Error("Failed t unmarshal payload of injection")
+		meta, err := executor.ParseInjectionMeta(record.Config)
+		if err != nil {
+			logrus.WithField("id", record.ID).Errorf("failed to parse injection config: %v", err)
 			continue
+		}
+
+		param := dto.InjectionParam{
+			Duration:  meta.Duration,
+			FaultType: handler.ChaosTypeMap[handler.ChaosType(meta.FaultType)],
+			Namespace: meta.Namespace,
+			Pod:       meta.Pod,
+			Spec:      meta.InjectSpec,
 		}
 
 		injections = append(injections, dto.InjectionItem{
@@ -175,7 +185,7 @@ func GetInjectionList(c *gin.Context) {
 			InjectTime:      record.StartTime,
 			ProposedEndTime: record.ProposedEndTime,
 			Duration:        record.Duration,
-			Payload:         meta,
+			Param:           param,
 		})
 	}
 
@@ -254,7 +264,7 @@ func SubmitFaultInjection(c *gin.Context) {
 	var traces []dto.Trace
 	for _, payload := range req.Payloads {
 		taskID, traceID, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
-			Type:        executor.TaskTypeFaultInjection,
+			Type:        consts.TaskTypeFaultInjection,
 			Payload:     utils.StructToMap(payload),
 			Immediate:   false,
 			ExecuteTime: payload.ExecutionTime.Unix(),
