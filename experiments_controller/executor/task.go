@@ -13,6 +13,8 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
+	"github.com/k0kubun/pp/v3"
+	"github.com/mitchellh/mapstructure"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/robfig/cron/v3"
@@ -66,6 +68,13 @@ type RdbMsg struct {
 	Status string   `json:"status"`
 	Error  *string  `json:"error"`
 	Type   TaskType `json:"task_type"`
+}
+
+type TaskMeta struct {
+	Benchmark   string `redis:"benchmark" mapstructure:"benchmark"`
+	PreDuration int    `redis:"pre_duration" mapstructure:"pre_duration"`
+	TraceID     string `redis:"trace_id" mapstructure:"trace_id"`
+	GroupID     string `redis:"group_id" mapstructure:"group_id"`
 }
 
 var (
@@ -315,7 +324,7 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 			return
 		}
 
-		logrus.WithField("task_id", task.TaskID).WithError(err).Warnf("Attempt %d failed", attempt+1)
+		logrus.WithField("task_id", task.TaskID).Warnf("Attempt %d failed: %v", attempt+1, err)
 	}
 
 	tasksProcessed.WithLabelValues(string(task.Type), "failed").Inc()
@@ -515,22 +524,47 @@ func addTaskMeta(taskID string, values ...any) {
 	}
 }
 
-func getTaskMeta(taskID, field string) string {
+func getTaskMeta(taskID string) (*TaskMeta, error) {
+	if taskID == "" {
+		message := "The task_id can not be blank"
+		logrus.Error(message)
+		return nil, fmt.Errorf(message)
+	}
+
 	ctx := context.Background()
 	redisCli := client.GetRedisClient()
 
-	if taskID == "" {
-		logrus.Error("The task_id can not be blank")
-		return ""
-	}
-
-	value, err := redisCli.HGet(ctx, fmt.Sprintf(MetaKey, taskID), field).Result()
+	result, err := redisCli.HGetAll(ctx, fmt.Sprintf(MetaKey, taskID)).Result()
 	if err != nil {
-		logrus.WithField("task_id", taskID).Errorf("The field is not in meta: %v", err)
-		return ""
+		logrus.WithField("task_id", taskID).Errorf("Failed to read metadata: %v", err)
+		return nil, err
 	}
 
-	return value
+	if len(result) == 0 {
+		message := "Task metadata does not exist"
+		logrus.WithField("task_id", taskID).Warn(message)
+		return nil, fmt.Errorf(message)
+	}
+
+	pp.Println(result)
+
+	var meta TaskMeta
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		TagName:          "mapstructure",
+		Result:           &meta,
+		WeaklyTypedInput: true, // 启用弱类型转换
+	})
+	if err != nil {
+		logrus.WithField("task_id", taskID).Errorf("Failed to create decoder: %v", err)
+		return nil, err
+	}
+
+	if err := decoder.Decode(result); err != nil {
+		logrus.WithField("task_id", taskID).Errorf("Failed to parse metadata: %v", err)
+		return nil, err
+	}
+
+	return &meta, nil
 }
 
 // 事务型状态更新

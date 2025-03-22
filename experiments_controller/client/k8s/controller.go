@@ -30,10 +30,11 @@ const (
 )
 
 type JobEnv struct {
-	Namespace string
-	Service   string
-	StartTime time.Time
-	EndTime   time.Time
+	Namespace   string
+	Service     string
+	PreDuration int
+	StartTime   time.Time
+	EndTime     time.Time
 }
 
 type Callback interface {

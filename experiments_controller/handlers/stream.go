@@ -11,7 +11,6 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
 	"github.com/gin-gonic/gin"
-	"github.com/k0kubun/pp/v3"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -79,7 +78,6 @@ func StreamTask(c *gin.Context) {
 		select {
 		case message := <-pubsub.Channel():
 			c.SSEvent(executor.EventUpdate, message.Payload)
-			pp.Println(message.Payload)
 			c.Writer.Flush()
 
 			var rdbMsg executor.RdbMsg

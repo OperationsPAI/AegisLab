@@ -32,12 +32,13 @@ const (
 
 // 不同任务类型的 Payload 键
 const (
-	BuildBenchmark = "benchmark"
-	BuildDataset   = "dataset"
-	BuildNamespace = "namespace"
-	BuildService   = "service"
-	BuildStartTime = "start_time"
-	BuildEndTime   = "end_time"
+	BuildBenchmark   = "benchmark"
+	BuildDataset     = "dataset"
+	BuildNamespace   = "namespace"
+	BuildPreDuration = "pre_duration"
+	BuildService     = "service"
+	BuildStartTime   = "start_time"
+	BuildEndTime     = "end_time"
 
 	CollectAlgorithm   = "algorithm"
 	CollectDataset     = "dataset"
@@ -49,12 +50,14 @@ const (
 	EvalService = "service"
 	EvalTag     = "tag"
 
-	InjectDuration       = "duration"
-	InjectFaultType      = "faultType"
-	InjectNamespace      = "injectNamespace"
-	InjectPod            = "injectPod"
-	InjectSpec           = "spec"
-	InjectDatasetPayload = "dataset_payload"
+	InjectFaultType     = "fault_type"
+	InjectNamespace     = "inject_namespace"
+	InjectPod           = "inject_pod"
+	InjectSpec          = "spec"
+	InjectExectuionTime = "execution_time"
+	InjectPreDuration   = "pre_duration"
+	InjectFaultDuration = "fault_duration"
+	InjectBenchmark     = "benchmark"
 )
 
 // Redis 流和消费者组配置
@@ -75,9 +78,10 @@ const (
 
 // Redis Meta 属性名称
 const (
-	MetaBenchmark = "benchmark"
-	MetaGroupID   = "group_id"
-	MetaTraceID   = "trace_id"
+	MetaBenchmark   = "benchmark"
+	MetaGroupID     = "group_id"
+	MetaPreDuration = "pre_duration"
+	MetaTraceID     = "trace_id"
 )
 
 // Redis 订阅消息字段

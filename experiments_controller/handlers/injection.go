@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -233,30 +235,44 @@ func SubmitFaultInjection(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	logrus.Infof("SubmitFaultInjection called, groupID: %s", groupID)
 
-	var payloads []executor.FaultInjectionPayload // 改为接收数组
-	if err := c.BindJSON(&payloads); err != nil {
+	var req dto.InjectionSubmitReq
+	if err := c.BindJSON(&req); err != nil {
+		logrus.Error(err)
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid JSON payload")
 		return
 	}
-	logrus.Infof("Received fault injection payloads: %+v", payloads)
 
-	t := time.Now()
+	// TODO 多种类任务组
+	if req.IsCroned {
+		handleCronTask(&req)
+	} else {
+		if !validateOneTimeTask(c, &req, time.Now()) {
+			return
+		}
+	}
+
+	if req.CheckConflicts() {
+		dto.ErrorResponse(c, http.StatusBadRequest,
+			"Conflicts between the execution_time of the payloads exist",
+		)
+		return
+	}
+
 	var traces []dto.Trace
-	for _, payload := range payloads {
+	for _, payload := range req.Payloads {
 		taskID, traceID, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
 			Type:        executor.TaskTypeFaultInjection,
-			Payload:     utils.StructToMap(payload),
+			Payload:     utils.StructToMap(payload.FaultInjectionPayload),
 			Immediate:   false,
-			ExecuteTime: t.Unix(),
+			ExecuteTime: payload.ExecutionTime.Unix(),
 			GroupID:     groupID,
 		})
 		if err != nil {
 			message := "Failed to submit task"
-			logrus.Error(message)
+			logrus.Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
 		}
-		t = t.Add(time.Duration(payload.Duration)*time.Minute + time.Duration(config.GetInt("injection.interval"))*time.Minute)
 		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID})
 	}
 
@@ -285,4 +301,55 @@ func GetNamespacePods(c *gin.Context) {
 	}
 
 	dto.SuccessResponse(c, dto.InjectionNamespaceInfoResp{NamespaceInfo: namespaceInfo})
+}
+
+// 处理周期性任务的时间生成
+func handleCronTask(req *dto.InjectionSubmitReq) {
+	currentTime := time.Now()
+	interval := time.Duration(req.Interval) * time.Minute
+
+	for i := range req.Payloads {
+		offset := interval * time.Duration(i)
+		newTime := currentTime.Add(offset)
+		req.Payloads[i].ExecutionTime = &newTime
+	}
+}
+
+// 检查一次性任务的必填字段和时间有效性
+func validateOneTimeTask(c *gin.Context, req *dto.InjectionSubmitReq, currentTime time.Time) bool {
+	// 检查空值
+	var missingIndices []int
+	for i, payload := range req.Payloads {
+		if payload.ExecutionTime == nil {
+			missingIndices = append(missingIndices, i)
+		}
+	}
+
+	if len(missingIndices) > 0 {
+		errorMsg := fmt.Sprintf("以下Payload的execution_time不能为空: %v",
+			strings.Trim(strings.Join(strings.Fields(fmt.Sprint(missingIndices)), ", "), "[]"))
+		dto.ErrorResponse(c, http.StatusBadRequest, errorMsg)
+		return false
+	}
+
+	// 按时间排序
+	sort.Slice(req.Payloads, func(i, j int) bool {
+		return req.Payloads[i].ExecutionTime.Before(*req.Payloads[j].ExecutionTime)
+	})
+
+	// 检查时间有效性
+	if len(req.Payloads) > 0 {
+		for i, payload := range req.Payloads {
+			if payload.ExecutionTime.Before(currentTime) {
+				dto.ErrorResponse(c, http.StatusBadRequest,
+					fmt.Sprintf("The earliest execution_time has expired: payloads[0] (%s)",
+						req.Payloads[i].ExecutionTime.Format(time.DateTime),
+					))
+
+				return false
+			}
+		}
+	}
+
+	return true
 }

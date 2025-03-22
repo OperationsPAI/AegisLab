@@ -13,21 +13,18 @@ import (
 
 // 故障注入任务的 Payload 结构
 type FaultInjectionPayload struct {
-	Duration   int            `json:"duration"`
-	FaultType  int            `json:"faultType"`
-	Namespace  string         `json:"injectNamespace"`
-	Pod        string         `json:"injectPod"`
+	FaultType  int            `json:"fault_type"`
+	Namespace  string         `json:"inject_namespace"`
+	Pod        string         `json:"inject_pod"`
 	InjectSpec map[string]int `json:"spec"`
-	Benchmark  *string        `json:"benchmark"`
+
+	PreDuration   int `json:"pre_duration"`
+	FaultDuration int `json:"fault_duration"`
+
+	Benchmark *string `json:"benchmark"`
 }
 
 func ParseFaultInjectionPayload(payload map[string]any) (*FaultInjectionPayload, error) {
-	durationFloat, ok := payload[InjectDuration].(float64)
-	if !ok || durationFloat <= 0 {
-		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectDuration)
-	}
-	duration := int(durationFloat)
-
 	faultTypeFloat, ok := payload[InjectFaultType].(float64)
 	if !ok || faultTypeFloat <= 0 {
 		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectFaultType)
@@ -57,6 +54,18 @@ func ParseFaultInjectionPayload(payload map[string]any) (*FaultInjectionPayload,
 		injectSpec[k] = int(floatVal)
 	}
 
+	preDurationFloat, ok := payload[InjectPreDuration].(float64)
+	if !ok || preDurationFloat <= 0 {
+		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectPreDuration)
+	}
+	preDuration := int(preDurationFloat)
+
+	faultDurationFloat, ok := payload[InjectFaultDuration].(float64)
+	if !ok || faultDurationFloat <= 0 {
+		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectFaultDuration)
+	}
+	faultDuration := int(faultDurationFloat)
+
 	var benchmark *string
 	benchmarkStr, ok := payload[BuildBenchmark].(string)
 	if ok && benchmarkStr != "" {
@@ -64,12 +73,13 @@ func ParseFaultInjectionPayload(payload map[string]any) (*FaultInjectionPayload,
 	}
 
 	return &FaultInjectionPayload{
-		Namespace:  namespace,
-		Pod:        pod,
-		FaultType:  faultType,
-		Duration:   duration,
-		InjectSpec: injectSpec,
-		Benchmark:  benchmark,
+		Namespace:     namespace,
+		Pod:           pod,
+		FaultType:     faultType,
+		InjectSpec:    injectSpec,
+		PreDuration:   preDuration,
+		FaultDuration: faultDuration,
+		Benchmark:     benchmark,
 	}, nil
 }
 
@@ -107,7 +117,7 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	conf := handler.ChaosConfig{
 		Type:     handler.ChaosType(fiPayload.FaultType),
 		Spec:     chaosSpec,
-		Duration: fiPayload.Duration,
+		Duration: fiPayload.FaultDuration,
 	}
 	name := handler.Create(fiPayload.Namespace, fiPayload.Pod, conf)
 	if name == "" {
@@ -129,9 +139,10 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	addDatasetIndex(task.TaskID, name)
 	if fiPayload.Benchmark != nil {
 		addTaskMeta(task.TaskID,
-			"benchmark", *fiPayload.Benchmark,
-			"trace_id", task.TraceID,
-			"group_id", task.GroupID,
+			MetaBenchmark, *fiPayload.Benchmark,
+			MetaPreDuration, fiPayload.PreDuration,
+			MetaTraceID, task.TraceID,
+			MetaGroupID, task.GroupID,
 		)
 	}
 
@@ -139,11 +150,11 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		TaskID:          task.TaskID,
 		FaultType:       fiPayload.FaultType,
 		Config:          string(jsonData),
-		Duration:        fiPayload.Duration,
+		Duration:        fiPayload.FaultDuration,
 		Description:     fmt.Sprintf("Fault for task %s", task.TaskID),
 		Status:          DatasetInitial,
 		InjectionName:   name,
-		ProposedEndTime: time.Now().Add(time.Duration(fiPayload.Duration+2) * time.Minute),
+		ProposedEndTime: time.Now().Add(time.Duration(fiPayload.FaultDuration) * time.Minute),
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}
