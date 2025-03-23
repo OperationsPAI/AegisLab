@@ -10,7 +10,6 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/dto"
-	"github.com/CUHK-SE-Group/rcabench/executor"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -81,10 +80,10 @@ func StreamTask(c *gin.Context) {
 			c.SSEvent(consts.EventUpdate, message.Payload)
 			c.Writer.Flush()
 
-			var rdbMsg executor.RdbMsg
+			var rdbMsg dto.RdbMsg
 			if err := json.Unmarshal([]byte(message.Payload), &rdbMsg); err != nil {
-				msg := "Failed to unmarshal payload of redis message"
-				logEntry.WithError(err).Error(msg)
+				msg := "unmarshal payload of redis message failed"
+				logEntry.Errorf("%s: %v", msg, err)
 
 				c.SSEvent(consts.EventError, map[string]string{
 					"error":   msg,
@@ -105,8 +104,8 @@ func StreamTask(c *gin.Context) {
 				}
 			case consts.TaskStatusError:
 				c.SSEvent(consts.EventError, map[string]string{
-					"error":   fmt.Sprintf("Failed to execute task %s", task.ID),
-					"details": *rdbMsg.Error,
+					"error":   fmt.Sprintf("execute task %s failed", task.ID),
+					"details": rdbMsg.Error,
 				})
 				c.SSEvent(consts.EventEnd, nil)
 				c.Writer.Flush()

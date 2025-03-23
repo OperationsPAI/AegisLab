@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -45,10 +46,15 @@ type JobEnv struct {
 	EndTime     time.Time
 }
 
+type timeRange struct {
+	Start time.Time
+	End   time.Time
+}
+
 type Callback interface {
-	HandleCRDUpdate(namespace, pod, name string)
+	HandleCRDUpdate(namespace, pod, name string, startTime, endTime time.Time)
 	HandleJobAdd(labels map[string]string)
-	HandleJobUpdate(labels map[string]string, status string)
+	HandleJobUpdate(labels map[string]string, status, errorMsg string)
 }
 
 type QueueItem struct {
@@ -154,6 +160,7 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 				}).Info("Chaos experiment created successfully")
 			}
 		},
+		// TODO 处理异常
 		UpdateFunc: func(oldObj, newObj any) {
 			oldU := oldObj.(*unstructured.Unstructured)
 			newU := newObj.(*unstructured.Unstructured)
@@ -176,13 +183,12 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 				newAllRecovered := getCRDConditionStatus(newConditions, "AllRecovered")
 
 				if !oldAllInjected && newAllInjected {
-					logEntry.Infof("All targets injected in chaos experiment")
+					logEntry.Infof("all targets injected in chaos experiment")
 				}
 
 				if !oldAllRecovered && newAllRecovered {
-					logEntry.Infof("All targets recoverd in chaos experiment")
+					logEntry.Infof("all targets recoverd in chaos experiment")
 
-					kind := newU.GetKind()
 					pod, _, _ := unstructured.NestedString(newU.Object, "spec", "selector", "labelSelectors", "app")
 
 					chaosGVRMapping := make(map[string]schema.GroupVersionResource)
@@ -190,12 +196,16 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 						chaosGVRMapping[utils.GetTypeName(obj)] = gvr
 					}
 
+					kind := newU.GetKind()
 					gvr, ok := chaosGVRMapping[kind]
 					if !ok {
-						logEntry.Error("The gvr resource can not be found")
+						logEntry.Error("gvr resource can not be found")
 					}
 
-					callback.HandleCRDUpdate(newU.GetNamespace(), pod, newU.GetName())
+					newRecords, _, _ := unstructured.NestedSlice(newU.Object, "status", "experiment", "containerRecords")
+					timeRange := getCRDEventTimeRanges(newRecords)[0]
+
+					callback.HandleCRDUpdate(newU.GetNamespace(), pod, newU.GetName(), timeRange.Start, timeRange.End)
 					c.queue.Add(QueueItem{
 						Type:      CRDResourceType,
 						Namespace: newU.GetNamespace(),
@@ -231,7 +241,7 @@ func (c *Controller) genJobEventHandlerFuncs(callback Callback) cache.ResourceEv
 
 			if callback != nil && oldJob.Name == newJob.Name {
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {
-					callback.HandleJobUpdate(newJob.Labels, "Completed")
+					callback.HandleJobUpdate(newJob.Labels, consts.TaskStatusCompleted, "")
 					c.queue.Add(QueueItem{
 						Type:      JobResourceType,
 						Namespace: newJob.Namespace,
@@ -240,13 +250,14 @@ func (c *Controller) genJobEventHandlerFuncs(callback Callback) cache.ResourceEv
 				}
 
 				if oldJob.Status.Failed == 0 && newJob.Status.Failed > 0 {
-					callback.HandleJobUpdate(newJob.Labels, "Error")
+					errorMsg := extractJobError(newJob)
+					callback.HandleJobUpdate(newJob.Labels, consts.TaskStatusError, errorMsg)
 				}
 			}
 		},
 		DeleteFunc: func(obj any) {
 			job := obj.(*batchv1.Job)
-			logrus.WithField("namespace", job.Namespace).WithField("job_name", job.Name).Infof("Job deleted successfully")
+			logrus.WithField("namespace", job.Namespace).WithField("job_name", job.Name).Infof("job delete successfully")
 		},
 	}
 }
@@ -293,7 +304,7 @@ func (c *Controller) genPodEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 		},
 		DeleteFunc: func(obj any) {
 			pod := obj.(*corev1.Pod)
-			logrus.WithField("namespace", pod.Namespace).WithField("pod_name", pod.Name).Infof("Pod deleted successfully")
+			logrus.WithField("namespace", pod.Namespace).WithField("pod_name", pod.Name).Infof("pod delete successfully")
 		},
 	}
 }
@@ -348,7 +359,7 @@ func isTargetNamespace(namespace string) bool {
 
 func getCRDConditionStatus(conditions []any, conditionType string) bool {
 	for _, c := range conditions {
-		condition, ok := c.(map[string]interface{})
+		condition, ok := c.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -361,6 +372,68 @@ func getCRDConditionStatus(conditions []any, conditionType string) bool {
 	}
 
 	return false
+}
+
+func getCRDEventTimeRanges(records []any) []timeRange {
+	var timeRanges []timeRange
+	for _, r := range records {
+		record, ok := r.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		events, _, _ := unstructured.NestedSlice(record, "events")
+		for _, e := range events {
+			event, ok := e.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			operation, _, _ := unstructured.NestedString(event, "type")
+			eventType, _, _ := unstructured.NestedString(event, "type")
+
+			var startTime, endTime *time.Time
+			if eventType == "Succeeded" || operation == "Apply" {
+				startTime, _ = parseEventTime(event)
+			}
+
+			if eventType == "Succeeded" || operation == "Recover" {
+				endTime, _ = parseEventTime(event)
+			}
+
+			if startTime != nil && endTime != nil {
+				timeRanges = append(timeRanges, timeRange{Start: *startTime, End: *endTime})
+			}
+		}
+	}
+
+	if len(timeRanges) != 0 {
+		return timeRanges
+	}
+
+	return []timeRange{}
+}
+
+func parseEventTime(event map[string]any) (*time.Time, error) {
+	t, _, _ := unstructured.NestedString(event, "timestamp")
+	if t, err := time.Parse(time.RFC3339, t); err == nil {
+		return &t, nil
+	}
+
+	if t, err := time.Parse(time.RFC3339, t); err == nil {
+		return &t, nil
+	}
+
+	return nil, fmt.Errorf("parse event time failed")
+}
+
+func extractJobError(job *batchv1.Job) string {
+	for _, condition := range job.Status.Conditions {
+		if condition.Type == batchv1.JobFailed && condition.Status == "True" {
+			return fmt.Sprintf("Reason: %s, Message: %s", condition.Reason, condition.Message)
+		}
+	}
+	return "Unknown error"
 }
 
 func checkPodReason(pod *corev1.Pod, reason string) bool {

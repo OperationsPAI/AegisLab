@@ -2,7 +2,15 @@ package utils
 
 import "reflect"
 
-func GetTomlString(m map[string]any, keys ...string) (string, bool) {
+func CloneMap(src map[string]any) map[string]any {
+	dst := make(map[string]any, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
+}
+
+func GetMapField(m map[string]any, keys ...string) (string, bool) {
 	current := m
 	for i, key := range keys {
 		val, exists := current[key]
