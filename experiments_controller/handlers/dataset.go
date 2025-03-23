@@ -93,14 +93,33 @@ func QueryDataset(c *gin.Context) {
 	meta, err := executor.ParseInjectionMeta(fiRecord.Config)
 	if err != nil {
 		logEntry.Errorf("failed to parse injection config: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Invalid injection configuration")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "invalid injection configuration")
+		return
+	}
+
+	param := dto.InjectionParam{
+		Duration:  meta.Duration,
+		FaultType: handler.ChaosTypeMap[handler.ChaosType(meta.FaultType)],
+		Namespace: meta.Namespace,
+		Pod:       meta.Pod,
+		Spec:      meta.InjectSpec,
+	}
+	if fiRecord.Status != consts.DatasetBuildSuccess {
+		dto.SuccessResponse(c, &dto.QueryDatasetResp{
+			Param:            param,
+			StartTime:        fiRecord.StartTime,
+			EndTime:          fiRecord.EndTime,
+			DetectorResult:   dto.DetectorRecord{},
+			ExecutionResults: []dto.ExecutionRecord{},
+		})
+
 		return
 	}
 
 	detectorRecord, err := repository.GetDetectorRecordByDatasetID(fiRecord.ID)
 	if err != nil {
 		logEntry.Errorf("failed to retrieve detector record: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load execution data")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to load execution data")
 		return
 	}
 
@@ -116,13 +135,7 @@ func QueryDataset(c *gin.Context) {
 	}
 
 	dto.SuccessResponse(c, &dto.QueryDatasetResp{
-		Param: dto.InjectionParam{
-			Duration:  meta.Duration,
-			FaultType: handler.ChaosTypeMap[handler.ChaosType(meta.FaultType)],
-			Namespace: meta.Namespace,
-			Pod:       meta.Pod,
-			Spec:      meta.InjectSpec,
-		},
+		Param:            param,
 		StartTime:        fiRecord.StartTime,
 		EndTime:          fiRecord.EndTime,
 		DetectorResult:   detectorRecord,

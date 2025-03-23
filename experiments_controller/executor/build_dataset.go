@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
 	"gorm.io/gorm"
 	corev1 "k8s.io/api/core/v1"
 
@@ -27,18 +26,32 @@ type DatasetMeta struct {
 	EndTime     time.Time
 }
 
-func parseTimeFromPayload(payload map[string]any, key string) (*time.Time, error) {
-	timeStr, ok := payload[key].(string)
-	if !ok {
-		return nil, fmt.Errorf("%s must be a string", key)
-	}
-
-	t, err := time.Parse(time.RFC3339, timeStr)
+func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
+	datasetMeta, err := parseDatasetPayload(task.Payload)
 	if err != nil {
-		return nil, fmt.Errorf("invalid %s format: %v", key, err)
+		return err
 	}
 
-	return &t, nil
+	jobName := fmt.Sprintf("%s-%s", consts.DatasetJobName, datasetMeta.Name)
+	image := fmt.Sprintf("%s/%s_dataset:%s", config.GetString("harbor.repository"), datasetMeta.Benchmark, config.GetString("image.tag"))
+	labels := map[string]string{
+		consts.LabelTaskID:    task.TaskID,
+		consts.LabelTraceID:   task.TraceID,
+		consts.LabelGroupID:   task.GroupID,
+		consts.LabelTaskType:  string(consts.TaskTypeBuildDataset),
+		consts.LabelDataset:   datasetMeta.Name,
+		consts.LabelStartTime: strconv.FormatInt(datasetMeta.StartTime.Unix(), 10),
+		consts.LabelEndTime:   strconv.FormatInt(datasetMeta.EndTime.Unix(), 10),
+	}
+	jobEnv := &k8s.JobEnv{
+		Namespace:   datasetMeta.Namespace,
+		Service:     datasetMeta.Service,
+		PreDuration: datasetMeta.PreDuration,
+		StartTime:   datasetMeta.StartTime,
+		EndTime:     datasetMeta.EndTime,
+	}
+
+	return createDatasetJob(ctx, datasetMeta.Name, jobName, config.GetString("k8s.namespace"), image, []string{"python", "prepare_inputs.py"}, labels, jobEnv)
 }
 
 func parseDatasetPayload(payload map[string]any) (*DatasetMeta, error) {
@@ -85,24 +98,19 @@ func parseDatasetPayload(payload map[string]any) (*DatasetMeta, error) {
 		startTime = *startTimePtr
 		endTime = *endTimePtr
 	} else {
-		var faultRecord database.FaultInjectionSchedule
-		err := database.DB.Where("injection_name = ?", datasetName).First(&faultRecord).Error
-		if err != nil {
+		var fiRecord database.FaultInjectionSchedule
+		if err := database.DB.
+			Where("injection_name = ? and status = ?", datasetName, consts.DatasetInjectSuccess).
+			First(&fiRecord).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, fmt.Errorf("No matching fault injection record found for dataset: %s", datasetName)
+				return nil, fmt.Errorf("find matching fault injection record found failed")
 			}
-			return nil, fmt.Errorf("failed to query database for dataset: %s, error: %v", datasetName, err)
+
+			return nil, fmt.Errorf("query database for dataset failed: %v", err)
 		}
 
-		injectionMeta, err := getInjectionMetaFromPayload(payload)
-		if err != nil {
-			return nil, err
-		}
-
-		startTime, endTime, err = checkExecutionTime(faultRecord.InjectionName, injectionMeta.Namespace)
-		if err != nil {
-			return nil, fmt.Errorf("failed to checkExecutionTime for dataset %s: %v", datasetName, err)
-		}
+		startTime = fiRecord.StartTime
+		endTime = fiRecord.EndTime
 	}
 
 	return &DatasetMeta{
@@ -114,6 +122,20 @@ func parseDatasetPayload(payload map[string]any) (*DatasetMeta, error) {
 		StartTime:   startTime,
 		EndTime:     endTime,
 	}, nil
+}
+
+func parseTimeFromPayload(payload map[string]any, key string) (*time.Time, error) {
+	timeStr, ok := payload[key].(string)
+	if !ok {
+		return nil, fmt.Errorf("%s must be a string", key)
+	}
+
+	t, err := time.Parse(time.RFC3339, timeStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid %s format: %v", key, err)
+	}
+
+	return &t, nil
 }
 
 func createDatasetJob(ctx context.Context, datasetName, jobName, jobNamespace, image string, command []string, labels map[string]string, jobEnv *k8s.JobEnv) error {
@@ -151,52 +173,4 @@ func createDatasetJob(ctx context.Context, datasetName, jobName, jobNamespace, i
 		EnvVars:       envVars,
 		Labels:        labels,
 	})
-}
-
-func checkExecutionTime(dataset, namespace string) (time.Time, time.Time, error) {
-	var startTime, endTime time.Time
-	var err error
-	startTime, endTime, err = chaosCli.QueryCRDByName(namespace, dataset)
-	if err != nil {
-		return startTime, endTime, fmt.Errorf("Failed to QueryCRDByName: %v", err)
-	}
-
-	if err := database.DB.Model(&database.FaultInjectionSchedule{}).
-		Where("injection_name = ?", dataset).
-		Updates(map[string]any{
-			"start_time": startTime,
-			"end_time":   endTime,
-		}).Error; err != nil {
-		return startTime, endTime, err
-	}
-
-	return startTime, endTime, nil
-}
-
-func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
-	datasetMeta, err := parseDatasetPayload(task.Payload)
-	if err != nil {
-		return err
-	}
-
-	jobName := fmt.Sprintf("%s-%s", consts.DatasetJobName, datasetMeta.Name)
-	image := fmt.Sprintf("%s/%s_dataset:%s", config.GetString("harbor.repository"), datasetMeta.Benchmark, config.GetString("image.tag"))
-	labels := map[string]string{
-		consts.LabelTaskID:    task.TaskID,
-		consts.LabelTraceID:   task.TraceID,
-		consts.LabelGroupID:   task.GroupID,
-		consts.LabelTaskType:  string(consts.TaskTypeBuildDataset),
-		consts.LabelDataset:   datasetMeta.Name,
-		consts.LabelStartTime: strconv.FormatInt(datasetMeta.StartTime.Unix(), 10),
-		consts.LabelEndTime:   strconv.FormatInt(datasetMeta.EndTime.Unix(), 10),
-	}
-	jobEnv := &k8s.JobEnv{
-		Namespace:   datasetMeta.Namespace,
-		Service:     datasetMeta.Service,
-		PreDuration: datasetMeta.PreDuration,
-		StartTime:   datasetMeta.StartTime,
-		EndTime:     datasetMeta.EndTime,
-	}
-
-	return createDatasetJob(ctx, datasetMeta.Name, jobName, config.GetString("k8s.namespace"), image, []string{"python", "prepare_inputs.py"}, labels, jobEnv)
 }

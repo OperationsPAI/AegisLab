@@ -12,6 +12,7 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"github.com/mitchellh/mapstructure"
@@ -62,12 +63,6 @@ type UnifiedTask struct {
 type RetryPolicy struct {
 	MaxAttempts int `json:"max_attempts"`
 	BackoffSec  int `json:"backoff_sec"`
-}
-
-type RdbMsg struct {
-	Status string          `json:"status"`
-	Error  *string         `json:"error"`
-	Type   consts.TaskType `json:"task_type"`
 }
 
 type TaskMeta struct {
@@ -475,13 +470,13 @@ func removeFromList(ctx context.Context, cli *redis.Client, key, taskID string) 
 	return result > 0, nil
 }
 
-func parseRdbMsg(payload map[string]any) (*RdbMsg, error) {
+func parseRdbMsgFromPayload(payload map[string]any) (*dto.RdbMsg, error) {
 	status, ok := payload[consts.RdbMsgStatus].(string)
 	if !ok || status == "" {
 		return nil, fmt.Errorf("missing or invalid '%s' key in payload", consts.RdbMsgStatus)
 	}
 
-	return &RdbMsg{
+	return &dto.RdbMsg{
 		Status: status,
 	}, nil
 }
@@ -570,7 +565,7 @@ func updateTaskStatus(taskID, traceID, message string, payload map[string]any) {
 	ctx := context.Background()
 	redisCli := client.GetRedisClient()
 
-	rdbMsg, err := parseRdbMsg(payload)
+	rdbMsg, err := parseRdbMsgFromPayload(payload)
 	if err != nil {
 		logrus.WithField("task_id", taskID).Error(err)
 		return

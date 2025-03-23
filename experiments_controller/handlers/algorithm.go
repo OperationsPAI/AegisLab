@@ -70,7 +70,7 @@ func GetAlgorithmList(c *gin.Context) {
 		}
 
 		field := "name"
-		name, ok := utils.GetTomlString(config, field)
+		name, ok := utils.GetMapField(config, field)
 		if !ok {
 			message := fmt.Sprintf("missing field in %s", tomlPath)
 			logrus.WithField("field", field).Errorf("%s: %v", message, err)
