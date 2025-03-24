@@ -31,13 +31,24 @@ swagger: ## Generate Swagger API documentation
 build-sdk-python: ## Install Python SDK with hot reload
 	cd sdk/python && uv pip install . --no-cache --force-reinstall
 
+build-sdk-python-docker:
+	docker build -t 10.10.10.240/library/sdk_python:latest -f ./sdk/python/Dockerfile ./sdk/python && \
+	docker push 10.10.10.240/library/sdk_python:latest
+
 ##@ Data Management
 
+GEN_DATASET_DIR := ./scripts/gen/dataset
+GEN_DATASET_IMAGE := 10.10.10.240/library/gen_dataset:latest
+
+build-gen-dataset-docker:
+	docker build -t $(GEN_DATASET_IMAGE) -f "$(GEN_DATASET_DIR)/Dockerfile" $(GEN_DATASET_DIR) && \
+	docker push $(GEN_DATASET_IMAGE)
+
 gen-dataset-dev: ## Generate test datasets (development)
-	screen -dmS gen-dataset-dev bash -c 'python scripts/gen/dataset/main.py; exec bash'
+	cd $(GEN_DATASET_DIR) && docker compose down && docker compose up gen-dataset-ts-dev -d
 
 gen-dataset-prod: ## Generate production datasets (persistent)
-	screen -dmS gen-dataset-prod bash -c 'python scripts/gen/dataset/main.py; exec bash'
+	cd $(GEN_DATASET_DIR) && docker compose down && docker compose up gen-dataset-ts-prod -d
 
 import: ## Import generated data to the system
 	python scripts/cmd/main.py --algo -d1

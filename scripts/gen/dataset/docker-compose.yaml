@@ -1,0 +1,29 @@
+x-common-base: &common-base
+  image: 10.10.10.240/library/gen_dataset:latest
+  environment:
+    TZ: Asia/Shanghai
+  command: ["python", "main.py"]
+  network_mode: host
+
+x-experiment-template-ts: &exp-template-ts
+  <<: *common-base
+  volumes:
+    - /home/nn/.kube/config:/root/.kube/config
+    - /home/nn/workspace/train-ticket:/app/train-ticket
+    - ./config:/app/config
+    - ./output:/app/output
+  env_file: 
+    - ./envs/ts.env
+
+services:
+  gen-dataset-ts-dev:
+    <<: *exp-template-ts
+    container_name: gen-dataset-ts-dev
+    environment:
+      - ENV_MODE=dev
+
+  gen-dataset-ts-prod:
+    <<: *exp-template-ts
+    container_name: gen-dataset-ts-prod
+    environment:
+      - ENV_MODE=prod
