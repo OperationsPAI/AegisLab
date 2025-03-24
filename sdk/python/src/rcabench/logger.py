@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Any, Dict, Optional
 from datetime import datetime
 import logging
 import sys
@@ -38,10 +38,14 @@ class CustomLogger:
         name: str = "RCABench SDK",
         log_level: str = "INFO",
         enable_color: bool = True,
+        enable_file: bool = False,
+        filename: Optional[str] = None,
     ):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance.__init_logger(name, log_level, enable_color)
+            cls._instance.__init_logger(
+                name, log_level, enable_color, enable_file, filename
+            )
         return cls._instance
 
     @staticmethod
@@ -53,7 +57,14 @@ class CustomLogger:
         else:
             return logging.Formatter(base_fmt, datefmt="%Y-%m-%d %H:%M:%S")
 
-    def __init_logger(self, name: str, log_level: str, enable_color) -> None:
+    def __init_logger(
+        self,
+        name: str,
+        log_level: str,
+        enable_color: bool,
+        enable_file: bool,
+        filename: Optional[str],
+    ) -> None:
         self.logger = logging.getLogger(name)
         self.logger.setLevel(log_level.upper())
         self.logger.propagate = False
@@ -64,6 +75,10 @@ class CustomLogger:
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(self._get_console_formatter(enable_color))
         self.logger.addHandler(console_handler)
+
+        if enable_file and filename:
+            file_handler = logging.FileHandler(filename, encoding="utf-8")
+            self.logger.addHandler(file_handler)
 
     def log(
         self,
