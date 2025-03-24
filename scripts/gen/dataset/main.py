@@ -1,9 +1,7 @@
 from typing import Dict
 from datetime import datetime
-from pathlib import Path
 from rcabench.logger import CustomLogger
 from rcabench.rcabench import RCABenchSDK
-import argparse
 import asyncio
 import json
 import math
@@ -172,20 +170,6 @@ def download_datasets(config: Dict[str, any]) -> None:
     logger.info("Download datasets successfully")
 
 
-def valid_output_path(config: Dict[str, any]):
-    default_output = os.path.join(
-        PARENT_DIR, "output", datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
-    )
-    if not os.path.exists(default_output):
-        os.makedirs(default_output)
-
-    output_path = config.get("output_path", default_output)
-    p = Path(output_path)
-    if not (p.exists() and p.is_dir() and p.is_symlink()):
-        logger.warning(f"Output path invalid, set to default value: {default_output}")
-        config["output_path"] = default_output
-
-
 async def main(config: Dict[str, any]) -> None:
     asyncio.create_task(periodic_task(config, run_deploy_command))
     asyncio.create_task(delayed_request(config))
@@ -196,21 +180,24 @@ async def main(config: Dict[str, any]) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-e",
-        "--env",
-        type=str,
-        choices=["dev", "prod"],
-        default="dev",
-        help="Execution Environment",
-    )
-    args = parser.parse_args()
-
-    with open(os.path.join(PARENT_DIR, CONFIG_NAME.format(env=args.env)), "r") as f:
+    env_mode = os.getenv("ENV_MODE", "dev")
+    default_config_path = os.path.join(PARENT_DIR, CONFIG_NAME.format(env=env_mode))
+    with open(os.getenv("CONFIG_FILE", default_config_path)) as f:
         config = json.load(f)
 
-    valid_output_path(config)
+    default_output = os.path.join(
+        PARENT_DIR, "output", datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+    )
+    config["output_path"] = default_output
+    if not os.path.exists(default_output):
+        os.makedirs(default_output)
+
+    dynamic_params = {
+        "command": os.getenv("COMMAND"),
+        "namespace": os.getenv("NAMESPACE"),
+        "services": os.getenv("SERVICES", "").split(","),
+    }
+    config.update({k: v for k, v in dynamic_params.items() if v})
 
     FINISH_EVENT.clear()
     try:
