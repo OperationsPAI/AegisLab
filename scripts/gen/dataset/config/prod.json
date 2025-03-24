@@ -1,0 +1,20 @@
+{
+    "base_url": "http://10.10.10.220:32080",
+    "benchmark": "clickhouse",
+    "command": "cd /home/nn/workspace/train-ticket && make deploy",
+    "pre_duration": 10,
+    "fault_duration": 15,
+    "interval": 30,
+    "namespace": "ts",
+    "output_path": "",
+    "n_trial": 10,
+    "services": [
+        "ts-preservce-service",
+        "ts-preservce-other-service",
+        "ts-rebook-service",
+        "ts-seat-service",
+        "ts-travel-plan-service",
+        "ts-travel-service",
+        "ts-travel2-service"
+    ]
+}

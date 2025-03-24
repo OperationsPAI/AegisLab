@@ -13,20 +13,24 @@ import requests
 
 CLIENT_NAME = "SSE-{task_id}"
 
+logger = CustomLogger().logger
+
 
 def handle_http_errors(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
-            return func(*args, **kwargs)["data"]
+            result = func(*args, **kwargs)
+            if result is not None and isinstance(result, dict):
+                return result.get("data", None)
+
         except HttpClientError as e:
             # 统一记录日志或返回错误响应
-            self = args[0]
-            self.sdk.logger.error(f"API request failed: {e.url} -> {e.message}")
+            logger.error(f"API request failed: {e.url} -> {e.message}")
             return None
+
         except Exception as e:
-            self = args[0]
-            self.sdk.logger.error(f"Unknown error: {str(e)}")
+            logger.error(f"Unknown error: {str(e)}")
             return None
 
     return wrapper
@@ -176,7 +180,6 @@ class RCABenchSDK:
         self.dataset = Dataset(self)
         self.evaluation = Evaluation(self)
         self.injection = Injection(self)
-        self.logger = CustomLogger().logger
 
         self.task_manager = TaskManager()
         self.client = HttpClient(self.base_url)
