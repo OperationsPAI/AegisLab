@@ -5,6 +5,7 @@ import subprocess
 
 
 namespace = os.environ["NAMESPACE"]
+
 clickhouse_host = "10.10.10.58"
 username = "default"
 password = "password"
@@ -112,7 +113,7 @@ def generate_metric_histogram(start_time, end_time) -> pd.DataFrame:
     FROM
         otel_metrics_histogram omh
     WHERE
-        omh.ResourceAttributes['k8s.namespace.name'] = '{namespace}'
+        omh.ResourceAttributes['service.namespace'] = '{namespace}'
         AND omh.TimeUnix BETWEEN '{start_time}' AND '{end_time}'
     """
 

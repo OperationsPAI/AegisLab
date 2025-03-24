@@ -8,6 +8,7 @@ dependencies = [
     "requests>=2.32.3",
     "aiohttp>=3.8.0",
     "setuptools>=75.6.0",
+    "tqdm>=4.67.1",
     "twine>=5.1.1",
     "wheel>=0.45.1",
 ]

@@ -6,9 +6,10 @@ from requests.exceptions import HTTPError, RequestException, Timeout
 import aiohttp
 import asyncio
 import json
-import logging
 import requests
 import time
+
+logger = CustomLogger().logger
 
 
 class TaskManager:
@@ -65,7 +66,6 @@ class AsyncSSEClient:
         self.task_id = task_id
         self.url = url
         self.keyword = keyword
-        self.logger = CustomLogger().logger
         self._close = False
 
     async def _process_line(self, line_bytes: bytes):
@@ -106,7 +106,7 @@ class AsyncSSEClient:
                             break
                         await self._process_line(line)
             except asyncio.CancelledError:
-                self.logger.info(f"Task {self.task_id} cancelled by manager")
+                logger.info(f"Task {self.task_id} cancelled by manager")
                 await self.task_manager.remove_task(
                     self.task_id, error=RuntimeError("Task cancelled by manager")
                 )
@@ -133,7 +133,6 @@ class HttpClient:
         self.timeout = timeout
         self.max_retries = max_retries
         self.backoff_factor = backoff_factor
-        self.logger = logging.getLogger(self.__class__.__name__)
 
         # 配置Session对象复用TCP连接
         self.session = requests.Session()
@@ -154,7 +153,7 @@ class HttpClient:
 
         for attempt in range(retries):
             try:
-                self.logger.info(f"Sending {method} request to {full_url}")
+                logger.info(f"Sending {method} request to {full_url}")
 
                 response = self.session.request(
                     method=method,
@@ -189,7 +188,7 @@ class HttpClient:
 
     def _handle_retry(self, attempt: int, error: Exception):
         sleep_time = self.backoff_factor * (2**attempt)
-        self.logger.warning(
+        logger.warning(
             f"Attempt {attempt + 1} failed: {error}. Retrying in {sleep_time:.1f}s..."
         )
         time.sleep(sleep_time)
