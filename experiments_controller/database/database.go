@@ -35,12 +35,12 @@ type Task struct {
 type FaultInjectionSchedule struct {
 	ID              int       `gorm:"primaryKey;autoIncrement" json:"id"` // 唯一标识
 	TaskID          string    `gorm:"index" json:"task_id"`               // 从属什么 taskid
-	FaultType       int       `json:"fault_type" gorm:"index"`            // 故障类型
+	FaultType       int       `gorm:"index" json:"fault_type"`            // 故障类型
 	Config          string    `json:"config"`                             // 配置 JSON 格式
 	Duration        int       `json:"duration"`                           // 故障持续时间
 	StartTime       time.Time `gorm:"default:null" json:"start_time"`     // 预计故障开始时间
 	EndTime         time.Time `gorm:"default:null" json:"end_time"`       // 预计故障结束时间
-	Status          int       `json:"status"`                             // 0: 初始状态，没有检查 1: 检查了，注入结束且成功 2: 检查了，注入结束且失败; 如果状态是 1，则可以用于数据集查询
+	Status          int       `json:"status"`                             // 0: 初始状态 1: 注入结束且成功 2: 注入结束且失败 3: 收集数据成功 4:收集数据失败
 	Description     string    `json:"description"`                        // 描述（可选字段）
 	InjectionName   string    `gorm:"unique,index" json:"injection_name"` // 在k8s资源里注入的名字
 	ProposedEndTime time.Time `json:"proposed_end_time"`                  // 预计结束时间
@@ -51,8 +51,8 @@ type FaultInjectionSchedule struct {
 type ExecutionResult struct {
 	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"` // 唯一标识
 	TaskID    string    `gorm:"index" json:"task_id"`               // 从属什么 taskid
-	Dataset   int       `json:"dataset" gorm:"index,unique"`        // 数据集标识
-	Algo      string    `json:"algo"`                               // 使用的算法
+	Dataset   int       `gorm:"index,unique" json:"dataset"`        // 数据集标识
+	Algorithm string    `json:"algorithm"`                          // 使用的算法
 	CreatedAt time.Time `json:"created_at"`                         // 创建时间
 	UpdatedAt time.Time `json:"updated_at"`                         // 更新时间
 }

@@ -21,6 +21,8 @@ mysql_host = "localhost"
 mysql_port = "3306"
 mysql_db = "rcabench"
 
+[image]
+tag = "latest"
 
 [redis]
 host = "localhost:6379"
@@ -28,6 +30,8 @@ host = "localhost:6379"
 [harbor]
 host = "10.10.10.240"
 repository = "10.10.10.240/library"
+username = "admin"
+password = "Harbor12345"
 
 [k8s]
 namespace = "experiment"

@@ -26,12 +26,17 @@ data:
     mysql_port = "{{ .Values.configmap.database.mysql_port }}"
     mysql_db = "{{ .Values.configmap.database.mysql_db }}"
 
+    [image]
+    tag = "{{ .Values.configmap.image.tag }}"
+
     [redis]
     host = "{{ .Values.configmap.redis.host }}"
 
     [harbor]
     host = "{{ .Values.configmap.harbor.host }}"
     repository = "{{ .Values.configmap.harbor.repository }}"
+    username = "{{ .Values.configmap.harbor.username }}"
+    password = "{{ .Values.configmap.harbor.password }}"
 
     [k8s]
     namespace = "{{ .Values.configmap.k8s.namespace }}"

@@ -11,8 +11,8 @@
     },
     "harbor": {
         "host": "10.10.10.240",
-        "username": "anon",
-        "password": "Anon12345",
+        "username": "admin",
+        "password": "Harbor12345",
         "repository": "10.10.10.240/library"
     }
 }

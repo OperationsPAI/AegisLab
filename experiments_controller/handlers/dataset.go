@@ -6,55 +6,22 @@ import (
 	"io/fs"
 	"net/http"
 	"path/filepath"
-	"strconv"
 
+	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
+	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
 
-type Dataset struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-}
-
-type DatasetListReq struct {
-	PageNum  *int `form:"page_num" binding:"required,min=1"`
-	PageSize *int `form:"page_size" binding:"required,min=5,max=20"`
-}
-
-type DatasetListResp struct {
-	Total    int64     `json:"total"`
-	Datasets []Dataset `json:"datasets"`
-}
-
-type DatasetDownloadReq struct {
-	GroupIDs []string `form:"group_ids" binding:"required"`
-}
-
-type JoinedResult struct {
+type joinedResult struct {
 	GroupID string `gorm:"column:group_id"`
 	Dataset string `gorm:"column:injection_name"`
-}
-
-type GroupedResult struct {
-	GroupID  string
-	Datasets []string
-}
-
-var DatasetStatusMap = map[int]string{
-	executor.DatasetInitial: "initial",
-	executor.DatasetSuccess: "success",
-	executor.DatasetFailed:  "failed",
-	executor.DatesetDeleted: "deleted",
-}
-
-var DatasetFieldMap = map[string]string{
-	"PageNum":  "page_num",
-	"PageSize": "page_size",
 }
 
 // BuildDataset
@@ -73,92 +40,167 @@ func SubmitDatasetBuilding(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	logrus.Infof("SubmitDatasetBuilding, groupID: %s", groupID)
 
-	var payloads []executor.DatasetPayload
+	var payloads []dto.DatasetPayload
 	if err := c.BindJSON(&payloads); err != nil {
-		JSONResponse[interface{}](c, http.StatusBadRequest, "Invalid JSON payload", nil)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid JSON payload")
 		return
 	}
 	logrus.Infof("Received building dataset payloads: %+v", payloads)
 
-	var ids []string
+	var traces []dto.Trace
 	for _, payload := range payloads {
-		id, err := executor.SubmitTask(c.Request.Context(), &executor.UnifiedTask{
-			Type:      executor.TaskTypeBuildDataset,
-			Payload:   StructToMap(payload),
+		taskID, traceID, err := executor.SubmitTask(c.Request.Context(), &executor.UnifiedTask{
+			Type:      consts.TaskTypeBuildDataset,
+			Payload:   utils.StructToMap(payload),
 			Immediate: true,
 			GroupID:   groupID,
 		})
 		if err != nil {
-			JSONResponse[interface{}](c, http.StatusInternalServerError, id, nil)
+			message := "failed to submit task"
+			logrus.Error(message)
+			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
 		}
 
-		ids = append(ids, id)
+		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID})
 	}
 
-	JSONResponse(c, http.StatusAccepted, "Dataset building submitted successfully", SubmitResp{GroupID: groupID, TaskIDs: ids})
+	dto.JSONResponse(c, http.StatusAccepted, "Dataset building submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
 }
 
-// GetDatasetList 获取数据集列表（带分页）
+func QueryDataset(c *gin.Context) {
+	var req dto.QueryDatasetReq
+	if err := c.BindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, formatErrorMessage(err, dto.PaginationFieldMap))
+		return
+	}
+
+	sortOrder, err := validateSortOrder(req.Sort)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	fiRecord, err := repository.GetInjectionRecordByDataset(req.Name)
+	if err != nil {
+		logrus.Errorf("failed to get fault injection record: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to retrieve injection data")
+		return
+	}
+
+	logEntry := logrus.WithField("dataset", req.Name)
+
+	meta, err := executor.ParseInjectionMeta(fiRecord.Config)
+	if err != nil {
+		logEntry.Errorf("failed to parse injection config: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "invalid injection configuration")
+		return
+	}
+
+	param := dto.InjectionParam{
+		Duration:  meta.Duration,
+		FaultType: handler.ChaosTypeMap[handler.ChaosType(meta.FaultType)],
+		Namespace: meta.Namespace,
+		Pod:       meta.Pod,
+		Spec:      meta.InjectSpec,
+	}
+	if fiRecord.Status != consts.DatasetBuildSuccess {
+		dto.SuccessResponse(c, &dto.QueryDatasetResp{
+			Param:            param,
+			StartTime:        fiRecord.StartTime,
+			EndTime:          fiRecord.EndTime,
+			DetectorResult:   dto.DetectorRecord{},
+			ExecutionResults: []dto.ExecutionRecord{},
+		})
+
+		return
+	}
+
+	detectorRecord, err := repository.GetDetectorRecordByDatasetID(fiRecord.ID)
+	if err != nil {
+		logEntry.Errorf("failed to retrieve detector record: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to load execution data")
+		return
+	}
+
+	executionRecords, err := repository.GetExecutionRecordsByDatasetID(fiRecord.ID, sortOrder)
+	if err != nil {
+		logEntry.Error("Failed to retrieve execution records")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load execution data")
+		return
+	}
+
+	if len(executionRecords) == 0 {
+		logEntry.Info("No execution records found for dataset")
+	}
+
+	dto.SuccessResponse(c, &dto.QueryDatasetResp{
+		Param:            param,
+		StartTime:        fiRecord.StartTime,
+		EndTime:          fiRecord.EndTime,
+		DetectorResult:   detectorRecord,
+		ExecutionResults: executionRecords,
+	})
+}
+
+// GetDatasetList
 //
 //	@Summary		分页查询数据集列表
 //	@Description	获取状态为成功的注入数据集列表（支持分页参数）
 //	@Tags			dataset
-//	@Produce		application/json
+//	@Produce		json
 //	@Param			page_num	query		int		true	"页码（从1开始）" minimum(1) default(1)
-//	@Param			page_size	query		int		true	"每页数量" minimum(1) maximum(100) default(20)
+//	@Param			page_size	query		int		true	"每页数量" minimum(5) maximum(20) default(10)
 //	@Success		200			{object}	GenericResponse[DatasetResp] "成功响应"
 //	@Failure		400			{object}	GenericResponse[any] "参数校验失败"
 //	@Failure		500			{object}	GenericResponse[any] "服务器内部错误"
 //	@Router			/api/v1/datasets [get]
 func GetDatasetList(c *gin.Context) {
 	// 获取查询参数并校验是否合法
-	var datasetReq DatasetListReq
-	if err := c.BindQuery(&datasetReq); err != nil {
-		JSONResponse[interface{}](c, http.StatusBadRequest, executor.FormatErrorMessage(err, DatasetFieldMap), nil)
+	var req dto.DatasetListReq
+	if err := c.BindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, formatErrorMessage(err, dto.PaginationFieldMap))
 		return
 	}
 
-	// 计算偏移量
-	pageNum := *datasetReq.PageNum
-	pageSize := *datasetReq.PageSize
-	offset := (pageNum - 1) * pageSize
+	pageNum := *req.PageNum
+	pageSize := *req.PageSize
+
+	db := database.DB.
+		Model(&database.FaultInjectionSchedule{}).
+		Where("status = ?", consts.DatasetBuildSuccess)
+	db.Scopes(
+		database.Sort("created_at desc"),
+		database.Paginate(pageNum, pageSize),
+	).Select("SQL_CALC_FOUND_ROWS *")
 
 	// 查询总记录数
 	var total int64
-	err := database.DB.
-		Model(&database.FaultInjectionSchedule{}).
-		Select("injection_name").
-		Where("status = ?", executor.DatasetSuccess).
-		Count(&total).Error
-	if err != nil {
-		logrus.Errorf("Failed to count fault injection schedules: %v", err)
-		JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to retrieve datasets", nil)
+	if err := db.Raw("SELECT FOUND_ROWS()").Scan(&total).Error; err != nil {
+		message := "failed to count injection schedules"
+		logrus.Errorf("%s: %v", message, err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		return
 	}
 
 	// 查询分页数据
-	var faultRecords []database.FaultInjectionSchedule
-	err = database.DB.
-		Select("id,injection_name").
-		Where("status = ?", executor.DatasetSuccess).
-		Offset(offset).
-		Limit(pageSize).
-		Find(&faultRecords).Error
-	if err != nil {
-		logrus.Errorf("Failed to query fault injection schedules with pagination: %v", err)
-		JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to retrieve datasets", nil)
+	var records []database.FaultInjectionSchedule
+	if err := db.Select("id, injection_name").Find(&records).Error; err != nil {
+		message := "failed to retrieve datasets"
+		logrus.Errorf("%s: %v", message, err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		return
 	}
 
-	var datasetResp DatasetListResp
-	datasetResp.Total = total
-	for _, record := range faultRecords {
-		dataset := Dataset{ID: record.ID, Name: record.InjectionName}
-		datasetResp.Datasets = append(datasetResp.Datasets, dataset)
+	items := make([]dto.DatasetItem, 0, len(records))
+	for _, record := range records {
+		items = append(items, *dto.ConvertToDatasetItem(&record))
 	}
 
-	JSONResponse(c, http.StatusOK, "OK", datasetResp)
+	dto.SuccessResponse(c, &dto.PaginationResp[dto.DatasetItem]{
+		Total: total,
+		Data:  items,
+	})
 }
 
 // DownloadDataset 处理数据集下载请求
@@ -177,21 +219,23 @@ func DownloadDataset(c *gin.Context) {
 	filename := "package"
 	excludeRules := []utils.ExculdeRule{{Pattern: "result.csv", IsGlob: false}}
 
-	var req DatasetDownloadReq
+	var req dto.DatasetDownloadReq
 	if err := c.BindQuery(&req); err != nil {
-		JSONResponse[interface{}](c, http.StatusBadRequest, executor.FormatErrorMessage(err, DatasetFieldMap), nil)
+		dto.ErrorResponse(c, http.StatusBadRequest, formatErrorMessage(err, dto.PaginationFieldMap))
 		return
 	}
 
-	var joinedResults []JoinedResult
+	var joinedResults []joinedResult
 	if err := database.DB.
 		Model(&database.FaultInjectionSchedule{}).
 		Joins("JOIN tasks ON tasks.id = fault_injection_schedules.task_id").
-		Where("tasks.group_id IN ?", req.GroupIDs).
+		Where("tasks.group_id IN ? AND fault_injection_schedules.status = ?", req.GroupIDs, consts.DatasetBuildSuccess).
 		Select("tasks.group_id, fault_injection_schedules.injection_name").
 		Scan(&joinedResults).
 		Error; err != nil {
-		JSONResponse[interface{}](c, http.StatusInternalServerError, "Failed to query datasets", nil)
+		message := "failed to query datasets"
+		logrus.Errorf("%s: %v", message, err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to query datasets")
 		return
 	}
 
@@ -208,7 +252,9 @@ func DownloadDataset(c *gin.Context) {
 		for _, dataset := range datasets {
 			workDir := filepath.Join(config.GetString("nfs.path"), dataset)
 			if !utils.IsAllowedPath(workDir) {
-				JSONResponse[interface{}](c, http.StatusForbidden, "Invalid path access", nil)
+				message := "invalid path access"
+				logrus.WithField("path", workDir).Error(message)
+				dto.ErrorResponse(c, http.StatusForbidden, message)
 				return
 			}
 		}
@@ -251,7 +297,9 @@ func DownloadDataset(c *gin.Context) {
 			if err != nil {
 				delete(c.Writer.Header(), "Content-Disposition")
 				c.Header("Content-Type", "application/json; charset=utf-8")
-				JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("packaging failed: %v", err), nil)
+				message := "failed to packcage"
+				logrus.Errorf("%s: %v", message, err)
+				dto.ErrorResponse(c, http.StatusInternalServerError, message)
 				return
 			}
 		}
@@ -279,29 +327,41 @@ func UploadDataset(c *gin.Context) {
 //	@Failure		500			{object}	GenericResponse[any]
 //	@Router			/api/v1/datasets/delete [delete]
 func DeleteDataset(c *gin.Context) {
-	idStr := c.Param("datasetID")
-	if idStr == "" {
-		JSONResponse[interface{}](c, http.StatusBadRequest, "Dataset id is required", nil)
+	var req dto.DatasetDeleteReq
+	if err := c.BindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid Parameters")
 		return
 	}
 
-	var id int
-	var err error
-	if id, err = strconv.Atoi(idStr); err != nil {
-		JSONResponse[interface{}](c, http.StatusBadRequest, "Dataset id must be an integer", nil)
+	var existingIDs []int
+	if err := database.DB.
+		Model(&database.FaultInjectionSchedule{}).
+		Select("id").
+		Where("id IN ? AND status != ?", req.IDs, consts.DatesetDeleted).
+		Pluck("id", &existingIDs).
+		Error; err != nil {
+		message := "failed to query datasets"
+		logrus.Errorf("%s: %v", message, err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		return
 	}
 
-	var faultRecord database.FaultInjectionSchedule
-	err = database.DB.
-		Model(&faultRecord).
-		Where("id = ?", id).
-		Update("status", executor.DatesetDeleted).Error
-	if err != nil {
-		logrus.Errorf("Failed to update status to DatasetDeleted for dataset %d: %v", id, err)
-		JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("Failed to delete dataset %d", id), nil)
+	// 所有目标记录已被删除，直接返回成功
+	if len(existingIDs) == 0 {
+		dto.ErrorResponse(c, http.StatusOK, "No records to delete")
 		return
 	}
 
-	JSONResponse[interface{}](c, http.StatusOK, "Delete dataset successfully", id)
+	if err := database.DB.
+		Model(&database.FaultInjectionSchedule{}).
+		Where("id IN ?", existingIDs).
+		Update("status", consts.DatesetDeleted).
+		Error; err != nil {
+		message := "failed to delete datasets"
+		logrus.Errorf("%s: %v", message, err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, message)
+		return
+	}
+
+	dto.SuccessResponse[any](c, nil)
 }

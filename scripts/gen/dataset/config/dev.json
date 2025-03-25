@@ -1,0 +1,8 @@
+{
+    "base_url": "http://127.0.0.1:8082",
+    "benchmark": "clickhouse",
+    "pre_duration": 1,
+    "fault_duration": 1,
+    "interval": 5,
+    "n_trial": 1
+}

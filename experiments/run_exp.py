@@ -25,10 +25,13 @@ if __name__ == "__main__":
         print("WARN: the INPUT_PATH environ is not defined")
         exit(1)
 
-    output_path = os.environ["OUTPUT_PATH"]
-    if workspace == "":
+    key = "OUTPUT_PATH"
+    output_path_value = os.getenv(key)
+    if not output_path_value:
         print("WARN: the OUTPUT_PATH environ is not defined")
         output_path = "/app/output"
+        os.environ[key] = output_path
+
     base_path = Path(workspace)
     input_path = Path(input_path)
 

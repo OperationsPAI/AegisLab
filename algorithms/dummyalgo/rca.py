@@ -25,17 +25,14 @@ def print_directory_tree(start_path, prefix=""):
 # IMPORTANT: do not change the function signature!!
 def start_rca(params: Dict):
     pprint(params)
-    directory = "/app/output"
+
     print_directory_tree("./")
 
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
-    with open("/app/input/logs.csv") as f:
+    normal_log_file = params["normal_log_file"]
+    with open(normal_log_file, "r") as f:
         data = f.readlines()
         print(data[:3])
 
-    file_path = os.path.join(directory, "my_file.txt")
-
+    file_path = os.path.join(os.environ["OUTPUT_PATH"], "my_file.txt")
     with open(file_path, "w") as file:
         file.write("hello world")

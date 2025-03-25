@@ -32,13 +32,16 @@ def clean_span_name(span_name):
     return span_name
 
 
-def process_and_aggregate_csv(
-    file_path: str, service_name: str, start_time: int, end_time: int
-):
-    start_time = pd.to_datetime(start_time, unit="s")
-    end_time = pd.to_datetime(end_time, unit="s")
+def process_and_aggregate_csv(file_path: str, service_name: str, time_range: int):
+    start_time = pd.to_datetime(
+        pd.to_numeric(time_range[0], errors="coerce"), unit="s"
+    ).value
+    end_time = pd.to_datetime(
+        pd.to_numeric(time_range[1], errors="coerce"), unit="s"
+    ).value
     print("时间戳时间", start_time, end_time)
-    required_columns = [
+
+    selected_columns = [
         "Timestamp",
         "SpanAttributes",
         "Duration",
@@ -56,8 +59,12 @@ def process_and_aggregate_csv(
         if not filtered_chunk.empty:
             filtered_chunk = filtered_chunk.copy()
             print("过滤时间前", filtered_chunk["Timestamp"])
-            filtered_chunk["Timestamp"] = pd.to_datetime(filtered_chunk["Timestamp"])
+
+            filtered_chunk["Timestamp"] = pd.to_datetime(
+                filtered_chunk["Timestamp"], unit="ns"
+            ).dt.tz_localize(os.environ["TIMEZONE"])
             print("转换时间后", filtered_chunk["Timestamp"])
+
             filtered_chunk = filtered_chunk[
                 (filtered_chunk["Timestamp"] >= start_time)
                 & (filtered_chunk["Timestamp"] <= end_time)
@@ -69,7 +76,7 @@ def process_and_aggregate_csv(
                     clean_span_name
                 )
                 filtered_chunk["Duration"] = filtered_chunk["Duration"] / 1_000_000
-                selected_data.append(filtered_chunk[required_columns])
+                selected_data.append(filtered_chunk[selected_columns])
 
     if selected_data:
         data = pd.concat(selected_data, ignore_index=True)
@@ -191,8 +198,9 @@ def detect_significant_changes(df, k_factor=1000):
                 rel_change / LATENCY_RELATIVE_THRESHOLD
             )
             print(
-                f"{row['SpanName']} {metric}  绝对权重: {
-                    w_abs:.2f}, 相对权重: {w_rel:.2f}, 综合打分: {score:.2f}"
+                f"{row['SpanName']} {metric}  绝对权重: {w_abs:.2f}, 相对权重: {
+                    w_rel:.2f
+                }, 综合打分: {score:.2f}"
             )
             scores[metric] = score  # 保存评分
 
@@ -215,40 +223,22 @@ def detect_significant_changes(df, k_factor=1000):
 # IMPORTANT: do not change the function signature!!
 def start_rca(params: Dict):
     pprint(params)
-    directory = "/app/output"
-    if not os.path.exists(directory):
-        os.makedirs(directory)
 
-    normal_start, normal_end = params["normal_time_range"][0]
-    abnormal_start, abnormal_end = params["abnormal_time_range"][0]
+    normal_trace_file = params["normal_metric_file"]
+    abnormal_trace_file = params["abnormal_metric_file"]
 
-    normal_data = process_and_aggregate_csv(
-        "/app/input/traces.csv", "ts-ui-dashboard", normal_start, normal_end
-    )
+    normal_range = [os.environ["NORMAL_START"], os.environ["NORMAL_END"]]
+    abnormal_range = [os.environ["ABNORMAL_START"], os.environ["ABNORMAL_END"]]
+
+    service = os.getenv("SERVICE")
+    normal_data = process_and_aggregate_csv(normal_trace_file, service, normal_range)
     abnormal_data = process_and_aggregate_csv(
-        "/app/input/traces.csv", "ts-ui-dashboard", abnormal_start, abnormal_end
+        abnormal_trace_file, service, abnormal_range
     )
     compare_result = compare_dataframes(normal_data, abnormal_data)
     conclusion = detect_significant_changes(compare_result)
 
-    normal_data.to_csv("/app/output/normal_data.csv", index=False)
-    abnormal_data.to_csv("/app/output/abnormal_data.csv", index=False)
-    compare_result.to_csv("/app/output/compare.csv", index=False)
     if not conclusion.empty:
-        conclusion.to_csv("/app/output/conclusion.csv", index=False)
-
-
-if __name__ == "__main__":
-    normal_data = process_and_aggregate_csv(
-        "/home/nn/workspace/rcabench/input/traces.csv",
-        "ts-ui-dashboard",
-        1732585695,
-        1732586895,
-    )
-    abnormal_data = process_and_aggregate_csv(
-        "/home/nn/workspace/rcabench/input/traces.csv",
-        "ts-ui-dashboard",
-        1732586895,
-        1732586946,
-    )
-    compare_result = compare_dataframes(normal_data, abnormal_data)
+        conclusion.to_csv(
+            os.path.join(os.environ["OUTPUT_PATH"], "conclusion.csv"), index=False
+        )

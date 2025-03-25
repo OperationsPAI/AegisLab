@@ -1,21 +1,25 @@
 package executor
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"time"
 
-	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/CUHK-SE-Group/rcabench/consts"
+	"github.com/CUHK-SE-Group/rcabench/repository"
+	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/sirupsen/logrus"
 )
 
 type JobLabel struct {
-	JobType     string
 	TaskID      string
+	TraceID     string
+	GroupID     string
+	Type        consts.TaskType
+	Algorithm   string
 	Dataset     string
-	ExecutionID *int
-	StartTime   *time.Time
-	EndTime     *time.Time
+	ExecutionID int
 }
 
 type Executor struct {
@@ -24,64 +28,106 @@ type Executor struct {
 var Exec *Executor
 
 func parseJobLabel(labels map[string]string) (*JobLabel, error) {
-	jobType, ok := labels[LabelJobType]
-	if !ok || jobType == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", LabelJobType)
-	}
+	message := "missing or invalid '%s' key in payload"
 
-	taskID, ok := labels[LabelTaskID]
+	taskID, ok := labels[consts.LabelTaskID]
 	if !ok || taskID == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", LabelTaskID)
+		return nil, fmt.Errorf(message, consts.LabelTaskID)
 	}
 
-	dataset, ok := labels[LabelDataset]
+	traceID, ok := labels[consts.LabelTraceID]
+	if !ok || traceID == "" {
+		return nil, fmt.Errorf(message, consts.LabelTraceID)
+	}
+
+	groupID, ok := labels[consts.LabelGroupID]
+	if !ok || groupID == "" {
+		return nil, fmt.Errorf(message, consts.LabelGroupID)
+	}
+
+	taskType, ok := labels[consts.LabelTaskType]
+	if !ok || taskType == "" {
+		return nil, fmt.Errorf(message, consts.LabelTaskType)
+	}
+
+	dataset, ok := labels[consts.LabelDataset]
 	if !ok || dataset == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", LabelDataset)
+		return nil, fmt.Errorf(message, consts.LabelDataset)
 	}
 
-	var executionID *int
-	executionIDStr, ok := labels[LabelExecutionID]
+	algorithm, ok := labels[consts.LabelDataset]
+	if !ok || algorithm == "" {
+		return nil, fmt.Errorf(message, consts.LabelAlgorithm)
+	}
+
+	var executionID int
+	executionIDStr, ok := labels[consts.LabelExecutionID]
 	if ok && executionIDStr != "" {
 		id, err := strconv.Atoi(executionIDStr)
 		if err != nil {
-			return nil, fmt.Errorf("missing or invalid '%s' key in payload", LabelExecutionID)
-		}
-		executionID = &id
-	}
-
-	var startTime, endTime *time.Time
-	startTimeStr, ok := labels[LabelStartTime]
-	if ok && startTimeStr != "" {
-		timestamp, err := strconv.Atoi(startTimeStr)
-		if err != nil {
-			return nil, fmt.Errorf("missing or invalid '%s' key in payload", LabelStartTime)
+			return nil, fmt.Errorf(message, consts.LabelExecutionID)
 		}
 
-		parsedTime := time.Unix(int64(timestamp), 0).In(time.FixedZone("HKT", 8*3600))
-		startTime = &parsedTime
-	}
-	endTimeStr, ok := labels[LabelEndTime]
-	if ok && endTimeStr != "" {
-		timestamp, err := strconv.Atoi(endTimeStr)
-		if err != nil {
-			return nil, fmt.Errorf("missing or invalid '%s' key in payload", LabelEndTime)
-		}
-
-		parsedTime := time.Unix(int64(timestamp), 0).In(time.FixedZone("HKT", 8*3600))
-		endTime = &parsedTime
+		executionID = id
 	}
 
 	return &JobLabel{
-		JobType:     jobType,
 		TaskID:      taskID,
+		TraceID:     traceID,
+		GroupID:     groupID,
+		Type:        consts.TaskType(taskType),
+		Algorithm:   algorithm,
 		Dataset:     dataset,
 		ExecutionID: executionID,
-		StartTime:   startTime,
-		EndTime:     endTime,
 	}, nil
 }
 
-func (e *Executor) AddFunc(labels map[string]string) {
+func (e *Executor) HandleCRDUpdate(namespace, pod, name string, startTime, endTime time.Time) {
+	logEntry := logrus.WithField("dataset", name)
+	taskID := checkDatasetIndex(name)
+	if taskID == "" {
+		return
+	}
+
+	meta, err := getTaskMeta(taskID)
+	if err != nil {
+		logEntry.Errorf("failed to obtain task metadata")
+		return
+	}
+
+	updateTaskStatus(taskID, meta.TraceID,
+		fmt.Sprintf(consts.TaskMsgCompleted, taskID),
+		map[string]any{
+			consts.RdbMsgStatus:   consts.TaskStatusCompleted,
+			consts.RdbMsgTaskType: consts.TaskTypeFaultInjection,
+		})
+
+	if err := repository.UpdateTimeByDataset(name, startTime, endTime); err != nil {
+		logEntry.Errorf("update execution times failed: %v", err)
+	}
+
+	datasetPayload := map[string]any{
+		consts.BuildBenchmark:   meta.Benchmark,
+		consts.BuildDataset:     name,
+		consts.BuildNamespace:   namespace,
+		consts.BuildPreDuration: meta.PreDuration,
+		consts.BuildService:     pod,
+		consts.BuildStartTime:   startTime,
+		consts.BuildEndTime:     endTime,
+	}
+	if _, _, err := SubmitTask(context.Background(), &UnifiedTask{
+		Type:      consts.TaskTypeBuildDataset,
+		Payload:   datasetPayload,
+		Immediate: true,
+		TraceID:   meta.TraceID,
+		GroupID:   meta.GroupID,
+	}); err != nil {
+		logrus.Error(err)
+		return
+	}
+}
+
+func (e *Executor) HandleJobAdd(labels map[string]string) {
 	jobLabel, err := parseJobLabel(labels)
 	if err != nil {
 		logrus.Error(err)
@@ -89,57 +135,103 @@ func (e *Executor) AddFunc(labels map[string]string) {
 	}
 
 	var message string
-	switch jobLabel.JobType {
-	case string(TaskTypeBuildDataset):
+	switch jobLabel.Type {
+	case consts.TaskTypeBuildDataset:
 		message = fmt.Sprintf("Building dataset for task %s", jobLabel.TaskID)
-	case string(TaskTypeRunAlgorithm):
+	case consts.TaskTypeRunAlgorithm:
 		message = fmt.Sprintf("Running algorithm for task %s", jobLabel.TaskID)
 	}
-	updateTaskStatus(jobLabel.TaskID, TaskStatusRunning, message)
+
+	updateTaskStatus(jobLabel.TaskID, jobLabel.TraceID,
+		message,
+		map[string]any{
+			consts.RdbMsgStatus:   consts.TaskStatusRunning,
+			consts.RdbMsgTaskType: jobLabel.Type,
+		})
 }
 
-func (e *Executor) UpdateFunc(labels map[string]string) {
+func (e *Executor) HandleJobUpdate(labels map[string]string, status, errorMsg string) {
 	jobLabel, err := parseJobLabel(labels)
 	if err != nil {
-		logrus.Error(err)
+		logrus.Error("parse job labels failed: %v", err)
 		return
 	}
 
-	updateTaskStatus(jobLabel.TaskID, TaskStatusCompleted, fmt.Sprintf("Task %s completed", jobLabel.TaskID))
+	logEntry := logrus.WithField("task_id", jobLabel.TaskID).WithField("trace_id", jobLabel.TraceID)
 
-	if jobLabel.JobType == string(TaskTypeBuildDataset) {
-		logrus.Infof("Dataset %s built", jobLabel.Dataset)
+	switch status {
+	case consts.TaskStatusCompleted:
+		e.handleJobCompleted(logEntry, jobLabel, errorMsg)
+	case consts.TaskStatusError:
+		e.handleJobError(logEntry, jobLabel, errorMsg)
+	default:
+		logEntry.Warnf("unhandled job status: %s", status)
+	}
+}
 
-		if jobLabel.StartTime == nil || jobLabel.EndTime == nil {
-			logrus.Errorf("Failed to update record for dataset %s: %v", jobLabel.Dataset, err)
-			return
-		}
-
-		var faultRecord database.FaultInjectionSchedule
-		if err := database.DB.
-			Model(&faultRecord).
-			Where("injection_name = ?", jobLabel.Dataset).
-			Updates(map[string]interface{}{
-				"start_time": *jobLabel.StartTime,
-				"end_time":   *jobLabel.EndTime,
-				"status":     DatasetSuccess,
-			}).Error; err != nil {
-			logrus.Errorf("Failed to update record for dataset %s: %v", jobLabel.Dataset, err)
-		}
-		return
+func (e *Executor) handleJobCompleted(logEntry *logrus.Entry, jobLabel *JobLabel, errorMsg string) {
+	baseFields := map[string]any{
+		consts.RdbMsgStatus:   consts.TaskStatusCompleted,
+		consts.RdbMsgTaskType: jobLabel.Type,
 	}
 
-	if jobLabel.JobType == string(TaskTypeRunAlgorithm) {
-		payload := map[string]interface{}{
-			CollectDataset:     jobLabel.Dataset,
-			CollectExecutionID: *jobLabel.ExecutionID,
-		}
-		if err := collectResult(jobLabel.TaskID, payload); err != nil {
-			logrus.Error(err)
-			return
+	switch jobLabel.Type {
+	case consts.TaskTypeBuildDataset:
+		logEntry.WithField("dataset", jobLabel.Dataset).Info("dataset build successfully")
+		e.updateDataset(logEntry, jobLabel, consts.TaskStatusCompleted, consts.DatasetBuildSuccess, baseFields)
+
+	case consts.TaskTypeRunAlgorithm:
+		e.handleAlgorithmCompletion(logEntry, jobLabel, baseFields)
+
+	default:
+		logEntry.Warnf("Unhandled completed task type: %s", jobLabel.Type)
+	}
+}
+
+func (e *Executor) handleJobError(logEntry *logrus.Entry, jobLabel *JobLabel, errorMsg string) {
+	if jobLabel.Type == consts.TaskTypeBuildDataset {
+		logEntry.WithField("dataset", jobLabel.Dataset).Error("dataset build failed: %v", errorMsg)
+
+		fields := map[string]any{
+			consts.RdbMsgStatus:   consts.TaskStatusError,
+			consts.RdbMsgTaskType: jobLabel.Type,
+			consts.RdbMsgError:    errorMsg,
 		}
 
-		logrus.Infof("Result of dataset %s collected", jobLabel.Dataset)
-		return
+		e.updateDataset(logEntry, jobLabel, consts.TaskStatusError, consts.DatasetBuildFailed, fields)
+	}
+}
+
+func (e *Executor) updateDataset(logEntry *logrus.Entry, jobLabel *JobLabel, taskStatus string, datasetStatus int, fields map[string]any) {
+	updateTaskStatus(jobLabel.TaskID, jobLabel.TraceID, fmt.Sprintf(taskStatus, jobLabel.TaskID), fields)
+
+	if err := repository.UpdateStatusByDataset(jobLabel.Dataset, datasetStatus); err != nil {
+		logEntry.Errorf("update dataset status to %s failed: %v", datasetStatus, err)
+	}
+}
+
+func (e *Executor) handleAlgorithmCompletion(logEntry *logrus.Entry, jobLabel *JobLabel, baseFields map[string]any) {
+	logEntry.WithField("algorithm", jobLabel.Algorithm).Info("algorithm execute successfully")
+
+	updateFields := utils.CloneMap(baseFields)
+	updateFields[consts.RdbMsgExecutionID] = jobLabel.ExecutionID
+	updateTaskStatus(jobLabel.TaskID,
+		jobLabel.TraceID,
+		fmt.Sprintf(consts.TaskStatusCompleted, jobLabel.TaskID),
+		updateFields,
+	)
+
+	if _, _, err := SubmitTask(context.Background(), &UnifiedTask{
+		Type: consts.TaskTypeCollectResult,
+		Payload: map[string]any{
+			consts.CollectAlgorithm:   jobLabel.Algorithm,
+			consts.CollectDataset:     jobLabel.Dataset,
+			consts.CollectExecutionID: jobLabel.ExecutionID,
+		},
+		Immediate: true,
+		TraceID:   jobLabel.TraceID,
+		GroupID:   jobLabel.GroupID,
+	}); err != nil {
+		logEntry.Error("submit result collection task failed")
 	}
 }
