@@ -6,48 +6,49 @@ import (
 	"fmt"
 	"time"
 
-	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/sirupsen/logrus"
 )
 
-// 故障注入任务的 Payload 结构
-type FaultInjectionPayload struct {
-	Duration   int            `json:"duration"`
-	FaultType  int            `json:"faultType"`
-	Namespace  string         `json:"injectNamespace"`
-	Pod        string         `json:"injectPod"`
-	InjectSpec map[string]int `json:"spec"`
-	Benchmark  *string        `json:"benchmark"`
+// 故障注入任务的元数据
+type InjectionMeta struct {
+	Duration   int
+	FaultType  int
+	Namespace  string
+	Pod        string
+	InjectSpec map[string]int
 }
 
-func ParseFaultInjectionPayload(payload map[string]interface{}) (*FaultInjectionPayload, error) {
-	durationFloat, ok := payload[InjectDuration].(float64)
-	if !ok || durationFloat <= 0 {
-		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectDuration)
-	}
-	duration := int(durationFloat)
+// 下游数据采集任务配置
+type downstreamConfig struct {
+	Benchmark   string
+	PreDuration int
+}
 
-	faultTypeFloat, ok := payload[InjectFaultType].(float64)
+func getInjectionMetaFromPayload(payload map[string]any) (*InjectionMeta, error) {
+	message := "invalid or missing '%s' in payload"
+
+	faultTypeFloat, ok := payload[consts.InjectFaultType].(float64)
 	if !ok || faultTypeFloat <= 0 {
-		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectFaultType)
+		return nil, fmt.Errorf(message, consts.InjectFaultType)
 	}
 	faultType := int(faultTypeFloat)
 
-	namespace, ok := payload[InjectNamespace].(string)
+	namespace, ok := payload[consts.InjectNamespace].(string)
 	if !ok || namespace == "" {
-		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectNamespace)
+		return nil, fmt.Errorf(message, consts.InjectNamespace)
 	}
 
-	pod, ok := payload[InjectPod].(string)
+	pod, ok := payload[consts.InjectPod].(string)
 	if !ok || pod == "" {
-		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectPod)
+		return nil, fmt.Errorf(message, consts.InjectPod)
 	}
 
-	injectSpecMap, ok := payload[InjectSpec].(map[string]interface{})
+	injectSpecMap, ok := payload[consts.InjectSpec].(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("invalid or missing '%s' in payload", InjectSpec)
+		return nil, fmt.Errorf(message, consts.InjectSpec)
 	}
 	injectSpec := make(map[string]int)
 	for k, v := range injectSpecMap {
@@ -58,77 +59,70 @@ func ParseFaultInjectionPayload(payload map[string]interface{}) (*FaultInjection
 		injectSpec[k] = int(floatVal)
 	}
 
-	var benchmark *string
-	benchmarkStr, ok := payload[BuildBenchmark].(string)
-	if ok && benchmarkStr != "" {
-		benchmark = &benchmarkStr
+	durationFloat, ok := payload[consts.InjectFaultDuration].(float64)
+	if !ok || durationFloat <= 0 {
+		return nil, fmt.Errorf(message, consts.InjectFaultDuration)
 	}
+	duration := int(durationFloat)
 
-	return &FaultInjectionPayload{
+	return &InjectionMeta{
+		Duration:   duration,
 		Namespace:  namespace,
 		Pod:        pod,
 		FaultType:  faultType,
-		Duration:   duration,
 		InjectSpec: injectSpec,
-		Benchmark:  benchmark,
 	}, nil
 }
 
-func checkExecutionTime(faultRecord database.FaultInjectionSchedule, namespace string) (time.Time, time.Time, error) {
-	var startTime, endTime time.Time
+func getDownstreamConfig(payload map[string]any) (*downstreamConfig, error) {
+	message := "invalid or missing '%s' in payload"
 
-	if faultRecord.Status == DatasetSuccess {
-		startTime = faultRecord.StartTime
-		endTime = faultRecord.EndTime
-	} else if faultRecord.Status == DatasetInitial {
-		datasetName := faultRecord.InjectionName
-
-		var err error
-		startTime, endTime, err = chaosCli.QueryCRDByName(namespace, datasetName)
-		if err != nil {
-			return startTime, endTime, fmt.Errorf("failed to QueryCRDByName: %s, error: %v", datasetName, err)
-		}
-
-		if err := database.DB.Model(&faultRecord).Where("injection_name = ?", datasetName).
-			Updates(map[string]interface{}{
-				"start_time": startTime,
-				"end_time":   endTime,
-			}).Error; err != nil {
-			return startTime, endTime, fmt.Errorf("failed to update start_time and end_time for dataset: %s, error: %v", datasetName, err)
-		}
+	var benchmark string
+	if _, exists := payload[consts.InjectBenchmark]; !exists {
+		return nil, nil
+	}
+	benchmark, ok := payload[consts.InjectBenchmark].(string)
+	if !ok {
+		return nil, fmt.Errorf(message, consts.InjectBenchmark)
 	}
 
-	return startTime, endTime, nil
+	preDurationFloat, ok := payload[consts.InjectPreDuration].(float64)
+	if !ok || preDurationFloat <= 0 {
+		return nil, fmt.Errorf(message, consts.InjectFaultDuration)
+	}
+	preDuration := int(preDurationFloat)
+
+	return &downstreamConfig{
+		Benchmark:   benchmark,
+		PreDuration: preDuration,
+	}, nil
 }
 
 // 执行故障注入任务
 func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
-	logrus.Infof("Executing fault injection task %+v", task)
+	logrus.Info(task)
 
-	fiPayload, err := ParseFaultInjectionPayload(task.Payload)
-	logrus.Infof("Parsed fault injection payload: %+v", fiPayload)
+	meta, err := getInjectionMetaFromPayload(task.Payload)
+	logrus.Infof("Parsed fault injection meta: %+v", meta)
 	if err != nil {
 		return err
 	}
 
-	// 更新任务状态
-	updateTaskStatus(task.TaskID, TaskStatusRunning, fmt.Sprintf("Executing fault injection for task %s", task.TaskID))
-
 	// 故障注入逻辑
-	var chaosSpec interface{}
-	spec := handler.SpecMap[handler.ChaosType(fiPayload.FaultType)]
+	var chaosSpec any
+	spec := handler.SpecMap[handler.ChaosType(meta.FaultType)]
 	if spec != nil {
 		actionSpace, err := handler.GenerateActionSpace(spec)
 		if err != nil {
 			logrus.Error("GenerateActionSpace: ", err)
 			return err
 		}
-		err = handler.ValidateAction(fiPayload.InjectSpec, actionSpace)
+		err = handler.ValidateAction(meta.InjectSpec, actionSpace)
 		if err != nil {
 			logrus.Error("ValidateAction: ", err)
 			return err
 		}
-		chaosSpec, err = handler.ActionToStruct(handler.ChaosType(fiPayload.FaultType), fiPayload.InjectSpec)
+		chaosSpec, err = handler.ActionToStruct(handler.ChaosType(meta.FaultType), meta.InjectSpec)
 		if err != nil {
 			logrus.Errorf("ActionToStruct, err: %s", err)
 			return err
@@ -136,70 +130,63 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	}
 
 	conf := handler.ChaosConfig{
-		Type:     handler.ChaosType(fiPayload.FaultType),
+		Type:     handler.ChaosType(meta.FaultType),
 		Spec:     chaosSpec,
-		Duration: fiPayload.Duration,
+		Duration: meta.Duration,
 	}
-	name := handler.Create(fiPayload.Namespace, fiPayload.Pod, conf)
+	name := handler.Create(meta.Namespace, meta.Pod, conf)
 	if name == "" {
 		return fmt.Errorf("create chaos failed, conf: %+v", conf)
 	}
-	jsonData, err := json.Marshal(task.Payload)
+	jsonData, err := json.Marshal(meta)
 	if err != nil {
-		logrus.Errorf("marshal conf failed, conf: %+v, err: %s", conf, err)
+		logrus.Errorf("Failed to marshal conf: %+v, err: %s", conf, err)
 		return err
 	}
 
+	updateTaskStatus(task.TaskID, task.TraceID,
+		fmt.Sprintf("Executing fault injection for task %s", task.TaskID),
+		map[string]any{
+			consts.RdbMsgStatus:   consts.TaskStatusRunning,
+			consts.RdbMsgTaskType: consts.TaskTypeFaultInjection,
+		})
+
 	faultRecord := database.FaultInjectionSchedule{
 		TaskID:          task.TaskID,
-		FaultType:       fiPayload.FaultType,
+		FaultType:       meta.FaultType,
 		Config:          string(jsonData),
-		Duration:        fiPayload.Duration,
+		Duration:        meta.Duration,
 		Description:     fmt.Sprintf("Fault for task %s", task.TaskID),
-		Status:          DatasetInitial,
+		Status:          consts.DatasetInitial,
 		InjectionName:   name,
-		ProposedEndTime: time.Now().Add(time.Duration(fiPayload.Duration+2) * time.Minute),
+		ProposedEndTime: time.Now().Add(time.Duration(meta.Duration) * time.Minute),
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}
-
 	if err := database.DB.Create(&faultRecord).Error; err != nil {
-		logrus.Errorf("Failed to write fault injection schedule to database: %v", err)
+		logrus.Errorf("failed to write fault injection schedule to database: %v", err)
 		return fmt.Errorf("failed to write to database: %v", err)
 	}
 
-	if fiPayload.Benchmark != nil {
-		logrus.Info("Scheduling build dataset task")
-		time.AfterFunc(time.Duration(fiPayload.Duration+2)*time.Minute, func() {
-			startTime, endTime, err := checkExecutionTime(faultRecord, fiPayload.Namespace)
-			logrus.Infof("checkExecutionTime for dataset %s, startTime: %v, endTime: %v", name, startTime, endTime)
-			if err != nil {
-				logrus.Errorf("Failed to checkExecutionTime for dataset %s: %v", name, err)
-				return
-			}
+	addDatasetIndex(task.TaskID, name)
 
-			updateTaskStatus(task.TaskID, TaskStatusCompleted, fmt.Sprintf("Task %s completed", task.TaskID))
-
-			datasetPayload := map[string]interface{}{
-				BuildBenchmark: *fiPayload.Benchmark,
-				BuildDataset:   name,
-				BuildNamespace: fiPayload.Namespace,
-				BuildStartTime: &startTime,
-				BuildEndTime:   &endTime,
-			}
-
-			if _, err := SubmitTask(context.Background(), &UnifiedTask{
-				Type:      TaskTypeBuildDataset,
-				Payload:   datasetPayload,
-				Immediate: true,
-				TraceID:   task.TraceID,
-				GroupID:   task.GroupID,
-			}); err != nil {
-				logrus.Error(err)
-				return
-			}
-		})
+	config, err := getDownstreamConfig(task.Payload)
+	if config != nil {
+		addTaskMeta(task.TaskID,
+			consts.MetaBenchmark, config.Benchmark,
+			consts.MetaPreDuration, config.PreDuration,
+			consts.MetaTraceID, task.TraceID,
+			consts.MetaGroupID, task.GroupID,
+		)
 	}
 
-	return nil
+	return err
+}
+
+func ParseInjectionMeta(config string) (*InjectionMeta, error) {
+	var meta InjectionMeta
+	if err := json.Unmarshal([]byte(config), &meta); err != nil {
+		return nil, fmt.Errorf("config unmarshal error: %w", err)
+	}
+	return &meta, nil
 }

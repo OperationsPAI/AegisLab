@@ -7,7 +7,7 @@ timezone = "Asia/Shanghai"
 
 [injection]
 namespace = ["ts"]
-interval = 2
+interval = 10
 label = "app"
 
 [storage]
@@ -15,12 +15,14 @@ path = "/var/lib/rcabench/tasks.db"
 
 [database]
 clickhouse_host = "10.10.10.58"
-mysql_user="root"
-mysql_password="yourpassword"
-mysql_host="mariadb"
-mysql_port="3306"
-mysql_db="rcabench"
+mysql_user = "root"
+mysql_password = "yourpassword"
+mysql_host = "mariadb"
+mysql_port = "3306"
+mysql_db = "rcabench"
 
+[image]
+tag = "latest"
 
 [redis]
 host = "redis:6379"
@@ -28,6 +30,8 @@ host = "redis:6379"
 [harbor]
 host = "10.10.10.240"
 repository = "10.10.10.240/library"
+username = "admin"
+password = "Harbor12345"
 
 [k8s]
 namespace = "experiment"

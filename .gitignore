@@ -168,3 +168,5 @@ output
 *.db
 .idea
 .vscode
+
+scripts/gen/dataset/output/

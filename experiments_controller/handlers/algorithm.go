@@ -3,42 +3,48 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/CUHK-SE-Group/rcabench/consts"
+	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
 	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
 
-// GetAlgorithmResp
-type AlgorithmResp struct {
-	Algorithms []string `json:"algorithms"`
-}
-
-type AlgorithmToml struct {
-	Name string `json:"name"`
-}
-
 // GetAlgorithmList
 //
 //	@Summary		获取算法列表
 //	@Description	获取算法列表
 //	@Tags			algorithm
-//	@Produce		json
+//	@Produce		application/json
 //	@Success		200		{object}	GenericResponse[AlgorithmResp]
 //	@Failure		400		{object}	GenericResponse[any]
 //	@Failure		500		{object}	GenericResponse[any]
-//	@Router			/api/v1/algo/getlist [get]
+//	@Router			/api/v1/algorithms [get]
 func GetAlgorithmList(c *gin.Context) {
 	parentDir := config.GetString("workspace")
-	algoPath := filepath.Join(parentDir, "algorithms")
 
+	algoPath := filepath.Join(parentDir, "algorithms")
 	algoDirs, err := utils.GetAllSubDirectories(algoPath)
 	if err != nil {
-		JSONResponse[interface{}](c, http.StatusInternalServerError, fmt.Sprintf("Failed to list files in %s: %v", algoPath, err), nil)
+		message := "failed to list files"
+		logrus.WithField("algo_path", algoPath).Errorf("%s: %v", message, err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, message)
+		return
+	}
+
+	benchPath := filepath.Join(parentDir, "benchmarks")
+	benchDirs, err := utils.GetAllSubDirectories(benchPath)
+	if err != nil {
+		message := "failed to list files"
+		logrus.WithField("bench_path", benchPath).Errorf("%s: %v", message, err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		return
 	}
 
@@ -47,15 +53,40 @@ func GetAlgorithmList(c *gin.Context) {
 	for _, algoDir := range algoDirs {
 		tomlPath := filepath.Join(algoDir, tomlName)
 
-		var algoToml AlgorithmToml
-		if _, err := toml.DecodeFile(tomlPath, &algoToml); err != nil {
-			logrus.Error(fmt.Sprintf("Failed to get %s in %s: %v", tomlName, algoDir, err))
-			continue
+		data, err := os.ReadFile(tomlPath)
+		if err != nil {
+			message := "failed to read toml file"
+			logrus.WithField("toml_path", tomlPath).Errorf("%s: %v", message, err)
+			dto.ErrorResponse(c, http.StatusInternalServerError, message)
+			return
 		}
-		algorithms = append(algorithms, algoToml.Name)
+
+		var config map[string]any
+		if err := toml.Unmarshal(data, &config); err != nil {
+			message := "failed to parse toml file"
+			logrus.WithField("toml_path", tomlPath).Errorf("%s: %v", message, err)
+			dto.ErrorResponse(c, http.StatusInternalServerError, message)
+			return
+		}
+
+		field := "name"
+		name, ok := utils.GetMapField(config, field)
+		if !ok {
+			message := fmt.Sprintf("missing field in %s", tomlPath)
+			logrus.WithField("field", field).Errorf("%s: %v", message, err)
+			dto.ErrorResponse(c, http.StatusInternalServerError, message)
+			return
+		}
+
+		algorithms = append(algorithms, name)
 	}
 
-	JSONResponse(c, http.StatusOK, "OK", AlgorithmResp{Algorithms: algorithms})
+	var benchmarks []string
+	for _, benchDir := range benchDirs {
+		benchmarks = append(benchmarks, filepath.Base(benchDir))
+	}
+
+	dto.SuccessResponse(c, dto.AlgorithmListResp{Algorithms: algorithms, Benchmarks: benchmarks})
 }
 
 // SubmitAlgorithmExecution
@@ -63,39 +94,66 @@ func GetAlgorithmList(c *gin.Context) {
 //	@Summary		执行算法
 //	@Description	执行算法
 //	@Tags			algorithm
-//	@Produce		json
+//	@Produce		application/json
 //	@Consumes		application/json
-//	@Param			body	body		[]executor.AlgorithmExecutionPayload	true	"请求体"
+//	@Param			body	body		[]dto.AlgorithmExecutionPayload	true	"请求体"
 //	@Success		200		{object}	GenericResponse[SubmitResp]
 //	@Failure		400		{object}	GenericResponse[any]
 //	@Failure		500		{object}	GenericResponse[any]
-//	@Router			/api/v1/algorithm [post]
+//	@Router			/api/v1/algorithms [post]
 func SubmitAlgorithmExecution(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	logrus.Infof("SubmitAlgorithmExecution called, groupID: %s", groupID)
 
-	var payloads []executor.AlgorithmExecutionPayload
+	var payloads []dto.AlgorithmExecutionPayload
 	if err := c.BindJSON(&payloads); err != nil {
-		JSONResponse[interface{}](c, http.StatusBadRequest, "Invalid JSON payload", nil)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid JSON payload")
 		return
 	}
+
 	logrus.Infof("Received executing algorithm payloads: %+v", payloads)
 
-	var ids []string
+	parts := strings.Split(config.GetString("harbor.repository"), "/")
+	harborConfig := utils.HarborConfig{
+		Host:     config.GetString("harbor.host"),
+		Project:  parts[len(parts)-1],
+		Username: config.GetString("harbor.username"),
+		Password: config.GetString("harbor.password"),
+	}
+
+	for i := range payloads {
+		if payloads[i].Tag == "" {
+			harborConfig.Repo = payloads[i].Algorithm
+			tag, err := utils.GetLatestTag(harborConfig)
+			if err != nil {
+				logrus.Errorf("failed to get latest tag: %v", err)
+				return
+			}
+
+			payloads[i].Tag = tag
+		}
+	}
+
+	var traces []dto.Trace
 	for _, payload := range payloads {
-		id, err := executor.SubmitTask(c.Request.Context(), &executor.UnifiedTask{
-			Type:      executor.TaskTypeRunAlgorithm,
-			Payload:   StructToMap(payload),
+		taskID, traceID, err := executor.SubmitTask(c.Request.Context(), &executor.UnifiedTask{
+			Type:      consts.TaskTypeRunAlgorithm,
+			Payload:   utils.StructToMap(payload),
 			Immediate: true,
 			GroupID:   groupID,
 		})
 		if err != nil {
-			JSONResponse[interface{}](c, http.StatusInternalServerError, id, nil)
+			message := "failed to submit task"
+			logrus.Error(message)
+			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
 		}
 
-		ids = append(ids, id)
+		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID})
 	}
 
-	JSONResponse(c, http.StatusAccepted, "Algorithm Execution submitted successfully", SubmitResp{GroupID: groupID, TaskIDs: ids})
+	dto.JSONResponse(c, http.StatusAccepted, "Algorithm Execution submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
+}
+
+func UploadAlgorithm(c *gin.Context) {
 }

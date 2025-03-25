@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CUHK-SE-Group/rcabench/client"
+	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/google/uuid"
 )
@@ -19,19 +19,23 @@ func parseTime(timeStr string) time.Time {
 
 func TestCreateAlgoJob(t *testing.T) {
 	algo := "e-diagnose"
-	datasetName := "ts-ts-preserve-service-cpu-exhaustion-hs5lgx"
-	startTime := parseTime("2025-01-14 17:40:20+08:00")
-	endTime := parseTime("2025-01-14 17:45:19+08:00")
+	tag := "latest"
+	datasetName := "ts-ts-preserve-service-cpu-exhaustion-ts9qbh"
+	startTime := parseTime("2025-03-12 16:28:49+08:00")
+	endTime := parseTime("2025-03-12 16:29:49+08:00")
 
 	jobName := fmt.Sprintf("%s-%s", algo, datasetName)
-	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), algo, "latest")
+	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), algo, tag)
 	labels := map[string]string{
-		LabelJobType:     string(TaskTypeRunAlgorithm),
 		LabelTaskID:      uuid.New().String(),
+		LabelTraceID:     uuid.New().String(),
+		LabelGroupID:     uuid.New().String(),
+		LabelTaskType:    string(TaskTypeRunAlgorithm),
+		LabelAlgorithm:   algo,
 		LabelDataset:     datasetName,
 		LabelExecutionID: fmt.Sprint(1),
 	}
-	jobEnv := &client.JobEnv{
+	jobEnv := &k8s.JobEnv{
 		StartTime: startTime,
 		EndTime:   endTime,
 	}
@@ -49,7 +53,7 @@ func TestDeleteAlgoJob(t *testing.T) {
 
 	jobName := fmt.Sprintf("%s-%s", algo, datasetname)
 
-	err := client.DeleteK8sJob(context.Background(), "experiment", jobName)
+	err := k8s.DeleteJob(context.Background(), "experiment", jobName)
 	time.Sleep(time.Second * 5)
 	if err != nil {
 		t.Error(err)
