@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
+	"github.com/k0kubun/pp/v3"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -200,11 +201,19 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 					gvr, ok := chaosGVRMapping[kind]
 					if !ok {
 						logEntry.Error("gvr resource can not be found")
+						return
 					}
 
 					newRecords, _, _ := unstructured.NestedSlice(newU.Object, "status", "experiment", "containerRecords")
-					timeRange := getCRDEventTimeRanges(newRecords)[0]
+					timeRanges := getCRDEventTimeRanges(newRecords)
+					if len(timeRanges) == 0 {
+						logrus.Error("failed to get the start_time and end_time")
+						return
+					}
 
+					pp.Println(timeRanges)
+
+					timeRange := timeRanges[0]
 					callback.HandleCRDUpdate(newU.GetNamespace(), pod, newU.GetName(), timeRange.Start, timeRange.End)
 					c.queue.Add(QueueItem{
 						Type:      CRDResourceType,
@@ -382,6 +391,7 @@ func getCRDEventTimeRanges(records []any) []timeRange {
 			continue
 		}
 
+		var startTime, endTime *time.Time
 		events, _, _ := unstructured.NestedSlice(record, "events")
 		for _, e := range events {
 			event, ok := e.(map[string]any)
@@ -389,21 +399,20 @@ func getCRDEventTimeRanges(records []any) []timeRange {
 				continue
 			}
 
-			operation, _, _ := unstructured.NestedString(event, "type")
+			operation, _, _ := unstructured.NestedString(event, "operation")
 			eventType, _, _ := unstructured.NestedString(event, "type")
 
-			var startTime, endTime *time.Time
-			if eventType == "Succeeded" || operation == "Apply" {
+			if eventType == "Succeeded" && operation == "Apply" {
 				startTime, _ = parseEventTime(event)
 			}
 
-			if eventType == "Succeeded" || operation == "Recover" {
+			if eventType == "Succeeded" && operation == "Recover" {
 				endTime, _ = parseEventTime(event)
 			}
+		}
 
-			if startTime != nil && endTime != nil {
-				timeRanges = append(timeRanges, timeRange{Start: *startTime, End: *endTime})
-			}
+		if startTime != nil && endTime != nil {
+			timeRanges = append(timeRanges, timeRange{Start: *startTime, End: *endTime})
 		}
 	}
 
