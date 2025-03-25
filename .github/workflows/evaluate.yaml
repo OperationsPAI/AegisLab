@@ -2,7 +2,7 @@ name: Evaluate Root Cause Localization Algorithm
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   evaluate:
@@ -53,7 +53,7 @@ jobs:
           docker cp $(docker ps -alq):/app/reports/evaluation_report.json reports/evaluation_report.json
 
       - name: Upload Evaluation Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: evaluation-report
           path: reports/
