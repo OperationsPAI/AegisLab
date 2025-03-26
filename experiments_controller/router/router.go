@@ -23,6 +23,7 @@ func New() *gin.Engine {
 	{
 		algorithms.GET("", handlers.GetAlgorithmList)
 		algorithms.POST("", handlers.SubmitAlgorithmExecution)
+		algorithms.POST("build", handlers.BuildAlgorithm)
 	}
 
 	datasets := r.Group("/datasets")
