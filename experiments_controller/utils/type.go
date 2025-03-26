@@ -21,3 +21,8 @@ func GetTypeName(obj any) string {
 
 	return objName
 }
+func Must(err error) {
+	if err != nil {
+		panic(err)
+	}
+}

@@ -23,11 +23,6 @@ func New() *gin.Engine {
 	{
 		algorithms.GET("", handlers.GetAlgorithmList)
 		algorithms.POST("", handlers.SubmitAlgorithmExecution)
-
-		tasks := algorithms.Group("/:task_id")
-		{
-			tasks.GET("/stream", handlers.StreamTask)
-		}
 	}
 
 	datasets := r.Group("/datasets")
@@ -54,9 +49,13 @@ func New() *gin.Engine {
 		tasks := injections.Group("/:task_id")
 		{
 			tasks.GET("", handlers.GetInjectionDetail)
-			tasks.GET("/stream", handlers.StreamTask)
 			tasks.PUT("/cancel", handlers.CancelInjection)
 		}
+	}
+
+	streams := r.Group("/streams")
+	{
+		streams.GET("", handlers.GetStream)
 	}
 
 	router.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

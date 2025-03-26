@@ -39,15 +39,6 @@ func GetAlgorithmList(c *gin.Context) {
 		return
 	}
 
-	benchPath := filepath.Join(parentDir, "benchmarks")
-	benchDirs, err := utils.GetAllSubDirectories(benchPath)
-	if err != nil {
-		message := "failed to list files"
-		logrus.WithField("bench_path", benchPath).Errorf("%s: %v", message, err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, message)
-		return
-	}
-
 	tomlName := "info.toml"
 	var algorithms []string
 	for _, algoDir := range algoDirs {
@@ -81,12 +72,7 @@ func GetAlgorithmList(c *gin.Context) {
 		algorithms = append(algorithms, name)
 	}
 
-	var benchmarks []string
-	for _, benchDir := range benchDirs {
-		benchmarks = append(benchmarks, filepath.Base(benchDir))
-	}
-
-	dto.SuccessResponse(c, dto.AlgorithmListResp{Algorithms: algorithms, Benchmarks: benchmarks})
+	dto.SuccessResponse(c, dto.AlgorithmListResp{Algorithms: algorithms})
 }
 
 // SubmitAlgorithmExecution

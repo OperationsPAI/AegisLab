@@ -8,15 +8,22 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/database"
 )
 
-func GetInjectionRecordByDataset(name string) (*database.FaultInjectionSchedule, error) {
+func GetInjectionRecordByDataset(name string, status ...int) (database.FaultInjectionSchedule, error) {
 	var record database.FaultInjectionSchedule
-	err := database.DB.
-		Select("id, config, status, start_time, end_time").
-		Where("injection_name = ? AND status != ?", name, consts.DatesetDeleted).
-		First(&record).
-		Error
+	query := database.DB.
+		Select("id, injection_name, config, pre_duration, status, start_time, end_time").
+		Where("injection_name = ?", name)
 
-	return &record, err
+	if len(status) == 0 {
+		query = query.Where("status != ?", consts.DatasetDeleted)
+	} else if len(status) == 1 {
+		query = query.Where("status = ?", status[0])
+	} else {
+		query = query.Where("status IN ?", status)
+	}
+
+	err := query.First(&record).Error
+	return record, err
 }
 
 func UpdateStatusByDataset(name string, status int) error {

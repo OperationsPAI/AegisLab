@@ -1,8 +1,8 @@
 package dto
 
 type PaginationReq struct {
-	PageNum  *int `form:"page_num" binding:"required,min=1"`
-	PageSize *int `form:"page_size" binding:"required,min=5,max=20"`
+	PageNum  int `form:"page_num" binding:"required,min=1"`
+	PageSize int `form:"page_size" binding:"required,oneof=10 20 50"`
 }
 
 type TaskReq struct {
