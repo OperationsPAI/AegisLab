@@ -8,8 +8,6 @@ github.com/AdamKorcz/go-118-fuzz-build v0.0.0-20230306123547-8075edf89bb0/go.mod
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/toml v1.4.0 h1:kuoIxZQy2WRRk1pttg9asf+WVv6tWQuBNVmK8+nqPr0=
 github.com/BurntSushi/toml v1.4.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
-github.com/CUHK-SE-Group/chaos-experiment v0.0.0-20250207002541-69de94120a41 h1:cZA4Jx1xIrK4JaKud04MdAoBqSh8dCDRT4nGulGt5YI=
-github.com/CUHK-SE-Group/chaos-experiment v0.0.0-20250207002541-69de94120a41/go.mod h1:hwG2DfE9c/FfBe1Z3BKbsNfl35/61J9RYGxhedKaLi4=
 github.com/CUHK-SE-Group/chaos-experiment v0.0.0-20250320101602-24cdabf65183 h1:rAmymyyj1DDCcfYCsUWNS+eFdgWjvTsLN9Mwo9X8VBk=
 github.com/CUHK-SE-Group/chaos-experiment v0.0.0-20250320101602-24cdabf65183/go.mod h1:hwG2DfE9c/FfBe1Z3BKbsNfl35/61J9RYGxhedKaLi4=
 github.com/KyleBanks/depth v1.2.1 h1:5h8fQADFrWtarTdtDudMmGsC7GPbOAu6RVB3ffsVFHc=
