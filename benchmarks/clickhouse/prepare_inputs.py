@@ -177,12 +177,6 @@ def generate_trace(start_time, end_time) -> pd.DataFrame:
 
 
 def generate_trace_id_ts(start_time, end_time) -> pd.DataFrame:
-    # 连接到 ClickHouse 客户端
-    client = clickhouse_connect.get_client(
-        host=clickhouse_host, username=username, password=password
-    )
-
-    # 定义查询语句
     query = f"""
     SELECT TraceId,
         Start,

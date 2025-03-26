@@ -87,7 +87,7 @@ func GetExecutionRecordsByDatasetID(datasetID int, sortOrder string) ([]dto.Exec
 		}
 	}
 
-	var results []dto.ExecutionRecord
+	results := make([]dto.ExecutionRecord, 0)
 	for _, exec := range executions {
 		results = append(results, resultMap[exec.ID])
 	}

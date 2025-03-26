@@ -331,6 +331,7 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 		message,
 		map[string]any{
 			consts.RdbMsgStatus: consts.TaskStatusError,
+			consts.RdbMsgTaskID: task.TaskID,
 			consts.RdbMsgError:  message,
 		})
 }

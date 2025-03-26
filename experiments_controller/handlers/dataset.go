@@ -81,38 +81,19 @@ func QueryDataset(c *gin.Context) {
 		return
 	}
 
-	fiRecord, err := repository.GetInjectionRecordByDataset(req.Name)
+	fiRecord, err := repository.GetInjectionRecordByDataset(req.Name, consts.DatasetBuildSuccess)
 	if err != nil {
 		logrus.Errorf("failed to get fault injection record: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to retrieve injection data")
 		return
 	}
 
-	logEntry := logrus.WithField("dataset", req.Name)
+	logEntry := logrus.WithField("dataset", fiRecord.InjectionName)
 
-	meta, err := executor.ParseInjectionMeta(fiRecord.Config)
+	datasetItem, err := InjectionRecordToDatasetItem(fiRecord)
 	if err != nil {
 		logEntry.Errorf("failed to parse injection config: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "invalid injection configuration")
-		return
-	}
-
-	param := dto.InjectionParam{
-		Duration:  meta.Duration,
-		FaultType: handler.ChaosTypeMap[handler.ChaosType(meta.FaultType)],
-		Namespace: meta.Namespace,
-		Pod:       meta.Pod,
-		Spec:      meta.InjectSpec,
-	}
-	if fiRecord.Status != consts.DatasetBuildSuccess {
-		dto.SuccessResponse(c, &dto.QueryDatasetResp{
-			Param:            param,
-			StartTime:        fiRecord.StartTime,
-			EndTime:          fiRecord.EndTime,
-			DetectorResult:   dto.DetectorRecord{},
-			ExecutionResults: []dto.ExecutionRecord{},
-		})
-
 		return
 	}
 
@@ -135,9 +116,7 @@ func QueryDataset(c *gin.Context) {
 	}
 
 	dto.SuccessResponse(c, &dto.QueryDatasetResp{
-		Param:            param,
-		StartTime:        fiRecord.StartTime,
-		EndTime:          fiRecord.EndTime,
+		DatasetItem:      *datasetItem,
 		DetectorResult:   detectorRecord,
 		ExecutionResults: executionRecords,
 	})
@@ -163,44 +142,47 @@ func GetDatasetList(c *gin.Context) {
 		return
 	}
 
-	pageNum := *req.PageNum
-	pageSize := *req.PageSize
-
-	db := database.DB.
-		Model(&database.FaultInjectionSchedule{}).
-		Where("status = ?", consts.DatasetBuildSuccess)
-	db.Scopes(
-		database.Sort("created_at desc"),
-		database.Paginate(pageNum, pageSize),
-	).Select("SQL_CALC_FOUND_ROWS *")
-
-	// 查询总记录数
-	var total int64
-	if err := db.Raw("SELECT FOUND_ROWS()").Scan(&total).Error; err != nil {
-		message := "failed to count injection schedules"
-		logrus.Errorf("%s: %v", message, err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, message)
-		return
-	}
-
-	// 查询分页数据
-	var records []database.FaultInjectionSchedule
-	if err := db.Select("id, injection_name").Find(&records).Error; err != nil {
-		message := "failed to retrieve datasets"
-		logrus.Errorf("%s: %v", message, err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, message)
+	total, records, err := repository.ListDatasetWithPagination(req.PageNum, req.PageSize)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	items := make([]dto.DatasetItem, 0, len(records))
 	for _, record := range records {
-		items = append(items, *dto.ConvertToDatasetItem(&record))
+		datasetItem, err := InjectionRecordToDatasetItem(record)
+		if err != nil {
+			logrus.WithField("dataset", record.InjectionName).Errorf("failed to parse injection config: %v", err)
+			dto.ErrorResponse(c, http.StatusInternalServerError, "invalid injection configuration")
+			return
+		}
+
+		items = append(items, *datasetItem)
 	}
 
 	dto.SuccessResponse(c, &dto.PaginationResp[dto.DatasetItem]{
 		Total: total,
 		Data:  items,
 	})
+}
+
+// TODO 修改层级
+func InjectionRecordToDatasetItem(record database.FaultInjectionSchedule) (*dto.DatasetItem, error) {
+	meta, err := executor.ParseInjectionMeta(record.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	param := dto.InjectionParam{
+		Duration:  meta.Duration,
+		FaultType: handler.ChaosTypeMap[handler.ChaosType(meta.FaultType)],
+		Namespace: meta.Namespace,
+		Pod:       meta.Pod,
+		Spec:      meta.InjectSpec,
+	}
+	datasetItem := dto.ConvertToDatasetItem(record, param)
+
+	return &datasetItem, nil
 }
 
 // DownloadDataset 处理数据集下载请求

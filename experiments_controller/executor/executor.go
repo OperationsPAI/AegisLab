@@ -99,6 +99,7 @@ func (e *Executor) HandleCRDUpdate(namespace, pod, name string, startTime, endTi
 		fmt.Sprintf(consts.TaskMsgCompleted, taskID),
 		map[string]any{
 			consts.RdbMsgStatus:   consts.TaskStatusCompleted,
+			consts.RdbMsgTaskID:   taskID,
 			consts.RdbMsgTaskType: consts.TaskTypeFaultInjection,
 		})
 
@@ -146,6 +147,7 @@ func (e *Executor) HandleJobAdd(labels map[string]string) {
 		message,
 		map[string]any{
 			consts.RdbMsgStatus:   consts.TaskStatusRunning,
+			consts.RdbMsgTaskID:   jobLabel.TaskID,
 			consts.RdbMsgTaskType: jobLabel.Type,
 		})
 }

@@ -1,7 +1,8 @@
 from typing import List
 from tqdm import tqdm
 from urllib.parse import unquote
-from ..model.dataset import DeleteResult
+from ..const import Pagination
+from ..model.dataset import DeleteResult, ListResult, QueryResult
 import os
 import uuid
 
@@ -25,7 +26,7 @@ class Dataset:
         批量删除指定数据集
 
         Args:
-            names: 要删除的数据集名称列表，需满足：
+            names (List[str]): 要删除的数据集名称列表，需满足：
                 - 非空列表
                 - 每个元素为字符串类型
                 - 字符串非空且长度在1-64字符之间
@@ -55,7 +56,7 @@ class Dataset:
 
         if not all(isinstance(name, str) for name in names):
             invalid = [name for name in names if not isinstance(name, str)]
-            raise TypeError(f"Dataset names must be strings. Invalid: {invalid}")
+            raise TypeError(f"Dataset names must be string. Invalid: {invalid}")
 
         for name in names:
             if not name:
@@ -142,24 +143,88 @@ class Dataset:
 
         return file_path
 
-    def list(self, page_num: int, page_size: int):
-        """分页查询数据集"""
+    def list(
+        self,
+        page_num: int = Pagination.DEFAULT_PAGE_NUM,
+        page_size: int = Pagination.DEFAULT_PAGE_SIZE,
+    ) -> ListResult:
+        """
+        分页查询数据集
+
+        Args:
+            page_num:  页码（从1开始的正整数），默认为1
+            page_size: 每页数据量，仅允许 10/20/50 三种取值，默认为10
+
+        Returns:
+            dict: 包含数据集和分页信息的字典，结构示例：
+                {"data": [...], "total": 100, "page": 1}
+
+        Raises:
+            TypeError: 参数类型错误时抛出
+            ValueError: 参数值不符合要求时抛出
+
+        Example:
+            >>> dataset = client.list(page_num=1, page_size=10)
+        """
         url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['list']}"
 
         if not isinstance(page_num, int):
             raise TypeError("Page number must be integer")
-
         if not isinstance(page_size, int):
             raise TypeError("Page size must be integer")
 
-        params = {"page_num": page_num, "page_size": page_size}
-        return self.client.get(url, params=params)
+        if page_num < Pagination.DEFAULT_PAGE_NUM:
+            raise ValueError(f"Page number must be ≥ {Pagination.DEFAULT_PAGE_NUM}")
+        if page_size not in Pagination.ALLOWED_PAGE_SIZES:
+            raise ValueError(
+                f"Page size must be one of {Pagination.ALLOWED_PAGE_SIZES}"
+            )
 
-    def query(self, dataset: str, sort: str = "desc"):
-        """查询单个数据集"""
+        params = {"page_num": page_num, "page_size": page_size}
+        return ListResult.model_validate(self.client.get(url, params=params))
+
+    def query(self, name: str, sort: str = "desc") -> QueryResult:
+        """查询指定名称的数据集详细信息
+
+        获取指定数据集的完整分析记录，包括检测结果和执行记录
+
+        Args:
+            name (str): 数据集名称（必填）
+                  - 类型：字符串
+                  - 字符串非空且长度在1-64字符之间
+                  示例：["ts-ts-preserve-service-cpu-exhaustion-znzxcn"]
+            sort (str): 排序方式（可选）
+                  - 允许值：desc（降序）/ asc（升序）
+                  - 默认值：desc
+
+        Returns:
+            dict: 数据集完整信息，结构参考 QueryResult 模型定义
+                  - 包含基础信息、检测指标、算法执行结果等
+                  - 查询失败时返回 None
+
+        Raises:
+            TypeError: 参数类型错误时抛出
+            ValueError: 参数值不合法时抛出）
+
+        Example:
+            >>> dataset = client.query("order-service-latency")
+            >>> print(dataset["detector_result"]["p99"])
+            142.3
+        """
         url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['query']}"
-        params = {"dataset": dataset, "sort": sort}
-        return self.client.get(url, params=params)
+
+        if not isinstance(name, str):
+            raise TypeError("Dataset names must be string")
+        if not name:
+            raise ValueError("Dataset name cannot be empty string")
+        if len(name) > 64:
+            raise ValueError(f"Name too long (max 64 chars): {name}")
+
+        if sort not in {"desc", "asc"}:
+            raise ValueError(f"Invalid sort value: {sort}. Must be 'desc' or 'asc'")
+
+        params = {"name": name, "sort": sort}
+        return QueryResult.model_validate(self.client.get(url, params=params))
 
     def submit(self, payload):
         """查询单个数据集"""

@@ -126,13 +126,10 @@ func GetInjectionList(c *gin.Context) {
 		return
 	}
 
-	pageNum := *req.PageNum
-	pageSize := *req.PageSize
-
 	db := database.DB.Model(&database.FaultInjectionSchedule{}).Where("status != ?", consts.DatasetDeleted)
 	db.Scopes(
 		database.Sort("proposed_end_time desc"),
-		database.Paginate(pageNum, pageSize),
+		database.Paginate(req.PageNum, req.PageSize),
 	).Select("SQL_CALC_FOUND_ROWS *")
 
 	// 查询总记录数

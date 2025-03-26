@@ -237,6 +237,7 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 		fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
 		map[string]any{
 			consts.RdbMsgStatus:   consts.TaskStatusCompleted,
+			consts.RdbMsgTaskID:   task.TaskID,
 			consts.RdbMsgTaskType: consts.TaskTypeCollectResult,
 		})
 

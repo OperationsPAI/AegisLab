@@ -32,3 +32,26 @@ def test_download_datasets(group_ids, output_path):
 
     file_path = sdk.dataset.download(group_ids, output_path)
     pprint(file_path)
+
+
+@pytest.mark.parametrize("page_num, page_size", [(1, 10)])
+def test_list_datasets(page_num, page_size):
+    """测试数据集分页列表查询"""
+
+    sdk = rcabench.RCABenchSDK(BASE_URL)
+
+    data = sdk.dataset.list(page_num, page_size)
+    pprint(data)
+
+
+@pytest.mark.parametrize(
+    "name, sort",
+    [("ts-ts-preserve-service-cpu-exhaustion-qlwk6f", "desc")],
+)
+def test_query_dataset(name, sort):
+    """测试指定数据集详细信息查询"""
+
+    sdk = rcabench.RCABenchSDK(BASE_URL)
+
+    data = sdk.dataset.query(name, sort)
+    pprint(data)
