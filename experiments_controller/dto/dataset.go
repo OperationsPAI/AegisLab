@@ -21,8 +21,11 @@ type DatasetDownloadReq struct {
 }
 
 type DatasetItem struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	Name        string         `json:"name"`
+	Param       InjectionParam `json:"param"`
+	Preduration int            `json:"pre_duration"`
+	StartTime   time.Time      `json:"start_time"`
+	EndTime     time.Time      `json:"end_time"`
 }
 
 type DatasetListReq struct {
@@ -40,8 +43,8 @@ type DatasetPayload struct {
 }
 
 type QueryDatasetReq struct {
-	Name string `form:"dataset" binding:"required"`
-	Sort string `form:"sort"`
+	Name string `form:"name" binding:"required,max=64"`
+	Sort string `form:"sort" binding:"oneof=desc asc"`
 }
 
 type InjectionParam struct {
@@ -57,9 +60,9 @@ type DetectorRecord struct {
 	Issues      string   `json:"issue"`
 	AvgDuration *float64 `json:"avg_duration"`
 	SuccRate    *float64 `json:"succ_rate"`
-	P90         *float64 `json:"p90"`
-	P95         *float64 `json:"p95"`
-	P99         *float64 `json:"p99"`
+	P90         *float64 `json:"P90"`
+	P95         *float64 `json:"P95"`
+	P99         *float64 `json:"P99"`
 }
 
 type ExecutionRecord struct {
@@ -75,17 +78,18 @@ type GranularityRecord struct {
 }
 
 type QueryDatasetResp struct {
-	Param            InjectionParam    `json:"param"`
-	StartTime        time.Time         `json:"start_time"`
-	EndTime          time.Time         `json:"end_time"`
+	DatasetItem
 	DetectorResult   DetectorRecord    `json:"detector_result"`
 	ExecutionResults []ExecutionRecord `json:"execution_results"`
 }
 
-func ConvertToDatasetItem(f *database.FaultInjectionSchedule) *DatasetItem {
-	return &DatasetItem{
-		ID:   f.ID,
-		Name: f.InjectionName,
+func ConvertToDatasetItem(record database.FaultInjectionSchedule, param InjectionParam) DatasetItem {
+	return DatasetItem{
+		Name:        record.InjectionName,
+		Param:       param,
+		Preduration: record.PreDuration,
+		StartTime:   record.StartTime,
+		EndTime:     record.EndTime,
 	}
 }
 

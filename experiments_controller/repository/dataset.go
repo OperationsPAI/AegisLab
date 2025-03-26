@@ -79,3 +79,14 @@ func getMissingNames(requested []string, existing []string) []string {
 	}
 	return missing
 }
+
+func ListDatasetWithPagination(pageNum, pageSize int) (int64, []database.FaultInjectionSchedule, error) {
+	return paginateQuery[database.FaultInjectionSchedule](
+		"status = ?",
+		[]any{consts.DatasetBuildSuccess},
+		"created_at desc",
+		pageNum,
+		pageSize,
+		[]string{"injection_name", "config", "pre_duration", "start_time", "end_time"},
+	)
+}

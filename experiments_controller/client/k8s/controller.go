@@ -438,10 +438,6 @@ func parseEventTime(event map[string]any) (*time.Time, error) {
 		return &t, nil
 	}
 
-	if t, err := time.Parse(time.RFC3339, t); err == nil {
-		return &t, nil
-	}
-
 	return nil, fmt.Errorf("parse event time failed")
 }
 
