@@ -128,7 +128,7 @@ func (c *Controller) Run(ctx context.Context, callback Callback) {
 
 	if !cache.WaitForCacheSync(ctx.Done(), allSyncs...) {
 		message := "timed out waiting for caches to sync"
-		runtime.HandleError(fmt.Errorf(message))
+		runtime.HandleError(fmt.Errorf("%s", message))
 		logrus.Error(message)
 		return
 	}
@@ -141,12 +141,21 @@ func (c *Controller) Run(ctx context.Context, callback Callback) {
 
 func (c *Controller) registerEventHandlers(callback Callback) {
 	for gvr, informer := range c.crdInformers {
-		informer.AddEventHandler(c.genCRDEventHandlerFuncs(gvr, callback))
+		if _, err := informer.AddEventHandler(c.genCRDEventHandlerFuncs(gvr, callback)); err != nil {
+			logrus.WithField("gvr", gvr.Resource).Error("failed to add event handler")
+			return
+		}
 	}
 
-	c.jobInformer.AddEventHandler(c.genJobEventHandlerFuncs(callback))
+	if _, err := c.jobInformer.AddEventHandler(c.genJobEventHandlerFuncs(callback)); err != nil {
+		logrus.WithField("func", "genJobEventHandlerFuncs").Error("failed to add event handler")
+		return
+	}
 
-	c.podInformer.AddEventHandler(c.genPodEventHandlerFuncs())
+	if _, err := c.podInformer.AddEventHandler(c.genPodEventHandlerFuncs()); err != nil {
+		logrus.WithField("func", "genPodEventHandlerFuncs").Error("failed to add event handler")
+		return
+	}
 }
 
 func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, callback Callback) cache.ResourceEventHandlerFuncs {

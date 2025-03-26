@@ -34,9 +34,6 @@ type SubmitResp struct {
 }
 
 func (p *PaginationResp[T]) MarshalJSON() ([]byte, error) {
-	type Alias PaginationResp[T]
-
-	// 获取类型 T 的实际类型
 	var t T
 	typeName := utils.GetTypeName(t)
 

@@ -48,9 +48,7 @@ func GetLatestTag(config HarborConfig) (string, error) {
 
 	var tags []HarborTag
 	for _, artifact := range artifacts {
-		for _, tag := range artifact.Tags {
-			tags = append(tags, tag)
-		}
+		tags = append(tags, artifact.Tags...)
 	}
 
 	if len(tags) == 0 {
