@@ -138,35 +138,19 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	if name == "" {
 		return fmt.Errorf("create chaos failed, conf: %+v", conf)
 	}
+
 	jsonData, err := json.Marshal(meta)
 	if err != nil {
-		logrus.Errorf("Failed to marshal conf: %+v, err: %s", conf, err)
+		logrus.Errorf("failed to marshal conf: %+v, err: %s", conf, err)
 		return err
 	}
 
 	updateTaskStatus(task.TaskID, task.TraceID,
-		fmt.Sprintf("Executing fault injection for task %s", task.TaskID),
+		fmt.Sprintf("executing fault injection for task %s", task.TaskID),
 		map[string]any{
 			consts.RdbMsgStatus:   consts.TaskStatusRunning,
 			consts.RdbMsgTaskType: consts.TaskTypeFaultInjection,
 		})
-
-	faultRecord := database.FaultInjectionSchedule{
-		TaskID:          task.TaskID,
-		FaultType:       meta.FaultType,
-		Config:          string(jsonData),
-		Duration:        meta.Duration,
-		Description:     fmt.Sprintf("Fault for task %s", task.TaskID),
-		Status:          consts.DatasetInitial,
-		InjectionName:   name,
-		ProposedEndTime: time.Now().Add(time.Duration(meta.Duration) * time.Minute),
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
-	}
-	if err := database.DB.Create(&faultRecord).Error; err != nil {
-		logrus.Errorf("failed to write fault injection schedule to database: %v", err)
-		return fmt.Errorf("failed to write to database: %v", err)
-	}
 
 	addDatasetIndex(task.TaskID, name)
 
@@ -178,6 +162,24 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 			consts.MetaTraceID, task.TraceID,
 			consts.MetaGroupID, task.GroupID,
 		)
+	}
+
+	faultRecord := database.FaultInjectionSchedule{
+		TaskID:          task.TaskID,
+		FaultType:       meta.FaultType,
+		Config:          string(jsonData),
+		Duration:        meta.Duration,
+		PreDuration:     config.PreDuration,
+		Description:     fmt.Sprintf("Fault for task %s", task.TaskID),
+		Status:          consts.DatasetInitial,
+		InjectionName:   name,
+		ProposedEndTime: time.Now().Add(time.Duration(meta.Duration) * time.Minute),
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+	if err := database.DB.Create(&faultRecord).Error; err != nil {
+		logrus.Errorf("failed to write fault injection schedule to database: %v", err)
+		return fmt.Errorf("failed to write to database: %v", err)
 	}
 
 	return err

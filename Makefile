@@ -4,6 +4,19 @@ NS          ?= experiment
 
 .PHONY: build run debug swagger build-sdk-python gen-dataset-dev gen-dataset-prod import jobs pods ports help
 
+help:  ## Display targets with category headers
+	@awk 'BEGIN { \
+		FS = ":.*##"; \
+		printf "\n\033[1;34mUsage:\033[0m\n  make \033[36m<target>\033[0m\n\n\033[1;34mTargets:\033[0m\n"; \
+	} \
+	/^##@/ { \
+		header = substr($$0, 5); \
+		printf "\n\033[1;33m%s\033[0m\n", header; \
+	} \
+	/^[a-zA-Z_-]+:.*?##/ { \
+		printf "  \033[36m%-20s\033[0m \033[90m%s\033[0m\n", $$1, $$2; \
+	}' $(MAKEFILE_LIST)
+
 ##@ Building
 
 build: ## Build and deploy using skaffold
@@ -26,29 +39,7 @@ swagger: ## Generate Swagger API documentation
 		--parseDependency \
 		--parseDepth 1
 
-##@ SDK
-
-build-sdk-python: ## Install Python SDK with hot reload
-	cd sdk/python && uv pip install . --no-cache --force-reinstall
-
-build-sdk-python-docker:
-	docker build -t 10.10.10.240/library/sdk_python:latest -f ./sdk/python/Dockerfile ./sdk/python && \
-	docker push 10.10.10.240/library/sdk_python:latest
-
 ##@ Data Management
-
-GEN_DATASET_DIR := ./scripts/gen/dataset
-GEN_DATASET_IMAGE := 10.10.10.240/library/gen_dataset:latest
-
-build-gen-dataset-docker:
-	docker build -t $(GEN_DATASET_IMAGE) -f "$(GEN_DATASET_DIR)/Dockerfile" $(GEN_DATASET_DIR) && \
-	docker push $(GEN_DATASET_IMAGE)
-
-gen-dataset-dev: ## Generate test datasets (development)
-	cd $(GEN_DATASET_DIR) && docker compose down && docker compose up gen-dataset-ts-dev -d
-
-gen-dataset-prod: ## Generate production datasets (persistent)
-	cd $(GEN_DATASET_DIR) && docker compose down && docker compose up gen-dataset-ts-prod -d
 
 import: ## Import generated data to the system
 	python scripts/cmd/main.py --algo -d1
@@ -63,8 +54,3 @@ pods: ## List all experiment pods
 
 ports: ## Port-forward experiment service
 	kubectl port-forward svc/exp -n $(NS) --address 0.0.0.0 8081:8081 &
-
-##@ Help
-
-help:  ## Display this help message
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)

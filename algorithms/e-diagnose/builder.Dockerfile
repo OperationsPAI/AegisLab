@@ -6,5 +6,5 @@ COPY ./algorithms/e-diagnose .
 
 COPY ./experiments/run_exp.py .
 
-
+COPY ./experiments/entrypoint.sh /
 

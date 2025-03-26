@@ -51,8 +51,12 @@ func main() {
 	rootCmd.PersistentFlags().StringVarP(&port, "port", "p", "8080", "Port to run the server on")
 	rootCmd.PersistentFlags().StringVarP(&conf, "conf", "c", "/etc/rcabench/config.prod.toml", "Path to configuration file")
 
-	viper.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port"))
-	viper.BindPFlag("conf", rootCmd.PersistentFlags().Lookup("conf"))
+	if err := viper.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port")); err != nil {
+		logrus.Fatalf("Failed to bind flag: %v", err)
+	}
+	if err := viper.BindPFlag("conf", rootCmd.PersistentFlags().Lookup("conf")); err != nil {
+		logrus.Fatalf("Failed to bind flag: %v", err)
+	}
 
 	config.Init(viper.GetString("conf"))
 

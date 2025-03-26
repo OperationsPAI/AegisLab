@@ -9,7 +9,7 @@ const (
 	DatasetInjectFailed  = 2
 	DatasetBuildSuccess  = 3
 	DatasetBuildFailed   = 4
-	DatesetDeleted       = 5
+	DatasetDeleted       = 5
 )
 
 const (
@@ -46,11 +46,10 @@ const (
 	CollectDataset     = "dataset"
 	CollectExecutionID = "execution_id"
 
-	EvalBench   = "benchmark"
-	EvalAlgo    = "algorithm"
-	EvalDataset = "dataset"
-	EvalService = "service"
-	EvalTag     = "tag"
+	ExecuteAlgo    = "algorithm"
+	ExecuteDataset = "dataset"
+	ExecuteService = "service"
+	ExecuteTag     = "tag"
 
 	InjectFaultType     = "fault_type"
 	InjectNamespace     = "inject_namespace"
@@ -81,16 +80,16 @@ const (
 // Redis Meta 属性名称
 const (
 	MetaBenchmark   = "benchmark"
-	MetaGroupID     = "group_id"
 	MetaPreDuration = "pre_duration"
 	MetaTraceID     = "trace_id"
+	MetaGroupID     = "group_id"
 )
 
 // Redis 订阅消息字段
 const (
 	RdbMsgStatus      = "status"
+	RdbMsgTaskID      = "task_id"
 	RdbMsgTaskType    = "task_type"
-	RdbMsgDataset     = "dataset"
 	RdbMsgError       = "error"
 	RdbMsgExecutionID = "execution_id"
 )

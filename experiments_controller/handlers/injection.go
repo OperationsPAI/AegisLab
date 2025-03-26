@@ -6,10 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"regexp"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	cli "github.com/CUHK-SE-Group/chaos-experiment/client"
@@ -26,11 +24,6 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
-)
-
-var (
-	reLog     *regexp.Regexp
-	reLogOnce sync.Once
 )
 
 // CancelInjection
@@ -133,13 +126,10 @@ func GetInjectionList(c *gin.Context) {
 		return
 	}
 
-	pageNum := *req.PageNum
-	pageSize := *req.PageSize
-
-	db := database.DB.Model(&database.FaultInjectionSchedule{}).Where("status != ?", consts.DatesetDeleted)
+	db := database.DB.Model(&database.FaultInjectionSchedule{}).Where("status != ?", consts.DatasetDeleted)
 	db.Scopes(
 		database.Sort("proposed_end_time desc"),
-		database.Paginate(pageNum, pageSize),
+		database.Paginate(req.PageNum, req.PageSize),
 	).Select("SQL_CALC_FOUND_ROWS *")
 
 	// 查询总记录数

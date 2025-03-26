@@ -15,9 +15,9 @@ import (
 	"gorm.io/gorm"
 )
 
-// StreamTask
+// GetStream
 //
-//	@Summary      获取任务状态事件流
+//	@Summary      获取 trace 任务状态事件流
 //	@Description  通过Server-Sent Events (SSE) 实时获取任务的执行状态更新，直到任务完成或连接关闭
 //	@Tags         injection
 //	@Produce      text/event-stream
@@ -27,26 +27,38 @@ import (
 //	@Failure      400      {object}  GenericResponse[any]	"无效的任务ID格式"
 //	@Failure      404      {object}  GenericResponse[any]  	"指定ID的任务不存在"
 //	@Failure      500      {object}  GenericResponse[any]  	"服务器内部错误"
-func StreamTask(c *gin.Context) {
-	var req dto.TaskReq
-	if err := c.BindUri(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid URI")
+func GetStream(c *gin.Context) {
+	var req dto.StreamReq
+	if err := c.BindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid param")
 		return
 	}
 
-	logEntry := logrus.WithField("task_id", req.TaskID)
-
+	var logEntry *logrus.Entry
 	var task database.Task
-	if err := database.DB.Where("tasks.id = ?", req.TaskID).First(&task).Error; err != nil {
+	var err error
+
+	if req.TaskID != "" {
+		logEntry = logrus.WithField("task_id", req.TaskID)
+		err = database.DB.Where("tasks.id = ?", req.TaskID).First(&task).Error
+	} else if req.TraceID != "" {
+		logEntry = logrus.WithField("trace_id", req.TraceID)
+		err = database.DB.Where("tasks.trace_id = ?", req.TraceID).
+			Order("created_at ASC").
+			First(&task).Error
+	}
+
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			message := "Task not found"
 			logEntry.Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusNotFound, message)
-		} else {
-			message := "Failed to retrieve task of injection"
-			logEntry.Errorf("%s: %v", message, err)
-			dto.ErrorResponse(c, http.StatusInternalServerError, message)
+			return
 		}
+
+		message := "failed to retrieve task of injection"
+		logEntry.Error("%s: %v", message, err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 
 		return
 	}
@@ -73,6 +85,15 @@ func StreamTask(c *gin.Context) {
 			expectedTaskType = consts.TaskTypeBuildDataset
 		}
 	}
+
+	sendStreamMessge(c, task.TraceID, expectedTaskType)
+}
+
+func sendStreamMessge(c *gin.Context, traceID string, expectedTaskType consts.TaskType) {
+	logEntry := logrus.WithField("trace_id", traceID)
+
+	pubsub := client.GetRedisClient().Subscribe(c, fmt.Sprintf(consts.SubChannel, traceID))
+	defer pubsub.Close()
 
 	for {
 		select {
@@ -104,7 +125,7 @@ func StreamTask(c *gin.Context) {
 				}
 			case consts.TaskStatusError:
 				c.SSEvent(consts.EventError, map[string]string{
-					"error":   fmt.Sprintf("execute task %s failed", task.ID),
+					"error":   fmt.Sprintf("execute task %s failed", rdbMsg.TaskID),
 					"details": rdbMsg.Error,
 				})
 				c.SSEvent(consts.EventEnd, nil)
