@@ -60,7 +60,7 @@ func buildAlgo(algoDir string, args map[string]string, ctxDir string) error {
 	t := time.Now().UnixNano()
 
 	err := buildDockerfileAndPush(context.Background(), BuildOptions{
-		DockerfilePath: filepath.Join(algoDir, "builder.Dockerfile"), // todo: remove the absolute path
+		DockerfilePath: filepath.Join(algoDir, "builder.Dockerfile"),
 		ImageName:      fmt.Sprintf("%s/%s:%d", con.GetString("harbor.repository"), algoName, t),
 		BuildArgs:      args,
 		ContextDir:     ctxDir,
