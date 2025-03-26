@@ -34,13 +34,15 @@ const (
 
 // 不同任务类型的 Payload 键
 const (
-	BuildBenchmark   = "benchmark"
-	BuildDataset     = "dataset"
-	BuildNamespace   = "namespace"
-	BuildPreDuration = "pre_duration"
-	BuildService     = "service"
-	BuildStartTime   = "start_time"
-	BuildEndTime     = "end_time"
+	BuildBenchmark     = "benchmark"
+	BuildDataset       = "dataset"
+	BuildNamespace     = "namespace"
+	BuildPreDuration   = "pre_duration"
+	BuildService       = "service"
+	BuildStartTime     = "start_time"
+	BuildEndTime       = "end_time"
+	BuildAlgorithm     = "algorithm"
+	BuildAlgorithmPath = "algorithm_path"
 
 	CollectAlgorithm   = "algorithm"
 	CollectDataset     = "dataset"
