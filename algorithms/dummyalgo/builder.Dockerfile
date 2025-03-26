@@ -6,3 +6,5 @@ WORKDIR /app
 COPY ./algorithms/dummyalgo .
 
 COPY ./experiments/run_exp.py .
+
+COPY ./experiments/entrypoint.sh /

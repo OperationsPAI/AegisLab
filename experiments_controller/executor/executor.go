@@ -153,7 +153,7 @@ func (e *Executor) HandleJobAdd(labels map[string]string) {
 func (e *Executor) HandleJobUpdate(labels map[string]string, status, errorMsg string) {
 	jobLabel, err := parseJobLabel(labels)
 	if err != nil {
-		logrus.Error("parse job labels failed: %v", err)
+		logrus.Errorf("parse job labels failed: %v", err)
 		return
 	}
 
@@ -190,7 +190,7 @@ func (e *Executor) handleJobCompleted(logEntry *logrus.Entry, jobLabel *JobLabel
 
 func (e *Executor) handleJobError(logEntry *logrus.Entry, jobLabel *JobLabel, errorMsg string) {
 	if jobLabel.Type == consts.TaskTypeBuildDataset {
-		logEntry.WithField("dataset", jobLabel.Dataset).Error("dataset build failed: %v", errorMsg)
+		logEntry.WithField("dataset", jobLabel.Dataset).Errorf("dataset build failed: %v", errorMsg)
 
 		fields := map[string]any{
 			consts.RdbMsgStatus:   consts.TaskStatusError,
@@ -206,7 +206,7 @@ func (e *Executor) updateDataset(logEntry *logrus.Entry, jobLabel *JobLabel, tas
 	updateTaskStatus(jobLabel.TaskID, jobLabel.TraceID, fmt.Sprintf(taskStatus, jobLabel.TaskID), fields)
 
 	if err := repository.UpdateStatusByDataset(jobLabel.Dataset, datasetStatus); err != nil {
-		logEntry.Errorf("update dataset status to %s failed: %v", datasetStatus, err)
+		logEntry.Errorf("update dataset status to %v failed: %v", datasetStatus, err)
 	}
 }
 
@@ -217,7 +217,7 @@ func (e *Executor) handleAlgorithmCompletion(logEntry *logrus.Entry, jobLabel *J
 	updateFields[consts.RdbMsgExecutionID] = jobLabel.ExecutionID
 	updateTaskStatus(jobLabel.TaskID,
 		jobLabel.TraceID,
-		fmt.Sprintf(consts.TaskStatusCompleted, jobLabel.TaskID),
+		fmt.Sprintf(consts.TaskMsgCompleted, jobLabel.TaskID),
 		updateFields,
 	)
 
