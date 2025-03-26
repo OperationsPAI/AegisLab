@@ -1,12 +1,9 @@
 from typing import Any, Dict, List
-from .logger import CustomLogger
+from .logger import logger
 from .rcabench import RCABenchSDK
 import asyncio
 import os
 import random
-
-CustomLogger()
-logger = CustomLogger().logger
 
 
 class InjectHelper:
@@ -149,7 +146,7 @@ class Example:
         logger.info(report)
         return data["group_id"], report
 
-    async def test_workflow(
+    async def workflow(
         self, injection_payloads: List[Any], algorithms: List[Any]
     ) -> None:
         data = await self.execute_injection_and_building(injection_payloads)
@@ -161,7 +158,7 @@ class Example:
         for _, message in report["results"].items():
             datasets.append(message["dataset"])
 
-        self.sdk.task_manager.cleanup()
+        self.sdk.client_manager.cleanup()
 
         detector_payloads = []
         for dataset in datasets:
@@ -224,6 +221,6 @@ if __name__ == "__main__":
     ]
     algorithms = ["e-diagnose"]
     try:
-        asyncio.run(example.test_workflow(injection_payloads, algorithms))
+        asyncio.run(example.workflow(injection_payloads, algorithms))
     except KeyboardInterrupt:
         print("Shutting down...")

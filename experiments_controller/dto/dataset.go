@@ -8,7 +8,12 @@ import (
 )
 
 type DatasetDeleteReq struct {
-	IDs []int `form:"ids" binding:"required"`
+	Names []string `form:"names" binding:"required,min=1,dive,required,max=64"`
+}
+
+type DatasetDeleteResp struct {
+	SuccessCount int64    `json:"success_count"`
+	FailedNames  []string `json:"failed_names"`
 }
 
 type DatasetDownloadReq struct {
@@ -90,5 +95,5 @@ var DatasetStatusMap = map[int]string{
 	consts.DatasetInjectFailed:  "inject_failed",
 	consts.DatasetBuildSuccess:  "build_success",
 	consts.DatasetBuildFailed:   "build_failed",
-	consts.DatesetDeleted:       "deleted",
+	consts.DatasetDeleted:       "deleted",
 }
