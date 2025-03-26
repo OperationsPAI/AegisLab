@@ -6,10 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"regexp"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	cli "github.com/CUHK-SE-Group/chaos-experiment/client"
@@ -26,11 +24,6 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
-)
-
-var (
-	reLog     *regexp.Regexp
-	reLogOnce sync.Once
 )
 
 // CancelInjection

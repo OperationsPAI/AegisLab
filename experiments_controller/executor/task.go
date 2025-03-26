@@ -307,7 +307,8 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 			}
 		}
 
-		taskCtx, _ := context.WithCancel(retryCtx)
+		taskCtx, cancel := context.WithCancel(retryCtx)
+		_ = cancel
 		err = dispatchTask(taskCtx, task)
 		if err == nil {
 			tasksProcessed.WithLabelValues(string(task.Type), "success").Inc()
@@ -396,11 +397,18 @@ func CancelTask(taskID string) error {
 	if err == nil {
 		switch queueType {
 		case ReadyQueueKey:
-			removeFromList(ctx, redisCli, ReadyQueueKey, taskID)
+			if _, err := removeFromList(ctx, redisCli, ReadyQueueKey, taskID); err != nil {
+				logrus.Warnf("failed to remove from list: %v", err)
+			}
 		case DelayedQueueKey:
-			removeFromZSet(ctx, redisCli, DelayedQueueKey, taskID)
+			if s := removeFromZSet(ctx, redisCli, DelayedQueueKey, taskID); !s {
+				logrus.Warnf("failed to remove from delayed queue: %v", err)
+			}
+
 		case DeadLetterKey:
-			removeFromZSet(ctx, redisCli, DeadLetterKey, taskID)
+			if s := removeFromZSet(ctx, redisCli, DeadLetterKey, taskID); !s {
+				logrus.Warnf("failed to remove from dead letter queue: %v", err)
+			}
 		}
 	}
 
@@ -523,7 +531,7 @@ func getTaskMeta(taskID string) (*TaskMeta, error) {
 	if taskID == "" {
 		message := "the task_id can not be blank"
 		logrus.Error(message)
-		return nil, fmt.Errorf(message)
+		return nil, errors.New(message)
 	}
 
 	ctx := context.Background()
@@ -538,7 +546,7 @@ func getTaskMeta(taskID string) (*TaskMeta, error) {
 	if len(result) == 0 {
 		message := "task metadata does not exist"
 		logrus.WithField("task_id", taskID).Warn(message)
-		return nil, fmt.Errorf(message)
+		return nil, errors.New(message)
 	}
 
 	var meta TaskMeta

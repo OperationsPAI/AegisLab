@@ -12,6 +12,7 @@ import (
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/dto"
+	"github.com/CUHK-SE-Group/rcabench/utils"
 )
 
 type conclusionACatK struct {
@@ -54,11 +55,11 @@ var (
 )
 
 func init() {
-	RegisterMetric("A@k", accuracyk)
-	RegisterMetric("PR@k", precisionk)
-	RegisterMetric("Avg@k", avgk)
-	RegisterMetric("MAP@k", mapk)
-	RegisterMetric("MRR", mrr)
+	utils.Must(RegisterMetric("A@k", accuracyk))
+	utils.Must(RegisterMetric("PR@k", precisionk))
+	utils.Must(RegisterMetric("Avg@k", avgk))
+	utils.Must(RegisterMetric("MAP@k", mapk))
+	utils.Must(RegisterMetric("MRR", mrr))
 }
 
 // 注册新的评估指标

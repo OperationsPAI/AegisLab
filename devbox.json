@@ -3,15 +3,16 @@
   "packages": [
     "go@1.23.3",
     "skaffold@2.13.2",
-    "ruff@0.9.3"
+    "ruff@0.9.3",
+    "golangci-lint@latest"
   ],
   "shell": {
     "init_hook": [
-      "echo 'Welcome to devbox!' > /dev/null"
+      "echo 'Welcome to devbox!'"
     ],
     "scripts": {
-      "test": [
-        "echo \"Error: no test specified\" && exit 1"
+      "lint": [
+        "cd experiments_controller && golangci-lint run"
       ]
     }
   }
