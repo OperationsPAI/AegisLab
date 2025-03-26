@@ -333,35 +333,11 @@ func DeleteDataset(c *gin.Context) {
 		return
 	}
 
-	var existingIDs []int
-	if err := database.DB.
-		Model(&database.FaultInjectionSchedule{}).
-		Select("id").
-		Where("id IN ? AND status != ?", req.IDs, consts.DatesetDeleted).
-		Pluck("id", &existingIDs).
-		Error; err != nil {
-		message := "failed to query datasets"
-		logrus.Errorf("%s: %v", message, err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, message)
+	successCount, failedNames, err := repository.DeleteDatasetByName(req.Names)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	// 所有目标记录已被删除，直接返回成功
-	if len(existingIDs) == 0 {
-		dto.ErrorResponse(c, http.StatusOK, "No records to delete")
-		return
-	}
-
-	if err := database.DB.
-		Model(&database.FaultInjectionSchedule{}).
-		Where("id IN ?", existingIDs).
-		Update("status", consts.DatesetDeleted).
-		Error; err != nil {
-		message := "failed to delete datasets"
-		logrus.Errorf("%s: %v", message, err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, message)
-		return
-	}
-
-	dto.SuccessResponse[any](c, nil)
+	dto.SuccessResponse(c, dto.DatasetDeleteResp{SuccessCount: successCount, FailedNames: failedNames})
 }

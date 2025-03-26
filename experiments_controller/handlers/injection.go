@@ -136,7 +136,7 @@ func GetInjectionList(c *gin.Context) {
 	pageNum := *req.PageNum
 	pageSize := *req.PageSize
 
-	db := database.DB.Model(&database.FaultInjectionSchedule{}).Where("status != ?", consts.DatesetDeleted)
+	db := database.DB.Model(&database.FaultInjectionSchedule{}).Where("status != ?", consts.DatasetDeleted)
 	db.Scopes(
 		database.Sort("proposed_end_time desc"),
 		database.Paginate(pageNum, pageSize),

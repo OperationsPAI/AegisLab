@@ -17,9 +17,17 @@ help:  ## Display targets with category headers
 		printf "  \033[36m%-12s\033[0m \033[90m%s\033[0m\n", $$1, $$2; \
 	}' $(MAKEFILE_LIST)
 
+##@ Building
 build: ## Install Python SDK with hot reload
 	uv pip install . --no-cache --force-reinstall
 
 build-docker: ## Build SDK docker image 
 	docker build -t $(SDK_PHTHON_IMAGE) -f Dockerfile . && \
 	docker push $(SDK_PHTHON_IMAGE)
+
+##@ test
+test-algorithm: ## test algorithm
+	uv run pytest -s tests/test_algorithm_api.py
+
+test-dataset: ## test dataset
+	uv run pytest -s tests/test_dataset_api.py

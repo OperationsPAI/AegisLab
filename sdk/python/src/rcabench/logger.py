@@ -97,3 +97,6 @@ class CustomLogger:
 
     def error(self, message: str, **kwargs) -> None:
         self.log("ERROR", message, **kwargs)
+
+
+logger = CustomLogger().logger
