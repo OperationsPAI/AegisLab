@@ -68,7 +68,7 @@ func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
 		EndTime:   endTime,
 	}
 
-	return createAlgoJob(ctx, meta.DatasetName, jobName, config.GetString("k8s.namespace"), image, []string{"python", "run_exp.py"}, labels, jobEnv)
+	return createAlgoJob(ctx, meta.DatasetName, jobName, config.GetString("k8s.namespace"), image, []string{"bash", "/entrypoint.sh"}, labels, jobEnv)
 }
 
 // 解析算法执行任务的 Payload

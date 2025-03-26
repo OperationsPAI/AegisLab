@@ -307,7 +307,8 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 			}
 		}
 
-		taskCtx, _ := context.WithCancel(retryCtx)
+		taskCtx, cancel := context.WithCancel(retryCtx)
+		_ = cancel
 		err = dispatchTask(taskCtx, task)
 		if err == nil {
 			tasksProcessed.WithLabelValues(string(task.Type), "success").Inc()
