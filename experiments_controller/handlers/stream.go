@@ -57,7 +57,7 @@ func GetStream(c *gin.Context) {
 		}
 
 		message := "failed to retrieve task of injection"
-		logEntry.Error("%s: %v", message, err)
+		logEntry.Errorf("%s: %v", message, err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 
 		return
@@ -66,7 +66,6 @@ func GetStream(c *gin.Context) {
 	pubsub := client.GetRedisClient().Subscribe(c, fmt.Sprintf(consts.SubChannel, task.TraceID))
 	defer pubsub.Close()
 
-	// 主动退出函数，关闭连接
 	expectedTaskType := consts.TaskType(task.Type)
 
 	switch consts.TaskType(task.Type) {

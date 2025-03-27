@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -28,9 +31,7 @@ import (
 //	@Failure		500		{object}	GenericResponse[any]
 //	@Router			/api/v1/algorithms [get]
 func GetAlgorithmList(c *gin.Context) {
-	parentDir := config.GetString("workspace")
-
-	algoPath := filepath.Join(parentDir, "algorithms")
+	algoPath := config.GetString("algo.storage_path")
 	algoDirs, err := utils.GetAllSubDirectories(algoPath)
 	if err != nil {
 		message := "failed to list files"
@@ -141,5 +142,110 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 	dto.JSONResponse(c, http.StatusAccepted, "Algorithm Execution submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
 }
 
-func UploadAlgorithm(c *gin.Context) {
+// BuildAlgorithm handles algorithm file upload, extraction and build submission
+//
+//	@Summary		构建算法镜像
+//	@Description	通过上传文件或指定算法名称来构建算法镜像
+//	@Tags			algorithm
+//	@Accept			multipart/form-data
+//	@Produce		application/json
+//	@Param			file		formData	file	false	"算法文件 (zip/tar.gz)"
+//	@Param			algo	formData	string	false	"算法名称"
+//	@Success		202			{object}	GenericResponse[SubmitResp]
+//	@Failure		400			{object}	GenericResponse[any]
+//	@Failure		500			{object}	GenericResponse[any]
+//	@Router			/api/v1/algorithms/build [post]
+func BuildAlgorithm(c *gin.Context) {
+	var extractDir string
+	algoName := c.PostForm("algo")
+
+	if algoName == "" {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Either file upload or algorithm name is required")
+		return
+	}
+	payload := make(map[string]any)
+	payload[consts.BuildAlgorithm] = algoName
+
+	file, header, err := c.Request.FormFile("file")
+	if err == nil {
+		defer file.Close()
+
+		const maxSize = 5 * 1024 * 1024
+		if header.Size > maxSize {
+			dto.ErrorResponse(c, http.StatusBadRequest, "File size exceeds 5MB limit")
+			return
+		}
+
+		// Check file type
+		fileName := header.Filename
+		fileExt := strings.ToLower(filepath.Ext(fileName))
+
+		isZip := fileExt == ".zip"
+		isTarGz := (fileExt == ".gz" && strings.HasSuffix(strings.ToLower(fileName), ".tar.gz")) ||
+			(fileExt == ".tgz")
+
+		if !isZip && !isTarGz {
+			dto.ErrorResponse(c, http.StatusBadRequest, "Only zip and tar.gz files are allowed")
+			return
+		}
+
+		// Create a temporary directory
+		tempDir, err := os.MkdirTemp("", "algorithm-upload-*")
+		if err != nil {
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to create temporary directory")
+			return
+		}
+
+		// Save the file to the temporary directory
+		filePath := filepath.Join(tempDir, header.Filename)
+		out, err := os.Create(filePath)
+		if err != nil {
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to save file")
+			return
+		}
+		defer out.Close()
+
+		_, err = io.Copy(out, file)
+		if err != nil {
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to save file")
+			return
+		}
+
+		// Create extraction directory
+		extractDir = path.Join(config.GetString("algo.storage_path"), algoName)
+		err = os.MkdirAll(extractDir, 0755)
+		if err != nil {
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to create extraction directory")
+			return
+		}
+
+		// Extract the file based on its format
+		var extractErr error
+		if isZip {
+			extractErr = utils.ExtractZip(filePath, extractDir)
+		} else if isTarGz {
+			extractErr = utils.ExtractTarGz(filePath, extractDir)
+		}
+
+		if extractErr != nil {
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to extract file: "+extractErr.Error())
+			return
+		}
+
+		payload[consts.BuildAlgorithmPath] = extractDir
+	}
+
+	taskID, traceID, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
+		Type:      consts.TaskTypeBuildImages,
+		Payload:   payload,
+		Immediate: true,
+	})
+
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to submit build task")
+		return
+	}
+
+	dto.JSONResponse(c, http.StatusAccepted, "Algorithm build task submitted successfully",
+		dto.SubmitResp{Traces: []dto.Trace{{TraceID: traceID, HeadTaskID: taskID}}})
 }

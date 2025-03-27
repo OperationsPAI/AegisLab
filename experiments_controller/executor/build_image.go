@@ -8,7 +8,9 @@ import (
 	"time"
 
 	con "github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/utils"
+	"github.com/k0kubun/pp/v3"
 
 	"github.com/docker/cli/cli/config"
 	"github.com/moby/buildkit/client"
@@ -35,10 +37,23 @@ type BuildOptions struct {
 }
 
 func executeBuildImages(ctx context.Context, task *UnifiedTask) error {
-	return buildAlgos()
+	algoName, ok := task.Payload[consts.BuildAlgorithm].(string)
+	if !ok {
+		return errors.New("failed to get algorithm name")
+	}
+	if algoName == "all" {
+		return buildAlgos(ctx)
+	}
+	wd := con.GetString("workspace")
+	path, ok := task.Payload[consts.BuildAlgorithmPath].(string)
+	if !ok {
+		path := filepath.Join(con.GetString("algo.storage_path"), algoName)
+		return buildAlgo(ctx, path, nil, wd)
+	}
+	return buildAlgo(ctx, path, nil, wd)
 }
 
-func buildAlgos() error {
+func buildAlgos(ctx context.Context) error {
 	wd := con.GetString("workspace")
 	algos, err := utils.GetAllSubDirectories(filepath.Join(wd, "algorithms"))
 	if err != nil {
@@ -48,18 +63,19 @@ func buildAlgos() error {
 	var eg errgroup.Group
 	for _, algo := range algos {
 		eg.Go(func() error {
-			return buildAlgo(algo, nil, wd)
+			return buildAlgo(ctx, algo, nil, wd)
 		})
 	}
 	return eg.Wait()
 }
 
-func buildAlgo(algoDir string, args map[string]string, ctxDir string) error {
+func buildAlgo(ctx context.Context, algoDir string, args map[string]string, ctxDir string) error {
 	logrus.Infof("building algo %s...", algoDir)
 	algoName := filepath.Base(algoDir)
+	pp.Print(algoName)
 	t := time.Now().UnixNano()
 
-	err := buildDockerfileAndPush(context.Background(), BuildOptions{
+	err := buildDockerfileAndPush(ctx, BuildOptions{
 		DockerfilePath: filepath.Join(algoDir, "builder.Dockerfile"),
 		ImageName:      fmt.Sprintf("%s/%s:%d", con.GetString("harbor.repository"), algoName, t),
 		BuildArgs:      args,
@@ -169,6 +185,7 @@ func buildDockerfileAndPush(ctx context.Context, options BuildOptions) error {
 		logrus.Info("Build finished")
 		if err != nil {
 			bklog.G(ctx).Errorf("Build failed: %v", err)
+			return err
 		}
 		for k, v := range resp.ExporterResponse {
 			bklog.G(ctx).Debugf("exporter response: %s=%s", k, v)

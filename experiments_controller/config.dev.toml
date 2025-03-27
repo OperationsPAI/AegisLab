@@ -39,3 +39,6 @@ namespace = "experiment"
 [nfs]
 path = "/mnt/nfs/rcabench_dataset"
 pvc_name = "nfs-shared-pvc"
+
+[algo]
+storage_path = "/home/nn/workspace/rcabench/algorithms"
