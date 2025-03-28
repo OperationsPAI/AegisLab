@@ -13,6 +13,9 @@
     "scripts": {
       "lint": [
         "cd experiments_controller && golangci-lint run"
+      ],
+      "deploy": [
+        "skaffold build --default-repo=10.10.10.240/library"
       ]
     }
   }
