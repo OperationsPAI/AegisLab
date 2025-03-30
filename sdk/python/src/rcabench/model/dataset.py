@@ -16,7 +16,7 @@ class DeleteResult(BaseModel):
         default=0,
         ge=0,
         description="Number of successfully deleted datasets",
-        example=2,
+        examples=[2],
     )
 
     failed_names: List[str] = Field(
@@ -31,17 +31,19 @@ class InjectionParam(BaseModel):
         default=1, ge=1, description="Duration of fault injection in minutes"
     )
     fault_type: str = Field(
-        ..., description="Type of injected fault", examples="CPUStress"
+        ...,
+        description="Type of injected fault",
+        examples=["CPUStress"],
     )
     namespace: str = Field(
         ...,
         description="Kubernetes namespace where injection occurred",
-        examples="default",
+        examples=["default"],
     )
     pod: str = Field(
         ...,
         description="Target pod name for fault injection",
-        examples="ts-preserve-service",
+        examples=["ts-preserve-service"],
     )
     spec: Dict[str, int] = Field(
         default_factory=dict, description="Key-value pairs of fault specifications spec"
@@ -52,7 +54,7 @@ class DatasetItem(BaseModel):
     name: str = Field(
         ...,
         description="Unique identifier for the dataset",
-        examples="ts-ts-preserve-service-cpu-exhaustion-znzxcn",
+        examples=["ts-ts-preserve-service-cpu-exhaustion-znzxcn"],
         max_length=64,
     )
     param: InjectionParam = Field(
@@ -62,17 +64,17 @@ class DatasetItem(BaseModel):
         default=1,
         ge=1,
         description="Duration of preparing normal time in minutes",
-        examples=1,
+        examples=[1],
     )
     start_time: datetime = Field(
         ...,
         description="Start timestamp of injection window",
-        examples="2025-03-23T12:05:42+08:00",
+        examples=["2025-03-23T12:05:42+08:00"],
     )
     end_time: datetime = Field(
         ...,
         description="End timestamp of injection window",
-        examples="2025-03-23T12:06:42+08:00",
+        examples=["2025-03-23T12:06:42+08:00"],
     )
 
 
@@ -90,23 +92,26 @@ class GranularityRecord(BaseModel):
     level: str = Field(
         ...,
         description="Analysis granularity level (service/pod/span/metric)",
-        examples="service",
+        examples=["service"],
         max_length=32,
     )
     result: str = Field(
         ...,
         description="Identified root cause description",
-        examples="ts-preserve-service",
+        examples=["ts-preserve-service"],
     )
     rank: int = Field(
-        ..., gt=0, description="Severity ranking of the issue", examples=1
+        ...,
+        gt=0,
+        description="Severity ranking of the issue",
+        examples=[1],
     )
     confidence: float = Field(
         ...,
         ge=0,
         le=1,
         description="Confidence score of the analysis result",
-        examples=0.8,
+        examples=[0.8],
     )
 
 
@@ -114,7 +119,7 @@ class ExecutionRecord(BaseModel):
     algorithm: str = Field(
         ...,
         description="Root cause analysis algorithm name",
-        examples="e-diagnose",
+        examples=["e-diagnose"],
     )
     granularity_results: List[GranularityRecord] = Field(
         default_factory=list,
@@ -124,14 +129,18 @@ class ExecutionRecord(BaseModel):
 
 class ListResult(BaseModel):
     total: int = Field(
-        default=0, ge=0, description="Total number of datasets", examples=20
+        default=0,
+        ge=0,
+        description="Total number of datasets",
+        examples=[20],
     )
     datasets: List[DatasetItem] = Field(default_factory=list)
 
 
 class QueryResult(DatasetItem):
     detector_result: DetectorRecord = Field(
-        ..., description="Detailed anomaly detection metrics"
+        ...,
+        description="Detailed anomaly detection metrics",
     )
     execution_results: List[ExecutionRecord] = Field(
         default_factory=list,
