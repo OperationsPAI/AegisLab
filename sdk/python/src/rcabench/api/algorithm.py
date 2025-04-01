@@ -1,6 +1,5 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from ..model.task import SubmitResult
-import itertools
 
 __all__ = ["Algorithm"]
 
@@ -71,31 +70,41 @@ class Algorithm:
         """
         # 类型检查
         if not isinstance(algorithms, list) and algorithms is not None:
-            raise TypeError(f"algorithms must be a list, got {type(algorithms).__name__}")
-        
+            raise TypeError(
+                f"algorithms must be a list, got {type(algorithms).__name__}"
+            )
+
         if not isinstance(datasets, list) and datasets is not None:
             raise TypeError(f"datasets must be a list, got {type(datasets).__name__}")
-        
+
         if payload is not None and not isinstance(payload, list):
             raise TypeError(f"payload must be a list, got {type(payload).__name__}")
-        
+
         # 更详细的类型检查 - 仅在非None值时进行检查
         if algorithms:
             for i, algo in enumerate(algorithms):
                 if not isinstance(algo, list):
-                    raise TypeError(f"Algorithm item {i} must be a tuple, got {type(algo).__name__}")
+                    raise TypeError(
+                        f"Algorithm item {i} must be a tuple, got {type(algo).__name__}"
+                    )
                 if len(algo) < 1 or len(algo) > 2:
-                    raise TypeError(f"Algorithm tuple {i} must have 1 or 2 elements, got {len(algo)}")
+                    raise TypeError(
+                        f"Algorithm tuple {i} must have 1 or 2 elements, got {len(algo)}"
+                    )
                 if not all(isinstance(item, str) for item in algo):
-                    raise TypeError(f"All elements in algorithm tuple {i} must be strings")
-        
+                    raise TypeError(
+                        f"All elements in algorithm tuple {i} must be strings"
+                    )
+
         if datasets and not all(isinstance(ds, str) for ds in datasets):
             raise TypeError("All elements in datasets must be strings")
-        
+
         if payload:
             for i, item in enumerate(payload):
                 if not isinstance(item, dict):
-                    raise TypeError(f"Payload item {i} must be a dict, got {type(item).__name__}")
+                    raise TypeError(
+                        f"Payload item {i} must be a dict, got {type(item).__name__}"
+                    )
 
         url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['submit']}"
 
@@ -109,7 +118,7 @@ class Algorithm:
             for i, item in enumerate(payload):
                 if "algorithm" not in item or "dataset" not in item:
                     raise ValueError(f"Payload item{i} missing required keys: {item}")
-        
+
         # 模式1: 自动生成任务组合
         else:
             # 检查参数列表是否为空
@@ -117,7 +126,7 @@ class Algorithm:
                 raise ValueError(
                     "Must provide either payload or all three list parameters"
                 )
-            
+
             # 创建算法和数据集的笛卡尔积组合
             payload = []
             for algorithm in algorithms:
@@ -146,19 +155,21 @@ class Algorithm:
         """
         url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['list']}"
         response = self.client.get(url)
-        
+
         # 类型检查响应数据
         if not isinstance(response, dict):
             raise TypeError(f"Expected dict response, got {type(response).__name__}")
-        
+
         if "algorithms" not in response:
             raise ValueError("Response missing 'algorithms' key")
-            
+
         algorithms = response["algorithms"]
         if not isinstance(algorithms, list):
-            raise TypeError(f"Expected list of algorithms, got {type(algorithms).__name__}")
-            
+            raise TypeError(
+                f"Expected list of algorithms, got {type(algorithms).__name__}"
+            )
+
         if not all(isinstance(algo, str) for algo in algorithms):
             raise TypeError("All algorithm names must be strings")
-            
+
         return algorithms
