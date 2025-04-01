@@ -42,10 +42,9 @@ func New() *gin.Engine {
 
 	injections := r.Group("/injections")
 	{
-		injections.GET("/parameters", handlers.GetInjectionParameters)
 		injections.GET("", handlers.GetInjectionList)
+		injections.GET("/conf", handlers.GetInjectionConf)
 		injections.POST("", handlers.SubmitFaultInjection)
-		injections.GET("/namespace_pods", handlers.GetNamespacePods)
 
 		tasks := injections.Group("/:task_id")
 		{

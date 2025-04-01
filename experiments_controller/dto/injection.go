@@ -1,9 +1,11 @@
 package dto
 
 import (
+	"fmt"
 	"time"
 
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
+	"github.com/k0kubun/pp/v3"
 )
 
 type InjectCancelResp struct {
@@ -40,15 +42,10 @@ type InjectionParaResp struct {
 }
 
 type InjectionPayload struct {
-	FaultDuration int            `json:"fault_duration"`
-	FaultType     int            `json:"fault_type"`
-	Namespace     string         `json:"inject_namespace"`
-	Pod           string         `json:"inject_pod"`
-	InjectSpec    map[string]int `json:"spec"`
-
-	Benchmark     string     `json:"benchmark"`
-	ExecutionTime *time.Time `json:"execution_time,omitempty"`
-	PreDuration   int        `json:"pre_duration"`
+	InjectionSpec map[string]any `json:"spec"`
+	Benchmark     string         `json:"benchmark"`
+	ExecutionTime *time.Time     `json:"execution_time,omitempty"`
+	PreDuration   int            `json:"pre_duration"`
 }
 
 type timeRange struct {
@@ -56,42 +53,64 @@ type timeRange struct {
 	End   time.Time
 }
 
-// 检查两个时间段是否重叠
-func isOverlap(a, b timeRange) bool {
-	return a.End.After(b.Start)
-}
-
-func (i *InjectionPayload) GetTimeRange() timeRange {
-	executionTime := i.ExecutionTime
-	preStart := executionTime.Add(-time.Duration(i.PreDuration) * time.Minute)
-	faultEnd := executionTime.Add(time.Duration(i.FaultDuration) * time.Minute)
-	return timeRange{Start: preStart, End: faultEnd}
-}
-
 type InjectionSubmitReq struct {
-	IsCroned bool               `json:"is_croned"`
-	Interval int                `json:"interval"`
-	Payloads []InjectionPayload `json:"payloads"`
+	Interval    int              `json:"interval"`
+	PreDuration int              `json:"pre_duration"`
+	Specs       []map[string]any `json:"specs"`
+	Benchmark   string           `json:"benchmark"`
 }
 
-// 检查所有任务的时间冲突
-func (r *InjectionSubmitReq) CheckConflicts() bool {
-	if len(r.Payloads) <= 1 {
-		return false
+func (r *InjectionSubmitReq) GetExecutionTimes() ([]time.Time, error) {
+	if len(r.Specs) == 0 {
+		return nil, nil
 	}
 
-	var allRanges []timeRange
-	for _, payload := range r.Payloads {
-		allRanges = append(allRanges, payload.GetTimeRange())
-	}
+	executionTimes := make([]time.Time, 0, len(r.Specs))
+	timeRanges := make([]timeRange, 0, len(r.Specs))
 
-	// 检查时间段是否重叠
-	for i := range len(allRanges) - 1 {
-		if isOverlap(allRanges[i], allRanges[i+1]) {
-			return true
+	currentTime := time.Now()
+	for i, spec := range r.Specs {
+		faultDuration, err := extractFaultDuration(spec)
+		if err != nil {
+			return nil, fmt.Errorf("spec[%d]: %w", i, err)
+		}
+
+		execTime := currentTime.Add(time.Duration(i*r.Interval) * time.Minute)
+		start := execTime.Add(-time.Duration(r.PreDuration) * time.Minute)
+		end := execTime.Add(time.Duration(faultDuration) * time.Minute)
+
+		executionTimes = append(executionTimes, execTime)
+		timeRanges = append(timeRanges, timeRange{Start: start, End: end})
+
+		if i > 0 && timeRanges[i-1].End.After(start) {
+			return nil, fmt.Errorf("spec[%d]: time range overlaps with previous", i)
 		}
 	}
-	return false
+
+	return executionTimes, nil
+}
+
+// 提取故障持续时间的辅助函数
+func extractFaultDuration(spec map[string]any) (int, error) {
+	node, err := chaos.MapToNode(spec)
+	if err != nil {
+		return 0, fmt.Errorf("convert spec to node failed: %w", err)
+	}
+
+	pp.Println(node)
+
+	if _, err := chaos.NodeToStruct[chaos.InjectionConf](node); err != nil {
+		return 0, fmt.Errorf(err.Error())
+	}
+
+	var key int
+	for key = range node.Children {
+	}
+
+	subNode := node.Children[key]
+	faultDuration := subNode.Children[0].Value
+
+	return faultDuration, nil
 }
 
 type InjectionTask struct {

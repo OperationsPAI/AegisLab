@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	cli "github.com/CUHK-SE-Group/chaos-experiment/client"
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
@@ -102,49 +103,26 @@ func getDownstreamConfig(payload map[string]any) (*downstreamConfig, error) {
 func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	logrus.Info(task)
 
-	meta, err := getInjectionMetaFromPayload(task.Payload)
-	logrus.Infof("Parsed fault injection meta: %+v", meta)
+	spec, ok := task.Payload["spec"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("failed to read injection spec")
+	}
+
+	node, err := handler.MapToNode(spec)
 	if err != nil {
 		return err
 	}
 
-	// 故障注入逻辑
-	var chaosSpec any
-	spec := handler.SpecMap[handler.ChaosType(meta.FaultType)]
-	if spec != nil {
-		actionSpace, err := handler.GenerateActionSpace(spec)
-		if err != nil {
-			logrus.Error("GenerateActionSpace: ", err)
-			return err
-		}
-		err = handler.ValidateAction(meta.InjectSpec, actionSpace)
-		if err != nil {
-			logrus.Error("ValidateAction: ", err)
-			return err
-		}
-		chaosSpec, err = handler.ActionToStruct(handler.ChaosType(meta.FaultType), meta.InjectSpec)
-		if err != nil {
-			logrus.Errorf("ActionToStruct, err: %s", err)
-			return err
-		}
+	var key int
+	for key = range node.Children {
 	}
 
-	conf := handler.ChaosConfig{
-		Type:     handler.ChaosType(meta.FaultType),
-		Spec:     chaosSpec,
-		Duration: meta.Duration,
-	}
-	name := handler.Create(meta.Namespace, meta.Pod, conf)
-	if name == "" {
-		return fmt.Errorf("create chaos failed, conf: %+v", conf)
-	}
-
-	jsonData, err := json.Marshal(meta)
+	conf, err := handler.NodeToStruct[handler.InjectionConf](node)
 	if err != nil {
-		logrus.Errorf("failed to marshal conf: %+v, err: %s", conf, err)
 		return err
 	}
 
+	name := conf.Create(cli.NewK8sClient())
 	updateTaskStatus(task.TaskID, task.TraceID,
 		fmt.Sprintf("executing fault injection for task %s", task.TaskID),
 		map[string]any{
@@ -155,31 +133,37 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	addDatasetIndex(task.TaskID, name)
 
 	config, err := getDownstreamConfig(task.Payload)
-	if config != nil {
-		addTaskMeta(task.TaskID,
-			consts.MetaBenchmark, config.Benchmark,
-			consts.MetaPreDuration, config.PreDuration,
-			consts.MetaTraceID, task.TraceID,
-			consts.MetaGroupID, task.GroupID,
-		)
+	if err != nil {
+		return err
+	}
+
+	addTaskMeta(task.TaskID,
+		consts.MetaBenchmark, config.Benchmark,
+		consts.MetaPreDuration, config.PreDuration,
+		consts.MetaTraceID, task.TraceID,
+		consts.MetaGroupID, task.GroupID,
+	)
+
+	jsonData, err := json.Marshal(spec)
+	if err != nil {
+		return fmt.Errorf("failed to marshal injection spec")
 	}
 
 	faultRecord := database.FaultInjectionSchedule{
-		TaskID:          task.TaskID,
-		FaultType:       meta.FaultType,
-		Config:          string(jsonData),
-		Duration:        meta.Duration,
-		PreDuration:     config.PreDuration,
-		Description:     fmt.Sprintf("Fault for task %s", task.TaskID),
-		Status:          consts.DatasetInitial,
-		InjectionName:   name,
-		ProposedEndTime: time.Now().Add(time.Duration(meta.Duration) * time.Minute),
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		TaskID:        task.TaskID,
+		FaultType:     key,
+		Config:        string(jsonData),
+		Duration:      0,
+		PreDuration:   config.PreDuration,
+		Description:   fmt.Sprintf("Fault for task %s", task.TaskID),
+		Status:        consts.DatasetInitial,
+		InjectionName: name,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	}
-	if err := database.DB.Create(&faultRecord).Error; err != nil {
+	if err = database.DB.Create(&faultRecord).Error; err != nil {
 		logrus.Errorf("failed to write fault injection schedule to database: %v", err)
-		return fmt.Errorf("failed to write to database: %v", err)
+		return fmt.Errorf("failed to write to database")
 	}
 
 	return err
