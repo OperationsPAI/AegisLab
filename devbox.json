@@ -11,8 +11,11 @@
       "echo 'Welcome to devbox!'"
     ],
     "scripts": {
-      "lint": [
+      "lint-go": [
         "cd experiments_controller && golangci-lint run"
+      ],
+      "lint-py": [
+        "ruff check --fix --show-fixes"
       ],
       "deploy": [
         "skaffold build --default-repo=10.10.10.240/library"
