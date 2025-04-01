@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
@@ -90,13 +89,6 @@ func QueryDataset(c *gin.Context) {
 
 	logEntry := logrus.WithField("dataset", fiRecord.InjectionName)
 
-	datasetItem, err := InjectionRecordToDatasetItem(fiRecord)
-	if err != nil {
-		logEntry.Errorf("failed to parse injection config: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "invalid injection configuration")
-		return
-	}
-
 	detectorRecord, err := repository.GetDetectorRecordByDatasetID(fiRecord.ID)
 	if err != nil {
 		logEntry.Errorf("failed to retrieve detector record: %v", err)
@@ -116,7 +108,6 @@ func QueryDataset(c *gin.Context) {
 	}
 
 	dto.SuccessResponse(c, &dto.QueryDatasetResp{
-		DatasetItem:      *datasetItem,
 		DetectorResult:   detectorRecord,
 		ExecutionResults: executionRecords,
 	})
@@ -148,41 +139,20 @@ func GetDatasetList(c *gin.Context) {
 		return
 	}
 
+	// TODO 修改DatasetItem
 	items := make([]dto.DatasetItem, 0, len(records))
 	for _, record := range records {
-		datasetItem, err := InjectionRecordToDatasetItem(record)
 		if err != nil {
 			logrus.WithField("dataset", record.InjectionName).Errorf("failed to parse injection config: %v", err)
 			dto.ErrorResponse(c, http.StatusInternalServerError, "invalid injection configuration")
 			return
 		}
-
-		items = append(items, *datasetItem)
 	}
 
 	dto.SuccessResponse(c, &dto.PaginationResp[dto.DatasetItem]{
 		Total: total,
 		Data:  items,
 	})
-}
-
-// TODO 修改层级
-func InjectionRecordToDatasetItem(record database.FaultInjectionSchedule) (*dto.DatasetItem, error) {
-	meta, err := executor.ParseInjectionMeta(record.Config)
-	if err != nil {
-		return nil, err
-	}
-
-	param := dto.InjectionParam{
-		Duration:  meta.Duration,
-		FaultType: handler.ChaosTypeMap[handler.ChaosType(meta.FaultType)],
-		Namespace: meta.Namespace,
-		Pod:       meta.Pod,
-		Spec:      meta.InjectSpec,
-	}
-	datasetItem := dto.ConvertToDatasetItem(record, param)
-
-	return &datasetItem, nil
 }
 
 // DownloadDataset 处理数据集下载请求

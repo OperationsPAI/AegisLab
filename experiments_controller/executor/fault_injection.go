@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	cli "github.com/CUHK-SE-Group/chaos-experiment/client"
@@ -13,66 +14,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// 故障注入任务的元数据
-type InjectionMeta struct {
-	Duration   int
-	FaultType  int
-	Namespace  string
-	Pod        string
-	InjectSpec map[string]int
-}
-
-// 下游数据采集任务配置
 type downstreamConfig struct {
 	Benchmark   string
 	PreDuration int
-}
-
-func getInjectionMetaFromPayload(payload map[string]any) (*InjectionMeta, error) {
-	message := "invalid or missing '%s' in payload"
-
-	faultTypeFloat, ok := payload[consts.InjectFaultType].(float64)
-	if !ok || faultTypeFloat <= 0 {
-		return nil, fmt.Errorf(message, consts.InjectFaultType)
-	}
-	faultType := int(faultTypeFloat)
-
-	namespace, ok := payload[consts.InjectNamespace].(string)
-	if !ok || namespace == "" {
-		return nil, fmt.Errorf(message, consts.InjectNamespace)
-	}
-
-	pod, ok := payload[consts.InjectPod].(string)
-	if !ok || pod == "" {
-		return nil, fmt.Errorf(message, consts.InjectPod)
-	}
-
-	injectSpecMap, ok := payload[consts.InjectSpec].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf(message, consts.InjectSpec)
-	}
-	injectSpec := make(map[string]int)
-	for k, v := range injectSpecMap {
-		floatVal, ok := v.(float64)
-		if !ok {
-			return nil, fmt.Errorf("invalid value for key '%s' in injectSpec", k)
-		}
-		injectSpec[k] = int(floatVal)
-	}
-
-	durationFloat, ok := payload[consts.InjectFaultDuration].(float64)
-	if !ok || durationFloat <= 0 {
-		return nil, fmt.Errorf(message, consts.InjectFaultDuration)
-	}
-	duration := int(durationFloat)
-
-	return &InjectionMeta{
-		Duration:   duration,
-		Namespace:  namespace,
-		Pod:        pod,
-		FaultType:  faultType,
-		InjectSpec: injectSpec,
-	}, nil
 }
 
 func getDownstreamConfig(payload map[string]any) (*downstreamConfig, error) {
@@ -89,7 +33,7 @@ func getDownstreamConfig(payload map[string]any) (*downstreamConfig, error) {
 
 	preDurationFloat, ok := payload[consts.InjectPreDuration].(float64)
 	if !ok || preDurationFloat <= 0 {
-		return nil, fmt.Errorf(message, consts.InjectFaultDuration)
+		return nil, fmt.Errorf(message, consts.InjectPreDuration)
 	}
 	preDuration := int(preDurationFloat)
 
@@ -103,7 +47,7 @@ func getDownstreamConfig(payload map[string]any) (*downstreamConfig, error) {
 func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	logrus.Info(task)
 
-	spec, ok := task.Payload["spec"].(map[string]any)
+	spec, ok := task.Payload[consts.InjectSpec].(map[string]any)
 	if !ok {
 		return fmt.Errorf("failed to read injection spec")
 	}
@@ -113,8 +57,13 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		return err
 	}
 
-	var key int
+	var key string
 	for key = range node.Children {
+	}
+
+	intKey, err := strconv.Atoi(key)
+	if err != nil {
+		return err
 	}
 
 	conf, err := handler.NodeToStruct[handler.InjectionConf](node)
@@ -151,7 +100,7 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 
 	faultRecord := database.FaultInjectionSchedule{
 		TaskID:        task.TaskID,
-		FaultType:     key,
+		FaultType:     intKey,
 		Config:        string(jsonData),
 		Duration:      0,
 		PreDuration:   config.PreDuration,
@@ -167,12 +116,4 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	}
 
 	return err
-}
-
-func ParseInjectionMeta(config string) (*InjectionMeta, error) {
-	var meta InjectionMeta
-	if err := json.Unmarshal([]byte(config), &meta); err != nil {
-		return nil, fmt.Errorf("config unmarshal error: %w", err)
-	}
-	return &meta, nil
 }

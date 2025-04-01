@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/CUHK-SE-Group/rcabench/database"
-	"github.com/k0kubun/pp/v3"
 	"github.com/sirupsen/logrus"
 )
 
@@ -28,8 +27,6 @@ func paginateQuery[T any](
 		database.Sort(sortField),
 		database.Paginate(pageNum, pageSize),
 	)
-
-	pp.Println(condition, conditionArgs, total)
 
 	if len(selectColumns) > 0 {
 		query = query.Select(selectColumns)

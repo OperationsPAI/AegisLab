@@ -182,7 +182,7 @@ func GetInjectionList(c *gin.Context) {
 	// 查询总记录数
 	var total int64
 	if err := db.Raw("SELECT FOUND_ROWS()").Scan(&total).Error; err != nil {
-		message := "Failed to count injection schedules"
+		message := "failed to count injection schedules"
 		logrus.Errorf("%s: %v", message, err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		return
@@ -191,7 +191,7 @@ func GetInjectionList(c *gin.Context) {
 	// 查询分页数据
 	var records []database.FaultInjectionSchedule
 	if err := db.Find(&records).Error; err != nil {
-		message := "Failed to retrieve injections"
+		message := "failed to retrieve injections"
 		logrus.Errorf("%s: %v", message, err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		return
@@ -199,30 +199,20 @@ func GetInjectionList(c *gin.Context) {
 
 	var injections []dto.InjectionItem
 	for _, record := range records {
-		meta, err := executor.ParseInjectionMeta(record.Config)
-		if err != nil {
+		var payload map[string]any
+		if err := json.Unmarshal([]byte(record.Config), &payload); err != nil {
 			logrus.WithField("id", record.ID).Errorf("failed to parse injection config: %v", err)
-			continue
-		}
-
-		param := dto.InjectionParam{
-			Duration:  meta.Duration,
-			FaultType: handler.ChaosTypeMap[handler.ChaosType(meta.FaultType)],
-			Namespace: meta.Namespace,
-			Pod:       meta.Pod,
-			Spec:      meta.InjectSpec,
 		}
 
 		injections = append(injections, dto.InjectionItem{
-			ID:              record.ID,
-			TaskID:          record.TaskID,
-			FaultType:       chaos.ChaosTypeMap[chaos.ChaosType(record.FaultType)],
-			Name:            record.InjectionName,
-			Status:          dto.DatasetStatusMap[record.Status],
-			InjectTime:      record.StartTime,
-			ProposedEndTime: record.ProposedEndTime,
-			Duration:        record.Duration,
-			Param:           param,
+			ID:         record.ID,
+			TaskID:     record.TaskID,
+			FaultType:  chaos.ChaosTypeMap[chaos.ChaosType(record.FaultType)],
+			Name:       record.InjectionName,
+			Status:     dto.DatasetStatusMap[record.Status],
+			InjectTime: record.StartTime,
+			Duration:   record.Duration,
+			Payload:    payload,
 		})
 	}
 
@@ -265,9 +255,9 @@ func SubmitFaultInjection(c *gin.Context) {
 	var traces []dto.Trace
 	for i, spec := range req.Specs {
 		payload := map[string]any{
-			"Benchmark":   req.Benchmark,
-			"PreDuration": req.PreDuration,
-			"Spec":        spec,
+			consts.InjectBenchmark:   req.Benchmark,
+			consts.InjectPreDuration: req.PreDuration,
+			consts.InjectSpec:        spec,
 		}
 
 		taskID, traceID, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{

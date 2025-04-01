@@ -8,7 +8,6 @@ import (
 	"slices"
 
 	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
-	"github.com/k0kubun/pp/v3"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -219,8 +218,6 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 						logrus.Error("failed to get the start_time and end_time")
 						return
 					}
-
-					pp.Println(timeRanges)
 
 					timeRange := timeRanges[0]
 					callback.HandleCRDUpdate(newU.GetNamespace(), pod, newU.GetName(), timeRange.Start, timeRange.End)
