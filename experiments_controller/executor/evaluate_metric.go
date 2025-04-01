@@ -9,11 +9,24 @@ import (
 
 	"maps"
 
-	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/utils"
 )
+
+type Level string
+
+const (
+	Span    Level = "span"
+	Service Level = "service"
+	Metric  Level = "metric"
+	Pod     Level = "pod"
+)
+
+type Groudtruth struct {
+	Level Level
+	Name  string
+}
 
 type conclusionACatK struct {
 	Level  string `json:"level"`  // 例如 service level
@@ -93,25 +106,13 @@ func GetMetrics() map[string]dto.EvaluateMetric {
 }
 
 // 解析配置并获取 ground truth 的公共函数
-func parseConfigAndGetGroundTruth(execution dto.Execution) ([]handler.Groudtruth, error) {
+func parseConfigAndGetGroundTruth(execution dto.Execution) ([]Groudtruth, error) {
 	var payload map[string]any
 	if err := json.Unmarshal([]byte(execution.Dataset.Config), &payload); err != nil {
 		return nil, err
 	}
 
-	conf, err := getInjectionMetaFromPayload(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	groundtruth := []handler.Groudtruth{
-		{Level: handler.Service, Name: conf.Pod},
-		{Level: handler.Pod, Name: conf.Pod},
-	}
-
-	if additional := handler.ChaosHandlers[handler.ChaosType(conf.FaultType)].GetGroudtruth(); additional != nil {
-		groundtruth = append(groundtruth, additional...)
-	}
+	groundtruth := []Groudtruth{}
 
 	return groundtruth, nil
 }
@@ -142,7 +143,7 @@ func accuracyk(executions []dto.Execution) ([]*dto.Conclusion, error) {
 
 		for _, g := range execution.GranularityResults {
 			for _, gt := range groundtruth {
-				if gt.Level == handler.Level(g.Level) && g.Result == gt.Name {
+				if gt.Level == Level(g.Level) && g.Result == gt.Name {
 					hitLevels := []string{"AC@1", "AC@3", "AC@5"}
 					hits := []int{0, 0, 0}
 

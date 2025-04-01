@@ -1,12 +1,13 @@
 package utils
 
-import "reflect"
+import (
+	"maps"
+	"reflect"
+)
 
 func CloneMap(src map[string]any) map[string]any {
 	dst := make(map[string]any, len(src))
-	for k, v := range src {
-		dst[k] = v
-	}
+	maps.Copy(dst, src)
 	return dst
 }
 
@@ -37,7 +38,7 @@ func StructToMap(obj any) map[string]any {
 	t := reflect.TypeOf(obj)
 	v := reflect.ValueOf(obj)
 
-	for i := 0; i < t.NumField(); i++ {
+	for i := range t.NumField() {
 		field := t.Field(i)
 		// 获取 JSON 标签名，如果没有则用字段名
 		tag := field.Tag.Get("json")

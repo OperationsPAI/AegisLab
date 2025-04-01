@@ -2,10 +2,10 @@ package dto
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
-	"github.com/k0kubun/pp/v3"
 )
 
 type InjectCancelResp struct {
@@ -17,15 +17,14 @@ type InjectionDetailResp struct {
 }
 
 type InjectionItem struct {
-	ID              int            `json:"id"`
-	TaskID          string         `json:"task_id"`
-	FaultType       string         `json:"fault_type"`
-	Name            string         `gorm:"column:injection_name" json:"name"`
-	Status          string         `json:"status"`
-	InjectTime      time.Time      `gorm:"column:start_time" json:"inject_time"`
-	ProposedEndTime time.Time      `json:"proposed_end_time"`
-	Duration        int            `json:"duration"`
-	Param           InjectionParam `gorm:"-" json:"param"`
+	ID         int            `json:"id"`
+	TaskID     string         `json:"task_id"`
+	FaultType  string         `json:"fault_type"`
+	Name       string         `gorm:"column:injection_name" json:"name"`
+	Status     string         `json:"status"`
+	InjectTime time.Time      `gorm:"column:start_time" json:"inject_time"`
+	Duration   int            `json:"duration"`
+	Payload    map[string]any `json:"payload"`
 }
 
 type InjectionListReq struct {
@@ -97,18 +96,16 @@ func extractFaultDuration(spec map[string]any) (int, error) {
 		return 0, fmt.Errorf("convert spec to node failed: %w", err)
 	}
 
-	pp.Println(node)
-
 	if _, err := chaos.NodeToStruct[chaos.InjectionConf](node); err != nil {
 		return 0, fmt.Errorf(err.Error())
 	}
 
-	var key int
+	var key string
 	for key = range node.Children {
 	}
 
 	subNode := node.Children[key]
-	faultDuration := subNode.Children[0].Value
+	faultDuration := subNode.Children[strconv.Itoa(0)].Value
 
 	return faultDuration, nil
 }

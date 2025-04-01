@@ -53,14 +53,9 @@ const (
 	ExecuteService = "service"
 	ExecuteTag     = "tag"
 
-	InjectFaultType     = "fault_type"
-	InjectNamespace     = "inject_namespace"
-	InjectPod           = "inject_pod"
-	InjectSpec          = "spec"
-	InjectExectuionTime = "execution_time"
-	InjectPreDuration   = "pre_duration"
-	InjectFaultDuration = "fault_duration"
-	InjectBenchmark     = "benchmark"
+	InjectBenchmark   = "benchmark"
+	InjectPreDuration = "pre_duration"
+	InjectSpec        = "spec"
 )
 
 // Redis 流和消费者组配置
