@@ -1,4 +1,4 @@
-from typing import Any, AsyncGenerator, Dict, List, Optional, Union
+from typing import Any, AsyncGenerator, Dict, List, Optional, Union, TypedDict
 from .api import Algorithm, Dataset
 from .client.async_client import AsyncSSEClient, ClientManager
 from .client.http_client import HttpClient
@@ -6,6 +6,8 @@ from contextlib import asynccontextmanager
 import aiohttp
 import asyncio
 import requests
+
+
 
 
 class RCABenchSDK:
@@ -123,13 +125,20 @@ class Evaluation:
         url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['execute']}"
         return self.sdk.client.get(url, params=params)
 
-
+class Node(TypedDict):
+    name: str
+    range: List[int]
+    description: str  
+    children: Dict[str, 'Node']  
+    value: Optional[int]
+    
+    
 class Injection:
     URL_PREFIX = "/injections"
 
     URL_ENDPOINTS = {
         "get_namespace_pod_info": "/namespace_pods",
-        "get_parameters": "/parameters",
+        "get_parameters": "/conf",
         "list": "",
         "query": "/{task_id}",
         "submit": "",
@@ -142,8 +151,8 @@ class Injection:
         url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['get_namespace_pod_info']}"
         return self.sdk.client.get(url)
 
-    def get_parameters(self):
-        url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['/parameters']}"
+    def get_parameters(self) -> Node:
+        url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['get_parameters']}"
         return self.sdk.client.get(url)
 
     def list(self, page_num: int, page_size: int):
@@ -156,6 +165,11 @@ class Injection:
         url = f"{self.URL_PREFIX}{endpoint}"
         return self.sdk.client.get(url)
 
-    def submit(self, payloads: Dict[str, Union[bool, int, Dict]]):
+    def submit(self, interval: int, pre_duration: int, benchmark: str, specs: List[Dict[str, Union[bool, int, Dict]]]):
         url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['submit']}"
-        return self.sdk.client.post(url, payloads)
+        return self.sdk.client.post(url, {
+            "interval": interval,
+            "pre_duration": pre_duration,
+            "benchmark": benchmark,
+            "specs": specs,
+        })
