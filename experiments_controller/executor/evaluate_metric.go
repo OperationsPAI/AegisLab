@@ -1,7 +1,6 @@
 package executor
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -107,13 +106,7 @@ func GetMetrics() map[string]dto.EvaluateMetric {
 
 // 解析配置并获取 ground truth 的公共函数
 func parseConfigAndGetGroundTruth(execution dto.Execution) ([]Groudtruth, error) {
-	var payload map[string]any
-	if err := json.Unmarshal([]byte(execution.Dataset.Config), &payload); err != nil {
-		return nil, err
-	}
-
 	groundtruth := []Groudtruth{}
-
 	return groundtruth, nil
 }
 

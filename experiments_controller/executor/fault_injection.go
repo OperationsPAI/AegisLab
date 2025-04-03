@@ -4,74 +4,33 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"time"
 
 	cli "github.com/CUHK-SE-Group/chaos-experiment/client"
-	"github.com/CUHK-SE-Group/chaos-experiment/handler"
+	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/sirupsen/logrus"
 )
 
-type downstreamConfig struct {
-	Benchmark   string
-	PreDuration int
-}
-
-func getDownstreamConfig(payload map[string]any) (*downstreamConfig, error) {
-	message := "invalid or missing '%s' in payload"
-
-	var benchmark string
-	if _, exists := payload[consts.InjectBenchmark]; !exists {
-		return nil, nil
-	}
-	benchmark, ok := payload[consts.InjectBenchmark].(string)
-	if !ok {
-		return nil, fmt.Errorf(message, consts.InjectBenchmark)
-	}
-
-	preDurationFloat, ok := payload[consts.InjectPreDuration].(float64)
-	if !ok || preDurationFloat <= 0 {
-		return nil, fmt.Errorf(message, consts.InjectPreDuration)
-	}
-	preDuration := int(preDurationFloat)
-
-	return &downstreamConfig{
-		Benchmark:   benchmark,
-		PreDuration: preDuration,
-	}, nil
+type injectionPayload struct {
+	benchmark   string
+	faultType   int
+	preDuration int
+	rawConf     map[string]any
+	conf        *chaos.InjectionConf
 }
 
 // 执行故障注入任务
 func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	logrus.Info(task)
 
-	spec, ok := task.Payload[consts.InjectSpec].(map[string]any)
-	if !ok {
-		return fmt.Errorf("failed to read injection spec")
-	}
-
-	node, err := handler.MapToNode(spec)
+	payload, err := parseInjectionPayload(task.Payload)
 	if err != nil {
 		return err
 	}
 
-	var key string
-	for key = range node.Children {
-	}
-
-	intKey, err := strconv.Atoi(key)
-	if err != nil {
-		return err
-	}
-
-	conf, err := handler.NodeToStruct[handler.InjectionConf](node)
-	if err != nil {
-		return err
-	}
-
-	name := conf.Create(cli.NewK8sClient())
+	injection, name := payload.conf.Create(cli.NewK8sClient())
 	updateTaskStatus(task.TaskID, task.TraceID,
 		fmt.Sprintf("executing fault injection for task %s", task.TaskID),
 		map[string]any{
@@ -80,30 +39,29 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		})
 
 	addDatasetIndex(task.TaskID, name)
-
-	config, err := getDownstreamConfig(task.Payload)
-	if err != nil {
-		return err
-	}
-
 	addTaskMeta(task.TaskID,
-		consts.MetaBenchmark, config.Benchmark,
-		consts.MetaPreDuration, config.PreDuration,
+		consts.MetaBenchmark, payload.benchmark,
+		consts.MetaPreDuration, payload.preDuration,
 		consts.MetaTraceID, task.TraceID,
 		consts.MetaGroupID, task.GroupID,
 	)
 
-	jsonData, err := json.Marshal(spec)
+	engineData, err := json.Marshal(payload.rawConf)
 	if err != nil {
-		return fmt.Errorf("failed to marshal injection spec")
+		return fmt.Errorf("failed to marshal injection spec to engine config: %v", err)
+	}
+
+	displayData, err := json.Marshal(injection)
+	if err != nil {
+		return fmt.Errorf("failed to marshal injection spec to display config: %v", err)
 	}
 
 	faultRecord := database.FaultInjectionSchedule{
 		TaskID:        task.TaskID,
-		FaultType:     intKey,
-		Config:        string(jsonData),
-		Duration:      0,
-		PreDuration:   config.PreDuration,
+		FaultType:     payload.faultType,
+		DisplayConfig: string(displayData),
+		EngineConfig:  string(engineData),
+		PreDuration:   payload.preDuration,
 		Description:   fmt.Sprintf("Fault for task %s", task.TaskID),
 		Status:        consts.DatasetInitial,
 		InjectionName: name,
@@ -116,4 +74,53 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	}
 
 	return err
+}
+
+func parseInjectionPayload(payload map[string]any) (*injectionPayload, error) {
+	message := "invalid or missing '%s' in task payload"
+
+	benchmark, ok := payload[consts.InjectBenchmark].(string)
+	if !ok {
+		return nil, fmt.Errorf(message, consts.InjectBenchmark)
+	}
+
+	faultTypeFloat, ok := payload[consts.InjectFaultType].(float64)
+	if !ok || faultTypeFloat <= 0 {
+		return nil, fmt.Errorf(message, consts.InjectFaultType)
+	}
+	faultType := int(faultTypeFloat)
+
+	preDurationFloat, ok := payload[consts.InjectPreDuration].(float64)
+	if !ok || preDurationFloat <= 0 {
+		return nil, fmt.Errorf(message, consts.InjectPreDuration)
+	}
+	preDuration := int(preDurationFloat)
+
+	rawConf, ok := payload[consts.InjectRawConf].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf(message, consts.InjectRawConf)
+	}
+
+	m, ok := payload[consts.InjectConf].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf(message, consts.InjectConf)
+	}
+
+	jsonData, err := json.Marshal(m)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %v", fmt.Sprintf(message, consts.InjectConf), err)
+	}
+
+	var conf chaos.InjectionConf
+	if err := json.Unmarshal(jsonData, &conf); err != nil {
+		return nil, fmt.Errorf("%s: %v", fmt.Sprintf(message, consts.InjectConf), err)
+	}
+
+	return &injectionPayload{
+		benchmark:   benchmark,
+		faultType:   faultType,
+		preDuration: preDuration,
+		rawConf:     rawConf,
+		conf:        &conf,
+	}, nil
 }

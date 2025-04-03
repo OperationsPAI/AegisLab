@@ -90,6 +90,7 @@ func SubmitTask(ctx context.Context, task *UnifiedTask) (string, string, error) 
 	if err != nil {
 		return "", "", err
 	}
+
 	t := database.Task{
 		ID:          task.TaskID,
 		Type:        string(task.Type),
@@ -109,6 +110,7 @@ func SubmitTask(ctx context.Context, task *UnifiedTask) (string, string, error) 
 	if task.Immediate {
 		return task.TaskID, task.TraceID, submitImmediateTask(ctx, task)
 	}
+	
 	return task.TaskID, task.TraceID, submitDelayedTask(ctx, task)
 }
 

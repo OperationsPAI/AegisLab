@@ -36,8 +36,8 @@ type FaultInjectionSchedule struct {
 	ID            int       `gorm:"primaryKey;autoIncrement" json:"id"` // 唯一标识
 	TaskID        string    `gorm:"index" json:"task_id"`               // 从属什么 taskid
 	FaultType     int       `gorm:"index" json:"fault_type"`            // 故障类型
-	Config        string    `json:"config"`                             // 配置 JSON 格式
-	Duration      int       `json:"duration"`                           // 故障持续时间
+	DisplayConfig string    `json:"display_config"`                     // 面向用户的展示配置
+	EngineConfig  string    `json:"engine_config"`                      // 面向系统的运行配置
 	PreDuration   int       `json:"pre_duration"`                       // 正常数据时间
 	StartTime     time.Time `gorm:"default:null" json:"start_time"`     // 预计故障开始时间
 	EndTime       time.Time `gorm:"default:null" json:"end_time"`       // 预计故障结束时间

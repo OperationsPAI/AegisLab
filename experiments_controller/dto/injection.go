@@ -6,6 +6,7 @@ import (
 	"time"
 
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 )
 
 type InjectCancelResp struct {
@@ -23,7 +24,6 @@ type InjectionItem struct {
 	Name       string         `gorm:"column:injection_name" json:"name"`
 	Status     string         `json:"status"`
 	InjectTime time.Time      `gorm:"column:start_time" json:"inject_time"`
-	Duration   int            `json:"duration"`
 	Payload    map[string]any `json:"payload"`
 }
 
@@ -47,11 +47,6 @@ type InjectionPayload struct {
 	PreDuration   int            `json:"pre_duration"`
 }
 
-type timeRange struct {
-	Start time.Time
-	End   time.Time
-}
-
 type InjectionSubmitReq struct {
 	Interval    int              `json:"interval"`
 	PreDuration int              `json:"pre_duration"`
@@ -59,55 +54,60 @@ type InjectionSubmitReq struct {
 	Benchmark   string           `json:"benchmark"`
 }
 
-func (r *InjectionSubmitReq) GetExecutionTimes() ([]time.Time, error) {
-	if len(r.Specs) == 0 {
-		return nil, nil
-	}
-
-	executionTimes := make([]time.Time, 0, len(r.Specs))
-	timeRanges := make([]timeRange, 0, len(r.Specs))
-
-	currentTime := time.Now()
-	for i, spec := range r.Specs {
-		faultDuration, err := extractFaultDuration(spec)
-		if err != nil {
-			return nil, fmt.Errorf("spec[%d]: %w", i, err)
-		}
-
-		execTime := currentTime.Add(time.Duration(i*r.Interval) * time.Minute)
-		start := execTime.Add(-time.Duration(r.PreDuration) * time.Minute)
-		end := execTime.Add(time.Duration(faultDuration) * time.Minute)
-
-		executionTimes = append(executionTimes, execTime)
-		timeRanges = append(timeRanges, timeRange{Start: start, End: end})
-
-		if i > 0 && timeRanges[i-1].End.After(start) {
-			return nil, fmt.Errorf("spec[%d]: time range overlaps with previous", i)
-		}
-	}
-
-	return executionTimes, nil
+type InjectionConfig struct {
+	FaultType   int
+	Conf        *chaos.InjectionConf
+	RawConf     map[string]any
+	ExecuteTime time.Time
 }
 
-// 提取故障持续时间的辅助函数
-func extractFaultDuration(spec map[string]any) (int, error) {
-	node, err := chaos.MapToNode(spec)
-	if err != nil {
-		return 0, fmt.Errorf("convert spec to node failed: %w", err)
+func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
+	if len(r.Specs) == 0 {
+		return nil, fmt.Errorf("spec must not be blank")
 	}
 
-	if _, err := chaos.NodeToStruct[chaos.InjectionConf](node); err != nil {
-		return 0, fmt.Errorf(err.Error())
+	intervalDuration := time.Duration(r.Interval) * consts.DefaultTimeUnit
+	preDuration := time.Duration(r.PreDuration) * consts.DefaultTimeUnit
+
+	currentTime := time.Now()
+	prevEnd := currentTime
+	configs := make([]*InjectionConfig, 0, len(r.Specs))
+	for i, spec := range r.Specs {
+		node, err := chaos.MapToNode(spec)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert spec to node: %v", err)
+		}
+
+		childNode, exists := node.Children[strconv.Itoa(node.Value)]
+		if !exists {
+			return nil, fmt.Errorf("failed to find key %d in the children", node.Value)
+		}
+
+		faultDuration := childNode.Children[strconv.Itoa(0)].Value
+		execTime := currentTime.Add(intervalDuration * time.Duration(i))
+		start := execTime.Add(-preDuration)
+		end := execTime.Add(time.Duration(faultDuration) * consts.DefaultTimeUnit)
+
+		if i > 0 && !start.After(prevEnd) {
+			return nil, fmt.Errorf("spec[%d] time conflict", i)
+		}
+
+		prevEnd = end
+
+		conf, err := chaos.NodeToStruct[chaos.InjectionConf](node)
+		if err != nil {
+			return nil, fmt.Errorf(err.Error())
+		}
+		configs = append(configs, &InjectionConfig{
+			FaultType:   node.Value,
+			Conf:        conf,
+			RawConf:     spec,
+			ExecuteTime: execTime,
+		})
+
 	}
 
-	var key string
-	for key = range node.Children {
-	}
-
-	subNode := node.Children[key]
-	faultDuration := subNode.Children[strconv.Itoa(0)].Value
-
-	return faultDuration, nil
+	return configs, nil
 }
 
 type InjectionTask struct {
