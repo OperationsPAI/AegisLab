@@ -1,7 +1,13 @@
 package consts
 
+import "time"
+
 // 定义任务类型
 type TaskType string
+
+const (
+	DefaultTimeUnit = time.Minute
+)
 
 const (
 	DatasetInitial       = 0
@@ -54,8 +60,10 @@ const (
 	ExecuteTag     = "tag"
 
 	InjectBenchmark   = "benchmark"
+	InjectFaultType   = "fault_type"
 	InjectPreDuration = "pre_duration"
-	InjectSpec        = "spec"
+	InjectRawConf     = "raw_conf"
+	InjectConf        = "conf"
 )
 
 // Redis 流和消费者组配置

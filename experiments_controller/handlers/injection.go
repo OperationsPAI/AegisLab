@@ -200,7 +200,7 @@ func GetInjectionList(c *gin.Context) {
 	var injections []dto.InjectionItem
 	for _, record := range records {
 		var payload map[string]any
-		if err := json.Unmarshal([]byte(record.Config), &payload); err != nil {
+		if err := json.Unmarshal([]byte(record.DisplayConfig), &payload); err != nil {
 			logrus.WithField("id", record.ID).Errorf("failed to parse injection config: %v", err)
 		}
 
@@ -211,7 +211,6 @@ func GetInjectionList(c *gin.Context) {
 			Name:       record.InjectionName,
 			Status:     dto.DatasetStatusMap[record.Status],
 			InjectTime: record.StartTime,
-			Duration:   record.Duration,
 			Payload:    payload,
 		})
 	}
@@ -245,7 +244,7 @@ func SubmitFaultInjection(c *gin.Context) {
 		return
 	}
 
-	executionTimes, err := req.GetExecutionTimes()
+	configs, err := req.ParseInjectionSpecs()
 	if err != nil {
 		logrus.Error(err)
 		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
@@ -253,18 +252,20 @@ func SubmitFaultInjection(c *gin.Context) {
 	}
 
 	var traces []dto.Trace
-	for i, spec := range req.Specs {
+	for _, config := range configs {
 		payload := map[string]any{
 			consts.InjectBenchmark:   req.Benchmark,
+			consts.InjectFaultType:   config.FaultType,
 			consts.InjectPreDuration: req.PreDuration,
-			consts.InjectSpec:        spec,
+			consts.InjectRawConf:     config.RawConf,
+			consts.InjectConf:        config.Conf,
 		}
 
 		taskID, traceID, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
 			Type:        consts.TaskTypeFaultInjection,
 			Payload:     payload,
 			Immediate:   false,
-			ExecuteTime: executionTimes[i].Unix(),
+			ExecuteTime: config.ExecuteTime.Unix(),
 			GroupID:     groupID,
 		})
 
