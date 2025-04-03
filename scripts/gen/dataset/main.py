@@ -1,12 +1,14 @@
 from typing import Dict
 from datetime import datetime
 from rcabench.logger import CustomLogger
-from rcabench.rcabench import RCABenchSDK
+from rcabench.rcabench import RCABenchSDK, Node
 import asyncio
 import json
 import math
 import os
 import random
+from copy import deepcopy
+
 
 PARENT_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_NAME = "config/{env}.json"
@@ -92,23 +94,16 @@ async def execute_injection(config: Dict) -> Dict[str, any]:
 
     payloads = []
     for _ in range(config["n_trial"]):
-        pod = random.choice(config["services"])
-        params = generate_injection_dict(**injection_params)
+        new_payload = deepcopy(injection_params)
+        payloads.append(generate_injection_dict(new_payload))
 
-        payloads.append(
-            {
-                "fault_type": params["fault_type"],
-                "inject_namespace": config["namespace"],
-                "inject_pod": pod,
-                "spec": params["inject_spec"],
-                "pre_duration": config["pre_duration"],
-                "fault_duration": config["fault_duration"],
-                "benchmark": config["benchmark"],
-            }
-        )
-
-    body = {"is_croned": True, "interval": config["interval"], "payloads": payloads}
-    data = sdk.injection.execute(body)
+    body = {
+        "interval": config["interval"],
+        "pre_duration": config["pre_duration"],
+        "benchmark": config["benchmark"],
+        "payloads": payloads,
+    }
+    data = sdk.injection.submit(**body)
 
     req_path = os.path.join(config["output_path"], "request.json")
     logger.info(f"Request params store in {req_path}")
@@ -123,45 +118,18 @@ async def execute_injection(config: Dict) -> Dict[str, any]:
     return data
 
 
-def biased_random(min_val: int, max_val: int, bias_strength: int = 5) -> int:
-    """
-    用指数分布生成连续值后截断并取整
+def generate_injection_dict(spec: Node) -> Node:
+    def fill_node(node: Node):
+        if "children" in node:
+            for children, sub_node in node["children"].items():
+                fill_node(sub_node)
+        if "children" not in node:
+            node["value"] = random.randint(node["range"][0], node["range"][1])
 
-    :param bias_strength: 对应衰减速率 λ
-    """
-    u = random.random()
-    # 逆变换采样得到指数分布值
-    exp_val = -math.log(1 - u) / bias_strength
-    truncated = 1 - math.exp(-exp_val)
-    return min_val + int(truncated * (max_val - min_val + 1))
-
-
-def generate_injection_dict(specification: Dict, keymap: Dict) -> Dict[str, any]:
-    fault_type_name = random.choice(list(specification.keys()))
-    fault_type_key = None
-    for key, value in keymap.items():
-        if value == fault_type_name:
-            fault_type_key = key
-            break
-
-    if not fault_type_key:
-        raise ValueError(f"Fault type {fault_type_name} not found in keymap.")
-
-    spec = specification.get(fault_type_name)
-    if not spec:
-        raise ValueError(f"Specification for {fault_type_name} not found.")
-
-    inject_spec = {}
-    for field in spec:
-        field_name = field["FieldName"]
-        min_val = field["Min"]
-        max_val = field["Max"]
-        inject_spec[field_name] = biased_random(min_val, max_val, bias_strength=20)
-
-    return {
-        "fault_type": int(fault_type_key),
-        "inject_spec": inject_spec,
-    }
+    chosen_key = random.choice(list(spec["children"].keys()))
+    fill_node(spec["children"][chosen_key])
+    spec["value"] = chosen_key
+    return spec
 
 
 def download_datasets(config: Dict[str, any]) -> None:
