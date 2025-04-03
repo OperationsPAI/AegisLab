@@ -23,5 +23,7 @@ def test_get_para():
     chosen_key = random.choice(list(data["children"].keys()))
     fill_node(data["children"][chosen_key])
     pprint(data["children"][chosen_key])
+
+    data["value"] = chosen_key
     res = sdk.injection.submit(1, 2, "ts", [data])
     print(res)
