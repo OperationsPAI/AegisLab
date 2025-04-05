@@ -78,7 +78,7 @@ func QueryDataset(c *gin.Context) {
 
 	var datasetItem dto.DatasetItem
 	if err := datasetItem.Convert(fiRecord); err != nil {
-		logrus.Error("failed to convert injection record to DatasetItem")
+		logrus.Errorf("failed to convert injection record to DatasetItem: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to retrieve dataset")
 		return
 	}
