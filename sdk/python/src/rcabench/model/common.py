@@ -1,5 +1,5 @@
 from typing import List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from uuid import UUID
 
 
@@ -7,6 +7,8 @@ class TraceInfo(BaseModel):
     """
     单条任务追踪链元数据
     """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     head_task_id: UUID = Field(
         ...,
@@ -25,6 +27,8 @@ class SubmitResult(BaseModel):
     """
     任务提交结果
     """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     group_id: UUID = Field(
         ...,
