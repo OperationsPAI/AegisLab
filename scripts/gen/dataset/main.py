@@ -1,13 +1,13 @@
-from typing import Dict
+from typing import Any, Dict, Optional
 from datetime import datetime
 from rcabench.logger import CustomLogger
-from rcabench.rcabench import RCABenchSDK, Node
+from rcabench.model.injection import SpecNode
+from rcabench.rcabench import RCABenchSDK
 import asyncio
 import json
 import math
 import os
 import random
-from copy import deepcopy
 
 
 PARENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -77,7 +77,7 @@ async def run_deploy_command(command: str) -> None:
         logger.error(f"Deploy failed, return_code: {return_code}")
 
 
-async def read_stream(stream, prefix):
+async def read_stream(stream, prefix) -> None:
     while not stream.at_eof():
         line = await stream.readline()
         if line:
@@ -87,28 +87,28 @@ async def read_stream(stream, prefix):
 async def execute_injection(config: Dict) -> Dict[str, any]:
     sdk = RCABenchSDK(config["base_url"])
 
-    injection_params = sdk.injection.get_parameters()
+    injection_params = sdk.injection.get_conf(mode="engine")
     if not injection_params:
         logger.error("Injection Params invalid")
         return None
 
-    payloads = []
+    specs = []
     for _ in range(config["n_trial"]):
-        new_payload = deepcopy(injection_params)
-        payloads.append(generate_injection_dict(new_payload))
+        specs.append(generate_injection_dict(injection_params))
 
-    body = {
+    payload = {
+        "benchmark": config["benchmark"],
         "interval": config["interval"],
         "pre_duration": config["pre_duration"],
-        "benchmark": config["benchmark"],
-        "payloads": payloads,
+        "specs": specs,
     }
-    data = sdk.injection.submit(**body)
 
     req_path = os.path.join(config["output_path"], "request.json")
     logger.info(f"Request params store in {req_path}")
     with open(req_path, "w") as f:
-        json.dump(body, f, indent=4)
+        json.dump(payload, f, indent=4)
+
+    data = sdk.injection.submit(**payload).model_dump(mode="json")
 
     resp_path = os.path.join(config["output_path"], "response.json")
     logger.info(f"Response store in {req_path}")
@@ -118,18 +118,41 @@ async def execute_injection(config: Dict) -> Dict[str, any]:
     return data
 
 
-def generate_injection_dict(spec: Node) -> Node:
-    def fill_node(node: Node):
-        if "children" in node:
-            for children, sub_node in node["children"].items():
-                fill_node(sub_node)
-        if "children" not in node:
-            node["value"] = random.randint(node["range"][0], node["range"][1])
+def biased_random(min_val: int, max_val: int, bias_strength: int = 5) -> int:
+    """
+    用指数分布生成连续值后截断并取整
 
-    chosen_key = random.choice(list(spec["children"].keys()))
-    fill_node(spec["children"][chosen_key])
-    spec["value"] = chosen_key
-    return spec
+    :param bias_strength: 对应衰减速率 λ
+    """
+    u = random.random()
+    exp_val = -math.log(1 - u) / bias_strength
+    truncated = 1 - math.exp(-exp_val)
+    return min_val + int(truncated * (max_val - min_val + 1))
+
+
+def generate_injection_dict(spec: SpecNode) -> Optional[Dict[str, Any]]:
+    def fill_node(node: SpecNode) -> SpecNode:
+        if node.children is not None:
+            children = []
+            for key, sub_node in node.children.items():
+                children.append((key, fill_node(sub_node)))
+
+            return SpecNode(children=dict(children))
+        else:
+            return SpecNode(
+                value=biased_random(node.range[0], node.range[1], bias_strength=20)
+            )
+
+    if spec.children is None:
+        logger.error("The children in spec is None")
+        return None
+
+    chosen_key = random.choice(list(spec.children.keys()))
+    res = SpecNode(
+        children={chosen_key: fill_node(spec.children.get(chosen_key))},
+        value=int(chosen_key),
+    )
+    return res.model_dump(exclude_none=True)
 
 
 def download_datasets(config: Dict[str, any]) -> None:
