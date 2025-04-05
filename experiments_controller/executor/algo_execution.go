@@ -30,7 +30,7 @@ func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
 		return err
 	}
 
-	record, err := repository.GetInjectionRecordByDataset(meta.Dataset, consts.DatasetBuildSuccess)
+	record, err := repository.GetDatasetByName(meta.Dataset, consts.DatasetBuildSuccess)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("no matching dataset %s found", meta.Dataset)

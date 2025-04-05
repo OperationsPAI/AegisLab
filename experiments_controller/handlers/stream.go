@@ -72,17 +72,17 @@ func GetStream(c *gin.Context) {
 	case consts.TaskTypeRunAlgorithm:
 		expectedTaskType = consts.TaskTypeCollectResult
 	case consts.TaskTypeFaultInjection:
-		var payload dto.InjectionPayload
-		if err := json.Unmarshal([]byte(task.Payload), &payload); err != nil {
-			message := "Failed to unmarshal payload of injection record"
-			logEntry.Errorf("%s: %v", message, err)
-			dto.ErrorResponse(c, http.StatusInternalServerError, message)
-			return
-		}
+		// var payload dto.InjectionPayload
+		// if err := json.Unmarshal([]byte(task.Payload), &payload); err != nil {
+		// 	message := "Failed to unmarshal payload of injection record"
+		// 	logEntry.Errorf("%s: %v", message, err)
+		// 	dto.ErrorResponse(c, http.StatusInternalServerError, message)
+		// 	return
+		// }
 
-		if payload.Benchmark != "" {
-			expectedTaskType = consts.TaskTypeBuildDataset
-		}
+		// if payload.Benchmark != "" {
+		// 	expectedTaskType = consts.TaskTypeBuildDataset
+		// }
 	}
 
 	sendStreamMessge(c, task.TraceID, expectedTaskType)

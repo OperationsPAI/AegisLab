@@ -1,8 +1,11 @@
 package dto
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 
+	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 )
@@ -21,11 +24,28 @@ type DatasetDownloadReq struct {
 }
 
 type DatasetItem struct {
-	Name        string         `json:"name"`
-	Param       InjectionParam `json:"param"`
-	Preduration int            `json:"pre_duration"`
-	StartTime   time.Time      `json:"start_time"`
-	EndTime     time.Time      `json:"end_time"`
+	Name      string         `json:"name"`
+	FaultType string         `json:"fault_type"`
+	Param     map[string]any `json:"param"`
+	StartTime time.Time      `json:"start_time"`
+	EndTime   time.Time      `json:"end_time"`
+}
+
+func (d *DatasetItem) Convert(record database.FaultInjectionSchedule) error {
+	var param map[string]any
+	if err := json.Unmarshal([]byte(record.DisplayConfig), &param); err != nil {
+		return fmt.Errorf("faild to unmarshal display config: %v", err)
+	}
+
+	param["pre_duration"] = record.PreDuration
+
+	d.Name = record.InjectionName
+	d.FaultType = chaos.ChaosTypeMap[chaos.ChaosType(record.FaultType)]
+	d.Param = param
+	d.StartTime = record.StartTime
+	d.EndTime = record.EndTime
+
+	return nil
 }
 
 type DatasetListReq struct {
@@ -34,12 +54,21 @@ type DatasetListReq struct {
 
 type DatasetPayload struct {
 	Benchmark   string     `json:"benchmark"`
-	DatasetName string     `json:"dataset"`
-	Namespace   string     `json:"namespace"`
+	Name        string     `json:"name"`
 	PreDuration int        `json:"pre_duration"`
 	Service     string     `json:"service"`
 	StartTime   *time.Time `json:"start_time,omitempty"`
 	EndTime     *time.Time `json:"end_time,omitempty"`
+}
+
+type DatasetJoinedResult struct {
+	GroupID string
+	Name    string
+}
+
+func (d *DatasetJoinedResult) Convert(groupID, name string) {
+	d.GroupID = groupID
+	d.Name = name
 }
 
 type QueryDatasetReq struct {
@@ -47,12 +76,10 @@ type QueryDatasetReq struct {
 	Sort string `form:"sort" binding:"oneof=desc asc"`
 }
 
-type InjectionParam struct {
-	Duration  int            `json:"duration"`
-	FaultType string         `json:"fault_type"`
-	Namespace string         `json:"namespace"`
-	Pod       string         `json:"pod"`
-	Spec      map[string]int `json:"spec"`
+type QueryDatasetResp struct {
+	DatasetItem
+	DetectorResult   DetectorRecord    `json:"detector_result"`
+	ExecutionResults []ExecutionRecord `json:"execution_results"`
 }
 
 type DetectorRecord struct {
@@ -75,22 +102,6 @@ type GranularityRecord struct {
 	Result     string  `json:"result"`
 	Rank       int     `json:"rank"`
 	Confidence float64 `json:"confidence"`
-}
-
-type QueryDatasetResp struct {
-	DatasetItem
-	DetectorResult   DetectorRecord    `json:"detector_result"`
-	ExecutionResults []ExecutionRecord `json:"execution_results"`
-}
-
-func ConvertToDatasetItem(record database.FaultInjectionSchedule, param InjectionParam) DatasetItem {
-	return DatasetItem{
-		Name:        record.InjectionName,
-		Param:       param,
-		Preduration: record.PreDuration,
-		StartTime:   record.StartTime,
-		EndTime:     record.EndTime,
-	}
 }
 
 var DatasetStatusMap = map[int]string{

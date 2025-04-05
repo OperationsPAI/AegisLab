@@ -2,23 +2,17 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"net/http"
 	"sync"
 
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
-	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/consts"
-	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
+	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
 	"github.com/sirupsen/logrus"
-	"gorm.io/gorm"
 )
 
 // CancelInjection
@@ -36,17 +30,17 @@ import (
 func CancelInjection(c *gin.Context) {
 }
 
-type NodeItem struct {
-	Description string `json:"description"`
-	Range       []int  `json:"range"`
-}
-
-func GetInjectionConf(c *gin.Context) {
+func GetInjectionDisplayConf(c *gin.Context) {
 	root, err := chaos.StructToNode[handler.InjectionConf]()
 	if err != nil {
 		logrus.Errorf("struct InjectionConf to node failed: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to read injection conf")
 		return
+	}
+
+	type NodeItem struct {
+		Description string `json:"description"`
+		Range       []int  `json:"range"`
 	}
 
 	type result struct {
@@ -85,74 +79,18 @@ func GetInjectionConf(c *gin.Context) {
 		chaosMap[res.key] = res.value
 	}
 
-	dto.SuccessResponse(c, root)
+	dto.SuccessResponse(c, chaosMap)
 }
 
-// GetInjectionDetail
-//
-//	@Summary		获取单个注入的详细信息
-//	@Description	获取单个注入的详细信息
-//	@Tags			injection
-//	@Produce		json
-//	@Consumes		application/json
-//	@Param 			taskID 	path		string		true		"任务 ID"
-//	@Success		200		{objec}		GenericResponse[InjectStatusResp]
-//	@Failure		404		{object}	GenericResponse[any]
-//	@Failure		500		{object}	GenericResponse[any]
-//	@Router			/api/v1/injections [get]
-func GetInjectionDetail(c *gin.Context) {
-	var taskReq dto.TaskReq
-	if err := c.BindUri(&taskReq); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid URI")
+func GetInjectionEngineConf(c *gin.Context) {
+	root, err := chaos.StructToNode[handler.InjectionConf]()
+	if err != nil {
+		logrus.Errorf("struct InjectionConf to node failed: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to read injection conf")
 		return
 	}
 
-	logEntry := logrus.WithField("task_id", taskReq.TaskID)
-
-	var task database.Task
-	if err := database.DB.Where("tasks.id = ?", taskReq.TaskID).First(&task).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			message := "task not found"
-			logEntry.Errorf("%s: %v", message, err)
-			dto.ErrorResponse(c, http.StatusNotFound, message)
-		} else {
-			message := "failed to retrieve task of injection"
-			logEntry.Errorf("%s: %v", message, err)
-			dto.ErrorResponse(c, http.StatusInternalServerError, message)
-		}
-
-		return
-	}
-
-	var payload dto.InjectionPayload
-	if err := json.Unmarshal([]byte(task.Payload), &payload); err != nil {
-		message := "failed to unmarshal payload of injection record"
-		logEntry.Error(message)
-		dto.ErrorResponse(c, http.StatusInternalServerError, message)
-		return
-	}
-
-	injectTask := dto.InjectionTask{
-		ID:        task.ID,
-		Type:      task.Type,
-		Payload:   payload,
-		Status:    task.Status,
-		CreatedAt: task.CreatedAt,
-	}
-
-	logKey := fmt.Sprintf("task:%s:logs", task.ID)
-	ctx := c.Request.Context()
-	logs, err := client.GetRedisClient().LRange(ctx, logKey, 0, -1).Result()
-	if errors.Is(err, redis.Nil) {
-		logs = []string{}
-	} else if err != nil {
-		message := "Failed to retrieve logs"
-		logrus.Errorf("%s: %v", message, err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, message)
-		return
-	}
-
-	dto.SuccessResponse(c, dto.InjectionDetailResp{Task: injectTask, Logs: logs})
+	dto.SuccessResponse(c, chaos.NodeToMap(root))
 }
 
 // GetInjectionList
@@ -173,51 +111,27 @@ func GetInjectionList(c *gin.Context) {
 		return
 	}
 
-	db := database.DB.Model(&database.FaultInjectionSchedule{}).Where("status != ?", consts.DatasetDeleted)
-	db.Scopes(
-		database.Sort("proposed_end_time desc"),
-		database.Paginate(req.PageNum, req.PageSize),
-	).Select("SQL_CALC_FOUND_ROWS *")
-
-	// 查询总记录数
-	var total int64
-	if err := db.Raw("SELECT FOUND_ROWS()").Scan(&total).Error; err != nil {
-		message := "failed to count injection schedules"
-		logrus.Errorf("%s: %v", message, err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, message)
+	total, records, err := repository.ListInjectionWithPagination(req.PageNum, req.PageSize)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	// 查询分页数据
-	var records []database.FaultInjectionSchedule
-	if err := db.Find(&records).Error; err != nil {
-		message := "failed to retrieve injections"
-		logrus.Errorf("%s: %v", message, err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, message)
-		return
-	}
-
-	var injections []dto.InjectionItem
+	items := make([]dto.InjectionItem, 0, len(records))
 	for _, record := range records {
-		var payload map[string]any
-		if err := json.Unmarshal([]byte(record.DisplayConfig), &payload); err != nil {
-			logrus.WithField("id", record.ID).Errorf("failed to parse injection config: %v", err)
+		var item dto.InjectionItem
+		if err := item.Convert(record); err != nil {
+			logrus.WithField("injection", record.ID).Error(err)
+			dto.ErrorResponse(c, http.StatusInternalServerError, "invalid injection configuration")
+			return
 		}
 
-		injections = append(injections, dto.InjectionItem{
-			ID:         record.ID,
-			TaskID:     record.TaskID,
-			FaultType:  chaos.ChaosTypeMap[chaos.ChaosType(record.FaultType)],
-			Name:       record.InjectionName,
-			Status:     dto.DatasetStatusMap[record.Status],
-			InjectTime: record.StartTime,
-			Payload:    payload,
-		})
+		items = append(items, item)
 	}
 
 	dto.SuccessResponse(c, &dto.PaginationResp[dto.InjectionItem]{
 		Total: total,
-		Data:  injections,
+		Data:  items,
 	})
 }
 
@@ -228,8 +142,8 @@ func GetInjectionList(c *gin.Context) {
 //	@Tags			injection
 //	@Produce		json
 //	@Consumes		application/json
-//	@Param			body	body		[]executor.FaultInjectionPayload	true	"请求体"
-//	@Success		200		{object}	GenericResponse[InjectResp]
+//	@Param			body	body		[]dto.InjectionSubmitReq	true	"请求体"
+//	@Success		200		{object}	GenericResponse[dto.SubmitResp]
 //	@Failure		400		{object}	GenericResponse[any]
 //	@Failure		500		{object}	GenericResponse[any]
 //	@Router			/api/v1/injections [post]
@@ -268,13 +182,13 @@ func SubmitFaultInjection(c *gin.Context) {
 			ExecuteTime: config.ExecuteTime.Unix(),
 			GroupID:     groupID,
 		})
-
 		if err != nil {
 			message := "failed to submit task"
 			logrus.Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
 		}
+
 		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID})
 	}
 

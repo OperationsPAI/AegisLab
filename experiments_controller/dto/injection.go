@@ -1,30 +1,44 @@
 package dto
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
 
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/consts"
+	"github.com/CUHK-SE-Group/rcabench/database"
 )
 
 type InjectCancelResp struct {
 }
 
-type InjectionDetailResp struct {
-	Task InjectionTask `json:"task"`
-	Logs []string      `json:"logs"`
+type InjectionItem struct {
+	ID        int            `json:"id"`
+	TaskID    string         `json:"task_id"`
+	FaultType string         `json:"fault_type"`
+	Spec      map[string]any `json:"spec"`
+	Status    string         `json:"status"`
+	StartTime time.Time      `json:"start_time"`
+	EndTime   time.Time      `json:"end_time"`
 }
 
-type InjectionItem struct {
-	ID         int            `json:"id"`
-	TaskID     string         `json:"task_id"`
-	FaultType  string         `json:"fault_type"`
-	Name       string         `gorm:"column:injection_name" json:"name"`
-	Status     string         `json:"status"`
-	InjectTime time.Time      `gorm:"column:start_time" json:"inject_time"`
-	Payload    map[string]any `json:"payload"`
+func (i *InjectionItem) Convert(record database.FaultInjectionSchedule) error {
+	var config map[string]any
+	if err := json.Unmarshal([]byte(record.DisplayConfig), &config); err != nil {
+		return err
+	}
+
+	i.ID = record.ID
+	i.TaskID = record.TaskID
+	i.FaultType = chaos.ChaosTypeMap[chaos.ChaosType(record.FaultType)]
+	i.Spec = config
+	i.Status = DatasetStatusMap[record.Status]
+	i.StartTime = record.StartTime
+	i.EndTime = record.EndTime
+
+	return nil
 }
 
 type InjectionListReq struct {
@@ -38,13 +52,6 @@ type InjectionNamespaceInfoResp struct {
 type InjectionParaResp struct {
 	Specification map[string][]chaos.ActionSpace `json:"specification"`
 	KeyMap        map[chaos.ChaosType]string     `json:"keymap"`
-}
-
-type InjectionPayload struct {
-	InjectionSpec map[string]any `json:"spec"`
-	Benchmark     string         `json:"benchmark"`
-	ExecutionTime *time.Time     `json:"execution_time,omitempty"`
-	PreDuration   int            `json:"pre_duration"`
 }
 
 type InjectionSubmitReq struct {
@@ -108,12 +115,4 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 	}
 
 	return configs, nil
-}
-
-type InjectionTask struct {
-	ID        string           `json:"id"`
-	Type      string           `json:"type"`
-	Payload   InjectionPayload `json:"payload"`
-	Status    string           `json:"status"`
-	CreatedAt time.Time        `json:"created_at"`
 }
