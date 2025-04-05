@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	cli "github.com/CUHK-SE-Group/chaos-experiment/client"
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
@@ -30,7 +29,11 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		return err
 	}
 
-	injection, name := payload.conf.Create(cli.NewK8sClient())
+	conf, name, err := payload.conf.Create()
+	if err != nil {
+		return fmt.Errorf("failed to inject fault: %v", err)
+	}
+
 	updateTaskStatus(task.TaskID, task.TraceID,
 		fmt.Sprintf("executing fault injection for task %s", task.TaskID),
 		map[string]any{
@@ -51,7 +54,7 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		return fmt.Errorf("failed to marshal injection spec to engine config: %v", err)
 	}
 
-	displayData, err := json.Marshal(injection)
+	displayData, err := json.Marshal(conf)
 	if err != nil {
 		return fmt.Errorf("failed to marshal injection spec to display config: %v", err)
 	}

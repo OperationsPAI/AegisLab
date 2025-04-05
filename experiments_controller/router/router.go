@@ -43,12 +43,12 @@ func New() *gin.Engine {
 	injections := r.Group("/injections")
 	{
 		injections.GET("", handlers.GetInjectionList)
-		injections.GET("/conf", handlers.GetInjectionConf)
+		injections.GET("/conf/display", handlers.GetInjectionDisplayConf)
+		injections.GET("/conf/engine", handlers.GetInjectionEngineConf)
 		injections.POST("", handlers.SubmitFaultInjection)
 
 		tasks := injections.Group("/:task_id")
 		{
-			tasks.GET("", handlers.GetInjectionDetail)
 			tasks.PUT("/cancel", handlers.CancelInjection)
 		}
 	}
@@ -56,6 +56,14 @@ func New() *gin.Engine {
 	streams := r.Group("/streams")
 	{
 		streams.GET("", handlers.GetStream)
+	}
+
+	tasks := r.Group("/tasks")
+	{
+		tasksWithID := tasks.Group("/:task_id")
+		{
+			tasksWithID.GET("", handlers.GetTaskDetail)
+		}
 	}
 
 	router.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
