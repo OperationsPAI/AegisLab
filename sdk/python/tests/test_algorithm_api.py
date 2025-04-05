@@ -1,19 +1,21 @@
 # Run this file:
 # uv run pytest -s tests/test_algorithm_api.py
-from rcabench import rcabench
 from pprint import pprint
+from rcabench import rcabench
 import pytest
 
 
 BASE_URL = "http://localhost:8082"
-ALGORITHMS = [["detector", "latest"], ["e-diagnose", "latest"]]
-DATASETS = ["ts-ts-preserve-service-cpu-exhaustion-r4mq88"]
-TIMEOUT = 30
 
 
 @pytest.mark.parametrize(
     "algorithms, datasets",
-    [[ALGORITHMS, DATASETS]],
+    [
+        (
+            [["detector", "latest"], ["e-diagnose", "latest"]],
+            ["ts-ts-preserve-service-cpu-exhaustion-r4mq88"],
+        )
+    ],
 )
 def test_submit_algorithms(algorithms, datasets):
     """测试批量提交算法"""

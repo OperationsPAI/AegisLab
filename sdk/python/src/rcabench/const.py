@@ -1,3 +1,18 @@
+from enum import Enum
+
+
+InjectionConfModes = {"display", "engine"}
+
+
+class InjectionStatusEnum(str, Enum):
+    INITIAL = "initial"
+    INJECT_SUCCESS = "inject_success"
+    INJECT_FAILED = "inject_failed"
+    BUILD_SUCCESS = "build_success"
+    BUILD_FAILED = "build_failed"
+    DELETED = "deleted"
+
+
 class EventType:
     END = "end"
     ERROR = "error"

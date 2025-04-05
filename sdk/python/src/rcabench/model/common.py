@@ -13,6 +13,7 @@ class TraceInfo(BaseModel):
         description="Head task UUID in the trace chain",
         example="da1d9598-3a08-4456-bfce-04da8cf850b0",
     )
+
     trace_id: UUID = Field(
         ...,
         description="Unique identifier for the entire trace",
@@ -30,9 +31,10 @@ class SubmitResult(BaseModel):
         description="Batch task group identifier",
         example="e7cbb5b8-554e-4c82-a018-67f626fc12c6",
     )
+
     # 至少包含一个追踪链
     traces: List[TraceInfo] = Field(
         ...,
         description="List of trace information objects",
-        min_items=1,
+        min_length=1,
     )
