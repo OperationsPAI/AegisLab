@@ -25,7 +25,6 @@ type DatasetDownloadReq struct {
 
 type DatasetItem struct {
 	Name      string         `json:"name"`
-	FaultType string         `json:"fault_type"`
 	Param     map[string]any `json:"param"`
 	StartTime time.Time      `json:"start_time"`
 	EndTime   time.Time      `json:"end_time"`
@@ -37,10 +36,10 @@ func (d *DatasetItem) Convert(record database.FaultInjectionSchedule) error {
 		return fmt.Errorf("faild to unmarshal display config: %v", err)
 	}
 
+	param["fault_type"] = chaos.ChaosTypeMap[chaos.ChaosType(record.FaultType)]
 	param["pre_duration"] = record.PreDuration
 
 	d.Name = record.InjectionName
-	d.FaultType = chaos.ChaosTypeMap[chaos.ChaosType(record.FaultType)]
 	d.Param = param
 	d.StartTime = record.StartTime
 	d.EndTime = record.EndTime

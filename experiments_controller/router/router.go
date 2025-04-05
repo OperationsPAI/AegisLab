@@ -43,8 +43,7 @@ func New() *gin.Engine {
 	injections := r.Group("/injections")
 	{
 		injections.GET("", handlers.GetInjectionList)
-		injections.GET("/conf/display", handlers.GetInjectionDisplayConf)
-		injections.GET("/conf/engine", handlers.GetInjectionEngineConf)
+		injections.GET("/conf", handlers.GetInjectionConf)
 		injections.POST("", handlers.SubmitFaultInjection)
 
 		tasks := injections.Group("/:task_id")

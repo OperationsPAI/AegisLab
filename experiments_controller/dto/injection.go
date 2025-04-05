@@ -14,6 +14,10 @@ import (
 type InjectCancelResp struct {
 }
 
+type InjectionConfReq struct {
+	Mode string `form:"mode" binding:"oneof=display engine"`
+}
+
 type InjectionItem struct {
 	ID        int            `json:"id"`
 	TaskID    string         `json:"task_id"`

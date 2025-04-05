@@ -30,11 +30,22 @@ import (
 func CancelInjection(c *gin.Context) {
 }
 
-func GetInjectionDisplayConf(c *gin.Context) {
+func GetInjectionConf(c *gin.Context) {
+	var req dto.InjectionConfReq
+	if err := c.BindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid Parameters")
+		return
+	}
+
 	root, err := chaos.StructToNode[handler.InjectionConf]()
 	if err != nil {
 		logrus.Errorf("struct InjectionConf to node failed: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to read injection conf")
+		return
+	}
+
+	if req.Mode == "engine" {
+		dto.SuccessResponse(c, chaos.NodeToMap(root))
 		return
 	}
 
@@ -80,17 +91,6 @@ func GetInjectionDisplayConf(c *gin.Context) {
 	}
 
 	dto.SuccessResponse(c, chaosMap)
-}
-
-func GetInjectionEngineConf(c *gin.Context) {
-	root, err := chaos.StructToNode[handler.InjectionConf]()
-	if err != nil {
-		logrus.Errorf("struct InjectionConf to node failed: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to read injection conf")
-		return
-	}
-
-	dto.SuccessResponse(c, chaos.NodeToMap(root))
 }
 
 // GetInjectionList
