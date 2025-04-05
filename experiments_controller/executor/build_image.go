@@ -10,7 +10,6 @@ import (
 	con "github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/utils"
-	"github.com/k0kubun/pp/v3"
 
 	"github.com/docker/cli/cli/config"
 	"github.com/moby/buildkit/client"
@@ -72,7 +71,6 @@ func buildAlgos(ctx context.Context) error {
 func buildAlgo(ctx context.Context, algoDir string, args map[string]string, ctxDir string) error {
 	logrus.Infof("building algo %s...", algoDir)
 	algoName := filepath.Base(algoDir)
-	pp.Print(algoName)
 	t := time.Now().UnixNano()
 
 	err := buildDockerfileAndPush(ctx, BuildOptions{
