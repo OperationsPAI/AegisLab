@@ -18,7 +18,6 @@ LOCK = asyncio.Lock()
 GROUP_ID = None
 
 logger = CustomLogger().logger
-random.seed(42)
 
 
 async def periodic_task(config: Dict, func) -> None:
@@ -182,6 +181,10 @@ if __name__ == "__main__":
     config["output_path"] = default_output
     if not os.path.exists(default_output):
         os.makedirs(default_output)
+
+    seed = config.get("seed")
+    if seed is not None:
+        random.seed(seed)
 
     dynamic_params = {
         "command": os.getenv("COMMAND"),

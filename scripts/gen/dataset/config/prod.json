@@ -4,5 +4,6 @@
     "pre_duration": 10,
     "fault_duration": 15,
     "interval": 30,
-    "n_trial": 1
+    "n_trial": 1,
+    "seed": 42
 }
