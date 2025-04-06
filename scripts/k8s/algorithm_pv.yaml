@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: algorithms-data-pv
+spec:
+  capacity:
+    storage: 2Gi  
+  accessModes:
+    - ReadWriteMany  
+  persistentVolumeReclaimPolicy: Retain 
+  nfs:
+    path: /mnt/data/rcabench_algo
+    server: 10.26.1.146  
+  mountOptions:
+    - vers=4  
+  storageClassName: algorithms-data-storage-class
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: algorithms-data
+spec:
+  accessModes:
+    - ReadWriteMany 
+  resources:
+    requests:
+      storage: 2Gi 
+  storageClassName: algorithms-data-storage-class
