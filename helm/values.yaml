@@ -44,10 +44,6 @@ configmap:
     storage_path: "/app/algorithms"
 
 persistence:
-  data:
-    enabled: false
-    accessMode: ReadWriteMany
-    size: 1Gi
   mariadb:
     enabled: true
     accessMode: ReadWriteOnce
