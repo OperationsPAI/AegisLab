@@ -121,7 +121,7 @@ spec:
         - name: exp
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: "{{ .Values.image.pullPolicy }}"
-          command: ["/app/exp", "producer", "--port", "8081"]
+          command: ["/app/entrypoint.sh", "producer", "8081"]
           ports:
             - containerPort: 8081
           env:
@@ -138,6 +138,8 @@ spec:
               subPath: config
             - name: data
               mountPath: /var/lib/rcabench
+            - name: algorithms-data
+              mountPath: "{{ .Values.configmap.algo.storage_path }}"
       volumes:
         - name: config
           configMap:
@@ -151,6 +153,9 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: nfs-shared-pvc
+        - name: algorithms-data
+          persistentVolumeClaim:
+            claimName: algorithms-data
 ---
 # exp 应用
 apiVersion: apps/v1
@@ -192,7 +197,7 @@ spec:
         - name: exp
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: "{{ .Values.image.pullPolicy }}"
-          command: ["/app/exp", "consumer"]
+          command: ["/app/entrypoint.sh", "consumer"]
           env:
             - name: GOPRIVATE
               value: "github.com/CUHK-SE-Group/chaos-experiment"
@@ -207,6 +212,8 @@ spec:
               subPath: config
             - name: data
               mountPath: /var/lib/rcabench
+            - name: algorithms-data
+              mountPath: "{{ .Values.configmap.algo.storage_path }}"
       volumes:
         - name: config
           configMap:
@@ -220,3 +227,6 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: nfs-shared-pvc
+        - name: algorithms-data
+          persistentVolumeClaim:
+            claimName: algorithms-data

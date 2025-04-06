@@ -8,6 +8,9 @@ RUN go build -o /app/exp
 FROM debian:latest AS runner
 WORKDIR /app
 COPY ./algorithms ./algorithms
+COPY ./algorithms ./legacy_algorithms
+COPY ./experiments_controller/entrypoint.sh ./entrypoint.sh
 COPY ./benchmarks ./benchmarks
 COPY ./experiments ./experiments
 COPY --from=builder /app/exp /app/exp
+RUN chmod +x ./entrypoint.sh
