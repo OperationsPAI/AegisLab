@@ -34,3 +34,6 @@ test-dataset: ## test dataset
 
 test-injection: ## test injection
 	uv run pytest -s tests/test_injection_api.py
+
+test-task: ## test task
+	uv run pytest -s tests/test_task_api.py
