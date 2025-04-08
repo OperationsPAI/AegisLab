@@ -169,7 +169,6 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 				}).Info("Chaos experiment created successfully")
 			}
 		},
-		// TODO 处理异常
 		UpdateFunc: func(oldObj, newObj any) {
 			oldU := oldObj.(*unstructured.Unstructured)
 			newU := newObj.(*unstructured.Unstructured)
@@ -335,6 +334,8 @@ func (c *Controller) processQueueItem() bool {
 		return false
 	}
 
+	logrus.Infof("Processing item: %+v", item)
+
 	defer c.queue.Done(item)
 
 	var err error
@@ -359,6 +360,7 @@ func (c *Controller) processQueueItem() bool {
 			c.queue.Forget(item)
 			return true
 		}
+
 		logrus.WithField("namespace", item.Namespace).WithField("name", item.Name).Error(err)
 		c.queue.AddRateLimited(item)
 		return true
@@ -444,6 +446,7 @@ func extractJobError(job *batchv1.Job) string {
 			return fmt.Sprintf("Reason: %s, Message: %s", condition.Reason, condition.Message)
 		}
 	}
+
 	return "Unknown error"
 }
 

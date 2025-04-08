@@ -110,7 +110,7 @@ func SubmitTask(ctx context.Context, task *UnifiedTask) (string, string, error) 
 	if task.Immediate {
 		return task.TaskID, task.TraceID, submitImmediateTask(ctx, task)
 	}
-	
+
 	return task.TaskID, task.TraceID, submitDelayedTask(ctx, task)
 }
 

@@ -9,6 +9,19 @@ import (
 	"gorm.io/gorm"
 )
 
+func CreateExecutionResult(algorithm, taskID string, datasetID int) (int, error) {
+	executionResult := database.ExecutionResult{
+		TaskID:    taskID,
+		Dataset:   datasetID,
+		Algorithm: algorithm,
+	}
+	if err := database.DB.Create(&executionResult).Error; err != nil {
+		return 0, err
+	}
+
+	return executionResult.ID, nil
+}
+
 func GetDetectorRecordByDatasetID(datasetID int) (dto.DetectorRecord, error) {
 	var record dto.DetectorRecord
 
