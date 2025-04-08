@@ -52,16 +52,12 @@ func New() *gin.Engine {
 		}
 	}
 
-	streams := r.Group("/streams")
-	{
-		streams.GET("", handlers.GetStream)
-	}
-
 	tasks := r.Group("/tasks")
 	{
 		tasksWithID := tasks.Group("/:task_id")
 		{
 			tasksWithID.GET("", handlers.GetTaskDetail)
+			tasksWithID.GET("/stream", handlers.GetTaskStream)
 		}
 	}
 

@@ -95,8 +95,9 @@ const (
 	RdbMsgStatus      = "status"
 	RdbMsgTaskID      = "task_id"
 	RdbMsgTaskType    = "task_type"
-	RdbMsgError       = "error"
+	RdbMsgDataset     = "dataset"
 	RdbMsgExecutionID = "execution_id"
+	RdbMsgError       = "error"
 )
 
 // K8s Job 名称
@@ -113,8 +114,6 @@ const (
 	LabelAlgorithm   = "algorithm"
 	LabelDataset     = "dataset"
 	LabelExecutionID = "execution_id"
-	LabelStartTime   = "start_time"
-	LabelEndTime     = "end_time"
 )
 
 // sse 事件类型

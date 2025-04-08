@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/consts"
@@ -38,6 +37,7 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		fmt.Sprintf("executing fault injection for task %s", task.TaskID),
 		map[string]any{
 			consts.RdbMsgStatus:   consts.TaskStatusRunning,
+			consts.RdbMsgTaskID:   task.TaskID,
 			consts.RdbMsgTaskType: consts.TaskTypeFaultInjection,
 		})
 
@@ -68,8 +68,6 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		Description:   fmt.Sprintf("Fault for task %s", task.TaskID),
 		Status:        consts.DatasetInitial,
 		InjectionName: name,
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
 	}
 	if err = database.DB.Create(&faultRecord).Error; err != nil {
 		logrus.Errorf("failed to write fault injection schedule to database: %v", err)

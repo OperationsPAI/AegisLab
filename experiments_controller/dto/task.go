@@ -14,6 +14,7 @@ type TaskDetailResp struct {
 
 type TaskItem struct {
 	ID        string         `json:"id"`
+	TraceID   string         `json:"trace_id"`
 	Type      string         `json:"type"`
 	Payload   map[string]any `json:"payload"`
 	Status    string         `json:"status"`
@@ -27,10 +28,25 @@ func (t *TaskItem) Convert(task database.Task) error {
 	}
 
 	t.ID = task.ID
+	t.TraceID = task.TraceID
 	t.Type = task.Type
 	t.Payload = payload
 	t.Status = task.Status
 	t.CreatedAt = task.CreatedAt
 
 	return nil
+}
+
+type TaskReq struct {
+	TaskID string `uri:"task_id" binding:"required"`
+}
+
+type TaskStreamItem struct {
+	Type    string
+	TraceID string
+}
+
+func (t *TaskStreamItem) Convert(task database.Task) {
+	t.Type = task.Type
+	t.TraceID = task.TraceID
 }
