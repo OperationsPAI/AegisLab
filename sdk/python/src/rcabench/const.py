@@ -25,8 +25,8 @@ class SSEMsgPrefix:
 
 
 class TaskStatus:
-    COMPLETED = "completed"
-    ERROR = "error"
+    COMPLETED = "Completed"
+    ERROR = "Error"
 
 
 class Pagination:
