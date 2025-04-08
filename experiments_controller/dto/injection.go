@@ -7,6 +7,7 @@ import (
 	"time"
 
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
+	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 )
@@ -88,22 +89,24 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert spec to node: %v", err)
 		}
-
-		childNode, exists := node.Children[strconv.Itoa(node.Value)]
-		if !exists {
-			return nil, fmt.Errorf("failed to find key %d in the children", node.Value)
-		}
-
-		faultDuration := childNode.Children[strconv.Itoa(0)].Value
 		execTime := currentTime.Add(intervalDuration * time.Duration(i))
-		start := execTime.Add(-preDuration)
-		end := execTime.Add(time.Duration(faultDuration) * consts.DefaultTimeUnit)
 
-		if i > 0 && !start.After(prevEnd) {
-			return nil, fmt.Errorf("spec[%d] time conflict", i)
+		if !config.GetBool("debugging.enable") {
+			childNode, exists := node.Children[strconv.Itoa(node.Value)]
+			if !exists {
+				return nil, fmt.Errorf("failed to find key %d in the children", node.Value)
+			}
+
+			faultDuration := childNode.Children[strconv.Itoa(0)].Value
+			start := execTime.Add(-preDuration)
+			end := execTime.Add(time.Duration(faultDuration) * consts.DefaultTimeUnit)
+
+			if i > 0 && !start.After(prevEnd) {
+				return nil, fmt.Errorf("spec[%d] time conflict", i)
+			}
+
+			prevEnd = end
 		}
-
-		prevEnd = end
 
 		conf, err := chaos.NodeToStruct[chaos.InjectionConf](node)
 		if err != nil {

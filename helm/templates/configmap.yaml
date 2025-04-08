@@ -48,6 +48,9 @@ data:
     [algo]
     storage_path = "{{ .Values.configmap.algo.storage_path }}"
 
+    [debugging]
+    enable = "{{ .Values.configmap.debugging.enable }}"
+
 ---
 apiVersion: v1
 kind: ConfigMap
