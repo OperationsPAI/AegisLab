@@ -40,12 +40,12 @@ configmap:
   nfs:
     path: "/var/lib/rcabench"
     pvc_name: "nfs-shared-pvc"
+  algo:
+    storage_path: "/app/algorithms"
+  debugging:
+    enable: true
 
 persistence:
-  data:
-    enabled: false
-    accessMode: ReadWriteMany
-    size: 1Gi
   mariadb:
     enabled: true
     accessMode: ReadWriteOnce

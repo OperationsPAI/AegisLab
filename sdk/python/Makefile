@@ -31,3 +31,9 @@ test-algorithm: ## test algorithm
 
 test-dataset: ## test dataset
 	uv run pytest -s tests/test_dataset_api.py
+
+test-injection: ## test injection
+	uv run pytest -s tests/test_injection_api.py
+
+test-task: ## test task
+	uv run pytest -s tests/test_task_api.py

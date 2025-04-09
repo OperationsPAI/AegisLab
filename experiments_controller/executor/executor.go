@@ -174,6 +174,7 @@ func (e *Executor) HandleJobUpdate(labels map[string]string, status, errorMsg st
 func (e *Executor) handleJobCompleted(logEntry *logrus.Entry, jobLabel *JobLabel, errorMsg string) {
 	baseFields := map[string]any{
 		consts.RdbMsgStatus:   consts.TaskStatusCompleted,
+		consts.RdbMsgTaskID:   jobLabel.TaskID,
 		consts.RdbMsgTaskType: jobLabel.Type,
 	}
 
@@ -205,7 +206,17 @@ func (e *Executor) handleJobError(logEntry *logrus.Entry, jobLabel *JobLabel, er
 }
 
 func (e *Executor) updateDataset(logEntry *logrus.Entry, jobLabel *JobLabel, taskStatus string, datasetStatus int, fields map[string]any) {
-	updateTaskStatus(jobLabel.TaskID, jobLabel.TraceID, fmt.Sprintf(taskStatus, jobLabel.TaskID), fields)
+	if datasetStatus == consts.DatasetBuildSuccess {
+		updateFields := utils.CloneMap(fields)
+		updateFields[consts.RdbMsgDataset] = jobLabel.Dataset
+		updateTaskStatus(jobLabel.TaskID,
+			jobLabel.TraceID,
+			fmt.Sprintf(consts.TaskMsgCompleted, jobLabel.TaskID),
+			updateFields,
+		)
+	} else {
+		updateTaskStatus(jobLabel.TaskID, jobLabel.TraceID, fmt.Sprintf(taskStatus, jobLabel.TaskID), fields)
+	}
 
 	if err := repository.UpdateStatusByDataset(jobLabel.Dataset, datasetStatus); err != nil {
 		logEntry.Errorf("update dataset status to %v failed: %v", datasetStatus, err)

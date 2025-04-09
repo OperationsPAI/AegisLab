@@ -10,14 +10,13 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
-	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/repository"
 	corev1 "k8s.io/api/core/v1"
 
 	"gorm.io/gorm"
 )
 
-type AlgorithmExecutionMeta struct {
+type ExecutionPayload struct {
 	Algorithm string
 	Dataset   string
 	Service   string
@@ -25,52 +24,46 @@ type AlgorithmExecutionMeta struct {
 }
 
 func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
-	meta, err := getAlgorithmPayloadMeta(task.Payload)
+	payload, err := parseExecutionPayload(task.Payload)
 	if err != nil {
 		return err
 	}
 
-	record, err := repository.GetInjectionRecordByDataset(meta.Dataset, consts.DatasetBuildSuccess)
+	record, err := repository.GetDatasetByName(payload.Dataset, consts.DatasetBuildSuccess)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("no matching dataset %s found", meta.Dataset)
+			return fmt.Errorf("no matching dataset %s found", payload.Dataset)
 		}
-		return fmt.Errorf("failed to query database for dataset %s: %v", meta.Dataset, err)
+		return fmt.Errorf("failed to query database for dataset %s: %v", payload.Dataset, err)
 	}
 
-	executionResult := database.ExecutionResult{
-		TaskID:    task.TaskID,
-		Dataset:   record.ID,
-		Algorithm: meta.Algorithm,
-	}
-	if err := database.DB.Create(&executionResult).Error; err != nil {
+	executionID, err := repository.CreateExecutionResult(payload.Algorithm, task.TaskID, record.ID)
+	if err != nil {
 		return fmt.Errorf("failed to create execution result: %v", err)
 	}
 
-	jobName := fmt.Sprintf("%s-%s", meta.Algorithm, meta.Dataset)
-	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), meta.Algorithm, meta.Tag)
+	jobName := fmt.Sprintf("%s-%s", payload.Algorithm, payload.Dataset)
+	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), payload.Algorithm, payload.Tag)
 	labels := map[string]string{
-		consts.LabelTaskID:   task.TaskID,
-		consts.LabelTraceID:  task.TraceID,
-		consts.LabelGroupID:  task.GroupID,
-		consts.LabelTaskType: string(consts.TaskTypeRunAlgorithm),
-
-		// TODO 从数据库中获取
-		consts.LabelAlgorithm:   meta.Algorithm,
-		consts.LabelDataset:     meta.Dataset,
-		consts.LabelExecutionID: fmt.Sprint(executionResult.ID),
+		consts.LabelTaskID:      task.TaskID,
+		consts.LabelTraceID:     task.TraceID,
+		consts.LabelGroupID:     task.GroupID,
+		consts.LabelTaskType:    string(consts.TaskTypeRunAlgorithm),
+		consts.LabelDataset:     payload.Dataset,
+		consts.LabelAlgorithm:   payload.Algorithm,
+		consts.LabelExecutionID: fmt.Sprint(executionID),
 	}
 	jobEnv := &k8s.JobEnv{
-		Service:   meta.Service,
+		Service:   payload.Service,
 		StartTime: record.StartTime,
 		EndTime:   record.EndTime,
 	}
 
-	return createAlgoJob(ctx, meta.Dataset, jobName, config.GetString("k8s.namespace"), image, []string{"bash", "/entrypoint.sh"}, labels, jobEnv)
+	return createAlgoJob(ctx, payload.Dataset, jobName, config.GetString("k8s.namespace"), image, []string{"bash", "/entrypoint.sh"}, labels, jobEnv)
 }
 
 // 解析算法执行任务的 Payload
-func getAlgorithmPayloadMeta(payload map[string]any) (*AlgorithmExecutionMeta, error) {
+func parseExecutionPayload(payload map[string]any) (*ExecutionPayload, error) {
 	message := "missing or invalid '%s' key in payload"
 
 	algorithm, ok := payload[consts.ExecuteAlgo].(string)
@@ -93,7 +86,7 @@ func getAlgorithmPayloadMeta(payload map[string]any) (*AlgorithmExecutionMeta, e
 		return nil, fmt.Errorf(message, consts.ExecuteTag)
 	}
 
-	return &AlgorithmExecutionMeta{
+	return &ExecutionPayload{
 		Algorithm: algorithm,
 		Dataset:   dataset,
 		Service:   service,

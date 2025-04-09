@@ -35,13 +35,11 @@ func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
 	jobName := fmt.Sprintf("%s-%s", consts.DatasetJobName, datasetMeta.Name)
 	image := fmt.Sprintf("%s/%s_dataset:%s", config.GetString("harbor.repository"), datasetMeta.Benchmark, config.GetString("image.tag"))
 	labels := map[string]string{
-		consts.LabelTaskID:    task.TaskID,
-		consts.LabelTraceID:   task.TraceID,
-		consts.LabelGroupID:   task.GroupID,
-		consts.LabelTaskType:  string(consts.TaskTypeBuildDataset),
-		consts.LabelDataset:   datasetMeta.Name,
-		consts.LabelStartTime: strconv.FormatInt(datasetMeta.StartTime.Unix(), 10),
-		consts.LabelEndTime:   strconv.FormatInt(datasetMeta.EndTime.Unix(), 10),
+		consts.LabelTaskID:   task.TaskID,
+		consts.LabelTraceID:  task.TraceID,
+		consts.LabelGroupID:  task.GroupID,
+		consts.LabelTaskType: string(consts.TaskTypeBuildDataset),
+		consts.LabelDataset:  datasetMeta.Name,
 	}
 	jobEnv := &k8s.JobEnv{
 		Namespace:   datasetMeta.Namespace,

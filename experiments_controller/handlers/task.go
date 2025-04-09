@@ -8,12 +8,53 @@ import (
 
 	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/consts"
-	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/dto"
+	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
+
+func GetTaskDetail(c *gin.Context) {
+	var req dto.TaskReq
+	if err := c.BindUri(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid URI")
+		return
+	}
+
+	logEntry := logrus.WithField("task_id", req.TaskID)
+
+	taskItem, err := repository.FindTaskItemByID(req.TaskID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			message := "task not found"
+			logEntry.Errorf("%s: %v", message, err)
+			dto.ErrorResponse(c, http.StatusNotFound, message)
+		} else {
+			message := "failed to retrieve task of injection"
+			logEntry.Errorf("%s: %v", message, err)
+			dto.ErrorResponse(c, http.StatusInternalServerError, message)
+		}
+
+		return
+	}
+
+	logKey := fmt.Sprintf("task:%s:logs", taskItem.ID)
+	logs, err := client.GetRedisClient().LRange(c.Request.Context(), logKey, 0, -1).Result()
+	if err != nil {
+		if !errors.Is(err, redis.Nil) {
+			message := "Failed to retrieve logs"
+			logrus.Errorf("%s: %v", message, err)
+			dto.ErrorResponse(c, http.StatusInternalServerError, message)
+			return
+		}
+
+		logs = []string{}
+	}
+
+	dto.SuccessResponse(c, dto.TaskDetailResp{Task: *taskItem, Logs: logs})
+}
 
 // GetStream
 //
@@ -27,27 +68,16 @@ import (
 //	@Failure      400      {object}  GenericResponse[any]	"无效的任务ID格式"
 //	@Failure      404      {object}  GenericResponse[any]  	"指定ID的任务不存在"
 //	@Failure      500      {object}  GenericResponse[any]  	"服务器内部错误"
-func GetStream(c *gin.Context) {
-	var req dto.StreamReq
-	if err := c.BindQuery(&req); err != nil {
+func GetTaskStream(c *gin.Context) {
+	var req dto.TaskReq
+	if err := c.BindUri(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid param")
 		return
 	}
 
-	var logEntry *logrus.Entry
-	var task database.Task
-	var err error
+	logEntry := logrus.WithField("task_id", req.TaskID)
 
-	if req.TaskID != "" {
-		logEntry = logrus.WithField("task_id", req.TaskID)
-		err = database.DB.Where("tasks.id = ?", req.TaskID).First(&task).Error
-	} else if req.TraceID != "" {
-		logEntry = logrus.WithField("trace_id", req.TraceID)
-		err = database.DB.Where("tasks.trace_id = ?", req.TraceID).
-			Order("created_at ASC").
-			First(&task).Error
-	}
-
+	item, err := repository.FindTaskItemByID(req.TaskID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			message := "Task not found"
@@ -63,29 +93,25 @@ func GetStream(c *gin.Context) {
 		return
 	}
 
-	pubsub := client.GetRedisClient().Subscribe(c, fmt.Sprintf(consts.SubChannel, task.TraceID))
+	pubsub := client.GetRedisClient().Subscribe(c, fmt.Sprintf(consts.SubChannel, item.TraceID))
 	defer pubsub.Close()
 
-	expectedTaskType := consts.TaskType(task.Type)
+	expectedTaskType := consts.TaskType(item.Type)
 
-	switch consts.TaskType(task.Type) {
+	switch consts.TaskType(item.Type) {
 	case consts.TaskTypeRunAlgorithm:
 		expectedTaskType = consts.TaskTypeCollectResult
 	case consts.TaskTypeFaultInjection:
-		var payload dto.InjectionPayload
-		if err := json.Unmarshal([]byte(task.Payload), &payload); err != nil {
-			message := "Failed to unmarshal payload of injection record"
-			logEntry.Errorf("%s: %v", message, err)
-			dto.ErrorResponse(c, http.StatusInternalServerError, message)
-			return
-		}
+		benchmark, ok := item.Payload[consts.InjectBenchmark]
+		if !ok {
 
-		if payload.Benchmark != "" {
+		}
+		if benchmark != "" {
 			expectedTaskType = consts.TaskTypeBuildDataset
 		}
 	}
 
-	sendStreamMessge(c, task.TraceID, expectedTaskType)
+	sendStreamMessge(c, item.TraceID, expectedTaskType)
 }
 
 func sendStreamMessge(c *gin.Context, traceID string, expectedTaskType consts.TaskType) {

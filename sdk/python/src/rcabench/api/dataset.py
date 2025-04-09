@@ -1,6 +1,7 @@
 from typing import List
 from tqdm import tqdm
 from urllib.parse import unquote
+from ..client.http_client import HTTPClient
 from ..const import Pagination
 from ..model.dataset import DeleteResult, ListResult, QueryResult
 import os
@@ -18,8 +19,9 @@ class Dataset:
         "submit": "",
     }
 
-    def __init__(self, client):
+    def __init__(self, client: HTTPClient, api_version: str):
         self.client = client
+        self.url_prefix = f"{api_version}{self.URL_PREFIX}"
 
     def delete(self, names: List[str]) -> DeleteResult:
         """
@@ -49,7 +51,7 @@ class Dataset:
             >>> delete([123])  # 错误示例
             TypeError: Dataset name must be string
         """
-        url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['delete']}"
+        url = f"{self.url_prefix}{self.URL_ENDPOINTS['delete']}"
 
         if not names:
             raise ValueError("Dataset names list cannot be empty")
@@ -98,7 +100,7 @@ class Dataset:
             )
             '/data/downloads/package.zip'
         """
-        url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['download']}"
+        url = f"{self.url_prefix}{self.URL_ENDPOINTS['download']}"
 
         if not group_ids:
             raise ValueError("group_ids cannot be empty list")
@@ -166,7 +168,7 @@ class Dataset:
         Example:
             >>> dataset = client.list(page_num=1, page_size=10)
         """
-        url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['list']}"
+        url = f"{self.url_prefix}{self.URL_ENDPOINTS['list']}"
 
         if not isinstance(page_num, int):
             raise TypeError("Page number must be integer")
@@ -211,7 +213,7 @@ class Dataset:
             >>> print(dataset["detector_result"]["p99"])
             142.3
         """
-        url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['query']}"
+        url = f"{self.url_prefix}{self.URL_ENDPOINTS['query']}"
 
         if not isinstance(name, str):
             raise TypeError("Dataset names must be string")
@@ -228,5 +230,5 @@ class Dataset:
 
     def submit(self, payload):
         """查询单个数据集"""
-        url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['submit']}"
+        url = f"{self.url_prefix}{self.URL_ENDPOINTS['submit']}"
         return self.client.post(url, payload=payload)
