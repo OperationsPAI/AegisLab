@@ -15,18 +15,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// CancelInjection
-//
-//	@Summary		取消注入
-//	@Description	取消注入
-//	@Tags			injection
-//	@Produce		json
-//	@Consumes		application/json
-//	@Param			body	body		InjectCancelReq	true	"请求体"
-//	@Success		200		{object}	GenericResponse[InjectCancelResp]
-//	@Failure		400		{object}	GenericResponse[InjectCancelResp]
-//	@Failure		500		{object}	GenericResponse[InjectCancelResp]
-//	@Router			/api/v1/injection/cancel [post]
 func CancelInjection(c *gin.Context) {
 }
 
@@ -100,9 +88,9 @@ func GetInjectionConf(c *gin.Context) {
 //	@Tags			injection
 //	@Produce		json
 //	@Consumes		application/json
-//	@Success		200	{object}		GenericResponse[[]InjectListResp]
-//	@Failure		400	{object}		GenericResponse[[]InjectListResp]
-//	@Failure		500	{object}		GenericResponse[[]InjectListResp]
+//	@Success		200	{object}		dto.GenericResponse[dto.PaginationResp[dto.InjectionItem]]
+//	@Failure		400	{object}		dto.GenericResponse[any]
+//	@Failure		500	{object}		dto.GenericResponse[any]
 //	@Router			/api/v1/injections/getlist [post]
 func GetInjectionList(c *gin.Context) {
 	var req dto.InjectionListReq
@@ -143,9 +131,9 @@ func GetInjectionList(c *gin.Context) {
 //	@Produce		json
 //	@Consumes		application/json
 //	@Param			body	body		[]dto.InjectionSubmitReq	true	"请求体"
-//	@Success		200		{object}	GenericResponse[dto.SubmitResp]
-//	@Failure		400		{object}	GenericResponse[any]
-//	@Failure		500		{object}	GenericResponse[any]
+//	@Success		200		{object}	dto.GenericResponse[dto.SubmitResp]
+//	@Failure		400		{object}	dto.GenericResponse[any]
+//	@Failure		500		{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/injections [post]
 func SubmitFaultInjection(c *gin.Context) {
 	groupID := c.GetString("groupID")

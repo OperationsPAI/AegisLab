@@ -65,9 +65,9 @@ func GetTaskDetail(c *gin.Context) {
 //	@Consumes	  application/json
 //	@Param        task_id  path      string  				true  "需要监控的任务ID"
 //	@Success      200      {object}  nil     				"成功建立SSE连接，持续推送事件流"
-//	@Failure      400      {object}  GenericResponse[any]	"无效的任务ID格式"
-//	@Failure      404      {object}  GenericResponse[any]  	"指定ID的任务不存在"
-//	@Failure      500      {object}  GenericResponse[any]  	"服务器内部错误"
+//	@Failure      400      {object}  dto.GenericResponse[any]	"无效的任务ID格式"
+//	@Failure      404      {object}  dto.GenericResponse[any]  	"指定ID的任务不存在"
+//	@Failure      500      {object}  dto.GenericResponse[any]  	"服务器内部错误"
 func GetTaskStream(c *gin.Context) {
 	var req dto.TaskReq
 	if err := c.BindUri(&req); err != nil {

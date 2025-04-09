@@ -1,3 +1,5 @@
+// @title           RCABench
+
 package main
 
 import (

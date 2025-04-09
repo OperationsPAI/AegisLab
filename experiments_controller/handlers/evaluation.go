@@ -24,9 +24,9 @@ import (
 //	@Param			algorithms		query		[]string					false	"算法名称数组"
 //	@Param			levels			query		[]string					false	"级别名称数组"
 //	@Param			metrics			query		[]string					false	"指标名称数组"
-//	@Success		200				{object}	GenericResponse[EvaluationListResp]	"成功响应"
-//	@Failure		400				{object}	GenericResponse[any]		"参数校验失败"
-//	@Failure		500				{object}	GenericResponse[any]		"服务器内部错误"
+//	@Success		200				{object}	dto.GenericResponse[dto.EvaluationListResp]	"成功响应"
+//	@Failure		400				{object}	dto.GenericResponse[any]		"参数校验失败"
+//	@Failure		500				{object}	dto.GenericResponse[any]		"服务器内部错误"
 //	@Router			/api/v1/evaluations [get]
 func GetEvaluationList(c *gin.Context) {
 	var req dto.EvaluationListReq

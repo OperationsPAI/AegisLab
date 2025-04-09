@@ -42,7 +42,7 @@ swagger: ## Generate Swagger API documentation
 	swag init \
 		-d ./experiments_controller \
 		--parseDependency \
-		--parseDepth 1
+		--parseDepth 1 --output ./experiments_controller/docs 
 
 ##@ Kubernetes
 
@@ -57,3 +57,12 @@ ports: ## Port-forward service
 
 install-hooks: ## Install pre-commit hooks
 	cp scripts/hooks/pre-commit .git/hooks/pre-commit
+
+gen-sdk: swagger
+	docker run --rm \
+		-u $$(id -u):$$(id -g) \
+		-v $$(pwd):/local \
+		openapitools/openapi-generator-cli generate \
+		-i /local/experiments_controller/docs/swagger.json \
+		-g python \
+		-o /local/sdk/python1
