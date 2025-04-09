@@ -37,7 +37,7 @@ def handle_http_errors(func: Callable):
             logger.error(f"Unknown error: {str(e)}")
             return HttpResponseError(
                 status_code=500,
-                detail=e.message,
+                detail=str(e),
                 path=args[1],
                 method=str.upper(func.__name__),
             )

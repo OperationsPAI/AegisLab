@@ -1,6 +1,8 @@
 from typing import Dict, List, Optional
+from .validation import async_validate_request_response
 from .stream import Stream
 from ..client.http_client import HTTPClient
+from ..model.task import StreamReq, StreamResult
 
 __all__ = ["Task"]
 
@@ -18,6 +20,7 @@ class Task:
         self.stream = Stream(client.base_url, max_connections)
         self.url_prefix = f"{api_version}{self.URL_PREFIX}"
 
+    @async_validate_request_response(StreamReq, StreamResult)
     async def get_stream(
         self,
         task_ids: List[str],

@@ -11,7 +11,7 @@ def test_get_injection_conf(sdk, mode):
     pprint(data)
 
 
-@pytest.mark.parametrize("page_num, page_size", [(1, 10)])
+@pytest.mark.parametrize("page_num, page_size", [(1, 10), (0, 10)])
 def test_list_injections(sdk, page_num, page_size):
     """测试分页查询注入记录"""
     data = sdk.injection.list(page_num, page_size)

@@ -1,23 +1,31 @@
 # Run this file:
 # uv run pytest -s tests/test_algorithm_api.py
+from rcabench.model.common import SubmitResult
 from pprint import pprint
 import pytest
 
 
 @pytest.mark.parametrize(
-    "algorithms, datasets",
+    "payload",
     [
         (
-            [["detector", "latest"], ["e-diagnose", "latest"]],
-            ["ts-ts-preserve-service-cpu-exhaustion-r4mq88"],
+            [
+                {
+                    "algorithm": "e-diagnose",
+                    "dataset": "ts-ts-travel2-service-pod-failure-rkxslq",
+                }
+            ]
         )
     ],
 )
-def test_submit_algorithms(sdk, algorithms, datasets):
+def test_submit_algorithms(sdk, payload):
     """测试批量提交算法"""
-    data = sdk.algorithm.submit(algorithms, datasets)
-    pprint(data)
+    resp = sdk.algorithm.submit(payload)
+    pprint(resp)
 
-    traces = data.traces
+    if not isinstance(resp, SubmitResult):
+        pytest.fail(resp.model_dump_json())
+
+    traces = resp.traces
     if not traces:
         pytest.fail("No traces returned from execution")

@@ -1,8 +1,10 @@
 # Run this file:
 # uv run pytest -s tests/test_task_api.py
 from typing import Any, Dict, List
+from conftest import BASE_URL
 from pprint import pprint
 from rcabench.model.common import SubmitResult
+from rcabench.rcabench import RCABenchSDK
 from uuid import UUID
 import pytest
 
@@ -70,9 +72,9 @@ import pytest
         ),
     ],
 )
-async def test_injection_and_building_dataset(
-    sdk, benchmark, interval, pre_duration, specs
-):
+async def test_injection_and_building_dataset(benchmark, interval, pre_duration, specs):
+    sdk = RCABenchSDK(BASE_URL)
+
     resp = sdk.injection.submit(benchmark, interval, pre_duration, specs)
     pprint(resp)
 
@@ -84,10 +86,93 @@ async def test_injection_and_building_dataset(
         pytest.fail("No traces returned from execution")
 
     task_ids = [trace.head_task_id for trace in traces]
-    report = await sdk.task.get_stream(task_ids, timeout=1.5 * 60)
+    report = await sdk.task.get_stream(task_ids, timeout=None)
+    report = report.model_dump(exclude_unset=True)
     pprint(report)
 
     return report
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "payload",
+    [
+        (
+            [
+                {
+                    "algorithm": "e-diagnose",
+                    "dataset": "ts-ts-travel2-service-pod-failure-rkxslq",
+                }
+            ]
+        )
+    ],
+)
+async def test_execute_algorithm_and_collection(payload: List[Dict[str, str]]):
+    """测试执行多个算法并验证结果流收集功能
+
+    验证步骤：
+    1. 初始化 SDK 连接
+    2. 获取可用算法列表
+    3. 为每个算法生成执行参数
+    4. 提交批量执行请求
+    5. 启动流式结果收集
+    6. 验证关键结果字段
+    """
+    sdk = RCABenchSDK(BASE_URL)
+
+    resp = sdk.algorithm.submit(payload)
+    pprint(resp)
+
+    if not isinstance(resp, SubmitResult):
+        pytest.fail(resp.model_dump_json())
+
+    traces = resp.traces
+    if not traces:
+        pytest.fail("No traces returned from execution")
+
+    task_ids = [trace.head_task_id for trace in traces]
+    report = await sdk.task.get_stream(task_ids, timeout=None)
+    report = report.model_dump(exclude_unset=True)
+    pprint(report)
+
+    return report
+
+
+@pytest.mark.asyncio
+async def test_workflow():
+    injection_payload = {
+        "benchmark": "clickhouse",
+        "interval": 2,
+        "pre_duration": 1,
+        "specs": [
+            {
+                "children": {
+                    "1": {
+                        "children": {
+                            "0": {"value": 1},
+                            "1": {"value": 0},
+                            "2": {"value": 42},
+                        }
+                    },
+                },
+                "value": 1,
+            }
+        ],
+    }
+
+    injection_report = await test_injection_and_building_dataset(**injection_payload)
+    datasets = extract_values(injection_report, "dataset")
+    pprint(datasets)
+
+    payload = []
+    algorithms = ["e-diagnose"]
+    for algorithm in algorithms:
+        for dataset in datasets:
+            payload.append({"algorithm": algorithm, "dataset": dataset})
+
+    execution_report = await test_execute_algorithm_and_collection(payload)
+    execution_ids = extract_values(execution_report, "execution_id")
+    pprint(execution_ids)
 
 
 def extract_values(data: Dict[UUID, Any], key: str) -> List[str]:
@@ -116,71 +201,3 @@ def extract_values(data: Dict[UUID, Any], key: str) -> List[str]:
 
     _recursive_search(data)
     return values
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "algorithms, datasets",
-    [([["e-diagnose"]], ["ts-ts-ui-dashboard-pod-failure-ncbfpc"])],
-)
-async def test_execute_algorithm_and_collection(
-    sdk, algorithms: List[List[str]], datasets: List[str]
-):
-    """测试执行多个算法并验证结果流收集功能
-
-    验证步骤：
-    1. 初始化 SDK 连接
-    2. 获取可用算法列表
-    3. 为每个算法生成执行参数
-    4. 提交批量执行请求
-    5. 启动流式结果收集
-    6. 验证关键结果字段
-    """
-    data = sdk.algorithm.submit(algorithms, datasets)
-    pprint(data)
-
-    traces = data.traces
-    if not traces:
-        pytest.fail("No traces returned from execution")
-
-    task_ids = [trace.head_task_id for trace in traces]
-    report = await sdk.task.get_stream(task_ids, timeout=30)
-    pprint(report)
-
-    return report
-
-
-@pytest.mark.asyncio
-async def test_workflow(sdk):
-    injection_payload = {
-        "benchmark": "clickhouse",
-        "interval": 2,
-        "pre_duration": 1,
-        "specs": [
-            {
-                "children": {
-                    "1": {
-                        "children": {
-                            "0": {"value": 1},
-                            "1": {"value": 0},
-                            "2": {"value": 42},
-                        }
-                    },
-                },
-                "value": 1,
-            }
-        ],
-    }
-
-    injection_report = await test_injection_and_building_dataset(
-        sdk, **injection_payload
-    )
-    datasets = extract_values(injection_report, "dataset")
-    pprint(datasets)
-
-    algorithms = [["e-diagnose"]]
-    execution_report = await test_execute_algorithm_and_collection(
-        sdk, algorithms, datasets
-    )
-    execution_ids = extract_values(execution_report, "execution_id")
-    pprint(execution_ids)

@@ -44,4 +44,4 @@ pvc_name = "nfs-shared-pvc"
 storage_path = "/app/algorithms"
 
 [debugging]
-enable = false
+enable = true

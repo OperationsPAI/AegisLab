@@ -1,5 +1,6 @@
 from typing import Any, Dict, Optional
 from ..const import EventType, SSEMsgPrefix, TaskStatus
+from ..logger import logger
 from uuid import UUID
 import aiohttp
 import asyncio
@@ -24,10 +25,18 @@ class ClientManager:
 
     async def remove_client(self, client_id: str) -> None:
         async with self.lock:
-            if client_id in self.client_dict:
-                task_obj = self.client_dict.pop(client_id, None)
-                task_obj.cancel()
+            if client_id not in self.client_dict:
+                return
 
+            task_obj = self.client_dict.pop(client_id)
+            if task_obj and not task_obj.done():
+                task_obj.cancel()
+                try:
+                    await task_obj
+                except (asyncio.CancelledError, Exception):
+                    pass
+
+            # 检查是否所有客户端都已移除
             if not self.client_dict:
                 self.close_event.set()
 
@@ -43,10 +52,49 @@ class ClientManager:
                 self.results[key].update(result)
 
     async def wait_all(self, timeout: Optional[float] = None) -> Dict[str, Any]:
+        start_time = asyncio.get_event_loop().time()  # 记录开始时间
+
+        # 1. 先等待 close_event（所有客户端被移除）
+        if timeout is not None:
+            remaining_timeout = timeout
+        else:
+            remaining_timeout = None
+
         try:
-            await asyncio.wait_for(self.close_event.wait(), timeout)
+            await asyncio.wait_for(self.close_event.wait(), remaining_timeout)
         except asyncio.TimeoutError:
             pass
+
+        # 2. 计算剩余超时时间
+        if timeout is not None:
+            elapsed = asyncio.get_event_loop().time() - start_time
+            remaining_timeout = max(0, timeout - elapsed)
+            if remaining_timeout <= 0:  # 如果已经超时，直接返回
+                return {
+                    "results": self.results,
+                    "errors": self.errors,
+                    "pending": list(self.client_dict.keys()),
+                }
+
+        # 3. 如果仍有任务在运行，等待它们完成
+        if self.client_dict:
+            tasks = list(self.client_dict.values())
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*tasks, return_exceptions=True),
+                    timeout=remaining_timeout,
+                )
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                pass
+
+        # 4. 清理已完成的任务（避免 pending 列表包含已完成的任务）
+        async with self.lock:
+            pending_tasks = {
+                client_id: task
+                for client_id, task in self.client_dict.items()
+                if not task.done()
+            }
+            self.client_dict = pending_tasks
 
         return {
             "results": self.results,
@@ -54,9 +102,27 @@ class ClientManager:
             "pending": list(self.client_dict.keys()),
         }
 
-    def cleanup(self):
-        self.results = {}
-        self.errors = {}
+    async def cleanup(self):
+        """清理所有任务和资源"""
+        async with self.lock:
+            # 1. 取消所有任务
+            for task in self.client_dict.values():
+                if not task.done():
+                    task.cancel()
+
+            # 2. 等待所有任务完成（即使是被取消的任务）
+            if self.client_dict:
+                await asyncio.gather(
+                    *self.client_dict.values(),
+                    return_exceptions=True,
+                )
+
+            # 3. 清空字典和结果
+            self.client_dict.clear()
+            self.results = {}
+            self.errors = {}
+
+            print(self.results)
 
 
 class AsyncSSEClient:
@@ -97,7 +163,7 @@ class AsyncSSEClient:
             try:
                 data = json.loads(combined_data)
                 task_id = UUID(data.pop("task_id"))
-                status = data.get("status")
+                status = data.pop("status")
                 if status == TaskStatus.COMPLETED:
                     await self.client_manager.set_client_item(
                         self.client_id, result={task_id: data}
@@ -113,34 +179,38 @@ class AsyncSSEClient:
                 pass
 
     async def connect(self):
-        async with aiohttp.ClientSession() as session:
-            try:
-                await self.client_manager.add_client(
-                    self.client_id, asyncio.current_task()
-                )
+        session = None
+        try:
+            await self.client_manager.add_client(self.client_id, asyncio.current_task())
 
-                async with session.get(self.url) as resp:
-                    async for line in resp.content:
-                        if self._close:
-                            break
-                        await self._process_line(line)
+            session = aiohttp.ClientSession()
+            async with session.get(self.url) as resp:
+                async for line in resp.content:
+                    if self._close or self.client_manager.close_event.is_set():
+                        break
+                    await self._process_line(line)
 
-            except asyncio.CancelledError:
-                self.logger.error(f"Client {self.client_id} cancelled by manager")
+        except asyncio.CancelledError:
+            logger.error(f"Client {self.client_id} cancelled by manager")
+            self._close = True
+            await self.client_manager.set_client_item(
+                self.client_id, error=RuntimeError("Client cancelled by manager")
+            )
+            await self.client_manager.remove_client(self.client_id)
+
+        except Exception as e:
+            logger.error(f"Client {self.client_id} exception occured: {str(e)}")
+            self._close = True
+            await self.client_manager.set_client_item(self.client_id, error=e)
+            await self.client_manager.remove_client(self.client_id)
+
+        finally:
+            if session is not None:
+                await session.close()
+
+            if not self._close and not self.client_manager.close_event.is_set():
                 await self.client_manager.set_client_item(
-                    self.client_id, error=RuntimeError("Client cancelled by manager")
+                    self.client_id,
+                    error=RuntimeError("Connection closed unexpectedly"),
                 )
                 await self.client_manager.remove_client(self.client_id)
-
-            except Exception as e:
-                await self.client_manager.set_client_item(self.client_id, error=e)
-                await self.client_manager.remove_client(self.client_id)
-                raise
-
-            finally:
-                if not self._close and not self.client_manager.close_event.is_set():
-                    await self.client_manager.set_client_item(
-                        self.client_id,
-                        error=RuntimeError("Connection closed unexpectedly"),
-                    )
-                    await self.client_manager.remove_client(self.client_id)

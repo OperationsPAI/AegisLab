@@ -1,6 +1,36 @@
 from typing import Any, Dict, List, Optional
 from ..const import TIME_EXAMPLE
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+from uuid import UUID
+import os
+
+
+class DeleteReq(BaseModel):
+    """
+    数据集删除请求
+
+    Attributes:
+        names: 待删除的数据集名称列表
+    """
+
+    names: List[str] = Field(
+        ...,
+        description="List of datasets preparing for being deleted",
+        json_schema_extra={"example": ["ts-ts-preserve-service-cpu-exhaustion-znzxcn"]},
+    )
+
+    @field_validator("names")
+    @classmethod
+    def validate_names(cls, value: List[str]) -> List[str]:
+        for name in value:
+            if not name:
+                raise ValueError("Dataset name cannot be empty string")
+            if len(name) < 1 or len(name) > 64:
+                raise ValueError(
+                    f"The length of dataset must be in range [1-64]: {name}"
+                )
+
+        return value
 
 
 class DeleteResult(BaseModel):
@@ -24,6 +54,41 @@ class DeleteResult(BaseModel):
         description="List of dataset names that failed to delete",
         json_schema_extra={"example": ["ts-ts-preserve-service-cpu-exhaustion-znzxcn"]},
     )
+
+
+class DownloadReq(BaseModel):
+    """
+    文件下载请求参数模型
+
+    用于定义批量下载任务组所需参数，包含任务组ID列表和输出路径校验。
+
+    Attributes:
+        group_ids: 需要下载的任务组ID列表
+        output_path: 文件保存的目标路径（需可写权限）
+    """
+
+    group_ids: List[UUID] = Field(
+        ...,
+        description="List of task groups",
+        json_schema_extra={"example": [UUID("550e8400-e29b-41d4-a716-446655440000")]},
+    )
+
+    output_path: str = Field(
+        ...,
+        description="The path to save package.zip",
+        json_schema_extra={"example": os.getcwd()},
+    )
+
+    @field_validator("output_path")
+    @classmethod
+    def validate_output_path(cls, value: str) -> str:
+        if not os.path.isdir(value):
+            raise FileNotFoundError(f"Output path does not exist: {value}")
+
+        if not os.access(value, os.W_OK):
+            raise PermissionError(f"No write permission on path: {value}")
+
+        return value
 
 
 class DatasetItem(BaseModel):
@@ -59,6 +124,28 @@ class DatasetItem(BaseModel):
         ...,
         description="End timestamp of injection window",
         json_schema_extra={"example": TIME_EXAMPLE},
+    )
+
+
+class ListResult(BaseModel):
+    """
+    分页数据集查询结果
+
+    Attributes:
+        total: 数据集总数
+        datasets: 数据集条目列表
+    """
+
+    total: int = Field(
+        default=0,
+        description="Total number of datasets",
+        json_schema_extra={"example": 20},
+        ge=0,
+    )
+
+    datasets: List[DatasetItem] = Field(
+        default_factory=list,
+        description="List of datasets",
     )
 
 
@@ -178,31 +265,9 @@ class ExecutionRecord(BaseModel):
         json_schema_extra={"example": "e-dianose"},
     )
 
-    granularity_results: List[GranularityRecord] = Field(
+    granularity_records: List[GranularityRecord] = Field(
         default_factory=list,
         description="Analysis results across different granularity levels",
-    )
-
-
-class ListResult(BaseModel):
-    """
-    分页数据集查询结果
-
-    Attributes:
-        total: 数据集总数
-        datasets: 数据集条目列表
-    """
-
-    total: int = Field(
-        default=0,
-        description="Total number of datasets",
-        json_schema_extra={"example": 20},
-        ge=0,
-    )
-
-    datasets: List[DatasetItem] = Field(
-        default_factory=list,
-        description="List of datasets",
     )
 
 
