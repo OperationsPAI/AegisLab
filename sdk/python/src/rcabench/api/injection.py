@@ -1,6 +1,8 @@
 from typing import Any, Dict, List, Union
-from ..const import InjectionConfModes, Pagination
+from ..client.http_client import HTTPClient
+from ..const import INJECTION_CONF_MODES, Pagination
 from ..model.common import SubmitResult
+from ..model.error import HttpResponseError, RequestValidationError, safe_validate
 from ..model.injection import ListResult, SpecNode, SubmitReq
 
 __all__ = ["Injection"]
@@ -15,15 +17,16 @@ class Injection:
         "submit": "",
     }
 
-    def __init__(self, client):
+    def __init__(self, client: HTTPClient, api_version: str):
         self.client = client
+        self.url_prefix = f"{api_version}{self.URL_PREFIX}"
 
     def get_conf(self, mode: str) -> Union[Dict[str, Any], SpecNode]:
         """
         获取指定模式的注入配置信息
 
         Args:
-            mode: 配置模式，必须存在于 InjectionConfModes 中，可选值：["display", "engine"]
+            mode: 配置模式，必须存在于 INJECTION_CONF_MODES 中，可选值：["display", "engine"]
 
         Returns:
             SpecNode | dict: 配置数据对象，模式为 'engine' 时返回 SpecNode 模型实例，
@@ -37,12 +40,14 @@ class Injection:
             >>> engine_config = client.get_conf(mode="engine")
             >>> print(engine_config.model_dump())
         """
-        url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['get_conf']}"
+        url = f"{self.url_prefix}{self.URL_ENDPOINTS['get_conf']}"
 
         if not isinstance(mode, str):
             raise TypeError("Mode must be string")
-        if mode not in InjectionConfModes:
-            raise ValueError(f"Injection conf mode must be one of {InjectionConfModes}")
+        if mode not in INJECTION_CONF_MODES:
+            raise ValueError(
+                f"Injection conf mode must be one of {INJECTION_CONF_MODES}"
+            )
 
         result = self.client.get(url, params={"mode": mode})
         if mode == "engine":
@@ -68,7 +73,7 @@ class Injection:
         Example:
             >>> injections = client.list(page_num=1, page_size=10)
         """
-        url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['list']}"
+        url = f"{self.url_prefix}{self.URL_ENDPOINTS['list']}"
 
         if not isinstance(page_num, int):
             raise TypeError("Page number must be integer")
@@ -91,7 +96,7 @@ class Injection:
         interval: int,
         pre_duration: int,
         specs: List[Dict[str, Any]],
-    ) -> SubmitResult:
+    ) -> Union[HttpResponseError, RequestValidationError, SubmitResult]:
         """
         批量注入新的故障
 
@@ -130,7 +135,7 @@ class Injection:
                 )
             >>> print(task.task_id)
         """
-        url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['submit']}"
+        url = f"{self.url_prefix}{self.URL_ENDPOINTS['submit']}"
 
         payload = {
             "benchmark": benchmark,
@@ -138,5 +143,16 @@ class Injection:
             "pre_duration": pre_duration,
             "specs": specs,
         }
-        payload = SubmitReq.model_validate(payload).model_dump()
-        return SubmitResult.model_validate(self.client.post(url, payload=payload))
+        req, err = safe_validate(SubmitReq, payload)
+        if err is not None:
+            return err
+
+        resp = self.client.post(url, payload=req.model_dump(exclude_unset=True))
+        if isinstance(resp, HttpResponseError):
+            return resp
+
+        resp, err = safe_validate(SubmitResult, resp)
+        if err is not None:
+            return err
+
+        return resp

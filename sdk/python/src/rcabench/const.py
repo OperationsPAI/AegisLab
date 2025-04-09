@@ -1,7 +1,11 @@
 from enum import Enum
 
 
-InjectionConfModes = {"display", "engine"}
+INJECTION_CONF_MODES = {"display", "engine"}
+
+
+TIME_FORMAT = "%Y-%m-%dT%H:%M:%S+08:00"
+TIME_EXAMPLE = "1970-01-01T00:00:00+08:00"
 
 
 class InjectionStatusEnum(str, Enum):

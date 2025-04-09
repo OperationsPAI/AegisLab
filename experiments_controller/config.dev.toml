@@ -44,4 +44,4 @@ pvc_name = "nfs-shared-pvc"
 storage_path = "/home/nn/workspace/rcabench/algorithms"
 
 [debugging]
-enable = false
+enable = true

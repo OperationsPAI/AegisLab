@@ -1,11 +1,7 @@
 # Run this file:
 # uv run pytest -s tests/test_algorithm_api.py
 from pprint import pprint
-from rcabench import rcabench
 import pytest
-
-
-BASE_URL = "http://localhost:8082"
 
 
 @pytest.mark.parametrize(
@@ -17,11 +13,8 @@ BASE_URL = "http://localhost:8082"
         )
     ],
 )
-def test_submit_algorithms(algorithms, datasets):
+def test_submit_algorithms(sdk, algorithms, datasets):
     """测试批量提交算法"""
-
-    sdk = rcabench.RCABenchSDK(BASE_URL)
-
     data = sdk.algorithm.submit(algorithms, datasets)
     pprint(data)
 

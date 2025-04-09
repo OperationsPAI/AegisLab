@@ -13,13 +13,13 @@ class TraceInfo(BaseModel):
     head_task_id: UUID = Field(
         ...,
         description="Head task UUID in the trace chain",
-        example="da1d9598-3a08-4456-bfce-04da8cf850b0",
+        json_schema_extra={"example": UUID("da1d9598-3a08-4456-bfce-04da8cf850b0")},
     )
 
     trace_id: UUID = Field(
         ...,
         description="Unique identifier for the entire trace",
-        example="75430787-c19a-4f90-8c1f-07d215a664b7",
+        json_schema_extra={"example": UUID("75430787-c19a-4f90-8c1f-07d215a664b7")},
     )
 
 
@@ -33,7 +33,7 @@ class SubmitResult(BaseModel):
     group_id: UUID = Field(
         ...,
         description="Batch task group identifier",
-        example="e7cbb5b8-554e-4c82-a018-67f626fc12c6",
+        json_schema_extra={"example": UUID("e7cbb5b8-554e-4c82-a018-67f626fc12c6")},
     )
 
     # 至少包含一个追踪链

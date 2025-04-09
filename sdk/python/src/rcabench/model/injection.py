@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Optional
-from ..const import InjectionStatusEnum
+from ..const import InjectionStatusEnum, TIME_EXAMPLE
 from datetime import datetime
 from pydantic import BaseModel, Field, model_validator
 
@@ -19,42 +19,46 @@ class InjectionItem(BaseModel):
     """
 
     id: int = Field(
-        default=1, gt=1, description="Unique identifier for the injection", examples="1"
+        default=1,
+        gt=1,
+        description="Unique identifier for the injection",
+        json_schema_extra={"example": 1},
     )
 
     task_id: str = Field(
         ...,
         description="Unique identifier for the task which injection belongs to",
-        examples="005f94a9-f9a2-4e50-ad89-61e05c1c15a0",
+        json_schema_extra={"example": "005f94a9-f9a2-4e50-ad89-61e05c1c15a0"},
         max_length=64,
     )
 
     fault_type: str = Field(
         ...,
         description="Type of injected fault",
-        examples="CPUStress",
+        json_schema_extra={"example": "CPUStress"},
     )
 
     spec: Dict[str, Any] = Field(
-        ..., description="Specification parameters for the fault injection"
+        ...,
+        description="Specification parameters for the fault injection",
     )
 
     status: InjectionStatusEnum = Field(
         ...,
         description="Status value:initial, inject_success, inject_failed, build_success, build_failed, deleted",
-        examples=["initial", "deleted"],
+        json_schema_extra={"example": ["initial"]},
     )
 
     start_time: datetime = Field(
         ...,
         description="Start timestamp of injection window",
-        examples="2025-03-23T12:05:42+08:00",
+        json_schema_extra={"example": TIME_EXAMPLE},
     )
 
     end_time: datetime = Field(
         ...,
         description="End timestamp of injection window",
-        examples="2025-03-23T12:06:42+08:00",
+        json_schema_extra={"example": TIME_EXAMPLE},
     )
 
 
@@ -71,7 +75,7 @@ class ListResult(BaseModel):
         default=0,
         ge=0,
         description="Total number of injections",
-        examples=20,
+        json_schema_extra={"example": 20},
     )
 
     injections: List[InjectionItem] = Field(
@@ -96,13 +100,13 @@ class SpecNode(BaseModel):
         None,
         min_length=1,
         description="Unique identifier for the configuration node",
-        examples=["CPUStress", "PodChaos"],
+        json_schema_extra={"example": "CPUStress"},
     )
 
     range: Optional[List[int]] = Field(
         None,
         description="Allowed value range [min, max] for validation",
-        examples=[[1, 60], [1, 100]],
+        json_schema_extra={"example": [1, 60]},
     )
 
     description: Optional[str] = Field(
@@ -114,13 +118,13 @@ class SpecNode(BaseModel):
     children: Optional[Dict[str, "SpecNode"]] = Field(
         None,
         description="Child nodes forming a hierarchical structure",
-        examples=[{"1": {"name": "sub_node", "value": 42}}],
+        json_schema_extra={"example": {"1": {"name": "sub_node", "value": 42}}},
     )
 
     value: Optional[int] = Field(
         None,
         description="Numerical value for this configuration node",
-        examples=[1, 23, 60],
+        json_schema_extra={"example": 1},
     )
 
     @model_validator(mode="after")
@@ -154,21 +158,21 @@ class SubmitReq(BaseModel):
     benchmark: str = Field(
         ...,
         description="Benchmark name",
-        examples=["clickhouse"],
+        json_schema_extra={"example": "clichhouse"},
     )
 
     interval: int = Field(
         ...,
         gt=0,
         description="Fault injection interval (minute)",
-        examples=[2],
+        json_schema_extra={"example": 2},
     )
 
     pre_duration: int = Field(
         ...,
         gt=0,
         description="Normal time before fault injection (minute)",
-        examples=[1],
+        json_schema_extra={"example": 1},
     )
 
     specs: List[SpecNode] = Field(

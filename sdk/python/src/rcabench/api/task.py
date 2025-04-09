@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional
 from .stream import Stream
+from ..client.http_client import HTTPClient
 
 __all__ = ["Task"]
 
@@ -12,9 +13,10 @@ class Task:
         "get_stream": "/{task_id}/stream",
     }
 
-    def __init__(self, client, max_connections: int = 10):
+    def __init__(self, client: HTTPClient, api_version: str, max_connections: int = 10):
         self.client = client
         self.stream = Stream(client.base_url, max_connections)
+        self.url_prefix = f"{api_version}{self.URL_PREFIX}"
 
     async def get_stream(
         self,
@@ -22,7 +24,7 @@ class Task:
         timeout: Optional[float] = None,
     ) -> Dict[str, any]:
         urls = [
-            f"{self.URL_PREFIX}{self.URL_ENDPOINTS['get_stream'].format(task_id=task_id)}"
+            f"{self.url_prefix}{self.URL_ENDPOINTS['get_stream'].format(task_id=task_id)}"
             for task_id in task_ids
         ]
 
