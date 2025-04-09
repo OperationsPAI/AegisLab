@@ -7,6 +7,7 @@ from ..model.dataset import (
     DeleteReq,
     DeleteResult,
     DownloadReq,
+    DownloadResult,
     ListResult,
     QueryResult,
 )
@@ -60,7 +61,7 @@ class Dataset:
 
         return self.client.delete(url, params={"names": names})
 
-    @validate_request_response(request_model=DownloadReq)
+    @validate_request_response(DownloadReq, DownloadResult)
     def download(self, group_ids: List[UUID], output_path: str) -> str:
         """
         批量下载数据集文件组
@@ -91,7 +92,10 @@ class Dataset:
             '/data/downloads/package.zip'
         """
         url = f"{self.url_prefix}{self.URL_ENDPOINTS['download']}"
+
         response = self.client.get(url, params={"group_ids": group_ids}, stream=True)
+        if isinstance(response, HttpResponseError):
+            return response
 
         total_size = int(response.headers.get("content-length", 0))
         progress_bar = tqdm(total=total_size, unit="B", unit_scale=True)
@@ -114,7 +118,7 @@ class Dataset:
         finally:
             progress_bar.close()
 
-        return file_path
+        return {"file_path": file_path}
 
     @validate_request_response(PaginationReq, ListResult)
     def list(

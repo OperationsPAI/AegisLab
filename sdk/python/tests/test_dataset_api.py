@@ -8,7 +8,10 @@ import pytest
 
 @pytest.mark.parametrize(
     "group_ids, output_path",
-    [([UUID("20eab8e5-2c1b-4119-9343-de931bf839a5")], os.getcwd())],
+    [
+        ([UUID("20eab8e5-2c1b-4119-9343-de931bf839a5")], os.getcwd()),
+        ([UUID("1316756f-0a00-45f1-8707-ff1d1846b8e3")], os.getcwd()),
+    ],
 )
 def test_download_datasets(sdk, group_ids, output_path):
     """测试批量下载数据集"""

@@ -3,6 +3,7 @@ from ..const import TIME_EXAMPLE
 from pydantic import BaseModel, Field, field_validator
 from uuid import UUID
 import os
+import zipfile
 
 
 class DeleteReq(BaseModel):
@@ -58,7 +59,7 @@ class DeleteResult(BaseModel):
 
 class DownloadReq(BaseModel):
     """
-    文件下载请求参数模型
+    文件下载请求
 
     用于定义批量下载任务组所需参数，包含任务组ID列表和输出路径校验。
 
@@ -87,6 +88,51 @@ class DownloadReq(BaseModel):
 
         if not os.access(value, os.W_OK):
             raise PermissionError(f"No write permission on path: {value}")
+
+        return value
+
+
+class DownloadResult(BaseModel):
+    """
+    文件下载结果
+
+    Attributes:
+        file_path: 文件保存路径
+    """
+
+    file_path: str = Field(
+        ...,
+        description="The saving path",
+        json_schema_extra={"example": os.path.join(os.getcwd(), "package.zip")},
+    )
+
+    @field_validator("file_path")
+    @classmethod
+    def validate(cls, value: str) -> str:
+        if not os.path.exists(value):
+            raise FileNotFoundError(f"File does not exist: {value}")
+        if not os.path.isfile(value):
+            raise ValueError(f"Path is not a regular file: {value}")
+        if os.path.getsize(value) == 0:
+            raise ValueError(f"File is empty: {value}")
+        if not value.lower().endswith(".zip"):
+            raise ValueError(f"File is not a ZIP archive: {value}")
+
+        try:
+            with zipfile.ZipFile(value, "r") as zip_ref:
+                # 查看 ZIP 是否包含文件
+                if not zip_ref.namelist():
+                    raise ValueError(f"ZIP archive contains no files: {value}")
+
+                # ZIP 内所有文件是否可读
+                corrupt_file = zip_ref.testzip()
+                if corrupt_file is not None:
+                    raise ValueError(
+                        f"ZIP archive contains corrupt file: {corrupt_file}"
+                    )
+
+        except zipfile.BadZipFile:
+            raise ValueError(f"Invalid ZIP file format: {value}")
 
         return value
 
