@@ -54,3 +54,6 @@ pods: ## List all pods
 
 ports: ## Port-forward service
 	kubectl port-forward svc/exp -n $(NS) --address 0.0.0.0 8081:8081 &
+
+install-hooks: ## Install pre-commit hooks
+	cp scripts/hooks/pre-commit .git/hooks/pre-commit
