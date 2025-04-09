@@ -8,6 +8,7 @@ import (
 	"path"
 	"runtime"
 
+	"github.com/CUHK-SE-Group/chaos-experiment/client"
 	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/database"
@@ -39,7 +40,6 @@ func init() {
 func main() {
 	var port string
 	var conf string
-
 	var rootCmd = &cobra.Command{
 		Use:   "rcabench",
 		Short: "RCA Bench is a benchmarking tool",
@@ -112,7 +112,7 @@ func main() {
 			}
 		},
 	}
-
+	client.NewK8sClient()
 	rootCmd.AddCommand(producerCmd, consumerCmd, bothCmd)
 	if err := rootCmd.Execute(); err != nil {
 		logrus.Println(err.Error())

@@ -1,71 +1,18 @@
 package handlers
 
 import (
-	"errors"
+	"context"
 	"fmt"
 	"net/http"
 
-	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
+	"github.com/CUHK-SE-Group/rcabench/repository"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"gorm.io/gorm"
 )
-
-// 将查询参数数组转换为集合
-func convertQueryArrayToSet(params []string) map[string]bool {
-	set := make(map[string]bool)
-
-	for _, param := range params {
-		if param != "" {
-			set[param] = true
-		}
-	}
-
-	return set
-}
-
-// 查询Execution相关数据并返回Execution对象
-func fetchExecution(executionID, rank int) (*dto.Execution, error) {
-	db := database.DB
-
-	var execution database.ExecutionResult
-	if err := db.Where("id = ?", executionID).First(&execution).Error; err != nil {
-		return nil, fmt.Errorf("Algorithm does not execute")
-	}
-
-	var dataset database.FaultInjectionSchedule
-	if err := db.Where("id = ?", execution.Dataset).First(&dataset).Error; err != nil {
-		return nil, fmt.Errorf("Dataset id %d is not found", execution.Dataset)
-	}
-
-	// 查找detector相关的ExecutionResult
-	var detectorExecution database.ExecutionResult
-	if err := db.Where("dataset = ? AND algo = ?", execution.Dataset, "detector").First(&detectorExecution).Error; err != nil {
-		return nil, fmt.Errorf("Detector is not runned for dataset id %d, error: %v", execution.Dataset, err)
-	}
-
-	var detectorResult database.Detector
-	if err := db.Where("execution_id = ? AND issues != ?", detectorExecution.ID, "").First(&detectorResult).Error; err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, err
-		}
-	}
-
-	var granularityResults []database.GranularityResult
-	if err := db.Where("execution_id = ? AND rank <= ?", executionID, rank).Find(&granularityResults).Error; err != nil {
-		return nil, err
-	}
-
-	return &dto.Execution{
-		Dataset:            dataset,
-		DetectorResult:     detectorResult,
-		ExecutionRecord:    execution,
-		GranularityResults: granularityResults,
-	}, nil
-}
 
 // GetTaskResults 获取每种算法的执行历史记录
 //
@@ -88,50 +35,26 @@ func GetEvaluationList(c *gin.Context) {
 		return
 	}
 
-	algoSet := convertQueryArrayToSet(req.Algoritms)
-	levelSet := convertQueryArrayToSet(req.Levels)
 	metricSet := convertQueryArrayToSet(req.Metrics)
 	rank := 5
 	if req.Rank != nil {
 		rank = *req.Rank
 	}
 
-	if len(req.ExecutionIDs) == 0 {
-		err := database.DB.
-			Model(&database.GranularityResult{}).
-			Select("DISTINCT execution_id").
-			Pluck("execution_id", &req.ExecutionIDs).Error
-		if err != nil {
-			message := "Failed to query distinct execution_ids"
-			logrus.Errorf("%s: %v", message, err)
-			dto.ErrorResponse(c, http.StatusInternalServerError, message)
-			return
-		}
+	groupedResults, err := getGroupedResults(req.ExecutionIDs, req.Algoritms, req.Levels, rank)
+	if err != nil {
+		message := fmt.Sprintf("failed to get executions")
+		logrus.Errorf("%s: %v", message, err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, message)
+		return
 	}
 
-	// 使用map按算法分组Execution结果
-	groupedResults := make(map[string][]dto.Execution)
-	for _, executionID := range req.ExecutionIDs {
-		execution, err := fetchExecution(executionID, rank)
-		if err != nil {
-			logrus.WithError(err).WithField("execution_id", executionID).Error("Failed to fetch execution details")
-			continue
-		}
-
-		algorithm := execution.ExecutionRecord.Algorithm
-		if len(algoSet) == 0 || algoSet[algorithm] {
-			groupedResults[algorithm] = append(groupedResults[algorithm], *execution)
-		}
-	}
-
-	// 转化为TaskWithResults结构, 表示每个算法，在不同的执行里的信息
 	var items []dto.EvaluationItem
 	for algorithm, executions := range groupedResults {
 		item := dto.EvaluationItem{
 			Algorithm:  algorithm,
 			Executions: executions,
 		}
-
 		for metric, evalFunc := range executor.GetMetrics() {
 			if len(metricSet) == 0 || metricSet[metric] {
 				conclusions, err := evalFunc(executions)
@@ -143,9 +66,7 @@ func GetEvaluationList(c *gin.Context) {
 				}
 
 				for _, conclusion := range conclusions {
-					if len(levelSet) == 0 || levelSet[conclusion.Level] {
-						item.Conclusions = append(item.Conclusions, *conclusion)
-					}
+					item.Conclusions = append(item.Conclusions, conclusion)
 				}
 			}
 		}
@@ -154,4 +75,56 @@ func GetEvaluationList(c *gin.Context) {
 	}
 
 	dto.SuccessResponse(c, dto.EvaluationListResp{Results: items})
+}
+
+// 将查询参数数组转换为集合
+func convertQueryArrayToSet(params []string) map[string]bool {
+	set := make(map[string]bool)
+
+	for _, param := range params {
+		if param != "" {
+			set[param] = true
+		}
+	}
+
+	return set
+}
+
+func getGroupedResults(executionIDs []int, algorithms, levels []string, rank int) (map[string][]dto.Execution, error) {
+	var items []dto.DatasetItemWithID
+	var records []dto.ExecutionRecordWithDatasetID
+
+	g, _ := errgroup.WithContext(context.Background())
+	g.Go(func() error {
+		var err error
+		items, err = repository.ListDatasetByExecutionIDs(executionIDs)
+		return fmt.Errorf("failed to retrieve fault injection records: %v", err)
+	})
+
+	g.Go(func() error {
+		var err error
+		records, err = repository.ListExecutionRecordByExecID(executionIDs, algorithms, levels, rank)
+		return fmt.Errorf("failed to retrieve granularity results: %v", err)
+	})
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	recordMap := make(map[int]dto.ExecutionRecord)
+	for _, record := range records {
+		recordMap[record.DatasetID] = record.ExecutionRecord
+	}
+
+	grouped := make(map[string][]dto.Execution)
+	for _, item := range items {
+		record := recordMap[item.ID]
+		execution := dto.Execution{
+			Dataset:            item.DatasetItem,
+			GranularityRecords: record.GranularityRecords,
+		}
+		grouped[record.Algorithm] = append(grouped[record.Algorithm], execution)
+	}
+
+	return grouped, nil
 }

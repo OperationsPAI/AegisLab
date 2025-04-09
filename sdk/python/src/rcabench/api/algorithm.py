@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional
-from ..model.task import SubmitResult
+from ..client.http_client import HTTPClient
+from ..model.common import SubmitResult
 
 __all__ = ["Algorithm"]
 
@@ -12,8 +13,9 @@ class Algorithm:
         "submit": "",
     }
 
-    def __init__(self, client):
+    def __init__(self, client: HTTPClient, api_version: str):
         self.client = client
+        self.url_prefix = f"{api_version}{self.URL_PREFIX}"
 
     def submit(
         self,
@@ -106,7 +108,7 @@ class Algorithm:
                         f"Payload item {i} must be a dict, got {type(item).__name__}"
                     )
 
-        url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['submit']}"
+        url = f"{self.url_prefix}{self.URL_ENDPOINTS['submit']}"
 
         # 模式2: 使用预定义任务
         if payload is not None:
@@ -138,8 +140,8 @@ class Algorithm:
                         "tag": algorithm[1] if len(algorithm) > 1 else None,
                     }
                     payload.append(task)
-        resp = self.client.post(url, payload)
-        return SubmitResult.model_validate(resp)
+
+        return SubmitResult.model_validate(self.client.post(url, payload=payload))
 
     def list(self) -> List[str]:
         """
@@ -153,7 +155,7 @@ class Algorithm:
 
             示例: ["detector", "e-diagnose"]
         """
-        url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['list']}"
+        url = f"{self.url_prefix}{self.URL_ENDPOINTS['list']}"
         response = self.client.get(url)
 
         # 类型检查响应数据

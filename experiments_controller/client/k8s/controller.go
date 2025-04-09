@@ -8,7 +8,6 @@ import (
 	"slices"
 
 	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
-	"github.com/k0kubun/pp/v3"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -170,7 +169,6 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 				}).Info("Chaos experiment created successfully")
 			}
 		},
-		// TODO 处理异常
 		UpdateFunc: func(oldObj, newObj any) {
 			oldU := oldObj.(*unstructured.Unstructured)
 			newU := newObj.(*unstructured.Unstructured)
@@ -220,16 +218,16 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 						return
 					}
 
-					pp.Println(timeRanges)
-
 					timeRange := timeRanges[0]
 					callback.HandleCRDUpdate(newU.GetNamespace(), pod, newU.GetName(), timeRange.Start, timeRange.End)
-					c.queue.Add(QueueItem{
-						Type:      CRDResourceType,
-						Namespace: newU.GetNamespace(),
-						Name:      newU.GetName(),
-						GVR:       &gvr,
-					})
+					if !config.GetBool("debugging.enable") {
+						c.queue.Add(QueueItem{
+							Type:      CRDResourceType,
+							Namespace: newU.GetNamespace(),
+							Name:      newU.GetName(),
+							GVR:       &gvr,
+						})
+					}
 				}
 			}
 		},
@@ -260,11 +258,13 @@ func (c *Controller) genJobEventHandlerFuncs(callback Callback) cache.ResourceEv
 			if callback != nil && oldJob.Name == newJob.Name {
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {
 					callback.HandleJobUpdate(newJob.Labels, consts.TaskStatusCompleted, "")
-					c.queue.Add(QueueItem{
-						Type:      JobResourceType,
-						Namespace: newJob.Namespace,
-						Name:      newJob.Name,
-					})
+					if !config.GetBool("debugging.enable") {
+						c.queue.Add(QueueItem{
+							Type:      JobResourceType,
+							Namespace: newJob.Namespace,
+							Name:      newJob.Name,
+						})
+					}
 				}
 
 				if oldJob.Status.Failed == 0 && newJob.Status.Failed > 0 {
@@ -309,11 +309,14 @@ func (c *Controller) genPodEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 
 						if job != nil {
 							handlePodError(newPod, job, reason)
-							c.queue.Add(QueueItem{
-								Type:      JobResourceType,
-								Namespace: job.Namespace,
-								Name:      job.Name,
-							})
+							if !config.GetBool("debugging.enable") {
+								c.queue.Add(QueueItem{
+									Type:      JobResourceType,
+									Namespace: job.Namespace,
+									Name:      job.Name,
+								})
+							}
+
 							break
 						}
 					}
@@ -337,6 +340,8 @@ func (c *Controller) processQueueItem() bool {
 	if quit {
 		return false
 	}
+
+	logrus.Infof("Processing item: %+v", item)
 
 	defer c.queue.Done(item)
 
@@ -362,6 +367,7 @@ func (c *Controller) processQueueItem() bool {
 			c.queue.Forget(item)
 			return true
 		}
+
 		logrus.WithField("namespace", item.Namespace).WithField("name", item.Name).Error(err)
 		c.queue.AddRateLimited(item)
 		return true
@@ -447,6 +453,7 @@ func extractJobError(job *batchv1.Job) string {
 			return fmt.Sprintf("Reason: %s, Message: %s", condition.Reason, condition.Message)
 		}
 	}
+
 	return "Unknown error"
 }
 

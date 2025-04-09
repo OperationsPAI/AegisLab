@@ -1,12 +1,7 @@
-from typing import Optional
-
-
-class HttpClientError(Exception):
+class HTTPClientError(Exception):
     """自定义HTTP客户端异常"""
 
-    def __init__(
-        self, message: str, status_code: Optional[int] = None, url: Optional[str] = None
-    ):
+    def __init__(self, message: str, status_code: int, url: str):
         self.message = message
         self.status_code = status_code
         self.url = url

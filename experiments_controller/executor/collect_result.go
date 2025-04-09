@@ -8,20 +8,70 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"time"
 
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 )
 
-type CollectPayload struct {
+type CollectionPayload struct {
 	Algorithm   string
 	Dataset     string
 	ExecutionID int
 }
 
-func parseCollectPayload(payload map[string]any) (*CollectPayload, error) {
+func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
+	collectPayload, err := parseCollectionPayload(task.Payload)
+	if err != nil {
+		return err
+	}
+
+	path := config.GetString("nfs.path")
+
+	if collectPayload.Algorithm == "detector" {
+		conclusionCSV := filepath.Join(path, collectPayload.Dataset, "conclusion.csv")
+		content, err := os.ReadFile(conclusionCSV)
+		if err != nil {
+			return fmt.Errorf("There is no conclusion.csv file, please check whether it is nomal")
+		}
+
+		results, err := readDetectorCSV(content, collectPayload.ExecutionID)
+		if err != nil {
+			return fmt.Errorf("Failed to convert conclusion.csv to database struct: %v", err)
+		}
+
+		if err = database.DB.Create(&results).Error; err != nil {
+			return fmt.Errorf("Failed to save conclusion.csv to database: %v", err)
+		}
+	} else {
+		resultCSV := filepath.Join(path, collectPayload.Dataset, "result.csv")
+		content, err := os.ReadFile(resultCSV)
+		if err != nil {
+			return fmt.Errorf("There is no result.csv file, please check whether it is nomal")
+		}
+
+		results, err := readCSVContent2Result(content, collectPayload.ExecutionID)
+		if err != nil {
+			return fmt.Errorf("convert result.csv to database struct failed: %v", err)
+		}
+
+		if err = database.DB.Create(&results).Error; err != nil {
+			return fmt.Errorf("save result.csv to database failed: %v", err)
+		}
+	}
+
+	updateTaskStatus(task.TaskID, task.TraceID,
+		fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
+		map[string]any{
+			consts.RdbMsgStatus:   consts.TaskStatusCompleted,
+			consts.RdbMsgTaskID:   task.TaskID,
+			consts.RdbMsgTaskType: consts.TaskTypeCollectResult,
+		})
+
+	return nil
+}
+
+func parseCollectionPayload(payload map[string]any) (*CollectionPayload, error) {
 	algorithm, ok := payload[consts.CollectAlgorithm].(string)
 	if !ok || algorithm == "" {
 		return nil, fmt.Errorf("Missing or invalid '%s' key in payload", consts.CollectAlgorithm)
@@ -38,67 +88,11 @@ func parseCollectPayload(payload map[string]any) (*CollectPayload, error) {
 	}
 	executionID := int(executionIDFloat)
 
-	return &CollectPayload{
+	return &CollectionPayload{
 		Algorithm:   algorithm,
 		Dataset:     dataset,
 		ExecutionID: executionID,
 	}, nil
-}
-
-// 读取 CSV 内容并转换为结果
-func readCSVContent2Result(csvContent []byte, executionID int) ([]database.GranularityResult, error) {
-	reader := csv.NewReader(bytes.NewReader(csvContent))
-
-	// 读取表头
-	header, err := reader.Read()
-	if err != nil {
-		return nil, fmt.Errorf("failed to read CSV header: %v", err)
-	}
-
-	expectedHeader := []string{"level", "result", "rank", "confidence"}
-	if len(header) != len(expectedHeader) {
-		return nil, fmt.Errorf("unexpected header length: got %d, expected %d", len(header), len(expectedHeader))
-	}
-	for i, field := range header {
-		if field != expectedHeader[i] {
-			return nil, fmt.Errorf("unexpected header field at column %d: got '%s', expected '%s'", i+1, field, expectedHeader[i])
-		}
-	}
-
-	rows, err := reader.ReadAll()
-	if err != nil {
-		return nil, fmt.Errorf("failed to read CSV rows: %v", err)
-	}
-
-	var results []database.GranularityResult
-	for i, row := range rows {
-		if len(row) != len(expectedHeader) {
-			return nil, fmt.Errorf("row %d has incorrect number of columns: got %d, expected %d", i+1, len(row), len(expectedHeader))
-		}
-
-		level := row[0]
-		result := row[1]
-		rank, err := strconv.Atoi(row[2])
-		if err != nil {
-			return nil, fmt.Errorf("invalid rank value in row %d: %v", i+1, err)
-		}
-		confidence, err := strconv.ParseFloat(row[3], 64)
-		if err != nil {
-			return nil, fmt.Errorf("invalid confidence value in row %d: %v", i+1, err)
-		}
-
-		results = append(results, database.GranularityResult{
-			ExecutionID: executionID,
-			Level:       level,
-			Result:      result,
-			Rank:        rank,
-			Confidence:  confidence,
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
-		})
-	}
-
-	return results, nil
 }
 
 func readDetectorCSV(csvContent []byte, executionID int) ([]database.Detector, error) {
@@ -185,61 +179,61 @@ func readDetectorCSV(csvContent []byte, executionID int) ([]database.Detector, e
 			P90:         p90,
 			P95:         p95,
 			P99:         p99,
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
 		})
 	}
 
 	return results, nil
 }
 
-func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
-	collectPayload, err := parseCollectPayload(task.Payload)
+func readCSVContent2Result(csvContent []byte, executionID int) ([]database.GranularityResult, error) {
+	reader := csv.NewReader(bytes.NewReader(csvContent))
+
+	// 读取表头
+	header, err := reader.Read()
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("failed to read CSV header: %v", err)
 	}
 
-	path := config.GetString("nfs.path")
-
-	if collectPayload.Algorithm == "detector" {
-		conclusionCSV := filepath.Join(path, collectPayload.Dataset, "conclusion.csv")
-		content, err := os.ReadFile(conclusionCSV)
-		if err != nil {
-			return fmt.Errorf("There is no conclusion.csv file, please check whether it is nomal")
-		}
-
-		results, err := readDetectorCSV(content, collectPayload.ExecutionID)
-		if err != nil {
-			return fmt.Errorf("Failed to convert conclusion.csv to database struct: %v", err)
-		}
-
-		if err = database.DB.Create(&results).Error; err != nil {
-			return fmt.Errorf("Failed to save conclusion.csv to database: %v", err)
-		}
-	} else {
-		resultCSV := filepath.Join(path, collectPayload.Dataset, "result.csv")
-		content, err := os.ReadFile(resultCSV)
-		if err != nil {
-			return fmt.Errorf("There is no result.csv file, please check whether it is nomal")
-		}
-
-		results, err := readCSVContent2Result(content, collectPayload.ExecutionID)
-		if err != nil {
-			return fmt.Errorf("convert result.csv to database struct failed: %v", err)
-		}
-
-		if err = database.DB.Create(&results).Error; err != nil {
-			return fmt.Errorf("save result.csv to database failed: %v", err)
+	expectedHeader := []string{"level", "result", "rank", "confidence"}
+	if len(header) != len(expectedHeader) {
+		return nil, fmt.Errorf("unexpected header length: got %d, expected %d", len(header), len(expectedHeader))
+	}
+	for i, field := range header {
+		if field != expectedHeader[i] {
+			return nil, fmt.Errorf("unexpected header field at column %d: got '%s', expected '%s'", i+1, field, expectedHeader[i])
 		}
 	}
 
-	updateTaskStatus(task.TaskID, task.TraceID,
-		fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
-		map[string]any{
-			consts.RdbMsgStatus:   consts.TaskStatusCompleted,
-			consts.RdbMsgTaskID:   task.TaskID,
-			consts.RdbMsgTaskType: consts.TaskTypeCollectResult,
+	rows, err := reader.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read CSV rows: %v", err)
+	}
+
+	var results []database.GranularityResult
+	for i, row := range rows {
+		if len(row) != len(expectedHeader) {
+			return nil, fmt.Errorf("row %d has incorrect number of columns: got %d, expected %d", i+1, len(row), len(expectedHeader))
+		}
+
+		level := row[0]
+		result := row[1]
+		rank, err := strconv.Atoi(row[2])
+		if err != nil {
+			return nil, fmt.Errorf("invalid rank value in row %d: %v", i+1, err)
+		}
+		confidence, err := strconv.ParseFloat(row[3], 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid confidence value in row %d: %v", i+1, err)
+		}
+
+		results = append(results, database.GranularityResult{
+			ExecutionID: executionID,
+			Level:       level,
+			Result:      result,
+			Rank:        rank,
+			Confidence:  confidence,
 		})
+	}
 
-	return nil
+	return results, nil
 }

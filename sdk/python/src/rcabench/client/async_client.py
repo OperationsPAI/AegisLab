@@ -1,5 +1,6 @@
 from typing import Any, Dict, Optional
 from ..const import EventType, SSEMsgPrefix, TaskStatus
+from uuid import UUID
 import aiohttp
 import asyncio
 import json
@@ -31,13 +32,15 @@ class ClientManager:
                 self.close_event.set()
 
     async def set_client_item(
-        self, client_id: str, result: Any = None, error: Exception | None = None
+        self, key: str, result: Any = None, error: Exception | None = None
     ) -> None:
         async with self.lock:
             if error:
-                self.errors[client_id] = error
+                self.errors[key] = error
             if result:
-                self.results[client_id] = result
+                if key not in self.results:
+                    self.results[key] = result
+                self.results[key].update(result)
 
     async def wait_all(self, timeout: Optional[float] = None) -> Dict[str, Any]:
         try:
@@ -57,17 +60,10 @@ class ClientManager:
 
 
 class AsyncSSEClient:
-    def __init__(
-        self,
-        client_manager: ClientManager,
-        client_id: str,
-        url: str,
-        keyword: Optional[str],
-    ):
+    def __init__(self, client_manager: ClientManager, client_id: str, url: str):
         self.client_manager = client_manager
         self.client_id = client_id
         self.url = url
-        self.keyword = keyword
         self._close = False
 
     @staticmethod
@@ -100,15 +96,17 @@ class AsyncSSEClient:
 
             try:
                 data = json.loads(combined_data)
-                if data.get("status") == TaskStatus.COMPLETED:
+                task_id = UUID(data.pop("task_id"))
+                status = data.get("status")
+                if status == TaskStatus.COMPLETED:
                     await self.client_manager.set_client_item(
-                        self.client_id, result=data
+                        self.client_id, result={task_id: data}
                     )
 
-                if data.get("status") == TaskStatus.ERROR:
+                if status == TaskStatus.ERROR:
                     error = RuntimeError(data.get("message"))
                     await self.client_manager.set_client_item(
-                        self.client_id, error=error
+                        self.client_id, error={task_id: error}
                     )
 
             except json.JSONDecodeError:

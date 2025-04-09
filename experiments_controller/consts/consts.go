@@ -1,7 +1,13 @@
 package consts
 
+import "time"
+
 // 定义任务类型
 type TaskType string
+
+const (
+	DefaultTimeUnit = time.Minute
+)
 
 const (
 	DatasetInitial       = 0
@@ -48,19 +54,19 @@ const (
 	CollectDataset     = "dataset"
 	CollectExecutionID = "execution_id"
 
+	EvaluateLabel = "app_name"
+	EvaluateLevel = "level"
+
 	ExecuteAlgo    = "algorithm"
 	ExecuteDataset = "dataset"
 	ExecuteService = "service"
 	ExecuteTag     = "tag"
 
-	InjectFaultType     = "fault_type"
-	InjectNamespace     = "inject_namespace"
-	InjectPod           = "inject_pod"
-	InjectSpec          = "spec"
-	InjectExectuionTime = "execution_time"
-	InjectPreDuration   = "pre_duration"
-	InjectFaultDuration = "fault_duration"
-	InjectBenchmark     = "benchmark"
+	InjectBenchmark   = "benchmark"
+	InjectFaultType   = "fault_type"
+	InjectPreDuration = "pre_duration"
+	InjectRawConf     = "raw_conf"
+	InjectConf        = "conf"
 )
 
 // Redis 流和消费者组配置
@@ -92,8 +98,9 @@ const (
 	RdbMsgStatus      = "status"
 	RdbMsgTaskID      = "task_id"
 	RdbMsgTaskType    = "task_type"
-	RdbMsgError       = "error"
+	RdbMsgDataset     = "dataset"
 	RdbMsgExecutionID = "execution_id"
+	RdbMsgError       = "error"
 )
 
 // K8s Job 名称
@@ -110,8 +117,6 @@ const (
 	LabelAlgorithm   = "algorithm"
 	LabelDataset     = "dataset"
 	LabelExecutionID = "execution_id"
-	LabelStartTime   = "start_time"
-	LabelEndTime     = "end_time"
 )
 
 // sse 事件类型

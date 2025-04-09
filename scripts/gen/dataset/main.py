@@ -1,12 +1,14 @@
-from typing import Dict
+from typing import Any, Dict, Optional
 from datetime import datetime
 from rcabench.logger import CustomLogger
+from rcabench.model.injection import SpecNode
 from rcabench.rcabench import RCABenchSDK
 import asyncio
 import json
 import math
 import os
 import random
+
 
 PARENT_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_NAME = "config/{env}.json"
@@ -16,7 +18,6 @@ LOCK = asyncio.Lock()
 GROUP_ID = None
 
 logger = CustomLogger().logger
-random.seed(42)
 
 
 async def periodic_task(config: Dict, func) -> None:
@@ -75,7 +76,7 @@ async def run_deploy_command(command: str) -> None:
         logger.error(f"Deploy failed, return_code: {return_code}")
 
 
-async def read_stream(stream, prefix):
+async def read_stream(stream, prefix) -> None:
     while not stream.at_eof():
         line = await stream.readline()
         if line:
@@ -85,35 +86,28 @@ async def read_stream(stream, prefix):
 async def execute_injection(config: Dict) -> Dict[str, any]:
     sdk = RCABenchSDK(config["base_url"])
 
-    injection_params = sdk.injection.get_parameters()
+    injection_params = sdk.injection.get_conf(mode="engine")
     if not injection_params:
         logger.error("Injection Params invalid")
         return None
 
-    payloads = []
+    specs = []
     for _ in range(config["n_trial"]):
-        pod = random.choice(config["services"])
-        params = generate_injection_dict(**injection_params)
+        specs.append(generate_injection_dict(injection_params))
 
-        payloads.append(
-            {
-                "fault_type": params["fault_type"],
-                "inject_namespace": config["namespace"],
-                "inject_pod": pod,
-                "spec": params["inject_spec"],
-                "pre_duration": config["pre_duration"],
-                "fault_duration": config["fault_duration"],
-                "benchmark": config["benchmark"],
-            }
-        )
-
-    body = {"is_croned": True, "interval": config["interval"], "payloads": payloads}
-    data = sdk.injection.execute(body)
+    payload = {
+        "benchmark": config["benchmark"],
+        "interval": config["interval"],
+        "pre_duration": config["pre_duration"],
+        "specs": specs,
+    }
 
     req_path = os.path.join(config["output_path"], "request.json")
     logger.info(f"Request params store in {req_path}")
     with open(req_path, "w") as f:
-        json.dump(body, f, indent=4)
+        json.dump(payload, f, indent=4)
+
+    data = sdk.injection.submit(**payload).model_dump(mode="json")
 
     resp_path = os.path.join(config["output_path"], "response.json")
     logger.info(f"Response store in {req_path}")
@@ -130,38 +124,34 @@ def biased_random(min_val: int, max_val: int, bias_strength: int = 5) -> int:
     :param bias_strength: 对应衰减速率 λ
     """
     u = random.random()
-    # 逆变换采样得到指数分布值
     exp_val = -math.log(1 - u) / bias_strength
     truncated = 1 - math.exp(-exp_val)
     return min_val + int(truncated * (max_val - min_val + 1))
 
 
-def generate_injection_dict(specification: Dict, keymap: Dict) -> Dict[str, any]:
-    fault_type_name = random.choice(list(specification.keys()))
-    fault_type_key = None
-    for key, value in keymap.items():
-        if value == fault_type_name:
-            fault_type_key = key
-            break
+def generate_injection_dict(spec: SpecNode) -> Optional[Dict[str, Any]]:
+    def fill_node(node: SpecNode) -> SpecNode:
+        if node.children is not None:
+            children = []
+            for key, sub_node in node.children.items():
+                children.append((key, fill_node(sub_node)))
 
-    if not fault_type_key:
-        raise ValueError(f"Fault type {fault_type_name} not found in keymap.")
+            return SpecNode(children=dict(children))
+        else:
+            return SpecNode(
+                value=biased_random(node.range[0], node.range[1], bias_strength=20)
+            )
 
-    spec = specification.get(fault_type_name)
-    if not spec:
-        raise ValueError(f"Specification for {fault_type_name} not found.")
+    if spec.children is None:
+        logger.error("The children in spec is None")
+        return None
 
-    inject_spec = {}
-    for field in spec:
-        field_name = field["FieldName"]
-        min_val = field["Min"]
-        max_val = field["Max"]
-        inject_spec[field_name] = biased_random(min_val, max_val, bias_strength=20)
-
-    return {
-        "fault_type": int(fault_type_key),
-        "inject_spec": inject_spec,
-    }
+    chosen_key = random.choice(list(spec.children.keys()))
+    res = SpecNode(
+        children={chosen_key: fill_node(spec.children.get(chosen_key))},
+        value=int(chosen_key),
+    )
+    return res.model_dump(exclude_none=True)
 
 
 def download_datasets(config: Dict[str, any]) -> None:
@@ -191,6 +181,10 @@ if __name__ == "__main__":
     config["output_path"] = default_output
     if not os.path.exists(default_output):
         os.makedirs(default_output)
+
+    seed = config.get("seed")
+    if seed is not None:
+        random.seed(seed)
 
     dynamic_params = {
         "command": os.getenv("COMMAND"),
