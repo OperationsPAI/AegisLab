@@ -47,6 +47,23 @@ func (d *DatasetItem) Convert(record database.FaultInjectionSchedule) error {
 	return nil
 }
 
+type DatasetItemWithID struct {
+	ID int
+	DatasetItem
+}
+
+func (d *DatasetItemWithID) Convert(record database.FaultInjectionSchedule) error {
+	var item DatasetItem
+	err := item.Convert(record)
+	if err != nil {
+		return err
+	}
+
+	d.ID = record.ID
+	d.DatasetItem = item
+	return nil
+}
+
 type DatasetListReq struct {
 	PaginationReq
 }
@@ -79,28 +96,6 @@ type QueryDatasetResp struct {
 	DatasetItem
 	DetectorResult   DetectorRecord    `json:"detector_result"`
 	ExecutionResults []ExecutionRecord `json:"execution_results"`
-}
-
-type DetectorRecord struct {
-	SpanName    string   `json:"span_name"`
-	Issues      string   `json:"issue"`
-	AvgDuration *float64 `json:"avg_duration"`
-	SuccRate    *float64 `json:"succ_rate"`
-	P90         *float64 `json:"P90"`
-	P95         *float64 `json:"P95"`
-	P99         *float64 `json:"P99"`
-}
-
-type ExecutionRecord struct {
-	Algorithm          string              `json:"algorithm"`
-	GranularityResults []GranularityRecord `json:"granularity_results"`
-}
-
-type GranularityRecord struct {
-	Level      string  `json:"level"`
-	Result     string  `json:"result"`
-	Rank       int     `json:"rank"`
-	Confidence float64 `json:"confidence"`
 }
 
 var DatasetStatusMap = map[int]string{

@@ -82,22 +82,6 @@ func getMissingNames(requested []string, existing []string) []string {
 	return missing
 }
 
-func GetDatasetByName(name string, status ...int) (database.FaultInjectionSchedule, error) {
-	var record database.FaultInjectionSchedule
-	query := database.DB.Where("injection_name = ?", name)
-
-	if len(status) == 0 {
-		query = query.Where("status != ?", consts.DatasetDeleted)
-	} else if len(status) == 1 {
-		query = query.Where("status = ?", status[0])
-	} else {
-		query = query.Where("status IN ?", status)
-	}
-
-	err := query.First(&record).Error
-	return record, err
-}
-
 func GetDatasetWithGroupID(groupIDs []string) ([]dto.DatasetJoinedResult, error) {
 	var results []struct {
 		GroupID string `gorm:"column:group_id"`
@@ -122,6 +106,57 @@ func GetDatasetWithGroupID(groupIDs []string) ([]dto.DatasetJoinedResult, error)
 	}
 
 	return joinedResults, nil
+}
+
+func GetDatasetByName(name string, status ...int) (*dto.DatasetItemWithID, error) {
+	query := database.DB.Where("injection_name = ?", name)
+
+	if len(status) == 0 {
+		query = query.Where("status != ?", consts.DatasetDeleted)
+	} else if len(status) == 1 {
+		query = query.Where("status = ?", status[0])
+	} else {
+		query = query.Where("status IN ?", status)
+	}
+
+	var record database.FaultInjectionSchedule
+	if err := query.First(&record).Error; err != nil {
+		return nil, err
+	}
+
+	var item dto.DatasetItemWithID
+	if err := item.Convert(record); err != nil {
+		return nil, err
+	}
+
+	return &item, nil
+}
+
+func ListDatasetByExecutionIDs(executionIDs []int) ([]dto.DatasetItemWithID, error) {
+	query := database.DB.
+		Model(&database.FaultInjectionSchedule{}).
+		Joins("JOIN execution_results ON execution_results.dataset = fault_injection_schedules.id")
+
+	if len(executionIDs) > 0 {
+		query = query.Where("execution_results.id IN (?)", executionIDs)
+	}
+
+	var injections []database.FaultInjectionSchedule
+	if err := query.Find(&injections).Error; err != nil {
+		return nil, err
+	}
+
+	items := make([]dto.DatasetItemWithID, 0, len(injections))
+	for _, injection := range injections {
+		var item dto.DatasetItemWithID
+		if err := item.Convert(injection); err != nil {
+			return nil, err
+		}
+
+		items = append(items, item)
+	}
+
+	return items, nil
 }
 
 func ListDatasetWithPagination(pageNum, pageSize int) (int64, []database.FaultInjectionSchedule, error) {

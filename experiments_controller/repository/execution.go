@@ -1,12 +1,10 @@
 package repository
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/dto"
-	"gorm.io/gorm"
 )
 
 func CreateExecutionResult(algorithm, taskID string, datasetID int) (int, error) {
@@ -22,46 +20,13 @@ func CreateExecutionResult(algorithm, taskID string, datasetID int) (int, error)
 	return executionResult.ID, nil
 }
 
-func GetDetectorRecordByDatasetID(datasetID int) (dto.DetectorRecord, error) {
-	var record dto.DetectorRecord
-
-	selectFields := `
-        detectors.span_name AS span_name,
-        detectors.issues AS issues,
-        detectors.avg_duration AS avg_duration,
-        detectors.succ_rate AS succ_rate,
-        detectors.p90 AS p90,
-        detectors.p95 AS p95,
-        detectors.p99 AS p99
-    `
-
+func ListExecutionRecordByDatasetID(datasetID int, sortOrder string) ([]dto.ExecutionRecord, error) {
 	query := database.DB.
-		Table("detectors").
-		Select(selectFields).
-		Joins(`
-            LEFT JOIN execution_results 
-            ON detectors.execution_id = execution_results.id
-        `).
-		Where("execution_results.dataset = ?", datasetID).
-		Order("detectors.created_at DESC").Limit(1)
-
-	if err := query.Find(&record).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return dto.DetectorRecord{}, nil
-		}
-
-		return dto.DetectorRecord{}, fmt.Errorf("database query error: %w", err)
-	}
-
-	return record, nil
-}
-
-func GetExecutionRecordsByDatasetID(datasetID int, sortOrder string) ([]dto.ExecutionRecord, error) {
-	var executions []database.ExecutionResult
-	query := database.DB.
+		Model(&database.ExecutionResult{}).
 		Where("dataset = ? and algorithm != 'detector'", datasetID).
 		Order(sortOrder)
 
+	var executions []database.ExecutionResult
 	if err := query.Find(&executions).Error; err != nil {
 		return nil, fmt.Errorf("failed to get executions: %v", err)
 	}
@@ -71,36 +36,95 @@ func GetExecutionRecordsByDatasetID(datasetID int, sortOrder string) ([]dto.Exec
 		execIDs = append(execIDs, e.ID)
 	}
 
-	var granularities []database.GranularityResult
-	if len(execIDs) > 0 {
-		if err := database.DB.
-			Where("execution_id IN (?)", execIDs).
-			Find(&granularities).Error; err != nil {
-			return nil, fmt.Errorf("failed to get granularities: %v", err)
-		}
+	if len(execIDs) == 0 {
+		return nil, fmt.Errorf("failed to get executions")
+	}
+
+	granularities, err := listGranularityWithFilters(execIDs, []string{}, 5)
+	if err != nil {
+		return nil, err
 	}
 
 	resultMap := make(map[int]dto.ExecutionRecord)
 	for _, exec := range executions {
 		resultMap[exec.ID] = dto.ExecutionRecord{
 			Algorithm:          exec.Algorithm,
-			GranularityResults: []dto.GranularityRecord{},
+			GranularityRecords: []dto.GranularityRecord{},
 		}
 	}
 
 	for _, gran := range granularities {
-		if record, exists := resultMap[gran.ExecutionID]; exists {
-			record.GranularityResults = append(record.GranularityResults, dto.GranularityRecord{
-				Level:      gran.Level,
-				Result:     gran.Result,
-				Rank:       gran.Rank,
-				Confidence: gran.Confidence,
-			})
-			resultMap[gran.ExecutionID] = record
+		if result, exists := resultMap[gran.ExecutionID]; exists {
+			var record dto.GranularityRecord
+			record.Convert(gran)
+			result.GranularityRecords = append(result.GranularityRecords, record)
 		}
 	}
 
 	results := make([]dto.ExecutionRecord, 0)
+	for _, exec := range executions {
+		results = append(results, resultMap[exec.ID])
+	}
+
+	return results, nil
+}
+
+func ListExecutionRecordByExecID(executionIDs []int,
+	algorithms,
+	levels []string,
+	rank int,
+) ([]dto.ExecutionRecordWithDatasetID, error) {
+	query := database.DB.
+		Model(&database.ExecutionResult{}).
+		Select("id, algorithm, dataset")
+
+	if len(executionIDs) > 0 {
+		query = query.Where("id IN (?)", executionIDs)
+	}
+
+	if len(algorithms) > 0 {
+		query = query.Where("algorithm IN (?)", algorithms)
+	}
+
+	var executions []database.ExecutionResult
+	if err := query.Find(&executions).Error; err != nil {
+		return nil, err
+	}
+
+	var execIDs []int
+	for _, e := range executions {
+		execIDs = append(execIDs, e.ID)
+	}
+
+	if len(execIDs) == 0 {
+		return nil, fmt.Errorf("failed to get executions")
+	}
+
+	granularities, err := listGranularityWithFilters(execIDs, levels, rank)
+	if err != nil {
+		return nil, err
+	}
+
+	resultMap := make(map[int]dto.ExecutionRecordWithDatasetID)
+	for _, exec := range executions {
+		resultMap[exec.ID] = dto.ExecutionRecordWithDatasetID{
+			DatasetID: exec.Dataset,
+			ExecutionRecord: dto.ExecutionRecord{
+				Algorithm:          exec.Algorithm,
+				GranularityRecords: []dto.GranularityRecord{},
+			},
+		}
+	}
+
+	for _, gran := range granularities {
+		if result, exists := resultMap[gran.ExecutionID]; exists {
+			var record dto.GranularityRecord
+			record.Convert(gran)
+			result.GranularityRecords = append(result.GranularityRecords, record)
+		}
+	}
+
+	results := make([]dto.ExecutionRecordWithDatasetID, 0)
 	for _, exec := range executions {
 		results = append(results, resultMap[exec.ID])
 	}

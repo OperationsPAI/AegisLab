@@ -54,6 +54,9 @@ const (
 	CollectDataset     = "dataset"
 	CollectExecutionID = "execution_id"
 
+	EvaluateLabel = "app_name"
+	EvaluateLevel = "level"
+
 	ExecuteAlgo    = "algorithm"
 	ExecuteDataset = "dataset"
 	ExecuteService = "service"
