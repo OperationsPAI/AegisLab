@@ -6,6 +6,7 @@ from functools import wraps
 from requests.adapters import HTTPAdapter
 from requests.exceptions import HTTPError, RequestException, Timeout
 from requests import Response
+import inspect
 import requests
 import time
 
@@ -17,7 +18,9 @@ def handle_http_errors(func: Callable):
     def wrapper(*args, **kwargs) -> Union[Any, HttpResponseError]:
         try:
             resp = func(*args, **kwargs)
-            if "stream" in kwargs:
+            sig = inspect.signature(func)
+            bound_args = sig.bind(*args, **kwargs)
+            if "stream" in bound_args.arguments:
                 return resp
 
             resp_data = resp.json()
