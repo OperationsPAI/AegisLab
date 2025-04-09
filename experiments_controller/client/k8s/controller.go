@@ -220,12 +220,14 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 
 					timeRange := timeRanges[0]
 					callback.HandleCRDUpdate(newU.GetNamespace(), pod, newU.GetName(), timeRange.Start, timeRange.End)
-					c.queue.Add(QueueItem{
-						Type:      CRDResourceType,
-						Namespace: newU.GetNamespace(),
-						Name:      newU.GetName(),
-						GVR:       &gvr,
-					})
+					if !config.GetBool("debugging.enable") {
+						c.queue.Add(QueueItem{
+							Type:      CRDResourceType,
+							Namespace: newU.GetNamespace(),
+							Name:      newU.GetName(),
+							GVR:       &gvr,
+						})
+					}
 				}
 			}
 		},
@@ -256,11 +258,13 @@ func (c *Controller) genJobEventHandlerFuncs(callback Callback) cache.ResourceEv
 			if callback != nil && oldJob.Name == newJob.Name {
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {
 					callback.HandleJobUpdate(newJob.Labels, consts.TaskStatusCompleted, "")
-					c.queue.Add(QueueItem{
-						Type:      JobResourceType,
-						Namespace: newJob.Namespace,
-						Name:      newJob.Name,
-					})
+					if !config.GetBool("debugging.enable") {
+						c.queue.Add(QueueItem{
+							Type:      JobResourceType,
+							Namespace: newJob.Namespace,
+							Name:      newJob.Name,
+						})
+					}
 				}
 
 				if oldJob.Status.Failed == 0 && newJob.Status.Failed > 0 {
@@ -305,11 +309,14 @@ func (c *Controller) genPodEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 
 						if job != nil {
 							handlePodError(newPod, job, reason)
-							c.queue.Add(QueueItem{
-								Type:      JobResourceType,
-								Namespace: job.Namespace,
-								Name:      job.Name,
-							})
+							if !config.GetBool("debugging.enable") {
+								c.queue.Add(QueueItem{
+									Type:      JobResourceType,
+									Namespace: job.Namespace,
+									Name:      job.Name,
+								})
+							}
+
 							break
 						}
 					}

@@ -33,24 +33,24 @@ debug: ## Start local debug environment (databases + controller)
 	kubectl delete jobs --all -n $(NS) && \
 	cd experiments_controller && go run main.go both --port 8082
 
+import: ## import the latest version of github.com/CUHK-SE-Group/chaos-experiment
+	cd experiments_controller && \
+	go get github.com/CUHK-SE-Group/chaos-experiment@injectionv2 && \
+	go mod tidy
+
 swagger: ## Generate Swagger API documentation
 	swag init \
 		-d ./experiments_controller \
 		--parseDependency \
 		--parseDepth 1
 
-##@ Data Management
-
-import: ## Import generated data to the system
-	python scripts/cmd/main.py --algo -d1
-
 ##@ Kubernetes
 
-jobs: ## List all experiment jobs
+jobs: ## List all jobs
 	kubectl get jobs -n $(NS)
 
-pods: ## List all experiment pods
+pods: ## List all pods
 	kubectl get pods -n $(NS)
 
-ports: ## Port-forward experiment service
+ports: ## Port-forward service
 	kubectl port-forward svc/exp -n $(NS) --address 0.0.0.0 8081:8081 &

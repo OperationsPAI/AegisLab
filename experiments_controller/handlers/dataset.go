@@ -69,30 +69,23 @@ func QueryDataset(c *gin.Context) {
 		return
 	}
 
-	fiRecord, err := repository.GetDatasetByName(req.Name, consts.DatasetBuildSuccess)
+	item, err := repository.GetDatasetByName(req.Name, consts.DatasetBuildSuccess)
 	if err != nil {
 		logrus.Errorf("failed to get injection record: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to retrieve dataset")
 		return
 	}
 
-	var datasetItem dto.DatasetItem
-	if err := datasetItem.Convert(fiRecord); err != nil {
-		logrus.Errorf("failed to convert injection record to DatasetItem: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to retrieve dataset")
-		return
-	}
+	logEntry := logrus.WithField("dataset", item.Name)
 
-	logEntry := logrus.WithField("dataset", fiRecord.InjectionName)
-
-	detectorRecord, err := repository.GetDetectorRecordByDatasetID(fiRecord.ID)
+	detectorRecord, err := repository.GetDetectorRecordByDatasetID(item.ID)
 	if err != nil {
 		logEntry.Errorf("failed to retrieve detector record: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to load detector data")
 		return
 	}
 
-	executionRecords, err := repository.GetExecutionRecordsByDatasetID(fiRecord.ID, sortOrder)
+	executionRecords, err := repository.ListExecutionRecordByDatasetID(item.ID, sortOrder)
 	if err != nil {
 		logEntry.Error("failed to retrieve execution records")
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to load execution data")
@@ -104,7 +97,7 @@ func QueryDataset(c *gin.Context) {
 	}
 
 	dto.SuccessResponse(c, &dto.QueryDatasetResp{
-		DatasetItem:      datasetItem,
+		DatasetItem:      item.DatasetItem,
 		DetectorResult:   detectorRecord,
 		ExecutionResults: executionRecords,
 	})
