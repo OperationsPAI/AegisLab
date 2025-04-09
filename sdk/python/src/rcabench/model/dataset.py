@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Optional
-from datetime import datetime
+from ..const import TIME_EXAMPLE
 from pydantic import BaseModel, Field
 
 
@@ -14,15 +14,15 @@ class DeleteResult(BaseModel):
 
     success_count: int = Field(
         default=0,
-        ge=0,
         description="Number of successfully deleted datasets",
-        example=2,
+        json_schema_extra={"exampmle": 2},
+        ge=0,
     )
 
     failed_names: List[str] = Field(
         default_factory=list,
         description="List of dataset names that failed to delete",
-        examples=["ts-ts-preserve-service-cpu-exhaustion-znzxcn"],
+        json_schema_extra={"example": ["ts-ts-preserve-service-cpu-exhaustion-znzxcn"]},
     )
 
 
@@ -40,7 +40,7 @@ class DatasetItem(BaseModel):
     name: str = Field(
         ...,
         description="Unique identifier for the dataset",
-        examples="ts-ts-preserve-service-cpu-exhaustion-znzxcn",
+        json_schema_extra={"example": "ts-ts-preserve-service-cpu-exhaustion-znzxcn"},
         max_length=64,
     )
 
@@ -49,16 +49,16 @@ class DatasetItem(BaseModel):
         description="Configuration parameters for dataset",
     )
 
-    start_time: datetime = Field(
+    start_time: str = Field(
         ...,
         description="Start timestamp of injection window",
-        examples="2025-03-23T12:05:42+08:00",
+        json_schema_extra={"example": TIME_EXAMPLE},
     )
 
-    end_time: datetime = Field(
+    end_time: str = Field(
         ...,
         description="End timestamp of injection window",
-        examples="2025-03-23T12:06:42+08:00",
+        json_schema_extra={"example": TIME_EXAMPLE},
     )
 
 
@@ -100,26 +100,26 @@ class DetectorRecord(BaseModel):
 
     p90: Optional[float] = Field(
         None,
+        alias="P90",
         description="90th percentile latency measurement",
         ge=0,
         le=1,
-        alias="P90",
     )
 
     p95: Optional[float] = Field(
         None,
+        alias="P95",
         description="95th percentile latency measurement",
         ge=0,
         le=1,
-        alias="P95",
     )
 
     p99: Optional[float] = Field(
         None,
+        alias="P99",
         description="99th percentile latency measurement",
         ge=0,
         le=1,
-        alias="P99",
     )
 
 
@@ -137,26 +137,29 @@ class GranularityRecord(BaseModel):
     level: str = Field(
         ...,
         description="Analysis granularity level (service/pod/span/metric)",
-        examples="service",
+        json_schema_extra={"example": "service"},
         max_length=32,
     )
 
     result: str = Field(
         ...,
         description="Identified root cause description",
-        examples="ts-preserve-service",
+        json_schema_extra={"example": "ts-preserve-service"},
     )
 
     rank: int = Field(
-        ..., gt=0, description="Severity ranking of the issue", examples=1
+        ...,
+        description="Severity ranking of the issue",
+        json_schema_extra={"example": 1},
+        gt=0,
     )
 
     confidence: float = Field(
         ...,
+        description="Confidence score of the analysis result",
+        json_schema_extra={"example": 0.8},
         ge=0,
         le=1,
-        description="Confidence score of the analysis result",
-        examples=0.8,
     )
 
 
@@ -172,7 +175,7 @@ class ExecutionRecord(BaseModel):
     algorithm: str = Field(
         ...,
         description="Root cause analysis algorithm name",
-        examples="e-diagnose",
+        json_schema_extra={"example": "e-dianose"},
     )
 
     granularity_results: List[GranularityRecord] = Field(
@@ -192,9 +195,9 @@ class ListResult(BaseModel):
 
     total: int = Field(
         default=0,
-        ge=0,
         description="Total number of datasets",
-        examples=20,
+        json_schema_extra={"example": 20},
+        ge=0,
     )
 
     datasets: List[DatasetItem] = Field(
@@ -213,7 +216,8 @@ class QueryResult(DatasetItem):
     """
 
     detector_result: DetectorRecord = Field(
-        ..., description="Detailed anomaly detection metrics"
+        ...,
+        description="Detailed anomaly detection metrics",
     )
 
     execution_results: List[ExecutionRecord] = Field(

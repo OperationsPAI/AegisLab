@@ -1,4 +1,5 @@
 from typing import List
+from ..client.http_client import HTTPClient
 
 
 class Evaluation:
@@ -8,8 +9,9 @@ class Evaluation:
         "execute": "",
     }
 
-    def __init__(self, client):
+    def __init__(self, client: HTTPClient, api_version: str):
         self.client = client
+        self.url_prefix = f"{api_version}{self.URL_PREFIX}"
 
     def execute(
         self,
@@ -57,7 +59,7 @@ class Evaluation:
             ...     rank=3
             ... )
         """
-        url = f"{self.URL_PREFIX}{self.URL_ENDPOINTS['execute']}"
+        url = f"{self.url_prefix}{self.URL_ENDPOINTS['execute']}"
 
         params = {
             "execution_ids": execution_ids,

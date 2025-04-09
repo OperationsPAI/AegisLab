@@ -1,19 +1,15 @@
 from .api import Algorithm, Dataset, Evaluation, Injection, Task
-from .client.http_client import HttpClient
+from .client.http_client import HTTPClient
 
 
 class RCABenchSDK:
-    def __init__(self, base_url: str, max_connections: int = 10):
-        """
-        Initialize the SDK with the base URL of the server.
+    def __init__(
+        self, base_url: str, api_version: str = "/api/v1", max_connections: int = 10
+    ):
+        client = HTTPClient(base_url.rstrip("/"))
 
-        :param base_url: Base URL of the RCABench server, e.g., "http://localhost:8080"
-        """
-        self.base_url = base_url.rstrip("/") + "/api/v1"
-
-        client = HttpClient(self.base_url)
-        self.algorithm = Algorithm(client)
-        self.dataset = Dataset(client)
-        self.evaluation = Evaluation(client)
-        self.injection = Injection(client)
-        self.task = Task(client, max_connections)
+        self.algorithm = Algorithm(client, api_version)
+        self.dataset = Dataset(client, api_version)
+        self.evaluation = Evaluation(client, api_version)
+        self.injection = Injection(client, api_version)
+        self.task = Task(client, api_version, max_connections)

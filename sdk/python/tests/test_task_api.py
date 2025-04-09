@@ -2,12 +2,9 @@
 # uv run pytest -s tests/test_task_api.py
 from typing import Any, Dict, List
 from pprint import pprint
-from rcabench import rcabench
+from rcabench.model.common import SubmitResult
 from uuid import UUID
 import pytest
-
-
-BASE_URL = "http://localhost:8082"
 
 
 @pytest.mark.asyncio
@@ -32,16 +29,57 @@ BASE_URL = "http://localhost:8082"
                     "value": 1,
                 }
             ],
-        )
+        ),
+        (
+            "clickhouse",
+            2,
+            0,
+            [
+                {
+                    "children": {
+                        "1": {
+                            "children": {
+                                "0": {"value": 1},
+                                "1": {"value": 0},
+                                "2": {"value": 42},
+                            }
+                        },
+                    },
+                    "value": 1,
+                }
+            ],
+        ),
+        (
+            "clickhouse",
+            2,
+            1,
+            [
+                {
+                    "children": {
+                        "1": {
+                            "children": {
+                                "0": {"value": -1},
+                                "1": {"value": 0},
+                                "2": {"value": 42},
+                            }
+                        },
+                    },
+                    "value": 1,
+                }
+            ],
+        ),
     ],
 )
-async def test_injection_and_building_dataset(benchmark, interval, pre_duration, specs):
-    sdk = rcabench.RCABenchSDK(BASE_URL)
+async def test_injection_and_building_dataset(
+    sdk, benchmark, interval, pre_duration, specs
+):
+    resp = sdk.injection.submit(benchmark, interval, pre_duration, specs)
+    pprint(resp)
 
-    data = sdk.injection.submit(benchmark, interval, pre_duration, specs)
-    pprint(data)
+    if not isinstance(resp, SubmitResult):
+        pytest.fail(resp.model_dump_json())
 
-    traces = data.traces
+    traces = resp.traces
     if not traces:
         pytest.fail("No traces returned from execution")
 
@@ -86,7 +124,7 @@ def extract_values(data: Dict[UUID, Any], key: str) -> List[str]:
     [([["e-diagnose"]], ["ts-ts-ui-dashboard-pod-failure-ncbfpc"])],
 )
 async def test_execute_algorithm_and_collection(
-    algorithms: List[List[str]], datasets: List[str]
+    sdk, algorithms: List[List[str]], datasets: List[str]
 ):
     """测试执行多个算法并验证结果流收集功能
 
@@ -98,8 +136,6 @@ async def test_execute_algorithm_and_collection(
     5. 启动流式结果收集
     6. 验证关键结果字段
     """
-    sdk = rcabench.RCABenchSDK(BASE_URL)
-
     data = sdk.algorithm.submit(algorithms, datasets)
     pprint(data)
 
@@ -115,7 +151,7 @@ async def test_execute_algorithm_and_collection(
 
 
 @pytest.mark.asyncio
-async def test_workflow():
+async def test_workflow(sdk):
     injection_payload = {
         "benchmark": "clickhouse",
         "interval": 2,
@@ -136,11 +172,15 @@ async def test_workflow():
         ],
     }
 
-    injection_report = await test_injection_and_building_dataset(**injection_payload)
+    injection_report = await test_injection_and_building_dataset(
+        sdk, **injection_payload
+    )
     datasets = extract_values(injection_report, "dataset")
     pprint(datasets)
 
     algorithms = [["e-diagnose"]]
-    execution_report = await test_execute_algorithm_and_collection(algorithms, datasets)
+    execution_report = await test_execute_algorithm_and_collection(
+        sdk, algorithms, datasets
+    )
     execution_ids = extract_values(execution_report, "execution_id")
     pprint(execution_ids)
