@@ -1,9 +1,10 @@
 from typing import Any, Dict, List, Union
+from .validation import validate_request_response
 from ..client.http_client import HTTPClient
-from ..const import INJECTION_CONF_MODES, Pagination
-from ..model.common import SubmitResult
-from ..model.error import HttpResponseError, RequestValidationError, safe_validate
-from ..model.injection import ListResult, SpecNode, SubmitReq
+from ..const import Pagination
+from ..model.common import PaginationReq, SubmitResult
+from ..model.error import HttpResponseError
+from ..model.injection import GetConfReq, ListResult, SpecNode, SubmitReq
 
 __all__ = ["Injection"]
 
@@ -21,33 +22,28 @@ class Injection:
         self.client = client
         self.url_prefix = f"{api_version}{self.URL_PREFIX}"
 
+    @validate_request_response(request_model=GetConfReq)
     def get_conf(self, mode: str) -> Union[Dict[str, Any], SpecNode]:
         """
         获取指定模式的注入配置信息
 
         Args:
-            mode: 配置模式，必须存在于 INJECTION_CONF_MODES 中，可选值：["display", "engine"]
+            mode (str): 配置模式，必须存在于 INJECTION_CONF_MODES 中，可选值：["display", "engine"]
 
         Returns:
-            SpecNode | dict: 配置数据对象，模式为 'engine' 时返回 SpecNode 模型实例，
-                            其他模式返回原始响应字典
+            SpecNode|dict: 配置数据对象
+            - 模式为 'display' 时返回原始响应字典
+            - 模式为 'engine' 时返回 SpecNode 模型实例，
 
         Raises:
             TypeError: 参数类型非字符串时抛出
             ValueError: 参数值不在允许范围内时抛出
+            HttpResponseError: 当API请求失败（4xx/5xx状态码）时抛出
 
-        Example:
-            >>> engine_config = client.get_conf(mode="engine")
-            >>> print(engine_config.model_dump())
+        Examples:
+            >>> client.get_conf(mode="engine")
         """
         url = f"{self.url_prefix}{self.URL_ENDPOINTS['get_conf']}"
-
-        if not isinstance(mode, str):
-            raise TypeError("Mode must be string")
-        if mode not in INJECTION_CONF_MODES:
-            raise ValueError(
-                f"Injection conf mode must be one of {INJECTION_CONF_MODES}"
-            )
 
         result = self.client.get(url, params={"mode": mode})
         if mode == "engine":
@@ -55,66 +51,61 @@ class Injection:
         else:
             return result
 
-    def list(self, page_num: int, page_size: int) -> ListResult:
+    @validate_request_response(PaginationReq, ListResult)
+    def list(
+        self,
+        page_num: int = Pagination.DEFAULT_PAGE_NUM,
+        page_size: int = Pagination.DEFAULT_PAGE_SIZE,
+    ) -> Union[Any, HttpResponseError]:
         """
         分页查询注入记录
 
         Args:
-            page_num:  页码（从1开始的正整数），默认为1
-            page_size: 每页数据量，仅允许 10/20/50 三种取值，默认为10
+            page_num (int):  页码（从1开始的正整数），默认为1
+            page_size (int): 每页数据量，仅允许 10/20/50 三种取值，默认为10
 
         Returns:
-            ListResult: 包含数据集基本信息和分页结果的数据模型实例
+            ListResult: 包含注入任务基本信息和分页结果的数据模型实例
 
         Raises:
             TypeError: 参数类型错误时抛出
             ValueError: 参数值不符合要求时抛出
+            HttpResponseError: 当API请求失败（4xx/5xx状态码）时抛出
 
-        Example:
-            >>> injections = client.list(page_num=1, page_size=10)
+        Examples:
+            >>> client.list(page_num=1, page_size=10)
         """
         url = f"{self.url_prefix}{self.URL_ENDPOINTS['list']}"
 
-        if not isinstance(page_num, int):
-            raise TypeError("Page number must be integer")
-        if not isinstance(page_size, int):
-            raise TypeError("Page size must be integer")
-
-        if page_num < Pagination.DEFAULT_PAGE_NUM:
-            raise ValueError(f"Page number must be ≥ {Pagination.DEFAULT_PAGE_NUM}")
-        if page_size not in Pagination.ALLOWED_PAGE_SIZES:
-            raise ValueError(
-                f"Page size must be one of {Pagination.ALLOWED_PAGE_SIZES}"
-            )
-
         params = {"page_num": page_num, "page_size": page_size}
-        return ListResult.model_validate(self.client.get(url, params=params))
+        return self.client.get(url, params=params)
 
+    @validate_request_response(SubmitReq, SubmitResult)
     def submit(
         self,
         benchmark: str,
         interval: int,
         pre_duration: int,
         specs: List[Dict[str, Any]],
-    ) -> Union[HttpResponseError, RequestValidationError, SubmitResult]:
+    ) -> Union[Any, HttpResponseError]:
         """
-        批量注入新的故障
+        提交批量故障注入任务
 
         Args:
-            benchmark: 基准测试数据库
-            interval: 故障注入间隔（分钟），必须为 ≥1 的整数
-            pre_duration: 注入前的正常时间（分钟），必须为 ≥1 的整数
-            specs: 分层参数配置，每个元素需符合 SpecNode 结构
+            benchmark (str): 基准测试数据库
+            interval (int): 故障注入间隔时间（分钟），必须 ≥1
+            pre_duration (int): 注入前的正常运行时长（分钟），必须 ≥1
+            specs (List[Dict]): 分层参数配置列表，每个元素应符合 SpecNode 结构定义
 
         Returns:
             SubmitResult: 包含任务提交结果的数据模型实例
 
         Raises:
-            TypeError: 参数类型错误时抛出（如非整型间隔时间）
-            ValueError: 参数值非法时抛出（如零或负数的间隔时间）
+            ModelValidationError: 当输入参数不符合Pydantic模型验证规则时抛出
+            HttpResponseError: 当API请求失败（4xx/5xx状态码）时抛出
 
-        Example:
-            >>> task = client.submit(
+        Examples:
+            >>> client.submit(
                     benchmark="clickhouse_v1",
                     interval=2,
                     pre_duration=5,
@@ -133,7 +124,6 @@ class Injection:
                         }
                     ]
                 )
-            >>> print(task.task_id)
         """
         url = f"{self.url_prefix}{self.URL_ENDPOINTS['submit']}"
 
@@ -143,16 +133,4 @@ class Injection:
             "pre_duration": pre_duration,
             "specs": specs,
         }
-        req, err = safe_validate(SubmitReq, payload)
-        if err is not None:
-            return err
-
-        resp = self.client.post(url, payload=req.model_dump(exclude_unset=True))
-        if isinstance(resp, HttpResponseError):
-            return resp
-
-        resp, err = safe_validate(SubmitResult, resp)
-        if err is not None:
-            return err
-
-        return resp
+        return self.client.post(url, payload=payload)

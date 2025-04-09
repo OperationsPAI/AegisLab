@@ -87,7 +87,7 @@ func QueryDataset(c *gin.Context) {
 
 	executionRecords, err := repository.ListExecutionRecordByDatasetID(item.ID, sortOrder)
 	if err != nil {
-		logEntry.Error("failed to retrieve execution records")
+		logEntry.Errorf("failed to retrieve execution records: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to load execution data")
 		return
 	}

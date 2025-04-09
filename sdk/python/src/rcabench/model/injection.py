@@ -1,7 +1,32 @@
 from typing import Any, Dict, List, Optional
-from ..const import InjectionStatusEnum, TIME_EXAMPLE
+from ..const import INJECTION_CONF_MODES, InjectionStatusEnum, TIME_EXAMPLE
 from datetime import datetime
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+class GetConfReq(BaseModel):
+    """
+    配置获取请求
+
+    Attributes:
+        mode: 配置模式标识符 (display, engine)
+    """
+
+    mode: str = Field(
+        ...,
+        description="Choose the config mode (display, engine)",
+        json_schema_extra={"example": "display"},
+    )
+
+    @field_validator("mode")
+    @classmethod
+    def validate_mode(cls, value: str) -> str:
+        if value not in INJECTION_CONF_MODES:
+            raise ValueError(
+                f"Injection conf mode must be one of {INJECTION_CONF_MODES}"
+            )
+
+        return value
 
 
 class InjectionItem(BaseModel):

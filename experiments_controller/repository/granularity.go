@@ -8,6 +8,10 @@ func listGranularityWithFilters(executionIDs []int, levels []string, rank int) (
 	query := database.DB.Model(&database.GranularityResult{}).
 		Where("rank <= ?", rank)
 
+	if len(executionIDs) > 0 {
+		query = query.Where("execution_id IN (?)", executionIDs)
+	}
+
 	if len(levels) > 0 {
 		query = query.Where("level IN (?)", levels)
 	}
