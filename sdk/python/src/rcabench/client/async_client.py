@@ -52,42 +52,36 @@ class ClientManager:
                 self.results[key].update(result)
 
     async def wait_all(self, timeout: Optional[float] = None) -> Dict[str, Any]:
-        start_time = asyncio.get_event_loop().time()  # 记录开始时间
+        start_time = asyncio.get_event_loop().time()
 
-        # 1. 先等待 close_event（所有客户端被移除）
-        if timeout is not None:
-            remaining_timeout = timeout
-        else:
-            remaining_timeout = None
+        # 1. 先等待所有客户端被移除（close_event被设置）
+        if not self.close_event.is_set():
+            try:
+                if timeout is not None:
+                    await asyncio.wait_for(self.close_event.wait(), timeout)
+                else:
+                    await self.close_event.wait()
+            except asyncio.TimeoutError:
+                pass
 
-        try:
-            await asyncio.wait_for(self.close_event.wait(), remaining_timeout)
-        except asyncio.TimeoutError:
-            pass
-
-        # 2. 计算剩余超时时间
-        if timeout is not None:
-            elapsed = asyncio.get_event_loop().time() - start_time
-            remaining_timeout = max(0, timeout - elapsed)
-            if remaining_timeout <= 0:  # 如果已经超时，直接返回
-                return {
-                    "results": self.results,
-                    "errors": self.errors,
-                    "pending": list(self.client_dict.keys()),
-                }
-
-        # 3. 如果仍有任务在运行，等待它们完成
+        # 2. 如果有任务仍在运行，等待它们完成
         if self.client_dict:
             tasks = list(self.client_dict.values())
             try:
-                await asyncio.wait_for(
-                    asyncio.gather(*tasks, return_exceptions=True),
-                    timeout=remaining_timeout,
-                )
+                if timeout is not None:
+                    elapsed = asyncio.get_event_loop().time() - start_time
+                    remaining_timeout = max(0, timeout - elapsed)
+                    if remaining_timeout > 0:
+                        await asyncio.wait_for(
+                            asyncio.gather(*tasks, return_exceptions=True),
+                            remaining_timeout,
+                        )
+                else:
+                    await asyncio.gather(*tasks, return_exceptions=True)
             except (asyncio.TimeoutError, asyncio.CancelledError):
                 pass
 
-        # 4. 清理已完成的任务（避免 pending 列表包含已完成的任务）
+        # 3. 清理已完成的任务
         async with self.lock:
             pending_tasks = {
                 client_id: task
