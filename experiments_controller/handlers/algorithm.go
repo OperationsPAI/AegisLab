@@ -26,9 +26,9 @@ import (
 //	@Description	获取算法列表
 //	@Tags			algorithm
 //	@Produce		application/json
-//	@Success		200		{object}	GenericResponse[AlgorithmResp]
-//	@Failure		400		{object}	GenericResponse[any]
-//	@Failure		500		{object}	GenericResponse[any]
+//	@Success		200		{object}	dto.GenericResponse[dto.AlgorithmListResp]
+//	@Failure		400		{object}	dto.GenericResponse[any]
+//	@Failure		500		{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/algorithms [get]
 func GetAlgorithmList(c *gin.Context) {
 	algoPath := config.GetString("algo.storage_path")
@@ -84,9 +84,9 @@ func GetAlgorithmList(c *gin.Context) {
 //	@Produce		application/json
 //	@Consumes		application/json
 //	@Param			body	body		[]dto.AlgorithmExecutionPayload	true	"请求体"
-//	@Success		200		{object}	GenericResponse[SubmitResp]
-//	@Failure		400		{object}	GenericResponse[any]
-//	@Failure		500		{object}	GenericResponse[any]
+//	@Success		200		{object}	dto.GenericResponse[dto.SubmitResp]
+//	@Failure		400		{object}	dto.GenericResponse[any]
+//	@Failure		500		{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/algorithms [post]
 func SubmitAlgorithmExecution(c *gin.Context) {
 	groupID := c.GetString("groupID")
@@ -151,9 +151,9 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 //	@Produce		application/json
 //	@Param			file		formData	file	false	"算法文件 (zip/tar.gz)"
 //	@Param			algo	formData	string	false	"算法名称"
-//	@Success		202			{object}	GenericResponse[SubmitResp]
-//	@Failure		400			{object}	GenericResponse[any]
-//	@Failure		500			{object}	GenericResponse[any]
+//	@Success		202			{object}	dto.GenericResponse[dto.SubmitResp]
+//	@Failure		400			{object}	dto.GenericResponse[any]
+//	@Failure		500			{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/algorithms/build [post]
 func BuildAlgorithm(c *gin.Context) {
 	var extractDir string

@@ -1,143 +1,23 @@
 definitions:
-  database.Detector:
+  dto.AlgorithmExecutionPayload:
     properties:
-      avgDuration:
-        description: AvgDuration 是浮点类型
-        type: number
-      createdAt:
-        description: CreatedAt 自动设置为当前时间
-        type: string
-      execution_id:
-        description: ExecutionID 是主键
-        type: integer
-      id:
-        type: integer
-      issues:
-        description: Issues 字段类型为文本
-        type: string
-      p90:
-        description: P90 是浮点类型
-        type: number
-      p95:
-        description: P95 是浮点类型
-        type: number
-      p99:
-        description: P99 是浮点类型
-        type: number
-      spanName:
-        description: SpanName 数据库字段类型
-        type: string
-      succRate:
-        description: SuccRate 是浮点类型
-        type: number
-      updatedAt:
-        description: UpdatedAt 自动更新时间
-        type: string
-    type: object
-  database.ExecutionResult:
-    properties:
-      algo:
-        description: 使用的算法
-        type: string
-      created_at:
-        description: 创建时间
+      algorithm:
         type: string
       dataset:
-        description: 数据集标识
-        type: integer
-      id:
-        description: 唯一标识
-        type: integer
-      task_id:
-        description: 从属什么 taskid
         type: string
-      updated_at:
-        description: 更新时间
+      service:
+        type: string
+      tag:
         type: string
     type: object
-  database.FaultInjectionSchedule:
+  dto.AlgorithmListResp:
     properties:
-      config:
-        description: 配置 JSON 格式
-        type: string
-      created_at:
-        description: 创建时间
-        type: string
-      description:
-        description: 描述（可选字段）
-        type: string
-      duration:
-        description: 故障持续时间
-        type: integer
-      end_time:
-        description: 预计故障结束时间
-        type: string
-      fault_type:
-        description: 故障类型
-        type: integer
-      id:
-        description: 唯一标识
-        type: integer
-      injection_name:
-        description: 在k8s资源里注入的名字
-        type: string
-      proposed_end_time:
-        description: 预计结束时间
-        type: string
-      start_time:
-        description: 预计故障开始时间
-        type: string
-      status:
-        description: '0: 初始状态，没有检查 1: 检查了，注入结束且成功 2: 检查了，注入结束且失败; 如果状态是 1，则可以用于数据集查询'
-        type: integer
-      task_id:
-        description: 从属什么 taskid
-        type: string
-      updated_at:
-        description: 更新时间
-        type: string
+      algorithms:
+        items:
+          type: string
+        type: array
     type: object
-  database.GranularityResult:
-    properties:
-      confidence:
-        description: 可信度（可选）
-        type: number
-      created_at:
-        description: 创建时间
-        type: string
-      execution_id:
-        description: 关联ExecutionResult的ID
-        type: integer
-      id:
-        description: 唯一标识
-        type: integer
-      level:
-        description: 粒度类型 (e.g., "service", "pod", "span", "metric")
-        type: string
-      rank:
-        description: 排序，表示top1, top2等
-        type: integer
-      result:
-        description: 定位结果，以逗号分隔
-        type: string
-      updated_at:
-        description: 更新时间
-        type: string
-    type: object
-  database.Task:
-    properties:
-      created_at:
-        type: string
-      id:
-        type: string
-      payload:
-        type: string
-      status:
-        type: string
-      type:
-        type: string
-    type: object
-  handlers.Conclusion:
+  dto.Conclusion:
     properties:
       level:
         description: 例如 service level
@@ -148,236 +28,300 @@ definitions:
       rate:
         type: number
     type: object
-  handlers.Execution:
+  dto.DatasetItem:
     properties:
-      dataset:
-        $ref: '#/definitions/database.FaultInjectionSchedule'
-      detector_result:
-        $ref: '#/definitions/database.Detector'
-      execution_record:
-        $ref: '#/definitions/database.ExecutionResult'
-      granularity_results:
-        items:
-          $ref: '#/definitions/database.GranularityResult'
-        type: array
-    type: object
-  handlers.GenericResponse-any:
-    properties:
-      code:
-        description: 状态码
-        type: integer
-      data:
-        description: 泛型类型的数据
-      message:
-        description: 响应消息
-        type: string
-      timestamp:
-        description: 响应生成时间
-        type: integer
-    type: object
-  handlers.GenericResponse-array_handlers_GetAlgorithmResp:
-    properties:
-      code:
-        description: 状态码
-        type: integer
-      data:
-        description: 泛型类型的数据
-        items:
-          $ref: '#/definitions/handlers.GetAlgorithmResp'
-        type: array
-      message:
-        description: 响应消息
-        type: string
-      timestamp:
-        description: 响应生成时间
-        type: integer
-    type: object
-  handlers.GenericResponse-array_handlers_InjectListResp:
-    properties:
-      code:
-        description: 状态码
-        type: integer
-      data:
-        description: 泛型类型的数据
-        items:
-          $ref: '#/definitions/handlers.InjectListResp'
-        type: array
-      message:
-        description: 响应消息
-        type: string
-      timestamp:
-        description: 响应生成时间
-        type: integer
-    type: object
-  handlers.GenericResponse-handlers_GetDatasetResp:
-    properties:
-      code:
-        description: 状态码
-        type: integer
-      data:
-        allOf:
-        - $ref: '#/definitions/handlers.GetDatasetResp'
-        description: 泛型类型的数据
-      message:
-        description: 响应消息
-        type: string
-      timestamp:
-        description: 响应生成时间
-        type: integer
-    type: object
-  handlers.GenericResponse-handlers_InjectCancelResp:
-    properties:
-      code:
-        description: 状态码
-        type: integer
-      data:
-        allOf:
-        - $ref: '#/definitions/handlers.InjectCancelResp'
-        description: 泛型类型的数据
-      message:
-        description: 响应消息
-        type: string
-      timestamp:
-        description: 响应生成时间
-        type: integer
-    type: object
-  handlers.GenericResponse-handlers_InjectResp:
-    properties:
-      code:
-        description: 状态码
-        type: integer
-      data:
-        allOf:
-        - $ref: '#/definitions/handlers.InjectResp'
-        description: 泛型类型的数据
-      message:
-        description: 响应消息
-        type: string
-      timestamp:
-        description: 响应生成时间
-        type: integer
-    type: object
-  handlers.GenericResponse-handlers_InjectStatusResp:
-    properties:
-      code:
-        description: 状态码
-        type: integer
-      data:
-        allOf:
-        - $ref: '#/definitions/handlers.InjectStatusResp'
-        description: 泛型类型的数据
-      message:
-        description: 响应消息
-        type: string
-      timestamp:
-        description: 响应生成时间
-        type: integer
-    type: object
-  handlers.GenericResponse-int:
-    properties:
-      code:
-        description: 状态码
-        type: integer
-      data:
-        description: 泛型类型的数据
-        type: integer
-      message:
-        description: 响应消息
-        type: string
-      timestamp:
-        description: 响应生成时间
-        type: integer
-    type: object
-  handlers.GetAlgorithmResp:
-    properties:
-      name:
-        type: string
-    type: object
-  handlers.GetDatasetResp:
-    properties:
-      datasets:
-        items:
-          type: string
-        type: array
-      total:
-        type: integer
-    type: object
-  handlers.InjectCancelReq:
-    properties:
-      task_id:
-        type: string
-    type: object
-  handlers.InjectCancelResp:
-    type: object
-  handlers.InjectListResp:
-    properties:
-      duration:
-        description: minutes
-        type: integer
-      fault_type:
-        type: string
-      inject_time:
+      end_time:
         type: string
       name:
         type: string
-      para:
-        type: string
-      status:
-        type: string
-      task_id:
+      param:
+        additionalProperties: {}
+        type: object
+      start_time:
         type: string
     type: object
-  handlers.InjectReq:
-    type: object
-  handlers.InjectResp:
+  dto.DatasetPayload:
     properties:
-      task_id:
+      benchmark:
+        type: string
+      end_time:
+        type: string
+      name:
+        type: string
+      pre_duration:
+        type: integer
+      service:
+        type: string
+      start_time:
         type: string
     type: object
-  handlers.InjectStatusReq:
+  dto.DetectorRecord:
     properties:
-      task_id:
+      P90:
+        type: number
+      P95:
+        type: number
+      P99:
+        type: number
+      avg_duration:
+        type: number
+      issue:
         type: string
+      span_name:
+        type: string
+      succ_rate:
+        type: number
     type: object
-  handlers.InjectStatusResp:
-    type: object
-  handlers.TaskWithResults:
+  dto.EvaluationItem:
     properties:
-      algo:
+      algorithm:
         type: string
       conclusions:
         items:
-          $ref: '#/definitions/handlers.Conclusion'
+          $ref: '#/definitions/dto.Conclusion'
         type: array
       executions:
         items:
-          $ref: '#/definitions/handlers.Execution'
+          $ref: '#/definitions/dto.Execution'
         type: array
+    type: object
+  dto.EvaluationListResp:
+    properties:
+      results:
+        items:
+          $ref: '#/definitions/dto.EvaluationItem'
+        type: array
+    type: object
+  dto.Execution:
+    properties:
+      dataset:
+        $ref: '#/definitions/dto.DatasetItem'
+      granularity_records:
+        items:
+          $ref: '#/definitions/dto.GranularityRecord'
+        type: array
+    type: object
+  dto.ExecutionRecord:
+    properties:
+      algorithm:
+        type: string
+      granularity_records:
+        items:
+          $ref: '#/definitions/dto.GranularityRecord'
+        type: array
+    type: object
+  dto.GenericResponse-any:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_AlgorithmListResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.AlgorithmListResp'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_EvaluationListResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.EvaluationListResp'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_PaginationResp-dto_DatasetItem:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.PaginationResp-dto_DatasetItem'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_PaginationResp-dto_InjectionItem:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.PaginationResp-dto_InjectionItem'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_QueryDatasetResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.QueryDatasetResp'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_SubmitResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.SubmitResp'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-int:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        description: 泛型类型的数据
+        type: integer
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GranularityRecord:
+    properties:
+      confidence:
+        type: number
+      level:
+        type: string
+      rank:
+        type: integer
+      result:
+        type: string
+    type: object
+  dto.InjectionSubmitReq:
+    properties:
+      benchmark:
+        type: string
+      interval:
+        type: integer
+      pre_duration:
+        type: integer
+      specs:
+        items:
+          additionalProperties: {}
+          type: object
+        type: array
+    type: object
+  dto.PaginationResp-dto_DatasetItem:
+    properties:
+      total:
+        type: integer
+    type: object
+  dto.PaginationResp-dto_InjectionItem:
+    properties:
+      total:
+        type: integer
+    type: object
+  dto.QueryDatasetReq:
+    properties:
+      name:
+        maxLength: 64
+        type: string
+      sort:
+        enum:
+        - desc
+        - asc
+        type: string
+    required:
+    - name
+    type: object
+  dto.QueryDatasetResp:
+    properties:
+      detector_result:
+        $ref: '#/definitions/dto.DetectorRecord'
+      end_time:
+        type: string
+      execution_results:
+        items:
+          $ref: '#/definitions/dto.ExecutionRecord'
+        type: array
+      name:
+        type: string
+      param:
+        additionalProperties: {}
+        type: object
+      start_time:
+        type: string
+    type: object
+  dto.SubmitResp:
+    properties:
+      group_id:
+        type: string
+      traces:
+        items:
+          $ref: '#/definitions/dto.Trace'
+        type: array
+    type: object
+  dto.Trace:
+    properties:
+      head_task_id:
+        type: string
+      trace_id:
+        type: string
     type: object
 info:
   contact: {}
+  title: RCABench
 paths:
-  /algorithms/benchmarks:
-    get:
-      description: 返回算法和基准测试的文件列表
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 返回算法和基准的文件列表
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: 服务器内部错误
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: 获取算法和基准列表
-      tags:
-      - algorithms
-  /api/v1/algo/getlist:
+  /api/v1/algorithms:
     get:
       description: 获取算法列表
       produces:
@@ -386,19 +330,146 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-array_handlers_GetAlgorithmResp'
+            $ref: '#/definitions/dto.GenericResponse-dto_AlgorithmListResp'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-any'
+            $ref: '#/definitions/dto.GenericResponse-any'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-any'
+            $ref: '#/definitions/dto.GenericResponse-any'
       summary: 获取算法列表
       tags:
       - algorithm
-  /api/v1/dataset/delete:
+    post:
+      description: 执行算法
+      parameters:
+      - description: 请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/dto.AlgorithmExecutionPayload'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SubmitResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: 执行算法
+      tags:
+      - algorithm
+  /api/v1/algorithms/build:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 通过上传文件或指定算法名称来构建算法镜像
+      parameters:
+      - description: 算法文件 (zip/tar.gz)
+        in: formData
+        name: file
+        type: file
+      - description: 算法名称
+        in: formData
+        name: algo
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SubmitResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: 构建算法镜像
+      tags:
+      - algorithm
+  /api/v1/datasets:
+    get:
+      description: 获取状态为成功的注入数据集列表（支持分页参数）
+      parameters:
+      - default: 1
+        description: 页码（从1开始）
+        in: query
+        minimum: 1
+        name: page_num
+        required: true
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        maximum: 20
+        minimum: 5
+        name: page_size
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功响应
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_PaginationResp-dto_DatasetItem'
+        "400":
+          description: 参数校验失败
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: 分页查询数据集列表
+      tags:
+      - dataset
+    post:
+      description: 批量构建数据集
+      parameters:
+      - description: 请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/dto.DatasetPayload'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SubmitResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: 批量构建数据集
+      tags:
+      - dataset
+  /api/v1/datasets/delete:
     delete:
       description: 删除数据集数据
       parameters:
@@ -413,94 +484,52 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-int'
+            $ref: '#/definitions/dto.GenericResponse-int'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-any'
+            $ref: '#/definitions/dto.GenericResponse-any'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-any'
+            $ref: '#/definitions/dto.GenericResponse-any'
       summary: 删除数据集数据
       tags:
       - dataset
-  /api/v1/dataset/download:
-    post:
-      description: 下载数据集数据
-      responses: {}
-      summary: 下载数据集数据
-      tags:
-      - algorithm
-  /api/v1/dataset/getlist:
+  /api/v1/datasets/download:
     get:
-      description: 获取所有数据集列表
-      parameters:
-      - description: 页面数目
-        in: query
-        name: page_num
-        required: true
-        type: integer
-      - description: 页面大小
-        in: query
-        name: page_size
-        required: true
-        type: integer
+      description: 将指定路径的多个数据集打包为 ZIP 文件下载（自动排除 result.csv 文件）
       produces:
-      - application/json
+      - application/zip
       responses:
         "200":
-          description: OK
+          description: ZIP 文件流
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-handlers_GetDatasetResp'
+            type: string
         "400":
-          description: Bad Request
+          description: 参数绑定错误
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-any'
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: 非法路径访问
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: Internal Server Error
+          description: 文件打包失败
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-any'
-      summary: 获取所有数据集列表
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: 下载数据集打包文件
       tags:
       - dataset
-  /api/v1/dataset/upload:
-    post:
-      description: 上传数据集数据
-      responses: {}
-      summary: 上传数据集数据
-      tags:
-      - algorithm
-  /api/v1/evaluation/cancel:
-    post:
-      description: 取消评估的执行
-      responses: {}
-      summary: 取消评估的执行
-      tags:
-      - evaluation
-  /api/v1/evaluation/getlist:
-    post:
-      description: 获取评估列表
-      responses: {}
-      summary: 获取评估列表
-      tags:
-      - evaluation
-  /api/v1/evaluation/getlogs:
-    post:
-      description: 查看评估的日志
-      responses: {}
-      summary: 查看评估的日志
-      tags:
-      - evaluation
-  /api/v1/evaluation/getresult:
-    post:
+  /api/v1/evaluations:
+    get:
       description: 返回每种算法的执行历史记录
       parameters:
       - collectionFormat: csv
         description: 执行结果 ID 数组
         in: query
         items:
-          type: string
+          type: integer
         name: execution_ids
         type: array
       - collectionFormat: csv
@@ -508,7 +537,7 @@ paths:
         in: query
         items:
           type: string
-        name: algos
+        name: algorithms
         type: array
       - collectionFormat: csv
         description: 级别名称数组
@@ -528,346 +557,69 @@ paths:
       - application/json
       responses:
         "200":
-          description: 返回算法的执行历史记录列表
+          description: 成功响应
           schema:
-            items:
-              $ref: '#/definitions/handlers.TaskWithResults'
-            type: array
+            $ref: '#/definitions/dto.GenericResponse-dto_EvaluationListResp'
         "400":
-          description: 输入执行结果 ID 无效
+          description: 参数校验失败
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/dto.GenericResponse-any'
         "500":
           description: 服务器内部错误
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/dto.GenericResponse-any'
       summary: 获取每种算法的执行历史记录
       tags:
       - evaluation
-  /api/v1/evaluation/getstatus:
-    post:
-      description: 查看评估状态
-      responses: {}
-      summary: 查看评估状态
-      tags:
-      - evaluation
-  /api/v1/evaluation/submit:
-    post:
-      description: 提交评估
-      responses: {}
-      summary: 提交评估
-      tags:
-      - evaluation
-  /api/v1/injection/cancel:
-    post:
-      description: 取消注入
-      parameters:
-      - description: 请求体
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.InjectCancelReq'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/handlers.GenericResponse-handlers_InjectCancelResp'
-            type: array
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handlers.GenericResponse-handlers_InjectCancelResp'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handlers.GenericResponse-handlers_InjectCancelResp'
-      summary: 取消注入
-      tags:
-      - injection
-  /api/v1/injection/getlist:
-    post:
-      description: 获取注入列表和必要的简略信息
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/handlers.GenericResponse-array_handlers_InjectListResp'
-            type: array
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handlers.GenericResponse-array_handlers_InjectListResp'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handlers.GenericResponse-array_handlers_InjectListResp'
-      summary: 获取注入列表和必要的简略信息
-      tags:
-      - injection
-  /api/v1/injection/getpara:
-    post:
-      description: 获取可用的故障注入参数和类型映射
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 返回故障注入参数和类型映射
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: 服务器内部错误
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: 获取故障注入参数
-      tags:
-      - injection
-  /api/v1/injection/getstatus:
-    post:
-      description: 获取注入列表和必要的简略信息
-      parameters:
-      - description: 请求体
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.InjectStatusReq'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/handlers.GenericResponse-handlers_InjectStatusResp'
-            type: array
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handlers.GenericResponse-handlers_InjectStatusResp'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handlers.GenericResponse-handlers_InjectStatusResp'
-      summary: 获取注入列表和必要的简略信息
-      tags:
-      - injection
-  /api/v1/injection/submit:
+  /api/v1/injections:
     post:
       description: 注入故障
       parameters:
-      - description: 任务类型
-        in: query
-        name: type
-        type: string
       - description: 请求体
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handlers.InjectReq'
+          items:
+            $ref: '#/definitions/dto.InjectionSubmitReq'
+          type: array
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-handlers_InjectResp'
+            $ref: '#/definitions/dto.GenericResponse-dto_SubmitResp'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-any'
+            $ref: '#/definitions/dto.GenericResponse-any'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handlers.GenericResponse-any'
+            $ref: '#/definitions/dto.GenericResponse-any'
       summary: 注入故障
       tags:
-      - Injection
-  /datasets:
-    get:
-      description: 返回已成功的故障注入数据集列表
+      - injection
+  /api/v1/injections/getlist:
+    post:
+      description: 获取注入记录列表（支持分页参数）
       produces:
       - application/json
       responses:
         "200":
-          description: 返回数据集名称列表
+          description: OK
           schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: 服务器内部错误
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: 获取数据集列表
-      tags:
-      - datasets
-  /pods/namespaces:
-    get:
-      description: 返回指定命名空间中符合条件的 Pod 标签列表
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 返回命名空间和对应的 Pod 标签信息
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: 服务器内部错误，无法获取 Pod 标签
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: 获取命名空间中的 Pod 标签
-      tags:
-      - pods
-  /tasks:
-    get:
-      description: 显示数据库中所有任务的记录
-      produces:
-      - text/html
-      responses:
-        "200":
-          description: 返回 HTML 页面显示任务
-        "500":
-          description: 服务器内部错误
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: 显示所有任务
-      tags:
-      - tasks
-  /tasks/{taskID}:
-    get:
-      description: 根据任务 ID 查询任务的详细信息
-      parameters:
-      - description: 任务 ID
-        in: path
-        name: taskID
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 返回任务详情
-          schema:
-            $ref: '#/definitions/database.Task'
-        "404":
-          description: 任务未找到
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: 服务器内部错误
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: 获取任务详情
-      tags:
-      - tasks
-  /tasks/{taskID}/logs:
-    get:
-      description: 根据任务 ID 查询任务执行过程中记录的日志
-      parameters:
-      - description: 任务 ID
-        in: path
-        name: taskID
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 返回任务的日志列表
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: 服务器内部错误
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: 获取任务日志
-      tags:
-      - tasks
-  /tasks/{taskID}/status:
-    get:
-      description: 通过任务 ID 查询任务的执行状态和日志
-      parameters:
-      - description: 任务 ID
-        in: path
-        name: taskID
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 返回任务状态和日志
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: 任务未找到
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: 服务器内部错误
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: 查询任务状态
-      tags:
-      - tasks
-  /tasks/{taskID}/withdraw:
-    delete:
-      description: 通过任务 ID 取消正在执行的任务
-      parameters:
-      - description: 任务 ID
-        in: path
-        name: taskID
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 任务撤回成功
-          schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/dto.GenericResponse-dto_PaginationResp-dto_InjectionItem'
         "400":
-          description: 任务 ID 无效或撤回失败
+          description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: 撤回任务
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: 分页查询注入记录列表
       tags:
-      - tasks
+      - injection
 swagger: "2.0"

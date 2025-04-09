@@ -24,9 +24,9 @@ import (
 //	@Tags			dataset
 //	@Produce		application/json
 //	@Param			datasetID	path		int					true	"数据集 ID"
-//	@Success		200			{object}	GenericResponse[int]
-//	@Failure		400			{object}	GenericResponse[any]
-//	@Failure		500			{object}	GenericResponse[any]
+//	@Success		200			{object}	dto.GenericResponse[int]
+//	@Failure		400			{object}	dto.GenericResponse[any]
+//	@Failure		500			{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/datasets/delete [delete]
 func DeleteDataset(c *gin.Context) {
 	var req dto.DatasetDeleteReq
@@ -52,9 +52,9 @@ func DeleteDataset(c *gin.Context) {
 //	@Produce		json
 //	@Consumes		application/json
 //	@Param			body	body		[]dto.QueryDatasetReq	true	"请求体"
-//	@Success		200		{object}	GenericResponse[dto.QueryDatasetResp]
-//	@Failure		400		{object}	GenericResponse[any]
-//	@Failure		500		{object}	GenericResponse[any]
+//	@Success		200		{object}	dto.GenericResponse[dto.QueryDatasetResp]
+//	@Failure		400		{object}	dto.GenericResponse[any]
+//	@Failure		500		{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/datasets [post]
 func QueryDataset(c *gin.Context) {
 	var req dto.QueryDatasetReq
@@ -111,9 +111,9 @@ func QueryDataset(c *gin.Context) {
 //	@Produce		json
 //	@Param			page_num	query		int		true	"页码（从1开始）" minimum(1) default(1)
 //	@Param			page_size	query		int		true	"每页数量" minimum(5) maximum(20) default(10)
-//	@Success		200			{object}	GenericResponse[dto.DatasetResp] "成功响应"
-//	@Failure		400			{object}	GenericResponse[any] "参数校验失败"
-//	@Failure		500			{object}	GenericResponse[any] "服务器内部错误"
+//	@Success		200			{object}	dto.GenericResponse[dto.PaginationResp[dto.DatasetItem]] "成功响应"
+//	@Failure		400			{object}	dto.GenericResponse[any] "参数校验失败"
+//	@Failure		500			{object}	dto.GenericResponse[any] "服务器内部错误"
 //	@Router			/api/v1/datasets [get]
 func GetDatasetList(c *gin.Context) {
 	// 获取查询参数并校验是否合法
@@ -155,9 +155,9 @@ func GetDatasetList(c *gin.Context) {
 //	@Produce		application/zip
 //	@Consumes		application/json
 //	@Success		200			{string} 	binary 		"ZIP 文件流"
-//	@Failure		400			{object}	GenericResponse[any] "参数绑定错误"
-//	@Failure		403			{object}	GenericResponse[any] "非法路径访问"
-//	@Failure		500			{object}	GenericResponse[any] "文件打包失败"
+//	@Failure		400			{object}	dto.GenericResponse[any] "参数绑定错误"
+//	@Failure		403			{object}	dto.GenericResponse[any] "非法路径访问"
+//	@Failure		500			{object}	dto.GenericResponse[any] "文件打包失败"
 //	@Router			/api/v1/datasets/download [get]
 func DownloadDataset(c *gin.Context) {
 	filename := "package"
@@ -254,9 +254,9 @@ func DownloadDataset(c *gin.Context) {
 //	@Produce		json
 //	@Consumes		application/json
 //	@Param			body	body		[]dto.DatasetPayload	true	"请求体"
-//	@Success		200		{object}	GenericResponse[BuildResp]
-//	@Failure		400		{object}	GenericResponse[any]
-//	@Failure		500		{object}	GenericResponse[any]
+//	@Success		200		{object}	dto.GenericResponse[dto.SubmitResp]
+//	@Failure		400		{object}	dto.GenericResponse[any]
+//	@Failure		500		{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/datasets [post]
 func SubmitDatasetBuilding(c *gin.Context) {
 	groupID := c.GetString("groupID")
@@ -290,11 +290,5 @@ func SubmitDatasetBuilding(c *gin.Context) {
 	dto.JSONResponse(c, http.StatusAccepted, "Dataset building submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
 }
 
-// UploadDataset
-//
-//	@Summary		上传数据集数据
-//	@Description	上传数据集数据
-//	@Tags			dataset
-//	@Router			/api/v1/dataset/upload [post]
 func UploadDataset(c *gin.Context) {
 }
