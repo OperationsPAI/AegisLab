@@ -66,3 +66,6 @@ gen-sdk: swagger
 		-i /local/experiments_controller/docs/swagger.json \
 		-g python \
 		-o /local/sdk/python1
+
+sync-dep:
+	git submodule update --init --recursive --remote
