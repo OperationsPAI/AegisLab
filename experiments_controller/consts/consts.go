@@ -122,6 +122,5 @@ const (
 // sse 事件类型
 const (
 	EventEnd    = "end"
-	EventError  = "error"
 	EventUpdate = "update"
 )

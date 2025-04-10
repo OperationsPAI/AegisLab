@@ -45,9 +45,9 @@ class InjectionItem(BaseModel):
 
     id: int = Field(
         default=1,
-        ge=1,
         description="Unique identifier for the injection",
         json_schema_extra={"example": 1},
+        gt=0,
     )
 
     task_id: str = Field(
@@ -174,17 +174,11 @@ class SubmitReq(BaseModel):
     故障注入请求参数
 
     Attributes:
-        benchmark: 基准测试名称
+        benchmark: 基准测试名称，如果为空则不执行数据采集
         interval: 故障注入间隔时间（分钟）
         pre_duration: 故障注入前的正常观测时间（分钟）
         specs: 分层配置参数树
     """
-
-    benchmark: str = Field(
-        ...,
-        description="Benchmark name",
-        json_schema_extra={"example": "clichhouse"},
-    )
 
     interval: int = Field(
         ...,
@@ -204,4 +198,10 @@ class SubmitReq(BaseModel):
         ...,
         min_length=1,
         description="Hierarchical configuration parameter tree, each element represents a parameter branch",
+    )
+
+    benchmark: Optional[str] = Field(
+        None,
+        description="Benchmark name",
+        json_schema_extra={"example": "clichhouse"},
     )

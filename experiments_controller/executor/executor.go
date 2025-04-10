@@ -197,6 +197,7 @@ func (e *Executor) handleJobError(logEntry *logrus.Entry, jobLabel *JobLabel, er
 
 		fields := map[string]any{
 			consts.RdbMsgStatus:   consts.TaskStatusError,
+			consts.RdbMsgTaskID:   jobLabel.TaskID,
 			consts.RdbMsgTaskType: jobLabel.Type,
 			consts.RdbMsgError:    errorMsg,
 		}

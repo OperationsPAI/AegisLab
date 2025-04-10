@@ -86,7 +86,7 @@ func parseInjectionPayload(payload map[string]any) (*injectionPayload, error) {
 	}
 
 	faultTypeFloat, ok := payload[consts.InjectFaultType].(float64)
-	if !ok || faultTypeFloat <= 0 {
+	if !ok || faultTypeFloat < 0 {
 		return nil, fmt.Errorf(message, consts.InjectFaultType)
 	}
 	faultType := int(faultTypeFloat)

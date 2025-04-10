@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any, Awaitable, Callable, Dict, Optional, Union
 from ..const import EventType, SSEMsgPrefix, TaskStatus
 from ..logger import logger
 from uuid import UUID
@@ -12,18 +12,20 @@ __all__ = ["AsyncSSEClient", "ClientManager"]
 
 class ClientManager:
     def __init__(self):
-        self.client_dict: Dict[str, asyncio.Task] = {}
+        self.client_dict: Dict[UUID, asyncio.Task] = {}
         self.results = {}
         self.errors = {}
         self.close_event = asyncio.Event()
         self.lock = asyncio.Lock()
+        self.result_queue = asyncio.Queue()
+        self.client_callbacks: Dict[UUID, Callable[[Any], Awaitable[None]]] = {}
 
-    async def add_client(self, client_id: str, task_obj: asyncio.Task) -> None:
+    async def add_client(self, client_id: UUID, task_obj: asyncio.Task) -> None:
         async with self.lock:
             self.client_dict[client_id] = task_obj
             self.close_event.clear()
 
-    async def remove_client(self, client_id: str) -> None:
+    async def remove_client(self, client_id: UUID) -> None:
         async with self.lock:
             if client_id not in self.client_dict:
                 return
@@ -41,15 +43,67 @@ class ClientManager:
                 self.close_event.set()
 
     async def set_client_item(
-        self, key: str, result: Any = None, error: Exception | None = None
+        self,
+        client_id: UUID,
+        result: Optional[Dict[str, Any]] = None,
+        error: Optional[Union[Dict[str, Any], Exception]] = None,
     ) -> None:
         async with self.lock:
-            if error:
-                self.errors[key] = error
-            if result:
-                if key not in self.results:
-                    self.results[key] = result
-                self.results[key].update(result)
+            if error is not None:
+                if isinstance(error, Exception):
+                    error = {"IntervalError": str(error)}
+                if client_id not in self.errors:
+                    self.errors[client_id] = result
+                else:
+                    self.errors.update(error)
+
+                res = {"type": "error", "message": client_id, "data": error}
+                await self.result_queue.put(res)
+
+                if client_id in self.client_callbacks:
+                    await self.client_callbacks[client_id](res)
+
+            if result is not None:
+                if client_id not in self.results:
+                    self.results[client_id] = result
+                else:
+                    self.results[client_id].update(result)
+
+                res = {"type": "result", "message": client_id, "data": result}
+                await self.result_queue.put(res)
+
+                if client_id in self.client_callbacks:
+                    await self.client_callbacks[client_id](res)
+
+    async def register_callback(
+        self, client_id: UUID, callback: Callable[[Any], Awaitable[None]]
+    ) -> None:
+        """注册任务完成时的回调函数"""
+        async with self.lock:
+            self.client_callbacks[client_id] = callback
+
+    async def unregister_callback(self, client_id: UUID) -> None:
+        """取消注册任务回调函数"""
+        async with self.lock:
+            if client_id in self.client_callbacks:
+                del self.client_callbacks[client_id]
+
+    async def get_next_result(self, timeout: Optional[float] = None) -> Dict[str, Any]:
+        """获取下一个完成的任务结果，如果队列为空则等待"""
+        got_item = False
+        try:
+            result = await asyncio.wait_for(self.result_queue.get(), timeout)
+            got_item = True
+            return result
+        except asyncio.TimeoutError:
+            return {
+                "type": "error",
+                "message": "timeout",
+                "data": "Timeout waiting for task result",
+            }
+        finally:
+            if got_item:
+                self.result_queue.task_done()
 
     async def wait_all(self, timeout: Optional[float] = None) -> Dict[str, Any]:
         start_time = asyncio.get_event_loop().time()
@@ -116,11 +170,17 @@ class ClientManager:
             self.results = {}
             self.errors = {}
 
-            print(self.results)
+            # 4. 清空队列
+            while not self.result_queue.empty():
+                try:
+                    self.result_queue.get_nowait()
+                    self.result_queue.task_done()
+                except asyncio.QueueEmpty:
+                    break
 
 
 class AsyncSSEClient:
-    def __init__(self, client_manager: ClientManager, client_id: str, url: str):
+    def __init__(self, client_manager: ClientManager, client_id: UUID, url: str):
         self.client_manager = client_manager
         self.client_id = client_id
         self.url = url
@@ -164,9 +224,8 @@ class AsyncSSEClient:
                     )
 
                 if status == TaskStatus.ERROR:
-                    error = RuntimeError(data.get("message"))
                     await self.client_manager.set_client_item(
-                        self.client_id, error={task_id: error}
+                        self.client_id, error={task_id: data.get("error")}
                     )
 
             except json.JSONDecodeError:
