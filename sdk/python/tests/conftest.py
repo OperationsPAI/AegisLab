@@ -1,7 +1,7 @@
 from rcabench.rcabench import RCABenchSDK
 import pytest
 
-BASE_URL = "http://localhost:8082"
+BASE_URL = "http://10.10.10.220:32080"
 
 
 @pytest.fixture

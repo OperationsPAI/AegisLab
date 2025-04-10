@@ -21,7 +21,7 @@ class Algorithm:
         self.url_prefix = f"{api_version}{self.URL_PREFIX}"
 
     @validate_request_response(response_model=ListResult)
-    def list(self) -> Union[Any, ModelHTTPError]:
+    def list(self) -> Union[ListResult, ModelHTTPError]:
         """
         获取可用的算法列表
 
@@ -37,7 +37,9 @@ class Algorithm:
         return self.client.get(url)
 
     @validate_request_response(SubmitReq, SubmitResult)
-    def submit(self, payload: List[Dict[str, str]]) -> Union[Any, ModelHTTPError]:
+    def submit(
+        self, payload: List[Dict[str, str]]
+    ) -> Union[SubmitResult, ModelHTTPError]:
         """
         批量提交算法任务
 
