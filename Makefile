@@ -69,3 +69,13 @@ gen-sdk: swagger
 
 sync-dep:
 	git submodule update --init --recursive --remote
+
+
+build-sdk-docker:
+	$(MAKE) -C sdk/python build-docker
+
+build-gen-dataset:
+	$(MAKE) -C scripts/gen/dataset build
+
+gen-dataset-prod: build-sdk-docker build-gen-dataset
+	$(MAKE) -C scripts/gen/dataset ts-prod

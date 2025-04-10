@@ -5,7 +5,7 @@ BASE_URL = "http://localhost:8082"
 
 
 @pytest.fixture
-def sdk():
+def sdk() -> RCABenchSDK:
     """
     初始化 RCABenchSDK 并返回实例
     """

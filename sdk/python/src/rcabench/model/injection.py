@@ -45,7 +45,7 @@ class InjectionItem(BaseModel):
 
     id: int = Field(
         default=1,
-        gt=1,
+        ge=1,
         description="Unique identifier for the injection",
         json_schema_extra={"example": 1},
     )
