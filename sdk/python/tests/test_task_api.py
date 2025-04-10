@@ -15,6 +15,74 @@ import pytest
     [
         (
             "clickhouse",
+            3,
+            1,
+            [
+                {
+                    "children": {
+                        "1": {
+                            "children": {
+                                "0": {"value": 1},
+                                "1": {"value": 0},
+                                "2": {"value": 42},
+                            }
+                        },
+                    },
+                    "value": 1,
+                },
+                {
+                    "children": {
+                        "1": {
+                            "children": {
+                                "0": {"value": 1},
+                                "1": {"value": 0},
+                                "2": {"value": 42},
+                            }
+                        },
+                    },
+                    "value": 1,
+                },
+            ],
+        ),
+    ],
+)
+async def test_injection_and_building_dataset(benchmark, interval, pre_duration, specs):
+    sdk = RCABenchSDK(BASE_URL)
+
+    resp = sdk.injection.submit(benchmark, interval, pre_duration, specs)
+    pprint(resp)
+
+    if not isinstance(resp, SubmitResult):
+        pytest.fail(resp.model_dump_json())
+
+    traces = resp.traces
+    if not traces:
+        pytest.fail("No traces returned from execution")
+
+    task_ids = [trace.head_task_id for trace in traces]
+    await sdk.task.get_stream(task_ids)
+
+    count = 0
+    flag = True
+    while True:
+        extra_time = 0 if flag else interval
+        result = await sdk.task.stream.client_manager.get_next_result(
+            (1.5 + extra_time) * 60
+        )
+        print(f"Received result: {result}")
+
+        flag = result.get("type") == "error"
+        count += 1
+        if count >= 2 * len(traces):
+            break
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "benchmark, interval, pre_duration, specs",
+    [
+        (
+            "clickhouse",
             2,
             1,
             [
@@ -72,7 +140,9 @@ import pytest
         ),
     ],
 )
-async def test_injection_and_building_dataset(benchmark, interval, pre_duration, specs):
+async def test_injection_and_building_dataset_batch(
+    benchmark, interval, pre_duration, specs
+):
     sdk = RCABenchSDK(BASE_URL)
 
     resp = sdk.injection.submit(benchmark, interval, pre_duration, specs)
@@ -86,7 +156,7 @@ async def test_injection_and_building_dataset(benchmark, interval, pre_duration,
         pytest.fail("No traces returned from execution")
 
     task_ids = [trace.head_task_id for trace in traces]
-    report = await sdk.task.get_stream(task_ids, timeout=None)
+    report = await sdk.task.get_stream_batch(task_ids, timeout=None)
     report = report.model_dump(exclude_unset=True)
     pprint(report)
 
@@ -131,7 +201,7 @@ async def test_execute_algorithm_and_collection(payload: List[Dict[str, str]]):
         pytest.fail("No traces returned from execution")
 
     task_ids = [trace.head_task_id for trace in traces]
-    report = await sdk.task.get_stream(task_ids, timeout=None)
+    report = await sdk.task.get_stream_batch(task_ids, timeout=30)
     report = report.model_dump(exclude_unset=True)
     pprint(report)
 

@@ -82,7 +82,7 @@ func CreateJob(ctx context.Context, jobConfig JobConfig) error {
 
 	_, err := k8sClient.BatchV1().Jobs(jobConfig.Namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("Failed to create job: %v", err)
+		return fmt.Errorf("failed to create job: %v", err)
 	}
 
 	return nil

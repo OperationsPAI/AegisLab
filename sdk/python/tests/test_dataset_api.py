@@ -30,7 +30,7 @@ def test_list_datasets(sdk, page_num, page_size):
     "name, sort",
     [
         ("ts-ts-ui-dashboard-pod-failure-mngdrf", "desc"),
-        ("ts-ts-travel2-service-pod-failure-rkxslq", "desc"),
+        ("ts-ts-ui-dashboard-pod-failure-ngtpvl", "desc"),
     ],
 )
 def test_query_dataset(sdk, name, sort):

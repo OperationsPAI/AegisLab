@@ -328,13 +328,13 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 	tasksProcessed.WithLabelValues(string(task.Type), "failed").Inc()
 	handleFinalFailure(ctx, task)
 
-	message := err.Error()
 	updateTaskStatus(task.TaskID, task.TraceID,
-		message,
+		err.Error(),
 		map[string]any{
-			consts.RdbMsgStatus: consts.TaskStatusError,
-			consts.RdbMsgTaskID: task.TaskID,
-			consts.RdbMsgError:  message,
+			consts.RdbMsgStatus:   consts.TaskStatusError,
+			consts.RdbMsgTaskID:   task.TaskID,
+			consts.RdbMsgTaskType: task.Type,
+			consts.RdbMsgError:    err.Error(),
 		})
 }
 

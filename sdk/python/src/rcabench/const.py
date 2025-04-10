@@ -19,7 +19,6 @@ class InjectionStatusEnum(str, Enum):
 
 class EventType:
     END = "end"
-    ERROR = "error"
     UPDATE = "update"
 
 
@@ -37,3 +36,7 @@ class Pagination:
     DEFAULT_PAGE_NUM = 1
     ALLOWED_PAGE_SIZES = {10, 20, 50}
     DEFAULT_PAGE_SIZE = 10
+
+
+class Evaluation:
+    ALLOWED_RANKS = {1, 3, 5}
