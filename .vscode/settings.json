@@ -1,7 +1,4 @@
 {
-  // go
-  "go.gopath": "/home/nn/go",
-  "go.goroot": "/usr/local/go",
   // Run Lint tool on save.
   "go.lintOnSave": "file",
   "go.formatTool": "gofmt",
