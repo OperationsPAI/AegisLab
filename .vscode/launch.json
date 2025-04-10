@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "rcabench",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/experiments_controller/main.go",
+            "args": [
+                "both",
+                "-c ./config.dev.toml"
+            ],
+            "cwd": "${workspaceFolder}/experiments_controller"
+        }
+    ]
+}
