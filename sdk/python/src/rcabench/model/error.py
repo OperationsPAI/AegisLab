@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, Field
 
 
-class HttpResponseError(BaseModel):
+class ModelHTTPError(BaseModel):
     """
     HTTP标准错误响应模型
 
