@@ -1,6 +1,6 @@
 from typing import Any, List, Union
 from ..client.http_client import HTTPClient
-from ..model.error import HttpResponseError
+from ..model.error import ModelHTTPError
 
 
 # TODO 添加模型验证
@@ -22,7 +22,7 @@ class Evaluation:
         levels: List[str],
         metrics: List[str],
         rank: int,
-    ) -> Union[Any, HttpResponseError]:
+    ) -> Union[Any, ModelHTTPError]:
         """
         执行算法评估分析
 

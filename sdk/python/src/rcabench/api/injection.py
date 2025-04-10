@@ -3,7 +3,7 @@ from .validation import validate_request_response
 from ..client.http_client import HTTPClient
 from ..const import Pagination
 from ..model.common import PaginationReq, SubmitResult
-from ..model.error import HttpResponseError
+from ..model.error import ModelHTTPError
 from ..model.injection import GetConfReq, ListResult, SpecNode, SubmitReq
 
 __all__ = ["Injection"]
@@ -38,7 +38,7 @@ class Injection:
         Raises:
             TypeError: 参数类型非字符串时抛出
             ValueError: 参数值不在允许范围内时抛出
-            HttpResponseError: 当API请求失败（4xx/5xx状态码）时抛出
+            ModelHTTPError: 当API请求失败（4xx/5xx状态码）时抛出
 
         Examples:
             >>> client.get_conf(mode="engine")
@@ -56,7 +56,7 @@ class Injection:
         self,
         page_num: int = Pagination.DEFAULT_PAGE_NUM,
         page_size: int = Pagination.DEFAULT_PAGE_SIZE,
-    ) -> Union[Any, HttpResponseError]:
+    ) -> Union[Any, ModelHTTPError]:
         """
         分页查询注入记录
 
@@ -70,7 +70,7 @@ class Injection:
         Raises:
             TypeError: 参数类型错误时抛出
             ValueError: 参数值不符合要求时抛出
-            HttpResponseError: 当API请求失败（4xx/5xx状态码）时抛出
+            ModelHTTPError: 当API请求失败（4xx/5xx状态码）时抛出
 
         Examples:
             >>> client.list(page_num=1, page_size=10)
@@ -87,7 +87,7 @@ class Injection:
         interval: int,
         pre_duration: int,
         specs: List[Dict[str, Any]],
-    ) -> Union[Any, HttpResponseError]:
+    ) -> Union[Any, ModelHTTPError]:
         """
         提交批量故障注入任务
 
@@ -102,7 +102,7 @@ class Injection:
 
         Raises:
             ModelValidationError: 当输入参数不符合Pydantic模型验证规则时抛出
-            HttpResponseError: 当API请求失败（4xx/5xx状态码）时抛出
+            ModelHTTPError: 当API请求失败（4xx/5xx状态码）时抛出
 
         Examples:
             >>> client.submit(

@@ -11,7 +11,7 @@ from ..model.dataset import (
     ListResult,
     QueryResult,
 )
-from ..model.error import HttpResponseError
+from ..model.error import ModelHTTPError
 from tqdm import tqdm
 from urllib.parse import unquote
 from uuid import UUID
@@ -34,7 +34,7 @@ class Dataset:
         self.url_prefix = f"{api_version}{self.URL_PREFIX}"
 
     @validate_request_response(DeleteReq, DeleteResult)
-    def delete(self, names: List[str]) -> Union[Any, HttpResponseError]:
+    def delete(self, names: List[str]) -> Union[Any, ModelHTTPError]:
         """
         批量删除数据集
 
@@ -50,7 +50,7 @@ class Dataset:
 
         Raises:
             ModelValidationError: 当输入参数不符合Pydantic模型验证规则时抛出
-            HttpResponseError: 当API请求失败（4xx/5xx状态码）时抛出
+            ModelHTTPError: 当API请求失败（4xx/5xx状态码）时抛出
 
         Example:
             >>> delete(["ts-ts-preserve-service-cpu-exhaustion-znzxcn"])  # 提交删除请求，返回操作结果
@@ -94,7 +94,7 @@ class Dataset:
         url = f"{self.url_prefix}{self.URL_ENDPOINTS['download']}"
 
         response = self.client.get(url, params={"group_ids": group_ids}, stream=True)
-        if isinstance(response, HttpResponseError):
+        if isinstance(response, ModelHTTPError):
             return response
 
         total_size = int(response.headers.get("content-length", 0))
@@ -125,7 +125,7 @@ class Dataset:
         self,
         page_num: int = Pagination.DEFAULT_PAGE_NUM,
         page_size: int = Pagination.DEFAULT_PAGE_SIZE,
-    ) -> Union[Any, HttpResponseError]:
+    ) -> Union[Any, ModelHTTPError]:
         """
         分页查询数据集
 
@@ -138,7 +138,7 @@ class Dataset:
 
         Raises:
             ModelValidationError: 当输入参数不符合Pydantic模型验证规则时抛出
-            HttpResponseError: 当API请求失败（4xx/5xx状态码）时抛出
+            ModelHTTPError: 当API请求失败（4xx/5xx状态码）时抛出
 
         Example:
             >>> dataset = client.list(page_num=1, page_size=10)
@@ -149,7 +149,7 @@ class Dataset:
         return self.client.get(url, params=params)
 
     @validate_request_response(response_model=QueryResult)
-    def query(self, name: str, sort: str = "desc") -> Union[Any, HttpResponseError]:
+    def query(self, name: str, sort: str = "desc") -> Union[Any, ModelHTTPError]:
         """查询指定名称的数据集详细信息
 
         获取指定数据集的完整分析记录，包括检测结果和执行记录

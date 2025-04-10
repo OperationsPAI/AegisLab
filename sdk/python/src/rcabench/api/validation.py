@@ -1,7 +1,7 @@
 from typing import Any, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
 from ..model.error import (
     FieldValidationIssue,
-    HttpResponseError,
+    ModelHTTPError,
     ModelValidationError,
 )
 from functools import wraps
@@ -125,9 +125,7 @@ def validate_request_response(
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(
-            *args, **kwargs
-        ) -> Union[T, HttpResponseError, ModelValidationError]:
+        def wrapper(*args, **kwargs) -> Union[T, ModelHTTPError, ModelValidationError]:
             # 构建输入数据（保留self/cls引用）
             input_data, err = ValidationHelper.prepare_input_data(func, *args, **kwargs)
             if err is not None:
@@ -141,7 +139,7 @@ def validate_request_response(
                     return err
 
             result = func(**input_data)
-            if isinstance(result, HttpResponseError):
+            if isinstance(result, ModelHTTPError):
                 return result
 
             # 验证响应数据
@@ -175,7 +173,7 @@ def async_validate_request_response(
         @wraps(func)
         async def async_wrapper(
             *args, **kwargs
-        ) -> Union[T, HttpResponseError, ModelValidationError]:
+        ) -> Union[T, ModelHTTPError, ModelValidationError]:
             # 构建输入数据（保留self/cls引用）
             input_data, err = ValidationHelper.prepare_input_data(func, *args, **kwargs)
             if err is not None:
@@ -189,7 +187,7 @@ def async_validate_request_response(
                     return err
 
             result = await func(**input_data)
-            if isinstance(result, HttpResponseError):
+            if isinstance(result, ModelHTTPError):
                 return result
 
             # 验证响应数据
