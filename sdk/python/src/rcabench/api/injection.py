@@ -56,7 +56,7 @@ class Injection:
         self,
         page_num: int = Pagination.DEFAULT_PAGE_NUM,
         page_size: int = Pagination.DEFAULT_PAGE_SIZE,
-    ) -> Union[Any, ModelHTTPError]:
+    ) -> Union[ListResult, ModelHTTPError]:
         """
         分页查询注入记录
 
@@ -87,7 +87,7 @@ class Injection:
         interval: int,
         pre_duration: int,
         specs: List[Dict[str, Any]],
-    ) -> Union[Any, ModelHTTPError]:
+    ) -> Union[SubmitResult, ModelHTTPError]:
         """
         提交批量故障注入任务
 

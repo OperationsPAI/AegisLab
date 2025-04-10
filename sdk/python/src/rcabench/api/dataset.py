@@ -34,7 +34,7 @@ class Dataset:
         self.url_prefix = f"{api_version}{self.URL_PREFIX}"
 
     @validate_request_response(DeleteReq, DeleteResult)
-    def delete(self, names: List[str]) -> Union[Any, ModelHTTPError]:
+    def delete(self, names: List[str]) -> Union[DeleteResult, ModelHTTPError]:
         """
         批量删除数据集
 
@@ -62,7 +62,9 @@ class Dataset:
         return self.client.delete(url, params={"names": names})
 
     @validate_request_response(DownloadReq, DownloadResult)
-    def download(self, group_ids: List[UUID], output_path: str) -> str:
+    def download(
+        self, group_ids: List[UUID], output_path: str
+    ) -> Union[DownloadResult, ModelHTTPError]:
         """
         批量下载数据集文件组
 
@@ -125,7 +127,7 @@ class Dataset:
         self,
         page_num: int = Pagination.DEFAULT_PAGE_NUM,
         page_size: int = Pagination.DEFAULT_PAGE_SIZE,
-    ) -> Union[Any, ModelHTTPError]:
+    ) -> Union[ListResult, ModelHTTPError]:
         """
         分页查询数据集
 
@@ -149,7 +151,9 @@ class Dataset:
         return self.client.get(url, params=params)
 
     @validate_request_response(response_model=QueryResult)
-    def query(self, name: str, sort: str = "desc") -> Union[Any, ModelHTTPError]:
+    def query(
+        self, name: str, sort: str = "desc"
+    ) -> Union[QueryResult, ModelHTTPError]:
         """查询指定名称的数据集详细信息
 
         获取指定数据集的完整分析记录，包括检测结果和执行记录

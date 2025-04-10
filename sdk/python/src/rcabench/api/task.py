@@ -25,7 +25,7 @@ class Task:
         self,
         task_ids: List[str],
         timeout: Optional[float] = None,
-    ) -> Dict[str, any]:
+    ) -> StreamResult:
         urls = [
             f"{self.url_prefix}{self.URL_ENDPOINTS['get_stream'].format(task_id=task_id)}"
             for task_id in task_ids
