@@ -18,6 +18,12 @@ class StreamReq(BaseModel):
         json_schema_extra={"example": [UUID("005f94a9-f9a2-4e50-ad89-61e05c1c15a0")]},
     )
 
+    trace_ids: List[UUID] = Field(
+        ...,
+        description="List of trace IDs to build connection",
+        json_schema_extra={"example": [UUID("005f94a9-f9a2-4e50-ad89-61e05c1c15a0")]},
+    )
+
     timeout: Optional[float] = Field(
         None,
         description="Maximum connection timeout in seconds (None means no timeout)",

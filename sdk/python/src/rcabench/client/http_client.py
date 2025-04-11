@@ -81,8 +81,6 @@ class HTTPClient:
 
         for attempt in range(retries):
             try:
-                logger.info(f"Sending {method} request to {full_url}")
-
                 response = self.session.request(
                     method=method,
                     url=full_url,

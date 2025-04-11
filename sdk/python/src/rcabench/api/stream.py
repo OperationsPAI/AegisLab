@@ -16,7 +16,6 @@ class Stream:
         self.client_manager = ClientManager()
         self.conn_pool = asyncio.Queue(max_connections)
         self.active_connections = set()
-        self.loop = asyncio.get_event_loop()
 
     @asynccontextmanager
     async def _get_session(self) -> AsyncGenerator[aiohttp.ClientSession, None]:
@@ -26,7 +25,7 @@ class Stream:
         finally:
             await self.conn_pool.put(session)
 
-    async def _stream_client(self, url: str, client_id: UUID) -> None:
+    async def _stream_client(self, client_id: UUID, url: str) -> None:
         retries = 0
         max_retries = 3
 
@@ -42,16 +41,22 @@ class Stream:
             except aiohttp.ClientError:
                 retries += 1
                 await asyncio.sleep(2**retries)
+            finally:
+                await sse_client.close()
+                self.active_connections.discard(client_id)
 
-        self.active_connections.discard(client_id)
+    async def add_result_queue(self) -> asyncio.Queue:
+        queue = asyncio.Queue()
+        self.client_manager.result_queue = queue
+        return queue
 
     async def start_multiple_stream(
-        self, urls: List[str], client_ids: List[UUID]
+        self, client_ids: List[UUID], urls: List[str]
     ) -> None:
         """批量启动多个SSE流"""
-        for url, client_id in zip(urls, client_ids):
+        for client_id, url in zip(client_ids, urls):
             asyncio.create_task(
-                self._stream_client(url, client_id),
+                self._stream_client(client_id, url),
                 name=self.CLIENT_NAME.format(client_id=client_id),
             )
 
