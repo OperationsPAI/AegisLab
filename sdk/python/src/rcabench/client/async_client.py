@@ -17,7 +17,7 @@ class ClientManager:
         self.errors = {}
         self.close_event = asyncio.Event()
         self.lock = asyncio.Lock()
-        self.result_queue = asyncio.Queue()
+        self.result_queue = None
         self.client_callbacks: Dict[UUID, Callable[[Any], Awaitable[None]]] = {}
 
     async def add_client(self, client_id: UUID, task_obj: asyncio.Task) -> None:
@@ -49,19 +49,11 @@ class ClientManager:
         error: Optional[Union[Dict[str, Any], Exception]] = None,
     ) -> None:
         async with self.lock:
+            # 更新错误和结果数据
             if error is not None:
                 if isinstance(error, Exception):
                     error = {"IntervalError": str(error)}
-                if client_id not in self.errors:
-                    self.errors[client_id] = result
-                else:
-                    self.errors.update(error)
-
-                res = {"type": "error", "message": client_id, "data": error}
-                await self.result_queue.put(res)
-
-                if client_id in self.client_callbacks:
-                    await self.client_callbacks[client_id](res)
+                self.errors[client_id] = error
 
             if result is not None:
                 if client_id not in self.results:
@@ -69,11 +61,25 @@ class ClientManager:
                 else:
                     self.results[client_id].update(result)
 
-                res = {"type": "result", "message": client_id, "data": result}
-                await self.result_queue.put(res)
-
-                if client_id in self.client_callbacks:
-                    await self.client_callbacks[client_id](res)
+            # 生产到队列
+            if self.result_queue is not None:
+                if client_id in self.errors:
+                    # 优先处理错误情况
+                    res = {
+                        "client_id": client_id,
+                        "data": {
+                            "error": self.errors[client_id],
+                            "result": self.results.get(client_id, {}),
+                        },
+                    }
+                    await self.result_queue.put(res)
+                elif client_id in self.results and len(self.results[client_id]) >= 2:
+                    # 只有结果且数量足够时才处理
+                    res = {
+                        "client_id": client_id,
+                        "data": {"result": self.results[client_id]},
+                    }
+                    await self.result_queue.put(res)
 
     async def register_callback(
         self, client_id: UUID, callback: Callable[[Any], Awaitable[None]]
@@ -87,23 +93,6 @@ class ClientManager:
         async with self.lock:
             if client_id in self.client_callbacks:
                 del self.client_callbacks[client_id]
-
-    async def get_next_result(self, timeout: Optional[float] = None) -> Dict[str, Any]:
-        """获取下一个完成的任务结果，如果队列为空则等待"""
-        got_item = False
-        try:
-            result = await asyncio.wait_for(self.result_queue.get(), timeout)
-            got_item = True
-            return result
-        except asyncio.TimeoutError:
-            return {
-                "type": "error",
-                "message": "timeout",
-                "data": "Timeout waiting for task result",
-            }
-        finally:
-            if got_item:
-                self.result_queue.task_done()
 
     async def wait_all(self, timeout: Optional[float] = None) -> Dict[str, Any]:
         start_time = asyncio.get_event_loop().time()
@@ -185,6 +174,7 @@ class AsyncSSEClient:
         self.client_id = client_id
         self.url = url
         self._close = False
+        self._session = None
 
     @staticmethod
     def _pattern_msg(prefix: str, text: str):
@@ -232,19 +222,18 @@ class AsyncSSEClient:
                 pass
 
     async def connect(self):
-        session = None
         try:
             await self.client_manager.add_client(self.client_id, asyncio.current_task())
 
-            session = aiohttp.ClientSession()
-            async with session.get(self.url) as resp:
+            self._session = aiohttp.ClientSession()
+            async with self._session.get(self.url) as resp:
                 async for line in resp.content:
                     if self._close or self.client_manager.close_event.is_set():
                         break
                     await self._process_line(line)
 
         except asyncio.CancelledError:
-            logger.error(f"Client {self.client_id} cancelled by manager")
+            logger.warning(f"Client {self.client_id} cancelled by manager")
             self._close = True
             await self.client_manager.set_client_item(
                 self.client_id, error=RuntimeError("Client cancelled by manager")
@@ -258,8 +247,9 @@ class AsyncSSEClient:
             await self.client_manager.remove_client(self.client_id)
 
         finally:
-            if session is not None:
-                await session.close()
+            if self._session is not None:
+                await self._session.close()
+                self._session = None
 
             if not self._close and not self.client_manager.close_event.is_set():
                 await self.client_manager.set_client_item(
@@ -267,3 +257,15 @@ class AsyncSSEClient:
                     error=RuntimeError("Connection closed unexpectedly"),
                 )
                 await self.client_manager.remove_client(self.client_id)
+
+    async def close(self):
+        """关闭SSE连接并清理资源"""
+        if self._close:
+            return
+
+        self._close = True
+        if self._session is not None:
+            await self._session.close()
+            self._session = None
+
+        await self.client_manager.remove_client(self.client_id)

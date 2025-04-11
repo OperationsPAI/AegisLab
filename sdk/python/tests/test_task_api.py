@@ -1,17 +1,19 @@
 # Run this file:
 # uv run pytest -s tests/test_task_api.py
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from conftest import BASE_URL
 from pprint import pprint
+from rcabench.logger import logger
 from rcabench.model.common import SubmitResult
 from rcabench.rcabench import RCABenchSDK
 from uuid import UUID
+import asyncio
 import pytest
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "benchmark, interval, pre_duration, specs",
+    "benchmark, interval, pre_duration, specs, num_consumers, max_items_per_consumer, per_consumer_timeout",
     [
         (
             "clickhouse",
@@ -43,10 +45,21 @@ import pytest
                     "value": 1,
                 },
             ],
+            2,
+            1,
+            2 * 60,
         ),
     ],
 )
-async def test_injection_and_building_dataset(benchmark, interval, pre_duration, specs):
+async def test_injection_and_building_dataset(
+    benchmark: str,
+    interval: int,
+    pre_duration: int,
+    specs: List[Dict[str, Any]],
+    num_consumers: int,
+    max_items_per_consumer: int,
+    per_consumer_timeout: float,
+):
     sdk = RCABenchSDK(BASE_URL)
 
     resp = sdk.injection.submit(benchmark, interval, pre_duration, specs)
@@ -60,21 +73,78 @@ async def test_injection_and_building_dataset(benchmark, interval, pre_duration,
         pytest.fail("No traces returned from execution")
 
     task_ids = [trace.head_task_id for trace in traces]
-    await sdk.task.get_stream(task_ids)
+    trace_ids = [trace.trace_id for trace in traces]
+    queue = await sdk.task.get_stream(task_ids, trace_ids)
 
-    count = 0
-    flag = True
-    while True:
-        extra_time = 0 if flag else interval
-        result = await sdk.task.stream.client_manager.get_next_result(
-            (1.5 + extra_time) * 60
+    try:
+        results = await run_consumers(
+            queue,
+            num_consumers,
+            max_items_per_consumer,
+            per_consumer_timeout,
+            per_consumer_timeout * (num_consumers + 1),
         )
-        print(f"Received result: {result}")
+        logger.info(f"Final results: {results}")
+    finally:
+        await sdk.task.stream.cleanup()
 
-        flag = result.get("type") == "error"
-        count += 1
-        if count >= 2 * len(traces):
-            break
+
+async def run_consumers(
+    queue: asyncio.Queue,
+    num_consumers: int,
+    max_items_per_consumer: int,
+    per_consumer_timeout: Optional[float] = None,
+    total_timeout: Optional[float] = None,
+):
+    all_results = {}
+
+    start_time = asyncio.get_event_loop().time()
+    for i in range(num_consumers):
+        if total_timeout:
+            elapsed = asyncio.get_event_loop().time() - start_time
+            if elapsed >= total_timeout:
+                logger.warning(
+                    f"Total execution time exceeded {total_timeout} seconds, stopping subsequent tasks"
+                )
+                break
+
+            # Calculate remaining timeout for current task
+            remaining = total_timeout - elapsed
+            current_timeout = min(per_consumer_timeout, remaining)
+        else:
+            current_timeout = per_consumer_timeout
+
+        logger.info(f"Starting consumer {i}, timeout: {current_timeout} seconds")
+
+        try:
+            results = await consumer(queue, max_items_per_consumer, current_timeout)
+            all_results[f"Batch-{i}"] = results
+            logger.info(f"Consumer-{i} completed")
+        except asyncio.TimeoutError:
+            logger.error(f"Consumer-{i} execution timeout")
+        except Exception as e:
+            logger.error(f"Consumer-{i} execution error: {e}")
+
+    return all_results
+
+
+async def consumer(queue: asyncio.Queue, max_num: int, timeout: Optional[float] = None):
+    results = []
+    count = 0
+    while count < max_num:
+        got_item = False
+        try:
+            item = await asyncio.wait_for(queue.get(), timeout)
+            got_item = True
+
+            results.append(item)
+
+            count += 1
+        finally:
+            if got_item:
+                queue.task_done()
+
+    return results
 
 
 @pytest.mark.asyncio
@@ -156,7 +226,8 @@ async def test_injection_and_building_dataset_batch(
         pytest.fail("No traces returned from execution")
 
     task_ids = [trace.head_task_id for trace in traces]
-    report = await sdk.task.get_stream_batch(task_ids, timeout=None)
+    trace_ids = [trace.trace_id for trace in traces]
+    report = await sdk.task.get_stream_batch(task_ids, trace_ids, timeout=None)
     report = report.model_dump(exclude_unset=True)
     pprint(report)
 
@@ -201,7 +272,8 @@ async def test_execute_algorithm_and_collection(payload: List[Dict[str, str]]):
         pytest.fail("No traces returned from execution")
 
     task_ids = [trace.head_task_id for trace in traces]
-    report = await sdk.task.get_stream_batch(task_ids, timeout=30)
+    trace_ids = [trace.trace_id for trace in traces]
+    report = await sdk.task.get_stream_batch(task_ids, trace_ids, timeout=30)
     report = report.model_dump(exclude_unset=True)
     pprint(report)
 
