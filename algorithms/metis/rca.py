@@ -14,7 +14,7 @@ def extract_resource_attribute(attributes: str, key: str):
     try:
         attributes = json.loads(attributes)
         return attributes.get(key, pd.NA)
-    except:
+    except Exception:
         return pd.NA
 
 
