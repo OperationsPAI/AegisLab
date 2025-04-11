@@ -23,7 +23,7 @@ class Task:
         self.url_prefix = f"{api_version}{self.URL_PREFIX}"
 
     @async_validate_request_response(StreamReq)
-    async def get_stream(
+    async def get_stream_batch(
         self, task_ids: List[UUID], trace_ids: List[UUID]
     ) -> asyncio.Queue:
         urls = [
@@ -36,7 +36,7 @@ class Task:
         return queue
 
     @async_validate_request_response(StreamReq, StreamResult)
-    async def get_stream_batch(
+    async def get_stream_all(
         self,
         task_ids: List[UUID],
         trace_ids: List[UUID],

@@ -32,26 +32,14 @@ import pytest
                     },
                     "value": 1,
                 },
-                {
-                    "children": {
-                        "1": {
-                            "children": {
-                                "0": {"value": 1},
-                                "1": {"value": 0},
-                                "2": {"value": 42},
-                            }
-                        },
-                    },
-                    "value": 1,
-                },
             ],
-            2,
             1,
-            2 * 60,
+            1,
+            3 * 60,
         ),
     ],
 )
-async def test_injection_and_building_dataset(
+async def test_injection_and_building_dataset_batch(
     benchmark: str,
     interval: int,
     pre_duration: int,
@@ -60,6 +48,7 @@ async def test_injection_and_building_dataset(
     max_items_per_consumer: int,
     per_consumer_timeout: float,
 ):
+    assert num_consumers <= len(specs)
     sdk = RCABenchSDK(BASE_URL)
 
     resp = sdk.injection.submit(benchmark, interval, pre_duration, specs)
@@ -210,7 +199,7 @@ async def consumer(queue: asyncio.Queue, max_num: int, timeout: Optional[float] 
         ),
     ],
 )
-async def test_injection_and_building_dataset_batch(
+async def test_injection_and_building_dataset_all(
     benchmark, interval, pre_duration, specs
 ):
     sdk = RCABenchSDK(BASE_URL)
@@ -227,7 +216,7 @@ async def test_injection_and_building_dataset_batch(
 
     task_ids = [trace.head_task_id for trace in traces]
     trace_ids = [trace.trace_id for trace in traces]
-    report = await sdk.task.get_stream_batch(task_ids, trace_ids, timeout=None)
+    report = await sdk.task.get_stream_all(task_ids, trace_ids, timeout=None)
     report = report.model_dump(exclude_unset=True)
     pprint(report)
 
@@ -273,7 +262,7 @@ async def test_execute_algorithm_and_collection(payload: List[Dict[str, str]]):
 
     task_ids = [trace.head_task_id for trace in traces]
     trace_ids = [trace.trace_id for trace in traces]
-    report = await sdk.task.get_stream_batch(task_ids, trace_ids, timeout=30)
+    report = await sdk.task.get_stream_all(task_ids, trace_ids, timeout=30)
     report = report.model_dump(exclude_unset=True)
     pprint(report)
 
@@ -302,7 +291,9 @@ async def test_workflow():
         ],
     }
 
-    injection_report = await test_injection_and_building_dataset(**injection_payload)
+    injection_report = await test_injection_and_building_dataset_all(
+        **injection_payload
+    )
     datasets = extract_values(injection_report, "dataset")
     pprint(datasets)
 
@@ -330,7 +321,7 @@ def extract_values(data: Dict[UUID, Any], key: str) -> List[str]:
 
     def _recursive_search(node):
         if isinstance(node, dict):
-            # 检查当前层级是否有dataset字段
+            # 检查当前层级是否有 key 字段
             if key in node:
                 values.append(node[key])
             # 递归处理所有子节点

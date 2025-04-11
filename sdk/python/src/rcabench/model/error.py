@@ -83,8 +83,9 @@ class ModelValidationError(BaseModel):
     模型验证错误响应模型
 
     Attributes:
-        errors: 详细错误列表
-        timestamp: 错误发生时间（带时区偏移）
+        detail: 错误信息
+        issuse: 详细错误列表
+        timestamp 错误发生时间（带时区偏移）
     """
 
     detail: str = Field(
