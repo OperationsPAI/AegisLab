@@ -110,7 +110,7 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 
 		conf, err := chaos.NodeToStruct[chaos.InjectionConf](node)
 		if err != nil {
-			return nil, fmt.Errorf(err.Error())
+			return nil, err
 		}
 		configs = append(configs, &InjectionConfig{
 			FaultType:   node.Value,
