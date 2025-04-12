@@ -15,6 +15,30 @@ import pytest
 @pytest.mark.parametrize(
     "benchmark, interval, pre_duration, specs, num_consumers, max_items_per_consumer, per_consumer_timeout",
     [
+        # PodKill
+        (
+            "clickhouse",
+            3,
+            1,
+            [
+                {
+                    "children": {
+                        "0": {
+                            "children": {
+                                "0": {"value": 1},
+                                "1": {"value": 0},
+                                "2": {"value": 42},
+                            }
+                        },
+                    },
+                    "value": 0,
+                },
+            ],
+            1,
+            1,
+            2 * 60,
+        ),
+        # PodFailure
         (
             "clickhouse",
             3,
@@ -36,6 +60,29 @@ import pytest
             1,
             1,
             3 * 60,
+        ),
+        # HttpRequestAbort
+        (
+            "clickhouse",
+            3,
+            1,
+            [
+                {
+                    "children": {
+                        "5": {
+                            "children": {
+                                "0": {"value": 1},
+                                "1": {"value": 0},
+                                "2": {"value": 42},
+                            }
+                        },
+                    },
+                    "value": 5,
+                },
+            ],
+            1,
+            1,
+            2 * 60,
         ),
     ],
 )
@@ -63,7 +110,7 @@ async def test_injection_and_building_dataset_batch(
 
     task_ids = [trace.head_task_id for trace in traces]
     trace_ids = [trace.trace_id for trace in traces]
-    queue = await sdk.task.get_stream(task_ids, trace_ids)
+    queue = await sdk.task.get_stream_batch(task_ids, trace_ids)
 
     try:
         results = await run_consumers(

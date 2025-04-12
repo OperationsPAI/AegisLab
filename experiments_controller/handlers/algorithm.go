@@ -114,6 +114,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 			tag, err := utils.GetLatestTag(harborConfig)
 			if err != nil {
 				logrus.Errorf("failed to get latest tag: %v", err)
+				dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get latest tag")
 				return
 			}
 

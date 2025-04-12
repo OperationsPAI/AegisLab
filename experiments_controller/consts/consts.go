@@ -36,6 +36,7 @@ const (
 
 const (
 	TaskMsgCompleted string = "Task %s completed"
+	TaskMsgFailed    string = "Task %s failed"
 )
 
 // 不同任务类型的 Payload 键

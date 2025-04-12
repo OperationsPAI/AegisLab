@@ -15,7 +15,15 @@ import pytest
                     "dataset": "ts-ts-travel2-service-pod-failure-rkxslq",
                 }
             ]
-        )
+        ),
+        (
+            [
+                {
+                    "algorithm": "rcabench-rcaeval-baro",
+                    "dataset": "ts-ts-preserve-service-cpu-exhaustion-j4pjlb",
+                }
+            ]
+        ),
     ],
 )
 def test_submit_algorithms(sdk, payload):
