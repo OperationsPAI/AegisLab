@@ -12,5 +12,12 @@ COPY ./algorithms ./legacy_algorithms
 COPY ./experiments_controller/entrypoint.sh ./entrypoint.sh
 COPY ./benchmarks ./benchmarks
 COPY ./experiments ./experiments
+COPY ./manifests/harbor.lab.pj.crt /usr/local/share/ca-certificates/harbor.lab.pj.crt
+RUN apt-get update && \
+    apt-get install -y ca-certificates && \
+    update-ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+RUN chmod 644 /usr/local/share/ca-certificates/harbor.lab.pj.crt && \
+    update-ca-certificates
 COPY --from=builder /app/exp /app/exp
 RUN chmod +x ./entrypoint.sh
