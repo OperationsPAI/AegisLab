@@ -104,7 +104,7 @@ func GetTaskStream(c *gin.Context) {
 	case consts.TaskTypeFaultInjection:
 		benchmark, ok := item.Payload[consts.InjectBenchmark]
 		if !ok {
-			GenericResponse(c, http.StatusInternalServerError, "failed to get benchmark from payload")
+			dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get benchmark from payload")
 			return
 		}
 		if benchmark != "" {
