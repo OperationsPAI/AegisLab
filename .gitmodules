@@ -2,3 +2,6 @@
 	path = lib/rcaeval
 	url = git@github.com:phamquiluan/RCAEval.git
 	branch = v2
+[submodule "algorithms/detector"]
+	path = algorithms/detector
+	url = git@github.com:CUHK-SE-Group/ts-anomaly-detector.git
