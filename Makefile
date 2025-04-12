@@ -80,3 +80,6 @@ build-gen-dataset:
 
 gen-dataset-prod: build-sdk-docker build-gen-dataset
 	$(MAKE) -C scripts/gen/dataset ts-prod
+
+upgrade-dep:
+	bash scripts/hooks/upgrade-dependency.sh
