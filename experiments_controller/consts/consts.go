@@ -86,14 +86,6 @@ const (
 	SubChannel = "trace:%s:channel"
 )
 
-// Redis Meta 属性名称
-const (
-	MetaBenchmark   = "benchmark"
-	MetaPreDuration = "pre_duration"
-	MetaTraceID     = "trace_id"
-	MetaGroupID     = "group_id"
-)
-
 // Redis 订阅消息字段
 const (
 	RdbMsgStatus      = "status"
@@ -107,6 +99,15 @@ const (
 // K8s Job 名称
 const (
 	DatasetJobName = "dataset"
+)
+
+// K8s CRD Label 字段
+const (
+	CRDTaskID      = "task_id"
+	CRDTraceID     = "trace_id"
+	CRDGroupID     = "group_id"
+	CRDBenchmark   = "benchmark"
+	CRDPreDuration = "pre_duration"
 )
 
 // K8s Job Label 字段

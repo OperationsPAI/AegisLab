@@ -245,7 +245,6 @@ func DownloadDataset(c *gin.Context) {
 	}
 }
 
-// TODO 优化
 // BuildDataset
 //
 //	@Summary		批量构建数据集
@@ -262,15 +261,14 @@ func SubmitDatasetBuilding(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	logrus.Infof("SubmitDatasetBuilding, groupID: %s", groupID)
 
-	var payloads []dto.DatasetPayload
-	if err := c.BindJSON(&payloads); err != nil {
+	var req dto.DatasetSubmitReq
+	if err := c.BindJSON(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid JSON payload")
 		return
 	}
-	logrus.Infof("Received building dataset payloads: %+v", payloads)
 
 	var traces []dto.Trace
-	for _, payload := range payloads {
+	for _, payload := range req.Payloads {
 		taskID, traceID, err := executor.SubmitTask(c.Request.Context(), &executor.UnifiedTask{
 			Type:      consts.TaskTypeBuildDataset,
 			Payload:   utils.StructToMap(payload),

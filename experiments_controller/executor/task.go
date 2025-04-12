@@ -15,7 +15,6 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
-	"github.com/mitchellh/mapstructure"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/robfig/cron/v3"
@@ -63,13 +62,6 @@ type UnifiedTask struct {
 type RetryPolicy struct {
 	MaxAttempts int `json:"max_attempts"`
 	BackoffSec  int `json:"backoff_sec"`
-}
-
-type TaskMeta struct {
-	Benchmark   string `redis:"benchmark" mapstructure:"benchmark"`
-	PreDuration int    `redis:"pre_duration" mapstructure:"pre_duration"`
-	TraceID     string `redis:"trace_id" mapstructure:"trace_id"`
-	GroupID     string `redis:"group_id" mapstructure:"group_id"`
 }
 
 var (
@@ -490,85 +482,6 @@ func parseRdbMsgFromPayload(payload map[string]any) (*dto.RdbMsg, error) {
 	return &dto.RdbMsg{
 		Status: status,
 	}, nil
-}
-
-func addDatasetIndex(taskID, name string) {
-	ctx := context.Background()
-	redisCli := client.GetRedisClient()
-
-	pipe := redisCli.TxPipeline()
-	pipe.HSet(ctx, TaskDatasetIndexKey, name, taskID)
-
-	if _, err := pipe.Exec(ctx); err != nil {
-		logrus.WithField("dataset", name).WithField("task_id", taskID).Error("failed to build index")
-		return
-	}
-}
-
-func checkDatasetIndex(name string) string {
-	ctx := context.Background()
-	redisCli := client.GetRedisClient()
-
-	taskID, err := redisCli.HGet(ctx, TaskDatasetIndexKey, name).Result()
-	if err != nil {
-		logrus.WithField("dataset", name).Errorf("the name is not in dataset index: %v", err)
-	}
-
-	return taskID
-}
-
-func addTaskMeta(taskID string, values ...any) {
-	ctx := context.Background()
-	redisCli := client.GetRedisClient()
-
-	pipe := redisCli.TxPipeline()
-	pipe.HSet(ctx, fmt.Sprintf(consts.MetaKey, taskID), values...)
-
-	if _, err := pipe.Exec(ctx); err != nil {
-		logrus.WithField("task_id", taskID).Errorf("failed to store task meta: %v", err)
-		return
-	}
-}
-
-func getTaskMeta(taskID string) (*TaskMeta, error) {
-	if taskID == "" {
-		message := "the task_id can not be blank"
-		logrus.Error(message)
-		return nil, errors.New(message)
-	}
-
-	ctx := context.Background()
-	redisCli := client.GetRedisClient()
-
-	result, err := redisCli.HGetAll(ctx, fmt.Sprintf(consts.MetaKey, taskID)).Result()
-	if err != nil {
-		logrus.WithField("task_id", taskID).Errorf("failed to read metadata: %v", err)
-		return nil, err
-	}
-
-	if len(result) == 0 {
-		message := "task metadata does not exist"
-		logrus.WithField("task_id", taskID).Warn(message)
-		return nil, errors.New(message)
-	}
-
-	var meta TaskMeta
-	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		TagName:          "mapstructure",
-		Result:           &meta,
-		WeaklyTypedInput: true, // 启用弱类型转换
-	})
-	if err != nil {
-		logrus.WithField("task_id", taskID).Errorf("failed to create decoder: %v", err)
-		return nil, err
-	}
-
-	if err := decoder.Decode(result); err != nil {
-		logrus.WithField("task_id", taskID).Errorf("failed to parse metadata: %v", err)
-		return nil, err
-	}
-
-	return &meta, nil
 }
 
 // 事务型状态更新

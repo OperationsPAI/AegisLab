@@ -34,6 +34,7 @@ func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("no matching dataset %s found", payload.Dataset)
 		}
+
 		return fmt.Errorf("failed to query database for dataset %s: %v", payload.Dataset, err)
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/consts"
@@ -28,7 +29,13 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		return err
 	}
 
-	conf, name, err := payload.conf.Create()
+	conf, name, err := payload.conf.Create(map[string]string{
+		consts.CRDTaskID:      task.TaskID,
+		consts.CRDTraceID:     task.TraceID,
+		consts.CRDGroupID:     task.GroupID,
+		consts.CRDBenchmark:   payload.benchmark,
+		consts.CRDPreDuration: strconv.Itoa(payload.preDuration),
+	})
 	if err != nil {
 		return fmt.Errorf("failed to inject fault: %v", err)
 	}
@@ -40,14 +47,6 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 			consts.RdbMsgTaskID:   task.TaskID,
 			consts.RdbMsgTaskType: consts.TaskTypeFaultInjection,
 		})
-
-	addDatasetIndex(task.TaskID, name)
-	addTaskMeta(task.TaskID,
-		consts.MetaBenchmark, payload.benchmark,
-		consts.MetaPreDuration, payload.preDuration,
-		consts.MetaTraceID, task.TraceID,
-		consts.MetaGroupID, task.GroupID,
-	)
 
 	engineData, err := json.Marshal(payload.rawConf)
 	if err != nil {
