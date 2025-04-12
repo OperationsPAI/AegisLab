@@ -12,7 +12,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type JobLabel struct {
+type CRDLabels struct {
+	TaskID      string
+	TraceID     string
+	GroupID     string
+	Benchmark   string
+	PreDuration int
+}
+
+type JobLabels struct {
 	TaskID      string
 	TraceID     string
 	GroupID     string
@@ -27,57 +35,42 @@ type Executor struct {
 
 var Exec *Executor
 
-func (e *Executor) HandleCRDFailed(name, errorMsg string) error {
-	taskID := checkDatasetIndex(name)
-	if taskID == "" {
-		return fmt.Errorf("failed to get taskID")
-	}
+func (e *Executor) HandleCRDFailed(name, errorMsg string, labels map[string]string) {
+	parsedLabels, _ := parseCRDLabels(labels)
 
-	meta, err := getTaskMeta(taskID)
-	if err != nil {
-		return fmt.Errorf("failed to obtain task metadata")
-	}
-
-	updateTaskStatus(taskID, meta.TraceID,
-		fmt.Sprintf(consts.TaskMsgFailed, taskID),
+	updateTaskStatus(parsedLabels.TaskID, parsedLabels.TraceID,
+		fmt.Sprintf(consts.TaskMsgFailed, parsedLabels.TaskID),
 		map[string]any{
 			consts.RdbMsgStatus:   consts.TaskStatusError,
-			consts.RdbMsgTaskID:   taskID,
+			consts.RdbMsgTaskID:   parsedLabels.TaskID,
 			consts.RdbMsgTaskType: consts.TaskTypeFaultInjection,
 			consts.RdbMsgError:    errorMsg,
 		})
-
-	return nil
 }
 
-func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time) error {
-	taskID := checkDatasetIndex(name)
-	if taskID == "" {
-		return fmt.Errorf("failed to get taskID")
-	}
-
-	meta, err := getTaskMeta(taskID)
+func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, labels map[string]string) error {
+	parsedLabels, err := parseCRDLabels(labels)
 	if err != nil {
-		return fmt.Errorf("failed to obtain task metadata")
+		return fmt.Errorf("failed to read CRD labels: %v", err)
 	}
-
-	updateTaskStatus(taskID, meta.TraceID,
-		fmt.Sprintf(consts.TaskMsgCompleted, taskID),
-		map[string]any{
-			consts.RdbMsgStatus:   consts.TaskStatusCompleted,
-			consts.RdbMsgTaskID:   taskID,
-			consts.RdbMsgTaskType: consts.TaskTypeFaultInjection,
-		})
 
 	if err := repository.UpdateTimeByDataset(name, startTime, endTime); err != nil {
 		return fmt.Errorf("update execution times failed: %v", err)
 	}
 
+	updateTaskStatus(parsedLabels.TaskID, parsedLabels.TraceID,
+		fmt.Sprintf(consts.TaskMsgCompleted, parsedLabels.TaskID),
+		map[string]any{
+			consts.RdbMsgStatus:   consts.TaskStatusCompleted,
+			consts.RdbMsgTaskID:   parsedLabels.TaskID,
+			consts.RdbMsgTaskType: consts.TaskTypeFaultInjection,
+		})
+
 	datasetPayload := map[string]any{
-		consts.BuildBenchmark:   meta.Benchmark,
+		consts.BuildBenchmark:   parsedLabels.Benchmark,
 		consts.BuildDataset:     name,
 		consts.BuildNamespace:   namespace,
-		consts.BuildPreDuration: meta.PreDuration,
+		consts.BuildPreDuration: parsedLabels.PreDuration,
 		consts.BuildService:     pod,
 		consts.BuildStartTime:   startTime,
 		consts.BuildEndTime:     endTime,
@@ -86,8 +79,8 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 		Type:      consts.TaskTypeBuildDataset,
 		Payload:   datasetPayload,
 		Immediate: true,
-		TraceID:   meta.TraceID,
-		GroupID:   meta.GroupID,
+		TraceID:   parsedLabels.TraceID,
+		GroupID:   parsedLabels.GroupID,
 	}); err != nil {
 		return err
 	}
@@ -95,8 +88,51 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 	return nil
 }
 
+func parseCRDLabels(labels map[string]string) (*CRDLabels, error) {
+	message := "missing or invalid '%s' key in payload"
+
+	taskID, ok := labels[consts.CRDTaskID]
+	if !ok || taskID == "" {
+		return nil, fmt.Errorf(message, consts.CRDTaskID)
+	}
+
+	traceID, ok := labels[consts.CRDTraceID]
+	if !ok || traceID == "" {
+		return nil, fmt.Errorf(message, consts.CRDTraceID)
+	}
+
+	groupID, ok := labels[consts.CRDGroupID]
+	if !ok || groupID == "" {
+		return nil, fmt.Errorf(message, consts.CRDGroupID)
+	}
+
+	benchmark, ok := labels[consts.CRDBenchmark]
+	if !ok || benchmark == "" {
+		return nil, fmt.Errorf(message, consts.CRDBenchmark)
+	}
+
+	var preDuration int
+	preDurationStr, ok := labels[consts.CRDPreDuration]
+	if ok && preDurationStr != "" {
+		duration, err := strconv.Atoi(preDurationStr)
+		if err != nil {
+			return nil, fmt.Errorf(message, consts.CRDPreDuration)
+		}
+
+		preDuration = duration
+	}
+
+	return &CRDLabels{
+		TaskID:      taskID,
+		TraceID:     traceID,
+		GroupID:     groupID,
+		Benchmark:   benchmark,
+		PreDuration: preDuration,
+	}, nil
+}
+
 func (e *Executor) HandleJobAdd(labels map[string]string) error {
-	jobLabel, err := parseJobLabel(labels)
+	jobLabel, err := parseJobLabels(labels)
 	if err != nil {
 		return fmt.Errorf("parse job labels failed: %v", err)
 	}
@@ -121,7 +157,7 @@ func (e *Executor) HandleJobAdd(labels map[string]string) error {
 }
 
 func (e *Executor) HandleJobFailed(labels map[string]string, errorMsg string) error {
-	jobLabel, err := parseJobLabel(labels)
+	jobLabel, err := parseJobLabels(labels)
 	if err != nil {
 		return fmt.Errorf("parse job labels failed: %v", err)
 	}
@@ -151,7 +187,7 @@ func (e *Executor) HandleJobFailed(labels map[string]string, errorMsg string) er
 }
 
 func (e *Executor) HandleJobSucceeded(labels map[string]string) error {
-	jobLabel, err := parseJobLabel(labels)
+	jobLabel, err := parseJobLabels(labels)
 	if err != nil {
 		message := "parse job labels failed"
 		logrus.Errorf("%s: %v", message, err)
@@ -185,7 +221,7 @@ func (e *Executor) HandleJobSucceeded(labels map[string]string) error {
 	return nil
 }
 
-func parseJobLabel(labels map[string]string) (*JobLabel, error) {
+func parseJobLabels(labels map[string]string) (*JobLabels, error) {
 	message := "missing or invalid '%s' key in payload"
 
 	taskID, ok := labels[consts.LabelTaskID]
@@ -229,7 +265,7 @@ func parseJobLabel(labels map[string]string) (*JobLabel, error) {
 		executionID = id
 	}
 
-	return &JobLabel{
+	return &JobLabels{
 		TaskID:      taskID,
 		TraceID:     traceID,
 		GroupID:     groupID,
@@ -240,47 +276,47 @@ func parseJobLabel(labels map[string]string) (*JobLabel, error) {
 	}, nil
 }
 
-func (e *Executor) updateDataset(jobLabel *JobLabel, taskStatus string, datasetStatus int, fields map[string]any) error {
+func (e *Executor) updateDataset(jobLabels *JobLabels, taskStatus string, datasetStatus int, fields map[string]any) error {
 	if datasetStatus == consts.DatasetBuildSuccess {
 		updateFields := utils.CloneMap(fields)
-		updateFields[consts.RdbMsgDataset] = jobLabel.Dataset
-		updateTaskStatus(jobLabel.TaskID,
-			jobLabel.TraceID,
-			fmt.Sprintf(consts.TaskMsgCompleted, jobLabel.TaskID),
+		updateFields[consts.RdbMsgDataset] = jobLabels.Dataset
+		updateTaskStatus(jobLabels.TaskID,
+			jobLabels.TraceID,
+			fmt.Sprintf(consts.TaskMsgCompleted, jobLabels.TaskID),
 			updateFields,
 		)
 	} else {
-		updateTaskStatus(jobLabel.TaskID, jobLabel.TraceID, fmt.Sprintf(taskStatus, jobLabel.TaskID), fields)
+		updateTaskStatus(jobLabels.TaskID, jobLabels.TraceID, fmt.Sprintf(taskStatus, jobLabels.TaskID), fields)
 	}
 
-	if err := repository.UpdateStatusByDataset(jobLabel.Dataset, datasetStatus); err != nil {
+	if err := repository.UpdateStatusByDataset(jobLabels.Dataset, datasetStatus); err != nil {
 		return fmt.Errorf("update dataset status to %v failed: %v", datasetStatus, err)
 	}
 
 	return nil
 }
 
-func (e *Executor) updateAlgorithm(logEntry *logrus.Entry, jobLabel *JobLabel, baseFields map[string]any) error {
-	logEntry.WithField("algorithm", jobLabel.Algorithm).Info("algorithm execute successfully")
+func (e *Executor) updateAlgorithm(logEntry *logrus.Entry, jobLabels *JobLabels, baseFields map[string]any) error {
+	logEntry.WithField("algorithm", jobLabels.Algorithm).Info("algorithm execute successfully")
 
 	updateFields := utils.CloneMap(baseFields)
-	updateFields[consts.RdbMsgExecutionID] = jobLabel.ExecutionID
-	updateTaskStatus(jobLabel.TaskID,
-		jobLabel.TraceID,
-		fmt.Sprintf(consts.TaskMsgCompleted, jobLabel.TaskID),
+	updateFields[consts.RdbMsgExecutionID] = jobLabels.ExecutionID
+	updateTaskStatus(jobLabels.TaskID,
+		jobLabels.TraceID,
+		fmt.Sprintf(consts.TaskMsgCompleted, jobLabels.TaskID),
 		updateFields,
 	)
 
 	if _, _, err := SubmitTask(context.Background(), &UnifiedTask{
 		Type: consts.TaskTypeCollectResult,
 		Payload: map[string]any{
-			consts.CollectAlgorithm:   jobLabel.Algorithm,
-			consts.CollectDataset:     jobLabel.Dataset,
-			consts.CollectExecutionID: jobLabel.ExecutionID,
+			consts.CollectAlgorithm:   jobLabels.Algorithm,
+			consts.CollectDataset:     jobLabels.Dataset,
+			consts.CollectExecutionID: jobLabels.ExecutionID,
 		},
 		Immediate: true,
-		TraceID:   jobLabel.TraceID,
-		GroupID:   jobLabel.GroupID,
+		TraceID:   jobLabels.TraceID,
+		GroupID:   jobLabels.GroupID,
 	}); err != nil {
 		return fmt.Errorf("submit result collection task failed")
 	}

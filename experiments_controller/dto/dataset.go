@@ -68,7 +68,11 @@ type DatasetListReq struct {
 	PaginationReq
 }
 
-type DatasetPayload struct {
+type DatasetSubmitReq struct {
+	Payloads []DatasetBuildPayload `json:"payloads"`
+}
+
+type DatasetBuildPayload struct {
 	Benchmark   string     `json:"benchmark"`
 	Name        string     `json:"name"`
 	PreDuration int        `json:"pre_duration"`
