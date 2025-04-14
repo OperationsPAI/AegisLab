@@ -58,16 +58,20 @@ const (
 	EvaluateLabel = "app_name"
 	EvaluateLevel = "level"
 
-	ExecuteAlgo    = "algorithm"
-	ExecuteDataset = "dataset"
-	ExecuteService = "service"
+	ExecuteImage   = "image"
 	ExecuteTag     = "tag"
+	ExecuteDataset = "dataset"
+	ExecuteEnvVars = "env_vars"
 
 	InjectBenchmark   = "benchmark"
 	InjectFaultType   = "fault_type"
 	InjectPreDuration = "pre_duration"
 	InjectRawConf     = "raw_conf"
 	InjectConf        = "conf"
+)
+
+const (
+	ExecuteEnvVarAlgorithm = "ALGORITHM"
 )
 
 // Redis 流和消费者组配置

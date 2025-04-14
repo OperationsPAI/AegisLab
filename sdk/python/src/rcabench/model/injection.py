@@ -182,22 +182,22 @@ class SubmitReq(BaseModel):
 
     interval: int = Field(
         ...,
-        gt=0,
         description="Fault injection interval (minute)",
         json_schema_extra={"example": 2},
+        gt=0,
     )
 
     pre_duration: int = Field(
         ...,
-        gt=0,
         description="Normal time before fault injection (minute)",
         json_schema_extra={"example": 1},
+        gt=0,
     )
 
     specs: List[SpecNode] = Field(
         ...,
-        min_length=1,
         description="Hierarchical configuration parameter tree, each element represents a parameter branch",
+        min_length=1,
     )
 
     benchmark: Optional[str] = Field(

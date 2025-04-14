@@ -143,12 +143,12 @@ class HTTPClient:
         return self._request("GET", endpoint, params=params, stream=stream)
 
     @handle_http_errors
-    def post(self, endpoint: str, payload: Dict) -> Any:
-        return self._request("POST", endpoint, json=payload)
+    def post(self, endpoint: str, json: Dict) -> Any:
+        return self._request("POST", endpoint, json=json)
 
     @handle_http_errors
-    def put(self, endpoint: str, payload: Dict) -> Any:
-        return self._request("PUT", endpoint, json=payload)
+    def put(self, endpoint: str, json: Dict) -> Any:
+        return self._request("PUT", endpoint, json=json)
 
     def __enter__(self):
         return self

@@ -94,11 +94,10 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 
 	var payloads []dto.AlgorithmExecutionPayload
 	if err := c.BindJSON(&payloads); err != nil {
+		logrus.Error(err)
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid JSON payload")
 		return
 	}
-
-	logrus.Infof("Received executing algorithm payloads: %+v", payloads)
 
 	parts := strings.Split(config.GetString("harbor.repository"), "/")
 	harborConfig := utils.HarborConfig{
@@ -110,7 +109,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 
 	for i := range payloads {
 		if payloads[i].Tag == "" {
-			harborConfig.Repo = payloads[i].Algorithm
+			harborConfig.Repo = payloads[i].Image
 			tag, err := utils.GetLatestTag(harborConfig)
 			if err != nil {
 				logrus.Errorf("failed to get latest tag: %v", err)
@@ -140,7 +139,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID})
 	}
 
-	dto.JSONResponse(c, http.StatusAccepted, "Algorithm Execution submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
+	dto.JSONResponse(c, http.StatusAccepted, "Algorithm executions submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
 }
 
 // BuildAlgorithm handles algorithm file upload, extraction and build submission

@@ -39,7 +39,29 @@ def test_list_injections(sdk, page_num, page_size):
                     "value": 1,
                 }
             ],
-        )
+        ),
+        # CPUStress-prod
+        (
+            "clickhouse",
+            30,
+            10,
+            [
+                {
+                    "children": {
+                        "4": {
+                            "children": {
+                                "0": {"value": 15},
+                                "1": {"value": 0},
+                                "2": {"value": 32},
+                                "3": {"value": 10},
+                                "4": {"value": 2},
+                            }
+                        },
+                    },
+                    "value": 4,
+                },
+            ],
+        ),
     ],
 )
 def test_submit_injections(sdk, benchmark, interval, pre_duration, specs):

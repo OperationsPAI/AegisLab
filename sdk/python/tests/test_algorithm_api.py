@@ -6,29 +6,30 @@ import pytest
 
 
 @pytest.mark.parametrize(
-    "payload",
+    "payloads",
     [
         (
             [
                 {
-                    "algorithm": "e-diagnose",
-                    "dataset": "ts-ts-travel2-service-pod-failure-rkxslq",
+                    "image": "e-diagnose",
+                    "dataset": "ts-ts-ui-dashboard-pod-failure-c27jzh",
+                    "env_vars": {"SERVICE": "ts-ui-dashboard"},
                 }
             ]
         ),
         (
             [
                 {
-                    "algorithm": "rcabench-rcaeval-baro",
-                    "dataset": "ts-ts-preserve-service-cpu-exhaustion-j4pjlb",
+                    "image": "rcabench-rcaeval-baro",
+                    "dataset": "ts-ts-ui-dashboard-pod-failure-c27jzh",
                 }
             ]
         ),
     ],
 )
-def test_submit_algorithms(sdk, payload):
+def test_submit_algorithms(sdk, payloads):
     """测试批量提交算法"""
-    resp = sdk.algorithm.submit(payload)
+    resp = sdk.algorithm.submit(payloads)
     pprint(resp)
 
     if not isinstance(resp, SubmitResult):
