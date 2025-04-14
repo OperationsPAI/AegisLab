@@ -24,11 +24,9 @@ class EnvVar(BaseModel):
     用于环境变量的类型验证和设置管理。
 
     Attributes:
-        algorithm: 算法名称配置
-        service: 算法服务配置，用于指定'detector'类算法中的服务项
-        workspace: 容器镜像工作目录配置
-        input_path: 数据输入路径配置
-        output_path: 数据输出路径配置
+        ALGORITHM: 算法名称配置
+        SERVICE: 算法服务配置，用于指定 detector 类算法中的服务项
+        VENV: 算法启动的 python 虚拟环境
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -41,33 +39,14 @@ class EnvVar(BaseModel):
 
     SERVICE: Optional[str] = Field(
         None,
-        description="The service of the algorithm 'detector'",
+        description="The service of the algorithm detector",
         json_schema_extra={"example": "ts-ts-preserve-service"},
     )
 
-    WORKSPACE: Optional[str] = Field(
+    VENV: Optional[str] = Field(
         None,
-        description="The workspace of the image'",
-        json_schema_extra={"example": "/app"},
-        alias="WORKSPACE",
-    )
-
-    INPUT_PATH: Optional[str] = Field(
-        None,
-        description="The data input_path of the image'",
-        json_schema_extra={
-            "example": "/data/ts-ts-preserve-service-cpu-exhaustion-znzxcn"
-        },
-        alias="INPUT_PATH",
-    )
-
-    OUTPUT_PATH: Optional[str] = Field(
-        None,
-        description="The data output_path of the image'",
-        json_schema_extra={
-            "example": "/data/ts-ts-preserve-service-cpu-exhaustion-znzxcn"
-        },
-        alias="OUTPUT_PATH",
+        description="The python environment of the algorithm",
+        json_schema_extra={"example": "default"},
     )
 
 

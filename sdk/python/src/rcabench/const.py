@@ -38,5 +38,10 @@ class Pagination:
     DEFAULT_PAGE_SIZE = 10
 
 
+class Dataset:
+    DEFAULT_SORT = "desc"
+    ALLOWED_SORTS = {"asc", "desc"}
+
+
 class Evaluation:
     ALLOWED_RANKS = {1, 3, 5}

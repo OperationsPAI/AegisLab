@@ -75,11 +75,10 @@ class HTTPClient:
         params: Optional[Dict] = None,
         json: Optional[Any] = None,
         stream: bool = False,
-        retries: int = 3,
     ) -> Response:
         full_url = f"{self.base_url}{endpoint}"
 
-        for attempt in range(retries):
+        for attempt in range(self.max_retries):
             try:
                 response = self.session.request(
                     method=method,
@@ -93,7 +92,7 @@ class HTTPClient:
                 return response
 
             except HTTPError as e:
-                status_code = e.response.status_code if e.response else 500
+                status_code = e.response.status_code if e.response is not None else 500
                 if 500 <= status_code < 600 and attempt < self.max_retries:
                     self._handle_retry(attempt, e)
                     continue
@@ -108,7 +107,7 @@ class HTTPClient:
                             or error_message
                         )
                     except (ValueError, AttributeError):
-                        pass
+                        error_message = e.response.text[:200]
 
                 raise HTTPClientError(
                     message=error_message,
@@ -120,7 +119,7 @@ class HTTPClient:
                 if attempt == self.max_retries - 1:
                     raise HTTPClientError(
                         message=f"Connection failed after {self.max_retries} retries: {str(e)}",
-                        status_code=503,  # 服务不可用状态码
+                        status_code=503,
                         url=full_url,
                     ) from e
                 self._handle_retry(attempt, e)

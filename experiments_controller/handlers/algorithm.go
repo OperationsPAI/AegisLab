@@ -119,6 +119,15 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 
 			payloads[i].Tag = tag
 		}
+
+		for key := range payloads[i].EnvVars {
+			if _, exists := dto.ExecuteEnvVarNameMap[key]; !exists {
+				message := fmt.Sprintf("the key %s is invalid in env_vars", key)
+				logrus.Errorf(message)
+				dto.ErrorResponse(c, http.StatusInternalServerError, message)
+				return
+			}
+		}
 	}
 
 	var traces []dto.Trace
