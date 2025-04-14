@@ -1,15 +1,17 @@
 from typing import List, Union
 from .validation import validate_request_response
-from ..const import Pagination
+from ..const import Pagination, Dataset as DatasetConst
 from ..client.http_client import HTTPClient
-from ..model.common import PaginationReq
+from ..model.common import PaginationReq, SubmitResult
 from ..model.dataset import (
     DeleteReq,
     DeleteResult,
     DownloadReq,
     DownloadResult,
     ListResult,
+    QueryReq,
     QueryResult,
+    SubmitReq,
 )
 from ..model.error import ModelHTTPError
 from tqdm import tqdm
@@ -150,9 +152,9 @@ class Dataset:
         params = {"page_num": page_num, "page_size": page_size}
         return self.client.get(url, params=params)
 
-    @validate_request_response(response_model=QueryResult)
+    @validate_request_response(QueryReq, QueryResult)
     def query(
-        self, name: str, sort: str = "desc"
+        self, name: str, sort: str = DatasetConst.DEFAULT_SORT
     ) -> Union[QueryResult, ModelHTTPError]:
         """查询指定名称的数据集详细信息
 
@@ -167,36 +169,22 @@ class Dataset:
                   - 允许值：desc（降序）/ asc（升序）
                   - 默认值：desc
 
-        Returns:
-            dict: 数据集完整信息，结构参考 QueryResult 模型定义
-                  - 包含基础信息、检测指标、算法执行结果等
-                  - 查询失败时返回 None
-
         Raises:
-            TypeError: 参数类型错误时抛出
-            ValueError: 参数值不合法时抛出）
+            ModelValidationError: 当输入参数不符合Pydantic模型验证规则时抛出
+            ModelHTTPError: 当API请求失败（4xx/5xx状态码）时抛出
 
         Example:
             >>> dataset = client.query("order-service-latency")
-            >>> print(dataset["detector_result"]["p99"])
             142.3
         """
         url = f"{self.url_prefix}{self.URL_ENDPOINTS['query']}"
 
-        if not isinstance(name, str):
-            raise TypeError("Dataset names must be string")
-        if not name:
-            raise ValueError("Dataset name cannot be empty string")
-        if len(name) > 64:
-            raise ValueError(f"Name too long (max 64 chars): {name}")
-
-        if sort not in {"desc", "asc"}:
-            raise ValueError(f"Invalid sort value: {sort}. Must be 'desc' or 'asc'")
-
         params = {"name": name, "sort": sort}
         return self.client.get(url, params=params)
 
+    @validate_request_response(SubmitReq, SubmitResult)
     def submit(self, payload):
         """查询单个数据集"""
         url = f"{self.url_prefix}{self.URL_ENDPOINTS['submit']}"
-        return self.client.post(url, payload=payload)
+
+        return self.client.post(url, json=payload)

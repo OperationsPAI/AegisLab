@@ -38,13 +38,13 @@ class Algorithm:
 
     @validate_request_response(SubmitReq, SubmitResult)
     def submit(
-        self, payload: List[Dict[str, str]]
+        self, payloads: List[Dict[str, str]]
     ) -> Union[SubmitResult, ModelHTTPError]:
         """
         批量提交算法任务
 
         Args:
-            payload: 预定义任务字典列表
+            payloads: 预定义任务字典列表
 
         Returns:
             SubmitResult: 包含任务组ID和追踪链信息的结构化响应对象，
@@ -55,7 +55,7 @@ class Algorithm:
 
         Examples:
             >>> submit(
-                    payload=[
+                    payloads=[
                         {"algorithm": ["a1"], "dataset": "d1"},
                         {"algorithm": ["a2"], "dataset": "d3", "tag":"latest"},
                     ]
@@ -63,4 +63,4 @@ class Algorithm:
         """
         url = f"{self.url_prefix}{self.URL_ENDPOINTS['submit']}"
 
-        return self.client.post(url, payload=payload)
+        return self.client.post(url, json=payloads)

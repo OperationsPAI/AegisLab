@@ -10,7 +10,7 @@ import pytest
     "group_ids, output_path",
     [
         ([UUID("20eab8e5-2c1b-4119-9343-de931bf839a5")], os.getcwd()),
-        ([UUID("1316756f-0a00-45f1-8707-ff1d1846b8e3")], os.getcwd()),
+        ([UUID("b6dac6be-6150-429c-9ca4-448881764696")], os.getcwd()),
     ],
 )
 def test_download_datasets(sdk, group_ids, output_path):
@@ -31,6 +31,7 @@ def test_list_datasets(sdk, page_num, page_size):
     [
         ("ts-ts-ui-dashboard-pod-failure-mngdrf", "desc"),
         ("ts-ts-ui-dashboard-pod-failure-ngtpvl", "desc"),
+        ("ts-ts-seat-service-cpu-exhaustion-d4dxhm", "desc"),
     ],
 )
 def test_query_dataset(sdk, name, sort):
@@ -43,7 +44,28 @@ def test_query_dataset(sdk, name, sort):
     "names",
     [(["ts-ts-ui-dashboard-pod-failure-mngdrf"])],
 )
-def test_delete_datatests(sdk, names):
+def test_delete_datatsets(sdk, names):
     """测试批量删除数据集"""
     data = sdk.dataset.delete(names)
+    pprint(data)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        (
+            [
+                {
+                    "benchmark": "clickhouse",
+                    "name": "ts-ts-seat-service-cpu-exhaustion-d4dxhm",
+                    "pre_duration": 10,
+                    "service": "ts-seat-service",
+                }
+            ]
+        )
+    ],
+)
+def test_submit_building_datasets(sdk, payload):
+    """测试批量删除数据集"""
+    data = sdk.dataset.submit(payload)
     pprint(data)

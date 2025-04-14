@@ -133,4 +133,4 @@ class Injection:
             "pre_duration": pre_duration,
             "specs": specs,
         }
-        return self.client.post(url, payload=payload)
+        return self.client.post(url, json=payload)
