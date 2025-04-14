@@ -13,16 +13,31 @@ import pytest
                 {
                     "image": "e-diagnose",
                     "dataset": "ts-ts-ui-dashboard-pod-failure-c27jzh",
-                    "env_vars": {"SERVICE": "ts-ui-dashboard"},
                 }
             ]
         ),
         (
             [
                 {
-                    "image": "rcabench-rcaeval-baro",
-                    "dataset": "ts-ts-ui-dashboard-pod-failure-c27jzh",
-                }
+                    "image": "rcabench-rcaeval-generic",
+                    "dataset": "ts-ts-travel-service-delay-ftz7lb",
+                    "env_vars": {"ALGORITHM": "baro", "VENV": "default"},
+                },
+                {
+                    "image": "rcabench-rcaeval-generic",
+                    "dataset": "ts-ts-travel-service-delay-ftz7lb",
+                    "env_vars": {"ALGORITHM": "nsigma", "VENV": "default"},
+                },
+                {
+                    "image": "rcabench-rcaeval-generic",
+                    "dataset": "ts-ts-travel-service-delay-ftz7lb",
+                    "env_vars": {"ALGORITHM": "circa", "VENV": "default"},
+                },
+                {
+                    "image": "rcabench-rcaeval-generic",
+                    "dataset": "ts-ts-travel-service-delay-ftz7lb",
+                    "env_vars": {"ALGORITHM": "rcd", "VENV": "rcd"},
+                },
             ]
         ),
     ],
