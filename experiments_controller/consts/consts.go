@@ -42,12 +42,11 @@ const (
 // 不同任务类型的 Payload 键
 const (
 	BuildBenchmark     = "benchmark"
-	BuildDataset       = "dataset"
-	BuildNamespace     = "namespace"
+	BuildDataset       = "name"
 	BuildPreDuration   = "pre_duration"
-	BuildService       = "service"
 	BuildStartTime     = "start_time"
 	BuildEndTime       = "end_time"
+	BuildEnvVars       = "env_vars"
 	BuildAlgorithm     = "algorithm"
 	BuildAlgorithmPath = "algorithm_path"
 
@@ -70,8 +69,13 @@ const (
 	InjectConf        = "conf"
 )
 
+// 环境变量名称
 const (
+	BuildEnvVarNamespace = "NAMESPACE"
+	BuildEnvVarService   = "SERVICE"
+
 	ExecuteEnvVarAlgorithm = "ALGORITHM"
+	ExecuteEnvVarService   = "SERVICE"
 )
 
 // Redis 流和消费者组配置
@@ -123,6 +127,7 @@ const (
 	LabelAlgorithm   = "algorithm"
 	LabelDataset     = "dataset"
 	LabelExecutionID = "execution_id"
+	LabelService     = "service"
 )
 
 // sse 事件类型

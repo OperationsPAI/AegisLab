@@ -183,8 +183,8 @@ class Dataset:
         return self.client.get(url, params=params)
 
     @validate_request_response(SubmitReq, SubmitResult)
-    def submit(self, payload):
+    def submit(self, payloads):
         """查询单个数据集"""
         url = f"{self.url_prefix}{self.URL_ENDPOINTS['submit']}"
 
-        return self.client.post(url, json=payload)
+        return self.client.post(url, json=payloads)

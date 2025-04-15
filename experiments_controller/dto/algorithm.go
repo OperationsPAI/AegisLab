@@ -46,3 +46,9 @@ func (g *GranularityRecord) Convert(result database.GranularityResult) {
 	g.Rank = result.Rank
 	g.Confidence = result.Confidence
 }
+
+var ExecuteEnvVarNameMap = map[string]struct{}{
+	"ALGORITHM": {},
+	"SERVICE":   {},
+	"VENV":      {},
+}

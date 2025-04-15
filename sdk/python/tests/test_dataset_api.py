@@ -51,21 +51,21 @@ def test_delete_datatsets(sdk, names):
 
 
 @pytest.mark.parametrize(
-    "payload",
+    "payloads",
     [
         (
             [
                 {
                     "benchmark": "clickhouse",
-                    "name": "ts-ts-seat-service-cpu-exhaustion-d4dxhm",
-                    "pre_duration": 10,
-                    "service": "ts-seat-service",
+                    "name": "ts-ts-ui-dashboard-pod-failure-8hlbmk",
+                    "pre_duration": 1,
+                    "env_vars": {"NAMESPACE": "ts", "SERVICE": "ts-ui-dashboard-pod"},
                 }
             ]
         )
     ],
 )
-def test_submit_building_datasets(sdk, payload):
+def test_submit_building_datasets(sdk, payloads):
     """测试批量删除数据集"""
-    data = sdk.dataset.submit(payload)
+    data = sdk.dataset.submit(payloads)
     pprint(data)

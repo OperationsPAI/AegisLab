@@ -261,14 +261,25 @@ func SubmitDatasetBuilding(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	logrus.Infof("SubmitDatasetBuilding, groupID: %s", groupID)
 
-	var req dto.DatasetSubmitReq
-	if err := c.BindJSON(&req); err != nil {
+	var payloads []dto.DatasetBuildPayload
+	if err := c.BindJSON(&payloads); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid JSON payload")
 		return
 	}
 
+	for i := range payloads {
+		for key := range payloads[i].EnvVars {
+			if _, exists := dto.BuildEnvVarNameMap[key]; !exists {
+				message := fmt.Sprintf("the key %s is invalid in env_vars", key)
+				logrus.Errorf(message)
+				dto.ErrorResponse(c, http.StatusInternalServerError, message)
+				return
+			}
+		}
+	}
+
 	var traces []dto.Trace
-	for _, payload := range req.Payloads {
+	for _, payload := range payloads {
 		taskID, traceID, err := executor.SubmitTask(c.Request.Context(), &executor.UnifiedTask{
 			Type:      consts.TaskTypeBuildDataset,
 			Payload:   utils.StructToMap(payload),

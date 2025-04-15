@@ -47,8 +47,6 @@ func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
 		}
 	}
 
-	jobEnvVars := getAlgoJobEnvVars(payload.Dataset, record, payload.EnvVars)
-
 	executionID, err := repository.CreateExecutionResult(algorithm, task.TaskID, record.ID)
 	if err != nil {
 		return fmt.Errorf("failed to create execution result: %v", err)
@@ -63,9 +61,10 @@ func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
 		consts.LabelTaskType:    string(consts.TaskTypeRunAlgorithm),
 		consts.LabelAlgorithm:   algorithm,
 		consts.LabelDataset:     payload.Dataset,
-		consts.LabelExecutionID: fmt.Sprint(executionID),
+		consts.LabelExecutionID: strconv.Itoa(executionID),
 	}
-	return createAlgoJob(ctx, config.GetString("k8s.namespace"), jobName, image, labels, jobEnvVars)
+
+	return createAlgoJob(ctx, config.GetString("k8s.namespace"), jobName, image, labels, payload, record)
 }
 
 // 解析算法执行任务的 Payload
@@ -108,12 +107,17 @@ func parseExecutionPayload(payload map[string]any) (*ExecutionPayload, error) {
 	return executionPayload, nil
 }
 
-func createAlgoJob(ctx context.Context, jobNamespace, jobName, image string, labels map[string]string, jobEnvVars []corev1.EnvVar) error {
+func createAlgoJob(ctx context.Context, jobNamespace, jobName, image string, labels map[string]string, payload *ExecutionPayload, record *dto.DatasetItemWithID) error {
 	restartPolicy := corev1.RestartPolicyNever
 	backoffLimit := int32(2)
 	parallelism := int32(1)
 	completions := int32(1)
 	command := []string{"bash", "/entrypoint.sh"}
+
+	jobEnvVars, err := getAlgoJobEnvVars(payload, record)
+	if err != nil {
+		return err
+	}
 
 	return k8s.CreateJob(ctx, k8s.JobConfig{
 		Namespace:     jobNamespace,
@@ -129,21 +133,26 @@ func createAlgoJob(ctx context.Context, jobNamespace, jobName, image string, lab
 	})
 }
 
-func getAlgoJobEnvVars(dataset string, record *dto.DatasetItemWithID, payloadEnvVars map[string]string) []corev1.EnvVar {
+func getAlgoJobEnvVars(payload *ExecutionPayload, record *dto.DatasetItemWithID) ([]corev1.EnvVar, error) {
 	tz := config.GetString("system.timezone")
 	if tz == "" {
 		tz = "Asia/Shanghai"
 	}
 
+	preDuration, ok := record.Param["pre_duration"].(int)
+	if !ok || preDuration == 0 {
+		return nil, fmt.Errorf("failed to get the preduration")
+	}
+
 	jobEnvVars := []corev1.EnvVar{
 		{Name: "TIMEZONE", Value: tz},
-		{Name: "NORMAL_START", Value: strconv.FormatInt(record.StartTime.Add(-20*time.Minute).Unix(), 10)},
+		{Name: "NORMAL_START", Value: strconv.FormatInt(record.StartTime.Add(-time.Duration(preDuration)*time.Minute).Unix(), 10)},
 		{Name: "NORMAL_END", Value: strconv.FormatInt(record.StartTime.Unix(), 10)},
 		{Name: "ABNORMAL_START", Value: strconv.FormatInt(record.StartTime.Unix(), 10)},
 		{Name: "ABNORMAL_END", Value: strconv.FormatInt(record.EndTime.Unix(), 10)},
 		{Name: "WORKSPACE", Value: "/app"},
-		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", dataset)},
-		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", dataset)},
+		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.Dataset)},
+		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.Dataset)},
 	}
 
 	envNameIndexMap := make(map[string]int, len(jobEnvVars))
@@ -151,9 +160,9 @@ func getAlgoJobEnvVars(dataset string, record *dto.DatasetItemWithID, payloadEnv
 		envNameIndexMap[jobEnvVar.Name] = index
 	}
 
-	if payloadEnvVars != nil {
-		for name, value := range payloadEnvVars {
-			if index, ok := envNameIndexMap[name]; ok {
+	if payload.EnvVars != nil {
+		for name, value := range payload.EnvVars {
+			if index, exists := envNameIndexMap[name]; exists {
 				jobEnvVars[index].Value = value
 			} else {
 				jobEnvVars = append(jobEnvVars, corev1.EnvVar{
@@ -164,5 +173,5 @@ func getAlgoJobEnvVars(dataset string, record *dto.DatasetItemWithID, payloadEnv
 		}
 	}
 
-	return jobEnvVars
+	return jobEnvVars, nil
 }

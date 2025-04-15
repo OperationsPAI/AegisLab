@@ -68,17 +68,11 @@ type DatasetListReq struct {
 	PaginationReq
 }
 
-type DatasetSubmitReq struct {
-	Payloads []DatasetBuildPayload `json:"payloads"`
-}
-
 type DatasetBuildPayload struct {
-	Benchmark   string     `json:"benchmark"`
-	Name        string     `json:"name"`
-	PreDuration int        `json:"pre_duration"`
-	Service     string     `json:"service"`
-	StartTime   *time.Time `json:"start_time,omitempty"`
-	EndTime     *time.Time `json:"end_time,omitempty"`
+	Benchmark   string            `json:"benchmark"`
+	Name        string            `json:"name"`
+	PreDuration int               `json:"pre_duration"`
+	EnvVars     map[string]string `json:"env_vars"`
 }
 
 type DatasetJoinedResult struct {
@@ -109,4 +103,9 @@ var DatasetStatusMap = map[int]string{
 	consts.DatasetBuildSuccess:  "build_success",
 	consts.DatasetBuildFailed:   "build_failed",
 	consts.DatasetDeleted:       "deleted",
+}
+
+var BuildEnvVarNameMap = map[string]struct{}{
+	"NAMESPACE": {},
+	"SERVICE":   {},
 }
