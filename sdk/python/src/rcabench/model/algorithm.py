@@ -19,9 +19,7 @@ class ListResult(BaseModel):
 
 class EnvVar(BaseModel):
     """
-    算法服务环境变量配置的数据模型。
-
-    用于环境变量的类型验证和设置管理。
+    算法镜像环境变量模型
 
     Attributes:
         ALGORITHM: 算法名称配置
@@ -50,7 +48,7 @@ class EnvVar(BaseModel):
     )
 
 
-class SubmitExecutionItem(BaseModel):
+class ExecutionPayload(BaseModel):
     """
     算法执行任务配置
 
@@ -90,8 +88,8 @@ class SubmitReq(BaseModel):
     算法执行请求参数
     """
 
-    payloads: List[SubmitExecutionItem] = Field(
+    payloads: List[ExecutionPayload] = Field(
         ...,
-        description="Configuration list",
+        description="List of payloads to execute algorithm",
         min_length=1,
     )

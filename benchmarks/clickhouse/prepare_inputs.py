@@ -1,17 +1,22 @@
-import os
+from clickhouse_connect.driver.exceptions import OperationalError
 import clickhouse_connect
+import os
 import pandas as pd
 import subprocess
 
 
-namespace = os.environ["NAMESPACE"]
+namespace = "ts"
 
 clickhouse_host = "10.10.10.58"
 username = "default"
 password = "password"
-client = clickhouse_connect.get_client(
-    host=clickhouse_host, username=username, password=password
-)
+try:
+    client = clickhouse_connect.get_client(
+        host=clickhouse_host, username=username, password=password
+    )
+except OperationalError:
+    print("ClickHouse is not up and reachable")
+    exit(0)
 
 
 def ping_host(host):
@@ -25,26 +30,23 @@ def ping_host(host):
             stderr=subprocess.PIPE,
         )
         if result.returncode == 0:
-            print(f"{host} 可达")
+            print(f"{host} is reachable")
             return True
         else:
-            print(f"{host} 不可达")
+            print(f"{host} is unreachalbe")
             return False
     except Exception as e:
-        print(f"Ping 异常: {e}")
+        print(f"Ping error: {e}")
         return False
 
 
 def check_clickhouse_health():
-    try:
-        result = client.ping()
-        if result:
-            print("ClickHouse 服务正常")
-            return True
-        else:
-            print("clickhouse 服务异常")
-    except Exception as e:
-        print(f"ClickHouse 服务异常: {e}")
+    result = client.ping()
+    if result:
+        print("ClickHouse is up and reachable")
+        return True
+    else:
+        print("ClickHouse is not up and reachable")
         return False
 
 
@@ -230,7 +232,7 @@ def generate_data_nezha(start_time, end_time) -> pd.DataFrame:
 def save_to_csv(result: bytes, filename: str):
     with open(filename, "w") as f:
         f.write(result.decode("utf-8"))
-    print(f"数据已成功保存到 {filename}")
+    print(f"Data has been successfully saved to {filename}")
 
 
 def convert_to_clickhouse_time(unix_timestamp):
@@ -243,7 +245,8 @@ def convert_to_clickhouse_time(unix_timestamp):
 
 
 if __name__ == "__main__":
-    check_clickhouse_health()
+    if not check_clickhouse_health():
+        exit(0)
 
     if os.environ.get("NORMAL_START") and os.environ.get("NORMAL_END"):
         normal_time_range = [

@@ -191,21 +191,36 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 				if oldPhase == "Run" && newPhase == "Stop" {
 					conditions, _, _ := unstructured.NestedSlice(newU.Object, "status", "conditions")
 
+					var message string
 					selected := getCRDConditionStatus(conditions, "Selected")
 					if !selected {
-						message := "failed to select app in the chaos experiment"
+						message = "failed to select app in the chaos experiment"
 						logEntry.Error(message)
 						callback.HandleCRDFailed(newU.GetName(), message, labels)
-						return
+						if !config.GetBool("debugging.enable") {
+							c.queue.Add(QueueItem{
+								Type:      CRDResourceType,
+								Namespace: newU.GetNamespace(),
+								Name:      newU.GetName(),
+								GVR:       &gvr,
+							})
+						}
 					}
 
 					// 会花费 duration 的时间去尝试注入
 					allInjected := getCRDConditionStatus(conditions, "AllInjected")
 					if !allInjected {
-						message := "failed to inject all targets in the chaos experiment"
+						message = "failed to inject all targets in the chaos experiment"
 						logEntry.Error(message)
 						callback.HandleCRDFailed(newU.GetName(), message, labels)
-						return
+						if !config.GetBool("debugging.enable") {
+							c.queue.Add(QueueItem{
+								Type:      CRDResourceType,
+								Namespace: newU.GetNamespace(),
+								Name:      newU.GetName(),
+								GVR:       &gvr,
+							})
+						}
 					}
 				}
 
@@ -243,6 +258,7 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 							timer := time.NewTimer(60 * time.Duration(injectDuration) * time.Second)
 							<-timer.C
 
+							var message string
 							obj, err := k8sDynamicClient.Resource(gvr).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
 							if err != nil {
 								if errors.IsNotFound(err) {
@@ -250,19 +266,25 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 									return
 								}
 
-								message := "failed to get the CRD resource object"
-								logEntry.Errorf("%s: %v", message, err)
-								callback.HandleCRDFailed(newU.GetName(), message, labels)
-								return
+								message = "failed to get the CRD resource object"
 							}
 
 							conditions, _, _ := unstructured.NestedSlice(obj.Object, "status", "conditions")
 							recovered := getCRDConditionStatus(conditions, "AllRecovered")
 
 							if !recovered {
-								message := "faied to recover all targets in the chaos experiment"
-								logEntry.Error(message)
-								callback.HandleCRDFailed(newU.GetName(), message, labels)
+								message = "faied to recover all targets in the chaos experiment"
+							}
+
+							logEntry.Error(message)
+							callback.HandleCRDFailed(newU.GetName(), message, labels)
+							if !config.GetBool("debugging.enable") {
+								c.queue.Add(QueueItem{
+									Type:      CRDResourceType,
+									Namespace: newU.GetNamespace(),
+									Name:      newU.GetName(),
+									GVR:       &gvr,
+								})
 							}
 						}(newU.GetNamespace(), newU.GetName(), duration)
 					}
@@ -343,6 +365,8 @@ func (c *Controller) genJobEventHandlerFuncs(callback Callback) cache.ResourceEv
 			if callback != nil && oldJob.Name == newJob.Name {
 				if oldJob.Status.Failed == 0 && newJob.Status.Failed > 0 {
 					errorMsg := extractJobError(newJob)
+					if errorMsg == "" {
+					}
 					callback.HandleJobFailed(newJob.Labels, errorMsg)
 				}
 
@@ -539,7 +563,7 @@ func extractJobError(job *batchv1.Job) string {
 		}
 	}
 
-	return "Unknown error"
+	return ""
 }
 
 func checkPodReason(pod *corev1.Pod, reason string) bool {

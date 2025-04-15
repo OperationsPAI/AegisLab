@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
-from ..const import TIME_EXAMPLE
-from pydantic import BaseModel, Field, field_validator
+from ..const import TIME_EXAMPLE, Dataset
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from uuid import UUID
 import os
 import zipfile
@@ -317,6 +317,31 @@ class ExecutionRecord(BaseModel):
     )
 
 
+class QueryReq(BaseModel):
+    name: str = Field(
+        ...,
+        description="Unique identifier for the dataset",
+        json_schema_extra={"example": "ts-ts-preserve-service-cpu-exhaustion-znzxcn"},
+        max_length=64,
+    )
+
+    sort: str = Field(
+        ...,
+        description="Dataset sorting method",
+        json_schema_extra={"example": "desc"},
+    )
+
+    @field_validator("sort")
+    @classmethod
+    def validate_sort(cls, value: str) -> str:
+        if value not in Dataset.ALLOWED_SORTS:
+            raise ValueError(
+                f"Invalid sort value. Must be one of: {', '.join(s for s in Dataset.ALLOWED_SORTS)}"
+            )
+
+        return value
+
+
 class QueryResult(DatasetItem):
     """
     包含诊断信息的扩展数据集查询结果
@@ -334,4 +359,67 @@ class QueryResult(DatasetItem):
     execution_results: List[ExecutionRecord] = Field(
         default_factory=list,
         description="Collection of root cause analysis results from multiple algorithms",
+    )
+
+
+class EnvVar(BaseModel):
+    """
+    采集数据镜像环境变量模型
+
+    Attributes:
+        NAMESPACE: 待注入命名空间
+        SERVICE: 筛选服务名称
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    NAMESPACE: Optional[str] = Field(
+        None,
+        description="Target Kubernetes namespace",
+        json_schema_extra={"example": "ts"},
+    )
+
+    SERVICE: Optional[str] = Field(
+        None,
+        description="Full name of microservice to monitor",
+        json_schema_extra={"example": "ts-ts-preserve-service"},
+    )
+
+
+class BuildPayload(BaseModel):
+    benchmark: str = Field(
+        ...,
+        description="Detailed anomaly detection metrics",
+        json_schema_extra={"example": "clickhouse"},
+    )
+
+    name: str = Field(
+        ...,
+        description="Unique identifier for the dataset",
+        json_schema_extra={"example": "ts-ts-preserve-service-cpu-exhaustion-znzxcn"},
+        max_length=64,
+    )
+
+    pre_duration: int = Field(
+        ...,
+        description="Normal time before fault injection (minute)",
+        json_schema_extra={"example": 1},
+        gt=0,
+    )
+
+    env_vars: Optional[EnvVar] = Field(
+        None,
+        description="The enviroment variables of the image",
+    )
+
+
+class SubmitReq(BaseModel):
+    """
+    数据集构建请求
+    """
+
+    payloads: List[BuildPayload] = Field(
+        ...,
+        description="List of payloads to build dataset",
+        min_length=1,
     )
