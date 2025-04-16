@@ -5,6 +5,7 @@ from conftest import BASE_URL
 from pprint import pprint
 from rcabench.logger import logger
 from rcabench.model.common import SubmitResult
+from rcabench.model.task import QueueItem
 from rcabench.rcabench import RCABenchSDK
 from uuid import UUID
 import asyncio
@@ -167,7 +168,7 @@ async def injection_and_building_dataset_batch(
 
 
 async def run_consumers(
-    queue: asyncio.Queue,
+    queue: asyncio.Queue[QueueItem],
     num_consumers: int,
     max_items_per_consumer: int,
     per_consumer_timeout: float,
@@ -187,7 +188,7 @@ async def run_consumers(
 
 async def consumer_task(
     consumer_id: int,
-    queue: asyncio.Queue,
+    queue: asyncio.Queue[QueueItem],
     max_num: int,
     timeout: float,
 ) -> Optional[List[Dict[str, Any]]]:
@@ -204,7 +205,7 @@ async def consumer_task(
 
 
 async def consumer(
-    queue: asyncio.Queue,
+    queue: asyncio.Queue[QueueItem],
     max_num: int,
     timeout: float,
 ) -> List[Dict[str, Any]]:
@@ -213,7 +214,7 @@ async def consumer(
     while count < max_num:
         try:
             item = await asyncio.wait_for(queue.get(), timeout)
-            results.append(item)
+            results.append(item.model_dump(exclude_unset=True))
             count += 1
         except asyncio.TimeoutError:
             logger.warning("Timeout while waiting for queue item")

@@ -2,7 +2,7 @@ from typing import Any, Awaitable, Callable, Dict, Optional, Union
 from ..const import EventType, SSEMsgPrefix, TaskStatus
 from ..logger import logger
 from ..model.error import ModelHTTPError
-from ..model.task import SSEMessage
+from ..model.task import QueueItem, SSEMessage
 from uuid import UUID
 import aiohttp
 import asyncio
@@ -68,34 +68,29 @@ class ClientManager:
             if self.result_queue is not None:
                 if client_id in self.errors:
                     # 优先处理错误情况
-                    res = {
+                    queue_item = {
                         "client_id": client_id,
                         "data": {
                             "error": self.errors[client_id],
-                            "result": self.results.get(client_id, {}),
                         },
                     }
+
+                    if client_id in self.results:
+                        queue_item["data"].update({"result": self.results[client_id]})
+
+                    res = QueueItem.model_validate(queue_item)
                     await self.result_queue.put(res)
                 elif client_id in self.results and len(self.results[client_id]) >= 2:
                     # 只有结果且数量足够时才处理
-                    res = {
-                        "client_id": client_id,
-                        "data": {"result": self.results[client_id]},
-                    }
+                    res = QueueItem.model_validate(
+                        {
+                            "client_id": client_id,
+                            "data": {
+                                "result": self.results[client_id],
+                            },
+                        }
+                    )
                     await self.result_queue.put(res)
-
-    async def register_callback(
-        self, client_id: UUID, callback: Callable[[Any], Awaitable[None]]
-    ) -> None:
-        """注册任务完成时的回调函数"""
-        async with self.lock:
-            self.client_callbacks[client_id] = callback
-
-    async def unregister_callback(self, client_id: UUID) -> None:
-        """取消注册任务回调函数"""
-        async with self.lock:
-            if client_id in self.client_callbacks:
-                del self.client_callbacks[client_id]
 
     async def wait_all(self, timeout: Optional[float] = None) -> Dict[str, Any]:
         start_time = asyncio.get_event_loop().time()
@@ -214,11 +209,7 @@ class AsyncSSEClient:
                 if status == TaskStatus.COMPLETED:
                     await self.client_manager.set_client_item(
                         self.client_id,
-                        result={
-                            task_id: SSEMessage.model_validate(data).model_dump(
-                                exclude_unset=True
-                            )
-                        },
+                        result={task_id: SSEMessage.model_validate(data)},
                     )
 
                 if status == TaskStatus.ERROR:
@@ -228,7 +219,7 @@ class AsyncSSEClient:
                             task_id: ModelHTTPError(
                                 status_code=500,
                                 detail=data.get("error"),
-                            ).model_dump(exclude_unset=True)
+                            )
                         },
                     )
 

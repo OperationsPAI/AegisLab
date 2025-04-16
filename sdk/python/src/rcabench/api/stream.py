@@ -1,5 +1,6 @@
 from typing import AsyncGenerator, List
 from ..client.async_client import AsyncSSEClient, ClientManager
+from ..model.task import QueueItem
 from contextlib import asynccontextmanager
 from uuid import UUID
 import aiohttp
@@ -47,7 +48,7 @@ class Stream:
                 await sse_client.close()
                 self.active_connections.discard(client_id)
 
-    async def add_result_queue(self) -> asyncio.Queue:
+    async def add_result_queue(self) -> asyncio.Queue[QueueItem]:
         queue = asyncio.Queue()
         self.client_manager.result_queue = queue
         return queue
