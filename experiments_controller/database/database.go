@@ -10,7 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"gorm.io/driver/mysql"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -91,22 +90,27 @@ func InitDB() {
 	mysqlDBName := config.GetString("database.mysql_db")
 
 	mysqlDSN := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", mysqlUser, mysqlPassWord, mysqlHost, mysqlPort, mysqlDBName)
-	DB, err = gorm.Open(mysql.Open(mysqlDSN), &gorm.Config{})
-	if err != nil {
-		logrus.Errorf("Failed to connect to database: %v", err)
 
-		dbPath := config.GetString("storage.path")
+	maxRetries := 3
+	retryDelay := 10 * time.Second
 
-		if err = ensureDirForFile(dbPath); err != nil {
-			logrus.Fatalf("Failed to ensure database directory: %v", err)
+	for i := 0; i <= maxRetries; i++ {
+		DB, err = gorm.Open(mysql.Open(mysqlDSN), &gorm.Config{})
+		if err == nil {
+			logrus.Info("Successfully connected to the database.")
+			break // Connection successful, exit loop
 		}
 
-		DB, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
-		if err != nil {
-			logrus.Fatalf("Failed to connect to database: %v", err)
+		logrus.Errorf("Failed to connect to database (attempt %d/%d): %v", i+1, maxRetries+1, err)
+		if i < maxRetries {
+			logrus.Infof("Retrying in %v...", retryDelay)
+			time.Sleep(retryDelay)
 		}
 	}
 
+	if err != nil {
+		logrus.Fatalf("Failed to connect to database after %d attempts: %v", maxRetries+1, err)
+	}
 	err = DB.AutoMigrate(&Task{}, &FaultInjectionSchedule{}, &ExecutionResult{}, &GranularityResult{}, &Detector{})
 	if err != nil {
 		logrus.Fatalf("Failed to migrate database: %v", err)

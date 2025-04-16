@@ -51,6 +51,9 @@ data:
     [debugging]
     enable = "{{ .Values.configmap.debugging.enable }}"
 
+    [buildkit]
+    address = "{{ .Values.configmap.buildkit.address }}"
+
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -60,3 +63,21 @@ data:
   my.cnf: |
     [mysqld]
     bind-address = 0.0.0.0
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: buildkit-config
+data:
+  buildkitd.toml: |
+    debug = true
+    trace = false
+    insecure-entitlements = ["security.insecure"]
+
+    [grpc]
+    address = ["tcp://0.0.0.0:1234"]
+
+    [registry."10.10.10.240"]
+    http = false
+    ca = ["/usr/local/share/ca-certificates/harbor.lab.pj.crt"]

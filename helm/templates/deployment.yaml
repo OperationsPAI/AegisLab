@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
         - name: redis
-          image: redis:8.0-M02-alpine3.20
+          image: "{{ .Values.images.redis.repository }}:{{ .Values.images.redis.tag }}"
+          imagePullPolicy: "{{ .Values.images.redis.pullPolicy }}"
           ports:
             - containerPort: 6379
 
@@ -36,11 +37,11 @@ spec:
     spec:
       initContainers:
         - name: set-root-permissions
-          image: mariadb:11.8.1-noble-rc
+          image: "{{ .Values.images.mariadb.repository }}:{{ .Values.images.mariadb.tag }}"
+          imagePullPolicy: "{{ .Values.images.mariadb.pullPolicy }}"
           command: ["/bin/sh", "-c"]
           args:
             - |
-              # 将文件写入临时目录 /tmp/init
               echo "CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';" > /tmp/init/init.sql
               echo "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;" >> /tmp/init/init.sql
               echo "FLUSH PRIVILEGES;" >> /tmp/init/init.sql
@@ -49,10 +50,11 @@ spec:
               value: "{{ .Values.config.mysqlRootPassword }}"
           volumeMounts:
             - name: init-scripts
-              mountPath: /tmp/init # 关键挂载点
+              mountPath: /tmp/init
       containers:
         - name: mariadb
-          image: mariadb:latest
+          image: "{{ .Values.images.mariadb.repository }}:{{ .Values.images.mariadb.tag }}"
+          imagePullPolicy: "{{ .Values.images.mariadb.pullPolicy }}"
           env:
             - name: MYSQL_ROOT_PASSWORD
               value: "{{ .Values.config.mysqlRootPassword }}"
@@ -98,7 +100,8 @@ spec:
     spec:
       initContainers:
         - name: wait-for-redis
-          image: busybox:1.35
+          image: "{{ .Values.images.busybox.repository }}:{{ .Values.images.busybox.tag }}"
+          imagePullPolicy: "{{ .Values.images.busybox.pullPolicy }}"
           command:
             - sh
             - -c
@@ -108,7 +111,8 @@ spec:
                 sleep 3;
               done;
         - name: wait-for-mariadb
-          image: busybox:1.35
+          image: "{{ .Values.images.busybox.repository }}:{{ .Values.images.busybox.tag }}"
+          imagePullPolicy: "{{ .Values.images.busybox.pullPolicy }}"
           command:
             - sh
             - -c
@@ -174,7 +178,8 @@ spec:
     spec:
       initContainers:
         - name: wait-for-redis
-          image: busybox:1.35
+          image: "{{ .Values.images.busybox.repository }}:{{ .Values.images.busybox.tag }}"
+          imagePullPolicy: "{{ .Values.images.busybox.pullPolicy }}"
           command:
             - sh
             - -c
@@ -184,7 +189,8 @@ spec:
                 sleep 3;
               done;
         - name: wait-for-mariadb
-          image: busybox:1.35
+          image: "{{ .Values.images.busybox.repository }}:{{ .Values.images.busybox.tag }}"
+          imagePullPolicy: "{{ .Values.images.busybox.pullPolicy }}"
           command:
             - sh
             - -c
@@ -214,6 +220,9 @@ spec:
               mountPath: /var/lib/rcabench
             - name: algorithms-data
               mountPath: "{{ .Values.configmap.algo.storage_path }}"
+            - name: docker-config-volume
+              mountPath: /root/.docker/config.json
+              subPath: config.json
       volumes:
         - name: config
           configMap:
@@ -230,3 +239,83 @@ spec:
         - name: algorithms-data
           persistentVolumeClaim:
             claimName: algorithms-data
+        - name: docker-config-volume
+          secret:
+            secretName: docker-config
+            items:
+              - key: config.json
+                path: config.json
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: buildkit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: buildkit
+  template:
+    metadata:
+      labels:
+        app: buildkit
+    spec:
+      containers:
+        - name: buildkit
+          image: "{{ .Values.images.buildkit.repository }}:{{ .Values.images.buildkit.tag }}"
+          imagePullPolicy: "{{ .Values.images.buildkit.pullPolicy }}"
+          args:
+            - --config
+            - /etc/buildkit/buildkitd.toml
+          ports:
+            - containerPort: 1234
+            - containerPort: 5678
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: config
+              mountPath: /etc/rcabench/config.prod.toml
+              subPath: config.prod.toml
+            - name: kube-config
+              mountPath: /root/.kube/config
+              subPath: config
+            - name: data
+              mountPath: /var/lib/rcabench
+            - name: algorithms-data
+              mountPath: "{{ .Values.configmap.algo.storage_path }}"
+            - name: buildkit-socket
+              mountPath: /run/buildkit
+            - name: buildkit-config
+              mountPath: /etc/buildkit/buildkitd.toml
+              subPath: buildkitd.toml
+            - name: harbor-cert
+              mountPath: /usr/local/share/ca-certificates/harbor.lab.pj.crt
+              subPath: harbor.lab.pj.crt
+      volumes:
+        - name: config
+          configMap:
+            name: rcabench-config
+        - name: kube-config
+          secret:
+            secretName: kube-config
+            items:
+              - key: kubeconfig
+                path: config
+        - name: data
+          persistentVolumeClaim:
+            claimName: nfs-shared-pvc
+        - name: algorithms-data
+          persistentVolumeClaim:
+            claimName: algorithms-data
+        - name: buildkit-socket
+          emptyDir: {}
+        - name: buildkit-config
+          configMap:
+            name: buildkit-config
+        - name: harbor-cert
+          secret:
+            secretName: harbor-cert
+            items:
+              - key: harbor.lab.pj.crt
+                path: harbor.lab.pj.crt

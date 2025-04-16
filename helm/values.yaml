@@ -4,6 +4,24 @@ image:
   tag: latest
   pullPolicy: Always
 
+images:
+  redis:
+    repository: redis
+    tag: 8.0-M02-alpine3.20
+    pullPolicy: IfNotPresent
+  mariadb:
+    repository: 10.10.10.240/library/mariadb
+    tag: 11.8.1-noble-rc
+    pullPolicy: IfNotPresent
+  busybox:
+    repository: busybox
+    tag: 1.35
+    pullPolicy: IfNotPresent
+  buildkit:
+    repository: moby/buildkit
+    tag: buildx-stable-1
+    pullPolicy: IfNotPresent
+
 config:
   port: 8081
   mysqlRootPassword: yourpassword
@@ -44,6 +62,8 @@ configmap:
     storage_path: "/app/algorithms"
   debugging:
     enable: true
+  buildkit:
+    address: "tcp://buildkit:1234"
 
 persistence:
   mariadb:
