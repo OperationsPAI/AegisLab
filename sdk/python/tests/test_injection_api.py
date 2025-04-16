@@ -62,6 +62,50 @@ def test_list_injections(sdk, page_num, page_size):
                 },
             ],
         ),
+        # JVMMemoryStress-dev
+        (
+            "clickhouse",
+            3,
+            1,
+            [
+                {
+                    "children": {
+                        "28": {
+                            "children": {
+                                "0": {"value": 1},
+                                "1": {"value": 0},
+                                "2": {"value": 611},
+                                "3": {"value": 1},
+                            }
+                        },
+                    },
+                    "value": 28,
+                },
+            ],
+        ),
+        # NetworkDuplicate-dev
+        (
+            "clickhouse",
+            3,
+            1,
+            [
+                {
+                    "children": {
+                        "19": {
+                            "children": {
+                                "0": {"value": 1},
+                                "1": {"value": 0},
+                                "2": {"value": 43},
+                                "3": {"value": 23},
+                                "4": {"value": 14},
+                                "5": {"value": 1},
+                            }
+                        },
+                    },
+                    "value": 19,
+                },
+            ],
+        ),
     ],
 )
 def test_submit_injections(sdk, benchmark, interval, pre_duration, specs):
