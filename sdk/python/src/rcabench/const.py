@@ -48,5 +48,5 @@ class Evaluation:
 
 
 class Task:
-    INTERNAL_ERROR_KEY = "InternalError"
+    CLIENT_ERROR_KEY = "Client Error"
     HTTP_ERROR_STATUS_CODE = 500

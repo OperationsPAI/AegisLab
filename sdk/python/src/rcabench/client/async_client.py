@@ -1,5 +1,5 @@
 from typing import Any, Awaitable, Callable, Dict, Optional, Union
-from ..const import EventType, SSEMsgPrefix, TaskStatus
+from ..const import EventType, SSEMsgPrefix, Task, TaskStatus
 from ..logger import logger
 from ..model.error import ModelHTTPError
 from ..model.task import QueueItem, SSEMessage
@@ -8,7 +8,6 @@ import aiohttp
 import asyncio
 import json
 import re
-import traceback
 
 __all__ = ["AsyncSSEClient", "ClientManager"]
 
@@ -48,14 +47,14 @@ class ClientManager:
     async def set_client_item(
         self,
         client_id: UUID,
-        result: Optional[Dict[str, Any]] = None,
-        error: Optional[Union[Dict[str, Any], Exception]] = None,
+        result: Optional[Dict[UUID, SSEMessage]] = None,
+        error: Optional[Union[Dict[UUID, ModelHTTPError], Exception]] = None,
     ) -> None:
         async with self.lock:
             # 更新错误和结果数据
             if error is not None:
                 if isinstance(error, Exception):
-                    error = {"InternalError": traceback.format_exc()}
+                    error = {Task.CLIENT_ERROR_KEY: str(Exception)}
                 self.errors[client_id] = error
 
             if result is not None:
@@ -158,21 +157,34 @@ class ClientManager:
             self.errors = {}
 
             # 4. 清空队列
-            while not self.result_queue.empty():
-                try:
-                    self.result_queue.get_nowait()
-                    self.result_queue.task_done()
-                except asyncio.QueueEmpty:
-                    break
+            if self.result_queue is not None:
+                while not self.result_queue.empty():
+                    try:
+                        self.result_queue.get_nowait()
+                        self.result_queue.task_done()
+                    except asyncio.QueueEmpty:
+                        break
 
 
 class AsyncSSEClient:
-    def __init__(self, client_manager: ClientManager, client_id: UUID, url: str):
-        self.client_manager = client_manager
+    def __init__(
+        self,
+        client_id: UUID,
+        url: str,
+        client_manager: Optional[ClientManager] = None,
+    ):
         self.client_id = client_id
         self.url = url
         self._close = False
         self._session = None
+
+        self.to_client_manager = client_manager is not None
+        if self.to_client_manager:
+            self.client_manager = client_manager
+        else:
+            self.result = None
+            self.error = None
+            self.queue_item = None
 
     @staticmethod
     def _pattern_msg(prefix: str, text: str):
@@ -184,13 +196,53 @@ class AsyncSSEClient:
 
         return match.group(1).strip()
 
+    async def _set_client_item(
+        self,
+        result: Optional[Dict[UUID, SSEMessage]] = None,
+        error: Optional[Union[Dict[UUID, ModelHTTPError], Exception]] = None,
+    ) -> None:
+        print(result, error)
+        if error is not None:
+            if isinstance(error, Exception):
+                error = {Task.CLIENT_ERROR_KEY: str(error)}
+            self.error = error
+
+        if result is not None:
+            if self.result is None:
+                self.result = result
+            else:
+                self.result.update(result)
+
+        if self.error is not None:
+            queue_item = {
+                "client_id": self.client_id,
+                "data": {
+                    "error": self.error,
+                },
+            }
+
+            if self.result is not None:
+                queue_item["data"].update({"result": self.result})
+
+            self.queue_item = QueueItem.model_validate(queue_item)
+        elif self.result is not None and len(self.result) >= 2:
+            self.queue_item = QueueItem.model_validate(
+                {
+                    "client_id": self.client_id,
+                    "data": {
+                        "result": self.result,
+                    },
+                }
+            )
+
     async def _process_line(self, line_bytes: bytes):
         decoded_line = line_bytes.decode()
         if decoded_line.startswith(SSEMsgPrefix.EVENT):
             event_type = self._pattern_msg(SSEMsgPrefix.EVENT, decoded_line)
             if event_type and event_type == EventType.END:
                 self._close = True
-                await self.client_manager.remove_client(self.client_id)
+                if self.to_client_manager:
+                    await self.client_manager.remove_client(self.client_id)
 
         if decoded_line.startswith(SSEMsgPrefix.DATA):
             lines = decoded_line.strip().split("\n")
@@ -202,31 +254,73 @@ class AsyncSSEClient:
 
             combined_data = "".join(data_parts)
 
-            try:
-                data = json.loads(combined_data)
-                task_id = UUID(data.pop("task_id"))
-                status = data.pop("status")
-                if status == TaskStatus.COMPLETED:
+            data = json.loads(combined_data)
+            task_id = UUID(data.pop("task_id"))
+            status = data.pop("status")
+            if status == TaskStatus.COMPLETED:
+                result = {task_id: SSEMessage.model_validate(data)}
+                if self.to_client_manager:
                     await self.client_manager.set_client_item(
                         self.client_id,
-                        result={task_id: SSEMessage.model_validate(data)},
+                        result=result,
                     )
+                else:
+                    await self._set_client_item(result=result)
 
-                if status == TaskStatus.ERROR:
+            if status == TaskStatus.ERROR:
+                error = {
+                    task_id: ModelHTTPError(
+                        status_code=Task.HTTP_ERROR_STATUS_CODE,
+                        detail=data.get("error"),
+                    )
+                }
+                if self.to_client_manager:
                     await self.client_manager.set_client_item(
                         self.client_id,
-                        error={
-                            task_id: ModelHTTPError(
-                                status_code=500,
-                                detail=data.get("error"),
-                            )
-                        },
+                        error=error,
                     )
+                else:
+                    await self._set_client_item(error=error)
 
-            except json.JSONDecodeError:
-                pass
+    async def _connect_with_return(self, client_timeout: float) -> None:
+        try:
+            timeout = aiohttp.ClientTimeout(total=client_timeout)
+            self._session = aiohttp.ClientSession(
+                timeout=timeout, headers={"Accept": "text/event-stream"}
+            )
+            async with self._session.get(self.url) as resp:
+                try:
+                    async for line in resp.content:
+                        if self._close:
+                            break
+                        await self._process_line(line)
+                except asyncio.TimeoutError:
+                    logger.warning(f"Client {self.client_id} stream timeout")
+                    raise
 
-    async def connect(self, client_timeout: float):
+        except asyncio.CancelledError:
+            logger.warning(f"Client {self.client_id} cancelled by manager")
+            self._close = True
+            await self._set_client_item(
+                error=RuntimeError("Client cancelled by manager")
+            )
+
+        except Exception as e:
+            logger.error(f"Client {self.client_id} exception occured: {str(e)}")
+            self._close = True
+            await self._set_client_item(error=e)
+
+        finally:
+            if self._session is not None:
+                await self._session.close()
+                self._session = None
+
+            if not self._close:
+                await self._set_client_item(
+                    error=RuntimeError("Connection closed unexpectedly"),
+                )
+
+    async def _connect_to_client_manager(self, client_timeout: float) -> None:
         try:
             await self.client_manager.add_client(self.client_id, asyncio.current_task())
 
@@ -270,6 +364,14 @@ class AsyncSSEClient:
                 )
                 await self.client_manager.remove_client(self.client_id)
 
+    async def connect(self, client_timeout: float) -> Optional[QueueItem]:
+        if self.to_client_manager:
+            await self._connect_to_client_manager(client_timeout)
+            return None
+        else:
+            await self._connect_with_return(client_timeout)
+            return self.queue_item
+
     async def close(self):
         """关闭SSE连接并清理资源"""
         if self._close:
@@ -280,4 +382,5 @@ class AsyncSSEClient:
             await self._session.close()
             self._session = None
 
-        await self.client_manager.remove_client(self.client_id)
+        if self.to_client_manager:
+            await self.client_manager.remove_client(self.client_id)
