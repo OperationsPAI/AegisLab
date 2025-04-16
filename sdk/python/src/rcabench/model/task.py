@@ -102,6 +102,7 @@ class SSEMessage(BaseModel):
         task_type: 任务类型标识
         dataset: 关联的数据集名称（可选）
         execution_id: 任务执行ID（可选）
+        has_detector_result: detector算法执行是否有结果（可选）
     """
 
     task_type: str = Field(
@@ -120,6 +121,12 @@ class SSEMessage(BaseModel):
         None,
         description="Task execution ID",
         json_schema_extra={"example": 311},
+    )
+
+    has_detector_result: Optional[bool] = Field(
+        None,
+        description="Whether the result of detector algorithm is empty",
+        json_schema_extra={"example": True},
     )
 
 

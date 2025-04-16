@@ -73,8 +73,9 @@ class Task:
             for task_id in task_ids
         ]
 
-        await self.stream.start_multiple_stream(trace_ids, urls, client_timeout)
-        report = await self.stream.client_manager.wait_all(wait_timeout)
-        await self.stream.cleanup()
-
-        return report
+        try:
+            await self.stream.start_multiple_stream(trace_ids, urls, client_timeout)
+            report = await self.stream.client_manager.wait_all(wait_timeout)
+            return report
+        finally:
+            await self.stream.cleanup()

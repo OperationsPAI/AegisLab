@@ -258,7 +258,6 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 							timer := time.NewTimer(60 * time.Duration(injectDuration) * time.Second)
 							<-timer.C
 
-							var message string
 							obj, err := k8sDynamicClient.Resource(gvr).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
 							if err != nil {
 								if errors.IsNotFound(err) {
@@ -266,26 +265,36 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 									return
 								}
 
-								message = "failed to get the CRD resource object"
+								message := "failed to get the CRD resource object"
+								logEntry.Error(message)
+								callback.HandleCRDFailed(newU.GetName(), message, labels)
+								if !config.GetBool("debugging.enable") {
+									c.queue.Add(QueueItem{
+										Type:      CRDResourceType,
+										Namespace: newU.GetNamespace(),
+										Name:      newU.GetName(),
+										GVR:       &gvr,
+									})
+								}
 							}
 
 							conditions, _, _ := unstructured.NestedSlice(obj.Object, "status", "conditions")
 							recovered := getCRDConditionStatus(conditions, "AllRecovered")
 
 							if !recovered {
-								message = "faied to recover all targets in the chaos experiment"
+								message := "faied to recover all targets in the chaos experiment"
+								logEntry.Error(message)
+								callback.HandleCRDFailed(newU.GetName(), message, labels)
+								if !config.GetBool("debugging.enable") {
+									c.queue.Add(QueueItem{
+										Type:      CRDResourceType,
+										Namespace: newU.GetNamespace(),
+										Name:      newU.GetName(),
+										GVR:       &gvr,
+									})
+								}
 							}
 
-							logEntry.Error(message)
-							callback.HandleCRDFailed(newU.GetName(), message, labels)
-							if !config.GetBool("debugging.enable") {
-								c.queue.Add(QueueItem{
-									Type:      CRDResourceType,
-									Namespace: newU.GetNamespace(),
-									Name:      newU.GetName(),
-									GVR:       &gvr,
-								})
-							}
 						}(newU.GetNamespace(), newU.GetName(), duration)
 					}
 				}
