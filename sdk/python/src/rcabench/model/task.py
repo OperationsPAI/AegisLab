@@ -54,6 +54,44 @@ class StreamAllReq(StreamBatchReq):
     )
 
 
+class StreamSingleReq(BaseModel):
+    """
+    流式请求参数
+
+    Attributes:
+        task_id: 需要监控的任务ID
+        trace_id: 需要监控的链路ID
+        client_timeout: 流式连接的最大超时时间（秒）
+        wait_timeout: 等待全部完成的最大超时时间（秒），None表示无超时
+    """
+
+    task_id: UUID = Field(
+        ...,
+        description="Task ID to monito",
+        json_schema_extra={"example": [UUID("005f94a9-f9a2-4e50-ad89-61e05c1c15a0")]},
+    )
+
+    trace_id: UUID = Field(
+        ...,
+        description="Trace ID to build connection",
+        json_schema_extra={"example": [UUID("005f94a9-f9a2-4e50-ad89-61e05c1c15a0")]},
+    )
+
+    client_timeout: float = Field(
+        ...,
+        description="Maximum client timeout in seconds",
+        json_schema_extra={"example": 30.0},
+        gt=0,
+    )
+
+    wait_timeout: Optional[float] = Field(
+        None,
+        description="Maximum wait timeout in seconds (None means no timeout)",
+        json_schema_extra={"example": 30.0},
+        gt=0,
+    )
+
+
 class SSEMessage(BaseModel):
     """
     SSE消息数据模型
@@ -102,7 +140,7 @@ class QueueDataItem(BaseModel):
         json_schema_extra={
             "example": {
                 UUID("792aa5aa-2dc3-4284-a852-b48fda567dff"): {
-                    Task.INTERNAL_ERROR_KEY,
+                    Task.CLIENT_ERROR_KEY,
                     "",
                 },
                 UUID("7e16011f-adbd-4361-82b0-7570701153ee"): ModelHTTPError(
@@ -138,9 +176,9 @@ class QueueDataItem(BaseModel):
                         f"but got {len(error_data)} items: {error_data}"
                     )
 
-                if Task.INTERNAL_ERROR_KEY not in error_data:
+                if Task.CLIENT_ERROR_KEY not in error_data:
                     raise ValueError(
-                        f"Error dictionary for task {task_id} must contain '{Task.INTERNAL_ERROR_KEY}' key, "
+                        f"Error dictionary for task {task_id} must contain '{Task.CLIENT_ERROR_KEY}' key, "
                         f"but got: {list(error_data.keys()[0])}"
                     )
 

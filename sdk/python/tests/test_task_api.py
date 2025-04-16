@@ -312,6 +312,57 @@ async def test_injection_and_building_dataset_all(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
+    "benchmark, interval, pre_duration, specs",
+    [
+        (
+            "clickhouse",
+            2,
+            1,
+            [
+                {
+                    "children": {
+                        "1": {
+                            "children": {
+                                "0": {"value": 1},
+                                "1": {"value": 0},
+                                "2": {"value": 42},
+                            }
+                        },
+                    },
+                    "value": 1,
+                }
+            ],
+        ),
+    ],
+)
+async def test_injection_and_building_dataset_single(
+    benchmark, interval, pre_duration, specs
+):
+    sdk = RCABenchSDK(BASE_URL)
+
+    resp = sdk.injection.submit(benchmark, interval, pre_duration, specs)
+    pprint(resp)
+
+    if not isinstance(resp, SubmitResult):
+        pytest.fail(resp.model_dump_json())
+
+    traces = resp.traces
+    if not traces:
+        pytest.fail("No traces returned from execution")
+
+    task_id = [trace.head_task_id for trace in traces][0]
+    trace_id = [trace.trace_id for trace in traces][0]
+
+    timeout = (interval + 1) * 60
+    report = await sdk.task.get_stream_single(task_id, trace_id, timeout)
+    report = report.model_dump(exclude_unset=True)
+    pprint(report)
+
+    await sdk.task.stream.cleanup()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
     "payload",
     [
         (

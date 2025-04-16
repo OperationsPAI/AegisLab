@@ -21,6 +21,7 @@ def test_list_injections(sdk, page_num, page_size):
 @pytest.mark.parametrize(
     "benchmark, interval, pre_duration, specs",
     [
+        # PodFailure-dev
         (
             "clickhouse",
             2,
