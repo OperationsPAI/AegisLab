@@ -45,3 +45,8 @@ class Dataset:
 
 class Evaluation:
     ALLOWED_RANKS = {1, 3, 5}
+
+
+class Task:
+    INTERNAL_ERROR_KEY = "InternalError"
+    HTTP_ERROR_STATUS_CODE = 500

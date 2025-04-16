@@ -1,5 +1,7 @@
-from typing import Dict, List, Optional
-from pydantic import BaseModel, Field
+from typing import Dict, List, Optional, Union
+from .error import ModelHTTPError
+from ..const import Task
+from pydantic import BaseModel, Field, field_validator
 from uuid import UUID
 
 
@@ -80,6 +82,98 @@ class SSEMessage(BaseModel):
         None,
         description="Task execution ID",
         json_schema_extra={"example": 311},
+    )
+
+
+class QueueDataItem(BaseModel):
+    """
+    队列数据项模型
+
+    表示异步任务队列中携带的任务处理结果数据。
+
+    Attributes:
+        error: 任务错误信息（可选）
+        result: 任务成功结果（可选）
+    """
+
+    error: Optional[Dict[UUID, Union[Dict[str, str], ModelHTTPError]]] = Field(
+        None,
+        description="A dictionary capturing errors that occurred during task processing",
+        json_schema_extra={
+            "example": {
+                UUID("792aa5aa-2dc3-4284-a852-b48fda567dff"): {
+                    Task.INTERNAL_ERROR_KEY,
+                    "",
+                },
+                UUID("7e16011f-adbd-4361-82b0-7570701153ee"): ModelHTTPError(
+                    status_code=Task.HTTP_ERROR_STATUS_CODE,
+                    detail="",
+                ),
+            },
+        },
+    )
+
+    result: Optional[Dict[UUID, SSEMessage]] = Field(
+        None,
+        description="A dictionary of successfully processed task results",
+        json_schema_extra={
+            "example": {
+                UUID("792aa5aa-2dc3-4284-a852-b48fda567dff"): SSEMessage(
+                    task_type="fault_injection"
+                )
+            }
+        },
+    )
+
+    @field_validator("error")
+    @classmethod
+    def validate_error(
+        cls, value: Dict[UUID, Union[Dict[str, str], ModelHTTPError]]
+    ) -> Dict[UUID, Union[Dict[str, str], ModelHTTPError]]:
+        for task_id, error_data in value.values():
+            if isinstance(error_data, dict):
+                if len(error_data) != 1:
+                    raise ValueError(
+                        f"Error dictionary for task {task_id} must contain exactly one key-value pair, "
+                        f"but got {len(error_data)} items: {error_data}"
+                    )
+
+                if Task.INTERNAL_ERROR_KEY not in error_data:
+                    raise ValueError(
+                        f"Error dictionary for task {task_id} must contain '{Task.INTERNAL_ERROR_KEY}' key, "
+                        f"but got: {list(error_data.keys()[0])}"
+                    )
+
+            if isinstance(error_data, ModelHTTPError):
+                if error_data.status_code != Task.HTTP_ERROR_STATUS_CODE:
+                    raise ValueError(
+                        f"HTTP error for task {task_id} must have status_code {Task.HTTP_ERROR_STATUS_CODE}, "
+                        f"but got {error_data.status_code}"
+                    )
+
+            return value
+
+
+class QueueItem(BaseModel):
+    """
+    异步队列消息项模型
+
+    表示异步任务队列中的标准消息项结构。
+
+    Attributes:
+        client_id: 客户端唯一标识
+        data: 任务处理结果数据
+    """
+
+    client_id: UUID = Field(
+        ...,
+        description="The unique identifier of the async client",
+        json_schema_extra={"example": "FaultInjection"},
+    )
+
+    data: QueueDataItem = Field(
+        ...,
+        description="The processed data",
     )
 
 

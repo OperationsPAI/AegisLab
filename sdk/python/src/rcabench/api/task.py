@@ -2,7 +2,7 @@ from typing import List, Optional
 from .validation import async_validate_request_response
 from .stream import Stream
 from ..client.http_client import HTTPClient
-from ..model.task import StreamBatchReq, StreamAllReq, StreamResult
+from ..model.task import QueueItem, StreamBatchReq, StreamAllReq, StreamResult
 from uuid import UUID
 import asyncio
 
@@ -25,7 +25,7 @@ class Task:
     @async_validate_request_response(StreamBatchReq)
     async def get_stream_batch(
         self, task_ids: List[UUID], trace_ids: List[UUID], client_timeout: float
-    ) -> asyncio.Queue:
+    ) -> asyncio.Queue[QueueItem]:
         urls = [
             f"{self.url_prefix}{self.URL_ENDPOINTS['get_stream'].format(task_id=task_id)}"
             for task_id in task_ids
