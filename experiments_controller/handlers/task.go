@@ -96,19 +96,16 @@ func GetTaskStream(c *gin.Context) {
 	pubsub := client.GetRedisClient().Subscribe(c, fmt.Sprintf(consts.SubChannel, item.TraceID))
 	defer pubsub.Close()
 
-	expectedTaskType := consts.TaskType(item.Type)
-
-	switch consts.TaskType(item.Type) {
-	case consts.TaskTypeRunAlgorithm:
-		expectedTaskType = consts.TaskTypeCollectResult
-	case consts.TaskTypeFaultInjection:
+	expectedTaskType := consts.TaskTypeCollectResult
+	if consts.TaskType(item.Type) == consts.TaskTypeFaultInjection {
 		benchmark, ok := item.Payload[consts.InjectBenchmark]
 		if !ok {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get benchmark from payload")
 			return
 		}
-		if benchmark != "" {
-			expectedTaskType = consts.TaskTypeBuildDataset
+		if benchmark == "" {
+			// detector 算法收集结果
+			expectedTaskType = consts.TaskTypeFaultInjection
 		}
 	}
 

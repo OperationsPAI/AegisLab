@@ -96,12 +96,13 @@ const (
 
 // Redis 订阅消息字段
 const (
-	RdbMsgStatus      = "status"
-	RdbMsgTaskID      = "task_id"
-	RdbMsgTaskType    = "task_type"
-	RdbMsgDataset     = "dataset"
-	RdbMsgExecutionID = "execution_id"
-	RdbMsgError       = "error"
+	RdbMsgStatus            = "status"
+	RdbMsgTaskID            = "task_id"
+	RdbMsgTaskType          = "task_type"
+	RdbMsgDataset           = "dataset"
+	RdbMsgExecutionID       = "execution_id"
+	RdbMsgHasDetectorResult = "has_detector_result"
+	RdbMsgError             = "error"
 )
 
 // K8s Job 名称
