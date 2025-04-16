@@ -25,6 +25,10 @@ build-docker: ## Build SDK docker image
 	docker build -t $(SDK_PHTHON_IMAGE) -f Dockerfile . && \
 	docker push $(SDK_PHTHON_IMAGE)
 
+##@ Upload to pip
+upload:
+	uv build && uv publish
+
 ##@ test
 test-algorithm: ## test algorithm
 	uv run pytest -s tests/test_algorithm_api.py

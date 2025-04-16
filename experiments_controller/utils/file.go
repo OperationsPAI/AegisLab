@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,19 +20,27 @@ type ExculdeRule struct {
 }
 
 // 添加文件到 ZIP
-func AddToZip(zipWriter *zip.Writer, srcPath string, zipPath string) error {
+func AddToZip(zipWriter *zip.Writer, fileInfo fs.FileInfo, srcPath string, zipPath string) error {
+	fileHeader, err := zip.FileInfoHeader(fileInfo)
+	if err != nil {
+		return err
+	}
+
+	fileHeader.Name = zipPath
+	fileHeader.Method = zip.Deflate
+
+	writer, err := zipWriter.CreateHeader(fileHeader)
+	if err != nil {
+		return err
+	}
+
 	file, err := os.Open(srcPath)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	entry, err := zipWriter.Create(zipPath)
-	if err != nil {
-		return err
-	}
-
-	_, err = io.Copy(entry, file)
+	_, err = io.Copy(writer, file)
 	return err
 }
 

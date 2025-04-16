@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 from ..const import TIME_EXAMPLE, Dataset
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from uuid import UUID
 import os
 import zipfile
@@ -18,6 +18,7 @@ class DeleteReq(BaseModel):
         ...,
         description="List of datasets preparing for being deleted",
         json_schema_extra={"example": ["ts-ts-preserve-service-cpu-exhaustion-znzxcn"]},
+        min_length=1,
     )
 
     @field_validator("names")
@@ -26,6 +27,7 @@ class DeleteReq(BaseModel):
         for name in value:
             if not name:
                 raise ValueError("Dataset name cannot be empty string")
+
             if len(name) < 1 or len(name) > 64:
                 raise ValueError(
                     f"The length of dataset must be in range [1-64]: {name}"
@@ -65,13 +67,20 @@ class DownloadReq(BaseModel):
 
     Attributes:
         group_ids: 需要下载的任务组ID列表
+        names: 需要下载的数据集列表（与 group_ids 互斥）
         output_path: 文件保存的目标路径（需可写权限）
     """
 
-    group_ids: List[UUID] = Field(
-        ...,
+    group_ids: Optional[List[UUID]] = Field(
+        None,
         description="List of task groups",
         json_schema_extra={"example": [UUID("550e8400-e29b-41d4-a716-446655440000")]},
+    )
+
+    names: Optional[List[str]] = Field(
+        None,
+        description="List of datasets preparing for being downloaded",
+        json_schema_extra={"example": ["ts-ts-preserve-service-cpu-exhaustion-znzxcn"]},
     )
 
     output_path: str = Field(
@@ -79,6 +88,33 @@ class DownloadReq(BaseModel):
         description="The path to save package.zip",
         json_schema_extra={"example": os.getcwd()},
     )
+
+    @field_validator("group_ids")
+    @classmethod
+    def validate_group_ids(cls, value: Optional[List[UUID]]) -> Optional[List[UUID]]:
+        if value is not None:
+            if not value:
+                raise ValueError("GroupIDs cannot be empty if provided")
+
+        return value
+
+    @field_validator("names")
+    @classmethod
+    def validate_names(cls, value: Optional[List[str]]) -> Optional[List[str]]:
+        if value is not None:
+            if not value:
+                raise ValueError("Names cannot be empty if provided")
+
+            for name in value:
+                if not name:
+                    raise ValueError("Dataset name cannot be empty string")
+
+                if len(name) < 1 or len(name) > 64:
+                    raise ValueError(
+                        f"The length of dataset must be in range [1-64]: {name}"
+                    )
+
+        return value
 
     @field_validator("output_path")
     @classmethod
@@ -90,6 +126,19 @@ class DownloadReq(BaseModel):
             raise PermissionError(f"No write permission on path: {value}")
 
         return value
+
+    @model_validator(mode="after")
+    def validate_exclusive_fields(self) -> "DownloadReq":
+        group_ids_set = self.group_ids is not None and len(self.group_ids) > 0
+        names_set = self.names is not None and len(self.names) > 0
+
+        if group_ids_set and names_set:
+            raise ValueError("Cannot specify both 'group_ids' and 'names'")
+
+        if not group_ids_set and not names_set:
+            raise ValueError("Must specify either 'group_ids' or 'names'")
+
+        return self
 
 
 class DownloadResult(BaseModel):

@@ -98,7 +98,7 @@ class HTTPClient:
                     continue
 
                 error_message = f"Server returned {status_code}"
-                if e.response and e.response.content:
+                if e.response:
                     try:
                         error_data = e.response.json()
                         error_message = (
