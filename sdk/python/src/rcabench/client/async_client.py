@@ -8,6 +8,7 @@ import aiohttp
 import asyncio
 import json
 import re
+import traceback
 
 __all__ = ["AsyncSSEClient", "ClientManager"]
 
@@ -54,7 +55,7 @@ class ClientManager:
             # 更新错误和结果数据
             if error is not None:
                 if isinstance(error, Exception):
-                    error = {"IntervalError": str(error)}
+                    error = {"InternalError": traceback.format_exc()}
                 self.errors[client_id] = error
 
             if result is not None:
@@ -213,7 +214,11 @@ class AsyncSSEClient:
                 if status == TaskStatus.COMPLETED:
                     await self.client_manager.set_client_item(
                         self.client_id,
-                        result={task_id: SSEMessage.model_validate(data)},
+                        result={
+                            task_id: SSEMessage.model_validate(data).model_dump(
+                                exclude_unset=True
+                            )
+                        },
                     )
 
                 if status == TaskStatus.ERROR:
@@ -223,23 +228,30 @@ class AsyncSSEClient:
                             task_id: ModelHTTPError(
                                 status_code=500,
                                 detail=data.get("error"),
-                            )
+                            ).model_dump(exclude_unset=True)
                         },
                     )
 
             except json.JSONDecodeError:
                 pass
 
-    async def connect(self):
+    async def connect(self, client_timeout: float):
         try:
             await self.client_manager.add_client(self.client_id, asyncio.current_task())
 
-            self._session = aiohttp.ClientSession()
+            timeout = aiohttp.ClientTimeout(total=client_timeout)
+            self._session = aiohttp.ClientSession(
+                timeout=timeout, headers={"Accept": "text/event-stream"}
+            )
             async with self._session.get(self.url) as resp:
-                async for line in resp.content:
-                    if self._close or self.client_manager.close_event.is_set():
-                        break
-                    await self._process_line(line)
+                try:
+                    async for line in resp.content:
+                        if self._close or self.client_manager.close_event.is_set():
+                            break
+                        await self._process_line(line)
+                except asyncio.TimeoutError:
+                    logger.warning(f"Client {self.client_id} stream timeout")
+                    raise
 
         except asyncio.CancelledError:
             logger.warning(f"Client {self.client_id} cancelled by manager")

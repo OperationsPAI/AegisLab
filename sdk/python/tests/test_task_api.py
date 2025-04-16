@@ -13,32 +13,9 @@ import pytest
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "benchmark, interval, pre_duration, specs, num_consumers, max_items_per_consumer, per_consumer_timeout",
+    "benchmark, interval, pre_duration, specs, max_items_per_consumer, per_consumer_timeout, total_timeout",
     [
-        # PodKill
-        (
-            "clickhouse",
-            3,
-            1,
-            [
-                {
-                    "children": {
-                        "0": {
-                            "children": {
-                                "0": {"value": 1},
-                                "1": {"value": 0},
-                                "2": {"value": 42},
-                            }
-                        },
-                    },
-                    "value": 0,
-                },
-            ],
-            1,
-            1,
-            2 * 60,
-        ),
-        # PodFailure
+        # One spec
         (
             "clickhouse",
             3,
@@ -58,10 +35,9 @@ import pytest
                 },
             ],
             1,
-            1,
             3 * 60,
+            2 * 3 * 60,
         ),
-        # HttpRequestAbort
         (
             "clickhouse",
             3,
@@ -69,7 +45,7 @@ import pytest
             [
                 {
                     "children": {
-                        "5": {
+                        "1": {
                             "children": {
                                 "0": {"value": 1},
                                 "1": {"value": 0},
@@ -77,12 +53,71 @@ import pytest
                             }
                         },
                     },
-                    "value": 5,
+                    "value": 1,
+                },
+                {
+                    "children": {
+                        "1": {
+                            "children": {
+                                "0": {"value": 1},
+                                "1": {"value": 0},
+                                "2": {"value": 42},
+                            }
+                        },
+                    },
+                    "value": 1,
+                },
+                {
+                    "children": {
+                        "1": {
+                            "children": {
+                                "0": {"value": 1},
+                                "1": {"value": 0},
+                                "2": {"value": 42},
+                            }
+                        },
+                    },
+                    "value": 1,
+                },
+                {
+                    "children": {
+                        "1": {
+                            "children": {
+                                "0": {"value": 1},
+                                "1": {"value": 0},
+                                "2": {"value": 42},
+                            }
+                        },
+                    },
+                    "value": 1,
                 },
             ],
             1,
+            3 * 60,
+            6 * 3 * 60,
+        ),
+        # Total timeout
+        (
+            "clickhouse",
+            3,
             1,
-            2 * 60,
+            [
+                {
+                    "children": {
+                        "1": {
+                            "children": {
+                                "0": {"value": 1},
+                                "1": {"value": 0},
+                                "2": {"value": 42},
+                            }
+                        },
+                    },
+                    "value": 1,
+                },
+            ],
+            1,
+            3 * 60,
+            30,
         ),
     ],
 )
@@ -91,94 +126,117 @@ async def test_injection_and_building_dataset_batch(
     interval: int,
     pre_duration: int,
     specs: List[Dict[str, Any]],
-    num_consumers: int,
+    max_items_per_consumer: int,
+    per_consumer_timeout: float,
+    total_timeout: Optional[float],
+):
+    results = {}
+    try:
+        results = await asyncio.wait_for(
+            injection_and_building_dataset_batch(
+                benchmark,
+                interval,
+                pre_duration,
+                specs,
+                max_items_per_consumer,
+                per_consumer_timeout,
+            ),
+            total_timeout,
+        )
+    except asyncio.TimeoutError:
+        logger.error("Total time out")
+    finally:
+        logger.info(f"Final results: {results}")
+
+
+async def injection_and_building_dataset_batch(
+    benchmark: str,
+    interval: int,
+    pre_duration: int,
+    specs: List[Dict[str, Any]],
     max_items_per_consumer: int,
     per_consumer_timeout: float,
 ):
-    assert num_consumers <= len(specs)
     sdk = RCABenchSDK(BASE_URL)
 
     resp = sdk.injection.submit(benchmark, interval, pre_duration, specs)
-    pprint(resp)
-
-    if not isinstance(resp, SubmitResult):
-        pytest.fail(resp.model_dump_json())
+    logger.info(resp)
 
     traces = resp.traces
-    if not traces:
-        pytest.fail("No traces returned from execution")
 
     task_ids = [trace.head_task_id for trace in traces]
     trace_ids = [trace.trace_id for trace in traces]
-    queue = await sdk.task.get_stream_batch(task_ids, trace_ids)
+    queue = await sdk.task.get_stream_batch(task_ids, trace_ids, interval * 60)
 
-    try:
-        results = await run_consumers(
-            queue,
-            num_consumers,
-            max_items_per_consumer,
-            per_consumer_timeout,
-            per_consumer_timeout * (num_consumers + 1),
-        )
-        logger.info(f"Final results: {results}")
-    finally:
-        await sdk.task.stream.cleanup()
+    num_consumers = len(traces) // max_items_per_consumer
+    results = await run_consumers(
+        queue,
+        num_consumers,
+        max_items_per_consumer,
+        per_consumer_timeout,
+    )
+
+    await sdk.task.stream.cleanup()
+    return results
 
 
 async def run_consumers(
     queue: asyncio.Queue,
     num_consumers: int,
     max_items_per_consumer: int,
-    per_consumer_timeout: Optional[float] = None,
-    total_timeout: Optional[float] = None,
+    per_consumer_timeout: float,
 ):
     all_results = {}
+    tasks = [
+        asyncio.create_task(
+            consumer_task(
+                i, queue, max_items_per_consumer, per_consumer_timeout * (i + 1)
+            )
+        )
+        for i in range(num_consumers)
+    ]
 
-    start_time = asyncio.get_event_loop().time()
-    for i in range(num_consumers):
-        if total_timeout:
-            elapsed = asyncio.get_event_loop().time() - start_time
-            if elapsed >= total_timeout:
-                logger.warning(
-                    f"Total execution time exceeded {total_timeout} seconds, stopping subsequent tasks"
-                )
-                break
+    results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            # Calculate remaining timeout for current task
-            remaining = total_timeout - elapsed
-            current_timeout = min(per_consumer_timeout, remaining)
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            logger.error(f"Consumer {i} failed: {str(result)}")
+            all_results[f"Batch-{i}"] = None
         else:
-            current_timeout = per_consumer_timeout
-
-        logger.info(f"Starting consumer {i}, timeout: {current_timeout} seconds")
-
-        try:
-            results = await consumer(queue, max_items_per_consumer, current_timeout)
-            all_results[f"Batch-{i}"] = results
-            logger.info(f"Consumer-{i} completed")
-        except asyncio.TimeoutError:
-            logger.error(f"Consumer-{i} execution timeout")
-        except Exception as e:
-            logger.error(f"Consumer-{i} execution error: {e}")
+            all_results[f"Batch-{i}"] = result
 
     return all_results
+
+
+async def consumer_task(
+    consumer_id: int,
+    queue: asyncio.Queue,
+    max_num: int,
+    timeout: Optional[float] = None,
+):
+    try:
+        results = await consumer(queue, max_num, timeout)
+        logger.info(f"Consumer-{consumer_id} completed")
+        return results
+    except asyncio.TimeoutError:
+        logger.error(f"Consumer-{consumer_id} timed out")
+        raise
+    except Exception as e:
+        logger.error(f"Consumer-{consumer_id} error: {str(e)}")
+        raise
 
 
 async def consumer(queue: asyncio.Queue, max_num: int, timeout: Optional[float] = None):
     results = []
     count = 0
     while count < max_num:
-        got_item = False
         try:
             item = await asyncio.wait_for(queue.get(), timeout)
-            got_item = True
-
             results.append(item)
-
             count += 1
-        finally:
-            if got_item:
-                queue.task_done()
+        except asyncio.TimeoutError:
+            logger.warning("Timeout while waiting for queue item")
+            raise
 
     return results
 

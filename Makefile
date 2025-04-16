@@ -55,6 +55,9 @@ pods: ## List all pods
 ports: ## Port-forward service
 	kubectl port-forward svc/exp -n $(NS) --address 0.0.0.0 8081:8081 &
 
+clean-finalizer:
+	for i in $(kubectl api-resources | grep chaos-mesh | awk '{print $1}'); do kubectl get "$i" -A --no-headers | awk '{print $1":"$2}' | while IFS=: read ns name; do kubectl patch "$i" "$name" -n "$ns" --type=merge -p '{"metadata":{"finalizers":[]}}'; done; done
+
 install-hooks: ## Install pre-commit hooks
 	chmod +x scripts/hooks/pre-commit
 	cp scripts/hooks/pre-commit .git/hooks/pre-commit

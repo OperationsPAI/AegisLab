@@ -3,13 +3,14 @@ from pydantic import BaseModel, Field
 from uuid import UUID
 
 
-class StreamReq(BaseModel):
+class StreamBatchReq(BaseModel):
     """
-    流式请求参数
+    批量流式请求参数
 
     Attributes:
         task_ids: 需要监控的任务ID列表
-        timeout: 流式连接的最大超时时间（秒），None表示无超时
+        trace_ids: 需要监控的链路ID列表
+        client_timeout: 流式连接的最大超时时间（秒）
     """
 
     task_ids: List[UUID] = Field(
@@ -24,9 +25,28 @@ class StreamReq(BaseModel):
         json_schema_extra={"example": [UUID("005f94a9-f9a2-4e50-ad89-61e05c1c15a0")]},
     )
 
-    timeout: Optional[float] = Field(
+    client_timeout: float = Field(
+        ...,
+        description="Maximum client timeout in seconds",
+        json_schema_extra={"example": 30.0},
+        gt=0,
+    )
+
+
+class StreamAllReq(StreamBatchReq):
+    """
+    全部流式请求参数
+
+    Attributes:
+        task_ids: 需要监控的任务ID列表
+        trace_ids: 需要监控的链路ID列表
+        client_timeout: 流式连接的最大超时时间
+        wait_timeout: 等待全部完成的最大超时时间（秒），None表示无超时
+    """
+
+    wait_timeout: Optional[float] = Field(
         None,
-        description="Maximum connection timeout in seconds (None means no timeout)",
+        description="Maximum wait timeout in seconds (None means no timeout)",
         json_schema_extra={"example": 30.0},
         gt=0,
     )
