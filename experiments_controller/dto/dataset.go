@@ -20,7 +20,22 @@ type DatasetDeleteResp struct {
 }
 
 type DatasetDownloadReq struct {
-	GroupIDs []string `form:"group_ids" binding:"required"`
+	GroupIDs []string `form:"group_ids"`
+	Names    []string `form:"names"`
+}
+
+func (r *DatasetDownloadReq) Validate() error {
+	hasGroupIDs := len(r.GroupIDs) > 0
+	hasNames := len(r.Names) > 0
+	if !hasGroupIDs && !hasNames {
+		return fmt.Errorf("One of group_ids or names must be provided")
+	}
+
+	if hasGroupIDs && hasNames {
+		return fmt.Errorf("Only one of group_ids or names must be provided")
+	}
+
+	return nil
 }
 
 type DatasetItem struct {

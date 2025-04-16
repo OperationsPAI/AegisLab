@@ -1,5 +1,6 @@
 # Run this file:
 # uv run pytest -s tests/test_dataset_api.py
+from typing import List, Optional
 from pprint import pprint
 from uuid import UUID
 import os
@@ -7,15 +8,28 @@ import pytest
 
 
 @pytest.mark.parametrize(
-    "group_ids, output_path",
+    "group_ids, names, output_path",
     [
-        ([UUID("20eab8e5-2c1b-4119-9343-de931bf839a5")], os.getcwd()),
-        ([UUID("b6dac6be-6150-429c-9ca4-448881764696")], os.getcwd()),
+        ([UUID("20eab8e5-2c1b-4119-9343-de931bf839a5")], None, os.getcwd()),
+        ([UUID("b6dac6be-6150-429c-9ca4-448881764696")], None, os.getcwd()),
+        (
+            None,
+            [
+                "ts-ts-ui-dashboard-pod-failure-mxpqz8",
+                "ts-ts-security-service-request-replace-method-58zrdv",
+            ],
+            os.getcwd(),
+        ),
     ],
 )
-def test_download_datasets(sdk, group_ids, output_path):
+def test_download_datasets(
+    sdk,
+    group_ids: Optional[List[UUID]],
+    names: Optional[List[str]],
+    output_path: str,
+):
     """测试批量下载数据集"""
-    file_path = sdk.dataset.download(group_ids, output_path)
+    file_path = sdk.dataset.download(group_ids, names, output_path)
     pprint(file_path)
 
 

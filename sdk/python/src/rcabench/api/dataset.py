@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Optional, Union
 from .validation import validate_request_response
 from ..const import Pagination, Dataset as DatasetConst
 from ..client.http_client import HTTPClient
@@ -65,7 +65,10 @@ class Dataset:
 
     @validate_request_response(DownloadReq, DownloadResult)
     def download(
-        self, group_ids: List[UUID], output_path: str
+        self,
+        group_ids: Optional[List[UUID]],
+        names: Optional[List[str]],
+        output_path: str,
     ) -> Union[DownloadResult, ModelHTTPError]:
         """
         批量下载数据集文件组
@@ -76,10 +79,9 @@ class Dataset:
         - 分块写入避免内存溢出
 
         Args:
-            group_ids (List[UUID]): 任务组标识列表，为 UUID 格式
-                示例: ["550e8400-e29b-41d4-a716-446655440000"]
+            group_ids (List[UUID] | None): 任务组标识列表，为 UUID 格式
+            names (List[str] | None): 数据集名称列表
             output_path (str): 文件保存目录路径，需确保有写权限
-                示例: "/data/downloads"
 
         Returns:
             str: 下载文件的完整保存路径
@@ -87,6 +89,7 @@ class Dataset:
 
         Raises:
             ModelValidationError: 当输入参数不符合Pydantic模型验证规则时抛出
+            ModelHTTPError: 当API请求失败（4xx/5xx状态码）时抛出
 
         Example:
             >>> download(
@@ -97,7 +100,9 @@ class Dataset:
         """
         url = f"{self.url_prefix}{self.URL_ENDPOINTS['download']}"
 
-        response = self.client.get(url, params={"group_ids": group_ids}, stream=True)
+        response = self.client.get(
+            url, params={"group_ids": group_ids, "names": names}, stream=True
+        )
         if isinstance(response, ModelHTTPError):
             return response
 

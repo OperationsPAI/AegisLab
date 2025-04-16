@@ -135,3 +135,9 @@ const (
 	EventEnd    = "end"
 	EventUpdate = "update"
 )
+
+const (
+	DownloadFilename       = "package"
+	DetectorConclusionFile = "conclusion.csv"
+	ExecutionResultFile    = "result.csv"
+)
