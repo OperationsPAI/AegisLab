@@ -35,8 +35,6 @@ configmap:
   injection:
     namespace: ["ts"]
     enable_duplicate: true
-  storage:
-    path: "/var/lib/rcabench/tasks.db"
   database:
     clickhouse_host: "10.10.10.58"
     mysql_user: "root"
@@ -44,8 +42,6 @@ configmap:
     mysql_host: "mariadb"
     mysql_port: "3306"
     mysql_db: "rcabench"
-  image:
-    tag: "latest"
   redis:
     host: "redis:6379"
   harbor:

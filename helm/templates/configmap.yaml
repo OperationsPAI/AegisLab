@@ -15,9 +15,6 @@ data:
     namespace = [{{ .Values.configmap.injection.namespace | join "\", \"" | quote }}]
     enable_duplicate = "{{ .Values.configmap.injection.enable_duplicate }}"
 
-    [storage]
-    path = "{{ .Values.configmap.storage.path }}"
-
     [database]
     clickhouse_host = "{{ .Values.configmap.database.clickhouse_host }}"
     mysql_user = "{{ .Values.configmap.database.mysql_user }}"
@@ -25,9 +22,6 @@ data:
     mysql_host = "{{ .Values.configmap.database.mysql_host }}"
     mysql_port = "{{ .Values.configmap.database.mysql_port }}"
     mysql_db = "{{ .Values.configmap.database.mysql_db }}"
-
-    [image]
-    tag = "{{ .Values.configmap.image.tag }}"
 
     [redis]
     host = "{{ .Values.configmap.redis.host }}"

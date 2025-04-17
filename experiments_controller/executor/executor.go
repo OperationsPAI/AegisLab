@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
-	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/CUHK-SE-Group/rcabench/utils"
@@ -354,18 +353,9 @@ func (e *Executor) updateDataset(taskOptions *TaskOptions, options *DatasetOptio
 
 	if datasetStatus == consts.DatasetBuildSuccess {
 		image := "detector"
-		parts := strings.Split(config.GetString("harbor.repository"), "/")
-		harborConfig := utils.HarborConfig{
-			Host:     config.GetString("harbor.host"),
-			Project:  parts[len(parts)-1],
-			Repo:     image,
-			Username: config.GetString("harbor.username"),
-			Password: config.GetString("harbor.password"),
-		}
-
-		_, err := utils.GetLatestTag(harborConfig)
+		_, err := client.GetHarborClient().GetLatestTag(image)
 		if err != nil {
-			logrus.Errorf("failed to get latest tag: %v", err)
+			logrus.Errorf("failed to get latest tag of %s: %v", image, err)
 			return err
 		}
 

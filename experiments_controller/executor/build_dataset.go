@@ -8,6 +8,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
@@ -29,8 +30,14 @@ func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
 		return err
 	}
 
+	imageName := fmt.Sprintf("%s_dataset", payload.Benchmark)
+	tag, err := client.GetHarborClient().GetLatestTag(imageName)
+	if err != nil {
+		return fmt.Errorf("failed to get lataset tag of %s: %v", imageName, err)
+	}
+
 	jobName := fmt.Sprintf("%s-%s", consts.DatasetJobName, payload.Name)
-	image := fmt.Sprintf("%s/%s_dataset:%s", config.GetString("harbor.repository"), payload.Benchmark, config.GetString("image.tag"))
+	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), imageName, tag)
 	labels := map[string]string{
 		consts.LabelTaskID:   task.TaskID,
 		consts.LabelTraceID:  task.TraceID,

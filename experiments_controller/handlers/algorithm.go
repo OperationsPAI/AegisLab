@@ -11,12 +11,14 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
 	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/k0kubun/pp/v3"
 	"github.com/sirupsen/logrus"
 )
 
@@ -99,20 +101,12 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 		return
 	}
 
-	parts := strings.Split(config.GetString("harbor.repository"), "/")
-	harborConfig := utils.HarborConfig{
-		Host:     config.GetString("harbor.host"),
-		Project:  parts[len(parts)-1],
-		Username: config.GetString("harbor.username"),
-		Password: config.GetString("harbor.password"),
-	}
-
 	for i := range payloads {
 		if payloads[i].Tag == "" {
-			harborConfig.Repo = payloads[i].Image
-			tag, err := utils.GetLatestTag(harborConfig)
+			tag, err := client.GetHarborClient().GetLatestTag(payloads[i].Image)
+			pp.Println(tag)
 			if err != nil {
-				logrus.Errorf("failed to get latest tag: %v", err)
+				logrus.Errorf("failed to get latest tag of %s: %v", payloads[i].Image, err)
 				dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get latest tag")
 				return
 			}
