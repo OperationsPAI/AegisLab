@@ -33,7 +33,7 @@ def test_list_injections(sdk, page_num, page_size):
                             "children": {
                                 "0": {"value": 1},
                                 "1": {"value": 0},
-                                "2": {"value": 42},
+                                "2": {"value": 29},
                             }
                         },
                     },

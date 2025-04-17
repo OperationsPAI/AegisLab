@@ -8,6 +8,7 @@ import aiohttp
 import asyncio
 import json
 import re
+import traceback
 
 __all__ = ["AsyncSSEClient", "ClientManager"]
 
@@ -201,7 +202,6 @@ class AsyncSSEClient:
         result: Optional[Dict[UUID, SSEMessage]] = None,
         error: Optional[Union[Dict[UUID, ModelHTTPError], Exception]] = None,
     ) -> None:
-        print(result, error)
         if error is not None:
             if isinstance(error, Exception):
                 error = {Task.CLIENT_ERROR_KEY: str(error)}
@@ -306,7 +306,9 @@ class AsyncSSEClient:
             )
 
         except Exception as e:
-            logger.error(f"Client {self.client_id} exception occured: {str(e)}")
+            logger.error(
+                f"Client {self.client_id} exception occured: {traceback.format_exc()}"
+            )
             self._close = True
             await self._set_client_item(error=e)
 

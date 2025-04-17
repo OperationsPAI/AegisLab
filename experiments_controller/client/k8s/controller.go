@@ -55,10 +55,10 @@ type timeRange struct {
 // 接口避免循环引用
 type Callback interface {
 	HandleCRDFailed(name, errorMsg string, labels map[string]string)
-	HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, labels map[string]string) error
-	HandleJobAdd(labels map[string]string) error
-	HandleJobFailed(labels map[string]string, errorMsg string) error
-	HandleJobSucceeded(labels map[string]string) error
+	HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, labels map[string]string)
+	HandleJobAdd(labels map[string]string)
+	HandleJobFailed(labels map[string]string, errorMsg string)
+	HandleJobSucceeded(labels map[string]string)
 }
 
 type QueueItem struct {
@@ -195,7 +195,6 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 					selected := getCRDConditionStatus(conditions, "Selected")
 					if !selected {
 						message = "failed to select app in the chaos experiment"
-						logEntry.Error(message)
 						callback.HandleCRDFailed(newU.GetName(), message, labels)
 						if !config.GetBool("debugging.enable") {
 							c.queue.Add(QueueItem{
@@ -211,7 +210,6 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 					allInjected := getCRDConditionStatus(conditions, "AllInjected")
 					if !allInjected {
 						message = "failed to inject all targets in the chaos experiment"
-						logEntry.Error(message)
 						callback.HandleCRDFailed(newU.GetName(), message, labels)
 						if !config.GetBool("debugging.enable") {
 							c.queue.Add(QueueItem{
@@ -239,7 +237,6 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 					match := re.FindStringSubmatch(durationStr)
 					if len(match) <= 1 {
 						message := "failed to get the duration"
-						logEntry.Error(message)
 						callback.HandleCRDFailed(newU.GetName(), message, labels)
 						return
 					}
@@ -247,7 +244,6 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 					duration, err := strconv.Atoi(match[1])
 					if err != nil {
 						message := "failed to get the duration of the chaos experiement"
-						logEntry.Error(message)
 						callback.HandleCRDFailed(newU.GetName(), message, labels)
 						return
 					}
@@ -266,7 +262,6 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 								}
 
 								message := "failed to get the CRD resource object"
-								logEntry.Error(message)
 								callback.HandleCRDFailed(newU.GetName(), message, labels)
 								if !config.GetBool("debugging.enable") {
 									c.queue.Add(QueueItem{
@@ -283,7 +278,6 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 
 							if !recovered {
 								message := "faied to recover all targets in the chaos experiment"
-								logEntry.Error(message)
 								callback.HandleCRDFailed(newU.GetName(), message, labels)
 								if !config.GetBool("debugging.enable") {
 									c.queue.Add(QueueItem{
@@ -315,7 +309,6 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 					gvr, ok := chaosGVRMapping[kind]
 					if !ok {
 						message := "failed to get the CRD resource gvr"
-						logEntry.Error(message)
 						callback.HandleCRDFailed(newU.GetName(), message, labels)
 						return
 					}
@@ -324,18 +317,12 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 					timeRanges := getCRDEventTimeRanges(newRecords)
 					if len(timeRanges) == 0 {
 						message := "failed to get the start_time and end_time"
-						logEntry.Error(message)
 						callback.HandleCRDFailed(newU.GetName(), message, labels)
 						return
 					}
 
 					timeRange := timeRanges[0]
-					if err := callback.HandleCRDSucceeded(newU.GetNamespace(), pod, newU.GetName(), timeRange.Start, timeRange.End, labels); err != nil {
-						logEntry.Error(err)
-						callback.HandleCRDFailed(newU.GetName(), err.Error(), labels)
-						return
-					}
-
+					callback.HandleCRDSucceeded(newU.GetNamespace(), pod, newU.GetName(), timeRange.Start, timeRange.End, labels)
 					if !config.GetBool("debugging.enable") {
 						c.queue.Add(QueueItem{
 							Type:      CRDResourceType,
@@ -374,8 +361,6 @@ func (c *Controller) genJobEventHandlerFuncs(callback Callback) cache.ResourceEv
 			if callback != nil && oldJob.Name == newJob.Name {
 				if oldJob.Status.Failed == 0 && newJob.Status.Failed > 0 {
 					errorMsg := extractJobError(newJob)
-					if errorMsg == "" {
-					}
 					callback.HandleJobFailed(newJob.Labels, errorMsg)
 				}
 

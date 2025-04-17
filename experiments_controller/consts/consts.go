@@ -10,12 +10,12 @@ const (
 )
 
 const (
+	DatasetDeleted       = -1
 	DatasetInitial       = 0
-	DatasetInjectSuccess = 1
-	DatasetInjectFailed  = 2
-	DatasetBuildSuccess  = 3
-	DatasetBuildFailed   = 4
-	DatasetDeleted       = 5
+	DatasetInjectFailed  = 1
+	DatasetInjectSuccess = 2
+	DatasetBuildFailed   = 3
+	DatasetBuildSuccess  = 4
 )
 
 const (
