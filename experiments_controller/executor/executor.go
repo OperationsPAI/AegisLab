@@ -47,27 +47,36 @@ var Exec *Executor
 func (e *Executor) HandleCRDFailed(name, errorMsg string, labels map[string]string) {
 	parsedLabels, _ := parseCRDLabels(labels)
 
-	updateTaskStatus(parsedLabels.TaskID, parsedLabels.TraceID,
-		fmt.Sprintf(consts.TaskMsgFailed, parsedLabels.TaskID),
-		map[string]any{
-			consts.RdbMsgStatus:   consts.TaskStatusError,
-			consts.RdbMsgTaskID:   parsedLabels.TaskID,
-			consts.RdbMsgTaskType: consts.TaskTypeFaultInjection,
-			consts.RdbMsgError:    errorMsg,
-		})
+	updateTaskError(
+		parsedLabels.TaskID,
+		parsedLabels.TraceID,
+		consts.TaskTypeFaultInjection,
+		errorMsg,
+	)
 }
 
-func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, labels map[string]string) error {
-	parsedLabels, err := parseCRDLabels(labels)
-	if err != nil {
-		return fmt.Errorf("failed to read CRD labels: %v", err)
-	}
+func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, labels map[string]string) {
+	parsedLabels, _ := parseCRDLabels(labels)
 
 	if err := repository.UpdateTimeByDataset(name, startTime, endTime); err != nil {
-		return fmt.Errorf("update execution times failed: %v", err)
+		logrus.WithFields(logrus.Fields{
+			"task_id":  parsedLabels.TaskID,
+			"trace_id": parsedLabels.TraceID,
+		}).Error(err)
+
+		updateTaskError(
+			parsedLabels.TaskID,
+			parsedLabels.TraceID,
+			consts.TaskTypeFaultInjection,
+			"update execution times failed",
+		)
+
+		return
 	}
 
-	updateTaskStatus(parsedLabels.TaskID, parsedLabels.TraceID,
+	updateTaskStatus(
+		parsedLabels.TaskID,
+		parsedLabels.TraceID,
 		fmt.Sprintf(consts.TaskMsgCompleted, parsedLabels.TaskID),
 		map[string]any{
 			consts.RdbMsgStatus:   consts.TaskStatusCompleted,
@@ -87,14 +96,207 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 		consts.BuildStartTime:   startTime,
 		consts.BuildEndTime:     endTime,
 	}
-	if _, _, err := SubmitTask(context.Background(), &UnifiedTask{
+	taskID, traceID, err := SubmitTask(context.Background(), &UnifiedTask{
 		Type:      consts.TaskTypeBuildDataset,
 		Payload:   datasetPayload,
 		Immediate: true,
 		TraceID:   parsedLabels.TraceID,
 		GroupID:   parsedLabels.GroupID,
+	})
+	if err != nil {
+		if taskID == "" && traceID == "" {
+			logrus.Error(err)
+			return
+		}
+
+		logrus.WithFields(logrus.Fields{
+			"task_id":  taskID,
+			"trace_id": traceID,
+		}).Error(err)
+
+		updateTaskError(
+			taskID,
+			traceID,
+			consts.BuildDataset,
+			"failed to submit task",
+		)
+	}
+}
+
+func (e *Executor) HandleJobAdd(labels map[string]string) {
+	taskOptions, _ := parseTaskOptions(labels)
+
+	var message string
+	switch taskOptions.Type {
+	case consts.TaskTypeBuildDataset:
+		message = fmt.Sprintf("building dataset for task %s", taskOptions.TaskID)
+	case consts.TaskTypeRunAlgorithm:
+		message = fmt.Sprintf("running algorithm for task %s", taskOptions.TaskID)
+	}
+
+	updateTaskStatus(
+		taskOptions.TaskID,
+		taskOptions.TraceID,
+		message,
+		map[string]any{
+			consts.RdbMsgStatus:   consts.TaskStatusRunning,
+			consts.RdbMsgTaskID:   taskOptions.TaskID,
+			consts.RdbMsgTaskType: taskOptions.Type,
+		})
+}
+
+func (e *Executor) HandleJobFailed(labels map[string]string, errorMsg string) {
+	taskOptions, _ := parseTaskOptions(labels)
+
+	logEntry := logrus.WithFields(logrus.Fields{
+		"task_id":  taskOptions.TaskID,
+		"trace_id": taskOptions.TraceID,
+	})
+
+	if taskOptions.Type == consts.TaskTypeBuildDataset {
+		options, _ := parseDatasetOptions(labels)
+
+		logEntry.WithField("dataset", options.Dataset).Errorf("dataset build failed: %v", errorMsg)
+
+		fields := map[string]any{
+			consts.RdbMsgStatus:   consts.TaskStatusError,
+			consts.RdbMsgTaskID:   taskOptions.TaskID,
+			consts.RdbMsgTaskType: taskOptions.Type,
+			consts.RdbMsgError:    errorMsg,
+		}
+
+		if err := e.updateDataset(taskOptions, options, consts.TaskStatusError, consts.DatasetBuildFailed, fields); err != nil {
+			updateTaskError(
+				taskOptions.TaskID,
+				taskOptions.TraceID,
+				taskOptions.Type,
+				"failed to udpate dataset",
+			)
+		}
+	}
+}
+
+func (e *Executor) HandleJobSucceeded(labels map[string]string) {
+	taskOptions, _ := parseTaskOptions(labels)
+
+	logEntry := logrus.WithFields(logrus.Fields{
+		"task_id":  taskOptions.TaskID,
+		"trace_id": taskOptions.TraceID,
+	})
+
+	baseFields := map[string]any{
+		consts.RdbMsgStatus:   consts.TaskStatusCompleted,
+		consts.RdbMsgTaskID:   taskOptions.TaskID,
+		consts.RdbMsgTaskType: taskOptions.Type,
+	}
+
+	switch taskOptions.Type {
+	case consts.TaskTypeRunAlgorithm:
+		options, _ := parseExecutionOptions(labels)
+
+		if err := e.updateAlgorithm(logEntry, taskOptions, options, baseFields); err != nil {
+			updateTaskError(
+				taskOptions.TaskID,
+				taskOptions.TraceID,
+				taskOptions.Type,
+				"failed to udpate algorithm",
+			)
+		}
+
+	case consts.TaskTypeBuildDataset:
+		options, _ := parseDatasetOptions(labels)
+
+		logEntry.WithField("dataset", options.Dataset).Info("dataset build successfully")
+		if err := e.updateDataset(taskOptions, options, consts.TaskStatusCompleted, consts.DatasetBuildSuccess, baseFields); err != nil {
+			updateTaskError(
+				taskOptions.TaskID,
+				taskOptions.TraceID,
+				taskOptions.Type,
+				"failed to udpate dataset",
+			)
+		}
+	}
+}
+
+func (e *Executor) updateDataset(taskOptions *TaskOptions, options *DatasetOptions, taskStatus string, datasetStatus int, fields map[string]any) error {
+	if datasetStatus != consts.DatasetBuildSuccess {
+		updateTaskStatus(
+			taskOptions.TaskID,
+			taskOptions.TraceID,
+			fmt.Sprintf("[%s] %s", taskStatus, taskOptions.TaskID),
+			fields,
+		)
+	} else {
+		updateFields := utils.CloneMap(fields)
+		updateFields[consts.RdbMsgDataset] = options.Dataset
+		updateTaskStatus(
+			taskOptions.TaskID,
+			taskOptions.TraceID,
+			fmt.Sprintf(consts.TaskMsgCompleted, taskOptions.TaskID),
+			updateFields,
+		)
+	}
+
+	if err := repository.UpdateStatusByDataset(options.Dataset, datasetStatus); err != nil {
+		return fmt.Errorf("update dataset status to %v failed: %v", datasetStatus, err)
+	}
+
+	if datasetStatus == consts.DatasetBuildSuccess {
+		image := "detector"
+		_, err := client.GetHarborClient().GetLatestTag(image)
+		if err != nil {
+			logrus.Errorf("failed to get latest tag of %s: %v", image, err)
+			return err
+		}
+
+		envVars := map[string]string{
+			consts.ExecuteEnvVarService: options.Service,
+		}
+		executionPayload := map[string]any{
+			consts.ExecuteImage:   image,
+			consts.ExecuteTag:     "latest",
+			consts.ExecuteDataset: options.Dataset,
+			consts.ExecuteEnvVars: envVars,
+		}
+
+		if _, _, err := SubmitTask(context.Background(), &UnifiedTask{
+			Type:      consts.TaskTypeRunAlgorithm,
+			Payload:   executionPayload,
+			Immediate: true,
+			TraceID:   taskOptions.TraceID,
+			GroupID:   taskOptions.GroupID,
+		}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (e *Executor) updateAlgorithm(logEntry *logrus.Entry, taskOptions *TaskOptions, options *ExecutionOptions, baseFields map[string]any) error {
+	logEntry.WithField("algorithm", options.Algorithm).Info("algorithm execute successfully")
+
+	updateFields := utils.CloneMap(baseFields)
+	updateFields[consts.RdbMsgExecutionID] = options.ExecutionID
+	updateTaskStatus(
+		taskOptions.TaskID,
+		taskOptions.TraceID,
+		fmt.Sprintf("[%s] %s", consts.TaskMsgCompleted, taskOptions.TaskID),
+		updateFields,
+	)
+
+	if _, _, err := SubmitTask(context.Background(), &UnifiedTask{
+		Type: consts.TaskTypeCollectResult,
+		Payload: map[string]any{
+			consts.CollectAlgorithm:   options.Algorithm,
+			consts.CollectDataset:     options.Dataset,
+			consts.CollectExecutionID: options.ExecutionID,
+		},
+		Immediate: true,
+		TraceID:   taskOptions.TraceID,
+		GroupID:   taskOptions.GroupID,
 	}); err != nil {
-		return err
+		return fmt.Errorf("submit result collection task failed")
 	}
 
 	return nil
@@ -141,110 +343,6 @@ func parseCRDLabels(labels map[string]string) (*CRDLabels, error) {
 		Benchmark:   benchmark,
 		PreDuration: preDuration,
 	}, nil
-}
-
-func (e *Executor) HandleJobAdd(labels map[string]string) error {
-	taskOptions, err := parseTaskOptions(labels)
-	if err != nil {
-		return fmt.Errorf("parse job labels failed: %v", err)
-	}
-
-	var message string
-	switch taskOptions.Type {
-	case consts.TaskTypeBuildDataset:
-		message = fmt.Sprintf("building dataset for task %s", taskOptions.TaskID)
-	case consts.TaskTypeRunAlgorithm:
-		message = fmt.Sprintf("running algorithm for task %s", taskOptions.TaskID)
-	}
-
-	updateTaskStatus(taskOptions.TaskID, taskOptions.TraceID,
-		message,
-		map[string]any{
-			consts.RdbMsgStatus:   consts.TaskStatusRunning,
-			consts.RdbMsgTaskID:   taskOptions.TaskID,
-			consts.RdbMsgTaskType: taskOptions.Type,
-		})
-
-	return nil
-}
-
-func (e *Executor) HandleJobFailed(labels map[string]string, errorMsg string) error {
-	taskOptions, err := parseTaskOptions(labels)
-	if err != nil {
-		return fmt.Errorf("failed to parse job labels: %v", err)
-	}
-
-	logEntry := logrus.WithFields(logrus.Fields{
-		"task_id":  taskOptions.TaskID,
-		"trace_id": taskOptions.TraceID,
-	})
-
-	if taskOptions.Type == consts.TaskTypeBuildDataset {
-		options, err := parseDatasetOptions(labels)
-		if err != nil {
-			return fmt.Errorf("failed to parse job labels options to DatasetOptions: %v", err)
-		}
-
-		logEntry.WithField("dataset", options.Dataset).Errorf("dataset build failed: %v", errorMsg)
-
-		fields := map[string]any{
-			consts.RdbMsgStatus:   consts.TaskStatusError,
-			consts.RdbMsgTaskID:   taskOptions.TaskID,
-			consts.RdbMsgTaskType: taskOptions.Type,
-			consts.RdbMsgError:    errorMsg,
-		}
-
-		if err := e.updateDataset(taskOptions, options, consts.TaskStatusError, consts.DatasetBuildFailed, fields); err != nil {
-			return fmt.Errorf("failed to udpate dataset: %v", err)
-		}
-	}
-
-	return nil
-}
-
-func (e *Executor) HandleJobSucceeded(labels map[string]string) error {
-	taskOptions, err := parseTaskOptions(labels)
-	if err != nil {
-		message := "parse job labels failed"
-		logrus.Errorf("%s: %v", message, err)
-		return err
-	}
-
-	logEntry := logrus.WithField("task_id", taskOptions.TaskID).WithField("trace_id", taskOptions.TraceID)
-
-	baseFields := map[string]any{
-		consts.RdbMsgStatus:   consts.TaskStatusCompleted,
-		consts.RdbMsgTaskID:   taskOptions.TaskID,
-		consts.RdbMsgTaskType: taskOptions.Type,
-	}
-
-	switch taskOptions.Type {
-	case consts.TaskTypeBuildDataset:
-		options, err := parseDatasetOptions(labels)
-		if err != nil {
-			return fmt.Errorf("failed to parse job labels options to DatasetOptions: %v", err)
-		}
-
-		logEntry.WithField("dataset", options.Dataset).Info("dataset build successfully")
-		if err := e.updateDataset(taskOptions, options, consts.TaskStatusCompleted, consts.DatasetBuildSuccess, baseFields); err != nil {
-			return fmt.Errorf("failed to udpate dataset: %v", err)
-		}
-
-	case consts.TaskTypeRunAlgorithm:
-		options, err := parseExecutionOptions(labels)
-		if err != nil {
-			return fmt.Errorf("failed to parse job labels options to ExecutionOptions: %v", err)
-		}
-
-		if err := e.updateAlgorithm(logEntry, taskOptions, options, baseFields); err != nil {
-			return fmt.Errorf("failed to udpate algorithm: %v", err)
-		}
-
-	default:
-		logEntry.Warnf("unhandled completed task type: %s", taskOptions.Type)
-	}
-
-	return nil
 }
 
 func parseTaskOptions(labels map[string]string) (*TaskOptions, error) {
@@ -326,87 +424,4 @@ func parseExecutionOptions(labels map[string]string) (*ExecutionOptions, error) 
 		Dataset:     dataset,
 		ExecutionID: executionID,
 	}, nil
-}
-
-func (e *Executor) updateDataset(taskOptions *TaskOptions, options *DatasetOptions, taskStatus string, datasetStatus int, fields map[string]any) error {
-	if datasetStatus != consts.DatasetBuildSuccess {
-		updateTaskStatus(
-			taskOptions.TaskID,
-			taskOptions.TraceID,
-			fmt.Sprintf(taskStatus, taskOptions.TaskID),
-			fields,
-		)
-	} else {
-		updateFields := utils.CloneMap(fields)
-		updateFields[consts.RdbMsgDataset] = options.Dataset
-		updateTaskStatus(
-			taskOptions.TaskID,
-			taskOptions.TraceID,
-			fmt.Sprintf(consts.TaskMsgCompleted, taskOptions.TaskID),
-			updateFields,
-		)
-	}
-
-	if err := repository.UpdateStatusByDataset(options.Dataset, datasetStatus); err != nil {
-		return fmt.Errorf("update dataset status to %v failed: %v", datasetStatus, err)
-	}
-
-	if datasetStatus == consts.DatasetBuildSuccess {
-		image := "detector"
-		_, err := client.GetHarborClient().GetLatestTag(image)
-		if err != nil {
-			logrus.Errorf("failed to get latest tag of %s: %v", image, err)
-			return err
-		}
-
-		envVars := map[string]string{
-			consts.ExecuteEnvVarService: options.Service,
-		}
-		executionPayload := map[string]any{
-			consts.ExecuteImage:   image,
-			consts.ExecuteTag:     "latest",
-			consts.ExecuteDataset: options.Dataset,
-			consts.ExecuteEnvVars: envVars,
-		}
-
-		if _, _, err := SubmitTask(context.Background(), &UnifiedTask{
-			Type:      consts.TaskTypeRunAlgorithm,
-			Payload:   executionPayload,
-			Immediate: true,
-			TraceID:   taskOptions.TraceID,
-			GroupID:   taskOptions.GroupID,
-		}); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (e *Executor) updateAlgorithm(logEntry *logrus.Entry, taskOptions *TaskOptions, options *ExecutionOptions, baseFields map[string]any) error {
-	logEntry.WithField("algorithm", options.Algorithm).Info("algorithm execute successfully")
-
-	updateFields := utils.CloneMap(baseFields)
-	updateFields[consts.RdbMsgExecutionID] = options.ExecutionID
-	updateTaskStatus(taskOptions.TaskID,
-		taskOptions.TraceID,
-		fmt.Sprintf(consts.TaskMsgCompleted, taskOptions.TaskID),
-		updateFields,
-	)
-
-	if _, _, err := SubmitTask(context.Background(), &UnifiedTask{
-		Type: consts.TaskTypeCollectResult,
-		Payload: map[string]any{
-			consts.CollectAlgorithm:   options.Algorithm,
-			consts.CollectDataset:     options.Dataset,
-			consts.CollectExecutionID: options.ExecutionID,
-		},
-		Immediate: true,
-		TraceID:   taskOptions.TraceID,
-		GroupID:   taskOptions.GroupID,
-	}); err != nil {
-		return fmt.Errorf("submit result collection task failed")
-	}
-
-	return nil
 }

@@ -79,7 +79,7 @@ class StreamSingleReq(BaseModel):
 
     client_timeout: float = Field(
         ...,
-        description="Maximum client timeout in seconds",
+        description="Maximum client timeout in seconds must be greater than the interval",
         json_schema_extra={"example": 30.0},
         gt=0,
     )
@@ -175,7 +175,7 @@ class QueueDataItem(BaseModel):
     def validate_error(
         cls, value: Dict[UUID, Union[Dict[str, str], ModelHTTPError]]
     ) -> Dict[UUID, Union[Dict[str, str], ModelHTTPError]]:
-        for task_id, error_data in value.values():
+        for task_id, error_data in value.items():
             if isinstance(error_data, dict):
                 if len(error_data) != 1:
                     raise ValueError(

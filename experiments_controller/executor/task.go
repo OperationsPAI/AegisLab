@@ -320,14 +320,7 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 	tasksProcessed.WithLabelValues(string(task.Type), "failed").Inc()
 	handleFinalFailure(ctx, task)
 
-	updateTaskStatus(task.TaskID, task.TraceID,
-		err.Error(),
-		map[string]any{
-			consts.RdbMsgStatus:   consts.TaskStatusError,
-			consts.RdbMsgTaskID:   task.TaskID,
-			consts.RdbMsgTaskType: task.Type,
-			consts.RdbMsgError:    err.Error(),
-		})
+	updateTaskError(task.TaskID, task.TraceID, task.Type, err.Error())
 }
 
 // 注册取消函数
@@ -525,6 +518,17 @@ func updateTaskStatus(taskID, traceID, message string, payload map[string]any) {
 	}
 
 	redisCli.Publish(ctx, fmt.Sprintf(consts.SubChannel, traceID), msg)
+}
+
+func updateTaskError(taskID, traceID string, taskType consts.TaskType, errMsg string) {
+	updateTaskStatus(taskID, traceID,
+		fmt.Sprintf(consts.TaskMsgFailed, taskID),
+		map[string]any{
+			consts.RdbMsgStatus:   consts.TaskStatusError,
+			consts.RdbMsgTaskID:   taskID,
+			consts.RdbMsgTaskType: taskType,
+			consts.RdbMsgError:    errMsg,
+		})
 }
 
 func calculateExecuteTime(task *UnifiedTask) (int64, error) {

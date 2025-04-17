@@ -86,7 +86,7 @@ func FindExistingEngineConfigs(configs []string) ([]string, error) {
 	query := database.DB.
 		Model(&database.FaultInjectionSchedule{}).
 		Select("engine_config").
-		Where("engine_config in (?)", configs)
+		Where("engine_config in (?) AND status = ?", configs, consts.DatasetBuildSuccess)
 
 	var existingEngineConfigs []string
 	if err := query.Pluck("engine_config", &existingEngineConfigs).Error; err != nil {
