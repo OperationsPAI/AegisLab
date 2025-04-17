@@ -39,6 +39,7 @@ type ExecutionOptions struct {
 	Dataset     string
 	ExecutionID int
 }
+
 type Executor struct {
 }
 
@@ -362,7 +363,7 @@ func (e *Executor) updateDataset(taskOptions *TaskOptions, options *DatasetOptio
 			Password: config.GetString("harbor.password"),
 		}
 
-		tag, err := utils.GetLatestTag(harborConfig)
+		_, err := utils.GetLatestTag(harborConfig)
 		if err != nil {
 			logrus.Errorf("failed to get latest tag: %v", err)
 			return err
@@ -373,7 +374,7 @@ func (e *Executor) updateDataset(taskOptions *TaskOptions, options *DatasetOptio
 		}
 		executionPayload := map[string]any{
 			consts.ExecuteImage:   image,
-			consts.ExecuteTag:     tag,
+			consts.ExecuteTag:     "latest",
 			consts.ExecuteDataset: options.Dataset,
 			consts.ExecuteEnvVars: envVars,
 		}

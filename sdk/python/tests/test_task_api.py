@@ -323,7 +323,7 @@ async def test_injection_and_building_dataset_all(
                     "children": {
                         "1": {
                             "children": {
-                                "0": {"value": 1},
+                                "0": {"name": "a", "value": 1},
                                 "1": {"value": 0},
                                 "2": {"value": 42},
                             }

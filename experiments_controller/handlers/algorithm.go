@@ -130,8 +130,8 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 		}
 	}
 
-	var traces []dto.Trace
-	for _, payload := range payloads {
+	traces := make([]dto.Trace, 0, len(payloads))
+	for idx, payload := range payloads {
 		taskID, traceID, err := executor.SubmitTask(c.Request.Context(), &executor.UnifiedTask{
 			Type:      consts.TaskTypeRunAlgorithm,
 			Payload:   utils.StructToMap(payload),
@@ -145,7 +145,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 			return
 		}
 
-		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID})
+		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID, Index: idx})
 	}
 
 	dto.JSONResponse(c, http.StatusAccepted, "Algorithm executions submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
@@ -164,7 +164,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 //	@Failure		400			{object}	dto.GenericResponse[any]
 //	@Failure		500			{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/algorithms/build [post]
-func BuildAlgorithm(c *gin.Context) {
+func SubmitAlgorithmBuilding(c *gin.Context) {
 	var extractDir string
 	algoName := c.PostForm("algo")
 
@@ -256,5 +256,5 @@ func BuildAlgorithm(c *gin.Context) {
 	}
 
 	dto.JSONResponse(c, http.StatusAccepted, "Algorithm build task submitted successfully",
-		dto.SubmitResp{Traces: []dto.Trace{{TraceID: traceID, HeadTaskID: taskID}}})
+		dto.SubmitResp{Traces: []dto.Trace{{TraceID: traceID, HeadTaskID: taskID, Index: 0}}})
 }

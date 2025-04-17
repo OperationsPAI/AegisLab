@@ -34,7 +34,7 @@ configmap:
     timezone: "Asia/Shanghai"
   injection:
     namespace: ["ts"]
-    label: "app"
+    enable_duplicate: true
   storage:
     path: "/var/lib/rcabench/tasks.db"
   database:

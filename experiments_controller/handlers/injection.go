@@ -7,6 +7,7 @@ import (
 
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
+	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
@@ -33,7 +34,7 @@ func GetInjectionConf(c *gin.Context) {
 	}
 
 	if req.Mode == "engine" {
-		dto.SuccessResponse(c, chaos.NodeToMap(root))
+		dto.SuccessResponse(c, chaos.NodeToMap(root, false))
 		return
 	}
 
@@ -153,7 +154,31 @@ func SubmitFaultInjection(c *gin.Context) {
 		return
 	}
 
-	var traces []dto.Trace
+	if !config.GetBool("injection.enable_duplicate") {
+		rawConfs := make([]string, 0, len(configs))
+		for _, config := range configs {
+			rawConfs = append(rawConfs, config.RawConf)
+		}
+
+		missingIndices, err := findMissingIndices(rawConfs, 10)
+		if err != nil {
+			message := "failed to get the existing configs"
+			logrus.Errorf("%s: %v", message, err)
+			dto.ErrorResponse(c, http.StatusInternalServerError, message)
+			return
+		}
+
+		logrus.Infof("deduplicated %d configurations (remaining: %d)", len(rawConfs)-len(missingIndices), len(missingIndices))
+
+		newConfigs := make([]*dto.InjectionConfig, 0, len(missingIndices))
+		for _, idx := range missingIndices {
+			newConfigs = append(newConfigs, configs[idx])
+		}
+
+		configs = newConfigs
+	}
+
+	traces := make([]dto.Trace, 0, len(configs))
 	for _, config := range configs {
 		payload := map[string]any{
 			consts.InjectBenchmark:   req.Benchmark,
@@ -177,8 +202,35 @@ func SubmitFaultInjection(c *gin.Context) {
 			return
 		}
 
-		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID})
+		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID, Index: config.Index})
 	}
 
 	dto.JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
+}
+
+func findMissingIndices(confs []string, batch_size int) ([]int, error) {
+	var missingIndices []int
+	existingMap := make(map[string]struct{})
+
+	for i := 0; i < len(confs); i += batch_size {
+		end := min(i+batch_size, len(confs))
+
+		batch := confs[i:end]
+		existingBatch, err := repository.FindExistingEngineConfigs(batch)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, s := range existingBatch {
+			existingMap[s] = struct{}{}
+		}
+	}
+
+	for idx, s := range confs {
+		if _, exists := existingMap[s]; !exists {
+			missingIndices = append(missingIndices, idx)
+		}
+	}
+
+	return missingIndices, nil
 }

@@ -4,7 +4,7 @@ go 1.23.2
 
 require (
 	github.com/BurntSushi/toml v1.4.0
-	github.com/CUHK-SE-Group/chaos-experiment v0.0.0-20250412142435-2d9923bae5da
+	github.com/CUHK-SE-Group/chaos-experiment v0.0.0-20250417012328-b3bad158f470
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
 	github.com/docker/cli v27.4.1+incompatible
 	github.com/gin-contrib/cors v1.7.3
@@ -14,7 +14,6 @@ require (
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/uuid v1.6.0
 	github.com/k0kubun/pp/v3 v3.4.1
-	github.com/mitchellh/mapstructure v1.5.0
 	github.com/moby/buildkit v0.18.2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.20.5
@@ -28,7 +27,6 @@ require (
 	github.com/tonistiigi/fsutil v0.0.0-20241121093142-31cf1f437184
 	golang.org/x/sync v0.11.0
 	gorm.io/driver/mysql v1.5.7
-	gorm.io/driver/sqlite v1.5.7
 	gorm.io/gorm v1.25.12
 	k8s.io/api v0.32.0
 	k8s.io/apimachinery v0.32.0
@@ -111,7 +109,7 @@ require (
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-sqlite3 v1.14.24 // indirect
+	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/locker v1.0.1 // indirect
 	github.com/moby/patternmatcher v0.6.0 // indirect

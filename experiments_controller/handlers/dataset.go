@@ -363,8 +363,8 @@ func SubmitDatasetBuilding(c *gin.Context) {
 		}
 	}
 
-	var traces []dto.Trace
-	for _, payload := range payloads {
+	traces := make([]dto.Trace, 0, len(payloads))
+	for idx, payload := range payloads {
 		taskID, traceID, err := executor.SubmitTask(c.Request.Context(), &executor.UnifiedTask{
 			Type:      consts.TaskTypeBuildDataset,
 			Payload:   utils.StructToMap(payload),
@@ -378,7 +378,7 @@ func SubmitDatasetBuilding(c *gin.Context) {
 			return
 		}
 
-		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID})
+		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID, Index: idx})
 	}
 
 	dto.JSONResponse(c, http.StatusAccepted, "Dataset building submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})

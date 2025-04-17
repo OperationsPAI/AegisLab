@@ -16,7 +16,7 @@ type injectionPayload struct {
 	benchmark   string
 	faultType   int
 	preDuration int
-	rawConf     map[string]any
+	rawConf     string
 	conf        *chaos.InjectionConf
 }
 
@@ -48,11 +48,6 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 			consts.RdbMsgTaskType: consts.TaskTypeFaultInjection,
 		})
 
-	engineData, err := json.Marshal(payload.rawConf)
-	if err != nil {
-		return fmt.Errorf("failed to marshal injection spec to engine config: %v", err)
-	}
-
 	displayData, err := json.Marshal(conf)
 	if err != nil {
 		return fmt.Errorf("failed to marshal injection spec to display config: %v", err)
@@ -62,7 +57,7 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		TaskID:        task.TaskID,
 		FaultType:     payload.faultType,
 		DisplayConfig: string(displayData),
-		EngineConfig:  string(engineData),
+		EngineConfig:  payload.rawConf,
 		PreDuration:   payload.preDuration,
 		Description:   fmt.Sprintf("Fault for task %s", task.TaskID),
 		Status:        consts.DatasetInitial,
@@ -96,8 +91,8 @@ func parseInjectionPayload(payload map[string]any) (*injectionPayload, error) {
 	}
 	preDuration := int(preDurationFloat)
 
-	rawConf, ok := payload[consts.InjectRawConf].(map[string]any)
-	if !ok {
+	rawConf, ok := payload[consts.InjectRawConf].(string)
+	if !ok || rawConf == "" {
 		return nil, fmt.Errorf(message, consts.InjectRawConf)
 	}
 
