@@ -316,7 +316,7 @@ async def test_injection_and_building_dataset_all(
     [
         (
             "clickhouse",
-            2,
+            3,
             1,
             [
                 {
@@ -330,7 +330,7 @@ async def test_injection_and_building_dataset_all(
                         },
                     },
                     "value": 1,
-                }
+                },
             ],
         ),
     ],
@@ -339,6 +339,9 @@ async def test_injection_and_building_dataset_single(
     benchmark, interval, pre_duration, specs
 ):
     sdk = RCABenchSDK(BASE_URL)
+
+    if len(specs) != 1:
+        pytest.fail("The length of specs must be 1")
 
     resp = sdk.injection.submit(benchmark, interval, pre_duration, specs)
     pprint(resp)

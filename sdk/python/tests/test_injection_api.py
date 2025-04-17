@@ -107,6 +107,37 @@ def test_list_injections(sdk, page_num, page_size):
                 },
             ],
         ),
+        (
+            "clickhouse",
+            3,
+            1,
+            [
+                {
+                    "children": {
+                        "1": {
+                            "children": {
+                                "0": {"value": 1},
+                                "1": {"value": 0},
+                                "2": {"value": 42},
+                            }
+                        },
+                    },
+                    "value": 1,
+                },
+                {
+                    "children": {
+                        "1": {
+                            "children": {
+                                "0": {"value": 1},
+                                "1": {"value": 0},
+                                "2": {"value": 35},
+                            }
+                        },
+                    },
+                    "value": 1,
+                },
+            ],
+        ),
     ],
 )
 def test_submit_injections(sdk, benchmark, interval, pre_duration, specs):

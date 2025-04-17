@@ -70,9 +70,7 @@ class SubmitResult(BaseModel):
         json_schema_extra={"example": UUID("e7cbb5b8-554e-4c82-a018-67f626fc12c6")},
     )
 
-    # 至少包含一个追踪链
     traces: List[TraceInfo] = Field(
         ...,
         description="List of trace information objects",
-        min_length=1,
     )
