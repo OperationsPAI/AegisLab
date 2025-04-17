@@ -7,8 +7,7 @@ timezone = "Asia/Shanghai"
 
 [injection]
 namespace = ["ts"]
-interval = 2
-label = "app"
+enable_duplicate = true
 
 [storage]
 path = "./tasks.db"
@@ -44,4 +43,4 @@ pvc_name = "nfs-shared-pvc"
 storage_path = "/home/nn/workspace/rcabench/algorithms"
 
 [debugging]
-enable = true
+enable = false

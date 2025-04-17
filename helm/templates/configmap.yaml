@@ -13,7 +13,7 @@ data:
 
     [injection]
     namespace = [{{ .Values.configmap.injection.namespace | join "\", \"" | quote }}]
-    label = "{{ .Values.configmap.injection.label }}"
+    enable_duplicate = "{{ .Values.configmap.injection.enable_duplicate }}"
 
     [storage]
     path = "{{ .Values.configmap.storage.path }}"

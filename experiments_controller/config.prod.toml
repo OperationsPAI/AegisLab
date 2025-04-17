@@ -7,8 +7,7 @@ timezone = "Asia/Shanghai"
 
 [injection]
 namespace = ["ts"]
-interval = 10
-label = "app"
+enable_duplicate = true
 
 [storage]
 path = "/var/lib/rcabench/tasks.db"

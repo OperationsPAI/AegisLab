@@ -23,14 +23,14 @@ func New() *gin.Engine {
 	{
 		algorithms.GET("", handlers.GetAlgorithmList)
 		algorithms.POST("", handlers.SubmitAlgorithmExecution)
-		algorithms.POST("build", handlers.BuildAlgorithm)
+		algorithms.POST("/build", handlers.SubmitAlgorithmBuilding)
 	}
 
 	datasets := r.Group("/datasets")
 	{
 		datasets.DELETE("", handlers.DeleteDataset)
 		datasets.GET("", handlers.GetDatasetList)
-		datasets.GET("query", handlers.QueryDataset)
+		datasets.GET("/query", handlers.QueryDataset)
 		datasets.GET("/download", handlers.DownloadDataset)
 		datasets.POST("", handlers.SubmitDatasetBuilding)
 	}
