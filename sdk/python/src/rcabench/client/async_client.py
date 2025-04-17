@@ -204,8 +204,9 @@ class AsyncSSEClient:
     ) -> None:
         if error is not None:
             if isinstance(error, Exception):
-                error = {Task.CLIENT_ERROR_KEY: str(error)}
-            self.error = error
+                self.error = {Task.CLIENT_ERROR_KEY: str(error)}
+            else:
+                self.error = error
 
         if result is not None:
             if self.result is None:
@@ -222,7 +223,7 @@ class AsyncSSEClient:
             }
 
             if self.result is not None:
-                queue_item["data"].update({"result": self.result})
+                queue_item["data"]["result"] = self.result
 
             self.queue_item = QueueItem.model_validate(queue_item)
         elif self.result is not None and len(self.result) >= 2:
