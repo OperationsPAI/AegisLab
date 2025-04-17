@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional, Union
 from .error import ModelHTTPError
 from ..const import Task
+from ..logger import logger
 from pydantic import BaseModel, Field, field_validator
 from uuid import UUID
 
@@ -141,7 +142,7 @@ class QueueDataItem(BaseModel):
         result: 任务成功结果（可选）
     """
 
-    error: Optional[Dict[UUID, Union[Dict[str, str], ModelHTTPError]]] = Field(
+    error: Optional[Union[Dict[str, str], Dict[UUID, ModelHTTPError]]] = Field(
         None,
         description="A dictionary capturing errors that occurred during task processing",
         json_schema_extra={
@@ -173,30 +174,28 @@ class QueueDataItem(BaseModel):
     @field_validator("error")
     @classmethod
     def validate_error(
-        cls, value: Dict[UUID, Union[Dict[str, str], ModelHTTPError]]
-    ) -> Dict[UUID, Union[Dict[str, str], ModelHTTPError]]:
-        for task_id, error_data in value.items():
-            if isinstance(error_data, dict):
-                if len(error_data) != 1:
-                    raise ValueError(
-                        f"Error dictionary for task {task_id} must contain exactly one key-value pair, "
-                        f"but got {len(error_data)} items: {error_data}"
-                    )
+        cls, value: Optional[Union[Dict[str, str], Dict[UUID, ModelHTTPError]]]
+    ) -> Optional[Union[Dict[str, str], Dict[UUID, ModelHTTPError]]]:
+        if value is not None:
+            if len(value) != 1:
+                raise ValueError("The length of error must be 1")
 
-                if Task.CLIENT_ERROR_KEY not in error_data:
+            key, error_data = list(value.items())[0]
+            if isinstance(error_data, str):
+                if key != Task.CLIENT_ERROR_KEY:
                     raise ValueError(
-                        f"Error dictionary for task {task_id} must contain '{Task.CLIENT_ERROR_KEY}' key, "
+                        f"The client error must contain '{Task.CLIENT_ERROR_KEY}' key, "
                         f"but got: {list(error_data.keys()[0])}"
                     )
 
             if isinstance(error_data, ModelHTTPError):
                 if error_data.status_code != Task.HTTP_ERROR_STATUS_CODE:
                     raise ValueError(
-                        f"HTTP error for task {task_id} must have status_code {Task.HTTP_ERROR_STATUS_CODE}, "
-                        f"but got {error_data.status_code}"
+                        f"HTTP error for task {key} must have status_code {Task.HTTP_ERROR_STATUS_CODE}, "
+                        f"but got: {error_data.status_code}"
                     )
 
-            return value
+        return value
 
 
 class QueueItem(BaseModel):

@@ -321,18 +321,16 @@ async def test_injection_and_building_dataset_all(
             [
                 {
                     "children": {
-                        "20": {
+                        "16": {
                             "children": {
                                 "0": {"value": 1},
                                 "1": {"value": 0},
-                                "2": {"value": 37},
-                                "3": {"value": 84},
-                                "4": {"value": 92},
-                                "5": {"value": 1},
+                                "2": {"value": 10},
+                                "3": {"value": -576},
                             }
                         },
                     },
-                    "value": 20,
+                    "value": 16,
                 },
             ],
         ),
