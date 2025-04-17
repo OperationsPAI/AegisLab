@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
@@ -155,24 +156,12 @@ func SubmitFaultInjection(c *gin.Context) {
 	}
 
 	if !config.GetBool("injection.enable_duplicate") {
-		rawConfs := make([]string, 0, len(configs))
-		for _, config := range configs {
-			rawConfs = append(rawConfs, config.RawConf)
-		}
-
-		missingIndices, err := findMissingIndices(rawConfs, 10)
+		newConfigs, err := getNewConfigs(configs, req.Interval)
 		if err != nil {
 			message := "failed to get the existing configs"
 			logrus.Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
-		}
-
-		logrus.Infof("deduplicated %d configurations (remaining: %d)", len(rawConfs)-len(missingIndices), len(missingIndices))
-
-		newConfigs := make([]*dto.InjectionConfig, 0, len(missingIndices))
-		for _, idx := range missingIndices {
-			newConfigs = append(newConfigs, configs[idx])
 		}
 
 		configs = newConfigs
@@ -206,6 +195,31 @@ func SubmitFaultInjection(c *gin.Context) {
 	}
 
 	dto.JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
+}
+
+func getNewConfigs(configs []*dto.InjectionConfig, interval int) ([]*dto.InjectionConfig, error) {
+	intervalDuration := time.Duration(interval) * consts.DefaultTimeUnit
+
+	rawConfs := make([]string, 0, len(configs))
+	for _, config := range configs {
+		rawConfs = append(rawConfs, config.RawConf)
+	}
+
+	missingIndices, err := findMissingIndices(rawConfs, 10)
+	if err != nil {
+		return nil, err
+	}
+
+	logrus.Infof("deduplicated %d configurations (remaining: %d)", len(rawConfs)-len(missingIndices), len(missingIndices))
+
+	newConfigs := make([]*dto.InjectionConfig, 0, len(missingIndices))
+	for i, idx := range missingIndices {
+		config := configs[idx]
+		config.ExecuteTime = config.ExecuteTime.Add(-intervalDuration * time.Duration(config.Index-i))
+		newConfigs = append(newConfigs, config)
+	}
+
+	return newConfigs, nil
 }
 
 func findMissingIndices(confs []string, batch_size int) ([]int, error) {
