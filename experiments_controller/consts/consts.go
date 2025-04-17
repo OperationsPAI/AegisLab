@@ -78,6 +78,12 @@ const (
 	ExecuteEnvVarService   = "SERVICE"
 )
 
+const (
+	HarborURL      = "http://%s/api/v2.0/projects/%s/repositories/%s/artifacts?page_size=100"
+	HarborTimeout  = 30
+	HarborTimeUnit = time.Second
+)
+
 // Redis 流和消费者组配置
 const (
 	StreamName   = "task_stream"
