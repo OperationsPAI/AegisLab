@@ -18,7 +18,7 @@ mysql_port = "32336"
 mysql_db = "rcabench"
 
 [redis]
-host = "10.10.10.220:32336"
+host = "10.10.10.220:32279"
 
 [harbor]
 host = "10.10.10.240"
