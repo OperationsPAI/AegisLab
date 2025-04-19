@@ -12,6 +12,8 @@ data:
     timezone = "{{ .Values.configmap.system.timezone }}"
 
     [injection]
+    restart_service= "{{ .Values.configmap.injection.restart_service }}"
+    command= "{{ .Values.configmap.injection.command }}"
     namespace = [{{ .Values.configmap.injection.namespace | join "\", \"" | quote }}]
     enable_duplicate = "{{ .Values.configmap.injection.enable_duplicate }}"
 

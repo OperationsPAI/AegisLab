@@ -33,6 +33,8 @@ configmap:
   system:
     timezone: "Asia/Shanghai"
   injection:
+    restart_service: true
+    command: "cd /home/nn/workspace/train-ticket && make deploy NS=%s"
     namespace: ["ts"]
     enable_duplicate: true
   database:

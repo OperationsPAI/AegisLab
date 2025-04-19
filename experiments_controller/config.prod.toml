@@ -6,6 +6,8 @@ workspace = "/app"
 timezone = "Asia/Shanghai"
 
 [injection]
+restart_service = false 
+command = "cd /home/nn/workspace/train-ticket && make deploy NS=%s"
 namespace = ["ts"]
 enable_duplicate = true
 

@@ -24,7 +24,7 @@ def test_list_injections(sdk, page_num, page_size):
         # PodFailure-dev
         (
             "clickhouse",
-            2,
+            5,
             1,
             [
                 {

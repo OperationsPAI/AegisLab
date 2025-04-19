@@ -19,6 +19,8 @@ func dispatchTask(ctx context.Context, task *UnifiedTask) error {
 
 	var err error
 	switch task.Type {
+	case consts.TaskTypeRestartService:
+		err = executeRestartService(ctx, task)
 	case consts.TaskTypeFaultInjection:
 		err = executeFaultInjection(ctx, task)
 	case consts.TaskTypeRunAlgorithm:

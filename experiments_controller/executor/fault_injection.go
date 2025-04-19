@@ -1,12 +1,17 @@
 package executor
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"os/exec"
 	"strconv"
+	"strings"
+	"time"
 
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
+	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/sirupsen/logrus"
@@ -20,16 +25,21 @@ type injectionPayload struct {
 	conf        *chaos.InjectionConf
 }
 
-// 执行故障注入任务
-func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
-	logrus.Info(task)
+type restartPayload struct {
+	namespace     string
+	injectionTime time.Time
+	injectionPayload
+}
 
+// 执行故障注入任务
+// TODO 回退
+func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	payload, err := parseInjectionPayload(task.Payload)
 	if err != nil {
 		return err
 	}
 
-	conf, name, err := payload.conf.Create(map[string]string{
+	config, name, err := payload.conf.Create(map[string]string{
 		consts.CRDTaskID:      task.TaskID,
 		consts.CRDTraceID:     task.TraceID,
 		consts.CRDGroupID:     task.GroupID,
@@ -48,7 +58,7 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 			consts.RdbMsgTaskType: consts.TaskTypeFaultInjection,
 		})
 
-	displayData, err := json.Marshal(conf)
+	displayData, err := json.Marshal(config)
 	if err != nil {
 		return fmt.Errorf("failed to marshal injection spec to display config: %v", err)
 	}
@@ -69,6 +79,38 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	}
 
 	return err
+}
+
+func executeRestartService(ctx context.Context, task *UnifiedTask) error {
+	payload, err := parseRestartPayload(task.Payload)
+	if err != nil {
+		return err
+	}
+
+	if err := executeCommand(fmt.Sprintf(config.GetString("injection.command"), payload.namespace)); err != nil {
+		return err
+	}
+
+	taskPayload := map[string]any{
+		consts.InjectBenchmark:   payload.benchmark,
+		consts.InjectFaultType:   payload.faultType,
+		consts.InjectPreDuration: payload.preDuration,
+		consts.InjectRawConf:     payload.rawConf,
+		consts.InjectConf:        payload.conf,
+	}
+
+	injectionTask := &UnifiedTask{
+		Type:        consts.TaskTypeFaultInjection,
+		Payload:     taskPayload,
+		Immediate:   false,
+		ExecuteTime: payload.injectionTime.Unix(),
+		GroupID:     task.GroupID,
+	}
+	if _, _, err := SubmitTask(ctx, injectionTask); err != nil {
+		return fmt.Errorf("failed to submit injection task: %v", err)
+	}
+
+	return nil
 }
 
 func parseInjectionPayload(payload map[string]any) (*injectionPayload, error) {
@@ -118,4 +160,100 @@ func parseInjectionPayload(payload map[string]any) (*injectionPayload, error) {
 		rawConf:     rawConf,
 		conf:        &conf,
 	}, nil
+}
+
+func parseRestartPayload(payload map[string]any) (*restartPayload, error) {
+	message := "invalid or missing '%s' in task payload"
+
+	intervalFloat, ok := payload[consts.RestartInterval].(float64)
+	if !ok || intervalFloat <= 0 {
+		return nil, fmt.Errorf(message, consts.RestartInterval)
+	}
+	interval := int(intervalFloat)
+
+	_, executionTimeExists := payload[consts.RestartExecutionTime]
+
+	var executionTime time.Time
+	if executionTimeExists {
+		executionTimePtr, err := parseTimePtrFromPayload(payload, consts.RestartExecutionTime)
+		if err != nil {
+			return nil, fmt.Errorf(message, consts.RestartExecutionTime)
+		}
+
+		executionTime = *executionTimePtr
+	}
+
+	injectionPayload, err := parseInjectionPayload(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	message = "invalid or missing '%s' in injection config"
+	_, config, err := injectionPayload.conf.GetActiveInjection()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config in injection conf: %v", err)
+	}
+
+	durationInt64, ok := config[consts.RestartDuration].(int64)
+	if !ok || durationInt64 <= 0 {
+		return nil, fmt.Errorf(message, consts.RestartDuration)
+	}
+
+	duration := int(durationInt64)
+
+	namespace, ok := config[consts.RestartNamespace].(string)
+	if !ok || namespace == "" {
+		return nil, fmt.Errorf(message, consts.RestartNamespace)
+	}
+
+	deltaTime := time.Duration(interval-injectionPayload.preDuration-duration) * consts.DefaultTimeUnit
+	injectionTime := executionTime.Add(deltaTime)
+
+	return &restartPayload{
+		namespace:        namespace,
+		injectionTime:    injectionTime,
+		injectionPayload: *injectionPayload,
+	}, nil
+}
+
+func executeCommand(command string) error {
+	cmd := exec.Command("/bin/sh", "-c", command)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("faied to get the command output pipe: %v", err)
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("failed to get the command error pipe: %v", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start command: %w", err)
+	}
+
+	stdoutScanner := bufio.NewScanner(stdout)
+	stderrScanner := bufio.NewScanner(stderr)
+
+	go func() {
+		for stdoutScanner.Scan() {
+			logrus.Info("STDOUT: ", stdoutScanner.Text())
+		}
+	}()
+
+	go func() {
+		for stderrScanner.Scan() {
+			if strings.Contains(stderrScanner.Text(), "Warning") {
+				logrus.Warn("STDERR: ", stderrScanner.Text())
+			} else {
+				logrus.Error("STDERR: ", stderrScanner.Text())
+			}
+		}
+	}()
+
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("failed to execute command: %v", err)
+	}
+
+	return nil
 }

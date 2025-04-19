@@ -27,6 +27,7 @@ const (
 )
 
 const (
+	TaskTypeRestartService TaskType = "RestartService"
 	TaskTypeRunAlgorithm   TaskType = "RunAlgorithm"
 	TaskTypeFaultInjection TaskType = "FaultInjection"
 	TaskTypeBuildImages    TaskType = "BuildImages"
@@ -67,6 +68,11 @@ const (
 	InjectPreDuration = "pre_duration"
 	InjectRawConf     = "raw_conf"
 	InjectConf        = "conf"
+
+	RestartInterval      = "interval"
+	RestartExecutionTime = "execution_time"
+	RestartDuration      = "duration"
+	RestartNamespace     = "namespace"
 )
 
 // 环境变量名称
