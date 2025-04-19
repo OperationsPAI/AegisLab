@@ -8,7 +8,7 @@ import (
 
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
-	"github.com/CUHK-SE-Group/rcabench/config"
+	conf "github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
@@ -155,7 +155,7 @@ func SubmitFaultInjection(c *gin.Context) {
 		return
 	}
 
-	if !config.GetBool("injection.enable_duplicate") {
+	if !conf.GetBool("injection.enable_duplicate") {
 		newConfigs, err := getNewConfigs(configs, req.Interval)
 		if err != nil {
 			message := "failed to get the existing configs"
@@ -177,13 +177,22 @@ func SubmitFaultInjection(c *gin.Context) {
 			consts.InjectConf:        config.Conf,
 		}
 
-		taskID, traceID, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
-			Type:        consts.TaskTypeFaultInjection,
+		taskType := consts.TaskTypeFaultInjection
+		if conf.GetBool("injection.restart_service") {
+			taskType = consts.TaskTypeRestartService
+			payload[consts.RestartInterval] = req.Interval
+			payload[consts.RestartExecutionTime] = config.ExecuteTime
+		}
+
+		task := &executor.UnifiedTask{
+			Type:        taskType,
 			Payload:     payload,
 			Immediate:   false,
 			ExecuteTime: config.ExecuteTime.Unix(),
 			GroupID:     groupID,
-		})
+		}
+
+		taskID, traceID, err := executor.SubmitTask(context.Background(), task)
 		if err != nil {
 			message := "failed to submit task"
 			logrus.Errorf("%s: %v", message, err)

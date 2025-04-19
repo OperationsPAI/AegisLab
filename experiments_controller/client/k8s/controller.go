@@ -5,17 +5,18 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"sync"
 	"time"
-
-	"slices"
 
 	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	corev1listers "k8s.io/client-go/listers/core/v1"
 
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/utils"
@@ -24,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
@@ -33,19 +33,11 @@ type ResouceType string
 
 const (
 	jobKind      = "Job"
-	resyncPeriod = 10 * time.Second
+	resyncPeriod = 5 * time.Second
 
 	CRDResourceType ResouceType = "CRD"
 	JobResourceType ResouceType = "Job"
 )
-
-type JobEnv struct {
-	Namespace   string
-	Service     string
-	PreDuration int
-	StartTime   time.Time
-	EndTime     time.Time
-}
 
 type timeRange struct {
 	Start time.Time
@@ -68,20 +60,144 @@ type QueueItem struct {
 	GVR       *schema.GroupVersionResource
 }
 
-type Controller struct {
-	crdInformers map[schema.GroupVersionResource]cache.SharedIndexInformer
-	jobInformer  cache.SharedIndexInformer
-	podInformer  cache.SharedIndexInformer
-
-	queue workqueue.TypedRateLimitingInterface[QueueItem]
+type CRDMonitor struct {
+	namespaces map[string]bool
+	mu         sync.RWMutex
 }
 
-func NewController(restConfig *rest.Config) *Controller {
-	factory := informers.NewSharedInformerFactoryWithOptions(
-		k8sClient,
-		resyncPeriod,
-		informers.WithNamespace(config.GetString("k8s.namespace")),
-	)
+func newCRDMonitor(initialNamespaces []string) *CRDMonitor {
+	nsMap := make(map[string]bool, len(initialNamespaces))
+	for _, namespace := range initialNamespaces {
+		nsMap[namespace] = false
+	}
+
+	return &CRDMonitor{
+		namespaces: nsMap,
+		mu:         sync.RWMutex{},
+	}
+}
+
+func (m *CRDMonitor) checkCRDInNamespace(namespace string) bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	hasCRD, exists := m.namespaces[namespace]
+	return exists && hasCRD
+}
+
+func (m *CRDMonitor) setStatus(namespace string, hasCRD bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, exists := m.namespaces[namespace]; exists {
+		m.namespaces[namespace] = hasCRD
+	}
+}
+
+type ObMonitor struct {
+	callback            Callback
+	namespaces          []string
+	namespaceStatus     map[string]bool
+	desiredPodNums      map[string]int
+	podNamespaceListers map[string]corev1listers.PodNamespaceLister
+	mu                  sync.RWMutex
+}
+
+func newObMonitor(initialNamespaces []string, podNamespaceListers map[string]corev1listers.PodNamespaceLister) *ObMonitor {
+	podNums := make(map[string]int, len(initialNamespaces))
+	nsStatus := make(map[string]bool, len(initialNamespaces))
+	for _, namespace := range initialNamespaces {
+		nsStatus[namespace] = true
+		desiredPodNum, err := getNamespaceDesiredPodNum(namespace)
+		if err != nil {
+			logrus.WithField("namespace", namespace).Error(err)
+			continue
+		}
+
+		podNums[namespace] = desiredPodNum
+	}
+
+	return &ObMonitor{
+		namespaces:          initialNamespaces,
+		namespaceStatus:     nsStatus,
+		desiredPodNums:      podNums,
+		podNamespaceListers: podNamespaceListers,
+		mu:                  sync.RWMutex{},
+	}
+}
+
+func (o *ObMonitor) checkNamespaceStatus(namespace string) bool {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	return o.namespaceStatus[namespace]
+}
+
+func (o *ObMonitor) setCallback(c Callback) {
+	o.callback = c
+}
+
+func (o *ObMonitor) setNamespaceStatus() {
+	for _, namespace := range o.namespaces {
+		logEntry := logrus.WithField("namespace", namespace)
+
+		lister := o.podNamespaceListers[namespace]
+		pods, err := lister.List(labels.Everything())
+		if err != nil && !errors.IsNotFound(err) {
+			logEntry.Errorf("failed to list pods for readiness check: %v", err)
+			continue
+		}
+
+		podNum := 0
+		for _, pod := range pods {
+			if !checkPodReady(pod) {
+				continue
+			}
+
+			podNum++
+		}
+
+		desiredNum := o.desiredPodNums[namespace]
+		allRunning := podNum == desiredNum
+
+		o.mu.Lock()
+		defer o.mu.Unlock()
+
+		wasReady := o.namespaceStatus[namespace]
+		if !wasReady && allRunning {
+			o.namespaceStatus[namespace] = true
+		}
+
+		if wasReady && !allRunning {
+			o.namespaceStatus[namespace] = false
+		}
+	}
+}
+
+type Controller struct {
+	obInformers  map[string]cache.SharedIndexInformer
+	obMonitor    *ObMonitor
+	crdInformers map[schema.GroupVersionResource]cache.SharedIndexInformer
+	crdMonitor   *CRDMonitor
+	jobInformer  cache.SharedIndexInformer
+	podInformer  cache.SharedIndexInformer
+	queue        workqueue.TypedRateLimitingInterface[QueueItem]
+}
+
+func NewController() *Controller {
+	namespaces := config.GetStringSlice("injection.namespace")
+	obInformers := make(map[string]cache.SharedIndexInformer, len(namespaces))
+	podNamespaceListers := make(map[string]corev1listers.PodNamespaceLister, len(namespaces))
+	for _, namespace := range namespaces {
+		obFactory := informers.NewSharedInformerFactoryWithOptions(
+			k8sClient,
+			resyncPeriod,
+			informers.WithNamespace(namespace),
+		)
+
+		obInformers[namespace] = obFactory.Core().V1().Pods().Informer()
+		podNamespaceListers[namespace] = obFactory.Core().V1().Pods().Lister().Pods(namespace)
+	}
 
 	chaosGVRs := make([]schema.GroupVersionResource, 0, len(chaosCli.GetCRDMapping()))
 	for gvr := range chaosCli.GetCRDMapping() {
@@ -101,23 +217,42 @@ func NewController(restConfig *rest.Config) *Controller {
 		crdInformers[gvr] = chaosFactory.ForResource(gvr).Informer()
 	}
 
-	queue := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[QueueItem]())
+	platformFactory := informers.NewSharedInformerFactoryWithOptions(
+		k8sClient,
+		resyncPeriod,
+		informers.WithNamespace(config.GetString("k8s.namespace")),
+	)
+
+	queue := workqueue.NewTypedRateLimitingQueue(
+		workqueue.DefaultTypedControllerRateLimiter[QueueItem](),
+	)
 
 	return &Controller{
+		obInformers:  obInformers,
+		obMonitor:    newObMonitor(namespaces, podNamespaceListers),
 		crdInformers: crdInformers,
-		jobInformer:  factory.Batch().V1().Jobs().Informer(),
-		podInformer:  factory.Core().V1().Pods().Informer(),
+		crdMonitor:   newCRDMonitor(namespaces),
+		jobInformer:  platformFactory.Batch().V1().Jobs().Informer(),
+		podInformer:  platformFactory.Core().V1().Pods().Informer(),
 		queue:        queue,
 	}
+}
+
+func (c *Controller) CheckCRDInNamespace(namespace string) bool {
+	return c.obMonitor.checkNamespaceStatus(namespace) && c.crdMonitor.checkCRDInNamespace(namespace)
 }
 
 func (c *Controller) Run(ctx context.Context, callback Callback) {
 	defer runtime.HandleCrash()
 	defer c.queue.ShutDown()
 
+	c.obMonitor.setCallback(callback)
 	c.registerEventHandlers(callback)
 
 	logrus.Info("Starting informer controller")
+	for _, informer := range c.obInformers {
+		go informer.Run(ctx.Done())
+	}
 	for _, informer := range c.crdInformers {
 		go informer.Run(ctx.Done())
 	}
@@ -125,6 +260,9 @@ func (c *Controller) Run(ctx context.Context, callback Callback) {
 	go c.podInformer.Run(ctx.Done())
 
 	allSyncs := []cache.InformerSynced{c.jobInformer.HasSynced, c.podInformer.HasSynced}
+	for _, informer := range c.obInformers {
+		allSyncs = append(allSyncs, informer.HasSynced)
+	}
 	for _, informer := range c.crdInformers {
 		allSyncs = append(allSyncs, informer.HasSynced)
 	}
@@ -136,16 +274,32 @@ func (c *Controller) Run(ctx context.Context, callback Callback) {
 		return
 	}
 
+	logrus.Info("starting queue worker...")
 	go wait.Until(c.runWorker, time.Second, ctx.Done())
+
+	logrus.Info("starting namespace status check loop...")
+	go wait.Until(c.obMonitor.setNamespaceStatus, resyncPeriod, ctx.Done())
 
 	<-ctx.Done()
 	logrus.Info("Stopping informer controller...")
 }
 
 func (c *Controller) registerEventHandlers(callback Callback) {
+	for namespace, informer := range c.crdInformers {
+		if _, err := informer.AddEventHandler(c.genObEventHandlerFuncs()); err != nil {
+			logrus.WithFields(logrus.Fields{
+				"namespace": namespace,
+				"func":      "genObEventHandlerFuncs",
+			}).Error("failed to add event handler")
+		}
+	}
+
 	for gvr, informer := range c.crdInformers {
 		if _, err := informer.AddEventHandler(c.genCRDEventHandlerFuncs(gvr, callback)); err != nil {
-			logrus.WithField("gvr", gvr.Resource).Error("failed to add event handler")
+			logrus.WithFields(logrus.Fields{
+				"gvr":  gvr.Resource,
+				"func": "genCRDEventHandlerFuncs",
+			}).Error("failed to add event handler")
 			return
 		}
 	}
@@ -161,23 +315,28 @@ func (c *Controller) registerEventHandlers(callback Callback) {
 	}
 }
 
+func (c *Controller) genObEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {},
+	}
+}
+
 func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, callback Callback) cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
 			u := obj.(*unstructured.Unstructured)
-			if isTargetNamespace(u.GetNamespace()) {
-				logrus.WithFields(logrus.Fields{
-					"type":      gvr.Resource,
-					"namespace": u.GetNamespace(),
-					"name":      u.GetName(),
-				}).Info("chaos experiment created successfully")
-			}
+			logrus.WithFields(logrus.Fields{
+				"type":      gvr.Resource,
+				"namespace": u.GetNamespace(),
+				"name":      u.GetName(),
+			}).Info("chaos experiment created successfully")
+			c.crdMonitor.setStatus(u.GetNamespace(), true)
 		},
 		UpdateFunc: func(oldObj, newObj any) {
 			oldU := oldObj.(*unstructured.Unstructured)
 			newU := newObj.(*unstructured.Unstructured)
 
-			if callback != nil && oldU.GetName() == newU.GetName() && isTargetNamespace(newU.GetNamespace()) {
+			if callback != nil && oldU.GetName() == newU.GetName() {
 				logEntry := logrus.WithFields(logrus.Fields{
 					"type":      gvr.Resource,
 					"namespace": newU.GetNamespace(),
@@ -336,13 +495,12 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 		},
 		DeleteFunc: func(obj any) {
 			u := obj.(*unstructured.Unstructured)
-			if isTargetNamespace(u.GetNamespace()) {
-				logrus.WithFields(logrus.Fields{
-					"type":      gvr.Resource,
-					"namespace": u.GetNamespace(),
-					"name":      u.GetName(),
-				}).Info("Chaos experiment deleted successfully")
-			}
+			logrus.WithFields(logrus.Fields{
+				"type":      gvr.Resource,
+				"namespace": u.GetNamespace(),
+				"name":      u.GetName(),
+			}).Info("Chaos experiment deleted successfully")
+			c.crdMonitor.setStatus(u.GetNamespace(), false)
 		},
 	}
 }
@@ -480,10 +638,6 @@ func (c *Controller) processQueueItem() bool {
 	return true
 }
 
-func isTargetNamespace(namespace string) bool {
-	return slices.Contains(config.GetStringSlice("injection.namespace"), namespace)
-}
-
 func getCRDConditionStatus(conditions []any, conditionType string) bool {
 	for _, c := range conditions {
 		condition, ok := c.(map[string]any)
@@ -541,6 +695,34 @@ func getCRDEventTimeRanges(records []any) []timeRange {
 	return []timeRange{}
 }
 
+func getNamespaceDesiredPodNum(namespace string) (int, error) {
+	desiredNum := 0
+
+	deployments, err := k8sClient.AppsV1().Deployments(namespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return 0, fmt.Errorf("failed to get deployments in namespace %s: %v", namespace, err)
+	}
+
+	for _, item := range deployments.Items {
+		if item.Spec.Replicas != nil {
+			desiredNum += int(*item.Spec.Replicas)
+		}
+	}
+
+	statefulSets, err := k8sClient.AppsV1().StatefulSets(namespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return 0, fmt.Errorf("failed to get statefulSets in namespace %s: %v", namespace, err)
+	}
+
+	for _, item := range statefulSets.Items {
+		if item.Spec.Replicas != nil {
+			desiredNum += int(*item.Spec.Replicas)
+		}
+	}
+
+	return desiredNum, nil
+}
+
 func parseEventTime(event map[string]any) (*time.Time, error) {
 	t, _, _ := unstructured.NestedString(event, "timestamp")
 	if t, err := time.Parse(time.RFC3339, t); err == nil {
@@ -558,6 +740,20 @@ func extractJobError(job *batchv1.Job) string {
 	}
 
 	return ""
+}
+
+func checkPodReady(pod *corev1.Pod) bool {
+	if pod.Status.Phase != corev1.PodRunning {
+		return false
+	}
+
+	for _, cond := range pod.Status.Conditions {
+		if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+
+	return false
 }
 
 func checkPodReason(pod *corev1.Pod, reason string) bool {
