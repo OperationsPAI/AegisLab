@@ -198,7 +198,7 @@ func ListDatasetWithPagination(pageNum, pageSize int) (int64, []database.FaultIn
 		"created_at desc",
 		pageNum,
 		pageSize,
-		[]string{"injection_name", "display_config", "pre_duration", "start_time", "end_time"},
+		[]string{"id", "fault_type", "task_id", "injection_name", "display_config", "pre_duration", "start_time", "end_time"},
 	)
 }
 
