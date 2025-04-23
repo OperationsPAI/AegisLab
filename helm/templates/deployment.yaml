@@ -1,4 +1,4 @@
-# Redis
+# redis
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -21,6 +21,7 @@ spec:
             - containerPort: 6379
 
 ---
+# mariadb
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -83,6 +84,33 @@ spec:
             name: mariadb-config
 
 ---
+# jaeger
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mariadb
+  template:
+    metadata:
+      labels:
+        app: mariadb
+  spec:
+    containers:
+      - name: jaeger
+        image: "{{ .Values.images.jaeger.repository }}:{{ .Values.images.jaeger.tag }}"
+        imagePullPolicy: "{{ .Values.images.jaeger.pullPolicy }}"
+        ports:
+          - containerPort: 4317
+          - containerPort: 4318
+          - containerPort: 6831
+          - containerPort: 14268
+          - containerPort: 16686
+
+---
 # exp 应用
 apiVersion: apps/v1
 kind: Deployment
@@ -119,6 +147,17 @@ spec:
             - >
               while ! nc -z mariadb 3306; do
                 echo "Waiting for MariaDB...";
+                sleep 3;
+              done;
+        - name: wait-for-jaeger
+          image: "{{ .Values.images.busybox.repository }}:{{ .Values.images.busybox.tag }}"
+          imagePullPolicy: "{{ .Values.images.busybox.pullPolicy }}"
+          command:
+            - sh
+            - -c
+            - >
+              while ! nc -z jaeger 4318; do
+                echo "Waiting for Jaeger...";
                 sleep 3;
               done;
       containers:
@@ -197,6 +236,17 @@ spec:
             - >
               while ! nc -z mariadb 3306; do
                 echo "Waiting for MariaDB...";
+                sleep 3;
+              done;
+        - name: wait-for-jaeger
+          image: "{{ .Values.images.busybox.repository }}:{{ .Values.images.busybox.tag }}"
+          imagePullPolicy: "{{ .Values.images.busybox.pullPolicy }}"
+          command:
+            - sh
+            - -c
+            - >
+              while ! nc -z jaeger 4318; do
+                echo "Waiting for Jaeger...";
                 sleep 3;
               done;
       containers:

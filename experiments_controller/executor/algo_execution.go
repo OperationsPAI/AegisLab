@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -14,8 +13,6 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
-
-	"gorm.io/gorm"
 )
 
 type ExecutionPayload struct {
@@ -31,12 +28,13 @@ func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
 		return err
 	}
 
+	annotations, err := getAnnotations(ctx, task)
+	if err != nil {
+		return err
+	}
+
 	record, err := repository.GetDatasetByName(payload.Dataset, consts.DatasetBuildSuccess)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("no matching dataset %s found", payload.Dataset)
-		}
-
 		return fmt.Errorf("failed to query database for dataset %s: %v", payload.Dataset, err)
 	}
 
@@ -64,7 +62,7 @@ func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
 		consts.LabelExecutionID: strconv.Itoa(executionID),
 	}
 
-	return createAlgoJob(ctx, config.GetString("k8s.namespace"), jobName, image, labels, payload, record)
+	return createAlgoJob(ctx, config.GetString("k8s.namespace"), jobName, image, annotations, labels, payload, record)
 }
 
 // 解析算法执行任务的 Payload
@@ -107,7 +105,7 @@ func parseExecutionPayload(payload map[string]any) (*ExecutionPayload, error) {
 	return executionPayload, nil
 }
 
-func createAlgoJob(ctx context.Context, jobNamespace, jobName, image string, labels map[string]string, payload *ExecutionPayload, record *dto.DatasetItemWithID) error {
+func createAlgoJob(ctx context.Context, jobNamespace, jobName, image string, annotations map[string]string, labels map[string]string, payload *ExecutionPayload, record *dto.DatasetItemWithID) error {
 	restartPolicy := corev1.RestartPolicyNever
 	backoffLimit := int32(2)
 	parallelism := int32(1)
@@ -128,6 +126,7 @@ func createAlgoJob(ctx context.Context, jobNamespace, jobName, image string, lab
 		BackoffLimit:  backoffLimit,
 		Parallelism:   parallelism,
 		Completions:   completions,
+		Annotations:   annotations,
 		Labels:        labels,
 		EnvVars:       jobEnvVars,
 	})

@@ -12,7 +12,7 @@ import pytest
             [
                 {
                     "image": "e-diagnose",
-                    "dataset": "ts-ts-ui-dashboard-pod-failure-c27jzh",
+                    "dataset": "ts-ts-rebook-service-pod-failure-xdqs9v",
                 }
             ]
         ),

@@ -39,24 +39,23 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		return err
 	}
 
-	config, name, err := payload.conf.Create(map[string]string{
-		consts.CRDTaskID:      task.TaskID,
-		consts.CRDTraceID:     task.TraceID,
-		consts.CRDGroupID:     task.GroupID,
-		consts.CRDBenchmark:   payload.benchmark,
-		consts.CRDPreDuration: strconv.Itoa(payload.preDuration),
-	})
+	annotations, err := getAnnotations(ctx, task)
+	if err != nil {
+		return err
+	}
+
+	config, name, err := payload.conf.Create(
+		annotations,
+		map[string]string{
+			consts.CRDTaskID:      task.TaskID,
+			consts.CRDTraceID:     task.TraceID,
+			consts.CRDGroupID:     task.GroupID,
+			consts.CRDBenchmark:   payload.benchmark,
+			consts.CRDPreDuration: strconv.Itoa(payload.preDuration),
+		})
 	if err != nil {
 		return fmt.Errorf("failed to inject fault: %v", err)
 	}
-
-	updateTaskStatus(task.TaskID, task.TraceID,
-		fmt.Sprintf("executing fault injection for task %s", task.TaskID),
-		map[string]any{
-			consts.RdbMsgStatus:   consts.TaskStatusRunning,
-			consts.RdbMsgTaskID:   task.TaskID,
-			consts.RdbMsgTaskType: consts.TaskTypeFaultInjection,
-		})
 
 	displayData, err := json.Marshal(config)
 	if err != nil {
@@ -78,7 +77,7 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		return fmt.Errorf("failed to write to database")
 	}
 
-	return err
+	return nil
 }
 
 func executeRestartService(ctx context.Context, task *UnifiedTask) error {
@@ -87,7 +86,7 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 		return err
 	}
 
-	if err := executeCommand(fmt.Sprintf(config.GetString("injection.command"), payload.namespace)); err != nil {
+	if err := executeCommand(fmt.Sprintf(config.GetString("injection.command"), config.GetString("workspace"), payload.namespace)); err != nil {
 		return err
 	}
 
@@ -100,11 +99,13 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 	}
 
 	injectionTask := &UnifiedTask{
-		Type:        consts.TaskTypeFaultInjection,
-		Payload:     taskPayload,
-		Immediate:   false,
-		ExecuteTime: payload.injectionTime.Unix(),
-		GroupID:     task.GroupID,
+		Type:         consts.TaskTypeFaultInjection,
+		Payload:      taskPayload,
+		Immediate:    false,
+		ExecuteTime:  payload.injectionTime.Unix(),
+		TraceID:      task.TraceID,
+		GroupID:      task.GroupID,
+		TraceCarrier: task.TraceCarrier,
 	}
 	if _, _, err := SubmitTask(ctx, injectionTask); err != nil {
 		return fmt.Errorf("failed to submit injection task: %v", err)

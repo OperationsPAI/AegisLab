@@ -2,11 +2,14 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"runtime/debug"
 
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 func dispatchTask(ctx context.Context, task *UnifiedTask) error {
@@ -40,4 +43,24 @@ func dispatchTask(ctx context.Context, task *UnifiedTask) error {
 	}
 
 	return nil
+}
+
+func getAnnotations(ctx context.Context, task *UnifiedTask) (map[string]string, error) {
+	taskCarrier := make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, taskCarrier)
+	taskCarrierBytes, err := json.Marshal(taskCarrier)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal mapcarrier of task context")
+	}
+
+	traceCarrier := task.TraceCarrier
+	traceCarrierBytes, err := json.Marshal(traceCarrier)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal mapcarrier of trace context")
+	}
+
+	return map[string]string{
+		consts.TaskCarrier:  string(taskCarrierBytes),
+		consts.TraceCarrier: string(traceCarrierBytes),
+	}, nil
 }

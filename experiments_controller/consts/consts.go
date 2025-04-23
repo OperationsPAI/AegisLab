@@ -122,6 +122,12 @@ const (
 	DatasetJobName = "dataset"
 )
 
+const (
+	TaskCarrier  = "task_carrier"
+	TraceCarrier = "trace_carrier"
+	GroupCarrier = "group_carrier"
+)
+
 // K8s CRD Label 字段
 const (
 	CRDTaskID      = "task_id"

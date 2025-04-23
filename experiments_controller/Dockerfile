@@ -24,6 +24,7 @@ COPY ./algorithms ./legacy_algorithms
 COPY ./experiments_controller/entrypoint.sh ./entrypoint.sh
 COPY ./benchmarks ./benchmarks
 COPY ./experiments ./experiments
+COPY ./lib/train-ticket ./lib/train-ticket
 
 RUN chmod +x ./entrypoint.sh
 ENTRYPOINT ["./entrypoint.sh"]

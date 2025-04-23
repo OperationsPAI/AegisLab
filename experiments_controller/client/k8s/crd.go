@@ -3,14 +3,19 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 )
 
-func DeleteCRD(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) error {
+func deleteCRD(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) error {
+	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
 	deletePolicy := metav1.DeletePropagationForeground
 	deleteOptions := metav1.DeleteOptions{
 		PropagationPolicy: &deletePolicy,
@@ -24,7 +29,7 @@ func DeleteCRD(ctx context.Context, gvr schema.GroupVersionResource, namespace, 
 		if errors.IsNotFound(err) {
 			return nil
 		}
-		return fmt.Errorf("Failed to get CRD: %v", err)
+		return fmt.Errorf("failed to get CRD: %v", err)
 	}
 
 	// 2. 检查是否已在删除中
@@ -36,8 +41,42 @@ func DeleteCRD(ctx context.Context, gvr schema.GroupVersionResource, namespace, 
 	// 3. 执行删除（幂等操作）
 	err = k8sDynamicClient.Resource(gvr).Namespace(namespace).Delete(ctx, name, deleteOptions)
 	if err != nil && !errors.IsNotFound(err) {
-		return fmt.Errorf("Failed to delete CRD: %v", err)
+		if timeoutCtx.Err() != nil {
+			return fmt.Errorf("timeout while deleting CRD %s/%s: %v", namespace, name, timeoutCtx.Err())
+		}
+
+		return fmt.Errorf("failed to delete CRD: %v", err)
 	}
 
+	return nil
+}
+
+func cleanFinalizers(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) error {
+	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	logEntry := logrus.WithFields(logrus.Fields{
+		"namespace": namespace,
+		"name":      name,
+	})
+
+	patchBytes := []byte(`{"metadata":{"finalizers":[]}}`)
+	_, err := k8sDynamicClient.Resource(gvr).Namespace(namespace).Patch(
+		timeoutCtx,
+		name,
+		types.MergePatchType,
+		patchBytes,
+		metav1.PatchOptions{},
+	)
+
+	if err != nil && !errors.IsNotFound(err) {
+		if timeoutCtx.Err() != nil {
+			return fmt.Errorf("timeout while patching resource %s/%s: %v", namespace, name, timeoutCtx.Err())
+		}
+
+		return fmt.Errorf("failed to patch finalizers: %v", err)
+	}
+
+	logEntry.Info("Successfully cleared finalizers")
 	return nil
 }

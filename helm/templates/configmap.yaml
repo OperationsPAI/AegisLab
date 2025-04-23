@@ -4,6 +4,8 @@ metadata:
   name: rcabench-config
 data:
   config.prod.toml: |
+    name = {{ .Values.configmap.name }}
+    version = {{ .Values.configmap.version }}
     port = {{ .Values.configmap.port }}
     debug = {{ .Values.configmap.debug }}
     workspace = "{{ .Values.configmap.workspace }}"
@@ -13,9 +15,11 @@ data:
 
     [injection]
     restart_service= "{{ .Values.configmap.injection.restart_service }}"
-    command= "{{ .Values.configmap.injection.command }}"
-    namespace = [{{ .Values.configmap.injection.namespace | join "\", \"" | quote }}]
     enable_duplicate = "{{ .Values.configmap.injection.enable_duplicate }}"
+    namespace_prefix = "{{ .Values.configmap.injection.namespace_prefix }}"
+    target_label_key = "{{ .Values.configmap.injection.target_label_key }}"
+    target_namespace_count = "{{ .Values.configmap.injection.target_namespace_count }}"
+    command= "{{ .Values.configmap.injection.command }}"
 
     [database]
     clickhouse_host = "{{ .Values.configmap.database.clickhouse_host }}"
@@ -24,6 +28,9 @@ data:
     mysql_host = "{{ .Values.configmap.database.mysql_host }}"
     mysql_port = "{{ .Values.configmap.database.mysql_port }}"
     mysql_db = "{{ .Values.configmap.database.mysql_db }}"
+
+    [jaeger]
+    endpoint = "{{ .Values.configmap.jaeger.endpoint }}"
 
     [redis]
     host = "{{ .Values.configmap.redis.host }}"
