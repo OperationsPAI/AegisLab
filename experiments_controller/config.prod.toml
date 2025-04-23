@@ -1,3 +1,6 @@
+name = "rcabench"
+version = "0.1.0"
+
 port = 8080
 debug = false
 workspace = "/app"
@@ -6,10 +9,12 @@ workspace = "/app"
 timezone = "Asia/Shanghai"
 
 [injection]
-restart_service = false 
-command = "cd /home/nn/workspace/train-ticket && make deploy NS=%s"
-namespace = ["ts"]
+restart_service = false
 enable_duplicate = true
+namespace_prefix = "ts"
+target_label_key = "app"
+target_namespace_count = 1
+command = "cd %s/lib/train-ticket && make deploy NS=%s"
 
 [database]
 clickhouse_host = "10.10.10.58"
@@ -18,6 +23,9 @@ mysql_password = "yourpassword"
 mysql_host = "mariadb"
 mysql_port = "3306"
 mysql_db = "rcabench"
+
+[jaeger]
+endpoint = "jaeger:4318"
 
 [redis]
 host = "redis:6379"
@@ -39,4 +47,4 @@ pvc_name = "nfs-shared-pvc"
 storage_path = "/app/algorithms"
 
 [debugging]
-enable = true
+enable = false

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -15,6 +16,11 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func CancelInjection(c *gin.Context) {
@@ -167,6 +173,11 @@ func SubmitFaultInjection(c *gin.Context) {
 		configs = newConfigs
 	}
 
+	ctx, span := otel.Tracer("rcabench/group").Start(context.Background(), "produce group", trace.WithAttributes(
+		attribute.String("group_id", groupID),
+	))
+	defer span.End()
+
 	traces := make([]dto.Trace, 0, len(configs))
 	for _, config := range configs {
 		payload := map[string]any{
@@ -191,10 +202,12 @@ func SubmitFaultInjection(c *gin.Context) {
 			ExecuteTime: config.ExecuteTime.Unix(),
 			GroupID:     groupID,
 		}
+		task.GroupCarrier = make(propagation.MapCarrier)
+		otel.GetTextMapPropagator().Inject(ctx, task.GroupCarrier)
 
 		taskID, traceID, err := executor.SubmitTask(context.Background(), task)
 		if err != nil {
-			message := "failed to submit task"
+			message := "failed to submit injection task"
 			logrus.Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
@@ -202,6 +215,8 @@ func SubmitFaultInjection(c *gin.Context) {
 
 		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID, Index: config.Index})
 	}
+
+	span.SetStatus(codes.Ok, fmt.Sprintf("Successfully submitted %d fault injections with groupID: %s", len(traces), groupID))
 
 	dto.JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
 }

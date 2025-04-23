@@ -9,6 +9,7 @@ import (
 	"time"
 
 	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
+	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -46,11 +47,12 @@ type timeRange struct {
 
 // 接口避免循环引用
 type Callback interface {
-	HandleCRDFailed(name, errorMsg string, labels map[string]string)
-	HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, labels map[string]string)
-	HandleJobAdd(labels map[string]string)
-	HandleJobFailed(labels map[string]string, errorMsg string)
-	HandleJobSucceeded(labels map[string]string)
+	HandleCRDAdd(annotations map[string]string, labels map[string]string)
+	HandleCRDFailed(name, errorMsg string, annotations map[string]string, labels map[string]string)
+	HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, annotations map[string]string, labels map[string]string)
+	HandleJobAdd(annotations map[string]string, labels map[string]string)
+	HandleJobFailed(annotations map[string]string, labels map[string]string, errorMsg string)
+	HandleJobSucceeded(annotations map[string]string, labels map[string]string)
 }
 
 type QueueItem struct {
@@ -177,7 +179,7 @@ func (o *ObMonitor) setNamespaceStatus() {
 type Controller struct {
 	obInformers  map[string]cache.SharedIndexInformer
 	obMonitor    *ObMonitor
-	crdInformers map[schema.GroupVersionResource]cache.SharedIndexInformer
+	crdInformers map[string]map[schema.GroupVersionResource]cache.SharedIndexInformer
 	crdMonitor   *CRDMonitor
 	jobInformer  cache.SharedIndexInformer
 	podInformer  cache.SharedIndexInformer
@@ -185,9 +187,25 @@ type Controller struct {
 }
 
 func NewController() *Controller {
-	namespaces := config.GetStringSlice("injection.namespace")
+	namespacePrefix := config.GetString("injection.namespace_prefix")
+	targetLabelKey := config.GetString("injection.target_label_key")
+	targetNamespaceCount := config.GetInt("injection.target_namespace_count")
+
+	chaos.InitTargetConfig(namespacePrefix, targetLabelKey, targetNamespaceCount)
+
+	namespaces := make([]string, 0, targetNamespaceCount)
+	for i := range targetNamespaceCount {
+		namespaces = append(namespaces, fmt.Sprintf("%s%d", namespacePrefix, i+1))
+	}
+
+	chaosGVRs := make([]schema.GroupVersionResource, 0, len(chaosCli.GetCRDMapping()))
+	for gvr := range chaosCli.GetCRDMapping() {
+		chaosGVRs = append(chaosGVRs, gvr)
+	}
+
 	obInformers := make(map[string]cache.SharedIndexInformer, len(namespaces))
 	podNamespaceListers := make(map[string]corev1listers.PodNamespaceLister, len(namespaces))
+	crdInformers := make(map[string]map[schema.GroupVersionResource]cache.SharedIndexInformer, len(namespaces))
 	for _, namespace := range namespaces {
 		obFactory := informers.NewSharedInformerFactoryWithOptions(
 			k8sClient,
@@ -197,24 +215,20 @@ func NewController() *Controller {
 
 		obInformers[namespace] = obFactory.Core().V1().Pods().Informer()
 		podNamespaceListers[namespace] = obFactory.Core().V1().Pods().Lister().Pods(namespace)
-	}
 
-	chaosGVRs := make([]schema.GroupVersionResource, 0, len(chaosCli.GetCRDMapping()))
-	for gvr := range chaosCli.GetCRDMapping() {
-		chaosGVRs = append(chaosGVRs, gvr)
-	}
+		chaosFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
+			k8sDynamicClient,
+			resyncPeriod,
+			namespace,
+			nil,
+		)
 
-	// 初始化所有 CRD Informer
-	chaosFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
-		k8sDynamicClient,
-		resyncPeriod,
-		metav1.NamespaceAll,
-		nil,
-	)
+		gvrInformers := make(map[schema.GroupVersionResource]cache.SharedIndexInformer, len(chaosGVRs))
+		for _, gvr := range chaosGVRs {
+			gvrInformers[gvr] = chaosFactory.ForResource(gvr).Informer()
+		}
 
-	crdInformers := make(map[schema.GroupVersionResource]cache.SharedIndexInformer)
-	for _, gvr := range chaosGVRs {
-		crdInformers[gvr] = chaosFactory.ForResource(gvr).Informer()
+		crdInformers[namespace] = gvrInformers
 	}
 
 	platformFactory := informers.NewSharedInformerFactoryWithOptions(
@@ -253,8 +267,10 @@ func (c *Controller) Run(ctx context.Context, callback Callback) {
 	for _, informer := range c.obInformers {
 		go informer.Run(ctx.Done())
 	}
-	for _, informer := range c.crdInformers {
-		go informer.Run(ctx.Done())
+	for _, gvrInformers := range c.crdInformers {
+		for _, informer := range gvrInformers {
+			go informer.Run(ctx.Done())
+		}
 	}
 	go c.jobInformer.Run(ctx.Done())
 	go c.podInformer.Run(ctx.Done())
@@ -263,8 +279,10 @@ func (c *Controller) Run(ctx context.Context, callback Callback) {
 	for _, informer := range c.obInformers {
 		allSyncs = append(allSyncs, informer.HasSynced)
 	}
-	for _, informer := range c.crdInformers {
-		allSyncs = append(allSyncs, informer.HasSynced)
+	for _, gvrInformers := range c.crdInformers {
+		for _, informer := range gvrInformers {
+			allSyncs = append(allSyncs, informer.HasSynced)
+		}
 	}
 
 	if !cache.WaitForCacheSync(ctx.Done(), allSyncs...) {
@@ -285,7 +303,7 @@ func (c *Controller) Run(ctx context.Context, callback Callback) {
 }
 
 func (c *Controller) registerEventHandlers(callback Callback) {
-	for namespace, informer := range c.crdInformers {
+	for namespace, informer := range c.obInformers {
 		if _, err := informer.AddEventHandler(c.genObEventHandlerFuncs()); err != nil {
 			logrus.WithFields(logrus.Fields{
 				"namespace": namespace,
@@ -294,13 +312,15 @@ func (c *Controller) registerEventHandlers(callback Callback) {
 		}
 	}
 
-	for gvr, informer := range c.crdInformers {
-		if _, err := informer.AddEventHandler(c.genCRDEventHandlerFuncs(gvr, callback)); err != nil {
-			logrus.WithFields(logrus.Fields{
-				"gvr":  gvr.Resource,
-				"func": "genCRDEventHandlerFuncs",
-			}).Error("failed to add event handler")
-			return
+	for _, gvrInformers := range c.crdInformers {
+		for gvr, informer := range gvrInformers {
+			if _, err := informer.AddEventHandler(c.genCRDEventHandlerFuncs(gvr, callback)); err != nil {
+				logrus.WithFields(logrus.Fields{
+					"gvr":  gvr.Resource,
+					"func": "genCRDEventHandlerFuncs",
+				}).Error("failed to add event handler")
+				return
+			}
 		}
 	}
 
@@ -325,12 +345,13 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
 			u := obj.(*unstructured.Unstructured)
+			c.crdMonitor.setStatus(u.GetNamespace(), true)
+			callback.HandleCRDAdd(u.GetAnnotations(), u.GetLabels())
 			logrus.WithFields(logrus.Fields{
 				"type":      gvr.Resource,
 				"namespace": u.GetNamespace(),
 				"name":      u.GetName(),
 			}).Info("chaos experiment created successfully")
-			c.crdMonitor.setStatus(u.GetNamespace(), true)
 		},
 		UpdateFunc: func(oldObj, newObj any) {
 			oldU := oldObj.(*unstructured.Unstructured)
@@ -343,6 +364,7 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 					"name":      newU.GetName(),
 				})
 
+				annotations, _, _ := unstructured.NestedStringMap(newU.Object, "metadata", "annotations")
 				labels, _, _ := unstructured.NestedStringMap(newU.Object, "metadata", "labels")
 
 				oldPhase, _, _ := unstructured.NestedString(oldU.Object, "status", "experiment", "desiredPhase")
@@ -354,7 +376,7 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 					selected := getCRDConditionStatus(conditions, "Selected")
 					if !selected {
 						message = "failed to select app in the chaos experiment"
-						callback.HandleCRDFailed(newU.GetName(), message, labels)
+						callback.HandleCRDFailed(newU.GetName(), message, annotations, labels)
 						if !config.GetBool("debugging.enable") {
 							c.queue.Add(QueueItem{
 								Type:      CRDResourceType,
@@ -369,7 +391,7 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 					allInjected := getCRDConditionStatus(conditions, "AllInjected")
 					if !allInjected {
 						message = "failed to inject all targets in the chaos experiment"
-						callback.HandleCRDFailed(newU.GetName(), message, labels)
+						callback.HandleCRDFailed(newU.GetName(), message, annotations, labels)
 						if !config.GetBool("debugging.enable") {
 							c.queue.Add(QueueItem{
 								Type:      CRDResourceType,
@@ -396,14 +418,14 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 					match := re.FindStringSubmatch(durationStr)
 					if len(match) <= 1 {
 						message := "failed to get the duration"
-						callback.HandleCRDFailed(newU.GetName(), message, labels)
+						callback.HandleCRDFailed(newU.GetName(), message, annotations, labels)
 						return
 					}
 
 					duration, err := strconv.Atoi(match[1])
 					if err != nil {
 						message := "failed to get the duration of the chaos experiement"
-						callback.HandleCRDFailed(newU.GetName(), message, labels)
+						callback.HandleCRDFailed(newU.GetName(), message, annotations, labels)
 						return
 					}
 
@@ -421,7 +443,7 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 								}
 
 								message := "failed to get the CRD resource object"
-								callback.HandleCRDFailed(newU.GetName(), message, labels)
+								callback.HandleCRDFailed(newU.GetName(), message, annotations, labels)
 								if !config.GetBool("debugging.enable") {
 									c.queue.Add(QueueItem{
 										Type:      CRDResourceType,
@@ -437,7 +459,7 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 
 							if !recovered {
 								message := "faied to recover all targets in the chaos experiment"
-								callback.HandleCRDFailed(newU.GetName(), message, labels)
+								callback.HandleCRDFailed(newU.GetName(), message, annotations, labels)
 								if !config.GetBool("debugging.enable") {
 									c.queue.Add(QueueItem{
 										Type:      CRDResourceType,
@@ -468,7 +490,7 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 					gvr, ok := chaosGVRMapping[kind]
 					if !ok {
 						message := "failed to get the CRD resource gvr"
-						callback.HandleCRDFailed(newU.GetName(), message, labels)
+						callback.HandleCRDFailed(newU.GetName(), message, annotations, labels)
 						return
 					}
 
@@ -476,12 +498,12 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 					timeRanges := getCRDEventTimeRanges(newRecords)
 					if len(timeRanges) == 0 {
 						message := "failed to get the start_time and end_time"
-						callback.HandleCRDFailed(newU.GetName(), message, labels)
+						callback.HandleCRDFailed(newU.GetName(), message, annotations, labels)
 						return
 					}
 
 					timeRange := timeRanges[0]
-					callback.HandleCRDSucceeded(newU.GetNamespace(), pod, newU.GetName(), timeRange.Start, timeRange.End, labels)
+					callback.HandleCRDSucceeded(newU.GetNamespace(), pod, newU.GetName(), timeRange.Start, timeRange.End, annotations, labels)
 					if !config.GetBool("debugging.enable") {
 						c.queue.Add(QueueItem{
 							Type:      CRDResourceType,
@@ -509,8 +531,8 @@ func (c *Controller) genJobEventHandlerFuncs(callback Callback) cache.ResourceEv
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
 			job := obj.(*batchv1.Job)
-			logrus.WithField("namespace", job.Namespace).WithField("job_name", job.Name).Info("Job created successfully")
-			callback.HandleJobAdd(job.Labels)
+			logrus.WithField("namespace", job.Namespace).WithField("job_name", job.Name).Info("job created successfully")
+			callback.HandleJobAdd(job.Annotations, job.Labels)
 		},
 		UpdateFunc: func(oldObj, newObj any) {
 			oldJob := oldObj.(*batchv1.Job)
@@ -519,11 +541,11 @@ func (c *Controller) genJobEventHandlerFuncs(callback Callback) cache.ResourceEv
 			if callback != nil && oldJob.Name == newJob.Name {
 				if oldJob.Status.Failed == 0 && newJob.Status.Failed > 0 {
 					errorMsg := extractJobError(newJob)
-					callback.HandleJobFailed(newJob.Labels, errorMsg)
+					callback.HandleJobFailed(newJob.Annotations, newJob.Labels, errorMsg)
 				}
 
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {
-					callback.HandleJobSucceeded(newJob.Labels)
+					callback.HandleJobSucceeded(newJob.Annotations, newJob.Labels)
 					if !config.GetBool("debugging.enable") {
 						c.queue.Add(QueueItem{
 							Type:      JobResourceType,
@@ -614,21 +636,18 @@ func (c *Controller) processQueueItem() bool {
 			c.queue.Forget(item)
 			return true
 		}
-		err = DeleteCRD(context.Background(), *item.GVR, item.Namespace, item.Name)
+		err = cleanFinalizers(context.Background(), *item.GVR, item.Namespace, item.Name)
+		if err == nil {
+			err = deleteCRD(context.Background(), *item.GVR, item.Namespace, item.Name)
+		}
 	case JobResourceType:
-		err = DeleteJob(context.Background(), item.Namespace, item.Name)
+		err = deleteJob(context.Background(), item.Namespace, item.Name)
 	default:
 		logrus.Errorf("unknown resource type: %s", item.Type)
 		return true
 	}
 
 	if err != nil {
-		if errors.IsNotFound(err) {
-			logrus.Warnf("%s already deleted: %v", item.Type, err)
-			c.queue.Forget(item)
-			return true
-		}
-
 		logrus.WithField("namespace", item.Namespace).WithField("name", item.Name).Error(err)
 		c.queue.AddRateLimited(item)
 		return true

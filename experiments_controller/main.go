@@ -10,7 +10,8 @@ import (
 	"path"
 	"runtime"
 
-	"github.com/CUHK-SE-Group/chaos-experiment/client"
+	cli "github.com/CUHK-SE-Group/chaos-experiment/client"
+	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/database"
@@ -72,6 +73,7 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			logrus.Println("Running as producer")
 			database.InitDB()
+			client.InitTraceProvider()
 			engine := router.New()
 			port := viper.GetString("port") // 从 Viper 获取最终端口
 			err := engine.Run(":" + port)
@@ -86,9 +88,10 @@ func main() {
 		Use:   "consumer",
 		Short: "Run as a consumer",
 		Run: func(cmd *cobra.Command, args []string) {
-			database.InitDB()
-			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
 			logrus.Println("Running as consumer")
+			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
+			database.InitDB()
+			client.InitTraceProvider()
 			go k8s.Init(ctx, executor.Exec)
 			go executor.StartScheduler(ctx)
 			executor.ConsumeTasks()
@@ -104,6 +107,7 @@ func main() {
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
 			engine := router.New()
 			database.InitDB()
+			client.InitTraceProvider()
 			go k8s.Init(ctx, executor.Exec)
 			go executor.ConsumeTasks()
 			go executor.StartScheduler(ctx)
@@ -114,7 +118,8 @@ func main() {
 			}
 		},
 	}
-	client.NewK8sClient()
+
+	cli.NewK8sClient()
 	rootCmd.AddCommand(producerCmd, consumerCmd, bothCmd)
 	if err := rootCmd.Execute(); err != nil {
 		logrus.Println(err.Error())

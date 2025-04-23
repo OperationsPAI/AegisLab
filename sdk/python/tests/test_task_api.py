@@ -324,7 +324,7 @@ async def test_injection_and_building_dataset_all(
                         "16": {
                             "children": {
                                 "0": {"value": 1},
-                                "1": {"value": 0},
+                                "1": {"value": 1},
                                 "2": {"value": 10},
                                 "3": {"value": -576},
                             }
@@ -372,8 +372,8 @@ async def test_injection_and_building_dataset_single(
         (
             [
                 {
-                    "algorithm": "e-diagnose",
-                    "dataset": "ts-ts-travel2-service-pod-failure-rkxslq",
+                    "image": "e-diagnose",
+                    "dataset": "ts-ts-rebook-service-pod-failure-xdqs9v",
                 }
             ]
         )
@@ -404,7 +404,7 @@ async def test_execute_algorithm_and_collection(payload: List[Dict[str, str]]):
 
     task_ids = [trace.head_task_id for trace in traces]
     trace_ids = [trace.trace_id for trace in traces]
-    report = await sdk.task.get_stream_all(task_ids, trace_ids, timeout=30)
+    report = await sdk.task.get_stream_all(task_ids, trace_ids, client_timeout=60)
     report = report.model_dump(exclude_unset=True)
     pprint(report)
 

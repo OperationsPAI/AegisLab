@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -11,7 +12,13 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/propagation"
 )
+
+type Annotations struct {
+	TaskCarrier  propagation.MapCarrier
+	TraceCarrier propagation.MapCarrier
+}
 
 type CRDLabels struct {
 	TaskID      string
@@ -44,10 +51,28 @@ type Executor struct {
 
 var Exec *Executor
 
-func (e *Executor) HandleCRDFailed(name, errorMsg string, labels map[string]string) {
+func (e *Executor) HandleCRDAdd(annotations map[string]string, labels map[string]string) {
+	parsedAnnotations, _ := parseAnnotations(annotations)
+	parsedLabels, _ := parseCRDLabels(labels)
+
+	updateTaskStatus(
+		parsedAnnotations.TaskCarrier,
+		parsedLabels.TaskID,
+		parsedLabels.TraceID,
+		fmt.Sprintf("executing fault injection for task %s", parsedLabels.TaskID),
+		map[string]any{
+			consts.RdbMsgStatus:   consts.TaskStatusRunning,
+			consts.RdbMsgTaskID:   parsedLabels.TaskID,
+			consts.RdbMsgTaskType: consts.TaskTypeFaultInjection,
+		})
+}
+
+func (e *Executor) HandleCRDFailed(name, errorMsg string, annotations map[string]string, labels map[string]string) {
+	parsedAnnotations, _ := parseAnnotations(annotations)
 	parsedLabels, _ := parseCRDLabels(labels)
 
 	updateTaskError(
+		parsedAnnotations.TaskCarrier,
 		parsedLabels.TaskID,
 		parsedLabels.TraceID,
 		consts.TaskTypeFaultInjection,
@@ -55,7 +80,8 @@ func (e *Executor) HandleCRDFailed(name, errorMsg string, labels map[string]stri
 	)
 }
 
-func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, labels map[string]string) {
+func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, annotations map[string]string, labels map[string]string) {
+	parsedAnnotations, _ := parseAnnotations(annotations)
 	parsedLabels, _ := parseCRDLabels(labels)
 
 	if err := repository.UpdateTimeByDataset(name, startTime, endTime); err != nil {
@@ -65,6 +91,7 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 		}).Error(err)
 
 		updateTaskError(
+			parsedAnnotations.TaskCarrier,
 			parsedLabels.TaskID,
 			parsedLabels.TraceID,
 			consts.TaskTypeFaultInjection,
@@ -75,6 +102,7 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 	}
 
 	updateTaskStatus(
+		parsedAnnotations.TaskCarrier,
 		parsedLabels.TaskID,
 		parsedLabels.TraceID,
 		fmt.Sprintf(consts.TaskMsgCompleted, parsedLabels.TaskID),
@@ -97,11 +125,12 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 		consts.BuildEndTime:     endTime,
 	}
 	taskID, traceID, err := SubmitTask(context.Background(), &UnifiedTask{
-		Type:      consts.TaskTypeBuildDataset,
-		Payload:   datasetPayload,
-		Immediate: true,
-		TraceID:   parsedLabels.TraceID,
-		GroupID:   parsedLabels.GroupID,
+		Type:         consts.TaskTypeBuildDataset,
+		Payload:      datasetPayload,
+		Immediate:    true,
+		TraceID:      parsedLabels.TraceID,
+		GroupID:      parsedLabels.GroupID,
+		TraceCarrier: parsedAnnotations.TraceCarrier,
 	})
 	if err != nil {
 		if taskID == "" && traceID == "" {
@@ -113,17 +142,11 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 			"task_id":  taskID,
 			"trace_id": traceID,
 		}).Error(err)
-
-		updateTaskError(
-			taskID,
-			traceID,
-			consts.BuildDataset,
-			"failed to submit task",
-		)
 	}
 }
 
-func (e *Executor) HandleJobAdd(labels map[string]string) {
+func (e *Executor) HandleJobAdd(annotations map[string]string, labels map[string]string) {
+	parsedAnnotations, _ := parseAnnotations(annotations)
 	taskOptions, _ := parseTaskOptions(labels)
 
 	var message string
@@ -135,6 +158,7 @@ func (e *Executor) HandleJobAdd(labels map[string]string) {
 	}
 
 	updateTaskStatus(
+		parsedAnnotations.TaskCarrier,
 		taskOptions.TaskID,
 		taskOptions.TraceID,
 		message,
@@ -145,7 +169,8 @@ func (e *Executor) HandleJobAdd(labels map[string]string) {
 		})
 }
 
-func (e *Executor) HandleJobFailed(labels map[string]string, errorMsg string) {
+func (e *Executor) HandleJobFailed(annotations map[string]string, labels map[string]string, errorMsg string) {
+	parsedAnnotations, _ := parseAnnotations(annotations)
 	taskOptions, _ := parseTaskOptions(labels)
 
 	logEntry := logrus.WithFields(logrus.Fields{
@@ -165,18 +190,21 @@ func (e *Executor) HandleJobFailed(labels map[string]string, errorMsg string) {
 			consts.RdbMsgError:    errorMsg,
 		}
 
-		if err := e.updateDataset(taskOptions, options, consts.TaskStatusError, consts.DatasetBuildFailed, fields); err != nil {
+		if err := e.updateDataset(parsedAnnotations, taskOptions, options, consts.TaskStatusError, consts.DatasetBuildFailed, fields); err != nil {
 			updateTaskError(
+				parsedAnnotations.TaskCarrier,
 				taskOptions.TaskID,
 				taskOptions.TraceID,
 				taskOptions.Type,
 				"failed to udpate dataset",
 			)
+			return
 		}
 	}
 }
 
-func (e *Executor) HandleJobSucceeded(labels map[string]string) {
+func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[string]string) {
+	parsedAnnotations, _ := parseAnnotations(annotations)
 	taskOptions, _ := parseTaskOptions(labels)
 
 	logEntry := logrus.WithFields(logrus.Fields{
@@ -194,33 +222,38 @@ func (e *Executor) HandleJobSucceeded(labels map[string]string) {
 	case consts.TaskTypeRunAlgorithm:
 		options, _ := parseExecutionOptions(labels)
 
-		if err := e.updateAlgorithm(logEntry, taskOptions, options, baseFields); err != nil {
+		if err := e.updateAlgorithm(parsedAnnotations, logEntry, taskOptions, options, baseFields); err != nil {
 			updateTaskError(
+				parsedAnnotations.TaskCarrier,
 				taskOptions.TaskID,
 				taskOptions.TraceID,
 				taskOptions.Type,
 				"failed to udpate algorithm",
 			)
+			return
 		}
 
 	case consts.TaskTypeBuildDataset:
 		options, _ := parseDatasetOptions(labels)
 
 		logEntry.WithField("dataset", options.Dataset).Info("dataset build successfully")
-		if err := e.updateDataset(taskOptions, options, consts.TaskStatusCompleted, consts.DatasetBuildSuccess, baseFields); err != nil {
+		if err := e.updateDataset(parsedAnnotations, taskOptions, options, consts.TaskStatusCompleted, consts.DatasetBuildSuccess, baseFields); err != nil {
 			updateTaskError(
+				parsedAnnotations.TaskCarrier,
 				taskOptions.TaskID,
 				taskOptions.TraceID,
 				taskOptions.Type,
 				"failed to udpate dataset",
 			)
+			return
 		}
 	}
 }
 
-func (e *Executor) updateDataset(taskOptions *TaskOptions, options *DatasetOptions, taskStatus string, datasetStatus int, fields map[string]any) error {
+func (e *Executor) updateDataset(annotations *Annotations, taskOptions *TaskOptions, options *DatasetOptions, taskStatus string, datasetStatus int, fields map[string]any) error {
 	if datasetStatus != consts.DatasetBuildSuccess {
 		updateTaskStatus(
+			annotations.TaskCarrier,
 			taskOptions.TaskID,
 			taskOptions.TraceID,
 			fmt.Sprintf("[%s] %s", taskStatus, taskOptions.TaskID),
@@ -230,6 +263,7 @@ func (e *Executor) updateDataset(taskOptions *TaskOptions, options *DatasetOptio
 		updateFields := utils.CloneMap(fields)
 		updateFields[consts.RdbMsgDataset] = options.Dataset
 		updateTaskStatus(
+			annotations.TaskCarrier,
 			taskOptions.TaskID,
 			taskOptions.TraceID,
 			fmt.Sprintf(consts.TaskMsgCompleted, taskOptions.TaskID),
@@ -260,11 +294,12 @@ func (e *Executor) updateDataset(taskOptions *TaskOptions, options *DatasetOptio
 		}
 
 		if _, _, err := SubmitTask(context.Background(), &UnifiedTask{
-			Type:      consts.TaskTypeRunAlgorithm,
-			Payload:   executionPayload,
-			Immediate: true,
-			TraceID:   taskOptions.TraceID,
-			GroupID:   taskOptions.GroupID,
+			Type:         consts.TaskTypeRunAlgorithm,
+			Payload:      executionPayload,
+			Immediate:    true,
+			TraceID:      taskOptions.TraceID,
+			GroupID:      taskOptions.GroupID,
+			TraceCarrier: annotations.TraceCarrier,
 		}); err != nil {
 			return err
 		}
@@ -273,15 +308,16 @@ func (e *Executor) updateDataset(taskOptions *TaskOptions, options *DatasetOptio
 	return nil
 }
 
-func (e *Executor) updateAlgorithm(logEntry *logrus.Entry, taskOptions *TaskOptions, options *ExecutionOptions, baseFields map[string]any) error {
+func (e *Executor) updateAlgorithm(annotations *Annotations, logEntry *logrus.Entry, taskOptions *TaskOptions, options *ExecutionOptions, baseFields map[string]any) error {
 	logEntry.WithField("algorithm", options.Algorithm).Info("algorithm execute successfully")
 
 	updateFields := utils.CloneMap(baseFields)
 	updateFields[consts.RdbMsgExecutionID] = options.ExecutionID
 	updateTaskStatus(
+		annotations.TaskCarrier,
 		taskOptions.TaskID,
 		taskOptions.TraceID,
-		fmt.Sprintf("[%s] %s", consts.TaskMsgCompleted, taskOptions.TaskID),
+		fmt.Sprintf(consts.TaskMsgCompleted, taskOptions.TaskID),
 		updateFields,
 	)
 
@@ -292,9 +328,10 @@ func (e *Executor) updateAlgorithm(logEntry *logrus.Entry, taskOptions *TaskOpti
 			consts.CollectDataset:     options.Dataset,
 			consts.CollectExecutionID: options.ExecutionID,
 		},
-		Immediate: true,
-		TraceID:   taskOptions.TraceID,
-		GroupID:   taskOptions.GroupID,
+		Immediate:    true,
+		TraceID:      taskOptions.TraceID,
+		GroupID:      taskOptions.GroupID,
+		TraceCarrier: annotations.TraceCarrier,
 	}); err != nil {
 		return fmt.Errorf("submit result collection task failed")
 	}
@@ -302,8 +339,37 @@ func (e *Executor) updateAlgorithm(logEntry *logrus.Entry, taskOptions *TaskOpti
 	return nil
 }
 
+func parseAnnotations(annotations map[string]string) (*Annotations, error) {
+	message := "missing or invalid '%s' key in k8s annotations"
+
+	taskCarrierStr, ok := annotations[consts.TaskCarrier]
+	if !ok {
+		return nil, fmt.Errorf(message, consts.TaskCarrier)
+	}
+
+	var taskCarrier propagation.MapCarrier
+	if err := json.Unmarshal([]byte(taskCarrierStr), &taskCarrier); err != nil {
+		return nil, fmt.Errorf(message, consts.TaskCarrier)
+	}
+
+	traceCarrierStr, ok := annotations[consts.TraceCarrier]
+	if !ok {
+		return nil, fmt.Errorf(message, consts.TraceCarrier)
+	}
+
+	var traceCarrier propagation.MapCarrier
+	if err := json.Unmarshal([]byte(traceCarrierStr), &traceCarrier); err != nil {
+		return nil, fmt.Errorf(message, consts.TraceCarrier)
+	}
+
+	return &Annotations{
+		TaskCarrier:  taskCarrier,
+		TraceCarrier: traceCarrier,
+	}, nil
+}
+
 func parseCRDLabels(labels map[string]string) (*CRDLabels, error) {
-	message := "missing or invalid '%s' key in payload"
+	message := "missing or invalid '%s' key in k8s labels"
 
 	taskID, ok := labels[consts.CRDTaskID]
 	if !ok || taskID == "" {

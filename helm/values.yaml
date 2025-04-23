@@ -13,6 +13,10 @@ images:
     repository: 10.10.10.240/library/mariadb
     tag: 11.8.1-noble-rc
     pullPolicy: IfNotPresent
+  jaeger:
+    repository: jaegertracing/all-in-one
+    tag: latest
+    pullPolicy: IfNotPresent
   busybox:
     repository: busybox
     tag: 1.35
@@ -27,16 +31,20 @@ config:
   mysqlRootPassword: yourpassword
 
 configmap:
+  name: "rcabench"
+  version: "0.1.0"
   port: 8080
   debug: false
   workspace: "/app"
   system:
     timezone: "Asia/Shanghai"
   injection:
-    restart_service: true
-    command: "cd /home/nn/workspace/train-ticket && make deploy NS=%s"
-    namespace: ["ts"]
+    restart_service: false
     enable_duplicate: true
+    namespace_prefix: "ts"
+    target_label_key: "app"
+    target_namespace_count: 1
+    command: "cd /app/lib/train-ticket && make deploy NS=%s"
   database:
     clickhouse_host: "10.10.10.58"
     mysql_user: "root"
@@ -44,6 +52,8 @@ configmap:
     mysql_host: "mariadb"
     mysql_port: "3306"
     mysql_db: "rcabench"
+  jaeger:
+    endpoint: "jaeger:4318"
   redis:
     host: "redis:6379"
   harbor:

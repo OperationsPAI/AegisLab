@@ -5,7 +5,7 @@ import pandas as pd
 import subprocess
 
 
-namespace = "ts"
+namespace = os.getenv("NAMESPACE")
 
 clickhouse_host = "10.10.10.58"
 username = "default"
@@ -206,12 +206,12 @@ def generate_data_nezha(start_time, end_time) -> pd.DataFrame:
     FROM 
         otel_metrics_gauge
     WHERE 
-        ResourceAttributes['k8s.namespace.name'] = 'ts'
+        ResourceAttributes['k8s.namespace.name'] = %(namespace)s
         AND TimeUnix BETWEEN %(start_time)s AND %(end_time)s
     """
 
     # 设置查询参数
-    params = {"start_time": start_time, "end_time": end_time}
+    params = {"namespace": namespace, "start_time": start_time, "end_time": end_time}
 
     # 执行查询
     result = client.execute(query, params)

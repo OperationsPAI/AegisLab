@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"archive/zip"
+	"context"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -15,6 +16,10 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // DeleteDataset
@@ -363,9 +368,23 @@ func SubmitDatasetBuilding(c *gin.Context) {
 		}
 	}
 
+	ctx, span := otel.Tracer("rcabench/group").Start(context.Background(), "produce group", trace.WithAttributes(
+		attribute.String("group_id", groupID),
+	))
+	defer span.End()
+
 	traces := make([]dto.Trace, 0, len(payloads))
 	for idx, payload := range payloads {
-		taskID, traceID, err := executor.SubmitTask(c.Request.Context(), &executor.UnifiedTask{
+		task := &executor.UnifiedTask{
+			Type:      consts.TaskTypeBuildDataset,
+			Payload:   utils.StructToMap(payload),
+			Immediate: true,
+			GroupID:   groupID,
+		}
+		task.GroupCarrier = make(propagation.MapCarrier)
+		otel.GetTextMapPropagator().Inject(ctx, task.GroupCarrier)
+
+		taskID, traceID, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
 			Type:      consts.TaskTypeBuildDataset,
 			Payload:   utils.StructToMap(payload),
 			Immediate: true,

@@ -13,6 +13,8 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 type CollectionPayload struct {
@@ -26,6 +28,9 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 	if err != nil {
 		return err
 	}
+
+	taskCarrier := make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, taskCarrier)
 
 	path := config.GetString("nfs.path")
 
@@ -43,7 +48,10 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 
 		if len(results) == 0 {
 			logrus.Info("the detector result is empty")
-			updateTaskStatus(task.TaskID, task.TraceID,
+			updateTaskStatus(
+				taskCarrier,
+				task.TaskID,
+				task.TraceID,
 				fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
 				map[string]any{
 					consts.RdbMsgStatus:            consts.TaskStatusCompleted,
@@ -59,7 +67,10 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 			return fmt.Errorf("failed to save conclusion.csv to database: %v", err)
 		}
 
-		updateTaskStatus(task.TaskID, task.TraceID,
+		updateTaskStatus(
+			taskCarrier,
+			task.TaskID,
+			task.TraceID,
 			fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
 			map[string]any{
 				consts.RdbMsgStatus:            consts.TaskStatusCompleted,
@@ -83,7 +94,10 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 			return fmt.Errorf("save result.csv to database failed: %v", err)
 		}
 
-		updateTaskStatus(task.TaskID, task.TraceID,
+		updateTaskStatus(
+			taskCarrier,
+			task.TaskID,
+			task.TraceID,
 			fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
 			map[string]any{
 				consts.RdbMsgStatus:   consts.TaskStatusCompleted,

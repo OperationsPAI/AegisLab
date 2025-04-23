@@ -30,6 +30,11 @@ func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
 		return err
 	}
 
+	annotations, err := getAnnotations(ctx, task)
+	if err != nil {
+		return err
+	}
+
 	imageName := fmt.Sprintf("%s_dataset", payload.Benchmark)
 	tag, err := client.GetHarborClient().GetLatestTag(imageName)
 	if err != nil {
@@ -47,7 +52,7 @@ func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
 		consts.LabelService:  payload.EnvVars[consts.BuildEnvVarService],
 	}
 
-	return createDatasetJob(ctx, jobName, image, labels, payload)
+	return createDatasetJob(ctx, jobName, image, annotations, labels, payload)
 }
 
 func parseDatasetPayload(payload map[string]any) (*DatasetPayload, error) {
@@ -133,7 +138,7 @@ func parseTimePtrFromPayload(payload map[string]any, key string) (*time.Time, er
 	return &t, nil
 }
 
-func createDatasetJob(ctx context.Context, jobName, image string, labels map[string]string, payload *DatasetPayload) error {
+func createDatasetJob(ctx context.Context, jobName, image string, annotations map[string]string, labels map[string]string, payload *DatasetPayload) error {
 	restartPolicy := corev1.RestartPolicyNever
 	backoffLimit := int32(2)
 	parallelism := int32(1)
@@ -152,6 +157,7 @@ func createDatasetJob(ctx context.Context, jobName, image string, labels map[str
 		Parallelism:   parallelism,
 		Completions:   completions,
 		EnvVars:       envVars,
+		Annotations:   annotations,
 		Labels:        labels,
 	})
 }

@@ -18,8 +18,11 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/executor"
 	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/gin-gonic/gin"
-	"github.com/k0kubun/pp/v3"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // GetAlgorithmList
@@ -104,7 +107,6 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 	for i := range payloads {
 		if payloads[i].Tag == "" {
 			tag, err := client.GetHarborClient().GetLatestTag(payloads[i].Image)
-			pp.Println(tag)
 			if err != nil {
 				logrus.Errorf("failed to get latest tag of %s: %v", payloads[i].Image, err)
 				dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get latest tag")
@@ -124,16 +126,25 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 		}
 	}
 
+	ctx, span := otel.Tracer("rcabench/group").Start(context.Background(), "produce group", trace.WithAttributes(
+		attribute.String("group_id", groupID),
+	))
+	defer span.End()
+
 	traces := make([]dto.Trace, 0, len(payloads))
 	for idx, payload := range payloads {
-		taskID, traceID, err := executor.SubmitTask(c.Request.Context(), &executor.UnifiedTask{
+		task := &executor.UnifiedTask{
 			Type:      consts.TaskTypeRunAlgorithm,
 			Payload:   utils.StructToMap(payload),
 			Immediate: true,
 			GroupID:   groupID,
-		})
+		}
+		task.GroupCarrier = make(propagation.MapCarrier)
+		otel.GetTextMapPropagator().Inject(ctx, task.GroupCarrier)
+
+		taskID, traceID, err := executor.SubmitTask(context.Background(), task)
 		if err != nil {
-			message := "failed to submit task"
+			message := "failed to submit algorithm execution task"
 			logrus.Error(message)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return

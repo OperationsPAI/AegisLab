@@ -2,8 +2,6 @@ package database
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/CUHK-SE-Group/rcabench/config"
@@ -115,14 +113,4 @@ func InitDB() {
 	if err != nil {
 		logrus.Fatalf("Failed to migrate database: %v", err)
 	}
-}
-
-func ensureDirForFile(filePath string) error {
-	dir := filepath.Dir(filePath)
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		if mkdirErr := os.MkdirAll(dir, os.ModePerm); mkdirErr != nil {
-			return mkdirErr
-		}
-	}
-	return nil
 }
