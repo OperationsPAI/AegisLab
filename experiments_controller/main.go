@@ -11,6 +11,7 @@ import (
 	"runtime"
 
 	cli "github.com/CUHK-SE-Group/chaos-experiment/client"
+	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/config"
@@ -65,6 +66,11 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	namespacePrefix := config.GetString("injection.namespace_prefix")
+	targetLabelKey := config.GetString("injection.target_label_key")
+	targetNamespaceCount := config.GetInt("injection.target_namespace_count")
+	chaos.InitTargetConfig(namespacePrefix, targetLabelKey, targetNamespaceCount)
 
 	// Producer 子命令
 	var producerCmd = &cobra.Command{
