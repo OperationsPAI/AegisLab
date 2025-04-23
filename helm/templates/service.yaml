@@ -53,3 +53,35 @@ spec:
     - port: 1234
       targetPort: 1234
   type: ClusterIP
+
+---
+# Jaeger Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger
+spec:
+  type: NodePort
+  selector:
+    app: jaeger
+  ports:
+    - name: grpc
+      port: 4317
+      targetPort: 4317
+      nodePort: 31317
+    - name: http
+      port: 4318
+      targetPort: 4318
+      nodePort: 31318
+    - name: thrift-compact
+      port: 6831
+      targetPort: 6831
+      nodePort: 31631
+    - name: collector-http
+      port: 14268
+      targetPort: 14268
+      nodePort: 31468
+    - name: query
+      port: 16686  
+      targetPort: 16686
+      nodePort: 31686

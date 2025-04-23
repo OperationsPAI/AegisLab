@@ -93,22 +93,22 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: mariadb
+      app: jaeger
   template:
     metadata:
       labels:
-        app: mariadb
-  spec:
-    containers:
-      - name: jaeger
-        image: "{{ .Values.images.jaeger.repository }}:{{ .Values.images.jaeger.tag }}"
-        imagePullPolicy: "{{ .Values.images.jaeger.pullPolicy }}"
-        ports:
-          - containerPort: 4317
-          - containerPort: 4318
-          - containerPort: 6831
-          - containerPort: 14268
-          - containerPort: 16686
+        app: jaeger
+    spec:
+      containers:
+        - name: jaeger
+          image: "{{ .Values.images.jaeger.repository }}:{{ .Values.images.jaeger.tag }}"
+          imagePullPolicy: "{{ .Values.images.jaeger.pullPolicy }}"
+          ports:
+            - containerPort: 4317
+            - containerPort: 4318
+            - containerPort: 6831
+            - containerPort: 14268
+            - containerPort: 16686
 
 ---
 # exp 应用

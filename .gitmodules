@@ -6,5 +6,4 @@
 	url = git@github.com:CUHK-SE-Group/ts-anomaly-detector.git
 [submodule "lib/train-ticket"]
 	path = lib/train-ticket
-	url = git@github.com:CUHK-SE-Group/train-ticket.git
-	branch = master
+	url = git@github.com:CUHK-SE-Group/train-ticket
