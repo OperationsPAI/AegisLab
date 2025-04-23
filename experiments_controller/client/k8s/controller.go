@@ -9,7 +9,6 @@ import (
 	"time"
 
 	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
-	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -188,10 +187,7 @@ type Controller struct {
 
 func NewController() *Controller {
 	namespacePrefix := config.GetString("injection.namespace_prefix")
-	targetLabelKey := config.GetString("injection.target_label_key")
 	targetNamespaceCount := config.GetInt("injection.target_namespace_count")
-
-	chaos.InitTargetConfig(namespacePrefix, targetLabelKey, targetNamespaceCount)
 
 	namespaces := make([]string, 0, targetNamespaceCount)
 	for i := range targetNamespaceCount {
