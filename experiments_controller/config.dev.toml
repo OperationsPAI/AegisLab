@@ -48,3 +48,6 @@ storage_path = "/home/nn/workspace/rcabench/algorithms"
 
 [debugging]
 enable = false
+
+[buildkit]
+address = "tcp://localhost:1234"

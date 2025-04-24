@@ -44,26 +44,27 @@ func AddToZip(zipWriter *zip.Writer, fileInfo fs.FileInfo, srcPath string, zipPa
 	return err
 }
 
-// 获取所有子目录
 func GetAllSubDirectories(root string) ([]string, error) {
 	var directories []string
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
 
-		if info.IsDir() && path != root {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			// This is a directory
+			path := filepath.Join(root, entry.Name())
 			absPath, err := filepath.Abs(path)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			directories = append(directories, absPath)
 		}
+	}
 
-		return nil
-	})
-
-	return directories, err
+	return directories, nil
 }
 
 // 安全检查防止路径遍历攻击
