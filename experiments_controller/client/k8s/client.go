@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -12,8 +13,12 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-var k8sClient *kubernetes.Clientset
-var k8sDynamicClient *dynamic.DynamicClient
+var (
+	k8sClient        *kubernetes.Clientset
+	k8sDynamicClient *dynamic.DynamicClient
+	k8sController    *Controller
+	controllerOnce   sync.Once
+)
 
 func Init(ctx context.Context, callback Callback) {
 	kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
@@ -24,10 +29,14 @@ func Init(ctx context.Context, callback Callback) {
 
 	getK8sClient(restConfig)
 
-	controller := NewController(restConfig)
-	if controller != nil {
-		go controller.Run(ctx, callback)
-	}
+	go GetK8sController().Run(ctx, callback)
+}
+
+func GetK8sController() *Controller {
+	controllerOnce.Do(func() {
+		k8sController = NewController()
+	})
+	return k8sController
 }
 
 func getK8sClient(restConfig *rest.Config) {

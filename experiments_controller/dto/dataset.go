@@ -20,7 +20,22 @@ type DatasetDeleteResp struct {
 }
 
 type DatasetDownloadReq struct {
-	GroupIDs []string `form:"group_ids" binding:"required"`
+	GroupIDs []string `form:"group_ids"`
+	Names    []string `form:"names"`
+}
+
+func (r *DatasetDownloadReq) Validate() error {
+	hasGroupIDs := len(r.GroupIDs) > 0
+	hasNames := len(r.Names) > 0
+	if !hasGroupIDs && !hasNames {
+		return fmt.Errorf("One of group_ids or names must be provided")
+	}
+
+	if hasGroupIDs && hasNames {
+		return fmt.Errorf("Only one of group_ids or names must be provided")
+	}
+
+	return nil
 }
 
 type DatasetItem struct {
@@ -68,13 +83,11 @@ type DatasetListReq struct {
 	PaginationReq
 }
 
-type DatasetPayload struct {
-	Benchmark   string     `json:"benchmark"`
-	Name        string     `json:"name"`
-	PreDuration int        `json:"pre_duration"`
-	Service     string     `json:"service"`
-	StartTime   *time.Time `json:"start_time,omitempty"`
-	EndTime     *time.Time `json:"end_time,omitempty"`
+type DatasetBuildPayload struct {
+	Benchmark   string            `json:"benchmark"`
+	Name        string            `json:"name"`
+	PreDuration int               `json:"pre_duration"`
+	EnvVars     map[string]string `json:"env_vars"`
 }
 
 type DatasetJoinedResult struct {
@@ -105,4 +118,9 @@ var DatasetStatusMap = map[int]string{
 	consts.DatasetBuildSuccess:  "build_success",
 	consts.DatasetBuildFailed:   "build_failed",
 	consts.DatasetDeleted:       "deleted",
+}
+
+var BuildEnvVarNameMap = map[string]struct{}{
+	"NAMESPACE": {},
+	"SERVICE":   {},
 }

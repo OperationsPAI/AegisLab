@@ -67,9 +67,10 @@ type InjectionSubmitReq struct {
 }
 
 type InjectionConfig struct {
+	Index       int
 	FaultType   int
 	Conf        *chaos.InjectionConf
-	RawConf     map[string]any
+	RawConf     string
 	ExecuteTime time.Time
 }
 
@@ -84,13 +85,19 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 	currentTime := time.Now()
 	prevEnd := currentTime
 	configs := make([]*InjectionConfig, 0, len(r.Specs))
-	for i, spec := range r.Specs {
+	for idx, spec := range r.Specs {
 		node, err := chaos.MapToNode(spec)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert spec to node: %v", err)
+			return nil, fmt.Errorf("failed to convert spec[%d] to node: %v", idx, err)
 		}
-		execTime := currentTime.Add(intervalDuration * time.Duration(i))
 
+		newSpec := chaos.NodeToMap(node, true)
+		newSpecBytes, err := json.Marshal(newSpec)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal spec[%d]: %v", idx, err)
+		}
+
+		execTime := currentTime.Add(intervalDuration * time.Duration(idx))
 		if !config.GetBool("debugging.enable") {
 			childNode, exists := node.Children[strconv.Itoa(node.Value)]
 			if !exists {
@@ -101,8 +108,8 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 			start := execTime.Add(-preDuration)
 			end := execTime.Add(time.Duration(faultDuration) * consts.DefaultTimeUnit)
 
-			if i > 0 && !start.After(prevEnd) {
-				return nil, fmt.Errorf("spec[%d] time conflict", i)
+			if idx > 0 && !start.After(prevEnd) {
+				return nil, fmt.Errorf("spec[%d] time conflict", idx)
 			}
 
 			prevEnd = end
@@ -110,15 +117,16 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 
 		conf, err := chaos.NodeToStruct[chaos.InjectionConf](node)
 		if err != nil {
-			return nil, fmt.Errorf(err.Error())
+			return nil, err
 		}
+
 		configs = append(configs, &InjectionConfig{
+			Index:       idx,
 			FaultType:   node.Value,
 			Conf:        conf,
-			RawConf:     spec,
+			RawConf:     string(newSpecBytes),
 			ExecuteTime: execTime,
 		})
-
 	}
 
 	return configs, nil

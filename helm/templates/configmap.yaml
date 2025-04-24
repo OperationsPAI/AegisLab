@@ -4,6 +4,8 @@ metadata:
   name: rcabench-config
 data:
   config.prod.toml: |
+    name = "{{ .Values.configmap.name }}"
+    version = "{{ .Values.configmap.version }}"
     port = {{ .Values.configmap.port }}
     debug = {{ .Values.configmap.debug }}
     workspace = "{{ .Values.configmap.workspace }}"
@@ -12,11 +14,12 @@ data:
     timezone = "{{ .Values.configmap.system.timezone }}"
 
     [injection]
-    namespace = [{{ .Values.configmap.injection.namespace | join "\", \"" | quote }}]
-    label = "{{ .Values.configmap.injection.label }}"
-
-    [storage]
-    path = "{{ .Values.configmap.storage.path }}"
+    restart_service= {{ .Values.configmap.injection.restart_service }}
+    enable_duplicate = {{ .Values.configmap.injection.enable_duplicate }}
+    namespace_prefix = "{{ .Values.configmap.injection.namespace_prefix }}"
+    target_label_key = "{{ .Values.configmap.injection.target_label_key }}"
+    target_namespace_count = {{ .Values.configmap.injection.target_namespace_count }}
+    command= "{{ .Values.configmap.injection.command }}"
 
     [database]
     clickhouse_host = "{{ .Values.configmap.database.clickhouse_host }}"
@@ -26,8 +29,8 @@ data:
     mysql_port = "{{ .Values.configmap.database.mysql_port }}"
     mysql_db = "{{ .Values.configmap.database.mysql_db }}"
 
-    [image]
-    tag = "{{ .Values.configmap.image.tag }}"
+    [jaeger]
+    endpoint = "{{ .Values.configmap.jaeger.endpoint }}"
 
     [redis]
     host = "{{ .Values.configmap.redis.host }}"
@@ -49,7 +52,10 @@ data:
     storage_path = "{{ .Values.configmap.algo.storage_path }}"
 
     [debugging]
-    enable = "{{ .Values.configmap.debugging.enable }}"
+    enable = {{ .Values.configmap.debugging.enable }}
+
+    [buildkit]
+    address = "{{ .Values.configmap.buildkit.address }}"
 
 ---
 apiVersion: v1
@@ -60,3 +66,21 @@ data:
   my.cnf: |
     [mysqld]
     bind-address = 0.0.0.0
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: buildkit-config
+data:
+  buildkitd.toml: |
+    debug = true
+    trace = false
+    insecure-entitlements = ["security.insecure"]
+
+    [grpc]
+    address = ["tcp://0.0.0.0:1234"]
+
+    [registry."10.10.10.240"]
+    http = false
+    ca = ["/usr/local/share/ca-certificates/harbor.lab.pj.crt"]

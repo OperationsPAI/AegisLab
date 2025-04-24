@@ -1,7 +1,32 @@
 from typing import Any, Dict, List, Optional
-from ..const import InjectionStatusEnum, TIME_EXAMPLE
+from ..const import INJECTION_CONF_MODES, InjectionStatusEnum, TIME_EXAMPLE
 from datetime import datetime
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+class GetConfReq(BaseModel):
+    """
+    配置获取请求
+
+    Attributes:
+        mode: 配置模式标识符 (display, engine)
+    """
+
+    mode: str = Field(
+        ...,
+        description="Choose the config mode (display, engine)",
+        json_schema_extra={"example": "display"},
+    )
+
+    @field_validator("mode")
+    @classmethod
+    def validate_mode(cls, value: str) -> str:
+        if value not in INJECTION_CONF_MODES:
+            raise ValueError(
+                f"Injection conf mode must be one of {INJECTION_CONF_MODES}"
+            )
+
+        return value
 
 
 class InjectionItem(BaseModel):
@@ -20,9 +45,9 @@ class InjectionItem(BaseModel):
 
     id: int = Field(
         default=1,
-        gt=1,
         description="Unique identifier for the injection",
         json_schema_extra={"example": 1},
+        gt=0,
     )
 
     task_id: str = Field(
@@ -149,34 +174,34 @@ class SubmitReq(BaseModel):
     故障注入请求参数
 
     Attributes:
-        benchmark: 基准测试名称
+        benchmark: 基准测试名称，如果为空则不执行数据采集
         interval: 故障注入间隔时间（分钟）
         pre_duration: 故障注入前的正常观测时间（分钟）
         specs: 分层配置参数树
     """
 
-    benchmark: str = Field(
-        ...,
-        description="Benchmark name",
-        json_schema_extra={"example": "clichhouse"},
-    )
-
     interval: int = Field(
         ...,
-        gt=0,
         description="Fault injection interval (minute)",
         json_schema_extra={"example": 2},
+        gt=0,
     )
 
     pre_duration: int = Field(
         ...,
-        gt=0,
         description="Normal time before fault injection (minute)",
         json_schema_extra={"example": 1},
+        gt=0,
     )
 
     specs: List[SpecNode] = Field(
         ...,
-        min_length=1,
         description="Hierarchical configuration parameter tree, each element represents a parameter branch",
+        min_length=1,
+    )
+
+    benchmark: Optional[str] = Field(
+        None,
+        description="Benchmark name",
+        json_schema_extra={"example": "clichhouse"},
     )

@@ -1,6 +1,39 @@
 from typing import Any, Dict, List, Optional
-from ..const import TIME_EXAMPLE
-from pydantic import BaseModel, Field
+from ..const import TIME_EXAMPLE, Dataset
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from uuid import UUID
+import os
+import zipfile
+
+
+class DeleteReq(BaseModel):
+    """
+    数据集删除请求
+
+    Attributes:
+        names: 待删除的数据集名称列表
+    """
+
+    names: List[str] = Field(
+        ...,
+        description="List of datasets preparing for being deleted",
+        json_schema_extra={"example": ["ts-ts-preserve-service-cpu-exhaustion-znzxcn"]},
+        min_length=1,
+    )
+
+    @field_validator("names")
+    @classmethod
+    def validate_names(cls, value: List[str]) -> List[str]:
+        for name in value:
+            if not name:
+                raise ValueError("Dataset name cannot be empty string")
+
+            if len(name) < 1 or len(name) > 64:
+                raise ValueError(
+                    f"The length of dataset must be in range [1-64]: {name}"
+                )
+
+        return value
 
 
 class DeleteResult(BaseModel):
@@ -24,6 +57,133 @@ class DeleteResult(BaseModel):
         description="List of dataset names that failed to delete",
         json_schema_extra={"example": ["ts-ts-preserve-service-cpu-exhaustion-znzxcn"]},
     )
+
+
+class DownloadReq(BaseModel):
+    """
+    文件下载请求
+
+    用于定义批量下载任务组所需参数，包含任务组ID列表和输出路径校验。
+
+    Attributes:
+        group_ids: 需要下载的任务组ID列表
+        names: 需要下载的数据集列表（与 group_ids 互斥）
+        output_path: 文件保存的目标路径（需可写权限）
+    """
+
+    group_ids: Optional[List[UUID]] = Field(
+        None,
+        description="List of task groups",
+        json_schema_extra={"example": [UUID("550e8400-e29b-41d4-a716-446655440000")]},
+    )
+
+    names: Optional[List[str]] = Field(
+        None,
+        description="List of datasets preparing for being downloaded",
+        json_schema_extra={"example": ["ts-ts-preserve-service-cpu-exhaustion-znzxcn"]},
+    )
+
+    output_path: str = Field(
+        ...,
+        description="The path to save package.zip",
+        json_schema_extra={"example": os.getcwd()},
+    )
+
+    @field_validator("group_ids")
+    @classmethod
+    def validate_group_ids(cls, value: Optional[List[UUID]]) -> Optional[List[UUID]]:
+        if value is not None:
+            if not value:
+                raise ValueError("GroupIDs cannot be empty if provided")
+
+        return value
+
+    @field_validator("names")
+    @classmethod
+    def validate_names(cls, value: Optional[List[str]]) -> Optional[List[str]]:
+        if value is not None:
+            if not value:
+                raise ValueError("Names cannot be empty if provided")
+
+            for name in value:
+                if not name:
+                    raise ValueError("Dataset name cannot be empty string")
+
+                if len(name) < 1 or len(name) > 64:
+                    raise ValueError(
+                        f"The length of dataset must be in range [1-64]: {name}"
+                    )
+
+        return value
+
+    @field_validator("output_path")
+    @classmethod
+    def validate_output_path(cls, value: str) -> str:
+        if not os.path.isdir(value):
+            raise FileNotFoundError(f"Output path does not exist: {value}")
+
+        if not os.access(value, os.W_OK):
+            raise PermissionError(f"No write permission on path: {value}")
+
+        return value
+
+    @model_validator(mode="after")
+    def validate_exclusive_fields(self) -> "DownloadReq":
+        group_ids_set = self.group_ids is not None and len(self.group_ids) > 0
+        names_set = self.names is not None and len(self.names) > 0
+
+        if group_ids_set and names_set:
+            raise ValueError("Cannot specify both 'group_ids' and 'names'")
+
+        if not group_ids_set and not names_set:
+            raise ValueError("Must specify either 'group_ids' or 'names'")
+
+        return self
+
+
+class DownloadResult(BaseModel):
+    """
+    文件下载结果
+
+    Attributes:
+        file_path: 文件保存路径
+    """
+
+    file_path: str = Field(
+        ...,
+        description="The saving path",
+        json_schema_extra={"example": os.path.join(os.getcwd(), "package.zip")},
+    )
+
+    @field_validator("file_path")
+    @classmethod
+    def validate(cls, value: str) -> str:
+        if not os.path.exists(value):
+            raise FileNotFoundError(f"File does not exist: {value}")
+        if not os.path.isfile(value):
+            raise ValueError(f"Path is not a regular file: {value}")
+        if os.path.getsize(value) == 0:
+            raise ValueError(f"File is empty: {value}")
+        if not value.lower().endswith(".zip"):
+            raise ValueError(f"File is not a ZIP archive: {value}")
+
+        try:
+            with zipfile.ZipFile(value, "r") as zip_ref:
+                # 查看 ZIP 是否包含文件
+                if not zip_ref.namelist():
+                    raise ValueError(f"ZIP archive contains no files: {value}")
+
+                # ZIP 内所有文件是否可读
+                corrupt_file = zip_ref.testzip()
+                if corrupt_file is not None:
+                    raise ValueError(
+                        f"ZIP archive contains corrupt file: {corrupt_file}"
+                    )
+
+        except zipfile.BadZipFile:
+            raise ValueError(f"Invalid ZIP file format: {value}")
+
+        return value
 
 
 class DatasetItem(BaseModel):
@@ -59,6 +219,28 @@ class DatasetItem(BaseModel):
         ...,
         description="End timestamp of injection window",
         json_schema_extra={"example": TIME_EXAMPLE},
+    )
+
+
+class ListResult(BaseModel):
+    """
+    分页数据集查询结果
+
+    Attributes:
+        total: 数据集总数
+        datasets: 数据集条目列表
+    """
+
+    total: int = Field(
+        default=0,
+        description="Total number of datasets",
+        json_schema_extra={"example": 20},
+        ge=0,
+    )
+
+    datasets: List[DatasetItem] = Field(
+        default_factory=list,
+        description="List of datasets",
     )
 
 
@@ -178,32 +360,35 @@ class ExecutionRecord(BaseModel):
         json_schema_extra={"example": "e-dianose"},
     )
 
-    granularity_results: List[GranularityRecord] = Field(
+    granularity_records: List[GranularityRecord] = Field(
         default_factory=list,
         description="Analysis results across different granularity levels",
     )
 
 
-class ListResult(BaseModel):
-    """
-    分页数据集查询结果
-
-    Attributes:
-        total: 数据集总数
-        datasets: 数据集条目列表
-    """
-
-    total: int = Field(
-        default=0,
-        description="Total number of datasets",
-        json_schema_extra={"example": 20},
-        ge=0,
+class QueryReq(BaseModel):
+    name: str = Field(
+        ...,
+        description="Unique identifier for the dataset",
+        json_schema_extra={"example": "ts-ts-preserve-service-cpu-exhaustion-znzxcn"},
+        max_length=64,
     )
 
-    datasets: List[DatasetItem] = Field(
-        default_factory=list,
-        description="List of datasets",
+    sort: str = Field(
+        ...,
+        description="Dataset sorting method",
+        json_schema_extra={"example": "desc"},
     )
+
+    @field_validator("sort")
+    @classmethod
+    def validate_sort(cls, value: str) -> str:
+        if value not in Dataset.ALLOWED_SORTS:
+            raise ValueError(
+                f"Invalid sort value. Must be one of: {', '.join(s for s in Dataset.ALLOWED_SORTS)}"
+            )
+
+        return value
 
 
 class QueryResult(DatasetItem):
@@ -223,4 +408,67 @@ class QueryResult(DatasetItem):
     execution_results: List[ExecutionRecord] = Field(
         default_factory=list,
         description="Collection of root cause analysis results from multiple algorithms",
+    )
+
+
+class EnvVar(BaseModel):
+    """
+    采集数据镜像环境变量模型
+
+    Attributes:
+        NAMESPACE: 待注入命名空间
+        SERVICE: 筛选服务名称
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    NAMESPACE: Optional[str] = Field(
+        None,
+        description="Target Kubernetes namespace",
+        json_schema_extra={"example": "ts"},
+    )
+
+    SERVICE: Optional[str] = Field(
+        None,
+        description="Full name of microservice to monitor",
+        json_schema_extra={"example": "ts-ts-preserve-service"},
+    )
+
+
+class BuildPayload(BaseModel):
+    benchmark: str = Field(
+        ...,
+        description="Detailed anomaly detection metrics",
+        json_schema_extra={"example": "clickhouse"},
+    )
+
+    name: str = Field(
+        ...,
+        description="Unique identifier for the dataset",
+        json_schema_extra={"example": "ts-ts-preserve-service-cpu-exhaustion-znzxcn"},
+        max_length=64,
+    )
+
+    pre_duration: int = Field(
+        ...,
+        description="Normal time before fault injection (minute)",
+        json_schema_extra={"example": 1},
+        gt=0,
+    )
+
+    env_vars: Optional[EnvVar] = Field(
+        None,
+        description="The enviroment variables of the image",
+    )
+
+
+class SubmitReq(BaseModel):
+    """
+    数据集构建请求
+    """
+
+    payloads: List[BuildPayload] = Field(
+        ...,
+        description="List of payloads to build dataset",
+        min_length=1,
     )

@@ -21,6 +21,18 @@ services:
     network_mode: host
     restart: always
 
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "6831:6831/udp"
+      - "14268:14268"
+      - "16686:16686"
+    network_mode: host
+    restart: always
+
   exp:
     build:
       context: ./experiments_controller

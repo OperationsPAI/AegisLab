@@ -24,9 +24,16 @@ func Init(configPath string) {
 	viper.AddConfigPath("/etc/rcabench")
 	viper.AddConfigPath(".")
 
-	// 加载配置文件
 	if err := viper.ReadInConfig(); err != nil {
-		// 打印错误详情
+		configFile := viper.ConfigFileUsed()
+		content, readErr := os.ReadFile(configFile)
+	
+		if readErr != nil {
+			logrus.Errorf("读取配置文件内容失败: %v", readErr)
+		} else {
+			logrus.Errorf("配置文件原始内容:\n%s", string(content))
+		}
+	
 		if parseErr, ok := err.(*viper.ConfigParseError); ok {
 			logrus.Fatalf("配置文件解析失败: %v\n详细信息: %v", parseErr, parseErr.Error())
 		} else {

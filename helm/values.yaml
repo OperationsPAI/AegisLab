@@ -4,21 +4,47 @@ image:
   tag: latest
   pullPolicy: Always
 
+images:
+  redis:
+    repository: redis
+    tag: 8.0-M02-alpine3.20
+    pullPolicy: IfNotPresent
+  mariadb:
+    repository: 10.10.10.240/library/mariadb
+    tag: 11.8.1-noble-rc
+    pullPolicy: IfNotPresent
+  jaeger:
+    repository: jaegertracing/all-in-one
+    tag: latest
+    pullPolicy: IfNotPresent
+  busybox:
+    repository: busybox
+    tag: 1.35
+    pullPolicy: IfNotPresent
+  buildkit:
+    repository: moby/buildkit
+    tag: buildx-stable-1
+    pullPolicy: IfNotPresent
+
 config:
   port: 8081
   mysqlRootPassword: yourpassword
 
 configmap:
+  name: "rcabench"
+  version: "0.1.0"
   port: 8080
   debug: false
   workspace: "/app"
   system:
     timezone: "Asia/Shanghai"
   injection:
-    namespace: ["ts"]
-    label: "app"
-  storage:
-    path: "/var/lib/rcabench/tasks.db"
+    restart_service: false
+    enable_duplicate: true
+    namespace_prefix: "ts"
+    target_label_key: "app"
+    target_namespace_count: 1
+    command: "cd /app/lib/train-ticket && make deploy NS=%s"
   database:
     clickhouse_host: "10.10.10.58"
     mysql_user: "root"
@@ -26,8 +52,8 @@ configmap:
     mysql_host: "mariadb"
     mysql_port: "3306"
     mysql_db: "rcabench"
-  image:
-    tag: "latest"
+  jaeger:
+    endpoint: "jaeger:4318"
   redis:
     host: "redis:6379"
   harbor:
@@ -44,6 +70,8 @@ configmap:
     storage_path: "/app/algorithms"
   debugging:
     enable: true
+  buildkit:
+    address: "tcp://buildkit:1234"
 
 persistence:
   mariadb:

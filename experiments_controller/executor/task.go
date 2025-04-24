@@ -15,22 +15,26 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
-	"github.com/mitchellh/mapstructure"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // 常量定义
 const (
-	DelayedQueueKey     = "task:delayed"
-	ReadyQueueKey       = "task:ready"
-	DeadLetterKey       = "task:dead"
-	TaskIndexKey        = "task:index"
-	TaskDatasetIndexKey = "task:dataset_index"
-	ConcurrencyLockKey  = "task:concurrency_lock"
-	MaxConcurrency      = 20
+	DelayedQueueKey    = "task:delayed"
+	ReadyQueueKey      = "task:ready"
+	DeadLetterKey      = "task:dead"
+	TaskIndexKey       = "task:index"
+	GroupIndexKey      = "group:index"
+	ConcurrencyLockKey = "task:concurrency_lock"
+	MaxConcurrency     = 20
 )
 
 // 监控指标
@@ -49,27 +53,22 @@ var (
 
 // UnifiedTask 统一任务结构
 type UnifiedTask struct {
-	TaskID      string          `json:"task_id"`
-	Type        consts.TaskType `json:"type"`
-	Immediate   bool            `json:"immediate"`
-	ExecuteTime int64           `json:"execute_time"`
-	CronExpr    string          `json:"cron_expr,omitempty"`
-	RetryPolicy RetryPolicy     `json:"retry_policy"`
-	Payload     map[string]any  `json:"payload"`
-	TraceID     string          `json:"trace_id,omitempty"`
-	GroupID     string          `json:"group_id,omitempty"`
+	TaskID       string                 `json:"task_id"`
+	Type         consts.TaskType        `json:"type"`
+	Immediate    bool                   `json:"immediate"`
+	ExecuteTime  int64                  `json:"execute_time"`
+	CronExpr     string                 `json:"cron_expr,omitempty"`
+	RetryPolicy  RetryPolicy            `json:"retry_policy"`
+	Payload      map[string]any         `json:"payload"`
+	TraceID      string                 `json:"trace_id,omitempty"`
+	GroupID      string                 `json:"group_id,omitempty"`
+	TraceCarrier propagation.MapCarrier `json:"trace_carrier,omitempty"`
+	GroupCarrier propagation.MapCarrier `json:"group_carrier,omitempty"`
 }
 
 type RetryPolicy struct {
 	MaxAttempts int `json:"max_attempts"`
 	BackoffSec  int `json:"backoff_sec"`
-}
-
-type TaskMeta struct {
-	Benchmark   string `redis:"benchmark" mapstructure:"benchmark"`
-	PreDuration int    `redis:"pre_duration" mapstructure:"pre_duration"`
-	TraceID     string `redis:"trace_id" mapstructure:"trace_id"`
-	GroupID     string `redis:"group_id" mapstructure:"group_id"`
 }
 
 var (
@@ -281,12 +280,37 @@ func processTask(ctx context.Context, taskData string) {
 		logrus.Warnf("invalid task data: %v", err)
 		return
 	}
-	logrus.Infof("Dealing with task %s, type: %s, groupID: %s", task.TaskID, task.Type, task.GroupID)
+
+	var traceCtx context.Context
+	var span trace.Span
+	if task.TraceCarrier != nil {
+		traceCtx = otel.GetTextMapPropagator().Extract(context.Background(), task.TraceCarrier)
+	} else {
+		groupCtx := otel.GetTextMapPropagator().Extract(context.Background(), task.GroupCarrier)
+		traceCtx, span = otel.Tracer("rcabench/trace").Start(groupCtx, "consume trace", trace.WithAttributes(
+			attribute.String("trace_id", task.TraceID),
+		))
+		defer span.End()
+
+		task.TraceCarrier = make(propagation.MapCarrier)
+		otel.GetTextMapPropagator().Inject(traceCtx, task.TraceCarrier)
+
+		span.SetStatus(codes.Ok, fmt.Sprintf("Started processing task trace %s", task.TraceID))
+	}
+
+	taskCtx, _ := otel.Tracer("rcabench/task").Start(traceCtx,
+		fmt.Sprintf("consume %s task", task.Type),
+		trace.WithAttributes(
+			attribute.String("task_id", task.TaskID),
+			attribute.String("task_type", string(task.Type)),
+		))
+
+	logrus.Infof("dealing with task %s, type: %s, groupID: %s", task.TaskID, task.Type, task.GroupID)
 
 	startTime := time.Now()
 	tasksProcessed.WithLabelValues(string(task.Type), "started").Inc()
 
-	executeTaskWithRetry(ctx, &task)
+	executeTaskWithRetry(taskCtx, &task)
 
 	duration := time.Since(startTime).Seconds()
 	taskDuration.WithLabelValues(string(task.Type)).Observe(duration)
@@ -294,9 +318,11 @@ func processTask(ctx context.Context, taskData string) {
 
 func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 	retryCtx, retryCancel := context.WithCancel(ctx)
-	defer retryCancel()
 	registerCancelFunc(task.TaskID, retryCancel)
+	defer retryCancel()
 	defer unregisterCancelFunc(task.TaskID)
+
+	span := trace.SpanFromContext(ctx)
 
 	var err error
 	for attempt := 0; attempt <= task.RetryPolicy.MaxAttempts; attempt++ {
@@ -309,33 +335,38 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 			}
 		}
 
-		taskCtx, cancel := context.WithCancel(retryCtx)
+		ctxWithCancel, cancel := context.WithCancel(ctx)
 		_ = cancel
-		err = dispatchTask(taskCtx, task)
+
+		err = dispatchTask(ctxWithCancel, task)
 		if err == nil {
 			tasksProcessed.WithLabelValues(string(task.Type), "success").Inc()
+			span.SetStatus(codes.Ok, fmt.Sprintf("Task %s of type %s completed successfully after %d attempts",
+				task.TaskID, task.Type, attempt+1))
+			span.End()
 			return
 		}
 
-		if errors.Is(err, context.Canceled) {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			logrus.WithField("task_id", task.TaskID).Info("Task canceled")
 			return
 		}
 
-		logrus.WithField("task_id", task.TaskID).Warnf("Attempt %d failed: %v", attempt+1, err)
+		message := fmt.Sprintf("Attempt %d failed: %v", attempt+1, err)
+		span.AddEvent(message)
+		logrus.WithField("task_id", task.TaskID).Warn(message)
 	}
 
 	tasksProcessed.WithLabelValues(string(task.Type), "failed").Inc()
 	handleFinalFailure(ctx, task)
 
-	message := err.Error()
-	updateTaskStatus(task.TaskID, task.TraceID,
-		message,
-		map[string]any{
-			consts.RdbMsgStatus: consts.TaskStatusError,
-			consts.RdbMsgTaskID: task.TaskID,
-			consts.RdbMsgError:  message,
-		})
+	updateTaskError(
+		nil,
+		task.TaskID,
+		task.TraceID,
+		task.Type,
+		fmt.Sprintf("Task failed after %d attempts: %v", task.RetryPolicy.MaxAttempts, err),
+	)
 }
 
 // 注册取消函数
@@ -360,6 +391,11 @@ func handleFinalFailure(ctx context.Context, task *UnifiedTask) {
 		Score:  float64(deadLetterTime),
 		Member: taskData,
 	})
+
+	span := trace.SpanFromContext(ctx)
+	span.SetStatus(codes.Error, fmt.Sprintf("failed to execute task %s", task.TaskID))
+	span.End()
+
 	logrus.WithField("task_id", task.TaskID).Errorf("failed after %d attempts", task.RetryPolicy.MaxAttempts)
 }
 
@@ -482,121 +518,62 @@ func removeFromList(ctx context.Context, cli *redis.Client, key, taskID string) 
 }
 
 func parseRdbMsgFromPayload(payload map[string]any) (*dto.RdbMsg, error) {
+	message := "missing or invalid '%s' key in payload"
+
 	status, ok := payload[consts.RdbMsgStatus].(string)
 	if !ok || status == "" {
-		return nil, fmt.Errorf("missing or invalid '%s' key in payload", consts.RdbMsgStatus)
+		return nil, fmt.Errorf(message, consts.RdbMsgStatus)
+	}
+
+	taskType, ok := payload[consts.RdbMsgTaskType].(consts.TaskType)
+	if !ok {
+		return nil, fmt.Errorf(message, consts.RdbMsgTaskType)
 	}
 
 	return &dto.RdbMsg{
 		Status: status,
+		Type:   taskType,
 	}, nil
 }
 
-func addDatasetIndex(taskID, name string) {
-	ctx := context.Background()
-	redisCli := client.GetRedisClient()
-
-	pipe := redisCli.TxPipeline()
-	pipe.HSet(ctx, TaskDatasetIndexKey, name, taskID)
-
-	if _, err := pipe.Exec(ctx); err != nil {
-		logrus.WithField("dataset", name).WithField("task_id", taskID).Error("failed to build index")
-		return
-	}
-}
-
-func checkDatasetIndex(name string) string {
-	ctx := context.Background()
-	redisCli := client.GetRedisClient()
-
-	taskID, err := redisCli.HGet(ctx, TaskDatasetIndexKey, name).Result()
-	if err != nil {
-		logrus.WithField("dataset", name).Errorf("the name is not in dataset index: %v", err)
-	}
-
-	return taskID
-}
-
-func addTaskMeta(taskID string, values ...any) {
-	ctx := context.Background()
-	redisCli := client.GetRedisClient()
-
-	pipe := redisCli.TxPipeline()
-	pipe.HSet(ctx, fmt.Sprintf(consts.MetaKey, taskID), values...)
-
-	if _, err := pipe.Exec(ctx); err != nil {
-		logrus.WithField("task_id", taskID).Errorf("failed to store task meta: %v", err)
-		return
-	}
-}
-
-func getTaskMeta(taskID string) (*TaskMeta, error) {
-	if taskID == "" {
-		message := "the task_id can not be blank"
-		logrus.Error(message)
-		return nil, errors.New(message)
-	}
-
-	ctx := context.Background()
-	redisCli := client.GetRedisClient()
-
-	result, err := redisCli.HGetAll(ctx, fmt.Sprintf(consts.MetaKey, taskID)).Result()
-	if err != nil {
-		logrus.WithField("task_id", taskID).Errorf("failed to read metadata: %v", err)
-		return nil, err
-	}
-
-	if len(result) == 0 {
-		message := "task metadata does not exist"
-		logrus.WithField("task_id", taskID).Warn(message)
-		return nil, errors.New(message)
-	}
-
-	var meta TaskMeta
-	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		TagName:          "mapstructure",
-		Result:           &meta,
-		WeaklyTypedInput: true, // 启用弱类型转换
-	})
-	if err != nil {
-		logrus.WithField("task_id", taskID).Errorf("failed to create decoder: %v", err)
-		return nil, err
-	}
-
-	if err := decoder.Decode(result); err != nil {
-		logrus.WithField("task_id", taskID).Errorf("failed to parse metadata: %v", err)
-		return nil, err
-	}
-
-	return &meta, nil
+func updateTaskError(taskCarrier propagation.MapCarrier, taskID, traceID string, taskType consts.TaskType, errMsg string) {
+	updateTaskStatus(
+		taskCarrier,
+		taskID,
+		traceID,
+		fmt.Sprintf(consts.TaskMsgFailed, taskID),
+		map[string]any{
+			consts.RdbMsgStatus:   consts.TaskStatusError,
+			consts.RdbMsgTaskID:   taskID,
+			consts.RdbMsgTaskType: taskType,
+			consts.RdbMsgError:    errMsg,
+		})
 }
 
 // 事务型状态更新
-func updateTaskStatus(taskID, traceID, message string, payload map[string]any) {
-	ctx := context.Background()
-	redisCli := client.GetRedisClient()
-
+func updateTaskStatus(taskCarrier propagation.MapCarrier, taskID, traceID, message string, payload map[string]any) {
 	rdbMsg, err := parseRdbMsgFromPayload(payload)
 	if err != nil {
 		logrus.WithField("task_id", taskID).Error(err)
 		return
 	}
 
+	ctx := context.Background()
+
 	// Redis事务
+	redisCli := client.GetRedisClient()
 	pipe := redisCli.TxPipeline()
 	pipe.HSet(ctx, fmt.Sprintf(consts.StatusKey, taskID),
 		"status", rdbMsg.Status,
 		"updated_at", time.Now().Unix(),
 	)
-
-	pipe.RPush(ctx, fmt.Sprintf(consts.LogKey, taskID), fmt.Sprintf(consts.LogFormat, rdbMsg.Status, message))
 	if _, err := pipe.Exec(ctx); err != nil {
-		logrus.WithField("task_id", taskID).Errorf("failed to update task status: %v", err)
+		logrus.WithField("task_id", taskID).Errorf("failed to update task status in redis: %v", err)
 		return
 	}
 
 	// 数据库事务
-	tx := database.DB.Begin()
+	tx := database.DB.WithContext(ctx).Begin()
 	if err := tx.Model(&database.Task{}).
 		Where("id = ?", taskID).
 		Update("status", rdbMsg.Status).Error; err != nil {
@@ -612,6 +589,26 @@ func updateTaskStatus(taskID, traceID, message string, payload map[string]any) {
 	}
 
 	redisCli.Publish(ctx, fmt.Sprintf(consts.SubChannel, traceID), msg)
+
+	if taskCarrier != nil {
+		taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), taskCarrier)
+		// 处理TaskCtx
+		_, span := otel.Tracer("rcabench/task/feedback").Start(taskCtx, "process feedback", trace.WithAttributes(
+			attribute.String("task_id", taskID),
+			attribute.String("task_type", string(rdbMsg.Type)),
+		))
+		defer span.End()
+
+		span.AddEvent(message)
+		description := fmt.Sprintf("task %s %s", taskID, rdbMsg.Status)
+		if rdbMsg.Status == consts.TaskStatusCompleted {
+			span.SetStatus(codes.Ok, description)
+		}
+
+		if rdbMsg.Status == consts.TaskStatusError {
+			span.SetStatus(codes.Error, description)
+		}
+	}
 }
 
 func calculateExecuteTime(task *UnifiedTask) (int64, error) {
@@ -632,4 +629,32 @@ func cronNextTime(expr string) (time.Time, error) {
 		return time.Time{}, err
 	}
 	return schedule.Next(time.Now()), nil
+}
+
+func AddGroupIndex(ctx context.Context, groupID, traceID string) {
+	redisCli := client.GetRedisClient()
+
+	pipe := redisCli.TxPipeline()
+	pipe.HSet(ctx, GroupIndexKey, groupID, traceID)
+
+	if _, err := pipe.Exec(ctx); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"group_id": groupID,
+			"trace_id": traceID,
+		}).Error("failed to build index")
+	}
+}
+
+func getFinalTraceIndex(ctx context.Context, groupID string) string {
+	redisCli := client.GetRedisClient()
+
+	taskID, err := redisCli.HGet(ctx, GroupIndexKey, groupID).Result()
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"group_id": groupID,
+		}).Errorf("the group ID %s is not in dataset index: %v", groupID, err)
+		return ""
+	}
+
+	return taskID
 }

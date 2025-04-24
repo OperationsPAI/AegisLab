@@ -1,0 +1,11 @@
+[project]
+name = "cmd"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "docker>=7.1.0",
+    "rich>=14.0.0",
+    "toml>=0.10.2",
+]

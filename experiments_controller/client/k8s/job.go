@@ -23,8 +23,9 @@ type JobConfig struct {
 	BackoffLimit  int32
 	Parallelism   int32
 	Completions   int32
-	EnvVars       []corev1.EnvVar
+	Annotations   map[string]string
 	Labels        map[string]string // 用于自定义标签
+	EnvVars       []corev1.EnvVar
 }
 
 func CreateJob(ctx context.Context, jobConfig JobConfig) error {
@@ -51,9 +52,10 @@ func CreateJob(ctx context.Context, jobConfig JobConfig) error {
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      jobConfig.JobName,
-			Namespace: jobConfig.Namespace,
-			Labels:    jobConfig.Labels,
+			Annotations: jobConfig.Annotations,
+			Labels:      jobConfig.Labels,
+			Name:        jobConfig.JobName,
+			Namespace:   jobConfig.Namespace,
 		},
 		Spec: batchv1.JobSpec{
 			Parallelism: &jobConfig.Parallelism,
@@ -82,13 +84,13 @@ func CreateJob(ctx context.Context, jobConfig JobConfig) error {
 
 	_, err := k8sClient.BatchV1().Jobs(jobConfig.Namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("Failed to create job: %v", err)
+		return fmt.Errorf("failed to create job: %v", err)
 	}
 
 	return nil
 }
 
-func DeleteJob(ctx context.Context, namespace, name string) error {
+func deleteJob(ctx context.Context, namespace, name string) error {
 	deletePolicy := metav1.DeletePropagationBackground
 	deleteOptions := metav1.DeleteOptions{
 		PropagationPolicy: &deletePolicy,
@@ -102,12 +104,12 @@ func DeleteJob(ctx context.Context, namespace, name string) error {
 		if errors.IsNotFound(err) {
 			return nil
 		}
-		return fmt.Errorf("Failed to get Job: %v", err)
+		return fmt.Errorf("failed to get Job: %v", err)
 	}
 
 	// 2. 检查是否已在删除中
 	if !job.GetDeletionTimestamp().IsZero() {
-		logEntry.Info("Job is already being deleted")
+		logEntry.Info("job is already being deleted")
 		return nil
 	}
 
@@ -118,7 +120,7 @@ func DeleteJob(ctx context.Context, namespace, name string) error {
 			return nil
 		}
 
-		return fmt.Errorf("Failed to delete Job: %v", err)
+		return fmt.Errorf("failed to delete Job: %v", err)
 	}
 
 	return nil

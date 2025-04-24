@@ -26,6 +26,7 @@ type PaginationResp[T any] struct {
 type Trace struct {
 	TraceID    string `json:"trace_id"`
 	HeadTaskID string `json:"head_task_id"`
+	Index      int    `json:"index"`
 }
 
 type SubmitResp struct {

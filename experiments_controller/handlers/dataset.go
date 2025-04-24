@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"archive/zip"
+	"context"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -15,6 +16,10 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // DeleteDataset
@@ -87,7 +92,7 @@ func QueryDataset(c *gin.Context) {
 
 	executionRecords, err := repository.ListExecutionRecordByDatasetID(item.ID, sortOrder)
 	if err != nil {
-		logEntry.Error("failed to retrieve execution records")
+		logEntry.Errorf("failed to retrieve execution records: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to load execution data")
 		return
 	}
@@ -147,7 +152,7 @@ func GetDatasetList(c *gin.Context) {
 	})
 }
 
-// DownloadDataset 处理数据集下载请求
+// DownloadByGroupIDs 处理数据集下载请求
 //
 //	@Summary		下载数据集打包文件
 //	@Description	将指定路径的多个数据集打包为 ZIP 文件下载（自动排除 result.csv 文件）
@@ -160,21 +165,63 @@ func GetDatasetList(c *gin.Context) {
 //	@Failure		500			{object}	dto.GenericResponse[any] "文件打包失败"
 //	@Router			/api/v1/datasets/download [get]
 func DownloadDataset(c *gin.Context) {
-	filename := "package"
-	excludeRules := []utils.ExculdeRule{{Pattern: "result.csv", IsGlob: false}}
-
 	var req dto.DatasetDownloadReq
 	if err := c.BindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, formatErrorMessage(err, dto.PaginationFieldMap))
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid Parameters")
 		return
 	}
 
-	joinedResults, err := repository.GetDatasetWithGroupID(req.GroupIDs)
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// 设置响应头
+	c.Header("Content-Type", "application/zip")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.zip", consts.DownloadFilename))
+
+	zipWriter := zip.NewWriter(c.Writer)
+	defer zipWriter.Close()
+
+	excludeRules := []utils.ExculdeRule{
+		{Pattern: consts.DetectorConclusionFile, IsGlob: false},
+		{Pattern: consts.ExecutionResultFile, IsGlob: false},
+	}
+
+	// 定义处理函数
+	handleError := func(statusCode int, err error) {
+		delete(c.Writer.Header(), "Content-Disposition")
+		c.Header("Content-Type", "application/json; charset=utf-8")
+		dto.ErrorResponse(c, statusCode, err.Error())
+	}
+
+	// 根据输入选择下载方式
+	var (
+		downloadFunc func(*zip.Writer, []string, []utils.ExculdeRule) (int, error)
+		input        []string
+	)
+
+	switch {
+	case len(req.GroupIDs) > 0:
+		downloadFunc = downloadByGroupIds
+		input = req.GroupIDs
+	case len(req.Names) > 0:
+		downloadFunc = downloadByNames
+		input = req.Names
+	}
+
+	if statusCode, err := downloadFunc(zipWriter, input, excludeRules); err != nil {
+		handleError(statusCode, err)
+		return
+	}
+}
+
+func downloadByGroupIds(zipWriter *zip.Writer, groupIDs []string, excludeRules []utils.ExculdeRule) (int, error) {
+	joinedResults, err := repository.GetDatasetWithGroupIDs(groupIDs)
 	if err != nil {
 		message := "failed to query datasets"
 		logrus.Errorf("%s: %v", message, err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to query datasets")
-		return
+		return http.StatusInternalServerError, fmt.Errorf("failed to query datasets")
 	}
 
 	groupedResults := make(map[string][]string)
@@ -191,24 +238,14 @@ func DownloadDataset(c *gin.Context) {
 		for _, dataset := range datasets {
 			workDir := filepath.Join(config.GetString("nfs.path"), dataset)
 			if !utils.IsAllowedPath(workDir) {
-				message := "invalid path access"
-				logrus.WithField("path", workDir).Error(message)
-				dto.ErrorResponse(c, http.StatusForbidden, message)
-				return
+				logrus.WithField("path", workDir).Errorf("invalid path access")
+				return http.StatusInternalServerError, fmt.Errorf("Invalid path access")
 			}
 		}
 	}
 
-	// 设置响应头
-	c.Header("Content-Type", "application/zip")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.zip", filename))
-
-	zipWriter := zip.NewWriter(c.Writer)
-	defer zipWriter.Close()
-
 	for groupID, datasets := range groupedResults {
-		folderName := filepath.Join(filename, groupID)
-
+		folderName := filepath.Join(consts.DownloadFilename, groupID)
 		for _, dataset := range datasets {
 			workDir := filepath.Join(config.GetString("nfs.path"), dataset)
 
@@ -228,24 +265,76 @@ func DownloadDataset(c *gin.Context) {
 					}
 				}
 
+				// 获取文件信息以读取修改时间
+				fileInfo, err := dir.Info()
+				if err != nil {
+					return err
+				}
+
 				// 转换路径分隔符为/
 				zipPath := filepath.ToSlash(fullRelPath)
-				return utils.AddToZip(zipWriter, path, zipPath)
+				return utils.AddToZip(zipWriter, fileInfo, path, zipPath)
 			})
 
 			if err != nil {
-				delete(c.Writer.Header(), "Content-Disposition")
-				c.Header("Content-Type", "application/json; charset=utf-8")
-				message := "failed to packcage"
-				logrus.Errorf("%s: %v", message, err)
-				dto.ErrorResponse(c, http.StatusInternalServerError, message)
-				return
+				logrus.Errorf("failed to packcage: %v", err)
+				return http.StatusForbidden, fmt.Errorf("Failed to pacage")
 			}
 		}
 	}
+
+	return http.StatusOK, nil
 }
 
-// TODO 优化
+func downloadByNames(zipWriter *zip.Writer, names []string, excludeRules []utils.ExculdeRule) (int, error) {
+	for _, name := range names {
+		workDir := filepath.Join(config.GetString("nfs.path"), name)
+		if !utils.IsAllowedPath(workDir) {
+			logrus.WithField("path", workDir).Errorf("invalid path access")
+			return http.StatusInternalServerError, fmt.Errorf("Invalid path access")
+		}
+	}
+
+	folderName := consts.DownloadFilename
+	for _, name := range names {
+		workDir := filepath.Join(config.GetString("nfs.path"), name)
+
+		err := filepath.WalkDir(workDir, func(path string, dir fs.DirEntry, err error) error {
+			if err != nil || dir.IsDir() {
+				return err
+			}
+
+			relPath, _ := filepath.Rel(workDir, path)
+			fullRelPath := filepath.Join(folderName, filepath.Base(workDir), relPath)
+			fileName := filepath.Base(path)
+
+			// 应用排除规则
+			for _, rule := range excludeRules {
+				if utils.MatchFile(fileName, rule) {
+					return nil
+				}
+			}
+
+			// 获取文件信息以读取修改时间
+			fileInfo, err := dir.Info()
+			if err != nil {
+				return err
+			}
+
+			// 转换路径分隔符为/
+			zipPath := filepath.ToSlash(fullRelPath)
+			return utils.AddToZip(zipWriter, fileInfo, path, zipPath)
+		})
+
+		if err != nil {
+			logrus.Errorf("failed to packcage: %v", err)
+			return http.StatusForbidden, fmt.Errorf("Failed to pacage")
+		}
+	}
+
+	return http.StatusOK, nil
+}
+
 // BuildDataset
 //
 //	@Summary		批量构建数据集
@@ -262,16 +351,40 @@ func SubmitDatasetBuilding(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	logrus.Infof("SubmitDatasetBuilding, groupID: %s", groupID)
 
-	var payloads []dto.DatasetPayload
+	var payloads []dto.DatasetBuildPayload
 	if err := c.BindJSON(&payloads); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid JSON payload")
 		return
 	}
-	logrus.Infof("Received building dataset payloads: %+v", payloads)
 
-	var traces []dto.Trace
-	for _, payload := range payloads {
-		taskID, traceID, err := executor.SubmitTask(c.Request.Context(), &executor.UnifiedTask{
+	for i := range payloads {
+		for key := range payloads[i].EnvVars {
+			if _, exists := dto.BuildEnvVarNameMap[key]; !exists {
+				message := fmt.Sprintf("the key %s is invalid in env_vars", key)
+				logrus.Errorf(message)
+				dto.ErrorResponse(c, http.StatusInternalServerError, message)
+				return
+			}
+		}
+	}
+
+	ctx, span := otel.Tracer("rcabench/group").Start(context.Background(), "produce group", trace.WithAttributes(
+		attribute.String("group_id", groupID),
+	))
+	defer span.End()
+
+	traces := make([]dto.Trace, 0, len(payloads))
+	for idx, payload := range payloads {
+		task := &executor.UnifiedTask{
+			Type:      consts.TaskTypeBuildDataset,
+			Payload:   utils.StructToMap(payload),
+			Immediate: true,
+			GroupID:   groupID,
+		}
+		task.GroupCarrier = make(propagation.MapCarrier)
+		otel.GetTextMapPropagator().Inject(ctx, task.GroupCarrier)
+
+		taskID, traceID, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
 			Type:      consts.TaskTypeBuildDataset,
 			Payload:   utils.StructToMap(payload),
 			Immediate: true,
@@ -284,7 +397,7 @@ func SubmitDatasetBuilding(c *gin.Context) {
 			return
 		}
 
-		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID})
+		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID, Index: idx})
 	}
 
 	dto.JSONResponse(c, http.StatusAccepted, "Dataset building submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})

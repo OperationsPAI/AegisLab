@@ -7,10 +7,10 @@ type AlgorithmListResp struct {
 }
 
 type AlgorithmExecutionPayload struct {
-	Algorithm   string `json:"algorithm"`
-	DatasetName string `json:"dataset"`
-	Service     string `json:"service"`
-	Tag         string `json:"tag"`
+	Image   string            `json:"image"`
+	Tag     string            `json:"tag"`
+	Dataset string            `json:"dataset"`
+	EnvVars map[string]string `json:"env_vars"`
 }
 
 type DetectorRecord struct {
@@ -45,4 +45,10 @@ func (g *GranularityRecord) Convert(result database.GranularityResult) {
 	g.Result = result.Result
 	g.Rank = result.Rank
 	g.Confidence = result.Confidence
+}
+
+var ExecuteEnvVarNameMap = map[string]struct{}{
+	"ALGORITHM": {},
+	"SERVICE":   {},
+	"VENV":      {},
 }

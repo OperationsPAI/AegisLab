@@ -2,57 +2,60 @@ package executor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
-	"gorm.io/gorm"
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
-	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/CUHK-SE-Group/rcabench/repository"
 )
 
-type DatasetMeta struct {
+type DatasetPayload struct {
 	Benchmark   string
-	Namespace   string
 	Name        string
 	PreDuration int
-	Service     string
+	EnvVars     map[string]string
 	StartTime   time.Time
 	EndTime     time.Time
 }
 
 func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
-	datasetMeta, err := parseDatasetPayload(task.Payload)
+	payload, err := parseDatasetPayload(task.Payload)
 	if err != nil {
 		return err
 	}
 
-	jobName := fmt.Sprintf("%s-%s", consts.DatasetJobName, datasetMeta.Name)
-	image := fmt.Sprintf("%s/%s_dataset:%s", config.GetString("harbor.repository"), datasetMeta.Benchmark, config.GetString("image.tag"))
+	annotations, err := getAnnotations(ctx, task)
+	if err != nil {
+		return err
+	}
+
+	imageName := fmt.Sprintf("%s_dataset", payload.Benchmark)
+	tag, err := client.GetHarborClient().GetLatestTag(imageName)
+	if err != nil {
+		return fmt.Errorf("failed to get lataset tag of %s: %v", imageName, err)
+	}
+
+	jobName := fmt.Sprintf("%s-%s", consts.DatasetJobName, payload.Name)
+	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), imageName, tag)
 	labels := map[string]string{
 		consts.LabelTaskID:   task.TaskID,
 		consts.LabelTraceID:  task.TraceID,
 		consts.LabelGroupID:  task.GroupID,
 		consts.LabelTaskType: string(consts.TaskTypeBuildDataset),
-		consts.LabelDataset:  datasetMeta.Name,
-	}
-	jobEnv := &k8s.JobEnv{
-		Namespace:   datasetMeta.Namespace,
-		Service:     datasetMeta.Service,
-		PreDuration: datasetMeta.PreDuration,
-		StartTime:   datasetMeta.StartTime,
-		EndTime:     datasetMeta.EndTime,
+		consts.LabelDataset:  payload.Name,
+		consts.LabelService:  payload.EnvVars[consts.BuildEnvVarService],
 	}
 
-	return createDatasetJob(ctx, datasetMeta.Name, jobName, config.GetString("k8s.namespace"), image, []string{"python", "prepare_inputs.py"}, labels, jobEnv)
+	return createDatasetJob(ctx, jobName, image, annotations, labels, payload)
 }
 
-func parseDatasetPayload(payload map[string]any) (*DatasetMeta, error) {
+func parseDatasetPayload(payload map[string]any) (*DatasetPayload, error) {
 	message := "missing or invalid '%s' key in payload"
 
 	benchmark, ok := payload[consts.BuildBenchmark].(string)
@@ -60,14 +63,9 @@ func parseDatasetPayload(payload map[string]any) (*DatasetMeta, error) {
 		return nil, fmt.Errorf(message, consts.BuildBenchmark)
 	}
 
-	datasetName, ok := payload[consts.BuildDataset].(string)
-	if !ok || datasetName == "" {
+	name, ok := payload[consts.BuildDataset].(string)
+	if !ok || name == "" {
 		return nil, fmt.Errorf(message, consts.BuildDataset)
-	}
-
-	namespace, ok := payload[consts.BuildNamespace].(string)
-	if !ok || namespace == "" {
-		return nil, fmt.Errorf(message, consts.BuildNamespace)
 	}
 
 	preDurationFloat, ok := payload[consts.BuildPreDuration].(float64)
@@ -76,53 +74,57 @@ func parseDatasetPayload(payload map[string]any) (*DatasetMeta, error) {
 	}
 	preDuration := int(preDurationFloat)
 
-	service, ok := payload[consts.BuildService].(string)
-	if !ok || namespace == "" {
-		return nil, fmt.Errorf(message, consts.BuildService)
-	}
-
-	startTimePtr, err := parseTimeFromPayload(payload, consts.BuildStartTime)
-	if err != nil {
-		return nil, fmt.Errorf(message, consts.BuildStartTime)
-	}
-
-	endTimePtr, err := parseTimeFromPayload(payload, consts.BuildEndTime)
-	if err != nil {
-		return nil, fmt.Errorf(message, consts.BuildEndTime)
-	}
+	_, startTimeExists := payload[consts.BuildStartTime]
+	_, endTimeExists := payload[consts.BuildEndTime]
 
 	var startTime, endTime time.Time
-	if startTimePtr != nil && endTimePtr != nil {
+	if startTimeExists && endTimeExists {
+		startTimePtr, err := parseTimePtrFromPayload(payload, consts.BuildStartTime)
+		if err != nil {
+			return nil, fmt.Errorf(message, consts.BuildStartTime)
+		}
+
+		endTimePtr, err := parseTimePtrFromPayload(payload, consts.BuildEndTime)
+		if err != nil {
+			return nil, fmt.Errorf(message, consts.BuildEndTime)
+		}
+
 		startTime = *startTimePtr
 		endTime = *endTimePtr
 	} else {
-		var fiRecord database.FaultInjectionSchedule
-		if err := database.DB.
-			Where("injection_name = ? and status = ?", datasetName, consts.DatasetInjectSuccess).
-			First(&fiRecord).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, fmt.Errorf("find matching fault injection record found failed")
-			}
-
+		datasetItem, err := repository.GetDatasetByName(name, consts.DatasetInjectSuccess)
+		if err != nil {
 			return nil, fmt.Errorf("query database for dataset failed: %v", err)
 		}
 
-		startTime = fiRecord.StartTime
-		endTime = fiRecord.EndTime
+		startTime = datasetItem.StartTime
+		endTime = datasetItem.EndTime
 	}
 
-	return &DatasetMeta{
+	datasetPayload := &DatasetPayload{
 		Benchmark:   benchmark,
-		Namespace:   namespace,
-		Name:        datasetName,
+		Name:        name,
 		PreDuration: preDuration,
-		Service:     service,
 		StartTime:   startTime,
 		EndTime:     endTime,
-	}, nil
+	}
+	if e, exists := payload[consts.BuildEnvVars].(map[string]any); exists {
+		envVars := make(map[string]string, len(e))
+		for key, value := range e {
+			strValue, ok := value.(string)
+			if !ok {
+				return nil, fmt.Errorf(message, consts.ExecuteEnvVars)
+			}
+			envVars[key] = strValue
+		}
+
+		datasetPayload.EnvVars = envVars
+	}
+
+	return datasetPayload, nil
 }
 
-func parseTimeFromPayload(payload map[string]any, key string) (*time.Time, error) {
+func parseTimePtrFromPayload(payload map[string]any, key string) (*time.Time, error) {
 	timeStr, ok := payload[key].(string)
 	if !ok {
 		return nil, fmt.Errorf("%s must be a string", key)
@@ -136,29 +138,15 @@ func parseTimeFromPayload(payload map[string]any, key string) (*time.Time, error
 	return &t, nil
 }
 
-func createDatasetJob(ctx context.Context, datasetName, jobName, jobNamespace, image string, command []string, labels map[string]string, jobEnv *k8s.JobEnv) error {
+func createDatasetJob(ctx context.Context, jobName, image string, annotations map[string]string, labels map[string]string, payload *DatasetPayload) error {
 	restartPolicy := corev1.RestartPolicyNever
 	backoffLimit := int32(2)
 	parallelism := int32(1)
 	completions := int32(1)
+	jobNamespace := config.GetString("k8s.namespace")
+	command := []string{"python", "prepare_inputs.py"}
 
-	tz := config.GetString("system.timezone")
-	if tz == "" {
-		tz = "Asia/Shanghai"
-	}
-	envVars := []corev1.EnvVar{
-		{Name: "NORMAL_START", Value: strconv.FormatInt(jobEnv.StartTime.Add(-time.Duration(jobEnv.PreDuration)*time.Minute).Unix(), 10)},
-		{Name: "NORMAL_END", Value: strconv.FormatInt(jobEnv.StartTime.Unix(), 10)},
-		{Name: "ABNORMAL_START", Value: strconv.FormatInt(jobEnv.StartTime.Unix(), 10)},
-		{Name: "ABNORMAL_END", Value: strconv.FormatInt(jobEnv.EndTime.Unix(), 10)},
-		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", datasetName)},
-		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", datasetName)},
-		{Name: "NAMESPACE", Value: jobEnv.Namespace},
-		{Name: "SERVICE", Value: jobEnv.Service},
-		{Name: "TIMEZONE", Value: tz},
-		{Name: "WORKSPACE", Value: "/app"},
-	}
-
+	envVars := getDatasetJobEnvVars(payload)
 	return k8s.CreateJob(ctx, k8s.JobConfig{
 		Namespace:     jobNamespace,
 		JobName:       jobName,
@@ -169,6 +157,45 @@ func createDatasetJob(ctx context.Context, datasetName, jobName, jobNamespace, i
 		Parallelism:   parallelism,
 		Completions:   completions,
 		EnvVars:       envVars,
+		Annotations:   annotations,
 		Labels:        labels,
 	})
+}
+
+func getDatasetJobEnvVars(payload *DatasetPayload) []corev1.EnvVar {
+	tz := config.GetString("system.timezone")
+	if tz == "" {
+		tz = "Asia/Shanghai"
+	}
+
+	jobEnvVars := []corev1.EnvVar{
+		{Name: "TIMEZONE", Value: tz},
+		{Name: "NORMAL_START", Value: strconv.FormatInt(payload.StartTime.Add(-time.Duration(payload.PreDuration)*time.Minute).Unix(), 10)},
+		{Name: "NORMAL_END", Value: strconv.FormatInt(payload.StartTime.Unix(), 10)},
+		{Name: "ABNORMAL_START", Value: strconv.FormatInt(payload.StartTime.Unix(), 10)},
+		{Name: "ABNORMAL_END", Value: strconv.FormatInt(payload.EndTime.Unix(), 10)},
+		{Name: "WORKSPACE", Value: "/app"},
+		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.Name)},
+		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.Name)},
+	}
+
+	envNameIndexMap := make(map[string]int, len(jobEnvVars))
+	for index, jobEnvVar := range jobEnvVars {
+		envNameIndexMap[jobEnvVar.Name] = index
+	}
+
+	if payload.EnvVars != nil {
+		for name, value := range payload.EnvVars {
+			if index, ok := envNameIndexMap[name]; ok {
+				jobEnvVars[index].Value = value
+			} else {
+				jobEnvVars = append(jobEnvVars, corev1.EnvVar{
+					Name:  name,
+					Value: value,
+				})
+			}
+		}
+	}
+
+	return jobEnvVars
 }
