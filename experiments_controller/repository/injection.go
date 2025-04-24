@@ -82,7 +82,21 @@ func getMissingNames(requested []string, existing []string) []string {
 	return missing
 }
 
-func GetDatasetWithGroupID(groupIDs []string) ([]dto.DatasetJoinedResult, error) {
+func FindExistingEngineConfigs(configs []string) ([]string, error) {
+	query := database.DB.
+		Model(&database.FaultInjectionSchedule{}).
+		Select("engine_config").
+		Where("engine_config in (?) AND status = ?", configs, consts.DatasetBuildSuccess)
+
+	var existingEngineConfigs []string
+	if err := query.Pluck("engine_config", &existingEngineConfigs).Error; err != nil {
+		return nil, err
+	}
+
+	return existingEngineConfigs, nil
+}
+
+func GetDatasetWithGroupIDs(groupIDs []string) ([]dto.DatasetJoinedResult, error) {
 	var results []struct {
 		GroupID string `gorm:"column:group_id"`
 		Name    string `gorm:"column:injection_name"`
@@ -132,6 +146,24 @@ func GetDatasetByName(name string, status ...int) (*dto.DatasetItemWithID, error
 	return &item, nil
 }
 
+func GetEngineConfigByNames(names []string) ([]string, error) {
+	if len(names) == 0 {
+		return []string{}, nil
+	}
+
+	query := database.DB.
+		Model(&database.FaultInjectionSchedule{}).
+		Select("engine_config").
+		Where("injection_name IN (?)", names)
+
+	var configs []string
+	if err := query.Pluck("engine_config", &configs).Error; err != nil {
+		return nil, fmt.Errorf("failed to query engine configs: %v", err)
+	}
+
+	return configs, nil
+}
+
 func ListDatasetByExecutionIDs(executionIDs []int) ([]dto.DatasetItemWithID, error) {
 	query := database.DB.
 		Model(&database.FaultInjectionSchedule{}).
@@ -166,7 +198,7 @@ func ListDatasetWithPagination(pageNum, pageSize int) (int64, []database.FaultIn
 		"created_at desc",
 		pageNum,
 		pageSize,
-		[]string{"injection_name", "display_config", "pre_duration", "start_time", "end_time"},
+		[]string{"id", "fault_type", "task_id", "injection_name", "display_config", "pre_duration", "start_time", "end_time"},
 	)
 }
 

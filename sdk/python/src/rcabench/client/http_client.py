@@ -1,11 +1,13 @@
 from typing import Any, Callable, Dict, Optional, Union
 from ..error.http import HTTPClientError
 from ..logger import logger
-from ..model.error import HttpResponseError
+from ..model.error import ModelHTTPError
 from functools import wraps
 from requests.adapters import HTTPAdapter
 from requests.exceptions import HTTPError, RequestException, Timeout
 from requests import Response
+from urllib3.exceptions import NewConnectionError
+import inspect
 import requests
 import time
 
@@ -14,10 +16,12 @@ __all__ = ["HTTPClient"]
 
 def handle_http_errors(func: Callable):
     @wraps(func)
-    def wrapper(*args, **kwargs) -> Union[Any, HttpResponseError]:
+    def wrapper(*args, **kwargs) -> Union[Any, ModelHTTPError]:
         try:
             resp = func(*args, **kwargs)
-            if "stream" in kwargs:
+            sig = inspect.signature(func)
+            bound_args = sig.bind(*args, **kwargs)
+            if "stream" in bound_args.arguments:
                 return resp
 
             resp_data = resp.json()
@@ -26,7 +30,7 @@ def handle_http_errors(func: Callable):
         except HTTPClientError as e:
             # 统一记录日志并返回错误响应
             logger.error(f"API request failed: {e.url} -> {e.message}")
-            return HttpResponseError(
+            return ModelHTTPError(
                 status_code=e.status_code,
                 detail=e.message,
                 path=args[1],
@@ -35,9 +39,9 @@ def handle_http_errors(func: Callable):
 
         except Exception as e:
             logger.error(f"Unknown error: {str(e)}")
-            return HttpResponseError(
+            return ModelHTTPError(
                 status_code=500,
-                detail=e.message,
+                detail=str(e),
                 path=args[1],
                 method=str.upper(func.__name__),
             )
@@ -71,14 +75,11 @@ class HTTPClient:
         params: Optional[Dict] = None,
         json: Optional[Any] = None,
         stream: bool = False,
-        retries: int = 3,
     ) -> Response:
         full_url = f"{self.base_url}{endpoint}"
 
-        for attempt in range(retries):
+        for attempt in range(self.max_retries):
             try:
-                logger.info(f"Sending {method} request to {full_url}")
-
                 response = self.session.request(
                     method=method,
                     url=full_url,
@@ -88,27 +89,25 @@ class HTTPClient:
                     stream=stream,
                 )
                 response.raise_for_status()
-
                 return response
 
             except HTTPError as e:
-                status_code = e.response.status_code
+                status_code = e.response.status_code if e.response is not None else 500
                 if 500 <= status_code < 600 and attempt < self.max_retries:
                     self._handle_retry(attempt, e)
                     continue
 
-                # 尝试从响应体中获取错误消息
                 error_message = f"Server returned {status_code}"
-                try:
-                    if e.response.content:
+                if e.response:
+                    try:
                         error_data = e.response.json()
                         error_message = (
                             error_data.get("message")
                             or error_data.get("detail")
                             or error_message
                         )
-                except (ValueError, AttributeError):
-                    pass
+                    except (ValueError, AttributeError):
+                        error_message = e.response.text[:200]
 
                 raise HTTPClientError(
                     message=error_message,
@@ -116,10 +115,11 @@ class HTTPClient:
                     url=full_url,
                 ) from e
 
-            except (Timeout, RequestException) as e:
-                if attempt == self.max_retries:
+            except (Timeout, NewConnectionError, RequestException) as e:
+                if attempt == self.max_retries - 1:
                     raise HTTPClientError(
-                        message=f"Request failed after {self.max_retries} retries: {str(e)}",
+                        message=f"Connection failed after {self.max_retries} retries: {str(e)}",
+                        status_code=503,
                         url=full_url,
                     ) from e
                 self._handle_retry(attempt, e)
@@ -142,12 +142,12 @@ class HTTPClient:
         return self._request("GET", endpoint, params=params, stream=stream)
 
     @handle_http_errors
-    def post(self, endpoint: str, payload: Dict) -> Any:
-        return self._request("POST", endpoint, json=payload)
+    def post(self, endpoint: str, json: Dict) -> Any:
+        return self._request("POST", endpoint, json=json)
 
     @handle_http_errors
-    def put(self, endpoint: str, payload: Dict) -> Any:
-        return self._request("PUT", endpoint, json=payload)
+    def put(self, endpoint: str, json: Dict) -> Any:
+        return self._request("PUT", endpoint, json=json)
 
     def __enter__(self):
         return self

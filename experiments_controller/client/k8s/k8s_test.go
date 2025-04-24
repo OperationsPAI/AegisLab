@@ -68,7 +68,7 @@ func TestCreateGetDeleteK8sJob(t *testing.T) {
 	}
 
 	// Step 5: Delete Job
-	if err := DeleteJob(context.Background(), namespace, jobName); err != nil {
+	if err := deleteJob(context.Background(), namespace, jobName); err != nil {
 		t.Fatalf("DeleteK8sJob failed: %v", err)
 	}
 	t.Logf("Job %s and its associated pods deleted successfully.", jobName)

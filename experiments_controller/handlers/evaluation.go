@@ -43,9 +43,8 @@ func GetEvaluationList(c *gin.Context) {
 
 	groupedResults, err := getGroupedResults(req.ExecutionIDs, req.Algoritms, req.Levels, rank)
 	if err != nil {
-		message := fmt.Sprintf("failed to get executions")
-		logrus.Errorf("%s: %v", message, err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, message)
+		logrus.Errorf("failed to get executions: %v",  err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get executions")
 		return
 	}
 
@@ -64,10 +63,7 @@ func GetEvaluationList(c *gin.Context) {
 					dto.ErrorResponse(c, http.StatusInternalServerError, message)
 					return
 				}
-
-				for _, conclusion := range conclusions {
-					item.Conclusions = append(item.Conclusions, conclusion)
-				}
+				item.Conclusions = append(item.Conclusions, conclusions...)
 			}
 		}
 

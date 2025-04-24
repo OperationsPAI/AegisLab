@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/dto"
@@ -18,6 +19,10 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // GetAlgorithmList
@@ -94,52 +99,61 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 
 	var payloads []dto.AlgorithmExecutionPayload
 	if err := c.BindJSON(&payloads); err != nil {
+		logrus.Error(err)
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid JSON payload")
 		return
 	}
 
-	logrus.Infof("Received executing algorithm payloads: %+v", payloads)
-
-	parts := strings.Split(config.GetString("harbor.repository"), "/")
-	harborConfig := utils.HarborConfig{
-		Host:     config.GetString("harbor.host"),
-		Project:  parts[len(parts)-1],
-		Username: config.GetString("harbor.username"),
-		Password: config.GetString("harbor.password"),
-	}
-
 	for i := range payloads {
 		if payloads[i].Tag == "" {
-			harborConfig.Repo = payloads[i].Algorithm
-			tag, err := utils.GetLatestTag(harborConfig)
+			tag, err := client.GetHarborClient().GetLatestTag(payloads[i].Image)
 			if err != nil {
-				logrus.Errorf("failed to get latest tag: %v", err)
+				logrus.Errorf("failed to get latest tag of %s: %v", payloads[i].Image, err)
+				dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get latest tag")
 				return
 			}
 
 			payloads[i].Tag = tag
 		}
+
+		for key := range payloads[i].EnvVars {
+			if _, exists := dto.ExecuteEnvVarNameMap[key]; !exists {
+				message := fmt.Sprintf("the key %s is invalid in env_vars", key)
+				logrus.Errorf(message)
+				dto.ErrorResponse(c, http.StatusInternalServerError, message)
+				return
+			}
+		}
 	}
 
-	var traces []dto.Trace
-	for _, payload := range payloads {
-		taskID, traceID, err := executor.SubmitTask(c.Request.Context(), &executor.UnifiedTask{
+	ctx, span := otel.Tracer("rcabench/group").Start(context.Background(), "produce group", trace.WithAttributes(
+		attribute.String("group_id", groupID),
+	))
+	defer span.End()
+
+	traces := make([]dto.Trace, 0, len(payloads))
+	for idx, payload := range payloads {
+		task := &executor.UnifiedTask{
 			Type:      consts.TaskTypeRunAlgorithm,
 			Payload:   utils.StructToMap(payload),
 			Immediate: true,
 			GroupID:   groupID,
-		})
+		}
+		task.GroupCarrier = make(propagation.MapCarrier)
+		otel.GetTextMapPropagator().Inject(ctx, task.GroupCarrier)
+
+		taskID, traceID, err := executor.SubmitTask(context.Background(), task)
 		if err != nil {
-			message := "failed to submit task"
+			message := "failed to submit algorithm execution task"
 			logrus.Error(message)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
 		}
 
-		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID})
+		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID, Index: idx})
 	}
 
-	dto.JSONResponse(c, http.StatusAccepted, "Algorithm Execution submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
+	dto.JSONResponse(c, http.StatusAccepted, "Algorithm executions submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
 }
 
 // BuildAlgorithm handles algorithm file upload, extraction and build submission
@@ -155,7 +169,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 //	@Failure		400			{object}	dto.GenericResponse[any]
 //	@Failure		500			{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/algorithms/build [post]
-func BuildAlgorithm(c *gin.Context) {
+func SubmitAlgorithmBuilding(c *gin.Context) {
 	var extractDir string
 	algoName := c.PostForm("algo")
 
@@ -247,5 +261,5 @@ func BuildAlgorithm(c *gin.Context) {
 	}
 
 	dto.JSONResponse(c, http.StatusAccepted, "Algorithm build task submitted successfully",
-		dto.SubmitResp{Traces: []dto.Trace{{TraceID: traceID, HeadTaskID: taskID}}})
+		dto.SubmitResp{Traces: []dto.Trace{{TraceID: traceID, HeadTaskID: taskID, Index: 0}}})
 }

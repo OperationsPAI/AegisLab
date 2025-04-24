@@ -2,11 +2,14 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"runtime/debug"
 
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 func dispatchTask(ctx context.Context, task *UnifiedTask) error {
@@ -19,20 +22,17 @@ func dispatchTask(ctx context.Context, task *UnifiedTask) error {
 
 	var err error
 	switch task.Type {
+	case consts.TaskTypeRestartService:
+		err = executeRestartService(ctx, task)
 	case consts.TaskTypeFaultInjection:
-		logrus.Debug("executeFaultInjection")
 		err = executeFaultInjection(ctx, task)
 	case consts.TaskTypeRunAlgorithm:
-		logrus.Debug("executeAlgorithm")
 		err = executeAlgorithm(ctx, task)
 	case consts.TaskTypeBuildImages:
-		logrus.Debug("executeBuildImages")
 		err = executeBuildImages(ctx, task)
 	case consts.TaskTypeBuildDataset:
-		logrus.Debug("executeBuildDataset")
 		err = executeBuildDataset(ctx, task)
 	case consts.TaskTypeCollectResult:
-		logrus.Debug("executeCollectResult")
 		err = executeCollectResult(ctx, task)
 	default:
 		err = fmt.Errorf("unknown task type: %s", task.Type)
@@ -43,4 +43,24 @@ func dispatchTask(ctx context.Context, task *UnifiedTask) error {
 	}
 
 	return nil
+}
+
+func getAnnotations(ctx context.Context, task *UnifiedTask) (map[string]string, error) {
+	taskCarrier := make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, taskCarrier)
+	taskCarrierBytes, err := json.Marshal(taskCarrier)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal mapcarrier of task context")
+	}
+
+	traceCarrier := task.TraceCarrier
+	traceCarrierBytes, err := json.Marshal(traceCarrier)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal mapcarrier of trace context")
+	}
+
+	return map[string]string{
+		consts.TaskCarrier:  string(taskCarrierBytes),
+		consts.TraceCarrier: string(traceCarrierBytes),
+	}, nil
 }

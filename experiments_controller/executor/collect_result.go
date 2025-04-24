@@ -12,6 +12,9 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 type CollectionPayload struct {
@@ -26,23 +29,55 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 		return err
 	}
 
+	taskCarrier := make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, taskCarrier)
+
 	path := config.GetString("nfs.path")
 
 	if collectPayload.Algorithm == "detector" {
 		conclusionCSV := filepath.Join(path, collectPayload.Dataset, "conclusion.csv")
 		content, err := os.ReadFile(conclusionCSV)
 		if err != nil {
-			return fmt.Errorf("There is no conclusion.csv file, please check whether it is nomal")
+			return fmt.Errorf("there is no conclusion.csv file, please check whether it is nomal")
 		}
 
 		results, err := readDetectorCSV(content, collectPayload.ExecutionID)
 		if err != nil {
-			return fmt.Errorf("Failed to convert conclusion.csv to database struct: %v", err)
+			return fmt.Errorf("failed to convert conclusion.csv to database struct: %v", err)
+		}
+
+		if len(results) == 0 {
+			logrus.Info("the detector result is empty")
+			updateTaskStatus(
+				taskCarrier,
+				task.TaskID,
+				task.TraceID,
+				fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
+				map[string]any{
+					consts.RdbMsgStatus:            consts.TaskStatusCompleted,
+					consts.RdbMsgTaskID:            task.TaskID,
+					consts.RdbMsgTaskType:          consts.TaskTypeCollectResult,
+					consts.RdbMsgHasDetectorResult: false,
+				})
+
+			return nil
 		}
 
 		if err = database.DB.Create(&results).Error; err != nil {
-			return fmt.Errorf("Failed to save conclusion.csv to database: %v", err)
+			return fmt.Errorf("failed to save conclusion.csv to database: %v", err)
 		}
+
+		updateTaskStatus(
+			taskCarrier,
+			task.TaskID,
+			task.TraceID,
+			fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
+			map[string]any{
+				consts.RdbMsgStatus:            consts.TaskStatusCompleted,
+				consts.RdbMsgTaskID:            task.TaskID,
+				consts.RdbMsgTaskType:          consts.TaskTypeCollectResult,
+				consts.RdbMsgHasDetectorResult: true,
+			})
 	} else {
 		resultCSV := filepath.Join(path, collectPayload.Dataset, "result.csv")
 		content, err := os.ReadFile(resultCSV)
@@ -58,15 +93,18 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 		if err = database.DB.Create(&results).Error; err != nil {
 			return fmt.Errorf("save result.csv to database failed: %v", err)
 		}
-	}
 
-	updateTaskStatus(task.TaskID, task.TraceID,
-		fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
-		map[string]any{
-			consts.RdbMsgStatus:   consts.TaskStatusCompleted,
-			consts.RdbMsgTaskID:   task.TaskID,
-			consts.RdbMsgTaskType: consts.TaskTypeCollectResult,
-		})
+		updateTaskStatus(
+			taskCarrier,
+			task.TaskID,
+			task.TraceID,
+			fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
+			map[string]any{
+				consts.RdbMsgStatus:   consts.TaskStatusCompleted,
+				consts.RdbMsgTaskID:   task.TaskID,
+				consts.RdbMsgTaskType: consts.TaskTypeCollectResult,
+			})
+	}
 
 	return nil
 }

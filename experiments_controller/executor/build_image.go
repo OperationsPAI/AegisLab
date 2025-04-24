@@ -85,9 +85,12 @@ func buildAlgo(ctx context.Context, algoDir string, args map[string]string, ctxD
 }
 
 func buildDockerfileAndPush(ctx context.Context, options BuildOptions) error {
-	c, err := client.New(ctx, con.GetString("buildkitd_address"))
+	if con.GetString("buildkit.address") == "" {
+		return errors.New("buildkit address is not set")
+	}
+	c, err := client.New(ctx, con.GetString("buildkit.address"))
 	if err != nil {
-		return errors.Wrapf(err, "could not connect to buildkitd at %s", con.GetString("buildkitd_address"))
+		return errors.Wrapf(err, "could not connect to buildkitd at %s", con.GetString("buildkit.address"))
 	}
 	defer c.Close()
 

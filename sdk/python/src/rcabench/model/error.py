@@ -1,10 +1,10 @@
-from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar
+from typing import List, Optional
 from ..const import TIME_EXAMPLE, TIME_FORMAT
 from datetime import datetime, timedelta, timezone
-from pydantic import BaseModel, Field, ValidationError as PydanticValidationError
+from pydantic import BaseModel, Field
 
 
-class HttpResponseError(BaseModel):
+class ModelHTTPError(BaseModel):
     """
     HTTP标准错误响应模型
 
@@ -78,13 +78,14 @@ class FieldValidationIssue(BaseModel):
     )
 
 
-class RequestValidationError(BaseModel):
+class ModelValidationError(BaseModel):
     """
-    请求负载验证错误响应模型
+    模型验证错误响应模型
 
     Attributes:
-        errors: 详细错误列表
-        timestamp: 错误发生时间（带时区偏移）
+        detail: 错误信息
+        issuse: 详细错误列表
+        timestamp 错误发生时间（带时区偏移）
     """
 
     detail: str = Field(
@@ -105,44 +106,3 @@ class RequestValidationError(BaseModel):
         description="ISO 8601 format time (with time zone offset)",
         json_schema_extra={"example": TIME_EXAMPLE},
     )
-
-
-T = TypeVar("T", bound=BaseModel)
-
-
-def safe_validate(
-    model: Type[T], input_data: Dict[str, Any]
-) -> Tuple[Optional[T], Optional[RequestValidationError]]:
-    """
-    泛型安全校验函数
-
-    Args:
-        model: 继承自BaseModel的泛型模型类
-        input_data: 待校验的原始数据字典
-
-    Returns:
-        - Tuple[validated_model, None] 验证成功
-        - Tuple[None, RequestValidationError] 验证失败
-
-    Example:
-        >>> class UserModel(BaseModel):
-        ...     name: str
-        >>> data, error = safe_validate(UserModel, {"name": "Alice"})
-        >>> print(isinstance(data, UserModel))  # True
-    """
-    try:
-        validated = model.model_validate(input_data)
-        return validated, None
-
-    except PydanticValidationError as ex:
-        return None, RequestValidationError(
-            detail=f"Invalid {model.__name__} payload",
-            issues=[
-                FieldValidationIssue(
-                    field=".".join(map(str, err["loc"])),
-                    message=err["msg"],
-                    error_type=err["type"],
-                )
-                for err in ex.errors()
-            ],
-        )

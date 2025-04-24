@@ -1,6 +1,7 @@
 # Global Variables
 DEFAULT_REPO ?= 10.10.10.240/library
-NS          ?= experiment
+NS           ?= experiment
+CHAOS_TYPES  ?= dnschaos httpchaos jvmchaos networkchaos podchaos stresschaos timechaos
 
 .PHONY: build run debug swagger build-sdk-python gen-dataset-dev gen-dataset-prod import jobs pods ports help
 
@@ -29,7 +30,7 @@ run: ## Run application in debug mode with skaffold
 
 debug: ## Start local debug environment (databases + controller)
 	docker compose down && \
-	docker compose up redis mariadb -d && \
+	docker compose up redis mariadb jaeger -d && \
 	kubectl delete jobs --all -n $(NS) && \
 	cd experiments_controller && go run main.go both --port 8082
 
@@ -44,6 +45,22 @@ swagger: ## Generate Swagger API documentation
 		--parseDependency \
 		--parseDepth 1 --output ./experiments_controller/docs 
 
+##@ chaos-mesh CRD
+
+clean-finalizer: ## Clean finalizers for specified chaos types in namespace $(NS)
+	@for type in $(CHAOS_TYPES); do \
+        kubectl get $$type -n $(NS) -o jsonpath='{range .items[*]}{.metadata.namespace}{":"}{.metadata.name}{"\n"}{end}' | while IFS=: read -r ns name; do \
+            if [ -n "$$name" ]; then \
+                kubectl patch $$type "$$name" -n "$$ns" --type=merge -p '{"metadata":{"finalizers":[]}}'; \
+            fi \
+        done; \
+    done
+
+delete-chaos: ## Delete specified chaos types in namespace $(NS)
+	@for type in $(CHAOS_TYPES); do \
+		  kubectl delete $$type --all -n $(NS); \
+	done
+
 ##@ Kubernetes
 
 jobs: ## List all jobs
@@ -55,14 +72,19 @@ pods: ## List all pods
 ports: ## Port-forward service
 	kubectl port-forward svc/exp -n $(NS) --address 0.0.0.0 8081:8081 &
 
+
+##@ Git Hook
+
 install-hooks: ## Install pre-commit hooks
+	chmod +x scripts/hooks/pre-commit
 	cp scripts/hooks/pre-commit .git/hooks/pre-commit
 
-gen-sdk: swagger
-	docker run --rm \
-		-u $$(id -u):$$(id -g) \
-		-v $$(pwd):/local \
-		openapitools/openapi-generator-cli generate \
-		-i /local/experiments_controller/docs/swagger.json \
-		-g python \
-		-o /local/sdk/python1
+##@ Git Submodule
+
+sync-dep: ## Synchronize Git submodules
+	git submodule update --init --recursive --remote
+
+upgrade-dep: ## Upgrade Git submodules to the latest main branch
+	@git submodule foreach 'branch=$$(git config -f $$toplevel/.gitmodules submodule.$$name.branch || echo main); \
+        echo "Updating $$name to branch: $$branch"; \
+        git checkout $$branch && git pull origin $$branch'

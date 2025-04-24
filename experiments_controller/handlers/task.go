@@ -96,18 +96,16 @@ func GetTaskStream(c *gin.Context) {
 	pubsub := client.GetRedisClient().Subscribe(c, fmt.Sprintf(consts.SubChannel, item.TraceID))
 	defer pubsub.Close()
 
-	expectedTaskType := consts.TaskType(item.Type)
-
-	switch consts.TaskType(item.Type) {
-	case consts.TaskTypeRunAlgorithm:
-		expectedTaskType = consts.TaskTypeCollectResult
-	case consts.TaskTypeFaultInjection:
+	expectedTaskType := consts.TaskTypeCollectResult
+	if consts.TaskType(item.Type) == consts.TaskTypeFaultInjection {
 		benchmark, ok := item.Payload[consts.InjectBenchmark]
 		if !ok {
-
+			dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get benchmark from payload")
+			return
 		}
-		if benchmark != "" {
-			expectedTaskType = consts.TaskTypeBuildDataset
+		if benchmark == "" {
+			// detector 算法收集结果
+			expectedTaskType = consts.TaskTypeFaultInjection
 		}
 	}
 
@@ -123,39 +121,26 @@ func sendStreamMessge(c *gin.Context, traceID string, expectedTaskType consts.Ta
 	for {
 		select {
 		case message := <-pubsub.Channel():
-			c.SSEvent(consts.EventUpdate, message.Payload)
-			c.Writer.Flush()
-
 			var rdbMsg dto.RdbMsg
 			if err := json.Unmarshal([]byte(message.Payload), &rdbMsg); err != nil {
 				msg := "unmarshal payload of redis message failed"
 				logEntry.Errorf("%s: %v", msg, err)
-
-				c.SSEvent(consts.EventError, map[string]string{
-					"error":   msg,
-					"details": err.Error(),
-				})
-				c.Writer.Flush()
-
 				return
 			}
+
+			c.SSEvent(consts.EventUpdate, message.Payload)
+			c.Writer.Flush()
 
 			switch rdbMsg.Status {
 			case consts.TaskStatusCompleted:
 				if rdbMsg.Type == expectedTaskType {
 					c.SSEvent(consts.EventEnd, nil)
 					c.Writer.Flush()
-
 					return
 				}
 			case consts.TaskStatusError:
-				c.SSEvent(consts.EventError, map[string]string{
-					"error":   fmt.Sprintf("execute task %s failed", rdbMsg.TaskID),
-					"details": rdbMsg.Error,
-				})
 				c.SSEvent(consts.EventEnd, nil)
 				c.Writer.Flush()
-
 				return
 			}
 

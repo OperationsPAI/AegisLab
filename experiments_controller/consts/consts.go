@@ -10,12 +10,12 @@ const (
 )
 
 const (
+	DatasetDeleted       = -1
 	DatasetInitial       = 0
-	DatasetInjectSuccess = 1
-	DatasetInjectFailed  = 2
-	DatasetBuildSuccess  = 3
-	DatasetBuildFailed   = 4
-	DatasetDeleted       = 5
+	DatasetInjectFailed  = 1
+	DatasetInjectSuccess = 2
+	DatasetBuildFailed   = 3
+	DatasetBuildSuccess  = 4
 )
 
 const (
@@ -27,6 +27,7 @@ const (
 )
 
 const (
+	TaskTypeRestartService TaskType = "RestartService"
 	TaskTypeRunAlgorithm   TaskType = "RunAlgorithm"
 	TaskTypeFaultInjection TaskType = "FaultInjection"
 	TaskTypeBuildImages    TaskType = "BuildImages"
@@ -36,17 +37,17 @@ const (
 
 const (
 	TaskMsgCompleted string = "Task %s completed"
+	TaskMsgFailed    string = "Task %s failed"
 )
 
 // 不同任务类型的 Payload 键
 const (
 	BuildBenchmark     = "benchmark"
-	BuildDataset       = "dataset"
-	BuildNamespace     = "namespace"
+	BuildDataset       = "name"
 	BuildPreDuration   = "pre_duration"
-	BuildService       = "service"
 	BuildStartTime     = "start_time"
 	BuildEndTime       = "end_time"
+	BuildEnvVars       = "env_vars"
 	BuildAlgorithm     = "algorithm"
 	BuildAlgorithmPath = "algorithm_path"
 
@@ -57,16 +58,36 @@ const (
 	EvaluateLabel = "app_name"
 	EvaluateLevel = "level"
 
-	ExecuteAlgo    = "algorithm"
-	ExecuteDataset = "dataset"
-	ExecuteService = "service"
+	ExecuteImage   = "image"
 	ExecuteTag     = "tag"
+	ExecuteDataset = "dataset"
+	ExecuteEnvVars = "env_vars"
 
 	InjectBenchmark   = "benchmark"
 	InjectFaultType   = "fault_type"
 	InjectPreDuration = "pre_duration"
 	InjectRawConf     = "raw_conf"
 	InjectConf        = "conf"
+
+	RestartInterval      = "interval"
+	RestartExecutionTime = "execution_time"
+	RestartDuration      = "duration"
+	RestartNamespace     = "namespace"
+)
+
+// 环境变量名称
+const (
+	BuildEnvVarNamespace = "NAMESPACE"
+	BuildEnvVarService   = "SERVICE"
+
+	ExecuteEnvVarAlgorithm = "ALGORITHM"
+	ExecuteEnvVarService   = "SERVICE"
+)
+
+const (
+	HarborURL      = "http://%s/api/v2.0/projects/%s/repositories/%s/artifacts?page_size=100"
+	HarborTimeout  = 30
+	HarborTimeUnit = time.Second
 )
 
 // Redis 流和消费者组配置
@@ -85,27 +106,35 @@ const (
 	SubChannel = "trace:%s:channel"
 )
 
-// Redis Meta 属性名称
-const (
-	MetaBenchmark   = "benchmark"
-	MetaPreDuration = "pre_duration"
-	MetaTraceID     = "trace_id"
-	MetaGroupID     = "group_id"
-)
-
 // Redis 订阅消息字段
 const (
-	RdbMsgStatus      = "status"
-	RdbMsgTaskID      = "task_id"
-	RdbMsgTaskType    = "task_type"
-	RdbMsgDataset     = "dataset"
-	RdbMsgExecutionID = "execution_id"
-	RdbMsgError       = "error"
+	RdbMsgStatus            = "status"
+	RdbMsgTaskID            = "task_id"
+	RdbMsgTaskType          = "task_type"
+	RdbMsgDataset           = "dataset"
+	RdbMsgExecutionID       = "execution_id"
+	RdbMsgHasDetectorResult = "has_detector_result"
+	RdbMsgError             = "error"
 )
 
 // K8s Job 名称
 const (
 	DatasetJobName = "dataset"
+)
+
+const (
+	TaskCarrier  = "task_carrier"
+	TraceCarrier = "trace_carrier"
+	GroupCarrier = "group_carrier"
+)
+
+// K8s CRD Label 字段
+const (
+	CRDTaskID      = "task_id"
+	CRDTraceID     = "trace_id"
+	CRDGroupID     = "group_id"
+	CRDBenchmark   = "benchmark"
+	CRDPreDuration = "pre_duration"
 )
 
 // K8s Job Label 字段
@@ -117,11 +146,17 @@ const (
 	LabelAlgorithm   = "algorithm"
 	LabelDataset     = "dataset"
 	LabelExecutionID = "execution_id"
+	LabelService     = "service"
 )
 
 // sse 事件类型
 const (
 	EventEnd    = "end"
-	EventError  = "error"
 	EventUpdate = "update"
+)
+
+const (
+	DownloadFilename       = "package"
+	DetectorConclusionFile = "conclusion.csv"
+	ExecutionResultFile    = "result.csv"
 )

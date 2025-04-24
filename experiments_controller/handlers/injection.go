@@ -2,17 +2,25 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
+	conf "github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
 	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func CancelInjection(c *gin.Context) {
@@ -33,7 +41,7 @@ func GetInjectionConf(c *gin.Context) {
 	}
 
 	if req.Mode == "engine" {
-		dto.SuccessResponse(c, chaos.NodeToMap(root))
+		dto.SuccessResponse(c, chaos.NodeToMap(root, false))
 		return
 	}
 
@@ -153,7 +161,24 @@ func SubmitFaultInjection(c *gin.Context) {
 		return
 	}
 
-	var traces []dto.Trace
+	if !conf.GetBool("injection.enable_duplicate") {
+		newConfigs, err := getNewConfigs(configs, req.Interval)
+		if err != nil {
+			message := "failed to get the existing configs"
+			logrus.Errorf("%s: %v", message, err)
+			dto.ErrorResponse(c, http.StatusInternalServerError, message)
+			return
+		}
+
+		configs = newConfigs
+	}
+
+	ctx, span := otel.Tracer("rcabench/group").Start(context.Background(), "produce group", trace.WithAttributes(
+		attribute.String("group_id", groupID),
+	))
+	defer span.End()
+
+	traces := make([]dto.Trace, 0, len(configs))
 	for _, config := range configs {
 		payload := map[string]any{
 			consts.InjectBenchmark:   req.Benchmark,
@@ -163,22 +188,87 @@ func SubmitFaultInjection(c *gin.Context) {
 			consts.InjectConf:        config.Conf,
 		}
 
-		taskID, traceID, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
-			Type:        consts.TaskTypeFaultInjection,
+		taskType := consts.TaskTypeFaultInjection
+		if conf.GetBool("injection.restart_service") {
+			taskType = consts.TaskTypeRestartService
+			payload[consts.RestartInterval] = req.Interval
+			payload[consts.RestartExecutionTime] = config.ExecuteTime
+		}
+
+		task := &executor.UnifiedTask{
+			Type:        taskType,
 			Payload:     payload,
 			Immediate:   false,
 			ExecuteTime: config.ExecuteTime.Unix(),
 			GroupID:     groupID,
-		})
+		}
+		task.GroupCarrier = make(propagation.MapCarrier)
+		otel.GetTextMapPropagator().Inject(ctx, task.GroupCarrier)
+
+		taskID, traceID, err := executor.SubmitTask(context.Background(), task)
 		if err != nil {
-			message := "failed to submit task"
+			message := "failed to submit injection task"
 			logrus.Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
 		}
 
-		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID})
+		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID, Index: config.Index})
 	}
 
+	span.SetStatus(codes.Ok, fmt.Sprintf("Successfully submitted %d fault injections with groupID: %s", len(traces), groupID))
+
 	dto.JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
+}
+
+func getNewConfigs(configs []*dto.InjectionConfig, interval int) ([]*dto.InjectionConfig, error) {
+	intervalDuration := time.Duration(interval) * consts.DefaultTimeUnit
+
+	rawConfs := make([]string, 0, len(configs))
+	for _, config := range configs {
+		rawConfs = append(rawConfs, config.RawConf)
+	}
+
+	missingIndices, err := findMissingIndices(rawConfs, 10)
+	if err != nil {
+		return nil, err
+	}
+
+	logrus.Infof("deduplicated %d configurations (remaining: %d)", len(rawConfs)-len(missingIndices), len(missingIndices))
+
+	newConfigs := make([]*dto.InjectionConfig, 0, len(missingIndices))
+	for i, idx := range missingIndices {
+		config := configs[idx]
+		config.ExecuteTime = config.ExecuteTime.Add(-intervalDuration * time.Duration(config.Index-i))
+		newConfigs = append(newConfigs, config)
+	}
+
+	return newConfigs, nil
+}
+
+func findMissingIndices(confs []string, batch_size int) ([]int, error) {
+	var missingIndices []int
+	existingMap := make(map[string]struct{})
+
+	for i := 0; i < len(confs); i += batch_size {
+		end := min(i+batch_size, len(confs))
+
+		batch := confs[i:end]
+		existingBatch, err := repository.FindExistingEngineConfigs(batch)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, s := range existingBatch {
+			existingMap[s] = struct{}{}
+		}
+	}
+
+	for idx, s := range confs {
+		if _, exists := existingMap[s]; !exists {
+			missingIndices = append(missingIndices, idx)
+		}
+	}
+
+	return missingIndices, nil
 }

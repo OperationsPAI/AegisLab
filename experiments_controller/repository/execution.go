@@ -37,7 +37,7 @@ func ListExecutionRecordByDatasetID(datasetID int, sortOrder string) ([]dto.Exec
 	}
 
 	if len(execIDs) == 0 {
-		return nil, fmt.Errorf("failed to get executions")
+		return []dto.ExecutionRecord{}, nil
 	}
 
 	granularities, err := listGranularityWithFilters(execIDs, []string{}, 5)
@@ -45,9 +45,9 @@ func ListExecutionRecordByDatasetID(datasetID int, sortOrder string) ([]dto.Exec
 		return nil, err
 	}
 
-	resultMap := make(map[int]dto.ExecutionRecord)
+	resultMap := make(map[int]*dto.ExecutionRecord)
 	for _, exec := range executions {
-		resultMap[exec.ID] = dto.ExecutionRecord{
+		resultMap[exec.ID] = &dto.ExecutionRecord{
 			Algorithm:          exec.Algorithm,
 			GranularityRecords: []dto.GranularityRecord{},
 		}
@@ -63,7 +63,7 @@ func ListExecutionRecordByDatasetID(datasetID int, sortOrder string) ([]dto.Exec
 
 	results := make([]dto.ExecutionRecord, 0)
 	for _, exec := range executions {
-		results = append(results, resultMap[exec.ID])
+		results = append(results, *resultMap[exec.ID])
 	}
 
 	return results, nil
@@ -105,9 +105,9 @@ func ListExecutionRecordByExecID(executionIDs []int,
 		return nil, err
 	}
 
-	resultMap := make(map[int]dto.ExecutionRecordWithDatasetID)
+	resultMap := make(map[int]*dto.ExecutionRecordWithDatasetID)
 	for _, exec := range executions {
-		resultMap[exec.ID] = dto.ExecutionRecordWithDatasetID{
+		resultMap[exec.ID] = &dto.ExecutionRecordWithDatasetID{
 			DatasetID: exec.Dataset,
 			ExecutionRecord: dto.ExecutionRecord{
 				Algorithm:          exec.Algorithm,
@@ -126,7 +126,7 @@ func ListExecutionRecordByExecID(executionIDs []int,
 
 	results := make([]dto.ExecutionRecordWithDatasetID, 0)
 	for _, exec := range executions {
-		results = append(results, resultMap[exec.ID])
+		results = append(results, *resultMap[exec.ID])
 	}
 
 	return results, nil
