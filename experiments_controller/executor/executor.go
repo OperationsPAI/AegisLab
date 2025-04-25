@@ -12,6 +12,7 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 )
 
@@ -126,7 +127,10 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 		consts.BuildStartTime:   startTime,
 		consts.BuildEndTime:     endTime,
 	}
-	taskID, traceID, err := SubmitTask(context.Background(), &UnifiedTask{
+
+	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.TaskCarrier)
+
+	taskID, traceID, err := SubmitTask(taskCtx, &UnifiedTask{
 		Type:         consts.TaskTypeBuildDataset,
 		Payload:      datasetPayload,
 		Immediate:    true,
@@ -299,7 +303,9 @@ func (e *Executor) updateDataset(annotations *Annotations, taskOptions *TaskOpti
 			consts.ExecuteEnvVars: envVars,
 		}
 
-		if _, _, err := SubmitTask(context.Background(), &UnifiedTask{
+		taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), annotations.TaskCarrier)
+
+		if _, _, err := SubmitTask(taskCtx, &UnifiedTask{
 			Type:         consts.TaskTypeRunAlgorithm,
 			Payload:      executionPayload,
 			Immediate:    true,
@@ -327,7 +333,8 @@ func (e *Executor) updateAlgorithm(annotations *Annotations, logEntry *logrus.En
 		updateFields,
 	)
 
-	if _, _, err := SubmitTask(context.Background(), &UnifiedTask{
+	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), annotations.TaskCarrier)
+	if _, _, err := SubmitTask(taskCtx, &UnifiedTask{
 		Type: consts.TaskTypeCollectResult,
 		Payload: map[string]any{
 			consts.CollectAlgorithm:   options.Algorithm,

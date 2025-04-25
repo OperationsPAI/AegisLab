@@ -16,7 +16,7 @@ func New() *gin.Engine {
 	router := gin.Default()
 	config := cors.DefaultConfig()
 	config.AllowOrigins = []string{"http://localhost:3000", "http://localhost:5173"} // 允许来自前端服务器的请求
-	router.Use(middleware.Logging(), middleware.GroupID(), middleware.SSEPath(), cors.New(config))
+	router.Use(middleware.Logging(), middleware.GroupID(), middleware.SSEPath(), cors.New(config), middleware.TracerMiddleware())
 	r := router.Group("/api/v1")
 
 	algorithms := r.Group("/algorithms")

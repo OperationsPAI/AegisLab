@@ -3,8 +3,19 @@ package middleware
 import (
 	"regexp"
 
-	"github.com/gin-gonic/gin"
+	"context"
+
 	"github.com/google/uuid"
+
+	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+)
+
+const (
+	TracerKey      = "otel-tracer"
+	SpanContextKey = "otel-span-context"
 )
 
 func SSEPath() gin.HandlerFunc {
@@ -28,6 +39,25 @@ func GroupID() gin.HandlerFunc {
 			c.Set("groupID", groupID)
 			c.Writer.Header().Set("X-Group-ID", groupID)
 		}
+
+		c.Next()
+	}
+}
+
+func TracerMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		groupID := c.GetString("groupID")
+
+		ctx, span := otel.Tracer("rcabench/group").Start(
+			context.Background(),
+			"producer",
+			trace.WithAttributes(
+				attribute.String("group_id", groupID),
+			),
+		)
+		defer span.End()
+
+		c.Set(SpanContextKey, ctx)
 
 		c.Next()
 	}

@@ -61,7 +61,7 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 			return fmt.Errorf("failed to unmarshal restart payload: %v", err)
 		}
 
-		if _, _, err := SubmitTask(context.Background(), &UnifiedTask{
+		if _, _, err := SubmitTask(ctx, &UnifiedTask{
 			Type:         consts.TaskTypeRestartService,
 			Immediate:    false,
 			ExecuteTime:  time.Now().Add(consts.DefaultTimeUnit).Unix(),
@@ -139,7 +139,7 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 	deltaTime := time.Duration(payload.interval) * consts.DefaultTimeUnit
 	namespace := k8s.GetK8sController().AcquireLock(t.Add(deltaTime), task.TraceID)
 	if namespace == "" {
-		if _, _, err := SubmitTask(context.Background(), &UnifiedTask{
+		if _, _, err := SubmitTask(ctx, &UnifiedTask{
 			Type:         consts.TaskTypeRestartService,
 			Immediate:    false,
 			ExecuteTime:  time.Now().Add(consts.DefaultTimeUnit).Unix(),
@@ -163,7 +163,7 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 		return fmt.Errorf("failed to marshal restart task payload: %v", err)
 	}
 
-	if err := setRedisTraceItem(context.Background(), task.TraceID, map[string]any{
+	if err := setRedisTraceItem(ctx, task.TraceID, map[string]any{
 		consts.RdbTraceItemRestartPayload: string(taskPayloadBytes),
 	}); err != nil {
 		k8s.GetK8sController().ReleaseLock(namespace)
@@ -195,7 +195,7 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 		GroupID:      task.GroupID,
 		TraceCarrier: task.TraceCarrier,
 	}
-	if _, _, err := SubmitTask(context.Background(), injectTask); err != nil {
+	if _, _, err := SubmitTask(ctx, injectTask); err != nil {
 		k8s.GetK8sController().ReleaseLock(namespace)
 		return fmt.Errorf("failed to submit inject task: %v", err)
 	}
