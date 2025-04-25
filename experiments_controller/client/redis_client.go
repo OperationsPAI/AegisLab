@@ -2,11 +2,13 @@ package client
 
 import (
 	"context"
+	"errors"
+	"log"
 	"sync"
 
 	"github.com/CUHK-SE-Group/rcabench/config"
-
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/extra/redisotel/v9"
+	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
 
@@ -25,7 +27,9 @@ func GetRedisClient() *redis.Client {
 			Password: "",
 			DB:       0,
 		})
-
+		if err := errors.Join(redisotel.InstrumentTracing(redisClient), redisotel.InstrumentMetrics(redisClient)); err != nil {
+			log.Fatal(err)
+		}
 		ctx := context.Background()
 		if err := redisClient.Ping(ctx).Err(); err != nil {
 			logrus.Fatalf("Failed to connect to Redis: %v", err)
