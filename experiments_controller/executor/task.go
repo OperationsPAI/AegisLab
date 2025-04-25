@@ -82,7 +82,6 @@ var (
 	taskCancelFuncsMutex sync.RWMutex
 )
 
-// SubmitTask 提交任务入口
 func SubmitTask(ctx context.Context, task *UnifiedTask) (string, string, error) {
 	if task.TaskID == "" {
 		task.TaskID = uuid.NewString()
@@ -90,6 +89,8 @@ func SubmitTask(ctx context.Context, task *UnifiedTask) (string, string, error) 
 	if task.TraceID == "" {
 		task.TraceID = uuid.NewString()
 	}
+	task.GroupCarrier = make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, task.GroupCarrier)
 
 	jsonPayload, err := json.Marshal(task.Payload)
 	if err != nil {
@@ -130,7 +131,6 @@ func submitImmediateTask(ctx context.Context, task *UnifiedTask) error {
 		return err
 	}
 
-	// 创建任务索引
 	return redisCli.HSet(ctx, TaskIndexKey, task.TaskID, ReadyQueueKey).Err()
 }
 
@@ -153,7 +153,6 @@ func submitDelayedTask(ctx context.Context, task *UnifiedTask) error {
 		return err
 	}
 
-	// 创建任务索引
 	return redisCli.HSet(ctx, TaskIndexKey, task.TaskID, DelayedQueueKey).Err()
 }
 
@@ -165,7 +164,6 @@ func marshalTask(task *UnifiedTask) ([]byte, error) {
 	return taskData, nil
 }
 
-// StartScheduler 启动调度器
 func StartScheduler(ctx context.Context) {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
@@ -180,7 +178,6 @@ func StartScheduler(ctx context.Context) {
 	}
 }
 
-// 优化后的Lua脚本
 var delayedTaskScript = redis.NewScript(`
     local tasks = redis.call('ZRANGEBYSCORE', KEYS[1], 0, ARGV[1])
     if #tasks > 0 then
@@ -241,7 +238,6 @@ func handleCronRescheduleFailure(ctx context.Context, task *UnifiedTask) {
 	})
 }
 
-// ConsumeTasks 消费任务
 func ConsumeTasks() {
 	defer func() {
 		if r := recover(); r != nil {
@@ -274,6 +270,39 @@ func ConsumeTasks() {
 	}
 }
 
+// ExtractContext
+// 1. Always have group ctx
+// 2.1 If there is no trace carrier, create a new trace span
+// 2.2 If there is a trace carrier, extract the trace context
+// 2.3 Always create a new task span
+func ExtractContext(ctx context.Context, task *UnifiedTask) (context.Context, context.Context) {
+	var traceCtx context.Context
+	var traceSpan trace.Span
+
+	if task.TraceCarrier != nil {
+		traceCtx = otel.GetTextMapPropagator().Extract(ctx, task.TraceCarrier)
+	} else {
+		groupCtx := otel.GetTextMapPropagator().Extract(ctx, task.GroupCarrier)
+		traceCtx, traceSpan = otel.Tracer("rcabench/trace").Start(groupCtx, fmt.Sprintf("consuming new %s task", task.Type), trace.WithAttributes(
+			attribute.String("trace_id", task.TraceID),
+		))
+
+		task.TraceCarrier = make(propagation.MapCarrier)
+		otel.GetTextMapPropagator().Inject(traceCtx, task.TraceCarrier)
+
+		traceSpan.SetStatus(codes.Ok, fmt.Sprintf("Started processing task trace %s", task.TraceID))
+	}
+
+	taskCtx, _ := otel.Tracer("rcabench/task").Start(traceCtx,
+		fmt.Sprintf("consume %s task", task.Type),
+		trace.WithAttributes(
+			attribute.String("task_id", task.TaskID),
+			attribute.String("task_type", string(task.Type)),
+		))
+
+	return traceCtx, taskCtx
+}
+
 func processTask(ctx context.Context, taskData string) {
 	defer releaseConcurrencyLock(ctx)
 	defer func() {
@@ -287,40 +316,20 @@ func processTask(ctx context.Context, taskData string) {
 		logrus.Warnf("invalid task data: %v", err)
 		return
 	}
+	_, taskCtx := ExtractContext(ctx, &task)
 
-	var traceCtx context.Context
-	var span trace.Span
-	if task.TraceCarrier != nil {
-		traceCtx = otel.GetTextMapPropagator().Extract(context.Background(), task.TraceCarrier)
-	} else {
-		groupCtx := otel.GetTextMapPropagator().Extract(context.Background(), task.GroupCarrier)
-		traceCtx, span = otel.Tracer("rcabench/trace").Start(groupCtx, "consume trace", trace.WithAttributes(
-			attribute.String("trace_id", task.TraceID),
-		))
-		defer span.End()
-
-		task.TraceCarrier = make(propagation.MapCarrier)
-		otel.GetTextMapPropagator().Inject(traceCtx, task.TraceCarrier)
-
-		span.SetStatus(codes.Ok, fmt.Sprintf("Started processing task trace %s", task.TraceID))
-	}
-
-	taskCtx, _ := otel.Tracer("rcabench/task").Start(traceCtx,
-		fmt.Sprintf("consume %s task", task.Type),
-		trace.WithAttributes(
-			attribute.String("task_id", task.TaskID),
-			attribute.String("task_type", string(task.Type)),
-		))
+	taskSpan := trace.SpanFromContext(taskCtx)
+	defer taskSpan.End()
 
 	logrus.Infof("dealing with task %s, type: %s, groupID: %s", task.TaskID, task.Type, task.GroupID)
 
 	startTime := time.Now()
+
 	tasksProcessed.WithLabelValues(string(task.Type), "started").Inc()
 
 	executeTaskWithRetry(taskCtx, &task)
 
-	duration := time.Since(startTime).Seconds()
-	taskDuration.WithLabelValues(string(task.Type)).Observe(duration)
+	taskDuration.WithLabelValues(string(task.Type)).Observe(time.Since(startTime).Seconds())
 }
 
 func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
@@ -350,7 +359,6 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 			tasksProcessed.WithLabelValues(string(task.Type), "success").Inc()
 			span.SetStatus(codes.Ok, fmt.Sprintf("Task %s of type %s completed successfully after %d attempts",
 				task.TaskID, task.Type, attempt+1))
-			span.End()
 			return
 		}
 
@@ -580,7 +588,6 @@ func updateTaskError(taskCarrier propagation.MapCarrier, taskID, traceID string,
 	)
 }
 
-// 事务型状态更新
 func updateTaskStatus(taskCarrier propagation.MapCarrier, taskID, traceID, message string, payload map[string]any) {
 	rdbMsg, err := parseRdbMsgFromPayload(payload)
 	if err != nil {
@@ -588,32 +595,11 @@ func updateTaskStatus(taskCarrier propagation.MapCarrier, taskID, traceID, messa
 		return
 	}
 
-	ctx := context.Background()
+	taskCtx := context.Background()
 
-	// 数据库事务
-	tx := database.DB.WithContext(ctx).Begin()
-	if err := tx.Model(&database.Task{}).
-		Where("id = ?", taskID).
-		Update("status", rdbMsg.Status).Error; err != nil {
-		tx.Rollback()
-		logrus.WithField("task_id", taskID).Errorf("failed to update database: %v", err)
-		return
-	}
-	tx.Commit()
-
-	delete(payload, consts.RdbMsgErr)
-	msg, err := json.Marshal(payload)
-	if err != nil {
-		logrus.WithField("task_id", taskID).Errorf("failed to marshal payload: %v", err)
-		return
-	}
-
-	client.GetRedisClient().Publish(ctx, fmt.Sprintf(consts.SubChannel, traceID), msg)
-
-	// 记录到 jaeger 中
 	if taskCarrier != nil {
-		taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), taskCarrier)
-		// 处理TaskCtx
+		taskCtx = otel.GetTextMapPropagator().Extract(taskCtx, taskCarrier)
+
 		_, span := otel.Tracer("rcabench/task/feedback").Start(taskCtx, "process feedback", trace.WithAttributes(
 			attribute.String("task_id", taskID),
 			attribute.String("task_type", string(rdbMsg.Type)),
@@ -631,7 +617,29 @@ func updateTaskStatus(taskCarrier propagation.MapCarrier, taskID, traceID, messa
 		}
 
 		span.AddEvent(message)
+	} else {
+		logrus.WithField("task_id", taskID).Error("task carrier is nil")
 	}
+
+	tx := database.DB.WithContext(taskCtx).Begin()
+	if err := tx.Model(&database.Task{}).
+		Where("id = ?", taskID).
+		Update("status", rdbMsg.Status).Error; err != nil {
+		tx.Rollback()
+		logrus.WithField("task_id", taskID).Errorf("failed to update database: %v", err)
+		return
+	}
+	tx.Commit()
+
+	delete(payload, consts.RdbMsgErr)
+	msg, err := json.Marshal(payload)
+	if err != nil {
+		logrus.WithField("task_id", taskID).Errorf("failed to marshal payload: %v", err)
+		return
+	}
+
+	client.GetRedisClient().Publish(taskCtx, fmt.Sprintf(consts.SubChannel, traceID), msg)
+
 }
 
 func calculateExecuteTime(task *UnifiedTask) (int64, error) {

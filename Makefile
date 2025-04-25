@@ -2,8 +2,10 @@
 DEFAULT_REPO ?= 10.10.10.240/library
 NS           ?= experiment
 CHAOS_TYPES  ?= dnschaos httpchaos jvmchaos networkchaos podchaos stresschaos timechaos
+TS_NS ?= "ts"
+PORT ?= "30080"
 
-.PHONY: build run debug swagger build-sdk-python gen-dataset-dev gen-dataset-prod import jobs pods ports help
+.PHONY: build run debug swagger build-sdk-python gen-dataset-dev gen-dataset-prod import jobs pods ports help deploy-ts
 
 help:  ## Display targets with category headers
 	@awk 'BEGIN { \
@@ -88,3 +90,16 @@ upgrade-dep: ## Upgrade Git submodules to the latest main branch
 	@git submodule foreach 'branch=$$(git config -f $$toplevel/.gitmodules submodule.$$name.branch || echo main); \
         echo "Updating $$name to branch: $$branch"; \
         git checkout $$branch && git pull origin $$branch'
+
+deploy-ts:
+	helm repo add train-ticket https://cuhk-se-group.github.io/train-ticket
+	helm repo update
+	helm search repo train-ticket
+	@if helm status $(TS_NS) -n $(TS_NS) >/dev/null 2>&1; then \
+			echo "Uninstalling existing $(TS_NS) release"; \
+			helm uninstall $(TS_NS) -n $(TS_NS); \
+			sleep 5; \
+	else \
+			echo "No existing $(TS_NS) release found"; \
+	fi; \
+	helm install $(TS_NS) train-ticket/trainticket -n $(TS_NS) --set global.image.tag=637600ea --set services.tsUiDashboard.nodePort=$(PORT)

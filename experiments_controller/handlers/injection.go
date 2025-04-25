@@ -13,13 +13,11 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
+	"github.com/CUHK-SE-Group/rcabench/middleware"
 	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -173,10 +171,16 @@ func SubmitFaultInjection(c *gin.Context) {
 		configs = newConfigs
 	}
 
-	ctx, span := otel.Tracer("rcabench/group").Start(context.Background(), "produce group", trace.WithAttributes(
-		attribute.String("group_id", groupID),
-	))
-	defer span.End()
+	// Get the span context from gin.Context
+	ctx, ok := c.Get(middleware.SpanContextKey)
+	if !ok {
+		logrus.Error("failed to get span context from gin.Context")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get span context")
+		return
+	}
+
+	spanCtx := ctx.(context.Context)
+	span := trace.SpanFromContext(spanCtx)
 
 	traces := make([]dto.Trace, 0, len(configs))
 	for _, config := range configs {
@@ -200,10 +204,8 @@ func SubmitFaultInjection(c *gin.Context) {
 			ExecuteTime: config.ExecuteTime.Unix(),
 			GroupID:     groupID,
 		}
-		task.GroupCarrier = make(propagation.MapCarrier)
-		otel.GetTextMapPropagator().Inject(ctx, task.GroupCarrier)
 
-		taskID, traceID, err := executor.SubmitTask(context.Background(), task)
+		taskID, traceID, err := executor.SubmitTask(spanCtx, task)
 		if err != nil {
 			message := "failed to submit injection task"
 			logrus.Errorf("%s: %v", message, err)
