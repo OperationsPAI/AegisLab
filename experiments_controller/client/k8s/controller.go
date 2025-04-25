@@ -19,7 +19,7 @@ import (
 	corev1listers "k8s.io/client-go/listers/core/v1"
 
 	"github.com/CUHK-SE-Group/rcabench/config"
-	"github.com/CUHK-SE-Group/rcabench/utils"
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -29,14 +29,15 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-type ResouceType string
+type ActionType string
 
 const (
 	jobKind      = "Job"
 	resyncPeriod = 5 * time.Second
 
-	CRDResourceType ResouceType = "CRD"
-	JobResourceType ResouceType = "Job"
+	CheckRecovery ActionType = "CheckRecovery"
+	DeleteCRD     ActionType = "DeleteCRD"
+	DeleteJob     ActionType = "DeleteJob"
 )
 
 type timeRange struct {
@@ -47,51 +48,86 @@ type timeRange struct {
 // 接口避免循环引用
 type Callback interface {
 	HandleCRDAdd(annotations map[string]string, labels map[string]string)
-	HandleCRDFailed(name, errorMsg string, annotations map[string]string, labels map[string]string)
+	HandleCRDFailed(name string, annotations map[string]string, labels map[string]string, err error, errMsg string)
 	HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, annotations map[string]string, labels map[string]string)
 	HandleJobAdd(annotations map[string]string, labels map[string]string)
-	HandleJobFailed(annotations map[string]string, labels map[string]string, errorMsg string)
+	HandleJobFailed(annotations map[string]string, labels map[string]string, err error, errMsg string)
 	HandleJobSucceeded(annotations map[string]string, labels map[string]string)
 }
 
 type QueueItem struct {
-	Type      ResouceType
+	Type      ActionType
 	Namespace string
 	Name      string
 	GVR       *schema.GroupVersionResource
 }
 
+type CRDItem struct {
+	endTime time.Time
+	traceID string
+}
+
 type CRDMonitor struct {
-	namespaces map[string]bool
-	mu         sync.RWMutex
+	nsItemMap map[string]*CRDItem
+	mu        sync.RWMutex
 }
 
 func newCRDMonitor(initialNamespaces []string) *CRDMonitor {
-	nsMap := make(map[string]bool, len(initialNamespaces))
+	nsItemMap := make(map[string]*CRDItem, len(initialNamespaces))
 	for _, namespace := range initialNamespaces {
-		nsMap[namespace] = false
+		nsItemMap[namespace] = &CRDItem{
+			endTime: time.Now(),
+			traceID: "",
+		}
 	}
 
 	return &CRDMonitor{
-		namespaces: nsMap,
-		mu:         sync.RWMutex{},
+		nsItemMap: nsItemMap,
+		mu:        sync.RWMutex{},
 	}
 }
 
-func (m *CRDMonitor) checkCRDInNamespace(namespace string) bool {
+func (m *CRDMonitor) checkNamespaceToInject(namespace string, executeTime time.Time, traceID string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	hasCRD, exists := m.namespaces[namespace]
-	return exists && hasCRD
+	if item, exists := m.nsItemMap[namespace]; exists {
+		return item.endTime.After(executeTime) && item.traceID == traceID
+	}
+
+	return false
 }
 
-func (m *CRDMonitor) setStatus(namespace string, hasCRD bool) {
+func (m *CRDMonitor) getNamespaceToInject(endTime time.Time, traceID string) string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if _, exists := m.namespaces[namespace]; exists {
-		m.namespaces[namespace] = hasCRD
+	nowTime := time.Now()
+	for ns, item := range m.nsItemMap {
+		if item.endTime.Before(nowTime) {
+			logrus.WithFields(
+				logrus.Fields{
+					"namespace": ns,
+					"trace_id":  traceID,
+				},
+			).Info("acquire namespace lock")
+			item.endTime = endTime
+			item.traceID = traceID
+			return ns
+		}
+	}
+
+	return ""
+}
+
+func (m *CRDMonitor) setTime(namespace string, endTime time.Time, traceID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if item, exists := m.nsItemMap[namespace]; exists {
+		logrus.WithField("namespace", namespace).Info("release namespace lock")
+		item.endTime = endTime
+		item.traceID = traceID
 	}
 }
 
@@ -128,14 +164,10 @@ func newObMonitor(initialNamespaces []string, podNamespaceListers map[string]cor
 }
 
 func (o *ObMonitor) checkNamespaceStatus(namespace string) bool {
-	o.mu.Lock()
-	defer o.mu.Unlock()
+	o.mu.RLock()
+	defer o.mu.RUnlock()
 
 	return o.namespaceStatus[namespace]
-}
-
-func (o *ObMonitor) setCallback(c Callback) {
-	o.callback = c
 }
 
 func (o *ObMonitor) setNamespaceStatus() {
@@ -158,24 +190,29 @@ func (o *ObMonitor) setNamespaceStatus() {
 			podNum++
 		}
 
+		// 一次性获取需要的信息，减少锁操作
+		o.mu.RLock()
 		desiredNum := o.desiredPodNums[namespace]
+		currentStatus := o.namespaceStatus[namespace]
+		o.mu.RUnlock()
+
 		allRunning := podNum == desiredNum
 
-		o.mu.Lock()
-		defer o.mu.Unlock()
+		if currentStatus != allRunning {
+			o.mu.Lock()
+			if o.namespaceStatus[namespace] != allRunning {
+				o.namespaceStatus[namespace] = allRunning
+				logEntry.Infof("Namespace status changed to %v (running pods: %d/%d)",
+					allRunning, podNum, desiredNum)
+			}
 
-		wasReady := o.namespaceStatus[namespace]
-		if !wasReady && allRunning {
-			o.namespaceStatus[namespace] = true
-		}
-
-		if wasReady && !allRunning {
-			o.namespaceStatus[namespace] = false
+			o.mu.Unlock()
 		}
 	}
 }
 
 type Controller struct {
+	callback     Callback
 	obInformers  map[string]cache.SharedIndexInformer
 	obMonitor    *ObMonitor
 	crdInformers map[string]map[schema.GroupVersionResource]cache.SharedIndexInformer
@@ -248,16 +285,28 @@ func NewController() *Controller {
 	}
 }
 
-func (c *Controller) CheckCRDInNamespace(namespace string) bool {
-	return c.obMonitor.checkNamespaceStatus(namespace) && c.crdMonitor.checkCRDInNamespace(namespace)
+func (c *Controller) CheckNamespaceRestartStatus(namespace string) bool {
+	return c.obMonitor.checkNamespaceStatus(namespace)
+}
+
+func (c *Controller) CheckNamespaceToInject(namespace string, executeTime time.Time, traceID string) bool {
+	return c.crdMonitor.checkNamespaceToInject(namespace, executeTime, traceID)
+}
+
+func (c *Controller) AcquireLock(endTime time.Time, traceID string) string {
+	return c.crdMonitor.getNamespaceToInject(endTime, traceID)
+}
+
+func (c *Controller) ReleaseLock(namespace string) {
+	c.crdMonitor.setTime(namespace, time.Now(), "")
 }
 
 func (c *Controller) Run(ctx context.Context, callback Callback) {
 	defer runtime.HandleCrash()
 	defer c.queue.ShutDown()
 
-	c.obMonitor.setCallback(callback)
-	c.registerEventHandlers(callback)
+	c.callback = callback
+	c.registerEventHandlers()
 
 	logrus.Info("Starting informer controller")
 	for _, informer := range c.obInformers {
@@ -298,7 +347,7 @@ func (c *Controller) Run(ctx context.Context, callback Callback) {
 	logrus.Info("Stopping informer controller...")
 }
 
-func (c *Controller) registerEventHandlers(callback Callback) {
+func (c *Controller) registerEventHandlers() {
 	for namespace, informer := range c.obInformers {
 		if _, err := informer.AddEventHandler(c.genObEventHandlerFuncs()); err != nil {
 			logrus.WithFields(logrus.Fields{
@@ -310,7 +359,7 @@ func (c *Controller) registerEventHandlers(callback Callback) {
 
 	for _, gvrInformers := range c.crdInformers {
 		for gvr, informer := range gvrInformers {
-			if _, err := informer.AddEventHandler(c.genCRDEventHandlerFuncs(gvr, callback)); err != nil {
+			if _, err := informer.AddEventHandler(c.genCRDEventHandlerFuncs(gvr)); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"gvr":  gvr.Resource,
 					"func": "genCRDEventHandlerFuncs",
@@ -320,7 +369,7 @@ func (c *Controller) registerEventHandlers(callback Callback) {
 		}
 	}
 
-	if _, err := c.jobInformer.AddEventHandler(c.genJobEventHandlerFuncs(callback)); err != nil {
+	if _, err := c.jobInformer.AddEventHandler(c.genJobEventHandlerFuncs()); err != nil {
 		logrus.WithField("func", "genJobEventHandlerFuncs").Error("failed to add event handler")
 		return
 	}
@@ -337,12 +386,11 @@ func (c *Controller) genObEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 	}
 }
 
-func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, callback Callback) cache.ResourceEventHandlerFuncs {
+func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
 			u := obj.(*unstructured.Unstructured)
-			c.crdMonitor.setStatus(u.GetNamespace(), true)
-			callback.HandleCRDAdd(u.GetAnnotations(), u.GetLabels())
+			c.callback.HandleCRDAdd(u.GetAnnotations(), u.GetLabels())
 			logrus.WithFields(logrus.Fields{
 				"type":      gvr.Resource,
 				"namespace": u.GetNamespace(),
@@ -353,49 +401,29 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 			oldU := oldObj.(*unstructured.Unstructured)
 			newU := newObj.(*unstructured.Unstructured)
 
-			if callback != nil && oldU.GetName() == newU.GetName() {
+			if oldU.GetName() == newU.GetName() {
 				logEntry := logrus.WithFields(logrus.Fields{
 					"type":      gvr.Resource,
 					"namespace": newU.GetNamespace(),
 					"name":      newU.GetName(),
 				})
 
-				annotations, _, _ := unstructured.NestedStringMap(newU.Object, "metadata", "annotations")
-				labels, _, _ := unstructured.NestedStringMap(newU.Object, "metadata", "labels")
-
 				oldPhase, _, _ := unstructured.NestedString(oldU.Object, "status", "experiment", "desiredPhase")
 				newPhase, _, _ := unstructured.NestedString(newU.Object, "status", "experiment", "desiredPhase")
 				if oldPhase == "Run" && newPhase == "Stop" {
 					conditions, _, _ := unstructured.NestedSlice(newU.Object, "status", "conditions")
 
-					var message string
 					selected := getCRDConditionStatus(conditions, "Selected")
 					if !selected {
-						message = "failed to select app in the chaos experiment"
-						callback.HandleCRDFailed(newU.GetName(), message, annotations, labels)
-						if !config.GetBool("debugging.enable") {
-							c.queue.Add(QueueItem{
-								Type:      CRDResourceType,
-								Namespace: newU.GetNamespace(),
-								Name:      newU.GetName(),
-								GVR:       &gvr,
-							})
-						}
+						c.handleCRDFailed(gvr, newU, nil, "failed to select app in the chaos experiment")
+						return
 					}
 
 					// 会花费 duration 的时间去尝试注入
 					allInjected := getCRDConditionStatus(conditions, "AllInjected")
 					if !allInjected {
-						message = "failed to inject all targets in the chaos experiment"
-						callback.HandleCRDFailed(newU.GetName(), message, annotations, labels)
-						if !config.GetBool("debugging.enable") {
-							c.queue.Add(QueueItem{
-								Type:      CRDResourceType,
-								Namespace: newU.GetNamespace(),
-								Name:      newU.GetName(),
-								GVR:       &gvr,
-							})
-						}
+						c.handleCRDFailed(gvr, newU, nil, "failed to inject all targets in the chaos experiment")
+						return
 					}
 				}
 
@@ -413,60 +441,24 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 					re := regexp.MustCompile(pattern)
 					match := re.FindStringSubmatch(durationStr)
 					if len(match) <= 1 {
-						message := "failed to get the duration"
-						callback.HandleCRDFailed(newU.GetName(), message, annotations, labels)
+						c.handleCRDFailed(gvr, newU, nil, "failed to get the duration")
 						return
 					}
 
 					duration, err := strconv.Atoi(match[1])
 					if err != nil {
-						message := "failed to get the duration of the chaos experiement"
-						callback.HandleCRDFailed(newU.GetName(), message, annotations, labels)
+						c.handleCRDFailed(gvr, newU, nil, "failed to get the duration of the chaos experiement")
 						return
 					}
 
 					// 计时协程去判断是否恢复成功
 					if duration > 0 {
-						go func(namespace, name string, injectDuration int) {
-							timer := time.NewTimer(60 * time.Duration(injectDuration) * time.Second)
-							<-timer.C
-
-							obj, err := k8sDynamicClient.Resource(gvr).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
-							if err != nil {
-								if errors.IsNotFound(err) {
-									logEntry.Info("the chaos experiment has been deleted")
-									return
-								}
-
-								message := "failed to get the CRD resource object"
-								callback.HandleCRDFailed(newU.GetName(), message, annotations, labels)
-								if !config.GetBool("debugging.enable") {
-									c.queue.Add(QueueItem{
-										Type:      CRDResourceType,
-										Namespace: newU.GetNamespace(),
-										Name:      newU.GetName(),
-										GVR:       &gvr,
-									})
-								}
-							}
-
-							conditions, _, _ := unstructured.NestedSlice(obj.Object, "status", "conditions")
-							recovered := getCRDConditionStatus(conditions, "AllRecovered")
-
-							if !recovered {
-								message := "faied to recover all targets in the chaos experiment"
-								callback.HandleCRDFailed(newU.GetName(), message, annotations, labels)
-								if !config.GetBool("debugging.enable") {
-									c.queue.Add(QueueItem{
-										Type:      CRDResourceType,
-										Namespace: newU.GetNamespace(),
-										Name:      newU.GetName(),
-										GVR:       &gvr,
-									})
-								}
-							}
-
-						}(newU.GetNamespace(), newU.GetName(), duration)
+						c.queue.AddAfter(QueueItem{
+							Type:      "CheckRecovery",
+							Namespace: newU.GetNamespace(),
+							Name:      newU.GetName(),
+							GVR:       &gvr,
+						}, time.Duration(duration)*time.Minute)
 					}
 				}
 
@@ -475,34 +467,22 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 				if !oldAllRecovered && newAllRecovered {
 					logEntry.Infof("all targets recoverd in the chaos experiment")
 
-					pod, _, _ := unstructured.NestedString(newU.Object, "spec", "selector", "labelSelectors", "app")
-
-					chaosGVRMapping := make(map[string]schema.GroupVersionResource)
-					for gvr, obj := range chaosCli.GetCRDMapping() {
-						chaosGVRMapping[utils.GetTypeName(obj)] = gvr
-					}
-
-					kind := newU.GetKind()
-					gvr, ok := chaosGVRMapping[kind]
-					if !ok {
-						message := "failed to get the CRD resource gvr"
-						callback.HandleCRDFailed(newU.GetName(), message, annotations, labels)
-						return
-					}
-
 					newRecords, _, _ := unstructured.NestedSlice(newU.Object, "status", "experiment", "containerRecords")
 					timeRanges := getCRDEventTimeRanges(newRecords)
 					if len(timeRanges) == 0 {
-						message := "failed to get the start_time and end_time"
-						callback.HandleCRDFailed(newU.GetName(), message, annotations, labels)
+						c.handleCRDFailed(gvr, newU, nil, "failed to get the start_time and end_time")
 						return
 					}
 
+					pod, _, _ := unstructured.NestedString(newU.Object, "spec", "selector", "labelSelectors", "app")
+					annotations, _, _ := unstructured.NestedStringMap(newU.Object, "metadata", "annotations")
+					labels, _, _ := unstructured.NestedStringMap(newU.Object, "metadata", "labels")
+
 					timeRange := timeRanges[0]
-					callback.HandleCRDSucceeded(newU.GetNamespace(), pod, newU.GetName(), timeRange.Start, timeRange.End, annotations, labels)
+					c.callback.HandleCRDSucceeded(newU.GetNamespace(), pod, newU.GetName(), timeRange.Start, timeRange.End, annotations, labels)
 					if !config.GetBool("debugging.enable") {
 						c.queue.Add(QueueItem{
-							Type:      CRDResourceType,
+							Type:      DeleteCRD,
 							Namespace: newU.GetNamespace(),
 							Name:      newU.GetName(),
 							GVR:       &gvr,
@@ -518,33 +498,37 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource, ca
 				"namespace": u.GetNamespace(),
 				"name":      u.GetName(),
 			}).Info("Chaos experiment deleted successfully")
-			c.crdMonitor.setStatus(u.GetNamespace(), false)
+			c.ReleaseLock(u.GetNamespace())
 		},
 	}
 }
 
-func (c *Controller) genJobEventHandlerFuncs(callback Callback) cache.ResourceEventHandlerFuncs {
+func (c *Controller) genJobEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
 			job := obj.(*batchv1.Job)
-			logrus.WithField("namespace", job.Namespace).WithField("job_name", job.Name).Info("job created successfully")
-			callback.HandleJobAdd(job.Annotations, job.Labels)
+			logrus.WithFields(logrus.Fields{
+				"namespace": job.Namespace,
+				"job_name":  job.Name,
+				"task_type": job.Labels[consts.LabelTaskType],
+			}).Info("job created successfully")
+			c.callback.HandleJobAdd(job.Annotations, job.Labels)
 		},
 		UpdateFunc: func(oldObj, newObj any) {
 			oldJob := oldObj.(*batchv1.Job)
 			newJob := newObj.(*batchv1.Job)
 
-			if callback != nil && oldJob.Name == newJob.Name {
+			if oldJob.Name == newJob.Name {
 				if oldJob.Status.Failed == 0 && newJob.Status.Failed > 0 {
 					errorMsg := extractJobError(newJob)
-					callback.HandleJobFailed(newJob.Annotations, newJob.Labels, errorMsg)
+					c.callback.HandleJobFailed(newJob.Annotations, newJob.Labels, nil, errorMsg)
 				}
 
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {
-					callback.HandleJobSucceeded(newJob.Annotations, newJob.Labels)
+					c.callback.HandleJobSucceeded(newJob.Annotations, newJob.Labels)
 					if !config.GetBool("debugging.enable") {
 						c.queue.Add(QueueItem{
-							Type:      JobResourceType,
+							Type:      DeleteJob,
 							Namespace: newJob.Namespace,
 							Name:      newJob.Name,
 						})
@@ -554,7 +538,11 @@ func (c *Controller) genJobEventHandlerFuncs(callback Callback) cache.ResourceEv
 		},
 		DeleteFunc: func(obj any) {
 			job := obj.(*batchv1.Job)
-			logrus.WithField("namespace", job.Namespace).WithField("job_name", job.Name).Infof("job delete successfully")
+			logrus.WithFields(logrus.Fields{
+				"namespace": job.Namespace,
+				"job_name":  job.Name,
+				"task_type": job.Labels[consts.LabelTaskType],
+			}).Infof("job delete successfully")
 		},
 	}
 }
@@ -590,7 +578,7 @@ func (c *Controller) genPodEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 							handlePodError(newPod, job, reason)
 							if !config.GetBool("debugging.enable") {
 								c.queue.Add(QueueItem{
-									Type:      JobResourceType,
+									Type:      DeleteJob,
 									Namespace: job.Namespace,
 									Name:      job.Name,
 								})
@@ -626,17 +614,17 @@ func (c *Controller) processQueueItem() bool {
 
 	var err error
 	switch item.Type {
-	case CRDResourceType:
+	case CheckRecovery:
+		c.checkRecoveryStatus(item.GVR, item.Namespace, item.Name)
+	case DeleteCRD:
 		if item.GVR == nil {
 			logrus.Error("The groupVersionResource can not be nil")
 			c.queue.Forget(item)
 			return true
 		}
-		err = cleanFinalizers(context.Background(), *item.GVR, item.Namespace, item.Name)
-		if err == nil {
-			err = deleteCRD(context.Background(), *item.GVR, item.Namespace, item.Name)
-		}
-	case JobResourceType:
+
+		err = deleteCRD(context.Background(), item.GVR, item.Namespace, item.Name)
+	case DeleteJob:
 		err = deleteJob(context.Background(), item.Namespace, item.Name)
 	default:
 		logrus.Errorf("unknown resource type: %s", item.Type)
@@ -651,6 +639,48 @@ func (c *Controller) processQueueItem() bool {
 
 	c.queue.Forget(item)
 	return true
+}
+
+func (c *Controller) checkRecoveryStatus(gvr *schema.GroupVersionResource, namespace, name string) error {
+	// 实现与原异步goroutine相同的检查逻辑
+	obj, err := k8sDynamicClient.Resource(*gvr).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			logrus.Info("the chaos experiment has been deleted")
+			return nil
+		}
+		return fmt.Errorf("failed to get the CRD resource object: %w", err)
+	}
+
+	conditions, _, _ := unstructured.NestedSlice(obj.Object, "status", "conditions")
+	recovered := getCRDConditionStatus(conditions, "AllRecovered")
+
+	if !recovered {
+		c.handleCRDFailed(*gvr, obj, nil, "failed to recover all targets in the chaos experiment")
+	}
+
+	return nil
+}
+
+func (c *Controller) handleCRDFailed(gvr schema.GroupVersionResource, u *unstructured.Unstructured, err error, errMsg string) {
+	logrus.WithFields(logrus.Fields{
+		"type":      gvr.Resource,
+		"namespace": u.GetNamespace(),
+		"name":      u.GetName(),
+	}).Errorf("CRD failed: %s", errMsg)
+
+	annotations, _, _ := unstructured.NestedStringMap(u.Object, "metadata", "annotations")
+	labels, _, _ := unstructured.NestedStringMap(u.Object, "metadata", "labels")
+
+	c.callback.HandleCRDFailed(u.GetName(), annotations, labels, err, errMsg)
+	if !config.GetBool("debugging.enable") {
+		c.queue.Add(QueueItem{
+			Type:      DeleteCRD,
+			Namespace: u.GetNamespace(),
+			Name:      u.GetName(),
+			GVR:       &gvr,
+		})
+	}
 }
 
 func getCRDConditionStatus(conditions []any, conditionType string) bool {

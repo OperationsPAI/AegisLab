@@ -52,20 +52,20 @@ def check_clickhouse_health():
 
 def generate_metric(start_time, end_time) -> pd.DataFrame:
     query = f"""
-SELECT
-    TimeUnix,
-    MetricName,
-    MetricDescription,
-    Value,
-    ServiceName,
-    MetricUnit,
-    toJSONString(ResourceAttributes) AS ResourceAttributes,
-    toJSONString(Attributes) AS Attributes
-FROM
-    otel_metrics_gauge om
-WHERE
-    om.ResourceAttributes['k8s.namespace.name'] = '{namespace}'
-    AND om.TimeUnix BETWEEN '{start_time}' AND '{end_time}'
+    SELECT
+        TimeUnix,
+        MetricName,
+        MetricDescription,
+        Value,
+        ServiceName,
+        MetricUnit,
+        toJSONString(ResourceAttributes) AS ResourceAttributes,
+        toJSONString(Attributes) AS Attributes
+    FROM
+        otel_metrics_gauge om
+    WHERE
+        om.ResourceAttributes['k8s.namespace.name'] = '{namespace}'
+        AND om.TimeUnix BETWEEN '{start_time}' AND '{end_time}'
     """
 
     result = client.raw_query(query=query, fmt="CSVWithNames")

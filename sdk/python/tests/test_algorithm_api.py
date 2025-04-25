@@ -11,8 +11,8 @@ import pytest
         (
             [
                 {
-                    "image": "e-diagnose",
-                    "dataset": "ts-ts-rebook-service-pod-failure-xdqs9v",
+                    "image": "detector",
+                    "dataset": "ts2-ts-rebook-service-pod-failure-wdmq6x",
                 }
             ]
         ),

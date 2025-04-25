@@ -7,3 +7,4 @@
 [submodule "lib/train-ticket"]
 	path = lib/train-ticket
 	url = git@github.com:CUHK-SE-Group/train-ticket
+	branch = master

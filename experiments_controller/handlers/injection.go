@@ -181,22 +181,20 @@ func SubmitFaultInjection(c *gin.Context) {
 	traces := make([]dto.Trace, 0, len(configs))
 	for _, config := range configs {
 		payload := map[string]any{
-			consts.InjectBenchmark:   req.Benchmark,
-			consts.InjectFaultType:   config.FaultType,
-			consts.InjectPreDuration: req.PreDuration,
-			consts.InjectRawConf:     config.RawConf,
-			consts.InjectConf:        config.Conf,
-		}
-
-		taskType := consts.TaskTypeFaultInjection
-		if conf.GetBool("injection.restart_service") {
-			taskType = consts.TaskTypeRestartService
-			payload[consts.RestartInterval] = req.Interval
-			payload[consts.RestartExecutionTime] = config.ExecuteTime
+			consts.RestartIntarval:      req.Interval,
+			consts.RestartFaultDuration: config.FaultDuration,
+			consts.RestartInjectPayload: map[string]any{
+				consts.InjectBenchmark:   req.Benchmark,
+				consts.InjectFaultType:   config.FaultType,
+				consts.InjectPreDuration: req.PreDuration,
+				consts.InjectDisplayData: config.DisplayData,
+				consts.InjectConf:        config.Conf,
+				consts.InjectNode:        config.Node,
+			},
 		}
 
 		task := &executor.UnifiedTask{
-			Type:        taskType,
+			Type:        consts.TaskTypeRestartService,
 			Payload:     payload,
 			Immediate:   false,
 			ExecuteTime: config.ExecuteTime.Unix(),
@@ -224,17 +222,17 @@ func SubmitFaultInjection(c *gin.Context) {
 func getNewConfigs(configs []*dto.InjectionConfig, interval int) ([]*dto.InjectionConfig, error) {
 	intervalDuration := time.Duration(interval) * consts.DefaultTimeUnit
 
-	rawConfs := make([]string, 0, len(configs))
+	displayDatas := make([]string, 0, len(configs))
 	for _, config := range configs {
-		rawConfs = append(rawConfs, config.RawConf)
+		displayDatas = append(displayDatas, config.DisplayData)
 	}
 
-	missingIndices, err := findMissingIndices(rawConfs, 10)
+	missingIndices, err := findMissingIndices(displayDatas, 10)
 	if err != nil {
 		return nil, err
 	}
 
-	logrus.Infof("deduplicated %d configurations (remaining: %d)", len(rawConfs)-len(missingIndices), len(missingIndices))
+	logrus.Infof("deduplicated %d configurations (remaining: %d)", len(displayDatas)-len(missingIndices), len(missingIndices))
 
 	newConfigs := make([]*dto.InjectionConfig, 0, len(missingIndices))
 	for i, idx := range missingIndices {
@@ -254,7 +252,7 @@ func findMissingIndices(confs []string, batch_size int) ([]int, error) {
 		end := min(i+batch_size, len(confs))
 
 		batch := confs[i:end]
-		existingBatch, err := repository.FindExistingEngineConfigs(batch)
+		existingBatch, err := repository.FindExistingDisplayConfigs(batch)
 		if err != nil {
 			return nil, err
 		}

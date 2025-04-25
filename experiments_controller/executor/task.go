@@ -13,10 +13,10 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/dto"
-	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/redis/go-redis/v9"
 	"github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
@@ -32,8 +32,8 @@ const (
 	ReadyQueueKey      = "task:ready"
 	DeadLetterKey      = "task:dead"
 	TaskIndexKey       = "task:index"
-	GroupIndexKey      = "group:index"
 	ConcurrencyLockKey = "task:concurrency_lock"
+	LastBatchInfoKey   = "last_batch_info"
 	MaxConcurrency     = 20
 )
 
@@ -69,6 +69,12 @@ type UnifiedTask struct {
 type RetryPolicy struct {
 	MaxAttempts int `json:"max_attempts"`
 	BackoffSec  int `json:"backoff_sec"`
+}
+
+type LastBatchInfo struct {
+	ExecutionTime time.Time
+	Interval      int
+	Num           int
 }
 
 var (
@@ -140,7 +146,7 @@ func submitDelayedTask(ctx context.Context, task *UnifiedTask) error {
 	}
 
 	redisCli := client.GetRedisClient()
-	if err := redisCli.ZAdd(ctx, DelayedQueueKey, &redis.Z{
+	if err := redisCli.ZAdd(ctx, DelayedQueueKey, redis.Z{
 		Score:  float64(executeTime),
 		Member: taskData,
 	}).Err(); err != nil {
@@ -217,6 +223,7 @@ func ProcessDelayedTasks(ctx context.Context) {
 				handleCronRescheduleFailure(ctx, &task)
 				continue
 			}
+
 			task.ExecuteTime = nextTime.Unix()
 			if err := submitDelayedTask(ctx, &task); err != nil {
 				logrus.Errorf("failed to reschedule cron task %s: %v", task.TaskID, err)
@@ -228,7 +235,7 @@ func ProcessDelayedTasks(ctx context.Context) {
 
 func handleCronRescheduleFailure(ctx context.Context, task *UnifiedTask) {
 	taskData, _ := json.Marshal(task)
-	client.GetRedisClient().ZAdd(ctx, DeadLetterKey, &redis.Z{
+	client.GetRedisClient().ZAdd(ctx, DeadLetterKey, redis.Z{
 		Score:  float64(time.Now().Unix()),
 		Member: taskData,
 	})
@@ -358,15 +365,10 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 	}
 
 	tasksProcessed.WithLabelValues(string(task.Type), "failed").Inc()
-	handleFinalFailure(ctx, task)
 
-	updateTaskError(
-		nil,
-		task.TaskID,
-		task.TraceID,
-		task.Type,
-		fmt.Sprintf("Task failed after %d attempts: %v", task.RetryPolicy.MaxAttempts, err),
-	)
+	message := fmt.Sprintf("Task failed after %d attempts", task.RetryPolicy.MaxAttempts)
+	handleFinalFailure(ctx, task, message)
+	updateTaskError(nil, task.TaskID, task.TraceID, task.Type, err, message)
 }
 
 // 注册取消函数
@@ -383,17 +385,18 @@ func unregisterCancelFunc(taskID string) {
 	delete(taskCancelFuncs, taskID)
 }
 
-func handleFinalFailure(ctx context.Context, task *UnifiedTask) {
+func handleFinalFailure(ctx context.Context, task *UnifiedTask, errMsg string) {
 	deadLetterTime := time.Now().Add(time.Duration(task.RetryPolicy.BackoffSec) * time.Second).Unix()
 	redisCli := client.GetRedisClient()
 	taskData, _ := json.Marshal(task)
-	redisCli.ZAdd(ctx, DeadLetterKey, &redis.Z{
+	redisCli.ZAdd(ctx, DeadLetterKey, redis.Z{
 		Score:  float64(deadLetterTime),
 		Member: taskData,
 	})
 
 	span := trace.SpanFromContext(ctx)
-	span.SetStatus(codes.Error, fmt.Sprintf("failed to execute task %s", task.TaskID))
+	span.AddEvent(errMsg)
+	span.SetStatus(codes.Error, fmt.Sprintf(consts.SpanStatusDescription, task.TaskID, consts.TaskStatusError))
 	span.End()
 
 	logrus.WithField("task_id", task.TaskID).Errorf("failed after %d attempts", task.RetryPolicy.MaxAttempts)
@@ -530,24 +533,51 @@ func parseRdbMsgFromPayload(payload map[string]any) (*dto.RdbMsg, error) {
 		return nil, fmt.Errorf(message, consts.RdbMsgTaskType)
 	}
 
-	return &dto.RdbMsg{
+	rdbMsg := &dto.RdbMsg{
 		Status: status,
 		Type:   taskType,
-	}, nil
+	}
+	if status == consts.TaskStatusError {
+		errMsg, ok := payload[consts.RdbMsgErrMsg].(string)
+		if !ok || errMsg == "" {
+			return nil, fmt.Errorf(message, consts.RdbMsgErrMsg)
+		}
+
+		e, exists := payload[consts.RdbMsgErr]
+		if exists {
+			err, ok := e.(error)
+			if !ok {
+				return nil, fmt.Errorf(message, consts.RdbMsgErr)
+			}
+
+			rdbMsg.Error = fmt.Sprintf("%s: %v", errMsg, err)
+		} else {
+			rdbMsg.Error = errMsg
+		}
+
+	}
+
+	return rdbMsg, nil
 }
 
-func updateTaskError(taskCarrier propagation.MapCarrier, taskID, traceID string, taskType consts.TaskType, errMsg string) {
+func updateTaskError(taskCarrier propagation.MapCarrier, taskID, traceID string, taskType consts.TaskType, err error, errMsg string) {
+	fields := map[string]any{
+		consts.RdbMsgStatus:   consts.TaskStatusError,
+		consts.RdbMsgTaskID:   taskID,
+		consts.RdbMsgTaskType: taskType,
+		consts.RdbMsgErrMsg:   errMsg,
+	}
+	if err != nil {
+		fields[consts.RdbMsgErr] = err
+	}
+
 	updateTaskStatus(
 		taskCarrier,
 		taskID,
 		traceID,
 		fmt.Sprintf(consts.TaskMsgFailed, taskID),
-		map[string]any{
-			consts.RdbMsgStatus:   consts.TaskStatusError,
-			consts.RdbMsgTaskID:   taskID,
-			consts.RdbMsgTaskType: taskType,
-			consts.RdbMsgError:    errMsg,
-		})
+		fields,
+	)
 }
 
 // 事务型状态更新
@@ -560,36 +590,27 @@ func updateTaskStatus(taskCarrier propagation.MapCarrier, taskID, traceID, messa
 
 	ctx := context.Background()
 
-	// Redis事务
-	redisCli := client.GetRedisClient()
-	pipe := redisCli.TxPipeline()
-	pipe.HSet(ctx, fmt.Sprintf(consts.StatusKey, taskID),
-		"status", rdbMsg.Status,
-		"updated_at", time.Now().Unix(),
-	)
-	if _, err := pipe.Exec(ctx); err != nil {
-		logrus.WithField("task_id", taskID).Errorf("failed to update task status in redis: %v", err)
-		return
-	}
-
 	// 数据库事务
 	tx := database.DB.WithContext(ctx).Begin()
 	if err := tx.Model(&database.Task{}).
 		Where("id = ?", taskID).
 		Update("status", rdbMsg.Status).Error; err != nil {
 		tx.Rollback()
+		logrus.WithField("task_id", taskID).Errorf("failed to update database: %v", err)
 		return
 	}
 	tx.Commit()
 
+	delete(payload, consts.RdbMsgErr)
 	msg, err := json.Marshal(payload)
 	if err != nil {
 		logrus.WithField("task_id", taskID).Errorf("failed to marshal payload: %v", err)
 		return
 	}
 
-	redisCli.Publish(ctx, fmt.Sprintf(consts.SubChannel, traceID), msg)
+	client.GetRedisClient().Publish(ctx, fmt.Sprintf(consts.SubChannel, traceID), msg)
 
+	// 记录到 jaeger 中
 	if taskCarrier != nil {
 		taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), taskCarrier)
 		// 处理TaskCtx
@@ -599,15 +620,17 @@ func updateTaskStatus(taskCarrier propagation.MapCarrier, taskID, traceID, messa
 		))
 		defer span.End()
 
-		span.AddEvent(message)
-		description := fmt.Sprintf("task %s %s", taskID, rdbMsg.Status)
+		description := fmt.Sprintf(consts.SpanStatusDescription, taskID, rdbMsg.Status)
 		if rdbMsg.Status == consts.TaskStatusCompleted {
 			span.SetStatus(codes.Ok, description)
 		}
 
 		if rdbMsg.Status == consts.TaskStatusError {
+			span.AddEvent(rdbMsg.Error)
 			span.SetStatus(codes.Error, description)
 		}
+
+		span.AddEvent(message)
 	}
 }
 
@@ -628,33 +651,26 @@ func cronNextTime(expr string) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, err
 	}
+
 	return schedule.Next(time.Now()), nil
 }
 
-func AddGroupIndex(ctx context.Context, groupID, traceID string) {
+func getRedisTraceItem(ctx context.Context, traceID, field string) (string, error) {
 	redisCli := client.GetRedisClient()
-
-	pipe := redisCli.TxPipeline()
-	pipe.HSet(ctx, GroupIndexKey, groupID, traceID)
-
-	if _, err := pipe.Exec(ctx); err != nil {
-		logrus.WithFields(logrus.Fields{
-			"group_id": groupID,
-			"trace_id": traceID,
-		}).Error("failed to build index")
+	result, err := redisCli.HGet(ctx, fmt.Sprintf(consts.RdbTraceItemKey, traceID), field).Result()
+	if err != nil {
+		return "", err
 	}
+
+	return result, nil
 }
 
-func getFinalTraceIndex(ctx context.Context, groupID string) string {
-	redisCli := client.GetRedisClient()
-
-	taskID, err := redisCli.HGet(ctx, GroupIndexKey, groupID).Result()
-	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"group_id": groupID,
-		}).Errorf("the group ID %s is not in dataset index: %v", groupID, err)
-		return ""
+func setRedisTraceItem(ctx context.Context, traceID string, item map[string]any) error {
+	pipe := client.GetRedisClient().TxPipeline()
+	pipe.HSet(ctx, fmt.Sprintf(consts.RdbTraceItemKey, traceID), item)
+	if _, err := pipe.Exec(ctx); err != nil {
+		return err
 	}
 
-	return taskID
+	return nil
 }

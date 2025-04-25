@@ -15,7 +15,7 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/repository"
 )
 
-type DatasetPayload struct {
+type datasetPayload struct {
 	Benchmark   string
 	Name        string
 	PreDuration int
@@ -41,7 +41,7 @@ func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
 		return fmt.Errorf("failed to get lataset tag of %s: %v", imageName, err)
 	}
 
-	jobName := fmt.Sprintf("%s-%s", consts.DatasetJobName, payload.Name)
+	jobName := task.TaskID
 	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), imageName, tag)
 	labels := map[string]string{
 		consts.LabelTaskID:   task.TaskID,
@@ -55,7 +55,7 @@ func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
 	return createDatasetJob(ctx, jobName, image, annotations, labels, payload)
 }
 
-func parseDatasetPayload(payload map[string]any) (*DatasetPayload, error) {
+func parseDatasetPayload(payload map[string]any) (*datasetPayload, error) {
 	message := "missing or invalid '%s' key in payload"
 
 	benchmark, ok := payload[consts.BuildBenchmark].(string)
@@ -101,7 +101,7 @@ func parseDatasetPayload(payload map[string]any) (*DatasetPayload, error) {
 		endTime = datasetItem.EndTime
 	}
 
-	datasetPayload := &DatasetPayload{
+	result := datasetPayload{
 		Benchmark:   benchmark,
 		Name:        name,
 		PreDuration: preDuration,
@@ -118,10 +118,10 @@ func parseDatasetPayload(payload map[string]any) (*DatasetPayload, error) {
 			envVars[key] = strValue
 		}
 
-		datasetPayload.EnvVars = envVars
+		result.EnvVars = envVars
 	}
 
-	return datasetPayload, nil
+	return &result, nil
 }
 
 func parseTimePtrFromPayload(payload map[string]any, key string) (*time.Time, error) {
@@ -138,7 +138,7 @@ func parseTimePtrFromPayload(payload map[string]any, key string) (*time.Time, er
 	return &t, nil
 }
 
-func createDatasetJob(ctx context.Context, jobName, image string, annotations map[string]string, labels map[string]string, payload *DatasetPayload) error {
+func createDatasetJob(ctx context.Context, jobName, image string, annotations map[string]string, labels map[string]string, payload *datasetPayload) error {
 	restartPolicy := corev1.RestartPolicyNever
 	backoffLimit := int32(2)
 	parallelism := int32(1)
@@ -162,7 +162,7 @@ func createDatasetJob(ctx context.Context, jobName, image string, annotations ma
 	})
 }
 
-func getDatasetJobEnvVars(payload *DatasetPayload) []corev1.EnvVar {
+func getDatasetJobEnvVars(payload *datasetPayload) []corev1.EnvVar {
 	tz := config.GetString("system.timezone")
 	if tz == "" {
 		tz = "Asia/Shanghai"
