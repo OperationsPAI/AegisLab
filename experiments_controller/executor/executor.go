@@ -67,7 +67,7 @@ func (e *Executor) HandleCRDAdd(annotations map[string]string, labels map[string
 		})
 }
 
-func (e *Executor) HandleCRDFailed(name, errorMsg string, annotations map[string]string, labels map[string]string) {
+func (e *Executor) HandleCRDFailed(name string, annotations map[string]string, labels map[string]string, err error, errMsg string) {
 	parsedAnnotations, _ := parseAnnotations(annotations)
 	parsedLabels, _ := parseCRDLabels(labels)
 
@@ -76,7 +76,8 @@ func (e *Executor) HandleCRDFailed(name, errorMsg string, annotations map[string
 		parsedLabels.TaskID,
 		parsedLabels.TraceID,
 		consts.TaskTypeFaultInjection,
-		errorMsg,
+		err,
+		errMsg,
 	)
 }
 
@@ -95,6 +96,7 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 			parsedLabels.TaskID,
 			parsedLabels.TraceID,
 			consts.TaskTypeFaultInjection,
+			err,
 			"update execution times failed",
 		)
 
@@ -169,7 +171,7 @@ func (e *Executor) HandleJobAdd(annotations map[string]string, labels map[string
 		})
 }
 
-func (e *Executor) HandleJobFailed(annotations map[string]string, labels map[string]string, errorMsg string) {
+func (e *Executor) HandleJobFailed(annotations map[string]string, labels map[string]string, err error, errMsg string) {
 	parsedAnnotations, _ := parseAnnotations(annotations)
 	taskOptions, _ := parseTaskOptions(labels)
 
@@ -181,13 +183,14 @@ func (e *Executor) HandleJobFailed(annotations map[string]string, labels map[str
 	if taskOptions.Type == consts.TaskTypeBuildDataset {
 		options, _ := parseDatasetOptions(labels)
 
-		logEntry.WithField("dataset", options.Dataset).Errorf("dataset build failed: %v", errorMsg)
+		logEntry.WithField("dataset", options.Dataset).Errorf("dataset build failed: %v", errMsg)
 
 		fields := map[string]any{
 			consts.RdbMsgStatus:   consts.TaskStatusError,
 			consts.RdbMsgTaskID:   taskOptions.TaskID,
 			consts.RdbMsgTaskType: taskOptions.Type,
-			consts.RdbMsgError:    errorMsg,
+			consts.RdbMsgErr:      err,
+			consts.RdbMsgErrMsg:   errMsg,
 		}
 
 		if err := e.updateDataset(parsedAnnotations, taskOptions, options, consts.TaskStatusError, consts.DatasetBuildFailed, fields); err != nil {
@@ -196,6 +199,7 @@ func (e *Executor) HandleJobFailed(annotations map[string]string, labels map[str
 				taskOptions.TaskID,
 				taskOptions.TraceID,
 				taskOptions.Type,
+				err,
 				"failed to udpate dataset",
 			)
 			return
@@ -228,6 +232,7 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 				taskOptions.TaskID,
 				taskOptions.TraceID,
 				taskOptions.Type,
+				err,
 				"failed to udpate algorithm",
 			)
 			return
@@ -243,6 +248,7 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 				taskOptions.TaskID,
 				taskOptions.TraceID,
 				taskOptions.Type,
+				err,
 				"failed to udpate dataset",
 			)
 			return
@@ -256,7 +262,7 @@ func (e *Executor) updateDataset(annotations *Annotations, taskOptions *TaskOpti
 			annotations.TaskCarrier,
 			taskOptions.TaskID,
 			taskOptions.TraceID,
-			fmt.Sprintf("[%s] %s", taskStatus, taskOptions.TaskID),
+			fmt.Sprintf(consts.TaskMsgFailed, taskOptions.TaskID),
 			fields,
 		)
 	} else {

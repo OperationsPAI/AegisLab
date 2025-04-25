@@ -24,7 +24,7 @@ def test_list_injections(sdk, page_num, page_size):
         # PodFailure-dev
         (
             "clickhouse",
-            5,
+            4,
             1,
             [
                 {
@@ -38,7 +38,43 @@ def test_list_injections(sdk, page_num, page_size):
                         },
                     },
                     "value": 1,
-                }
+                },
+                {
+                    "children": {
+                        "1": {
+                            "children": {
+                                "0": {"value": 1},
+                                "1": {"value": 0},
+                                "2": {"value": 42},
+                            }
+                        },
+                    },
+                    "value": 1,
+                },
+                {
+                    "children": {
+                        "1": {
+                            "children": {
+                                "0": {"value": 1},
+                                "1": {"value": 0},
+                                "2": {"value": 25},
+                            }
+                        },
+                    },
+                    "value": 1,
+                },
+                {
+                    "children": {
+                        "1": {
+                            "children": {
+                                "0": {"value": 1},
+                                "1": {"value": 0},
+                                "2": {"value": 13},
+                            }
+                        },
+                    },
+                    "value": 1,
+                },
             ],
         ),
         # CPUStress-prod
