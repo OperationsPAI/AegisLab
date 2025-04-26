@@ -61,7 +61,7 @@ configmap:
     username: "admin"
     password: "Harbor12345"
   k8s:
-    namespace: "experiment"
+    namespace: "exp"
   nfs:
     path: "/var/lib/rcabench"
     pvc_name: "nfs-shared-pvc"

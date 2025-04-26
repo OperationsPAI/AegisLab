@@ -1,6 +1,6 @@
 # Global Variables
 DEFAULT_REPO ?= 10.10.10.240/library
-NS           ?= experiment
+NS           ?= exp
 CHAOS_TYPES  ?= dnschaos httpchaos jvmchaos networkchaos podchaos stresschaos timechaos
 TS_NS ?= "ts"
 PORT ?= "30080"
