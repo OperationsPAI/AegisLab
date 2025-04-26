@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/CUHK-SE-Group/rcabench/client"
@@ -27,19 +28,26 @@ type datasetPayload struct {
 
 func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
+		span := trace.SpanFromContext(ctx)
 		payload, err := parseDatasetPayload(task.Payload)
 		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to parse dataset payload")
 			return err
 		}
 
 		annotations, err := getAnnotations(ctx, task)
 		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to get annotations")
 			return err
 		}
 
 		imageName := fmt.Sprintf("%s_dataset", payload.Benchmark)
 		tag, err := client.GetHarborClient().GetLatestTag(imageName)
 		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to get latest tag")
 			return fmt.Errorf("failed to get lataest tag of %s: %v", imageName, err)
 		}
 

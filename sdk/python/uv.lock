@@ -627,7 +627,7 @@ wheels = [
 
 [[package]]
 name = "rcabench"
-version = "0.3.3"
+version = "0.3.18"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },

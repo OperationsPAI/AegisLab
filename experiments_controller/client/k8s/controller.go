@@ -623,8 +623,12 @@ func (c *Controller) processQueueItem() bool {
 		}
 
 		err = deleteCRD(context.Background(), item.GVR, item.Namespace, item.Name)
+		logrus.Infof("deleting CRD, ns: %s, name: %s", item.Namespace, item.Name)
+
 	case DeleteJob:
 		err = deleteJob(context.Background(), item.Namespace, item.Name)
+		logrus.Infof("deleting job, ns: %s, name: %s", item.Namespace, item.Name)
+
 	default:
 		logrus.Errorf("unknown resource type: %s", item.Type)
 		return true
