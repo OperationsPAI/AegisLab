@@ -191,7 +191,7 @@ spec:
           secret:
             secretName: kube-config
             items:
-              - key: kubeconfig
+              - key: config
                 path: config
         - name: data
           persistentVolumeClaim:
@@ -281,7 +281,7 @@ spec:
           secret:
             secretName: kube-config
             items:
-              - key: kubeconfig
+              - key: config
                 path: config
         - name: data
           persistentVolumeClaim:
@@ -350,7 +350,7 @@ spec:
           secret:
             secretName: kube-config
             items:
-              - key: kubeconfig
+              - key: config
                 path: config
         - name: data
           persistentVolumeClaim:
