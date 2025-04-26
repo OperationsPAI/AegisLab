@@ -45,13 +45,12 @@ type timeRange struct {
 	End   time.Time
 }
 
-// 接口避免循环引用
 type Callback interface {
 	HandleCRDAdd(annotations map[string]string, labels map[string]string)
 	HandleCRDFailed(name string, annotations map[string]string, labels map[string]string, err error, errMsg string)
 	HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, annotations map[string]string, labels map[string]string)
 	HandleJobAdd(annotations map[string]string, labels map[string]string)
-	HandleJobFailed(annotations map[string]string, labels map[string]string, err error, errMsg string)
+	HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string, err error, errMsg string)
 	HandleJobSucceeded(annotations map[string]string, labels map[string]string)
 }
 
@@ -521,7 +520,7 @@ func (c *Controller) genJobEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 			if oldJob.Name == newJob.Name {
 				if oldJob.Status.Failed == 0 && newJob.Status.Failed > 0 {
 					errorMsg := extractJobError(newJob)
-					c.callback.HandleJobFailed(newJob.Annotations, newJob.Labels, nil, errorMsg)
+					c.callback.HandleJobFailed(newJob, newJob.Annotations, newJob.Labels, nil, errorMsg)
 				}
 
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {

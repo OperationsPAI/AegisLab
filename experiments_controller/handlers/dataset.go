@@ -12,14 +12,13 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
+	"github.com/CUHK-SE-Group/rcabench/middleware"
 	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // DeleteDataset
@@ -357,6 +356,13 @@ func SubmitDatasetBuilding(c *gin.Context) {
 		return
 	}
 
+	ctx, ok := c.Get(middleware.SpanContextKey)
+	if !ok {
+		logrus.Error("failed to get span context from gin.Context")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get span context")
+		return
+	}
+	spanCtx := ctx.(context.Context)
 	for i := range payloads {
 		for key := range payloads[i].EnvVars {
 			if _, exists := dto.BuildEnvVarNameMap[key]; !exists {
@@ -368,11 +374,6 @@ func SubmitDatasetBuilding(c *gin.Context) {
 		}
 	}
 
-	ctx, span := otel.Tracer("rcabench/group").Start(context.Background(), "produce group", trace.WithAttributes(
-		attribute.String("group_id", groupID),
-	))
-	defer span.End()
-
 	traces := make([]dto.Trace, 0, len(payloads))
 	for idx, payload := range payloads {
 		task := &executor.UnifiedTask{
@@ -382,7 +383,7 @@ func SubmitDatasetBuilding(c *gin.Context) {
 			GroupID:   groupID,
 		}
 		task.GroupCarrier = make(propagation.MapCarrier)
-		otel.GetTextMapPropagator().Inject(ctx, task.GroupCarrier)
+		otel.GetTextMapPropagator().Inject(spanCtx, task.GroupCarrier)
 
 		taskID, traceID, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
 			Type:      consts.TaskTypeBuildDataset,

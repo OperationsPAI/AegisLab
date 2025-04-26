@@ -11,6 +11,7 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/repository"
+	"github.com/CUHK-SE-Group/rcabench/tracing"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -22,46 +23,48 @@ type executionPayload struct {
 }
 
 func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
-	payload, err := parseExecutionPayload(task.Payload)
-	if err != nil {
-		return err
-	}
-
-	annotations, err := getAnnotations(ctx, task)
-	if err != nil {
-		return err
-	}
-
-	record, err := repository.GetDatasetByName(payload.Dataset, consts.DatasetBuildSuccess)
-	if err != nil {
-		return fmt.Errorf("failed to query database for dataset %s: %v", payload.Dataset, err)
-	}
-
-	algorithm := payload.Image
-	if payload.EnvVars != nil {
-		if algo, ok := payload.EnvVars[consts.ExecuteEnvVarAlgorithm]; ok {
-			algorithm = algo
+	return tracing.WithSpan(ctx, func(ctx context.Context) error {
+		payload, err := parseExecutionPayload(task.Payload)
+		if err != nil {
+			return err
 		}
-	}
 
-	executionID, err := repository.CreateExecutionResult(algorithm, task.TaskID, record.ID)
-	if err != nil {
-		return fmt.Errorf("failed to create execution result: %v", err)
-	}
+		annotations, err := getAnnotations(ctx, task)
+		if err != nil {
+			return err
+		}
 
-	jobName := task.TaskID
-	image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), payload.Image, payload.Tag)
-	labels := map[string]string{
-		consts.LabelTaskID:      task.TaskID,
-		consts.LabelTraceID:     task.TraceID,
-		consts.LabelGroupID:     task.GroupID,
-		consts.LabelTaskType:    string(consts.TaskTypeRunAlgorithm),
-		consts.LabelAlgorithm:   algorithm,
-		consts.LabelDataset:     payload.Dataset,
-		consts.LabelExecutionID: strconv.Itoa(executionID),
-	}
+		record, err := repository.GetDatasetByName(payload.Dataset, consts.DatasetBuildSuccess)
+		if err != nil {
+			return fmt.Errorf("failed to query database for dataset %s: %v", payload.Dataset, err)
+		}
 
-	return createAlgoJob(ctx, config.GetString("k8s.namespace"), jobName, image, annotations, labels, payload, record)
+		algorithm := payload.Image
+		if payload.EnvVars != nil {
+			if algo, ok := payload.EnvVars[consts.ExecuteEnvVarAlgorithm]; ok {
+				algorithm = algo
+			}
+		}
+
+		executionID, err := repository.CreateExecutionResult(algorithm, task.TaskID, record.ID)
+		if err != nil {
+			return fmt.Errorf("failed to create execution result: %v", err)
+		}
+
+		jobName := task.TaskID
+		image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), payload.Image, payload.Tag)
+		labels := map[string]string{
+			consts.LabelTaskID:      task.TaskID,
+			consts.LabelTraceID:     task.TraceID,
+			consts.LabelGroupID:     task.GroupID,
+			consts.LabelTaskType:    string(consts.TaskTypeRunAlgorithm),
+			consts.LabelAlgorithm:   algorithm,
+			consts.LabelDataset:     payload.Dataset,
+			consts.LabelExecutionID: strconv.Itoa(executionID),
+		}
+
+		return createAlgoJob(ctx, config.GetString("k8s.namespace"), jobName, image, annotations, labels, payload, record)
+	})
 }
 
 // 解析算法执行任务的 Payload
@@ -105,29 +108,31 @@ func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 }
 
 func createAlgoJob(ctx context.Context, jobNamespace, jobName, image string, annotations map[string]string, labels map[string]string, payload *executionPayload, record *dto.DatasetItemWithID) error {
-	restartPolicy := corev1.RestartPolicyNever
-	backoffLimit := int32(2)
-	parallelism := int32(1)
-	completions := int32(1)
-	command := []string{"bash", "/entrypoint.sh"}
+	return tracing.WithSpan(ctx, func(ctx context.Context) error {
+		restartPolicy := corev1.RestartPolicyNever
+		backoffLimit := int32(2)
+		parallelism := int32(1)
+		completions := int32(1)
+		command := []string{"bash", "/entrypoint.sh"}
 
-	jobEnvVars, err := getAlgoJobEnvVars(payload, record)
-	if err != nil {
-		return err
-	}
+		jobEnvVars, err := getAlgoJobEnvVars(payload, record)
+		if err != nil {
+			return err
+		}
 
-	return k8s.CreateJob(ctx, k8s.JobConfig{
-		Namespace:     jobNamespace,
-		JobName:       jobName,
-		Image:         image,
-		Command:       command,
-		RestartPolicy: restartPolicy,
-		BackoffLimit:  backoffLimit,
-		Parallelism:   parallelism,
-		Completions:   completions,
-		Annotations:   annotations,
-		Labels:        labels,
-		EnvVars:       jobEnvVars,
+		return k8s.CreateJob(ctx, k8s.JobConfig{
+			Namespace:     jobNamespace,
+			JobName:       jobName,
+			Image:         image,
+			Command:       command,
+			RestartPolicy: restartPolicy,
+			BackoffLimit:  backoffLimit,
+			Parallelism:   parallelism,
+			Completions:   completions,
+			Annotations:   annotations,
+			Labels:        labels,
+			EnvVars:       jobEnvVars,
+		})
 	})
 }
 

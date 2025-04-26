@@ -34,7 +34,7 @@ configmap:
   name: "rcabench"
   version: "0.1.0"
   port: 8080
-  debug: false
+  debug: true
   workspace: "/app"
   system:
     timezone: "Asia/Shanghai"

@@ -48,9 +48,12 @@ func TracerMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		groupID := c.GetString("groupID")
 
+		// Use request method and path for span name
+		spanName := c.Request.Method + " " + c.Request.URL.Path
+
 		ctx, span := otel.Tracer("rcabench/group").Start(
 			context.Background(),
-			"producer",
+			spanName,
 			trace.WithAttributes(
 				attribute.String("group_id", groupID),
 			),
