@@ -324,7 +324,7 @@ func ExtractContext(ctx context.Context, task *UnifiedTask) (context.Context, co
 	if task.TraceCarrier != nil {
 		// means it is a father span
 		traceCtx = task.GetTraceCtx()
-		logrus.Infof("task already has trace carrier, taskID: %s, traceID: %s", task.TaskID, task.TraceID)
+		logrus.WithField("task_id", task.TaskID).WithField("task_type", task.Type).Infof("Initial task group")
 	} else {
 		// means it is a grand father span
 		groupCtx := task.GetGroupCtx()
@@ -337,7 +337,7 @@ func ExtractContext(ctx context.Context, task *UnifiedTask) (context.Context, co
 		task.SetTraceCtx(traceCtx)
 
 		traceSpan.SetStatus(codes.Ok, fmt.Sprintf("Started processing task trace %s", task.TraceID))
-		logrus.Infof("task does not have trace carrier, taskID: %s, traceID: %s", task.TaskID, task.TraceID)
+		logrus.WithField("task_id", task.TaskID).WithField("task_type", task.Type).Infof("Subsquent task")
 	}
 
 	taskCtx, _ := otel.Tracer("rcabench/task").Start(traceCtx,
@@ -370,8 +370,6 @@ func processTask(ctx context.Context, taskData string) {
 
 	taskSpan := trace.SpanFromContext(taskCtx)
 	defer taskSpan.End()
-
-	logrus.Infof("dealing with task %s, type: %s, groupID: %s", task.TaskID, task.Type, task.GroupID)
 
 	startTime := time.Now()
 
