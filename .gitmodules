@@ -4,7 +4,3 @@
 [submodule "algorithms/detector"]
 	path = algorithms/detector
 	url = git@github.com:CUHK-SE-Group/ts-anomaly-detector.git
-[submodule "lib/train-ticket"]
-	path = lib/train-ticket
-	url = git@github.com:CUHK-SE-Group/train-ticket
-	branch = master
