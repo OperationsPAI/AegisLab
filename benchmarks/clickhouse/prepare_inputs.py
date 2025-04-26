@@ -334,7 +334,7 @@ if __name__ == "__main__":
     files = list(os.listdir(output_path))
 
     # compress to data.tar.gz
-    subprocess.run(["tar", "-czf", "data.tar.gz", *files], check=True)
+    subprocess.run(["tar", "-czf", "data.tar.gz", *files], check=True, cwd=output_path)
 
     # remove files
     for file in files:
