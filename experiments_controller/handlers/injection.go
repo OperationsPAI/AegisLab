@@ -204,8 +204,10 @@ func SubmitFaultInjection(c *gin.Context) {
 			ExecuteTime: config.ExecuteTime.Unix(),
 			GroupID:     groupID,
 		}
+		task.SetGroupCtx(spanCtx)
 
 		taskID, traceID, err := executor.SubmitTask(spanCtx, task)
+
 		if err != nil {
 			message := "failed to submit injection task"
 			logrus.Errorf("%s: %v", message, err)

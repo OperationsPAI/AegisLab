@@ -20,8 +20,6 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
 )
 
 // GetAlgorithmList
@@ -141,10 +139,9 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 			Immediate: true,
 			GroupID:   groupID,
 		}
-		task.GroupCarrier = make(propagation.MapCarrier)
-		otel.GetTextMapPropagator().Inject(spanCtx, task.GroupCarrier)
+		task.SetGroupCtx(spanCtx)
 
-		taskID, traceID, err := executor.SubmitTask(context.Background(), task)
+		taskID, traceID, err := executor.SubmitTask(spanCtx, task)
 		if err != nil {
 			message := "failed to submit algorithm execution task"
 			logrus.Error(message)
