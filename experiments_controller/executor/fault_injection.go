@@ -178,7 +178,6 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 
 	if err := executeCommand(fmt.Sprintf(
 		config.GetString("injection.command"),
-		config.GetString("workspace"),
 		namespace,
 		namespaceIndex,
 	)); err != nil {
