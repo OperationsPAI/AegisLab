@@ -12,6 +12,7 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/CUHK-SE-Group/rcabench/tracing"
+	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -24,18 +25,25 @@ type executionPayload struct {
 
 func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
+		span := trace.SpanFromContext(ctx)
 		payload, err := parseExecutionPayload(task.Payload)
 		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to parse execution payload")
 			return err
 		}
 
 		annotations, err := getAnnotations(ctx, task)
 		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to get annotations")
 			return err
 		}
 
 		record, err := repository.GetDatasetByName(payload.Dataset, consts.DatasetBuildSuccess)
 		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to query database for dataset")
 			return fmt.Errorf("failed to query database for dataset %s: %v", payload.Dataset, err)
 		}
 
@@ -48,6 +56,8 @@ func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
 
 		executionID, err := repository.CreateExecutionResult(algorithm, task.TaskID, record.ID)
 		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to create execution result")
 			return fmt.Errorf("failed to create execution result: %v", err)
 		}
 
@@ -109,6 +119,7 @@ func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 
 func createAlgoJob(ctx context.Context, jobNamespace, jobName, image string, annotations map[string]string, labels map[string]string, payload *executionPayload, record *dto.DatasetItemWithID) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
+		span := trace.SpanFromContext(ctx)
 		restartPolicy := corev1.RestartPolicyNever
 		backoffLimit := int32(2)
 		parallelism := int32(1)
@@ -117,6 +128,8 @@ func createAlgoJob(ctx context.Context, jobNamespace, jobName, image string, ann
 
 		jobEnvVars, err := getAlgoJobEnvVars(payload, record)
 		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to get job environment variables")
 			return err
 		}
 

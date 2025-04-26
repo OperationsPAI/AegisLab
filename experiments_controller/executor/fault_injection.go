@@ -17,6 +17,7 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/tracing"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type injectionPayload struct {
@@ -38,8 +39,12 @@ type restartPayload struct {
 // 执行故障注入任务
 func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
+		span := trace.SpanFromContext(ctx)
+
 		payload, err := parseInjectionPayload(childCtx, task.Payload)
 		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to parse injection payload")
 			return err
 		}
 
@@ -53,11 +58,15 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 				consts.RdbTraceItemRestartPayload,
 			)
 			if err != nil {
+				span.RecordError(err)
+				span.AddEvent("failed to read trace item from Redis")
 				return fmt.Errorf("failed to read trace item from Redis: %v", err)
 			}
 
 			var restartPayload map[string]any
 			if err := json.Unmarshal([]byte(restartPayloadStr), &restartPayload); err != nil {
+				span.RecordError(err)
+				span.AddEvent("failed to unmarshal restart payload")
 				return fmt.Errorf("failed to unmarshal restart payload: %v", err)
 			}
 
@@ -70,6 +79,8 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 				GroupID:      task.GroupID,
 				TraceCarrier: task.TraceCarrier,
 			}); err != nil {
+				span.RecordError(err)
+				span.AddEvent("failed to submit restart task")
 				return fmt.Errorf("failed to submit restart task: %v", err)
 			}
 
@@ -79,6 +90,8 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		annotations, err := getAnnotations(childCtx, task)
 		if err != nil {
 			k8s.GetK8sController().ReleaseLock(payload.namespace)
+			span.RecordError(err)
+			span.AddEvent("failed to get annotations")
 			return err
 		}
 
@@ -86,6 +99,8 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		namespaceIndex, err := extractNamespaceIndex(payload.namespace, config.GetString("injection.namespace_prefix"))
 		if err != nil {
 			k8s.GetK8sController().ReleaseLock(payload.namespace)
+			span.RecordError(err)
+			span.AddEvent("failed to read namespace index")
 			return fmt.Errorf("failed to read namespace index: %v", err)
 		}
 
@@ -108,6 +123,8 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		engineConfig := chaos.NodeToMap(payload.node, true)
 		engineData, err := json.Marshal(engineConfig)
 		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to marshal injection spec to engine config")
 			return fmt.Errorf("failed to marshal injection spec to engine config: %v", err)
 		}
 
@@ -122,6 +139,8 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 			InjectionName: name,
 		}
 		if err = database.DB.Create(&faultRecord).Error; err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to write fault injection schedule to database")
 			logrus.Errorf("failed to write fault injection schedule to database: %v", err)
 			return fmt.Errorf("failed to write to database")
 		}
@@ -132,8 +151,12 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 
 func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
+		span := trace.SpanFromContext(ctx)
+
 		payload, err := parseRestartPayload(childCtx, task.Payload)
 		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to parse restart payload")
 			return err
 		}
 
@@ -150,6 +173,8 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 				GroupID:      task.GroupID,
 				TraceCarrier: task.TraceCarrier,
 			}); err != nil {
+				span.RecordError(err)
+				span.AddEvent("failed to submit restart task")
 				return fmt.Errorf("failed to submit restart task: %v", err)
 			}
 
@@ -162,6 +187,8 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 
 		taskPayloadBytes, err := json.Marshal(task.Payload)
 		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to marshal restart task payload")
 			return fmt.Errorf("failed to marshal restart task payload: %v", err)
 		}
 
@@ -169,12 +196,16 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 			consts.RdbTraceItemRestartPayload: string(taskPayloadBytes),
 		}); err != nil {
 			k8s.GetK8sController().ReleaseLock(namespace)
+			span.RecordError(err)
+			span.AddEvent("failed to save trace item to Redis")
 			return fmt.Errorf("failed to save trace item to Redis: %v", err)
 		}
 
 		namespaceIndex, err := extractNamespaceIndex(namespace, config.GetString("injection.namespace_prefix"))
 		if err != nil {
 			k8s.GetK8sController().ReleaseLock(namespace)
+			span.RecordError(err)
+			span.AddEvent("failed to read namespace index")
 			return fmt.Errorf("failed to read namespace index: %v", err)
 		}
 
@@ -185,6 +216,8 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 			config.GetString("injection.ts_image_tag"),
 		); err != nil {
 			k8s.GetK8sController().ReleaseLock(namespace)
+			span.RecordError(err)
+			span.AddEvent("failed to install Train Ticket")
 			return err
 		}
 
@@ -199,6 +232,8 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 		}
 		if _, _, err := SubmitTask(childCtx, injectTask); err != nil {
 			k8s.GetK8sController().ReleaseLock(namespace)
+			span.RecordError(err)
+			span.AddEvent("failed to submit inject task")
 			return fmt.Errorf("failed to submit inject task: %v", err)
 		}
 

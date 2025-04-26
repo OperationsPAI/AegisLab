@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/CUHK-SE-Group/rcabench/tracing"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/trace"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -29,67 +31,73 @@ type JobConfig struct {
 }
 
 func CreateJob(ctx context.Context, jobConfig JobConfig) error {
-	volumeMounts := []corev1.VolumeMount{
-		{
-			Name:      "nfs-volume",
-			MountPath: "/data",
-		},
-	}
-	pvc := config.GetString("nfs.pvc_name")
-	if config.GetString("nfs.pvc_name") == "" {
-		pvc = "nfs-shared-pvc"
-	}
-	volumes := []corev1.Volume{
-		{
-			Name: "nfs-volume",
-			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: pvc,
-				},
+	return tracing.WithSpan(ctx, func(ctx context.Context) error {
+		span := trace.SpanFromContext(ctx)
+
+		volumeMounts := []corev1.VolumeMount{
+			{
+				Name:      "nfs-volume",
+				MountPath: "/data",
 			},
-		},
-	}
-
-	jobConfig.Labels["job-name"] = jobConfig.JobName
-
-	job := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations: jobConfig.Annotations,
-			Labels:      jobConfig.Labels,
-			Name:        jobConfig.JobName,
-			Namespace:   jobConfig.Namespace,
-		},
-		Spec: batchv1.JobSpec{
-			Parallelism: &jobConfig.Parallelism,
-			Completions: &jobConfig.Completions,
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: jobConfig.Labels,
-				},
-				Spec: corev1.PodSpec{
-					RestartPolicy: jobConfig.RestartPolicy,
-					Containers: []corev1.Container{
-						{
-							Name:         jobConfig.JobName,
-							Image:        jobConfig.Image,
-							Command:      jobConfig.Command,
-							Env:          jobConfig.EnvVars,
-							VolumeMounts: volumeMounts,
-						},
+		}
+		pvc := config.GetString("nfs.pvc_name")
+		if config.GetString("nfs.pvc_name") == "" {
+			pvc = "nfs-shared-pvc"
+		}
+		volumes := []corev1.Volume{
+			{
+				Name: "nfs-volume",
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: pvc,
 					},
-					Volumes: volumes,
 				},
 			},
-			BackoffLimit: &jobConfig.BackoffLimit,
-		},
-	}
+		}
 
-	_, err := k8sClient.BatchV1().Jobs(jobConfig.Namespace).Create(ctx, job, metav1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to create job: %v", err)
-	}
+		jobConfig.Labels["job-name"] = jobConfig.JobName
 
-	return nil
+		job := &batchv1.Job{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: jobConfig.Annotations,
+				Labels:      jobConfig.Labels,
+				Name:        jobConfig.JobName,
+				Namespace:   jobConfig.Namespace,
+			},
+			Spec: batchv1.JobSpec{
+				Parallelism: &jobConfig.Parallelism,
+				Completions: &jobConfig.Completions,
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: jobConfig.Labels,
+					},
+					Spec: corev1.PodSpec{
+						RestartPolicy: jobConfig.RestartPolicy,
+						Containers: []corev1.Container{
+							{
+								Name:         jobConfig.JobName,
+								Image:        jobConfig.Image,
+								Command:      jobConfig.Command,
+								Env:          jobConfig.EnvVars,
+								VolumeMounts: volumeMounts,
+							},
+						},
+						Volumes: volumes,
+					},
+				},
+				BackoffLimit: &jobConfig.BackoffLimit,
+			},
+		}
+
+		_, err := k8sClient.BatchV1().Jobs(jobConfig.Namespace).Create(ctx, job, metav1.CreateOptions{})
+		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to create job")
+			return fmt.Errorf("failed to create job: %v", err)
+		}
+
+		return nil
+	})
 }
 
 func deleteJob(ctx context.Context, namespace, name string) error {
