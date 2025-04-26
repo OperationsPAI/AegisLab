@@ -330,3 +330,12 @@ if __name__ == "__main__":
             func(abnormal_start_time_clickhouse, abnormal_end_time_clickhouse),
             f"{output_path}/{filename}",
         )
+
+    files = list(os.listdir(output_path))
+
+    # compress to data.tar.gz
+    subprocess.run(["tar", "-czf", "data.tar.gz", *files], check=True)
+
+    # remove files
+    for file in files:
+        os.remove(f"{output_path}/{file}")
