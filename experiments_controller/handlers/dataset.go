@@ -17,8 +17,6 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
 )
 
 // DeleteDataset
@@ -382,15 +380,9 @@ func SubmitDatasetBuilding(c *gin.Context) {
 			Immediate: true,
 			GroupID:   groupID,
 		}
-		task.GroupCarrier = make(propagation.MapCarrier)
-		otel.GetTextMapPropagator().Inject(spanCtx, task.GroupCarrier)
+		task.SetGroupCtx(spanCtx)
 
-		taskID, traceID, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
-			Type:      consts.TaskTypeBuildDataset,
-			Payload:   utils.StructToMap(payload),
-			Immediate: true,
-			GroupID:   groupID,
-		})
+		taskID, traceID, err := executor.SubmitTask(context.Background(), task)
 		if err != nil {
 			message := "failed to submit task"
 			logrus.Error(message)

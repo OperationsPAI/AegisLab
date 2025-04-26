@@ -13,6 +13,7 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/dto"
+	"github.com/CUHK-SE-Group/rcabench/tracing"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -66,6 +67,35 @@ type UnifiedTask struct {
 	GroupCarrier propagation.MapCarrier `json:"group_carrier,omitempty"`
 }
 
+func (t *UnifiedTask) GetTraceCtx() context.Context {
+	if t.TraceCarrier == nil {
+		return nil
+	}
+	traceCtx := otel.GetTextMapPropagator().Extract(context.Background(), t.TraceCarrier)
+	return traceCtx
+}
+
+func (t *UnifiedTask) GetGroupCtx() context.Context {
+	if t.GroupCarrier == nil {
+		return nil
+	}
+	traceCtx := otel.GetTextMapPropagator().Extract(context.Background(), t.GroupCarrier)
+	return traceCtx
+}
+
+func (t *UnifiedTask) SetTraceCtx(ctx context.Context) {
+	if t.TraceCarrier == nil {
+		t.TraceCarrier = make(propagation.MapCarrier)
+	}
+	otel.GetTextMapPropagator().Inject(ctx, t.TraceCarrier)
+}
+func (t *UnifiedTask) SetGroupCtx(ctx context.Context) {
+	if t.GroupCarrier == nil {
+		t.GroupCarrier = make(propagation.MapCarrier)
+	}
+	otel.GetTextMapPropagator().Inject(ctx, t.GroupCarrier)
+}
+
 type RetryPolicy struct {
 	MaxAttempts int `json:"max_attempts"`
 	BackoffSec  int `json:"backoff_sec"`
@@ -82,6 +112,20 @@ var (
 	taskCancelFuncsMutex sync.RWMutex
 )
 
+// SubmitTask
+// 1. if GroupCarrier is not nil, it means the task is an initial task, it spwans several traces.
+// 1.2 then, if the TraceCarrier is nil, new one.
+// 2. if TraceCarrier is not nil, it means the task is within a task trace.
+// As a result, when calling SubmitTask, if it is inital task: fill in the GroupCarrier  (parent's parent)
+// 											if it is subsquent task: fill in the TraceCarrier (parent)
+// 											The context itself is the youngest span.
+/*
+					   Task 1
+                       Task 2
+Group      -> Trace -> Task 3
+                       Task 4
+                       Task 5
+*/
 func SubmitTask(ctx context.Context, task *UnifiedTask) (string, string, error) {
 	if task.TaskID == "" {
 		task.TaskID = uuid.NewString()
@@ -89,8 +133,6 @@ func SubmitTask(ctx context.Context, task *UnifiedTask) (string, string, error) 
 	if task.TraceID == "" {
 		task.TraceID = uuid.NewString()
 	}
-	task.GroupCarrier = make(propagation.MapCarrier)
-	otel.GetTextMapPropagator().Inject(ctx, task.GroupCarrier)
 
 	jsonPayload, err := json.Marshal(task.Payload)
 	if err != nil {
@@ -280,16 +322,19 @@ func ExtractContext(ctx context.Context, task *UnifiedTask) (context.Context, co
 	var traceSpan trace.Span
 
 	if task.TraceCarrier != nil {
-		traceCtx = otel.GetTextMapPropagator().Extract(ctx, task.TraceCarrier)
+		// means it is a father span
+		traceCtx = task.GetTraceCtx()
 		logrus.Infof("task already has trace carrier, taskID: %s, traceID: %s", task.TaskID, task.TraceID)
 	} else {
-		groupCtx := otel.GetTextMapPropagator().Extract(ctx, task.GroupCarrier)
+		// means it is a grand father span
+		groupCtx := task.GetGroupCtx()
+		// create father first
 		traceCtx, traceSpan = otel.Tracer("rcabench/trace").Start(groupCtx, fmt.Sprintf("start_task/%s", task.Type), trace.WithAttributes(
 			attribute.String("trace_id", task.TraceID),
 		))
 
-		task.TraceCarrier = make(propagation.MapCarrier)
-		otel.GetTextMapPropagator().Inject(traceCtx, task.TraceCarrier)
+		// inject father into the carrier
+		task.SetTraceCtx(traceCtx)
 
 		traceSpan.SetStatus(codes.Ok, fmt.Sprintf("Started processing task trace %s", task.TraceID))
 		logrus.Infof("task does not have trace carrier, taskID: %s, traceID: %s", task.TaskID, task.TraceID)
@@ -318,6 +363,9 @@ func processTask(ctx context.Context, taskData string) {
 		logrus.Warnf("invalid task data: %v", err)
 		return
 	}
+
+	// previously, ctx is an empty context.
+	// ExtractContext inject the context information into the context
 	_, taskCtx := ExtractContext(ctx, &task)
 
 	taskSpan := trace.SpanFromContext(taskCtx)
@@ -366,6 +414,7 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			logrus.WithField("task_id", task.TaskID).Info("Task canceled")
+			span.RecordError(err)
 			return
 		}
 
@@ -591,49 +640,46 @@ func updateTaskError(ctx context.Context, taskID, traceID string, taskType const
 }
 
 func updateTaskStatus(ctx context.Context, taskID, traceID, message string, payload map[string]any) {
-	rdbMsg, err := parseRdbMsgFromPayload(payload)
-	if err != nil {
-		logrus.WithField("task_id", taskID).Error(err)
-		return
-	}
+	tracing.WithSpan(ctx, func(ctx context.Context) error {
+		span := trace.SpanFromContext(ctx)
+		rdbMsg, err := parseRdbMsgFromPayload(payload)
+		if err != nil {
+			logrus.WithField("task_id", taskID).Error(err)
+			return err
+		}
 
-	_, span := otel.Tracer("rcabench/task/feedback").Start(ctx, "process feedback", trace.WithAttributes(
-		attribute.String("task_id", taskID),
-		attribute.String("task_type", string(rdbMsg.Type)),
-	))
-	defer span.End()
+		description := fmt.Sprintf(consts.SpanStatusDescription, taskID, rdbMsg.Status)
+		if rdbMsg.Status == consts.TaskStatusCompleted {
+			span.SetStatus(codes.Ok, description)
+		}
 
-	description := fmt.Sprintf(consts.SpanStatusDescription, taskID, rdbMsg.Status)
-	if rdbMsg.Status == consts.TaskStatusCompleted {
-		span.SetStatus(codes.Ok, description)
-	}
+		if rdbMsg.Status == consts.TaskStatusError {
+			span.AddEvent(rdbMsg.Error)
+			span.SetStatus(codes.Error, description)
+		}
 
-	if rdbMsg.Status == consts.TaskStatusError {
-		span.AddEvent(rdbMsg.Error)
-		span.SetStatus(codes.Error, description)
-	}
+		span.AddEvent(message)
 
-	span.AddEvent(message)
+		tx := database.DB.WithContext(ctx).Begin()
+		if err := tx.Model(&database.Task{}).
+			Where("id = ?", taskID).
+			Update("status", rdbMsg.Status).Error; err != nil {
+			tx.Rollback()
+			logrus.WithField("task_id", taskID).Errorf("failed to update database: %v", err)
+			return err
+		}
+		tx.Commit()
 
-	tx := database.DB.WithContext(ctx).Begin()
-	if err := tx.Model(&database.Task{}).
-		Where("id = ?", taskID).
-		Update("status", rdbMsg.Status).Error; err != nil {
-		tx.Rollback()
-		logrus.WithField("task_id", taskID).Errorf("failed to update database: %v", err)
-		return
-	}
-	tx.Commit()
+		delete(payload, consts.RdbMsgErr)
+		msg, err := json.Marshal(payload)
+		if err != nil {
+			logrus.WithField("task_id", taskID).Errorf("failed to marshal payload: %v", err)
+			return err
+		}
 
-	delete(payload, consts.RdbMsgErr)
-	msg, err := json.Marshal(payload)
-	if err != nil {
-		logrus.WithField("task_id", taskID).Errorf("failed to marshal payload: %v", err)
-		return
-	}
-
-	client.GetRedisClient().Publish(ctx, fmt.Sprintf(consts.SubChannel, traceID), msg)
-
+		client.GetRedisClient().Publish(ctx, fmt.Sprintf(consts.SubChannel, traceID), msg)
+		return nil
+	})
 }
 
 func calculateExecuteTime(task *UnifiedTask) (int64, error) {
