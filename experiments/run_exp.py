@@ -3,6 +3,8 @@ import os
 from pathlib import Path
 import inspect
 import asyncio
+import tempfile
+import subprocess
 
 
 def run_function(func, *args, **kwargs):
@@ -21,9 +23,17 @@ if __name__ == "__main__":
         print("WARN: the WORKSPACE environ is not defined, using default '/app'")
         workspace = "/app"
     input_path = os.environ["INPUT_PATH"]
-    if workspace == "":
+    if input_path == "":
         print("WARN: the INPUT_PATH environ is not defined")
         exit(1)
+
+    if os.path.exists(f"{input_path}/data.tar.gz"):
+        tempdir = tempfile.TemporaryDirectory()
+        subprocess.run(
+            ["tar", "-xzf", f"{input_path}/data.tar.gz", "-C", tempdir.name],
+            check=True,
+        )
+        input_path = tempdir.name
 
     key = "OUTPUT_PATH"
     output_path_value = os.getenv(key)
