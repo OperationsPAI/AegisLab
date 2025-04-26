@@ -281,9 +281,10 @@ func ExtractContext(ctx context.Context, task *UnifiedTask) (context.Context, co
 
 	if task.TraceCarrier != nil {
 		traceCtx = otel.GetTextMapPropagator().Extract(ctx, task.TraceCarrier)
+		logrus.Infof("task already has trace carrier, taskID: %s, traceID: %s", task.TaskID, task.TraceID)
 	} else {
 		groupCtx := otel.GetTextMapPropagator().Extract(ctx, task.GroupCarrier)
-		traceCtx, traceSpan = otel.Tracer("rcabench/trace").Start(groupCtx, fmt.Sprintf("consuming new %s task", task.Type), trace.WithAttributes(
+		traceCtx, traceSpan = otel.Tracer("rcabench/trace").Start(groupCtx, fmt.Sprintf("start_task/%s", task.Type), trace.WithAttributes(
 			attribute.String("trace_id", task.TraceID),
 		))
 
@@ -291,6 +292,7 @@ func ExtractContext(ctx context.Context, task *UnifiedTask) (context.Context, co
 		otel.GetTextMapPropagator().Inject(traceCtx, task.TraceCarrier)
 
 		traceSpan.SetStatus(codes.Ok, fmt.Sprintf("Started processing task trace %s", task.TraceID))
+		logrus.Infof("task does not have trace carrier, taskID: %s, traceID: %s", task.TaskID, task.TraceID)
 	}
 
 	taskCtx, _ := otel.Tracer("rcabench/task").Start(traceCtx,
@@ -568,7 +570,7 @@ func parseRdbMsgFromPayload(payload map[string]any) (*dto.RdbMsg, error) {
 	return rdbMsg, nil
 }
 
-func updateTaskError(taskCarrier propagation.MapCarrier, taskID, traceID string, taskType consts.TaskType, err error, errMsg string) {
+func updateTaskError(ctx context.Context, taskID, traceID string, taskType consts.TaskType, err error, errMsg string) {
 	fields := map[string]any{
 		consts.RdbMsgStatus:   consts.TaskStatusError,
 		consts.RdbMsgTaskID:   taskID,
@@ -580,7 +582,7 @@ func updateTaskError(taskCarrier propagation.MapCarrier, taskID, traceID string,
 	}
 
 	updateTaskStatus(
-		taskCarrier,
+		ctx,
 		taskID,
 		traceID,
 		fmt.Sprintf(consts.TaskMsgFailed, taskID),
@@ -588,40 +590,32 @@ func updateTaskError(taskCarrier propagation.MapCarrier, taskID, traceID string,
 	)
 }
 
-func updateTaskStatus(taskCarrier propagation.MapCarrier, taskID, traceID, message string, payload map[string]any) {
+func updateTaskStatus(ctx context.Context, taskID, traceID, message string, payload map[string]any) {
 	rdbMsg, err := parseRdbMsgFromPayload(payload)
 	if err != nil {
 		logrus.WithField("task_id", taskID).Error(err)
 		return
 	}
 
-	taskCtx := context.Background()
+	_, span := otel.Tracer("rcabench/task/feedback").Start(ctx, "process feedback", trace.WithAttributes(
+		attribute.String("task_id", taskID),
+		attribute.String("task_type", string(rdbMsg.Type)),
+	))
+	defer span.End()
 
-	if taskCarrier != nil {
-		taskCtx = otel.GetTextMapPropagator().Extract(taskCtx, taskCarrier)
-
-		_, span := otel.Tracer("rcabench/task/feedback").Start(taskCtx, "process feedback", trace.WithAttributes(
-			attribute.String("task_id", taskID),
-			attribute.String("task_type", string(rdbMsg.Type)),
-		))
-		defer span.End()
-
-		description := fmt.Sprintf(consts.SpanStatusDescription, taskID, rdbMsg.Status)
-		if rdbMsg.Status == consts.TaskStatusCompleted {
-			span.SetStatus(codes.Ok, description)
-		}
-
-		if rdbMsg.Status == consts.TaskStatusError {
-			span.AddEvent(rdbMsg.Error)
-			span.SetStatus(codes.Error, description)
-		}
-
-		span.AddEvent(message)
-	} else {
-		logrus.WithField("task_id", taskID).Error("task carrier is nil")
+	description := fmt.Sprintf(consts.SpanStatusDescription, taskID, rdbMsg.Status)
+	if rdbMsg.Status == consts.TaskStatusCompleted {
+		span.SetStatus(codes.Ok, description)
 	}
 
-	tx := database.DB.WithContext(taskCtx).Begin()
+	if rdbMsg.Status == consts.TaskStatusError {
+		span.AddEvent(rdbMsg.Error)
+		span.SetStatus(codes.Error, description)
+	}
+
+	span.AddEvent(message)
+
+	tx := database.DB.WithContext(ctx).Begin()
 	if err := tx.Model(&database.Task{}).
 		Where("id = ?", taskID).
 		Update("status", rdbMsg.Status).Error; err != nil {
@@ -638,7 +632,7 @@ func updateTaskStatus(taskCarrier propagation.MapCarrier, taskID, traceID, messa
 		return
 	}
 
-	client.GetRedisClient().Publish(taskCtx, fmt.Sprintf(consts.SubChannel, traceID), msg)
+	client.GetRedisClient().Publish(ctx, fmt.Sprintf(consts.SubChannel, traceID), msg)
 
 }
 

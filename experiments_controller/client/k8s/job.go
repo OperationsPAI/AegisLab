@@ -50,6 +50,8 @@ func CreateJob(ctx context.Context, jobConfig JobConfig) error {
 		},
 	}
 
+	jobConfig.Labels["job-name"] = jobConfig.JobName
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: jobConfig.Annotations,
@@ -62,7 +64,7 @@ func CreateJob(ctx context.Context, jobConfig JobConfig) error {
 			Completions: &jobConfig.Completions,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: jobConfig.Labels, // 给 Pod 应用相同的标签
+					Labels: jobConfig.Labels,
 				},
 				Spec: corev1.PodSpec{
 					RestartPolicy: jobConfig.RestartPolicy,
