@@ -13,7 +13,7 @@ enable_duplicate = true
 namespace_prefix = "ts"
 target_label_key = "app"
 target_namespace_count = 2
-command = "make deploy-ts TS_NS=%s PORT=3009%d"
+ts_image_tag = "637600ea"
 
 [database]
 clickhouse_host = "10.10.10.58"
