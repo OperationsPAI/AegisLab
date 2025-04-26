@@ -13,7 +13,7 @@ import (
 )
 
 func dispatchTask(ctx context.Context, task *UnifiedTask) error {
-	logrus.WithField("task_id", task.TaskID).Info("Executing task")
+	logrus.WithField("task_id", task.TaskID).WithField("task_type", task.Type).Infof("Executing task")
 	defer func() {
 		if r := recover(); r != nil {
 			logrus.Errorf("Task panic: %v\n%s", r, debug.Stack())
