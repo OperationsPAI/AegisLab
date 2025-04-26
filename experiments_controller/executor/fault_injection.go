@@ -1,18 +1,16 @@
 package executor
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
-	"os/exec"
 	"reflect"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
+	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
@@ -176,11 +174,11 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 		return fmt.Errorf("failed to read namespace index: %v", err)
 	}
 
-	if err := executeCommand(fmt.Sprintf(
-		config.GetString("injection.command"),
+	if err := installTS(
 		namespace,
-		namespaceIndex,
-	)); err != nil {
+		fmt.Sprintf("3009%d", namespaceIndex),
+		config.GetString("injection.ts_image_tag"),
+	); err != nil {
 		k8s.GetK8sController().ReleaseLock(namespace)
 		return err
 	}
@@ -308,52 +306,27 @@ func parseStructFromMap[T any](payload map[string]any, key string, errorMsgTempl
 	return &result, nil
 }
 
-func executeCommand(command string) error {
-	cmd := exec.Command("/bin/sh", "-c", command)
-	stdout, err := cmd.StdoutPipe()
+func installTS(namespace, port, imageTag string) error {
+	client, err := client.NewHelmClient(namespace)
 	if err != nil {
-		return fmt.Errorf("faied to get the command output pipe: %v", err)
+		return fmt.Errorf("error creating Helm client: %v", err)
 	}
 
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return fmt.Errorf("failed to get the command error pipe: %v", err)
+	// Add Train Ticket repository
+	if err := client.AddRepo("train-ticket", "https://cuhk-se-group.github.io/train-ticket"); err != nil {
+		return fmt.Errorf("error adding repository: %v", err)
 	}
 
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start command: %w", err)
+	// Update repositories
+	if err := client.UpdateRepo(); err != nil {
+		return fmt.Errorf("error updating repositories: %v", err)
 	}
 
-	stdoutScanner := bufio.NewScanner(stdout)
-	stderrScanner := bufio.NewScanner(stderr)
-
-	go func() {
-		for stdoutScanner.Scan() {
-			logrus.Info("STDOUT: ", stdoutScanner.Text())
-		}
-	}()
-
-	go func() {
-		for stderrScanner.Scan() {
-			line := stderrScanner.Text()
-			lowerLine := strings.ToLower(line) // Convert to lower case for case-insensitive comparison
-
-			if strings.Contains(lowerLine, "error:") || strings.Contains(lowerLine, "failed:") || strings.Contains(lowerLine, "invalid:") || strings.Contains(lowerLine, "err:") {
-				logrus.Error("STDERR: ", line)
-			} else if strings.Contains(lowerLine, "warning:") { // Check for "warning"
-				logrus.Warn("STDERR: ", line)
-			} else {
-				if strings.TrimSpace(line) != "" {
-					logrus.Info("STDERR: ", line)
-				}
-			}
-		}
-	}()
-
-	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("failed to execute command: %v", err)
+	if err := client.InstallTrainTicket(namespace, imageTag, port); err != nil {
+		return fmt.Errorf("error installing Train Ticket: %v", err)
 	}
 
+	logrus.Infof("Train Ticket installed successfully in namespace %s", namespace)
 	return nil
 }
 

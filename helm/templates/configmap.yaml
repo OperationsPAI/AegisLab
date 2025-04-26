@@ -19,6 +19,8 @@ data:
     target_label_key = "{{ .Values.configmap.injection.target_label_key }}"
     target_namespace_count = {{ .Values.configmap.injection.target_namespace_count }}
     command= "{{ .Values.configmap.injection.command }}"
+    ts_image_tag = "{{ .Values.configmap.injection.ts_image_tag }}"
+    
 
     [database]
     clickhouse_host = "{{ .Values.configmap.database.clickhouse_host }}"
