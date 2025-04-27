@@ -36,7 +36,7 @@ username = "admin"
 password = "Harbor12345"
 
 [k8s]
-namespace = "experiment"
+namespace = "exp"
 
 [nfs]
 path = "/mnt/nfs/rcabench_dataset"

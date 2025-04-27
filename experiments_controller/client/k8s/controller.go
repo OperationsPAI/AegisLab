@@ -61,43 +61,75 @@ type QueueItem struct {
 	GVR       *schema.GroupVersionResource
 }
 
-type CRDItem struct {
+type MonitorItem struct {
 	endTime time.Time
+	status  bool
 	traceID string
 }
 
-type CRDMonitor struct {
-	nsItemMap map[string]*CRDItem
-	mu        sync.RWMutex
+type Monitor struct {
+	namespaces          []string
+	nsItemMap           map[string]*MonitorItem
+	desiredPodNums      map[string]int
+	podNamespaceListers map[string]corev1listers.PodNamespaceLister
+	mu                  sync.RWMutex
 }
 
-func newCRDMonitor(initialNamespaces []string) *CRDMonitor {
-	nsItemMap := make(map[string]*CRDItem, len(initialNamespaces))
+func newMonitor(initialNamespaces []string, podNamespaceListers map[string]corev1listers.PodNamespaceLister) *Monitor {
+	nsItemMap := make(map[string]*MonitorItem, len(initialNamespaces))
+	desiredPodNums := make(map[string]int, len(initialNamespaces))
 	for _, namespace := range initialNamespaces {
-		nsItemMap[namespace] = &CRDItem{
+		nsItemMap[namespace] = &MonitorItem{
+			status:  true,
 			endTime: time.Now(),
 			traceID: "",
 		}
+
+		desiredPodNum, err := getNamespaceDesiredPodNum(namespace)
+		if err != nil {
+			logrus.WithField("namespace", namespace).Error(err)
+			continue
+		}
+
+		desiredPodNums[namespace] = desiredPodNum
 	}
 
-	return &CRDMonitor{
-		nsItemMap: nsItemMap,
-		mu:        sync.RWMutex{},
+	return &Monitor{
+		namespaces:          initialNamespaces,
+		nsItemMap:           nsItemMap,
+		desiredPodNums:      desiredPodNums,
+		podNamespaceListers: podNamespaceListers,
+		mu:                  sync.RWMutex{},
 	}
 }
 
-func (m *CRDMonitor) checkNamespaceToInject(namespace string, executeTime time.Time, traceID string) bool {
+func (m *Monitor) checkNamespaceToInject(namespace string, executeTime time.Time, traceID string) error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	if item, exists := m.nsItemMap[namespace]; exists {
-		return item.endTime.After(executeTime) && item.traceID == traceID
+	var err error
+	item, exists := m.nsItemMap[namespace]
+	if !exists {
+		err = fmt.Errorf("failed to find the item of the namespace %s", namespace)
 	}
 
-	return false
+	if !item.status {
+		err = fmt.Errorf("the service in namespace %s is not yet fully ready for fault injection", namespace)
+	}
+
+	if !item.endTime.After(executeTime) {
+		err = fmt.Errorf("cannot inject fault: namespace %s is locked until %v (current execution time: %v)",
+			namespace, item.endTime.Format(time.RFC3339), executeTime.Format(time.RFC3339))
+	}
+
+	if item.traceID != traceID {
+		err = fmt.Errorf("namespace %s is currently locked by another trace (trace_id: %s)", namespace, item.traceID)
+	}
+
+	return err
 }
 
-func (m *CRDMonitor) getNamespaceToInject(endTime time.Time, traceID string) string {
+func (m *Monitor) getNamespaceToRestart(endTime time.Time, traceID string) string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -119,61 +151,10 @@ func (m *CRDMonitor) getNamespaceToInject(endTime time.Time, traceID string) str
 	return ""
 }
 
-func (m *CRDMonitor) setTime(namespace string, endTime time.Time, traceID string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if item, exists := m.nsItemMap[namespace]; exists {
-		logrus.WithField("namespace", namespace).Info("release namespace lock")
-		item.endTime = endTime
-		item.traceID = traceID
-	}
-}
-
-type ObMonitor struct {
-	callback            Callback
-	namespaces          []string
-	namespaceStatus     map[string]bool
-	desiredPodNums      map[string]int
-	podNamespaceListers map[string]corev1listers.PodNamespaceLister
-	mu                  sync.RWMutex
-}
-
-func newObMonitor(initialNamespaces []string, podNamespaceListers map[string]corev1listers.PodNamespaceLister) *ObMonitor {
-	podNums := make(map[string]int, len(initialNamespaces))
-	nsStatus := make(map[string]bool, len(initialNamespaces))
-	for _, namespace := range initialNamespaces {
-		nsStatus[namespace] = true
-		desiredPodNum, err := getNamespaceDesiredPodNum(namespace)
-		if err != nil {
-			logrus.WithField("namespace", namespace).Error(err)
-			continue
-		}
-
-		podNums[namespace] = desiredPodNum
-	}
-
-	return &ObMonitor{
-		namespaces:          initialNamespaces,
-		namespaceStatus:     nsStatus,
-		desiredPodNums:      podNums,
-		podNamespaceListers: podNamespaceListers,
-		mu:                  sync.RWMutex{},
-	}
-}
-
-func (o *ObMonitor) checkNamespaceStatus(namespace string) bool {
-	o.mu.RLock()
-	defer o.mu.RUnlock()
-
-	return o.namespaceStatus[namespace]
-}
-
-func (o *ObMonitor) setNamespaceStatus() {
-	for _, namespace := range o.namespaces {
+func (m *Monitor) setStatus() {
+	for _, namespace := range m.namespaces {
 		logEntry := logrus.WithField("namespace", namespace)
-
-		lister := o.podNamespaceListers[namespace]
+		lister := m.podNamespaceListers[namespace]
 		pods, err := lister.List(labels.Everything())
 		if err != nil && !errors.IsNotFound(err) {
 			logEntry.Errorf("failed to list pods for readiness check: %v", err)
@@ -189,33 +170,40 @@ func (o *ObMonitor) setNamespaceStatus() {
 			podNum++
 		}
 
-		// 一次性获取需要的信息，减少锁操作
-		o.mu.RLock()
-		desiredNum := o.desiredPodNums[namespace]
-		currentStatus := o.namespaceStatus[namespace]
-		o.mu.RUnlock()
+		m.mu.RLock()
+		desiredNum := m.desiredPodNums[namespace]
+		item := m.nsItemMap[namespace]
+		currentStatus := item.status
+		m.mu.RUnlock()
 
 		allRunning := podNum == desiredNum
 
 		if currentStatus != allRunning {
-			o.mu.Lock()
-			if o.namespaceStatus[namespace] != allRunning {
-				o.namespaceStatus[namespace] = allRunning
-				logEntry.Infof("Namespace status changed to %v (running pods: %d/%d)",
-					allRunning, podNum, desiredNum)
-			}
-
-			o.mu.Unlock()
+			m.mu.Lock()
+			item.status = allRunning
+			logEntry.Infof("Namespace status changed to %v (running pods: %d/%d)",
+				allRunning, podNum, desiredNum)
+			m.mu.Unlock()
 		}
+	}
+}
+
+func (m *Monitor) setTime(namespace string, endTime time.Time, traceID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if item, exists := m.nsItemMap[namespace]; exists {
+		logrus.WithField("namespace", namespace).Info("release namespace lock")
+		item.endTime = endTime
+		item.traceID = traceID
 	}
 }
 
 type Controller struct {
 	callback     Callback
+	monitor      Monitor
 	obInformers  map[string]cache.SharedIndexInformer
-	obMonitor    *ObMonitor
 	crdInformers map[string]map[schema.GroupVersionResource]cache.SharedIndexInformer
-	crdMonitor   *CRDMonitor
 	jobInformer  cache.SharedIndexInformer
 	podInformer  cache.SharedIndexInformer
 	queue        workqueue.TypedRateLimitingInterface[QueueItem]
@@ -274,30 +262,25 @@ func NewController() *Controller {
 	)
 
 	return &Controller{
+		monitor:      *newMonitor(namespaces, podNamespaceListers),
 		obInformers:  obInformers,
-		obMonitor:    newObMonitor(namespaces, podNamespaceListers),
 		crdInformers: crdInformers,
-		crdMonitor:   newCRDMonitor(namespaces),
 		jobInformer:  platformFactory.Batch().V1().Jobs().Informer(),
 		podInformer:  platformFactory.Core().V1().Pods().Informer(),
 		queue:        queue,
 	}
 }
 
-func (c *Controller) CheckNamespaceRestartStatus(namespace string) bool {
-	return c.obMonitor.checkNamespaceStatus(namespace)
-}
-
-func (c *Controller) CheckNamespaceToInject(namespace string, executeTime time.Time, traceID string) bool {
-	return c.crdMonitor.checkNamespaceToInject(namespace, executeTime, traceID)
+func (c *Controller) CheckNamespaceToInject(namespace string, executeTime time.Time, traceID string) error {
+	return c.monitor.checkNamespaceToInject(namespace, executeTime, traceID)
 }
 
 func (c *Controller) AcquireLock(endTime time.Time, traceID string) string {
-	return c.crdMonitor.getNamespaceToInject(endTime, traceID)
+	return c.monitor.getNamespaceToRestart(endTime, traceID)
 }
 
 func (c *Controller) ReleaseLock(namespace string) {
-	c.crdMonitor.setTime(namespace, time.Now(), "")
+	c.monitor.setTime(namespace, time.Now(), "")
 }
 
 func (c *Controller) Run(ctx context.Context, callback Callback) {
@@ -340,7 +323,7 @@ func (c *Controller) Run(ctx context.Context, callback Callback) {
 	go wait.Until(c.runWorker, time.Second, ctx.Done())
 
 	logrus.Info("starting namespace status check loop...")
-	go wait.Until(c.obMonitor.setNamespaceStatus, resyncPeriod, ctx.Done())
+	go wait.Until(c.monitor.setStatus, resyncPeriod, ctx.Done())
 
 	<-ctx.Done()
 	logrus.Info("Stopping informer controller...")

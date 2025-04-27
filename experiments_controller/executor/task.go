@@ -59,6 +59,7 @@ type UnifiedTask struct {
 	Immediate    bool                   `json:"immediate"`
 	ExecuteTime  int64                  `json:"execute_time"`
 	CronExpr     string                 `json:"cron_expr,omitempty"`
+	ReStartNum   int                    `json:"restart_num"`
 	RetryPolicy  RetryPolicy            `json:"retry_policy"`
 	Payload      map[string]any         `json:"payload"`
 	TraceID      string                 `json:"trace_id,omitempty"`

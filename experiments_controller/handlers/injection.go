@@ -239,10 +239,15 @@ func getNewConfigs(configs []*dto.InjectionConfig, interval int) ([]*dto.Injecti
 	logrus.Infof("deduplicated %d configurations (remaining: %d)", len(displayDatas)-len(missingIndices), len(missingIndices))
 
 	newConfigs := make([]*dto.InjectionConfig, 0, len(missingIndices))
+	current_time := time.Now()
 	for i, idx := range missingIndices {
 		config := configs[idx]
-		config.ExecuteTime = config.ExecuteTime.Add(-intervalDuration * time.Duration(config.Index-i))
-		newConfigs = append(newConfigs, config)
+		namespaceCount := conf.GetInt("injection.target_namespace_count")
+		if i < namespaceCount {
+			config.ExecuteTime = current_time
+		} else {
+			config.ExecuteTime = current_time.Add(intervalDuration * time.Duration(idx/namespaceCount)).Add(consts.DefaultTimeUnit)
+		}
 	}
 
 	return newConfigs, nil
