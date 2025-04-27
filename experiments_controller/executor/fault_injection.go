@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -49,42 +50,11 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		}
 
 		c := k8s.GetK8sController()
-		if !c.CheckNamespaceRestartStatus(payload.namespace) || !c.CheckNamespaceToInject(payload.namespace, time.Now(), task.TraceID) {
+		if err := c.CheckNamespaceToInject(payload.namespace, time.Now(), task.TraceID); err != nil {
 			k8s.GetK8sController().ReleaseLock(payload.namespace)
-
-			restartPayloadStr, err := getRedisTraceItem(
-				childCtx,
-				task.TraceID,
-				consts.RdbTraceItemRestartPayload,
-			)
-			if err != nil {
-				span.RecordError(err)
-				span.AddEvent("failed to read trace item from Redis")
-				return fmt.Errorf("failed to read trace item from Redis: %v", err)
-			}
-
-			var restartPayload map[string]any
-			if err := json.Unmarshal([]byte(restartPayloadStr), &restartPayload); err != nil {
-				span.RecordError(err)
-				span.AddEvent("failed to unmarshal restart payload")
-				return fmt.Errorf("failed to unmarshal restart payload: %v", err)
-			}
-
-			if _, _, err := SubmitTask(childCtx, &UnifiedTask{
-				Type:         consts.TaskTypeRestartService,
-				Immediate:    false,
-				ExecuteTime:  time.Now().Add(consts.DefaultTimeUnit).Unix(),
-				Payload:      restartPayload,
-				TraceID:      task.TraceID,
-				GroupID:      task.GroupID,
-				TraceCarrier: task.TraceCarrier,
-			}); err != nil {
-				span.RecordError(err)
-				span.AddEvent("failed to submit restart task")
-				return fmt.Errorf("failed to submit restart task: %v", err)
-			}
-
-			return nil
+			span.RecordError(fmt.Errorf("failed to inject fault: %v", err))
+			span.AddEvent("failed to inject fault")
+			return err
 		}
 
 		annotations, err := getAnnotations(childCtx, task)
@@ -152,6 +122,7 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(ctx)
+		span.AddEvent(fmt.Sprintf("Starting retry attempt %d", task.ReStartNum+1))
 
 		payload, err := parseRestartPayload(childCtx, task.Payload)
 		if err != nil {
@@ -163,11 +134,13 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 		t := time.Now()
 		deltaTime := time.Duration(payload.interval) * consts.DefaultTimeUnit
 		namespace := k8s.GetK8sController().AcquireLock(t.Add(deltaTime), task.TraceID)
+		deltaTime = time.Duration(math.Pow(2, float64(task.ReStartNum))) * consts.DefaultTimeUnit
 		if namespace == "" {
 			if _, _, err := SubmitTask(ctx, &UnifiedTask{
 				Type:         consts.TaskTypeRestartService,
 				Immediate:    false,
-				ExecuteTime:  time.Now().Add(consts.DefaultTimeUnit).Unix(),
+				ExecuteTime:  time.Now().Add(deltaTime).Unix(),
+				ReStartNum:   task.ReStartNum + 1,
 				Payload:      task.Payload,
 				TraceID:      task.TraceID,
 				GroupID:      task.GroupID,
@@ -327,7 +300,6 @@ func parseRestartPayload(ctx context.Context, payload map[string]any) (*restartP
 
 func parseStructFromMap[T any](ctx context.Context, payload map[string]any, key string, errorMsgTemplate string) (*T, error) {
 	return tracing.WithSpanReturnValue(ctx, func(ctx context.Context) (*T, error) {
-
 		rawValue, ok := payload[key]
 		if !ok {
 			return nil, fmt.Errorf(errorMsgTemplate, key)
