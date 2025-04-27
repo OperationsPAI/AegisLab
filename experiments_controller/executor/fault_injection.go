@@ -135,8 +135,9 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 		t := time.Now()
 		deltaTime := time.Duration(payload.interval) * consts.DefaultTimeUnit
 		namespace := k8s.GetK8sController().AcquireLock(t.Add(deltaTime), task.TraceID)
-		randomFactor := 0.1 + rand.Float64()*0.9 // 随机数在 [0.1, 1.0]
-		deltaTime = time.Duration(math.Pow(2, float64(task.ReStartNum))*randomFactor) * consts.DefaultTimeUnit
+
+		randomFactor := 0.7 + rand.Float64()*0.6 // Random factor between 0.7 and 1.3
+		deltaTime = time.Duration(math.Min(math.Pow(2, float64(task.ReStartNum)), 10.0)*randomFactor) * consts.DefaultTimeUnit
 		if namespace == "" {
 			logrus.WithField("trace_id", task.TraceID).WithField("task_id", task.TaskID).Warnf("Failed to acquire lock for namespace, retrying at in %v", time.Now().Add(deltaTime).Unix())
 			if _, _, err := SubmitTask(ctx, &UnifiedTask{
