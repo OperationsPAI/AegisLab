@@ -69,7 +69,8 @@ type UnifiedTask struct {
 
 func (t *UnifiedTask) GetTraceCtx() context.Context {
 	if t.TraceCarrier == nil {
-		return nil
+		logrus.WithField("task_id", t.TaskID).WithField("task_type", t.Type).Error("No group context, create a new one")
+		return context.Background()
 	}
 	traceCtx := otel.GetTextMapPropagator().Extract(context.Background(), t.TraceCarrier)
 	return traceCtx
@@ -77,7 +78,8 @@ func (t *UnifiedTask) GetTraceCtx() context.Context {
 
 func (t *UnifiedTask) GetGroupCtx() context.Context {
 	if t.GroupCarrier == nil {
-		return nil
+		logrus.WithField("task_id", t.TaskID).WithField("task_type", t.Type).Error("No group context, create a new one")
+		return context.Background()
 	}
 	traceCtx := otel.GetTextMapPropagator().Extract(context.Background(), t.GroupCarrier)
 	return traceCtx
@@ -328,6 +330,7 @@ func ExtractContext(ctx context.Context, task *UnifiedTask) (context.Context, co
 	} else {
 		// means it is a grand father span
 		groupCtx := task.GetGroupCtx()
+
 		// create father first
 		traceCtx, traceSpan = otel.Tracer("rcabench/trace").Start(groupCtx, fmt.Sprintf("start_task/%s", task.Type), trace.WithAttributes(
 			attribute.String("trace_id", task.TraceID),
