@@ -233,6 +233,7 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 		)
 		if err := repository.UpdateStatusByDataset(options.Dataset, consts.DatasetBuildFailed); err != nil {
 			span.AddEvent("update dataset status failed")
+			span.RecordError(err)
 			updateTaskError(
 				taskCtx,
 				taskOptions.TaskID,
@@ -301,7 +302,6 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 			logEntry.WithField("algorithm", options.Algorithm).Errorf("submit result collection task failed: %v", err)
 			taskSpan.AddEvent("submit result collection task failed")
 			taskSpan.RecordError(err)
-
 		}
 
 	case consts.TaskTypeBuildDataset:
