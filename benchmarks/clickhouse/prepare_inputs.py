@@ -3,7 +3,7 @@ import clickhouse_connect
 import os
 import pandas as pd
 import subprocess
-
+import json
 
 namespace = os.getenv("NAMESPACE")
 
@@ -330,6 +330,15 @@ if __name__ == "__main__":
             func(abnormal_start_time_clickhouse, abnormal_end_time_clickhouse),
             f"{output_path}/{filename}",
         )
+
+    with open(f"{output_path}/time_ranges.json", "w") as f:
+        val = {
+            "normal_start": str(normal_start_time),
+            "normal_end": str(normal_end_time),
+            "abnormal_start": str(abnormal_start_time),
+            "abnormal_end": str(abnormal_end_time),
+        }
+        json.dump(val, f)
 
     files = list(os.listdir(output_path))
 
