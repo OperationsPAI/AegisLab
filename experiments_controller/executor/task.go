@@ -370,7 +370,9 @@ func processTask(ctx context.Context, taskData string) {
 
 	// previously, ctx is an empty context.
 	// ExtractContext inject the context information into the context
-	_, taskCtx := ExtractContext(ctx, &task)
+	traceCtx, taskCtx := ExtractContext(ctx, &task)
+	traceSpan := trace.SpanFromContext(traceCtx)
+	defer traceSpan.End()
 
 	taskSpan := trace.SpanFromContext(taskCtx)
 	defer taskSpan.End()
