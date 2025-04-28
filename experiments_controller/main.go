@@ -56,10 +56,10 @@ func main() {
 	rootCmd.PersistentFlags().StringVarP(&conf, "conf", "c", "/etc/rcabench/config.prod.toml", "Path to configuration file")
 
 	if err := viper.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port")); err != nil {
-		logrus.Fatalf("Failed to bind flag: %v", err)
+		logrus.Fatalf("failed to bind flag: %v", err)
 	}
 	if err := viper.BindPFlag("conf", rootCmd.PersistentFlags().Lookup("conf")); err != nil {
-		logrus.Fatalf("Failed to bind flag: %v", err)
+		logrus.Fatalf("failed to bind flag: %v", err)
 	}
 
 	config.Init(viper.GetString("conf"))
@@ -67,10 +67,19 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	namespacePrefix := config.GetString("injection.namespace_prefix")
+	m := config.GetMap("injection.namespace_target_map")
+	namespaceTargetMap := make(map[string]int, len(m))
+	for ns, value := range m {
+		count, ok := value.(int64)
+		if !ok {
+			logrus.Fatalf("failed to parse target count for namespace '%s': expected integer value but got %T", ns, value)
+		}
+
+		namespaceTargetMap[ns] = int(count)
+	}
+
 	targetLabelKey := config.GetString("injection.target_label_key")
-	targetNamespaceCount := config.GetInt("injection.target_namespace_count")
-	chaos.InitTargetConfig(namespacePrefix, targetLabelKey, targetNamespaceCount)
+	chaos.InitTargetConfig(namespaceTargetMap, targetLabelKey)
 
 	// Producer 子命令
 	var producerCmd = &cobra.Command{

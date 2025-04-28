@@ -8,6 +8,7 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
 	"github.com/CUHK-SE-Group/rcabench/repository"
+	"github.com/k0kubun/pp/v3"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/gin-gonic/gin"
@@ -43,13 +44,23 @@ func GetEvaluationList(c *gin.Context) {
 
 	groupedResults, err := getGroupedResults(req.ExecutionIDs, req.Algoritms, req.Levels, rank)
 	if err != nil {
-		logrus.Errorf("failed to get executions: %v",  err)
+		logrus.Error(err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get executions")
 		return
 	}
 
 	var items []dto.EvaluationItem
 	for algorithm, executions := range groupedResults {
+		groundTruthMaps, err := executor.ParseConfigAndGetGroundTruthMap(executions)
+		if err != nil {
+			message := fmt.Sprintf("failed to read grountruths")
+			logrus.Errorf("%s: %v", message, err)
+			dto.ErrorResponse(c, http.StatusInternalServerError, message)
+			return
+		}
+
+		pp.Println(groundTruthMaps)
+
 		item := dto.EvaluationItem{
 			Algorithm:  algorithm,
 			Executions: executions,
@@ -94,13 +105,21 @@ func getGroupedResults(executionIDs []int, algorithms, levels []string, rank int
 	g.Go(func() error {
 		var err error
 		items, err = repository.ListDatasetByExecutionIDs(executionIDs)
-		return fmt.Errorf("failed to retrieve fault injection records: %v", err)
+		if err != nil {
+			return fmt.Errorf("failed to retrieve fault injection records: %v", err)
+		}
+
+		return nil
 	})
 
 	g.Go(func() error {
 		var err error
 		records, err = repository.ListExecutionRecordByExecID(executionIDs, algorithms, levels, rank)
-		return fmt.Errorf("failed to retrieve granularity results: %v", err)
+		if err != nil {
+			return fmt.Errorf("failed to retrieve granularity results: %v", err)
+		}
+
+		return nil
 	})
 
 	if err := g.Wait(); err != nil {

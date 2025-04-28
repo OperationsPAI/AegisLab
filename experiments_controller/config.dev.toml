@@ -10,9 +10,8 @@ timezone = "Asia/Shanghai"
 
 [injection]
 enable_duplicate = true
-namespace_prefix = "ts"
+namespace_target_map = { ts = 5 }
 target_label_key = "app"
-target_namespace_count = 5
 ts_image_tag = "637600ea"
 
 [database]
