@@ -39,7 +39,7 @@ func GetInjectionConf(c *gin.Context) {
 	}
 
 	if req.Mode == "engine" {
-		dto.SuccessResponse(c, chaos.NodeToMap(root, false))
+		dto.SuccessResponse(c, chaos.NodeToMap(root, true))
 		return
 	}
 
