@@ -31,7 +31,7 @@ func GetInjectionConf(c *gin.Context) {
 		return
 	}
 
-	root, err := chaos.StructToNode[handler.InjectionConf]()
+	root, err := chaos.StructToNode[handler.InjectionConf](req.Namespace)
 	if err != nil {
 		logrus.Errorf("struct InjectionConf to node failed: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to read injection conf")
@@ -142,9 +142,9 @@ func GetInjectionList(c *gin.Context) {
 //	@Failure		500		{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/injections [post]
 func SubmitFaultInjection(c *gin.Context) {
-
 	groupID := c.GetString("groupID")
 	logrus.Infof("SubmitFaultInjection called, groupID: %s", groupID)
+
 	// Get the span context from gin.Context
 	ctx, ok := c.Get(middleware.SpanContextKey)
 	if !ok {

@@ -76,7 +76,8 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		}
 
 		name, err := payload.conf.Create(
-			payload.namespace,
+			childCtx,
+			namespaceIndex,
 			annotations,
 			map[string]string{
 				consts.CRDTaskID:      task.TaskID,
@@ -135,18 +136,22 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 		t := time.Now()
 		deltaTime := time.Duration(payload.interval) * consts.DefaultTimeUnit
 		namespace := k8s.GetK8sController().AcquireLock(t.Add(deltaTime), task.TraceID)
-
-		randomFactor := 0.7 + rand.Float64()*0.6 // Random factor between 0.7 and 1.3
-		deltaTime = time.Duration(math.Min(math.Pow(2, float64(task.ReStartNum)), 10.0)*randomFactor) * consts.DefaultTimeUnit
 		if namespace == "" {
-			tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStautsRescheduled))
+			randomFactor := 0.7 + rand.Float64()*0.6 // Random factor between 0.7 and 1.3
+			deltaTime = time.Duration(math.Min(math.Pow(2, float64(task.ReStartNum)), 10.0)*randomFactor) * consts.DefaultTimeUnit
+			executeTime := time.Now().Add(deltaTime)
 
-			logrus.WithField("trace_id", task.TraceID).WithField("task_id", task.TaskID).Warnf("Failed to acquire lock for namespace, retrying at in %v", time.Now().Add(deltaTime).String())
+			tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStautsRescheduled))
+			logrus.WithFields(logrus.Fields{
+				"task_id":  task.TaskID,
+				"trace_id": task.TraceID,
+			}).Warnf("Failed to acquire lock for namespace, retrying at in %v", executeTime.String())
 			span.AddEvent("failed to acquire lock for namespace, retrying")
+
 			if _, _, err := SubmitTask(ctx, &UnifiedTask{
 				Type:         consts.TaskTypeRestartService,
 				Immediate:    false,
-				ExecuteTime:  time.Now().Add(deltaTime).Unix(),
+				ExecuteTime:  executeTime.Unix(),
 				ReStartNum:   task.ReStartNum + 1,
 				Payload:      task.Payload,
 				TraceID:      task.TraceID,

@@ -3,6 +3,7 @@ package dto
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"time"
 
@@ -16,7 +17,8 @@ type InjectCancelResp struct {
 }
 
 type InjectionConfReq struct {
-	Mode string `form:"mode" binding:"oneof=display engine"`
+	Namespace string `form:"namespace" binding:"required"`
+	Mode      string `form:"mode" binding:"oneof=display engine"`
 }
 
 type InjectionItem struct {
@@ -98,9 +100,18 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 			return nil, fmt.Errorf("failed to find key %d in the children", node.Value)
 		}
 
-		// 分配namespace
-		namespaceCount := config.GetInt("injection.target_namespace_count")
-		childNode.Children[consts.NamespaceNodeKey].Value = consts.NamespaceDefaultValue
+		m := config.GetMap("injection.namespace_target_map")
+		namespacePrefixs := make([]string, 0, len(m))
+		namespaceTargetMap := make(map[string]int, len(m))
+		for ns, value := range m {
+			count, _ := value.(int64)
+			namespaceTargetMap[ns] = int(count)
+			namespacePrefixs = append(namespacePrefixs, ns)
+		}
+
+		sort.Strings(namespacePrefixs)
+		index := childNode.Children[consts.NamespaceNodeKey].Value
+		namespaceCount := namespaceTargetMap[namespacePrefixs[index]]
 
 		var execTime time.Time
 		if idx < namespaceCount {
@@ -128,7 +139,7 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 			return nil, fmt.Errorf("failed to convert node to injecton conf: %v", err)
 		}
 
-		_, displayConfig, err := conf.GetActiveInjection()
+		displayConfig, err := conf.GetDisplayConfig()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get display config: %v", err)
 		}
