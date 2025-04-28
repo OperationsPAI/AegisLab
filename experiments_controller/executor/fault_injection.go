@@ -139,7 +139,7 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 		randomFactor := 0.7 + rand.Float64()*0.6 // Random factor between 0.7 and 1.3
 		deltaTime = time.Duration(math.Min(math.Pow(2, float64(task.ReStartNum)), 10.0)*randomFactor) * consts.DefaultTimeUnit
 		if namespace == "" {
-			logrus.WithField("trace_id", task.TraceID).WithField("task_id", task.TaskID).Warnf("Failed to acquire lock for namespace, retrying at in %v", time.Now().Add(deltaTime).Unix())
+			logrus.WithField("trace_id", task.TraceID).WithField("task_id", task.TaskID).Warnf("Failed to acquire lock for namespace, retrying at in %v", time.Now().Add(deltaTime).String())
 			if _, _, err := SubmitTask(ctx, &UnifiedTask{
 				Type:         consts.TaskTypeRestartService,
 				Immediate:    false,
