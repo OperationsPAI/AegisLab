@@ -201,6 +201,8 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 			return err
 		}
 
+		tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStatusScheduled))
+
 		injectTask := &UnifiedTask{
 			Type:         consts.TaskTypeFaultInjection,
 			Payload:      payload.injectPayload,

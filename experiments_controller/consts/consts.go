@@ -25,6 +25,7 @@ const (
 	TaskStatusPending     string = "Pending"
 	TaskStatusRunning     string = "Running"
 	TaskStautsRescheduled string = "Rescheduled"
+	TaskStatusScheduled   string = "Scheduled"
 )
 
 const (
