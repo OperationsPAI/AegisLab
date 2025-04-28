@@ -23,11 +23,12 @@ class Injection:
         self.url_prefix = f"{api_version}{self.URL_PREFIX}"
 
     @validate_request_response(request_model=GetConfReq)
-    def get_conf(self, mode: str) -> Union[Dict[str, Any], SpecNode]:
+    def get_conf(self, namespace: str, mode: str) -> Union[Dict[str, Any], SpecNode]:
         """
         获取指定模式的注入配置信息
 
         Args:
+            namespace (str): k8s命名空间
             mode (str): 配置模式，必须存在于 INJECTION_CONF_MODES 中，可选值：["display", "engine"]
 
         Returns:
@@ -36,7 +37,6 @@ class Injection:
             - 模式为 'engine' 时返回 SpecNode 模型实例，
 
         Raises:
-            TypeError: 参数类型非字符串时抛出
             ValueError: 参数值不在允许范围内时抛出
             ModelHTTPError: 当API请求失败（4xx/5xx状态码）时抛出
 
@@ -45,7 +45,7 @@ class Injection:
         """
         url = f"{self.url_prefix}{self.URL_ENDPOINTS['get_conf']}"
 
-        result = self.client.get(url, params={"mode": mode})
+        result = self.client.get(url, params={"namespace": namespace, "mode": mode})
         if mode == "engine":
             return SpecNode.model_validate(result)
         else:
