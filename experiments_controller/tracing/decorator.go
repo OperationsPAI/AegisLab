@@ -6,6 +6,8 @@ import (
 	"runtime"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // WithSpan wraps a function with OpenTelemetry tracing.
@@ -42,4 +44,13 @@ func WithSpanReturnValue[T any](ctx context.Context, f func(context.Context) (T,
 	defer span.End()
 
 	return f(childCtx)
+}
+
+func SetSpanAttribute(ctx context.Context, key string, value string) {
+	span := trace.SpanFromContext(ctx)
+	if span.IsRecording() {
+		span.SetAttributes(
+			attribute.String(key, value),
+		)
+	}
 }

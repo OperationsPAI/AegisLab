@@ -19,11 +19,12 @@ const (
 )
 
 const (
-	TaskStatusCanceled  string = "Canceled"
-	TaskStatusCompleted string = "Completed"
-	TaskStatusError     string = "Error"
-	TaskStatusPending   string = "Pending"
-	TaskStatusRunning   string = "Running"
+	TaskStatusCanceled    string = "Canceled"
+	TaskStatusCompleted   string = "Completed"
+	TaskStatusError       string = "Error"
+	TaskStatusPending     string = "Pending"
+	TaskStatusRunning     string = "Running"
+	TaskStautsRescheduled string = "Rescheduled"
 )
 
 const (
@@ -162,4 +163,15 @@ const (
 	DurationNodeKey       = "0"
 	NamespaceDefaultValue = 1
 	NamespaceNodeKey      = "1"
+)
+
+// span attribute keys
+
+const (
+	// TaskIDKey is the key for the task ID attribute.
+	TaskIDKey = "task.task_id"
+	// TaskTypeKey is the key for the task type attribute.
+	TaskTypeKey = "task.task_type"
+	// TaskStatusKey is the key for the task status attribute.
+	TaskStatusKey = "task.task_status"
 )
