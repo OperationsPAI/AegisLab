@@ -144,33 +144,6 @@ func GetInjectionList(c *gin.Context) {
 func SubmitFaultInjection(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	logrus.Infof("SubmitFaultInjection called, groupID: %s", groupID)
-
-	var req dto.InjectionSubmitReq
-	if err := c.BindJSON(&req); err != nil {
-		logrus.Error(err)
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid JSON payload")
-		return
-	}
-
-	configs, err := req.ParseInjectionSpecs()
-	if err != nil {
-		logrus.Error(err)
-		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	if !conf.GetBool("injection.enable_duplicate") {
-		newConfigs, err := getNewConfigs(configs, req.Interval)
-		if err != nil {
-			message := "failed to get the existing configs"
-			logrus.Errorf("%s: %v", message, err)
-			dto.ErrorResponse(c, http.StatusInternalServerError, message)
-			return
-		}
-
-		configs = newConfigs
-	}
-
 	// Get the span context from gin.Context
 	ctx, ok := c.Get(middleware.SpanContextKey)
 	if !ok {
@@ -181,6 +154,35 @@ func SubmitFaultInjection(c *gin.Context) {
 
 	spanCtx := ctx.(context.Context)
 	span := trace.SpanFromContext(spanCtx)
+
+	var req dto.InjectionSubmitReq
+	if err := c.BindJSON(&req); err != nil {
+		logrus.Error(err)
+		span.SetStatus(codes.Error, "failed to bind JSON")
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid JSON payload")
+		return
+	}
+
+	configs, err := req.ParseInjectionSpecs()
+	if err != nil {
+		logrus.Error(err)
+		span.SetStatus(codes.Error, "failed to parse injection specs")
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if !conf.GetBool("injection.enable_duplicate") {
+		newConfigs, err := getNewConfigs(configs, req.Interval)
+		if err != nil {
+			message := "failed to get the existing configs"
+			logrus.Errorf("%s: %v", message, err)
+			span.SetStatus(codes.Error, message)
+			dto.ErrorResponse(c, http.StatusInternalServerError, message)
+			return
+		}
+
+		configs = newConfigs
+	}
 
 	traces := make([]dto.Trace, 0, len(configs))
 	for _, config := range configs {
