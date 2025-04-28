@@ -142,6 +142,7 @@ func GetInjectionList(c *gin.Context) {
 //	@Failure		500		{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/injections [post]
 func SubmitFaultInjection(c *gin.Context) {
+
 	groupID := c.GetString("groupID")
 	logrus.Infof("SubmitFaultInjection called, groupID: %s", groupID)
 	// Get the span context from gin.Context
@@ -154,6 +155,14 @@ func SubmitFaultInjection(c *gin.Context) {
 
 	spanCtx := ctx.(context.Context)
 	span := trace.SpanFromContext(spanCtx)
+
+	defer func() {
+		if err := recover(); err != nil {
+			logrus.Errorf("SubmitFaultInjection panic: %v", err)
+			span.SetStatus(codes.Error, "panic in SubmitFaultInjection")
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
+		}
+	}()
 
 	var req dto.InjectionSubmitReq
 	if err := c.BindJSON(&req); err != nil {
