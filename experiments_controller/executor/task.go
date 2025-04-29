@@ -781,25 +781,3 @@ func cronNextTime(expr string) (time.Time, error) {
 
 	return schedule.Next(time.Now()), nil
 }
-
-// getRedisTraceItem retrieves a field from a trace in Redis
-func getRedisTraceItem(ctx context.Context, traceID, field string) (string, error) {
-	redisCli := client.GetRedisClient()
-	result, err := redisCli.HGet(ctx, fmt.Sprintf(consts.RdbTraceItemKey, traceID), field).Result()
-	if err != nil {
-		return "", err
-	}
-
-	return result, nil
-}
-
-// setRedisTraceItem sets trace data in Redis
-func setRedisTraceItem(ctx context.Context, traceID string, item map[string]any) error {
-	pipe := client.GetRedisClient().TxPipeline()
-	pipe.HSet(ctx, fmt.Sprintf(consts.RdbTraceItemKey, traceID), item)
-	if _, err := pipe.Exec(ctx); err != nil {
-		return err
-	}
-
-	return nil
-}
