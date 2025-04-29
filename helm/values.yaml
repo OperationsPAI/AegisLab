@@ -47,13 +47,13 @@ configmap:
     clickhouse_host: "10.10.10.58"
     mysql_user: "root"
     mysql_password: "yourpassword"
-    mysql_host: "mariadb"
+    mysql_host: "{{ .Release.Name }}-mariadb"
     mysql_port: "3306"
     mysql_db: "rcabench"
   jaeger:
-    endpoint: "jaeger:4318"
+    endpoint: "{{ .Release.Name }}-jaeger:4318"
   redis:
-    host: "redis:6379"
+    host: "{{ .Release.Name }}-redis:6379"
   harbor:
     host: "10.10.10.240"
     repository: "10.10.10.240/library"
@@ -69,11 +69,21 @@ configmap:
   debugging:
     enable: true
   buildkit:
-    address: "tcp://buildkit:1234"
+    address: "tcp://{{ .Release.Name }}-buildkit:1234"
 
 persistence:
   mariadb:
     enabled: true
     accessMode: ReadWriteOnce
     size: 1Gi
+    storageClass: ""
+  redis:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    storageClass: ""
+  jaeger:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 2Gi
     storageClass: ""
