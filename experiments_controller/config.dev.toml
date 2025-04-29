@@ -9,12 +9,10 @@ workspace = "/home/nn/workspace/rcabench"
 timezone = "Asia/Shanghai"
 
 [injection]
-restart_service = false
 enable_duplicate = true
-namespace_prefix = "ts"
+namespace_target_map = { ts = 5 }
 target_label_key = "app"
-target_namespace_count = 1
-command = "cd %s/lib/train-ticket && make deploy NS=%s"
+ts_image_tag = "637600ea"
 
 [database]
 clickhouse_host = "10.10.10.58"
@@ -37,7 +35,7 @@ username = "admin"
 password = "Harbor12345"
 
 [k8s]
-namespace = "experiment"
+namespace = "exp"
 
 [nfs]
 path = "/mnt/nfs/rcabench_dataset"
@@ -47,4 +45,7 @@ pvc_name = "nfs-shared-pvc"
 storage_path = "/home/nn/workspace/rcabench/algorithms"
 
 [debugging]
-enable = false
+enable = true
+
+[buildkit]
+address = "tcp://localhost:1234"

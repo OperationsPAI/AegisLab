@@ -1,30 +1,20 @@
 package executor
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sync"
 
 	"maps"
 
+	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/dto"
+	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/CUHK-SE-Group/rcabench/utils"
 )
-
-type Level string
-
-const (
-	Span    Level = "span"
-	Service Level = "service"
-	Metric  Level = "metric"
-	Pod     Level = "pod"
-)
-
-type Groudtruth struct {
-	Level Level
-	Name  string
-}
 
 type conclusionACatK struct {
 	Level  string `json:"level"`  // 例如 service level
@@ -71,7 +61,7 @@ var (
 )
 
 func init() {
-	utils.Must(registerMetric("A@k", accuracyk))
+	utils.Must(registerMetric("AC@k", accuracyk))
 	utils.Must(registerMetric("PR@k", precisionk))
 	utils.Must(registerMetric("Avg@k", avgk))
 	utils.Must(registerMetric("MAP@k", mapk))
@@ -539,4 +529,78 @@ func parseEvaluationPayload(payload map[string]any) (*EvaluationPayload, error) 
 	return &EvaluationPayload{
 		Label: label,
 	}, nil
+}
+
+func ParseConfigAndGetGroundTruthMap(executions []dto.Execution) ([]map[string]map[string]struct{}, error) {
+	// 每个 execution 中的 dataset 都是不同的
+	names := make([]string, 0, len(executions))
+	for _, execution := range executions {
+		names = append(names, execution.Dataset.Name)
+	}
+
+	configs, err := repository.GetEngineConfigByNames(names)
+	if err != nil {
+		return nil, err
+	}
+
+	groundtruths := make([]chaos.Groundtruth, 0, len(configs))
+	for _, config := range configs {
+		var m map[string]any
+		if err := json.Unmarshal([]byte(config), &m); err != nil {
+			return nil, err
+		}
+
+		node, err := chaos.MapToNode(m)
+		if err != nil {
+			return nil, err
+		}
+
+		injectionConf, err := chaos.NodeToStruct[chaos.InjectionConf](node)
+		if err != nil {
+			return nil, err
+		}
+
+		gt, err := injectionConf.GetGroundtruth()
+		if err != nil {
+			return nil, err
+		}
+
+		groundtruths = append(groundtruths, gt)
+	}
+
+	// 创建按级别分类的 groundtruth 集合
+	groundtruthMaps := make([]map[string]map[string]struct{}, 0, len(groundtruths))
+	for idx, gt := range groundtruths {
+		t := reflect.TypeOf(gt)
+		v := reflect.ValueOf(gt)
+
+		groundtruthMap := make(map[string]map[string]struct{}, t.NumField())
+		for i := range t.NumField() {
+			field := t.Field(i)
+			value := v.Field(i)
+			if value.Kind() == reflect.Slice && value.Type().Elem().Kind() == reflect.String {
+				if value.IsNil() || value.Len() == 0 {
+					return nil, fmt.Errorf("the value of field %s in groundtruth %d is not valid slice of string",
+						field.Name, idx)
+				}
+			}
+
+			for j := range value.Len() {
+				elem, ok := value.Index(j).Interface().(string)
+				if !ok {
+					return nil, fmt.Errorf("failed to read string[%d] in field %s in groundtruth %d", j, field.Name, idx)
+				}
+
+				if _, exists := groundtruthMap[field.Name]; !exists {
+					groundtruthMap[field.Name] = make(map[string]struct{})
+				}
+
+				groundtruthMap[field.Name][elem] = struct{}{}
+			}
+		}
+
+		groundtruthMaps = append(groundtruthMaps, groundtruthMap)
+	}
+
+	return groundtruthMaps, nil
 }

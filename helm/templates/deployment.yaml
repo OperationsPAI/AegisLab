@@ -2,16 +2,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: redis
+  name: {{ .Release.Name }}-redis
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: redis
+      app: {{ .Release.Name }}-redis
   template:
     metadata:
       labels:
-        app: redis
+        app: {{ .Release.Name }}-redis
     spec:
       containers:
         - name: redis
@@ -19,22 +19,29 @@ spec:
           imagePullPolicy: "{{ .Values.images.redis.pullPolicy }}"
           ports:
             - containerPort: 6379
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-redis-data
 
 ---
 # mariadb
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mariadb
+  name: {{ .Release.Name }}-mariadb
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: mariadb
+      app: {{ .Release.Name }}-mariadb
   template:
     metadata:
       labels:
-        app: mariadb
+        app: {{ .Release.Name }}-mariadb
     spec:
       initContainers:
         - name: set-root-permissions
@@ -76,28 +83,28 @@ spec:
       volumes:
         - name: mariadb-data
           persistentVolumeClaim:
-            claimName: mariadb-data
+            claimName: {{ .Release.Name }}-mariadb-data
         - name: init-scripts
           emptyDir: {}
         - name: mariadb-config
           configMap:
-            name: mariadb-config
+            name: {{ .Release.Name }}-mariadb-config
 
 ---
 # jaeger
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: jaeger
+  name: {{ .Release.Name }}-jaeger
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: jaeger
+      app: {{ .Release.Name }}-jaeger
   template:
     metadata:
       labels:
-        app: jaeger
+        app: {{ .Release.Name }}-jaeger
     spec:
       containers:
         - name: jaeger
@@ -109,22 +116,29 @@ spec:
             - containerPort: 6831
             - containerPort: 14268
             - containerPort: 16686
+          volumeMounts:
+            - name: jaeger-data
+              mountPath: /badger
+      volumes:
+        - name: jaeger-data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-jaeger-data
 
 ---
 # exp 应用
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: producer
+  name: {{ .Release.Name }}-producer
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: producer
+      app: {{ .Release.Name }}-producer
   template:
     metadata:
       labels:
-        app: producer
+        app: {{ .Release.Name }}-producer
     spec:
       initContainers:
         - name: wait-for-redis
@@ -134,7 +148,7 @@ spec:
             - sh
             - -c
             - >
-              while ! nc -z redis 6379; do
+              while ! nc -z {{ .Release.Name }}-redis 6379; do
                 echo "Waiting for Redis...";
                 sleep 3;
               done;
@@ -145,7 +159,7 @@ spec:
             - sh
             - -c
             - >
-              while ! nc -z mariadb 3306; do
+              while ! nc -z {{ .Release.Name }}-mariadb 3306; do
                 echo "Waiting for MariaDB...";
                 sleep 3;
               done;
@@ -156,7 +170,7 @@ spec:
             - sh
             - -c
             - >
-              while ! nc -z jaeger 4318; do
+              while ! nc -z {{ .Release.Name }}-jaeger 4318; do
                 echo "Waiting for Jaeger...";
                 sleep 3;
               done;
@@ -186,12 +200,12 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: rcabench-config
+            name: {{ .Release.Name }}-rcabench-config
         - name: kube-config
           secret:
             secretName: kube-config
             items:
-              - key: kubeconfig
+              - key: config
                 path: config
         - name: data
           persistentVolumeClaim:
@@ -204,16 +218,16 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: consumer
+  name: {{ .Release.Name }}-consumer
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: consumer
+      app: {{ .Release.Name }}-consumer
   template:
     metadata:
       labels:
-        app: consumer
+        app: {{ .Release.Name }}-consumer
     spec:
       initContainers:
         - name: wait-for-redis
@@ -223,7 +237,7 @@ spec:
             - sh
             - -c
             - >
-              while ! nc -z redis 6379; do
+              while ! nc -z {{ .Release.Name }}-redis 6379; do
                 echo "Waiting for Redis...";
                 sleep 3;
               done;
@@ -234,7 +248,7 @@ spec:
             - sh
             - -c
             - >
-              while ! nc -z mariadb 3306; do
+              while ! nc -z {{ .Release.Name }}-mariadb 3306; do
                 echo "Waiting for MariaDB...";
                 sleep 3;
               done;
@@ -245,7 +259,7 @@ spec:
             - sh
             - -c
             - >
-              while ! nc -z jaeger 4318; do
+              while ! nc -z {{ .Release.Name }}-jaeger 4318; do
                 echo "Waiting for Jaeger...";
                 sleep 3;
               done;
@@ -276,12 +290,12 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: rcabench-config
+            name: {{ .Release.Name }}-rcabench-config
         - name: kube-config
           secret:
             secretName: kube-config
             items:
-              - key: kubeconfig
+              - key: config
                 path: config
         - name: data
           persistentVolumeClaim:
@@ -300,16 +314,16 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: buildkit
+  name: {{ .Release.Name }}-buildkit
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: buildkit
+      app: {{ .Release.Name }}-buildkit
   template:
     metadata:
       labels:
-        app: buildkit
+        app: {{ .Release.Name }}-buildkit
     spec:
       containers:
         - name: buildkit
@@ -345,12 +359,12 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: rcabench-config
+            name: {{ .Release.Name }}-rcabench-config
         - name: kube-config
           secret:
             secretName: kube-config
             items:
-              - key: kubeconfig
+              - key: config
                 path: config
         - name: data
           persistentVolumeClaim:
@@ -362,7 +376,7 @@ spec:
           emptyDir: {}
         - name: buildkit-config
           configMap:
-            name: buildkit-config
+            name: {{ .Release.Name }}-buildkit-config
         - name: harbor-cert
           secret:
             secretName: harbor-cert

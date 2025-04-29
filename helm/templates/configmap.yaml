@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: rcabench-config
+  name: {{ .Release.Name }}-rcabench-config
 data:
   config.prod.toml: |
     name = "{{ .Values.configmap.name }}"
@@ -14,12 +14,11 @@ data:
     timezone = "{{ .Values.configmap.system.timezone }}"
 
     [injection]
-    restart_service= {{ .Values.configmap.injection.restart_service }}
     enable_duplicate = {{ .Values.configmap.injection.enable_duplicate }}
-    namespace_prefix = "{{ .Values.configmap.injection.namespace_prefix }}"
+    namespace_target_map = { {{- range $key, $value := .Values.configmap.injection.namespace_target_map }}{{ if ne $key (first (keys $.Values.configmap.injection.namespace_target_map)) }}, {{ end }}{{ $key }} = {{ $value }}{{- end }} }
     target_label_key = "{{ .Values.configmap.injection.target_label_key }}"
-    target_namespace_count = {{ .Values.configmap.injection.target_namespace_count }}
-    command= "{{ .Values.configmap.injection.command }}"
+    ts_image_tag = "{{ .Values.configmap.injection.ts_image_tag }}"
+
 
     [database]
     clickhouse_host = "{{ .Values.configmap.database.clickhouse_host }}"
@@ -61,7 +60,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: mariadb-config
+  name: {{ .Release.Name }}-mariadb-config
 data:
   my.cnf: |
     [mysqld]
@@ -71,7 +70,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: buildkit-config
+  name: {{ .Release.Name }}-buildkit-config
 data:
   buildkitd.toml: |
     debug = true

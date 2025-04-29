@@ -9,17 +9,16 @@ import (
 
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
+	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	conf "github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
+	"github.com/CUHK-SE-Group/rcabench/middleware"
 	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -33,7 +32,7 @@ func GetInjectionConf(c *gin.Context) {
 		return
 	}
 
-	root, err := chaos.StructToNode[handler.InjectionConf]()
+	root, err := chaos.StructToNode[handler.InjectionConf](req.Namespace)
 	if err != nil {
 		logrus.Errorf("struct InjectionConf to node failed: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to read injection conf")
@@ -41,7 +40,7 @@ func GetInjectionConf(c *gin.Context) {
 	}
 
 	if req.Mode == "engine" {
-		dto.SuccessResponse(c, chaos.NodeToMap(root, false))
+		dto.SuccessResponse(c, chaos.NodeToMap(root, true))
 		return
 	}
 
@@ -147,9 +146,29 @@ func SubmitFaultInjection(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	logrus.Infof("SubmitFaultInjection called, groupID: %s", groupID)
 
+	// Get the span context from gin.Context
+	ctx, ok := c.Get(middleware.SpanContextKey)
+	if !ok {
+		logrus.Error("failed to get span context from gin.Context")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get span context")
+		return
+	}
+
+	spanCtx := ctx.(context.Context)
+	span := trace.SpanFromContext(spanCtx)
+
+	defer func() {
+		if err := recover(); err != nil {
+			logrus.Errorf("SubmitFaultInjection panic: %v", err)
+			span.SetStatus(codes.Error, "panic in SubmitFaultInjection")
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
+		}
+	}()
+
 	var req dto.InjectionSubmitReq
 	if err := c.BindJSON(&req); err != nil {
 		logrus.Error(err)
+		span.SetStatus(codes.Error, "failed to bind JSON")
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid JSON payload")
 		return
 	}
@@ -157,6 +176,7 @@ func SubmitFaultInjection(c *gin.Context) {
 	configs, err := req.ParseInjectionSpecs()
 	if err != nil {
 		logrus.Error(err)
+		span.SetStatus(codes.Error, "failed to parse injection specs")
 		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -166,6 +186,7 @@ func SubmitFaultInjection(c *gin.Context) {
 		if err != nil {
 			message := "failed to get the existing configs"
 			logrus.Errorf("%s: %v", message, err)
+			span.SetStatus(codes.Error, message)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
 		}
@@ -173,39 +194,32 @@ func SubmitFaultInjection(c *gin.Context) {
 		configs = newConfigs
 	}
 
-	ctx, span := otel.Tracer("rcabench/group").Start(context.Background(), "produce group", trace.WithAttributes(
-		attribute.String("group_id", groupID),
-	))
-	defer span.End()
-
 	traces := make([]dto.Trace, 0, len(configs))
 	for _, config := range configs {
 		payload := map[string]any{
-			consts.InjectBenchmark:   req.Benchmark,
-			consts.InjectFaultType:   config.FaultType,
-			consts.InjectPreDuration: req.PreDuration,
-			consts.InjectRawConf:     config.RawConf,
-			consts.InjectConf:        config.Conf,
-		}
-
-		taskType := consts.TaskTypeFaultInjection
-		if conf.GetBool("injection.restart_service") {
-			taskType = consts.TaskTypeRestartService
-			payload[consts.RestartInterval] = req.Interval
-			payload[consts.RestartExecutionTime] = config.ExecuteTime
+			consts.RestartIntarval:      req.Interval,
+			consts.RestartFaultDuration: config.FaultDuration,
+			consts.RestartInjectPayload: map[string]any{
+				consts.InjectBenchmark:   req.Benchmark,
+				consts.InjectFaultType:   config.FaultType,
+				consts.InjectPreDuration: req.PreDuration,
+				consts.InjectDisplayData: config.DisplayData,
+				consts.InjectConf:        config.Conf,
+				consts.InjectNode:        config.Node,
+			},
 		}
 
 		task := &executor.UnifiedTask{
-			Type:        taskType,
+			Type:        consts.TaskTypeRestartService,
 			Payload:     payload,
 			Immediate:   false,
 			ExecuteTime: config.ExecuteTime.Unix(),
 			GroupID:     groupID,
 		}
-		task.GroupCarrier = make(propagation.MapCarrier)
-		otel.GetTextMapPropagator().Inject(ctx, task.GroupCarrier)
+		task.SetGroupCtx(spanCtx)
 
-		taskID, traceID, err := executor.SubmitTask(context.Background(), task)
+		taskID, traceID, err := executor.SubmitTask(spanCtx, task)
+
 		if err != nil {
 			message := "failed to submit injection task"
 			logrus.Errorf("%s: %v", message, err)
@@ -221,26 +235,41 @@ func SubmitFaultInjection(c *gin.Context) {
 	dto.JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
 }
 
+func GetNSLock(c *gin.Context) {
+	cli := k8s.GetMonitor()
+	items, err := cli.InspectLock()
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to inspect lock")
+		return
+	}
+	dto.SuccessResponse(c, items)
+}
+
 func getNewConfigs(configs []*dto.InjectionConfig, interval int) ([]*dto.InjectionConfig, error) {
 	intervalDuration := time.Duration(interval) * consts.DefaultTimeUnit
 
-	rawConfs := make([]string, 0, len(configs))
+	displayDatas := make([]string, 0, len(configs))
 	for _, config := range configs {
-		rawConfs = append(rawConfs, config.RawConf)
+		displayDatas = append(displayDatas, config.DisplayData)
 	}
 
-	missingIndices, err := findMissingIndices(rawConfs, 10)
+	missingIndices, err := findMissingIndices(displayDatas, 10)
 	if err != nil {
 		return nil, err
 	}
 
-	logrus.Infof("deduplicated %d configurations (remaining: %d)", len(rawConfs)-len(missingIndices), len(missingIndices))
+	logrus.Infof("deduplicated %d configurations (remaining: %d)", len(displayDatas)-len(missingIndices), len(missingIndices))
 
 	newConfigs := make([]*dto.InjectionConfig, 0, len(missingIndices))
+	current_time := time.Now()
 	for i, idx := range missingIndices {
 		config := configs[idx]
-		config.ExecuteTime = config.ExecuteTime.Add(-intervalDuration * time.Duration(config.Index-i))
-		newConfigs = append(newConfigs, config)
+		namespaceCount := conf.GetInt("injection.target_namespace_count")
+		if i < namespaceCount {
+			config.ExecuteTime = current_time
+		} else {
+			config.ExecuteTime = current_time.Add(intervalDuration * time.Duration(idx/namespaceCount)).Add(consts.DefaultTimeUnit)
+		}
 	}
 
 	return newConfigs, nil
@@ -254,7 +283,7 @@ func findMissingIndices(confs []string, batch_size int) ([]int, error) {
 		end := min(i+batch_size, len(confs))
 
 		batch := confs[i:end]
-		existingBatch, err := repository.FindExistingEngineConfigs(batch)
+		existingBatch, err := repository.FindExistingDisplayConfigs(batch)
 		if err != nil {
 			return nil, err
 		}

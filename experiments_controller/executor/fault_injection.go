@@ -1,260 +1,394 @@
 package executor
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
-	"os/exec"
+	"math"
+	"math/rand/v2"
+	"reflect"
+	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
+	"github.com/CUHK-SE-Group/rcabench/client"
+	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/CUHK-SE-Group/rcabench/tracing"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type injectionPayload struct {
 	benchmark   string
 	faultType   int
+	namespace   string
 	preDuration int
-	rawConf     string
+	displayData string
 	conf        *chaos.InjectionConf
+	node        *chaos.Node
 }
 
 type restartPayload struct {
-	namespace     string
-	injectionTime time.Time
-	injectionPayload
+	interval      int
+	faultDuration int
+	injectPayload map[string]any
 }
 
 // 执行故障注入任务
-// TODO 回退
 func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
-	payload, err := parseInjectionPayload(task.Payload)
-	if err != nil {
-		return err
-	}
+	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
+		span := trace.SpanFromContext(ctx)
 
-	annotations, err := getAnnotations(ctx, task)
-	if err != nil {
-		return err
-	}
+		payload, err := parseInjectionPayload(childCtx, task.Payload)
+		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to parse injection payload")
+			return err
+		}
 
-	config, name, err := payload.conf.Create(
-		annotations,
-		map[string]string{
-			consts.CRDTaskID:      task.TaskID,
-			consts.CRDTraceID:     task.TraceID,
-			consts.CRDGroupID:     task.GroupID,
-			consts.CRDBenchmark:   payload.benchmark,
-			consts.CRDPreDuration: strconv.Itoa(payload.preDuration),
-		})
-	if err != nil {
-		return fmt.Errorf("failed to inject fault: %v", err)
-	}
+		c := k8s.GetK8sController()
+		if err := c.CheckNamespaceToInject(payload.namespace, time.Now(), task.TraceID); err != nil {
+			k8s.GetK8sController().ReleaseLock(payload.namespace)
+			span.RecordError(fmt.Errorf("failed to inject fault: %v", err))
+			span.AddEvent("failed to inject fault")
+			return err
+		}
 
-	displayData, err := json.Marshal(config)
-	if err != nil {
-		return fmt.Errorf("failed to marshal injection spec to display config: %v", err)
-	}
+		annotations, err := getAnnotations(childCtx, task)
+		if err != nil {
+			k8s.GetK8sController().ReleaseLock(payload.namespace)
+			span.RecordError(err)
+			span.AddEvent("failed to get annotations")
+			return err
+		}
 
-	faultRecord := database.FaultInjectionSchedule{
-		TaskID:        task.TaskID,
-		FaultType:     payload.faultType,
-		DisplayConfig: string(displayData),
-		EngineConfig:  payload.rawConf,
-		PreDuration:   payload.preDuration,
-		Description:   fmt.Sprintf("Fault for task %s", task.TaskID),
-		Status:        consts.DatasetInitial,
-		InjectionName: name,
-	}
-	if err = database.DB.Create(&faultRecord).Error; err != nil {
-		logrus.Errorf("failed to write fault injection schedule to database: %v", err)
-		return fmt.Errorf("failed to write to database")
-	}
+		childNode := payload.node.Children[strconv.Itoa(payload.node.Value)]
+		namespaceIndex, err := extractNamespaceIndex(payload.namespace)
+		if err != nil {
+			k8s.GetK8sController().ReleaseLock(payload.namespace)
+			span.RecordError(err)
+			span.AddEvent("failed to read namespace index")
+			return fmt.Errorf("failed to read namespace index: %v", err)
+		}
 
-	return nil
+		name, err := payload.conf.Create(
+			childCtx,
+			namespaceIndex,
+			annotations,
+			map[string]string{
+				consts.CRDTaskID:      task.TaskID,
+				consts.CRDTraceID:     task.TraceID,
+				consts.CRDGroupID:     task.GroupID,
+				consts.CRDBenchmark:   payload.benchmark,
+				consts.CRDPreDuration: strconv.Itoa(payload.preDuration),
+			})
+		if err != nil {
+			k8s.GetK8sController().ReleaseLock(payload.namespace)
+			return fmt.Errorf("failed to inject fault: %v", err)
+		}
+
+		childNode.Children[strconv.Itoa(len(childNode.Children))] = &chaos.Node{
+			Value: namespaceIndex%5 + 1,
+		}
+
+		engineConfig := chaos.NodeToMap(payload.node, true)
+		engineData, err := json.Marshal(engineConfig)
+		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to marshal injection spec to engine config")
+			return fmt.Errorf("failed to marshal injection spec to engine config: %v", err)
+		}
+
+		faultRecord := database.FaultInjectionSchedule{
+			TaskID:        task.TaskID,
+			FaultType:     payload.faultType,
+			DisplayConfig: payload.displayData,
+			EngineConfig:  string(engineData),
+			PreDuration:   payload.preDuration,
+			Description:   fmt.Sprintf("Fault for task %s", task.TaskID),
+			Status:        consts.DatasetInitial,
+			InjectionName: name,
+		}
+		if err = database.DB.Create(&faultRecord).Error; err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to write fault injection schedule to database")
+			logrus.Errorf("failed to write fault injection schedule to database: %v", err)
+			return fmt.Errorf("failed to write to database")
+		}
+
+		return nil
+	})
 }
 
 func executeRestartService(ctx context.Context, task *UnifiedTask) error {
-	payload, err := parseRestartPayload(task.Payload)
-	if err != nil {
-		return err
-	}
+	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
+		span := trace.SpanFromContext(ctx)
+		span.AddEvent(fmt.Sprintf("Starting retry attempt %d", task.ReStartNum+1))
 
-	if err := executeCommand(fmt.Sprintf(config.GetString("injection.command"), config.GetString("workspace"), payload.namespace)); err != nil {
-		return err
-	}
-
-	taskPayload := map[string]any{
-		consts.InjectBenchmark:   payload.benchmark,
-		consts.InjectFaultType:   payload.faultType,
-		consts.InjectPreDuration: payload.preDuration,
-		consts.InjectRawConf:     payload.rawConf,
-		consts.InjectConf:        payload.conf,
-	}
-
-	injectionTask := &UnifiedTask{
-		Type:         consts.TaskTypeFaultInjection,
-		Payload:      taskPayload,
-		Immediate:    false,
-		ExecuteTime:  payload.injectionTime.Unix(),
-		TraceID:      task.TraceID,
-		GroupID:      task.GroupID,
-		TraceCarrier: task.TraceCarrier,
-	}
-	if _, _, err := SubmitTask(ctx, injectionTask); err != nil {
-		return fmt.Errorf("failed to submit injection task: %v", err)
-	}
-
-	return nil
-}
-
-func parseInjectionPayload(payload map[string]any) (*injectionPayload, error) {
-	message := "invalid or missing '%s' in task payload"
-
-	benchmark, ok := payload[consts.InjectBenchmark].(string)
-	if !ok {
-		return nil, fmt.Errorf(message, consts.InjectBenchmark)
-	}
-
-	faultTypeFloat, ok := payload[consts.InjectFaultType].(float64)
-	if !ok || faultTypeFloat < 0 {
-		return nil, fmt.Errorf(message, consts.InjectFaultType)
-	}
-	faultType := int(faultTypeFloat)
-
-	preDurationFloat, ok := payload[consts.InjectPreDuration].(float64)
-	if !ok || preDurationFloat <= 0 {
-		return nil, fmt.Errorf(message, consts.InjectPreDuration)
-	}
-	preDuration := int(preDurationFloat)
-
-	rawConf, ok := payload[consts.InjectRawConf].(string)
-	if !ok || rawConf == "" {
-		return nil, fmt.Errorf(message, consts.InjectRawConf)
-	}
-
-	m, ok := payload[consts.InjectConf].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf(message, consts.InjectConf)
-	}
-
-	jsonData, err := json.Marshal(m)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %v", fmt.Sprintf(message, consts.InjectConf), err)
-	}
-
-	var conf chaos.InjectionConf
-	if err := json.Unmarshal(jsonData, &conf); err != nil {
-		return nil, fmt.Errorf("%s: %v", fmt.Sprintf(message, consts.InjectConf), err)
-	}
-
-	return &injectionPayload{
-		benchmark:   benchmark,
-		faultType:   faultType,
-		preDuration: preDuration,
-		rawConf:     rawConf,
-		conf:        &conf,
-	}, nil
-}
-
-func parseRestartPayload(payload map[string]any) (*restartPayload, error) {
-	message := "invalid or missing '%s' in task payload"
-
-	intervalFloat, ok := payload[consts.RestartInterval].(float64)
-	if !ok || intervalFloat <= 0 {
-		return nil, fmt.Errorf(message, consts.RestartInterval)
-	}
-	interval := int(intervalFloat)
-
-	_, executionTimeExists := payload[consts.RestartExecutionTime]
-
-	var executionTime time.Time
-	if executionTimeExists {
-		executionTimePtr, err := parseTimePtrFromPayload(payload, consts.RestartExecutionTime)
+		payload, err := parseRestartPayload(childCtx, task.Payload)
 		if err != nil {
-			return nil, fmt.Errorf(message, consts.RestartExecutionTime)
+			span.RecordError(err)
+			span.AddEvent("failed to parse restart payload")
+			return err
 		}
 
-		executionTime = *executionTimePtr
-	}
+		t := time.Now()
+		deltaTime := time.Duration(payload.interval) * consts.DefaultTimeUnit
+		namespace := k8s.GetK8sController().AcquireLock(t.Add(deltaTime), task.TraceID)
+		if namespace == "" {
+			randomFactor := 0.7 + rand.Float64()*0.6 // Random factor between 0.7 and 1.3
+			deltaTime = time.Duration(math.Min(math.Pow(2, float64(task.ReStartNum)), 10.0)*randomFactor) * consts.DefaultTimeUnit
+			executeTime := time.Now().Add(deltaTime)
 
-	injectionPayload, err := parseInjectionPayload(payload)
-	if err != nil {
-		return nil, err
-	}
+			tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStautsRescheduled))
+			logrus.WithFields(logrus.Fields{
+				"task_id":  task.TaskID,
+				"trace_id": task.TraceID,
+			}).Warnf("Failed to acquire lock for namespace, retrying at in %v", executeTime.String())
+			span.AddEvent("failed to acquire lock for namespace, retrying")
 
-	message = "invalid or missing '%s' in injection config"
-	_, config, err := injectionPayload.conf.GetActiveInjection()
-	if err != nil {
-		return nil, fmt.Errorf("failed to read config in injection conf: %v", err)
-	}
+			if _, _, err := SubmitTask(ctx, &UnifiedTask{
+				Type:         consts.TaskTypeRestartService,
+				Immediate:    false,
+				ExecuteTime:  executeTime.Unix(),
+				ReStartNum:   task.ReStartNum + 1,
+				Payload:      task.Payload,
+				TraceID:      task.TraceID,
+				GroupID:      task.GroupID,
+				TraceCarrier: task.TraceCarrier,
+			}); err != nil {
+				span.RecordError(err)
+				span.AddEvent("failed to submit restart task")
+				return fmt.Errorf("failed to submit restart task: %v", err)
+			}
 
-	durationInt64, ok := config[consts.RestartDuration].(int64)
-	if !ok || durationInt64 <= 0 {
-		return nil, fmt.Errorf(message, consts.RestartDuration)
-	}
+			return nil
+		}
 
-	duration := int(durationInt64)
+		payload.injectPayload[consts.InjectNamespace] = namespace
+		deltaTime = time.Duration(payload.interval-payload.faultDuration) * consts.DefaultTimeUnit
+		injectTime := t.Add(deltaTime)
 
-	namespace, ok := config[consts.RestartNamespace].(string)
-	if !ok || namespace == "" {
-		return nil, fmt.Errorf(message, consts.RestartNamespace)
-	}
+		taskPayloadBytes, err := json.Marshal(task.Payload)
+		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to marshal restart task payload")
+			return fmt.Errorf("failed to marshal restart task payload: %v", err)
+		}
 
-	deltaTime := time.Duration(interval-injectionPayload.preDuration-duration) * consts.DefaultTimeUnit
-	injectionTime := executionTime.Add(deltaTime)
+		if err := setRedisTraceItem(childCtx, task.TraceID, map[string]any{
+			consts.RdbTraceItemRestartPayload: string(taskPayloadBytes),
+		}); err != nil {
+			k8s.GetK8sController().ReleaseLock(namespace)
+			span.RecordError(err)
+			span.AddEvent("failed to save trace item to Redis")
+			return fmt.Errorf("failed to save trace item to Redis: %v", err)
+		}
 
-	return &restartPayload{
-		namespace:        namespace,
-		injectionTime:    injectionTime,
-		injectionPayload: *injectionPayload,
-	}, nil
+		namespaceIndex, err := extractNamespaceIndex(namespace)
+		if err != nil {
+			k8s.GetK8sController().ReleaseLock(namespace)
+			span.RecordError(err)
+			span.AddEvent("failed to read namespace index")
+			return fmt.Errorf("failed to read namespace index: %v", err)
+		}
+
+		if err := installTS(
+			childCtx,
+			namespace,
+			fmt.Sprintf("3009%d", namespaceIndex),
+			config.GetString("injection.ts_image_tag"),
+		); err != nil {
+			k8s.GetK8sController().ReleaseLock(namespace)
+			span.RecordError(err)
+			span.AddEvent("failed to install Train Ticket")
+			return err
+		}
+
+		tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStatusScheduled))
+
+		injectTask := &UnifiedTask{
+			Type:         consts.TaskTypeFaultInjection,
+			Payload:      payload.injectPayload,
+			Immediate:    false,
+			ExecuteTime:  injectTime.Unix(),
+			TraceID:      task.TraceID,
+			GroupID:      task.GroupID,
+			TraceCarrier: task.TraceCarrier,
+		}
+		if _, _, err := SubmitTask(childCtx, injectTask); err != nil {
+			k8s.GetK8sController().ReleaseLock(namespace)
+			span.RecordError(err)
+			span.AddEvent("failed to submit inject task")
+			return fmt.Errorf("failed to submit inject task: %v", err)
+		}
+
+		return nil
+	})
 }
 
-func executeCommand(command string) error {
-	cmd := exec.Command("/bin/sh", "-c", command)
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("faied to get the command output pipe: %v", err)
-	}
+func parseInjectionPayload(ctx context.Context, payload map[string]any) (*injectionPayload, error) {
+	return tracing.WithSpanReturnValue(ctx, func(childCtx context.Context) (*injectionPayload, error) {
 
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return fmt.Errorf("failed to get the command error pipe: %v", err)
-	}
+		message := "invalid or missing '%s' in task payload"
 
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start command: %w", err)
-	}
-
-	stdoutScanner := bufio.NewScanner(stdout)
-	stderrScanner := bufio.NewScanner(stderr)
-
-	go func() {
-		for stdoutScanner.Scan() {
-			logrus.Info("STDOUT: ", stdoutScanner.Text())
+		benchmark, ok := payload[consts.InjectBenchmark].(string)
+		if !ok {
+			return nil, fmt.Errorf(message, consts.InjectBenchmark)
 		}
-	}()
 
-	go func() {
-		for stderrScanner.Scan() {
-			if strings.Contains(stderrScanner.Text(), "Warning") {
-				logrus.Warn("STDERR: ", stderrScanner.Text())
-			} else {
-				logrus.Error("STDERR: ", stderrScanner.Text())
+		faultTypeFloat, ok := payload[consts.InjectFaultType].(float64)
+		if !ok || faultTypeFloat < 0 {
+			return nil, fmt.Errorf(message, consts.InjectFaultType)
+		}
+		faultType := int(faultTypeFloat)
+
+		namespace, ok := payload[consts.InjectNamespace].(string)
+		if !ok || namespace == "" {
+			return nil, fmt.Errorf(message, consts.InjectNamespace)
+		}
+
+		preDurationFloat, ok := payload[consts.InjectPreDuration].(float64)
+		if !ok || preDurationFloat <= 0 {
+			return nil, fmt.Errorf(message, consts.InjectPreDuration)
+		}
+		preDuration := int(preDurationFloat)
+
+		displayData, ok := payload[consts.InjectDisplayData].(string)
+		if !ok || displayData == "" {
+			return nil, fmt.Errorf(message, consts.InjectDisplayData)
+		}
+
+		conf, err := parseStructFromMap[chaos.InjectionConf](ctx, payload, consts.InjectConf, message)
+		if err != nil {
+			return nil, err
+		}
+
+		node, err := parseStructFromMap[chaos.Node](ctx, payload, consts.InjectNode, message)
+		if err != nil {
+			return nil, err
+		}
+
+		return &injectionPayload{
+			benchmark:   benchmark,
+			faultType:   faultType,
+			namespace:   namespace,
+			preDuration: preDuration,
+			displayData: displayData,
+			conf:        conf,
+			node:        node,
+		}, nil
+	})
+}
+
+func parseRestartPayload(ctx context.Context, payload map[string]any) (*restartPayload, error) {
+	return tracing.WithSpanReturnValue(ctx, func(childCtx context.Context) (*restartPayload, error) {
+
+		message := "invalid or missing '%s' in task payload"
+
+		intervalFloat, ok := payload[consts.RestartIntarval].(float64)
+		if !ok || intervalFloat <= 0 {
+			return nil, fmt.Errorf(message, consts.RestartIntarval)
+		}
+		interval := int(intervalFloat)
+
+		faultDurationFloat, ok := payload[consts.RestartFaultDuration].(float64)
+		if !ok || faultDurationFloat <= 0 {
+			return nil, fmt.Errorf(message, consts.RestartFaultDuration)
+		}
+		faultDuration := int(faultDurationFloat)
+
+		injectPayload, ok := payload[consts.RestartInjectPayload].(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf(message, consts.RestartInjectPayload)
+		}
+
+		return &restartPayload{
+			interval:      interval,
+			faultDuration: faultDuration,
+			injectPayload: injectPayload,
+		}, nil
+	})
+}
+
+func parseStructFromMap[T any](ctx context.Context, payload map[string]any, key string, errorMsgTemplate string) (*T, error) {
+	return tracing.WithSpanReturnValue(ctx, func(ctx context.Context) (*T, error) {
+		rawValue, ok := payload[key]
+		if !ok {
+			return nil, fmt.Errorf(errorMsgTemplate, key)
+		}
+
+		innerMap, ok := rawValue.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("%s: expected map[string]any, got %T", fmt.Sprintf(errorMsgTemplate, key), rawValue)
+		}
+
+		jsonData, err := json.Marshal(innerMap)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal intermediate map for key '%s': %w", key, err)
+		}
+
+		var result T
+		if err := json.Unmarshal(jsonData, &result); err != nil {
+			typeName := reflect.TypeOf(result).Name()
+			if typeName == "" {
+				typeName = reflect.TypeOf(result).String()
 			}
+			return nil, fmt.Errorf("failed to unmarshal JSON for key '%s' into type %s: %w", key, typeName, err)
 		}
-	}()
 
-	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("failed to execute command: %v", err)
+		return &result, nil
+	})
+}
+
+func installTS(ctx context.Context, namespace, port, imageTag string) error {
+	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
+
+		client, err := client.NewHelmClient(namespace)
+		if err != nil {
+			return fmt.Errorf("error creating Helm client: %v", err)
+		}
+
+		// Add Train Ticket repository
+		if err := client.AddRepo("train-ticket", "https://cuhk-se-group.github.io/train-ticket"); err != nil {
+			return fmt.Errorf("error adding repository: %v", err)
+		}
+
+		// Update repositories
+		if err := client.UpdateRepo(); err != nil {
+			return fmt.Errorf("error updating repositories: %v", err)
+		}
+
+		if err := client.InstallTrainTicket(namespace, imageTag, port); err != nil {
+			return fmt.Errorf("error installing Train Ticket: %v", err)
+		}
+
+		logrus.Infof("Train Ticket installed successfully in namespace %s", namespace)
+		return nil
+	})
+}
+
+func extractNamespaceIndex(namespace string) (int, error) {
+	pattern := `^([a-zA-Z]+)(\d+)$`
+	re := regexp.MustCompile(pattern)
+	match := re.FindStringSubmatch(namespace)
+
+	if len(match) < 3 {
+		return 0, fmt.Errorf("failed to extract index from namespace %s", namespace)
 	}
 
-	return nil
+	if _, ok := config.GetMap("injection.namespace_target_map")[match[1]]; !ok {
+		return 0, fmt.Errorf("namespace %s is not defined in configuration 'injection.namespace_target_map'", match[1])
+	}
+
+	num, err := strconv.Atoi(match[2])
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert extracted index to integer: %v", err)
+	}
+
+	return num, nil
 }

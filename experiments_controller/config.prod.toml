@@ -9,12 +9,10 @@ workspace = "/app"
 timezone = "Asia/Shanghai"
 
 [injection]
-restart_service = false
 enable_duplicate = true
-namespace_prefix = "ts"
+namespace_target_map = { ts = 5 }
 target_label_key = "app"
-target_namespace_count = 1
-command = "cd %s/lib/train-ticket && make deploy NS=%s"
+ts_image_tag = "637600ea"
 
 [database]
 clickhouse_host = "10.10.10.58"

@@ -7,18 +7,22 @@ import (
 	"runtime/debug"
 
 	"github.com/CUHK-SE-Group/rcabench/consts"
+	"github.com/CUHK-SE-Group/rcabench/tracing"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 )
 
 func dispatchTask(ctx context.Context, task *UnifiedTask) error {
-	logrus.WithField("task_id", task.TaskID).Info("Executing task")
 	defer func() {
 		if r := recover(); r != nil {
 			logrus.Errorf("Task panic: %v\n%s", r, debug.Stack())
 		}
 	}()
+
+	tracing.SetSpanAttribute(ctx, consts.TaskIDKey, task.TaskID)
+	tracing.SetSpanAttribute(ctx, consts.TaskTypeKey, string(task.Type))
+	tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStatusRunning))
 
 	var err error
 	switch task.Type {

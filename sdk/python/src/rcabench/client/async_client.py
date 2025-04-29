@@ -272,7 +272,7 @@ class AsyncSSEClient:
                 error = {
                     task_id: ModelHTTPError(
                         status_code=Task.HTTP_ERROR_STATUS_CODE,
-                        detail=data.get("error"),
+                        detail=data.get("error_msg"),
                     )
                 }
                 if self.to_client_manager:

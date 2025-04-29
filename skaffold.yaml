@@ -16,4 +16,4 @@ deploy:
         valuesFiles:
           - helm/values.yaml
         version: 0.1.0
-        namespace: experiment
+        namespace: exp

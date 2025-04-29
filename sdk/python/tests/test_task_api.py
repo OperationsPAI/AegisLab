@@ -316,7 +316,7 @@ async def test_injection_and_building_dataset_all(
     [
         (
             "clickhouse",
-            3,
+            5,
             1,
             [
                 {

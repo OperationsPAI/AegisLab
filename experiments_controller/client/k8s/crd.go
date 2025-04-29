@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func deleteCRD(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) error {
+func deleteCRD(ctx context.Context, gvr *schema.GroupVersionResource, namespace, name string) error {
 	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
@@ -21,10 +21,13 @@ func deleteCRD(ctx context.Context, gvr schema.GroupVersionResource, namespace, 
 		PropagationPolicy: &deletePolicy,
 	}
 
-	logEntry := logrus.WithField("namespace", namespace).WithField("name", name)
+	logEntry := logrus.WithFields(logrus.Fields{
+		"namespace": namespace,
+		"name":      name,
+	})
 
 	// 1. 检查资源是否存在
-	obj, err := k8sDynamicClient.Resource(gvr).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+	obj, err := k8sDynamicClient.Resource(*gvr).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
@@ -39,36 +42,13 @@ func deleteCRD(ctx context.Context, gvr schema.GroupVersionResource, namespace, 
 	}
 
 	// 3. 执行删除（幂等操作）
-	err = k8sDynamicClient.Resource(gvr).Namespace(namespace).Delete(ctx, name, deleteOptions)
-	if err != nil && !errors.IsNotFound(err) {
-		if timeoutCtx.Err() != nil {
-			return fmt.Errorf("timeout while deleting CRD %s/%s: %v", namespace, name, timeoutCtx.Err())
-		}
-
-		return fmt.Errorf("failed to delete CRD: %v", err)
-	}
-
-	return nil
-}
-
-func cleanFinalizers(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) error {
-	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	logEntry := logrus.WithFields(logrus.Fields{
-		"namespace": namespace,
-		"name":      name,
-	})
-
-	patchBytes := []byte(`{"metadata":{"finalizers":[]}}`)
-	_, err := k8sDynamicClient.Resource(gvr).Namespace(namespace).Patch(
+	_, err = k8sDynamicClient.Resource(*gvr).Namespace(namespace).Patch(
 		timeoutCtx,
 		name,
 		types.MergePatchType,
-		patchBytes,
+		[]byte(`{"metadata":{"finalizers":[]}}`),
 		metav1.PatchOptions{},
 	)
-
 	if err != nil && !errors.IsNotFound(err) {
 		if timeoutCtx.Err() != nil {
 			return fmt.Errorf("timeout while patching resource %s/%s: %v", namespace, name, timeoutCtx.Err())
@@ -78,5 +58,15 @@ func cleanFinalizers(ctx context.Context, gvr schema.GroupVersionResource, names
 	}
 
 	logEntry.Info("Successfully cleared finalizers")
+
+	err = k8sDynamicClient.Resource(*gvr).Namespace(namespace).Delete(ctx, name, deleteOptions)
+	if err != nil && !errors.IsNotFound(err) {
+		if timeoutCtx.Err() != nil {
+			return fmt.Errorf("timeout while deleting CRD %s/%s: %v", namespace, name, timeoutCtx.Err())
+		}
+
+		return fmt.Errorf("failed to delete CRD: %v", err)
+	}
+
 	return nil
 }

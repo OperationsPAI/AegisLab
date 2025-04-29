@@ -136,7 +136,7 @@ func buildDockerfileAndPush(ctx context.Context, options BuildOptions) error {
 			"dockerfile": dockerfileLocalMount,
 		},
 	}
-	pw, err := progresswriter.NewPrinter(context.TODO(), os.Stderr, string(progressui.AutoMode))
+	pw, err := progresswriter.NewPrinter(context.Background(), os.Stderr, string(progressui.AutoMode))
 	if err != nil {
 		return err
 	}
@@ -202,6 +202,7 @@ func buildDockerfileAndPush(ctx context.Context, options BuildOptions) error {
 	})
 
 	if err := eg.Wait(); err != nil {
+		logrus.WithContext(ctx).WithError(err).Error("Build failed")
 		return errors.Wrap(err, "Failed to build and push image")
 	}
 

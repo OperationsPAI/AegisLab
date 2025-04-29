@@ -12,6 +12,12 @@ class GetConfReq(BaseModel):
         mode: 配置模式标识符 (display, engine)
     """
 
+    namespace: str = Field(
+        ...,
+        description="Target Kubernetes namespace",
+        json_schema_extra={"example": "ts"},
+    )
+
     mode: str = Field(
         ...,
         description="Choose the config mode (display, engine)",
@@ -154,10 +160,6 @@ class SpecNode(BaseModel):
 
     @model_validator(mode="after")
     def check_required_fields(self):
-        # 验证至少存在 value 或 children
-        if self.value is None and self.children is None:
-            raise ValueError("A node must contain at least one of value or children")
-
         # 验证值是否符合范围
         if self.range and self.value is not None:
             if len(self.range) != 2:

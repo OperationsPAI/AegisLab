@@ -19,11 +19,13 @@ const (
 )
 
 const (
-	TaskStatusCanceled  string = "Canceled"
-	TaskStatusCompleted string = "Completed"
-	TaskStatusError     string = "Error"
-	TaskStatusPending   string = "Pending"
-	TaskStatusRunning   string = "Running"
+	TaskStatusCanceled    string = "Canceled"
+	TaskStatusCompleted   string = "Completed"
+	TaskStatusError       string = "Error"
+	TaskStatusPending     string = "Pending"
+	TaskStatusRunning     string = "Running"
+	TaskStautsRescheduled string = "Rescheduled"
+	TaskStatusScheduled   string = "Scheduled"
 )
 
 const (
@@ -65,14 +67,15 @@ const (
 
 	InjectBenchmark   = "benchmark"
 	InjectFaultType   = "fault_type"
+	InjectNamespace   = "namespace"
 	InjectPreDuration = "pre_duration"
-	InjectRawConf     = "raw_conf"
+	InjectDisplayData = "display_data"
 	InjectConf        = "conf"
+	InjectNode        = "node"
 
-	RestartInterval      = "interval"
-	RestartExecutionTime = "execution_time"
-	RestartDuration      = "duration"
-	RestartNamespace     = "namespace"
+	RestartIntarval      = "interval"
+	RestartFaultDuration = "fault_duration"
+	RestartInjectPayload = "inject_payload"
 )
 
 // 环境变量名称
@@ -90,31 +93,23 @@ const (
 	HarborTimeUnit = time.Second
 )
 
-// Redis 流和消费者组配置
+// Redis 订阅消息频道和字段
 const (
-	StreamName   = "task_stream"
-	GroupName    = "task_consumer_group"
-	ConsumerName = "task_consumer"
-)
-
-// Redis 记录名称
-const (
-	LogFormat  = "[%s] %s"
-	LogKey     = "task:%s:logs"
-	MetaKey    = "task:%s:meta"
-	StatusKey  = "task:%s:status"
 	SubChannel = "trace:%s:channel"
-)
 
-// Redis 订阅消息字段
-const (
 	RdbMsgStatus            = "status"
 	RdbMsgTaskID            = "task_id"
 	RdbMsgTaskType          = "task_type"
 	RdbMsgDataset           = "dataset"
 	RdbMsgExecutionID       = "execution_id"
 	RdbMsgHasDetectorResult = "has_detector_result"
-	RdbMsgError             = "error"
+	RdbMsgErr               = "error"
+	RdbMsgErrMsg            = "error_msg"
+)
+
+const (
+	RdbTraceItemKey            = "trace:%s:item"
+	RdbTraceItemRestartPayload = "restart_payload"
 )
 
 // K8s Job 名称
@@ -156,7 +151,28 @@ const (
 )
 
 const (
+	SpanStatusDescription = "task %s %s"
+)
+
+const (
 	DownloadFilename       = "package"
 	DetectorConclusionFile = "conclusion.csv"
 	ExecutionResultFile    = "result.csv"
+)
+
+const (
+	DurationNodeKey       = "0"
+	NamespaceDefaultValue = 1
+	NamespaceNodeKey      = "1"
+)
+
+// span attribute keys
+
+const (
+	// TaskIDKey is the key for the task ID attribute.
+	TaskIDKey = "task.task_id"
+	// TaskTypeKey is the key for the task type attribute.
+	TaskTypeKey = "task.task_type"
+	// TaskStatusKey is the key for the task status attribute.
+	TaskStatusKey = "task.task_status"
 )

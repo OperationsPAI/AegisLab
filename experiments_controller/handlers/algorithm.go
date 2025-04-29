@@ -16,13 +16,10 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/executor"
+	"github.com/CUHK-SE-Group/rcabench/middleware"
 	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // GetAlgorithmList
@@ -126,10 +123,13 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 		}
 	}
 
-	ctx, span := otel.Tracer("rcabench/group").Start(context.Background(), "produce group", trace.WithAttributes(
-		attribute.String("group_id", groupID),
-	))
-	defer span.End()
+	ctx, ok := c.Get(middleware.SpanContextKey)
+	if !ok {
+		logrus.Error("failed to get span context from gin.Context")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get span context")
+		return
+	}
+	spanCtx := ctx.(context.Context)
 
 	traces := make([]dto.Trace, 0, len(payloads))
 	for idx, payload := range payloads {
@@ -139,10 +139,9 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 			Immediate: true,
 			GroupID:   groupID,
 		}
-		task.GroupCarrier = make(propagation.MapCarrier)
-		otel.GetTextMapPropagator().Inject(ctx, task.GroupCarrier)
+		task.SetGroupCtx(spanCtx)
 
-		taskID, traceID, err := executor.SubmitTask(context.Background(), task)
+		taskID, traceID, err := executor.SubmitTask(spanCtx, task)
 		if err != nil {
 			message := "failed to submit algorithm execution task"
 			logrus.Error(message)
