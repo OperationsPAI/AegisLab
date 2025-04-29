@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: redis
+  name: {{ .Release.Name }}-redis
 spec:
   type: NodePort
   selector:
@@ -16,7 +16,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: mariadb
+  name: {{ .Release.Name }}-mariadb
 spec:
   type: NodePort
   selector:
@@ -31,7 +31,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: exp
+  name: {{ .Release.Name }}-exp
 spec:
   type: NodePort
   selector:
@@ -45,7 +45,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: buildkit
+  name: {{ .Release.Name }}-buildkit
 spec:
   selector:
     app: buildkit
@@ -59,7 +59,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: jaeger
+  name: {{ .Release.Name }}-jaeger
 spec:
   type: NodePort
   selector:

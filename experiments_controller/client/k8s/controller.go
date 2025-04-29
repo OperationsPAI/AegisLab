@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"sync"
 	"time"
 
 	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
@@ -59,101 +58,9 @@ type QueueItem struct {
 	GVR       *schema.GroupVersionResource
 }
 
-type MonitorItem struct {
-	endTime time.Time
-	traceID string
-}
-
-type Monitor struct {
-	namespaces []string
-	nsItemMap  map[string]*MonitorItem
-	mu         sync.RWMutex
-}
-
-func newMonitor(initialNamespaces []string) Monitor {
-	nsItemMap := make(map[string]*MonitorItem, len(initialNamespaces))
-	desiredPodNums := make(map[string]int, len(initialNamespaces))
-	for _, namespace := range initialNamespaces {
-		nsItemMap[namespace] = &MonitorItem{
-			endTime: time.Now(),
-			traceID: "",
-		}
-
-		desiredPodNum, err := getNamespaceDesiredPodNum(namespace)
-		if err != nil {
-			logrus.WithField("namespace", namespace).Error(err)
-			continue
-		}
-
-		desiredPodNums[namespace] = desiredPodNum
-	}
-
-	return Monitor{
-		namespaces: initialNamespaces,
-		nsItemMap:  nsItemMap,
-		mu:         sync.RWMutex{},
-	}
-}
-
-func (m *Monitor) checkNamespaceToInject(namespace string, executeTime time.Time, traceID string) error {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	var err error
-	item, exists := m.nsItemMap[namespace]
-	if !exists {
-		err = fmt.Errorf("failed to find the item of the namespace %s", namespace)
-	}
-
-	if !item.endTime.After(executeTime) {
-		err = fmt.Errorf("cannot inject fault: namespace %s is locked until %v (current execution time: %v)",
-			namespace, item.endTime.Format(time.RFC3339), executeTime.Format(time.RFC3339))
-	}
-
-	if item.traceID != traceID {
-		err = fmt.Errorf("namespace %s is currently locked by another trace (trace_id: %s)", namespace, item.traceID)
-	}
-
-	return err
-}
-
-func (m *Monitor) getNamespaceToRestart(endTime time.Time, traceID string) string {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	nowTime := time.Now()
-	for ns, item := range m.nsItemMap {
-		if item.endTime.Before(nowTime) {
-			logrus.WithFields(
-				logrus.Fields{
-					"namespace": ns,
-					"trace_id":  traceID,
-				},
-			).Info("acquire namespace lock")
-			item.endTime = endTime
-			item.traceID = traceID
-			return ns
-		}
-	}
-
-	return ""
-}
-
-func (m *Monitor) setTime(namespace string, endTime time.Time, traceID string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if item, exists := m.nsItemMap[namespace]; exists {
-		logrus.WithField("namespace", namespace).Info("release namespace lock")
-		item.endTime = endTime
-		item.traceID = traceID
-	}
-}
-
 type Controller struct {
 	callback     Callback
 	monitor      Monitor
-	obInformers  map[string]cache.SharedIndexInformer
 	crdInformers map[string]map[schema.GroupVersionResource]cache.SharedIndexInformer
 	jobInformer  cache.SharedIndexInformer
 	podInformer  cache.SharedIndexInformer
@@ -214,7 +121,7 @@ func NewController() *Controller {
 	)
 
 	return &Controller{
-		monitor:      newMonitor(namespaces),
+		monitor:      *GetMonitor(),
 		crdInformers: crdInformers,
 		jobInformer:  platformFactory.Batch().V1().Jobs().Informer(),
 		podInformer:  platformFactory.Core().V1().Pods().Informer(),
@@ -242,9 +149,7 @@ func (c *Controller) Run(ctx context.Context, callback Callback) {
 	c.registerEventHandlers()
 
 	logrus.Info("Starting informer controller")
-	for _, informer := range c.obInformers {
-		go informer.Run(ctx.Done())
-	}
+
 	for _, gvrInformers := range c.crdInformers {
 		for _, informer := range gvrInformers {
 			go informer.Run(ctx.Done())
@@ -254,9 +159,6 @@ func (c *Controller) Run(ctx context.Context, callback Callback) {
 	go c.podInformer.Run(ctx.Done())
 
 	allSyncs := []cache.InformerSynced{c.jobInformer.HasSynced, c.podInformer.HasSynced}
-	for _, informer := range c.obInformers {
-		allSyncs = append(allSyncs, informer.HasSynced)
-	}
 	for _, gvrInformers := range c.crdInformers {
 		for _, informer := range gvrInformers {
 			allSyncs = append(allSyncs, informer.HasSynced)
@@ -278,14 +180,6 @@ func (c *Controller) Run(ctx context.Context, callback Callback) {
 }
 
 func (c *Controller) registerEventHandlers() {
-	for namespace, informer := range c.obInformers {
-		if _, err := informer.AddEventHandler(c.genObEventHandlerFuncs()); err != nil {
-			logrus.WithFields(logrus.Fields{
-				"namespace": namespace,
-				"func":      "genObEventHandlerFuncs",
-			}).Error("failed to add event handler")
-		}
-	}
 
 	for _, gvrInformers := range c.crdInformers {
 		for gvr, informer := range gvrInformers {

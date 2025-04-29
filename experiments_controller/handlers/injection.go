@@ -9,6 +9,7 @@ import (
 
 	"github.com/CUHK-SE-Group/chaos-experiment/handler"
 	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
+	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	conf "github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/dto"
@@ -232,6 +233,16 @@ func SubmitFaultInjection(c *gin.Context) {
 	span.SetStatus(codes.Ok, fmt.Sprintf("Successfully submitted %d fault injections with groupID: %s", len(traces), groupID))
 
 	dto.JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
+}
+
+func GetNSLock(c *gin.Context) {
+	cli := k8s.GetMonitor()
+	items, err := cli.InspectLock()
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to inspect lock")
+		return
+	}
+	dto.SuccessResponse(c, items)
 }
 
 func getNewConfigs(configs []*dto.InjectionConfig, interval int) ([]*dto.InjectionConfig, error) {
