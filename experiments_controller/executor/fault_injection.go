@@ -66,7 +66,6 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 			return err
 		}
 
-		childNode := payload.node.Children[strconv.Itoa(payload.node.Value)]
 		namespaceIndex, err := extractNamespaceIndex(payload.namespace)
 		if err != nil {
 			k8s.GetK8sController().ReleaseLock(payload.namespace)
@@ -91,6 +90,7 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 			return fmt.Errorf("failed to inject fault: %v", err)
 		}
 
+		childNode := payload.node.Children[strconv.Itoa(payload.node.Value)]
 		childNode.Children[strconv.Itoa(len(childNode.Children))] = &chaos.Node{
 			Value: namespaceIndex%5 + 1,
 		}
@@ -172,22 +172,6 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 		payload.injectPayload[consts.InjectNamespace] = namespace
 		deltaTime = time.Duration(payload.interval-payload.faultDuration) * consts.DefaultTimeUnit
 		injectTime := t.Add(deltaTime)
-
-		taskPayloadBytes, err := json.Marshal(task.Payload)
-		if err != nil {
-			span.RecordError(err)
-			span.AddEvent("failed to marshal restart task payload")
-			return fmt.Errorf("failed to marshal restart task payload: %v", err)
-		}
-
-		if err := setRedisTraceItem(childCtx, task.TraceID, map[string]any{
-			consts.RdbTraceItemRestartPayload: string(taskPayloadBytes),
-		}); err != nil {
-			k8s.GetK8sController().ReleaseLock(namespace)
-			span.RecordError(err)
-			span.AddEvent("failed to save trace item to Redis")
-			return fmt.Errorf("failed to save trace item to Redis: %v", err)
-		}
 
 		namespaceIndex, err := extractNamespaceIndex(namespace)
 		if err != nil {
