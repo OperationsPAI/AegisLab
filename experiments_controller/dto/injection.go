@@ -3,6 +3,7 @@ package dto
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"time"
 
@@ -16,7 +17,8 @@ type InjectCancelResp struct {
 }
 
 type InjectionConfReq struct {
-	Mode string `form:"mode" binding:"oneof=display engine"`
+	Namespace string `form:"namespace" binding:"required"`
+	Mode      string `form:"mode" binding:"oneof=display engine"`
 }
 
 type InjectionItem struct {
@@ -67,11 +69,13 @@ type InjectionSubmitReq struct {
 }
 
 type InjectionConfig struct {
-	Index       int
-	FaultType   int
-	Conf        *chaos.InjectionConf
-	RawConf     string
-	ExecuteTime time.Time
+	Index         int
+	FaultType     int
+	FaultDuration int
+	DisplayData   string
+	Conf          *chaos.InjectionConf
+	Node          *chaos.Node
+	ExecuteTime   time.Time
 }
 
 func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
@@ -91,41 +95,68 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 			return nil, fmt.Errorf("failed to convert spec[%d] to node: %v", idx, err)
 		}
 
-		newSpec := chaos.NodeToMap(node, true)
-		newSpecBytes, err := json.Marshal(newSpec)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal spec[%d]: %v", idx, err)
+		childNode, exists := node.Children[strconv.Itoa(node.Value)]
+		if !exists {
+			return nil, fmt.Errorf("failed to find key %d in the children", node.Value)
 		}
 
-		execTime := currentTime.Add(intervalDuration * time.Duration(idx))
+		m := config.GetMap("injection.namespace_target_map")
+		namespacePrefixs := make([]string, 0, len(m))
+		namespaceTargetMap := make(map[string]int, len(m))
+		for ns, value := range m {
+			count, _ := value.(int64)
+			namespaceTargetMap[ns] = int(count)
+			namespacePrefixs = append(namespacePrefixs, ns)
+		}
+
+		sort.Strings(namespacePrefixs)
+		index := childNode.Children[consts.NamespaceNodeKey].Value
+		namespaceCount := namespaceTargetMap[namespacePrefixs[index]]
+
+		var execTime time.Time
+		if idx < namespaceCount {
+			execTime = currentTime
+		} else {
+			execTime = currentTime.Add(intervalDuration * time.Duration(idx/namespaceCount)).Add(consts.DefaultTimeUnit)
+		}
+
+		faultDuration := childNode.Children[consts.DurationNodeKey].Value
 		if !config.GetBool("debugging.enable") {
-			childNode, exists := node.Children[strconv.Itoa(node.Value)]
-			if !exists {
-				return nil, fmt.Errorf("failed to find key %d in the children", node.Value)
+			if idx%namespaceCount == 0 {
+				start := execTime.Add(-preDuration)
+				end := execTime.Add(time.Duration(faultDuration) * consts.DefaultTimeUnit)
+
+				if idx > 0 && !start.After(prevEnd) {
+					return nil, fmt.Errorf("spec[%d] time conflict", idx)
+				}
+
+				prevEnd = end
 			}
-
-			faultDuration := childNode.Children[strconv.Itoa(0)].Value
-			start := execTime.Add(-preDuration)
-			end := execTime.Add(time.Duration(faultDuration) * consts.DefaultTimeUnit)
-
-			if idx > 0 && !start.After(prevEnd) {
-				return nil, fmt.Errorf("spec[%d] time conflict", idx)
-			}
-
-			prevEnd = end
 		}
 
 		conf, err := chaos.NodeToStruct[chaos.InjectionConf](node)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to convert node to injecton conf: %v", err)
+		}
+
+		displayConfig, err := conf.GetDisplayConfig()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get display config: %v", err)
+		}
+
+		displayData, err := json.Marshal(displayConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal injection spec to display config: %v", err)
 		}
 
 		configs = append(configs, &InjectionConfig{
-			Index:       idx,
-			FaultType:   node.Value,
-			Conf:        conf,
-			RawConf:     string(newSpecBytes),
-			ExecuteTime: execTime,
+			Index:         idx,
+			FaultType:     node.Value,
+			FaultDuration: faultDuration,
+			DisplayData:   string(displayData),
+			Conf:          conf,
+			Node:          node,
+			ExecuteTime:   execTime,
 		})
 	}
 

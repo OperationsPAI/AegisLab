@@ -3,7 +3,7 @@ import clickhouse_connect
 import os
 import pandas as pd
 import subprocess
-
+import json
 
 namespace = os.getenv("NAMESPACE")
 
@@ -52,20 +52,20 @@ def check_clickhouse_health():
 
 def generate_metric(start_time, end_time) -> pd.DataFrame:
     query = f"""
-SELECT
-    TimeUnix,
-    MetricName,
-    MetricDescription,
-    Value,
-    ServiceName,
-    MetricUnit,
-    toJSONString(ResourceAttributes) AS ResourceAttributes,
-    toJSONString(Attributes) AS Attributes
-FROM
-    otel_metrics_gauge om
-WHERE
-    om.ResourceAttributes['k8s.namespace.name'] = '{namespace}'
-    AND om.TimeUnix BETWEEN '{start_time}' AND '{end_time}'
+    SELECT
+        TimeUnix,
+        MetricName,
+        MetricDescription,
+        Value,
+        ServiceName,
+        MetricUnit,
+        toJSONString(ResourceAttributes) AS ResourceAttributes,
+        toJSONString(Attributes) AS Attributes
+    FROM
+        otel_metrics_gauge om
+    WHERE
+        om.ResourceAttributes['k8s.namespace.name'] = '{namespace}'
+        AND om.TimeUnix BETWEEN '{start_time}' AND '{end_time}'
     """
 
     result = client.raw_query(query=query, fmt="CSVWithNames")
@@ -330,3 +330,21 @@ if __name__ == "__main__":
             func(abnormal_start_time_clickhouse, abnormal_end_time_clickhouse),
             f"{output_path}/{filename}",
         )
+
+    with open(f"{output_path}/time_ranges.json", "w") as f:
+        val = {
+            "normal_start": str(normal_start_time),
+            "normal_end": str(normal_end_time),
+            "abnormal_start": str(abnormal_start_time),
+            "abnormal_end": str(abnormal_end_time),
+        }
+        json.dump(val, f)
+
+    files = list(os.listdir(output_path))
+
+    # compress to data.tar.gz
+    subprocess.run(["tar", "-czf", "data.tar.gz", *files], check=True, cwd=output_path)
+
+    # remove files
+    for file in files:
+        os.remove(f"{output_path}/{file}")

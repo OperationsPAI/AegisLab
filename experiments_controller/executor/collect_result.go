@@ -12,9 +12,9 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/CUHK-SE-Group/rcabench/tracing"
 	"github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type CollectionPayload struct {
@@ -24,32 +24,58 @@ type CollectionPayload struct {
 }
 
 func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
-	collectPayload, err := parseCollectionPayload(task.Payload)
-	if err != nil {
-		return err
-	}
+	return tracing.WithSpan(ctx, func(ctx context.Context) error {
+		span := trace.SpanFromContext(ctx)
 
-	taskCarrier := make(propagation.MapCarrier)
-	otel.GetTextMapPropagator().Inject(ctx, taskCarrier)
-
-	path := config.GetString("nfs.path")
-
-	if collectPayload.Algorithm == "detector" {
-		conclusionCSV := filepath.Join(path, collectPayload.Dataset, "conclusion.csv")
-		content, err := os.ReadFile(conclusionCSV)
+		collectPayload, err := parseCollectionPayload(task.Payload)
 		if err != nil {
-			return fmt.Errorf("there is no conclusion.csv file, please check whether it is nomal")
+			return err
 		}
 
-		results, err := readDetectorCSV(content, collectPayload.ExecutionID)
-		if err != nil {
-			return fmt.Errorf("failed to convert conclusion.csv to database struct: %v", err)
-		}
+		path := config.GetString("nfs.path")
 
-		if len(results) == 0 {
-			logrus.Info("the detector result is empty")
+		if collectPayload.Algorithm == "detector" {
+			conclusionCSV := filepath.Join(path, collectPayload.Dataset, "conclusion.csv")
+			content, err := os.ReadFile(conclusionCSV)
+			if err != nil {
+				span.AddEvent(fmt.Sprintf("there is no conclusion.csv file in %s, please check whether it is nomal", conclusionCSV))
+				span.RecordError(err)
+				return fmt.Errorf("there is no conclusion.csv file in %s, please check whether it is nomal", conclusionCSV)
+			}
+
+			results, err := readDetectorCSV(content, collectPayload.ExecutionID)
+			if err != nil {
+				span.AddEvent("failed to convert conclusion.csv to database struct")
+				span.RecordError(err)
+				return fmt.Errorf("failed to convert conclusion.csv to database struct: %v", err)
+			}
+
+			if len(results) == 0 {
+				span.AddEvent("the detector result is empty")
+				logrus.Info("the detector result is empty")
+				updateTaskStatus(
+					ctx,
+					task.TaskID,
+					task.TraceID,
+					fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
+					map[string]any{
+						consts.RdbMsgStatus:            consts.TaskStatusCompleted,
+						consts.RdbMsgTaskID:            task.TaskID,
+						consts.RdbMsgTaskType:          consts.TaskTypeCollectResult,
+						consts.RdbMsgHasDetectorResult: false,
+					})
+
+				return nil
+			}
+
+			if err = database.DB.Create(&results).Error; err != nil {
+				span.AddEvent("failed to save conclusion.csv to database")
+				span.RecordError(err)
+				return fmt.Errorf("failed to save conclusion.csv to database: %v", err)
+			}
+
 			updateTaskStatus(
-				taskCarrier,
+				ctx,
 				task.TaskID,
 				task.TraceID,
 				fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
@@ -57,56 +83,44 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 					consts.RdbMsgStatus:            consts.TaskStatusCompleted,
 					consts.RdbMsgTaskID:            task.TaskID,
 					consts.RdbMsgTaskType:          consts.TaskTypeCollectResult,
-					consts.RdbMsgHasDetectorResult: false,
+					consts.RdbMsgHasDetectorResult: true,
 				})
+		} else {
+			resultCSV := filepath.Join(path, collectPayload.Dataset, "result.csv")
+			content, err := os.ReadFile(resultCSV)
+			if err != nil {
+				span.AddEvent(fmt.Sprintf("there is no result.csv file in %s, please check whether it is nomal", resultCSV))
+				span.RecordError(err)
+				return fmt.Errorf("There is no result.csv file, please check whether it is nomal")
+			}
 
-			return nil
+			results, err := readCSVContent2Result(content, collectPayload.ExecutionID)
+			if err != nil {
+				span.AddEvent("failed to convert result.csv to database struct")
+				span.RecordError(err)
+				return fmt.Errorf("convert result.csv to database struct failed: %v", err)
+			}
+
+			if err = database.DB.Create(&results).Error; err != nil {
+				span.AddEvent("failed to save result.csv to database")
+				span.RecordError(err)
+				return fmt.Errorf("save result.csv to database failed: %v", err)
+			}
+
+			updateTaskStatus(
+				ctx,
+				task.TaskID,
+				task.TraceID,
+				fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
+				map[string]any{
+					consts.RdbMsgStatus:   consts.TaskStatusCompleted,
+					consts.RdbMsgTaskID:   task.TaskID,
+					consts.RdbMsgTaskType: consts.TaskTypeCollectResult,
+				})
 		}
 
-		if err = database.DB.Create(&results).Error; err != nil {
-			return fmt.Errorf("failed to save conclusion.csv to database: %v", err)
-		}
-
-		updateTaskStatus(
-			taskCarrier,
-			task.TaskID,
-			task.TraceID,
-			fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
-			map[string]any{
-				consts.RdbMsgStatus:            consts.TaskStatusCompleted,
-				consts.RdbMsgTaskID:            task.TaskID,
-				consts.RdbMsgTaskType:          consts.TaskTypeCollectResult,
-				consts.RdbMsgHasDetectorResult: true,
-			})
-	} else {
-		resultCSV := filepath.Join(path, collectPayload.Dataset, "result.csv")
-		content, err := os.ReadFile(resultCSV)
-		if err != nil {
-			return fmt.Errorf("There is no result.csv file, please check whether it is nomal")
-		}
-
-		results, err := readCSVContent2Result(content, collectPayload.ExecutionID)
-		if err != nil {
-			return fmt.Errorf("convert result.csv to database struct failed: %v", err)
-		}
-
-		if err = database.DB.Create(&results).Error; err != nil {
-			return fmt.Errorf("save result.csv to database failed: %v", err)
-		}
-
-		updateTaskStatus(
-			taskCarrier,
-			task.TaskID,
-			task.TraceID,
-			fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
-			map[string]any{
-				consts.RdbMsgStatus:   consts.TaskStatusCompleted,
-				consts.RdbMsgTaskID:   task.TaskID,
-				consts.RdbMsgTaskType: consts.TaskTypeCollectResult,
-			})
-	}
-
-	return nil
+		return nil
+	})
 }
 
 func parseCollectionPayload(payload map[string]any) (*CollectionPayload, error) {

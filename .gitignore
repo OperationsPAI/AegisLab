@@ -167,3 +167,4 @@ output
 .idea
 scripts/gen/dataset/output/
 __debug*
+.deploy

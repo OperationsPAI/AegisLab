@@ -9,6 +9,7 @@ import (
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"gorm.io/plugin/opentelemetry/tracing"
 )
 
 // 全局 DB 对象
@@ -96,6 +97,9 @@ func InitDB() {
 		DB, err = gorm.Open(mysql.Open(mysqlDSN), &gorm.Config{})
 		if err == nil {
 			logrus.Info("Successfully connected to the database.")
+			if err := DB.Use(tracing.NewPlugin()); err != nil {
+				panic(err)
+			}
 			break // Connection successful, exit loop
 		}
 
@@ -113,4 +117,5 @@ func InitDB() {
 	if err != nil {
 		logrus.Fatalf("Failed to migrate database: %v", err)
 	}
+
 }
