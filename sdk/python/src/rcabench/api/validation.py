@@ -7,6 +7,7 @@ from ..model.error import (
 from functools import wraps
 from pydantic import BaseModel, ValidationError as PydanticValidationError
 import inspect
+import traceback
 
 __all__ = ["validate_request_response"]
 
@@ -129,6 +130,7 @@ def validate_request_response(
             # 构建输入数据（保留self/cls引用）
             input_data, err = ValidationHelper.prepare_input_data(func, *args, **kwargs)
             if err is not None:
+                traceback.print_exc()
                 return err
 
             if request_model is not None:
@@ -136,6 +138,7 @@ def validate_request_response(
                     request_model, input_data, func
                 )
                 if err is not None:
+                    traceback.print_exc()
                     return err
 
             result = func(**input_data)
@@ -146,6 +149,7 @@ def validate_request_response(
             if response_model is not None:
                 result, err = ValidationHelper.validate_response(response_model, result)
                 if err is not None:
+                    traceback.print_exc()
                     return err
 
                 return result
@@ -177,6 +181,7 @@ def async_validate_request_response(
             # 构建输入数据（保留self/cls引用）
             input_data, err = ValidationHelper.prepare_input_data(func, *args, **kwargs)
             if err is not None:
+                traceback.print_exc()
                 return err
 
             if request_model is not None:
@@ -184,6 +189,7 @@ def async_validate_request_response(
                     request_model, input_data, func
                 )
                 if err is not None:
+                    traceback.print_exc()
                     return err
 
             result = await func(**input_data)
@@ -194,6 +200,7 @@ def async_validate_request_response(
             if response_model is not None:
                 result, err = ValidationHelper.validate_response(response_model, result)
                 if err is not None:
+                    traceback.print_exc()
                     return err
 
                 return result
