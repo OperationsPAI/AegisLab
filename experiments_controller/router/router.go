@@ -45,6 +45,7 @@ func New() *gin.Engine {
 		injections.GET("", handlers.GetInjectionList)
 		injections.GET("/conf", handlers.GetInjectionConf)
 		injections.POST("", handlers.SubmitFaultInjection)
+		injections.GET("/ns/status", handlers.GetNSLock)
 
 		tasks := injections.Group("/:task_id")
 		{

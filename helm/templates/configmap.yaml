@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: rcabench-config
+  name: {{ .Release.Name }}-rcabench-config
 data:
   config.prod.toml: |
     name = "{{ .Values.configmap.name }}"
@@ -60,7 +60,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: mariadb-config
+  name: {{ .Release.Name }}-mariadb-config
 data:
   my.cnf: |
     [mysqld]
@@ -70,7 +70,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: buildkit-config
+  name: {{ .Release.Name }}-buildkit-config
 data:
   buildkitd.toml: |
     debug = true

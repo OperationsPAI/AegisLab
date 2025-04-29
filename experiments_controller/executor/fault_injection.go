@@ -377,7 +377,7 @@ func extractNamespaceIndex(namespace string) (int, error) {
 	re := regexp.MustCompile(pattern)
 	match := re.FindStringSubmatch(namespace)
 
-	if len(match) <= 3 {
+	if len(match) < 3 {
 		return 0, fmt.Errorf("failed to extract index from namespace %s", namespace)
 	}
 
