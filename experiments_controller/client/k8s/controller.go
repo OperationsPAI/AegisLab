@@ -68,24 +68,10 @@ type Controller struct {
 }
 
 func NewController() *Controller {
-	m := config.GetMap("injection.namespace_target_map")
-	namespacePrefixs := make([]string, 0, len(m))
-	namespaceTargetMap := make(map[string]int, len(m))
-	for ns, value := range m {
-		count, ok := value.(int64)
-		if !ok {
-			logrus.Fatalf("failed to parse target count for namespace '%s': expected integer value but got %T", ns, value)
-		}
-
-		namespaceTargetMap[ns] = int(count)
-		namespacePrefixs = append(namespacePrefixs, ns)
-	}
-
-	namespaces := make([]string, 0)
-	for _, ns := range namespacePrefixs {
-		for i := range namespaceTargetMap[ns] {
-			namespaces = append(namespaces, fmt.Sprintf("%s%d", ns, i+1))
-		}
+	namespaces, err := GetNS2Monitor()
+	if err != nil {
+		logrus.WithField("func", "GetNS2Monitor").Error(err)
+		panic(err)
 	}
 
 	chaosGVRs := make([]schema.GroupVersionResource, 0, len(chaosCli.GetCRDMapping()))
