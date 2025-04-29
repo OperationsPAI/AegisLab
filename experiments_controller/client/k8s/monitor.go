@@ -87,7 +87,7 @@ func GetNS2Monitor() ([]string, error) {
 		}
 
 		for idx := range vInt {
-			namespaces = append(namespaces, fmt.Sprintf("%s%d", ns, idx+1))
+			namespaces = append(namespaces, fmt.Sprintf("%s%d", ns, idx))
 		}
 	}
 	return namespaces, nil
