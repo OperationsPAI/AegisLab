@@ -13,10 +13,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	corev1listers "k8s.io/client-go/listers/core/v1"
 
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
@@ -63,24 +61,20 @@ type QueueItem struct {
 
 type MonitorItem struct {
 	endTime time.Time
-	status  bool
 	traceID string
 }
 
 type Monitor struct {
-	namespaces          []string
-	nsItemMap           map[string]*MonitorItem
-	desiredPodNums      map[string]int
-	podNamespaceListers map[string]corev1listers.PodNamespaceLister
-	mu                  sync.RWMutex
+	namespaces []string
+	nsItemMap  map[string]*MonitorItem
+	mu         sync.RWMutex
 }
 
-func newMonitor(initialNamespaces []string, podNamespaceListers map[string]corev1listers.PodNamespaceLister) *Monitor {
+func newMonitor(initialNamespaces []string) Monitor {
 	nsItemMap := make(map[string]*MonitorItem, len(initialNamespaces))
 	desiredPodNums := make(map[string]int, len(initialNamespaces))
 	for _, namespace := range initialNamespaces {
 		nsItemMap[namespace] = &MonitorItem{
-			status:  true,
 			endTime: time.Now(),
 			traceID: "",
 		}
@@ -94,12 +88,10 @@ func newMonitor(initialNamespaces []string, podNamespaceListers map[string]corev
 		desiredPodNums[namespace] = desiredPodNum
 	}
 
-	return &Monitor{
-		namespaces:          initialNamespaces,
-		nsItemMap:           nsItemMap,
-		desiredPodNums:      desiredPodNums,
-		podNamespaceListers: podNamespaceListers,
-		mu:                  sync.RWMutex{},
+	return Monitor{
+		namespaces: initialNamespaces,
+		nsItemMap:  nsItemMap,
+		mu:         sync.RWMutex{},
 	}
 }
 
@@ -111,10 +103,6 @@ func (m *Monitor) checkNamespaceToInject(namespace string, executeTime time.Time
 	item, exists := m.nsItemMap[namespace]
 	if !exists {
 		err = fmt.Errorf("failed to find the item of the namespace %s", namespace)
-	}
-
-	if !item.status {
-		err = fmt.Errorf("the service in namespace %s is not yet fully ready for fault injection", namespace)
 	}
 
 	if !item.endTime.After(executeTime) {
@@ -151,43 +139,6 @@ func (m *Monitor) getNamespaceToRestart(endTime time.Time, traceID string) strin
 	return ""
 }
 
-func (m *Monitor) setStatus() {
-	for _, namespace := range m.namespaces {
-		logEntry := logrus.WithField("namespace", namespace)
-		lister := m.podNamespaceListers[namespace]
-		pods, err := lister.List(labels.Everything())
-		if err != nil && !errors.IsNotFound(err) {
-			logEntry.Errorf("failed to list pods for readiness check: %v", err)
-			continue
-		}
-
-		podNum := 0
-		for _, pod := range pods {
-			if !checkPodReady(pod) {
-				continue
-			}
-
-			podNum++
-		}
-
-		m.mu.RLock()
-		desiredNum := m.desiredPodNums[namespace]
-		item := m.nsItemMap[namespace]
-		currentStatus := item.status
-		m.mu.RUnlock()
-
-		allRunning := podNum == desiredNum
-
-		if currentStatus != allRunning {
-			m.mu.Lock()
-			item.status = allRunning
-			logEntry.Infof("Namespace status changed to %v (running pods: %d/%d)",
-				allRunning, podNum, desiredNum)
-			m.mu.Unlock()
-		}
-	}
-}
-
 func (m *Monitor) setTime(namespace string, endTime time.Time, traceID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -210,12 +161,24 @@ type Controller struct {
 }
 
 func NewController() *Controller {
-	namespacePrefix := config.GetString("injection.namespace_prefix")
-	targetNamespaceCount := config.GetInt("injection.target_namespace_count")
+	m := config.GetMap("injection.namespace_target_map")
+	namespacePrefixs := make([]string, 0, len(m))
+	namespaceTargetMap := make(map[string]int, len(m))
+	for ns, value := range m {
+		count, ok := value.(int64)
+		if !ok {
+			logrus.Fatalf("failed to parse target count for namespace '%s': expected integer value but got %T", ns, value)
+		}
 
-	namespaces := make([]string, 0, targetNamespaceCount)
-	for i := range targetNamespaceCount {
-		namespaces = append(namespaces, fmt.Sprintf("%s%d", namespacePrefix, i+1))
+		namespaceTargetMap[ns] = int(count)
+		namespacePrefixs = append(namespacePrefixs, ns)
+	}
+
+	namespaces := make([]string, 0)
+	for _, ns := range namespacePrefixs {
+		for i := range namespaceTargetMap[ns] {
+			namespaces = append(namespaces, fmt.Sprintf("%s%d", ns, i+1))
+		}
 	}
 
 	chaosGVRs := make([]schema.GroupVersionResource, 0, len(chaosCli.GetCRDMapping()))
@@ -223,19 +186,8 @@ func NewController() *Controller {
 		chaosGVRs = append(chaosGVRs, gvr)
 	}
 
-	obInformers := make(map[string]cache.SharedIndexInformer, len(namespaces))
-	podNamespaceListers := make(map[string]corev1listers.PodNamespaceLister, len(namespaces))
 	crdInformers := make(map[string]map[schema.GroupVersionResource]cache.SharedIndexInformer, len(namespaces))
 	for _, namespace := range namespaces {
-		obFactory := informers.NewSharedInformerFactoryWithOptions(
-			k8sClient,
-			resyncPeriod,
-			informers.WithNamespace(namespace),
-		)
-
-		obInformers[namespace] = obFactory.Core().V1().Pods().Informer()
-		podNamespaceListers[namespace] = obFactory.Core().V1().Pods().Lister().Pods(namespace)
-
 		chaosFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
 			k8sDynamicClient,
 			resyncPeriod,
@@ -262,8 +214,7 @@ func NewController() *Controller {
 	)
 
 	return &Controller{
-		monitor:      *newMonitor(namespaces, podNamespaceListers),
-		obInformers:  obInformers,
+		monitor:      newMonitor(namespaces),
 		crdInformers: crdInformers,
 		jobInformer:  platformFactory.Batch().V1().Jobs().Informer(),
 		podInformer:  platformFactory.Core().V1().Pods().Informer(),
@@ -321,9 +272,6 @@ func (c *Controller) Run(ctx context.Context, callback Callback) {
 
 	logrus.Info("starting queue worker...")
 	go wait.Until(c.runWorker, time.Second, ctx.Done())
-
-	logrus.Info("starting namespace status check loop...")
-	go wait.Until(c.monitor.setStatus, resyncPeriod, ctx.Done())
 
 	<-ctx.Done()
 	logrus.Info("Stopping informer controller...")
