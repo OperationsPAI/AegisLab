@@ -67,7 +67,7 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 		}
 
 		childNode := payload.node.Children[strconv.Itoa(payload.node.Value)]
-		namespaceIndex, err := extractNamespaceIndex(payload.namespace, config.GetString("injection.namespace_prefix"))
+		namespaceIndex, err := extractNamespaceIndex(payload.namespace)
 		if err != nil {
 			k8s.GetK8sController().ReleaseLock(payload.namespace)
 			span.RecordError(err)
@@ -91,7 +91,10 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 			return fmt.Errorf("failed to inject fault: %v", err)
 		}
 
-		childNode.Children[consts.NamespaceNodeKey].Value = namespaceIndex
+		childNode.Children[strconv.Itoa(len(childNode.Children))] = &chaos.Node{
+			Value: namespaceIndex%5 + 1,
+		}
+
 		engineConfig := chaos.NodeToMap(payload.node, true)
 		engineData, err := json.Marshal(engineConfig)
 		if err != nil {
@@ -186,7 +189,7 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 			return fmt.Errorf("failed to save trace item to Redis: %v", err)
 		}
 
-		namespaceIndex, err := extractNamespaceIndex(namespace, config.GetString("injection.namespace_prefix"))
+		namespaceIndex, err := extractNamespaceIndex(namespace)
 		if err != nil {
 			k8s.GetK8sController().ReleaseLock(namespace)
 			span.RecordError(err)
@@ -369,16 +372,20 @@ func installTS(ctx context.Context, namespace, port, imageTag string) error {
 	})
 }
 
-func extractNamespaceIndex(namespace string, prefix string) (int, error) {
-	pattern := prefix + `(\d+)`
+func extractNamespaceIndex(namespace string) (int, error) {
+	pattern := `^([a-zA-Z]+)(\d+)$`
 	re := regexp.MustCompile(pattern)
 	match := re.FindStringSubmatch(namespace)
 
-	if len(match) <= 1 {
+	if len(match) <= 3 {
 		return 0, fmt.Errorf("failed to extract index from namespace %s", namespace)
 	}
 
-	num, err := strconv.Atoi(match[1])
+	if _, ok := config.GetMap("injection.namespace_target_map")[match[1]]; !ok {
+		return 0, fmt.Errorf("namespace %s is not defined in configuration 'injection.namespace_target_map'", match[1])
+	}
+
+	num, err := strconv.Atoi(match[2])
 	if err != nil {
 		return 0, fmt.Errorf("failed to convert extracted index to integer: %v", err)
 	}
