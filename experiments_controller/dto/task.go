@@ -50,3 +50,9 @@ func (t *TaskStreamItem) Convert(task database.Task) {
 	t.Type = task.Type
 	t.TraceID = task.TraceID
 }
+
+// Define pagination request structure
+type TaskQueuePaginationRequest struct {
+	Page     int `form:"page" binding:"min=1"`
+	PageSize int `form:"pageSize" binding:"min=1"`
+}

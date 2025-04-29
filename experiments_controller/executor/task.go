@@ -27,24 +27,30 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// 常量定义
+// -----------------------------------------------------------------------------
+// Constants and Global Variables
+// -----------------------------------------------------------------------------
+
+// Redis key constants for task queues and indexes
 const (
-	DelayedQueueKey    = "task:delayed"
-	ReadyQueueKey      = "task:ready"
-	DeadLetterKey      = "task:dead"
-	TaskIndexKey       = "task:index"
-	ConcurrencyLockKey = "task:concurrency_lock"
-	LastBatchInfoKey   = "last_batch_info"
-	MaxConcurrency     = 20
+	DelayedQueueKey    = "task:delayed"          // Sorted set for delayed tasks
+	ReadyQueueKey      = "task:ready"            // List for ready-to-execute tasks
+	DeadLetterKey      = "task:dead"             // Sorted set for failed tasks
+	TaskIndexKey       = "task:index"            // Hash mapping task IDs to their queue
+	ConcurrencyLockKey = "task:concurrency_lock" // Counter for concurrency control
+	LastBatchInfoKey   = "last_batch_info"       // Key for batch processing information
+	MaxConcurrency     = 20                      // Maximum concurrent tasks
 )
 
-// 监控指标
+// Prometheus metrics for task monitoring
 var (
+	// Counter for tracking processed tasks by type and status
 	tasksProcessed = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "task_processed_total",
 		Help: "Total number of processed tasks",
 	}, []string{"type", "status"})
 
+	// Histogram for measuring task duration by type
 	taskDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "task_duration_seconds",
 		Help:    "Task processing duration distribution",
@@ -52,22 +58,50 @@ var (
 	}, []string{"type"})
 )
 
-// UnifiedTask 统一任务结构
+// Task cancellation registry
+var (
+	taskCancelFuncs      = make(map[string]context.CancelFunc) // Maps task IDs to their cancel functions
+	taskCancelFuncsMutex sync.RWMutex                          // Mutex to protect the map
+)
+
+// -----------------------------------------------------------------------------
+// Data Structures
+// -----------------------------------------------------------------------------
+
+// UnifiedTask represents a task that can be scheduled and executed
 type UnifiedTask struct {
-	TaskID       string                 `json:"task_id"`
-	Type         consts.TaskType        `json:"type"`
-	Immediate    bool                   `json:"immediate"`
-	ExecuteTime  int64                  `json:"execute_time"`
-	CronExpr     string                 `json:"cron_expr,omitempty"`
-	ReStartNum   int                    `json:"restart_num"`
-	RetryPolicy  RetryPolicy            `json:"retry_policy"`
-	Payload      map[string]any         `json:"payload"`
-	TraceID      string                 `json:"trace_id,omitempty"`
-	GroupID      string                 `json:"group_id,omitempty"`
-	TraceCarrier propagation.MapCarrier `json:"trace_carrier,omitempty"`
-	GroupCarrier propagation.MapCarrier `json:"group_carrier,omitempty"`
+	TaskID       string                 `json:"task_id"`                 // Unique identifier for the task
+	Type         consts.TaskType        `json:"type"`                    // Task type (determines how it's processed)
+	Immediate    bool                   `json:"immediate"`               // Whether to execute immediately
+	ExecuteTime  int64                  `json:"execute_time"`            // Unix timestamp for delayed execution
+	CronExpr     string                 `json:"cron_expr,omitempty"`     // Cron expression for recurring tasks
+	ReStartNum   int                    `json:"restart_num"`             // Number of restarts for the task
+	RetryPolicy  RetryPolicy            `json:"retry_policy"`            // Policy for retrying failed tasks
+	Payload      map[string]any         `json:"payload"`                 // Task-specific data
+	TraceID      string                 `json:"trace_id,omitempty"`      // ID for tracing related tasks
+	GroupID      string                 `json:"group_id,omitempty"`      // ID for grouping tasks
+	TraceCarrier propagation.MapCarrier `json:"trace_carrier,omitempty"` // Carrier for trace context
+	GroupCarrier propagation.MapCarrier `json:"group_carrier,omitempty"` // Carrier for group context
 }
 
+// RetryPolicy defines how tasks should be retried on failure
+type RetryPolicy struct {
+	MaxAttempts int `json:"max_attempts"` // Maximum number of retry attempts
+	BackoffSec  int `json:"backoff_sec"`  // Seconds to wait between retries
+}
+
+// LastBatchInfo stores information about the last batch execution
+type LastBatchInfo struct {
+	ExecutionTime time.Time // When the batch was executed
+	Interval      int       // Interval between batches
+	Num           int       // Number of tasks in the batch
+}
+
+// -----------------------------------------------------------------------------
+// Context Management Methods
+// -----------------------------------------------------------------------------
+
+// GetTraceCtx extracts the trace context from the carrier
 func (t *UnifiedTask) GetTraceCtx() context.Context {
 	if t.TraceCarrier == nil {
 		logrus.WithField("task_id", t.TaskID).WithField("task_type", t.Type).Error("No group context, create a new one")
@@ -77,6 +111,7 @@ func (t *UnifiedTask) GetTraceCtx() context.Context {
 	return traceCtx
 }
 
+// GetGroupCtx extracts the group context from the carrier
 func (t *UnifiedTask) GetGroupCtx() context.Context {
 	if t.GroupCarrier == nil {
 		logrus.WithField("task_id", t.TaskID).WithField("task_type", t.Type).Error("No group context, create a new one")
@@ -86,12 +121,15 @@ func (t *UnifiedTask) GetGroupCtx() context.Context {
 	return traceCtx
 }
 
+// SetTraceCtx injects the trace context into the carrier
 func (t *UnifiedTask) SetTraceCtx(ctx context.Context) {
 	if t.TraceCarrier == nil {
 		t.TraceCarrier = make(propagation.MapCarrier)
 	}
 	otel.GetTextMapPropagator().Inject(ctx, t.TraceCarrier)
 }
+
+// SetGroupCtx injects the group context into the carrier
 func (t *UnifiedTask) SetGroupCtx(ctx context.Context) {
 	if t.GroupCarrier == nil {
 		t.GroupCarrier = make(propagation.MapCarrier)
@@ -99,36 +137,29 @@ func (t *UnifiedTask) SetGroupCtx(ctx context.Context) {
 	otel.GetTextMapPropagator().Inject(ctx, t.GroupCarrier)
 }
 
-type RetryPolicy struct {
-	MaxAttempts int `json:"max_attempts"`
-	BackoffSec  int `json:"backoff_sec"`
-}
+// -----------------------------------------------------------------------------
+// Task Submission Functions
+// -----------------------------------------------------------------------------
 
-type LastBatchInfo struct {
-	ExecutionTime time.Time
-	Interval      int
-	Num           int
-}
-
-var (
-	taskCancelFuncs      = make(map[string]context.CancelFunc)
-	taskCancelFuncsMutex sync.RWMutex
-)
-
-// SubmitTask
-// 1. if GroupCarrier is not nil, it means the task is an initial task, it spwans several traces.
-// 1.2 then, if the TraceCarrier is nil, new one.
-// 2. if TraceCarrier is not nil, it means the task is within a task trace.
-// As a result, when calling SubmitTask, if it is inital task: fill in the GroupCarrier  (parent's parent)
-// 											if it is subsquent task: fill in the TraceCarrier (parent)
-// 											The context itself is the youngest span.
-/*
-					   Task 1
-                       Task 2
-Group      -> Trace -> Task 3
-                       Task 4
-                       Task 5
-*/
+// SubmitTask creates and submits a new task to the appropriate queue
+//
+// Task Context Hierarchy:
+//  1. If GroupCarrier is not nil: task is an initial task that spawns several traces
+//     1.2. If TraceCarrier is nil, create a new one
+//  2. If TraceCarrier is not nil: task is within a task trace
+//
+// When calling SubmitTask:
+// - For initial task: fill in the GroupCarrier (parent's parent)
+// - For subsequent task: fill in the TraceCarrier (parent)
+// - The context itself is the youngest span
+//
+// Hierarchy example:
+//
+//	Group -> Trace -> Task 1
+//	               -> Task 2
+//	               -> Task 3
+//	               -> Task 4
+//	               -> Task 5
 func SubmitTask(ctx context.Context, task *UnifiedTask) (string, string, error) {
 	if task.TaskID == "" {
 		task.TaskID = uuid.NewString()
@@ -165,6 +196,7 @@ func SubmitTask(ctx context.Context, task *UnifiedTask) (string, string, error) 
 	return task.TaskID, task.TraceID, submitDelayedTask(ctx, task)
 }
 
+// submitImmediateTask sends a task to the ready queue for immediate execution
 func submitImmediateTask(ctx context.Context, task *UnifiedTask) error {
 	taskData, err := marshalTask(task)
 	if err != nil {
@@ -179,6 +211,7 @@ func submitImmediateTask(ctx context.Context, task *UnifiedTask) error {
 	return redisCli.HSet(ctx, TaskIndexKey, task.TaskID, ReadyQueueKey).Err()
 }
 
+// submitDelayedTask sends a task to the delayed queue for future execution
 func submitDelayedTask(ctx context.Context, task *UnifiedTask) error {
 	executeTime, err := calculateExecuteTime(task)
 	if err != nil {
@@ -201,6 +234,7 @@ func submitDelayedTask(ctx context.Context, task *UnifiedTask) error {
 	return redisCli.HSet(ctx, TaskIndexKey, task.TaskID, DelayedQueueKey).Err()
 }
 
+// marshalTask serializes a task to JSON
 func marshalTask(task *UnifiedTask) ([]byte, error) {
 	taskData, err := json.Marshal(task)
 	if err != nil {
@@ -209,6 +243,11 @@ func marshalTask(task *UnifiedTask) ([]byte, error) {
 	return taskData, nil
 }
 
+// -----------------------------------------------------------------------------
+// Task Scheduling Functions
+// -----------------------------------------------------------------------------
+
+// StartScheduler starts the scheduler that moves tasks from delayed to ready queue
 func StartScheduler(ctx context.Context) {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
@@ -223,12 +262,13 @@ func StartScheduler(ctx context.Context) {
 	}
 }
 
+// Lua script for processing delayed tasks efficiently
 var delayedTaskScript = redis.NewScript(`
     local tasks = redis.call('ZRANGEBYSCORE', KEYS[1], 0, ARGV[1])
     if #tasks > 0 then
         redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, ARGV[1])
         redis.call('LPUSH', KEYS[2], unpack(tasks))
-        -- 更新任务索引
+        -- Update task index
         for _, task in ipairs(tasks) do
             local t = cjson.decode(task)
             redis.call('HSET', KEYS[3], t.task_id, KEYS[2])
@@ -237,6 +277,7 @@ var delayedTaskScript = redis.NewScript(`
     return tasks
 `)
 
+// ProcessDelayedTasks moves tasks from delayed queue to ready queue when their time arrives
 func ProcessDelayedTasks(ctx context.Context) {
 	redisCli := client.GetRedisClient()
 	now := time.Now().Unix()
@@ -275,6 +316,7 @@ func ProcessDelayedTasks(ctx context.Context) {
 	}
 }
 
+// handleCronRescheduleFailure moves a failed cron task to the dead letter queue
 func handleCronRescheduleFailure(ctx context.Context, task *UnifiedTask) {
 	taskData, _ := json.Marshal(task)
 	client.GetRedisClient().ZAdd(ctx, DeadLetterKey, redis.Z{
@@ -283,6 +325,11 @@ func handleCronRescheduleFailure(ctx context.Context, task *UnifiedTask) {
 	})
 }
 
+// -----------------------------------------------------------------------------
+// Task Consumption and Processing
+// -----------------------------------------------------------------------------
+
+// ConsumeTasks starts a consumer that processes tasks from the ready queue
 func ConsumeTasks() {
 	defer func() {
 		if r := recover(); r != nil {
@@ -315,8 +362,10 @@ func ConsumeTasks() {
 	}
 }
 
-// ExtractContext
-// 1. Always have group ctx
+// ExtractContext builds the trace and task contexts from a task
+//
+// Context hierarchy:
+// 1. Always have group context
 // 2.1 If there is no trace carrier, create a new trace span
 // 2.2 If there is a trace carrier, extract the trace context
 // 2.3 Always create a new task span
@@ -325,23 +374,23 @@ func ExtractContext(ctx context.Context, task *UnifiedTask) (context.Context, co
 	var traceSpan trace.Span
 
 	if task.TraceCarrier != nil {
-		// means it is a father span
+		// Means it is a father span
 		traceCtx = task.GetTraceCtx()
 		logrus.WithField("task_id", task.TaskID).WithField("task_type", task.Type).Infof("Initial task group")
 	} else {
-		// means it is a grand father span
+		// Means it is a grand father span
 		groupCtx := task.GetGroupCtx()
 
-		// create father first
+		// Create father first
 		traceCtx, traceSpan = otel.Tracer("rcabench/trace").Start(groupCtx, fmt.Sprintf("start_task/%s", task.Type), trace.WithAttributes(
 			attribute.String("trace_id", task.TraceID),
 		))
 
-		// inject father into the carrier
+		// Inject father into the carrier
 		task.SetTraceCtx(traceCtx)
 
 		traceSpan.SetStatus(codes.Ok, fmt.Sprintf("Started processing task trace %s", task.TraceID))
-		logrus.WithField("task_id", task.TaskID).WithField("task_type", task.Type).Infof("Subsquent task")
+		logrus.WithField("task_id", task.TaskID).WithField("task_type", task.Type).Infof("Subsequent task")
 	}
 
 	taskCtx, _ := otel.Tracer("rcabench/task").Start(traceCtx,
@@ -354,6 +403,7 @@ func ExtractContext(ctx context.Context, task *UnifiedTask) (context.Context, co
 	return traceCtx, taskCtx
 }
 
+// processTask handles a task from the queue
 func processTask(ctx context.Context, taskData string) {
 	defer releaseConcurrencyLock(ctx)
 	defer func() {
@@ -368,8 +418,8 @@ func processTask(ctx context.Context, taskData string) {
 		return
 	}
 
-	// previously, ctx is an empty context.
-	// ExtractContext inject the context information into the context
+	// Previously, ctx is an empty context.
+	// ExtractContext injects the context information into the context
 	traceCtx, taskCtx := ExtractContext(ctx, &task)
 	traceSpan := trace.SpanFromContext(traceCtx)
 	defer traceSpan.End()
@@ -386,6 +436,7 @@ func processTask(ctx context.Context, taskData string) {
 	taskDuration.WithLabelValues(string(task.Type)).Observe(time.Since(startTime).Seconds())
 }
 
+// executeTaskWithRetry attempts to execute a task with retry logic
 func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 	retryCtx, retryCancel := context.WithCancel(ctx)
 	registerCancelFunc(task.TaskID, retryCancel)
@@ -434,20 +485,25 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 	updateTaskError(nil, task.TaskID, task.TraceID, task.Type, err, message)
 }
 
-// 注册取消函数
+// -----------------------------------------------------------------------------
+// Task Cancellation and Control Functions
+// -----------------------------------------------------------------------------
+
+// registerCancelFunc stores a task's cancel function
 func registerCancelFunc(taskID string, cancel context.CancelFunc) {
 	taskCancelFuncsMutex.Lock()
 	defer taskCancelFuncsMutex.Unlock()
 	taskCancelFuncs[taskID] = cancel
 }
 
-// 注销取消函数
+// unregisterCancelFunc removes a task's cancel function
 func unregisterCancelFunc(taskID string) {
 	taskCancelFuncsMutex.Lock()
 	defer taskCancelFuncsMutex.Unlock()
 	delete(taskCancelFuncs, taskID)
 }
 
+// handleFinalFailure moves a failed task to the dead letter queue
 func handleFinalFailure(ctx context.Context, task *UnifiedTask, errMsg string) {
 	deadLetterTime := time.Now().Add(time.Duration(task.RetryPolicy.BackoffSec) * time.Second).Unix()
 	redisCli := client.GetRedisClient()
@@ -465,7 +521,7 @@ func handleFinalFailure(ctx context.Context, task *UnifiedTask, errMsg string) {
 	logrus.WithField("task_id", task.TaskID).Errorf("failed after %d attempts", task.RetryPolicy.MaxAttempts)
 }
 
-// 分布式并发控制
+// acquireConcurrencyLock attempts to acquire a lock for task execution
 func acquireConcurrencyLock(ctx context.Context) bool {
 	redisCli := client.GetRedisClient()
 	currentCount, _ := redisCli.Get(ctx, ConcurrencyLockKey).Int64()
@@ -475,6 +531,7 @@ func acquireConcurrencyLock(ctx context.Context) bool {
 	return redisCli.Incr(ctx, ConcurrencyLockKey).Err() == nil
 }
 
+// releaseConcurrencyLock releases a lock after task execution
 func releaseConcurrencyLock(ctx context.Context) {
 	redisCli := client.GetRedisClient()
 	if err := redisCli.Decr(ctx, ConcurrencyLockKey).Err(); err != nil {
@@ -482,9 +539,9 @@ func releaseConcurrencyLock(ctx context.Context) {
 	}
 }
 
-// 改进的任务取消机制
+// CancelTask cancels a task and removes it from the queues
 func CancelTask(taskID string) error {
-	// 取消执行上下文
+	// Cancel execution context
 	taskCancelFuncsMutex.RLock()
 	cancelFunc, exists := taskCancelFuncs[taskID]
 	taskCancelFuncsMutex.RUnlock()
@@ -493,11 +550,11 @@ func CancelTask(taskID string) error {
 		cancelFunc()
 	}
 
-	// 从Redis删除任务
+	// Remove task from Redis
 	ctx := context.Background()
 	redisCli := client.GetRedisClient()
 
-	// 通过索引快速定位队列
+	// Locate queue using index
 	queueType, err := redisCli.HGet(ctx, TaskIndexKey, taskID).Result()
 	if err == nil {
 		switch queueType {
@@ -509,7 +566,6 @@ func CancelTask(taskID string) error {
 			if s := removeFromZSet(ctx, redisCli, DelayedQueueKey, taskID); !s {
 				logrus.Warnf("failed to remove from delayed queue: %v", err)
 			}
-
 		case DeadLetterKey:
 			if s := removeFromZSet(ctx, redisCli, DeadLetterKey, taskID); !s {
 				logrus.Warnf("failed to remove from dead letter queue: %v", err)
@@ -517,7 +573,7 @@ func CancelTask(taskID string) error {
 		}
 	}
 
-	// 清理索引
+	// Clean up index
 	redisCli.HDel(ctx, TaskIndexKey, taskID)
 
 	if exists || err == nil {
@@ -527,7 +583,11 @@ func CancelTask(taskID string) error {
 	return fmt.Errorf("task %s not found", taskID)
 }
 
-// 高效任务删除实现
+// -----------------------------------------------------------------------------
+// Redis Utility Functions
+// -----------------------------------------------------------------------------
+
+// removeFromZSet removes a task from a Redis sorted set
 func removeFromZSet(ctx context.Context, cli *redis.Client, key, taskID string) bool {
 	members, err := cli.ZRangeByScore(ctx, key, &redis.ZRangeBy{
 		Min: "-inf",
@@ -551,8 +611,9 @@ func removeFromZSet(ctx context.Context, cli *redis.Client, key, taskID string) 
 	return false
 }
 
+// removeFromList removes a task from a Redis list using Lua script
 func removeFromList(ctx context.Context, cli *redis.Client, key, taskID string) (bool, error) {
-	// 高效列表删除Lua脚本
+	// Efficient list removal Lua script
 	var removeFromListScript = redis.NewScript(`
 		local key = KEYS[1]
 		local taskID = ARGV[1]
@@ -583,6 +644,11 @@ func removeFromList(ctx context.Context, cli *redis.Client, key, taskID string) 
 	return result > 0, nil
 }
 
+// -----------------------------------------------------------------------------
+// Task Status Update Functions
+// -----------------------------------------------------------------------------
+
+// parseRdbMsgFromPayload extracts a RdbMsg from the task payload
 func parseRdbMsgFromPayload(payload map[string]any) (*dto.RdbMsg, error) {
 	message := "missing or invalid '%s' key in payload"
 
@@ -617,12 +683,12 @@ func parseRdbMsgFromPayload(payload map[string]any) (*dto.RdbMsg, error) {
 		} else {
 			rdbMsg.Error = errMsg
 		}
-
 	}
 
 	return rdbMsg, nil
 }
 
+// updateTaskError updates the task status to error
 func updateTaskError(ctx context.Context, taskID, traceID string, taskType consts.TaskType, err error, errMsg string) {
 	fields := map[string]any{
 		consts.RdbMsgStatus:   consts.TaskStatusError,
@@ -643,6 +709,7 @@ func updateTaskError(ctx context.Context, taskID, traceID string, taskType const
 	)
 }
 
+// updateTaskStatus updates the task status and publishes the update
 func updateTaskStatus(ctx context.Context, taskID, traceID, message string, payload map[string]any) {
 	tracing.WithSpan(ctx, func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
@@ -664,6 +731,7 @@ func updateTaskStatus(ctx context.Context, taskID, traceID, message string, payl
 
 		span.AddEvent(message)
 
+		// Update task status in database
 		tx := database.DB.WithContext(ctx).Begin()
 		if err := tx.Model(&database.Task{}).
 			Where("id = ?", taskID).
@@ -674,6 +742,7 @@ func updateTaskStatus(ctx context.Context, taskID, traceID, message string, payl
 		}
 		tx.Commit()
 
+		// Publish status update
 		delete(payload, consts.RdbMsgErr)
 		msg, err := json.Marshal(payload)
 		if err != nil {
@@ -686,6 +755,11 @@ func updateTaskStatus(ctx context.Context, taskID, traceID, message string, payl
 	})
 }
 
+// -----------------------------------------------------------------------------
+// Utility Functions
+// -----------------------------------------------------------------------------
+
+// calculateExecuteTime determines when a task should be executed
 func calculateExecuteTime(task *UnifiedTask) (int64, error) {
 	if task.Type == "cron" {
 		next, err := cronNextTime(task.CronExpr)
@@ -697,6 +771,7 @@ func calculateExecuteTime(task *UnifiedTask) (int64, error) {
 	return task.ExecuteTime, nil
 }
 
+// cronNextTime calculates the next execution time from a cron expression
 func cronNextTime(expr string) (time.Time, error) {
 	parser := cron.NewParser(cron.SecondOptional | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 	schedule, err := parser.Parse(expr)
@@ -707,6 +782,7 @@ func cronNextTime(expr string) (time.Time, error) {
 	return schedule.Next(time.Now()), nil
 }
 
+// getRedisTraceItem retrieves a field from a trace in Redis
 func getRedisTraceItem(ctx context.Context, traceID, field string) (string, error) {
 	redisCli := client.GetRedisClient()
 	result, err := redisCli.HGet(ctx, fmt.Sprintf(consts.RdbTraceItemKey, traceID), field).Result()
@@ -717,6 +793,7 @@ func getRedisTraceItem(ctx context.Context, traceID, field string) (string, erro
 	return result, nil
 }
 
+// setRedisTraceItem sets trace data in Redis
 func setRedisTraceItem(ctx context.Context, traceID string, item map[string]any) error {
 	pipe := client.GetRedisClient().TxPipeline()
 	pipe.HSet(ctx, fmt.Sprintf(consts.RdbTraceItemKey, traceID), item)

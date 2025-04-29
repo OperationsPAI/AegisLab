@@ -47,13 +47,8 @@ configmap:
     clickhouse_host: "10.10.10.58"
     mysql_user: "root"
     mysql_password: "yourpassword"
-    mysql_host: "{{ .Release.Name }}-mariadb"
     mysql_port: "3306"
     mysql_db: "rcabench"
-  jaeger:
-    endpoint: "{{ .Release.Name }}-jaeger:4318"
-  redis:
-    host: "{{ .Release.Name }}-redis:6379"
   harbor:
     host: "10.10.10.240"
     repository: "10.10.10.240/library"

@@ -60,6 +60,7 @@ func New() *gin.Engine {
 			tasksWithID.GET("", handlers.GetTaskDetail)
 			tasksWithID.GET("/stream", handlers.GetTaskStream)
 		}
+		tasks.GET("/queue", handlers.GetQueuedTasks)
 	}
 
 	router.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
