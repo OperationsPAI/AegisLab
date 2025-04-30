@@ -97,14 +97,14 @@ const (
 const (
 	SubChannel = "trace:%s:channel"
 
-	RdbMsgStatus            = "status"
-	RdbMsgTaskID            = "task_id"
-	RdbMsgTaskType          = "task_type"
-	RdbMsgDataset           = "dataset"
-	RdbMsgExecutionID       = "execution_id"
-	RdbMsgHasDetectorResult = "has_detector_result"
-	RdbMsgErr               = "error"
-	RdbMsgErrMsg            = "error_msg"
+	RdbMsgStatus         = "status"
+	RdbMsgTaskID         = "task_id"
+	RdbMsgTaskType       = "task_type"
+	RdbMsgDataset        = "dataset"
+	RdbMsgExecutionID    = "execution_id"
+	RdbMsgDetectorResult = "detector_result"
+	RdbMsgErr            = "error"
+	RdbMsgErrMsg         = "error_msg"
 )
 
 const (

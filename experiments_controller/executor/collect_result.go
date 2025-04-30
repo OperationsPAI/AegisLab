@@ -35,7 +35,7 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 		path := config.GetString("nfs.path")
 
 		if collectPayload.Algorithm == "detector" {
-			conclusionCSV := filepath.Join(path, collectPayload.Dataset, "conclusion.csv")
+			conclusionCSV := filepath.Join(path, collectPayload.Dataset, consts.DetectorConclusionFile)
 			content, err := os.ReadFile(conclusionCSV)
 			if err != nil {
 				span.AddEvent(fmt.Sprintf("there is no conclusion.csv file in %s, please check whether it is nomal", conclusionCSV))
@@ -59,10 +59,10 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 					task.TraceID,
 					fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
 					map[string]any{
-						consts.RdbMsgStatus:            consts.TaskStatusCompleted,
-						consts.RdbMsgTaskID:            task.TaskID,
-						consts.RdbMsgTaskType:          consts.TaskTypeCollectResult,
-						consts.RdbMsgHasDetectorResult: false,
+						consts.RdbMsgStatus:         consts.TaskStatusCompleted,
+						consts.RdbMsgTaskID:         task.TaskID,
+						consts.RdbMsgTaskType:       consts.TaskTypeCollectResult,
+						consts.RdbMsgDetectorResult: "",
 					})
 
 				return nil
@@ -80,10 +80,10 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 				task.TraceID,
 				fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
 				map[string]any{
-					consts.RdbMsgStatus:            consts.TaskStatusCompleted,
-					consts.RdbMsgTaskID:            task.TaskID,
-					consts.RdbMsgTaskType:          consts.TaskTypeCollectResult,
-					consts.RdbMsgHasDetectorResult: true,
+					consts.RdbMsgStatus:         consts.TaskStatusCompleted,
+					consts.RdbMsgTaskID:         task.TaskID,
+					consts.RdbMsgTaskType:       consts.TaskTypeCollectResult,
+					consts.RdbMsgDetectorResult: results,
 				})
 		} else {
 			resultCSV := filepath.Join(path, collectPayload.Dataset, "result.csv")
