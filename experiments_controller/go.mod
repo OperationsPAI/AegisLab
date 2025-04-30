@@ -4,14 +4,13 @@ go 1.23.2
 
 require (
 	github.com/BurntSushi/toml v1.4.0
-	github.com/CUHK-SE-Group/chaos-experiment v0.0.0-20250428105623-7f6a87a21513
+	github.com/CUHK-SE-Group/chaos-experiment v0.0.0-20250430034037-5193e9cd7ff8
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
 	github.com/docker/cli v27.4.1+incompatible
 	github.com/gin-contrib/cors v1.7.3
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-logr/stdr v1.2.2
 	github.com/go-playground/validator/v10 v10.24.0
-	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/uuid v1.6.0
 	github.com/k0kubun/pp/v3 v3.4.1
 	github.com/moby/buildkit v0.18.2

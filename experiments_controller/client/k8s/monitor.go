@@ -72,39 +72,23 @@ func GetMonitor() *Monitor {
 
 		}
 	})
+
 	return monitorInstance
-}
-
-func GetNS2Monitor() ([]string, error) {
-	m := config.GetMap("injection.namespace_target_map")
-	namespaces := make([]string, 0)
-
-	for ns, value := range m {
-
-		vInt, ok := value.(int64)
-		if !ok {
-			return nil, fmt.Errorf("invalid namespace value for %s", ns)
-		}
-
-		for idx := range vInt {
-			namespaces = append(namespaces, fmt.Sprintf("%s%d", ns, idx))
-		}
-	}
-	return namespaces, nil
 }
 
 // initMonitor creates and initializes a new Monitor instance
 func initMonitor() *Monitor {
-	initialNamespaces, err := GetNS2Monitor()
+	initialNamespaces, err := config.GetAllNamespaces()
 	if err != nil {
 		logrus.Fatalf("Failed to get namespaces for initialization: %v", err)
 	}
+
 	redisClient := client.GetRedisClient()
 	ctx := context.Background()
 
 	// Add namespaces to Redis set
 	if len(initialNamespaces) > 0 {
-		members := make([]interface{}, len(initialNamespaces))
+		members := make([]any, len(initialNamespaces))
 		for i, ns := range initialNamespaces {
 			members[i] = ns
 		}
@@ -117,7 +101,6 @@ func initMonitor() *Monitor {
 		nsKey := fmt.Sprintf(namespaceKeyPattern, namespace)
 
 		redisClient.HSetNX(ctx, nsKey, "end_time", now)
-		redisClient.HSetNX(ctx, nsKey, "status", "true")
 		redisClient.HSetNX(ctx, nsKey, "trace_id", "")
 	}
 
@@ -127,7 +110,46 @@ func initMonitor() *Monitor {
 	}
 }
 
-func (m *Monitor) checkNamespaceToInject(namespace string, executeTime time.Time, traceID string) error {
+func (m *Monitor) AcquireLock(endTime time.Time, traceID string) string {
+	return m.getNamespaceToRestart(endTime, traceID)
+}
+
+func (m *Monitor) ReleaseLock(namespace string) {
+	m.setTime(namespace, time.Now(), "")
+}
+
+func (m *Monitor) InspectLock() (map[string]*MonitorItem, error) {
+	// Get all namespaces
+	namespaces, err := m.redisClient.SMembers(m.ctx, namespacesKey).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get namespaces from Redis: %v", err)
+	}
+
+	nsMap := make(map[string]*MonitorItem, len(namespaces))
+
+	// Get data for each namespace
+	for _, ns := range namespaces {
+		nsKey := fmt.Sprintf(namespaceKeyPattern, ns)
+		values, err := m.redisClient.HGetAll(m.ctx, nsKey).Result()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get data for namespace %s: %v", ns, err)
+		}
+
+		endTimeUnix, err := strconv.ParseInt(values["end_time"], 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid end_time format for namespace %s: %v", ns, err)
+		}
+
+		nsMap[ns] = &MonitorItem{
+			EndTime: time.Unix(endTimeUnix, 0),
+			TraceID: values["trace_id"],
+		}
+	}
+
+	return nsMap, nil
+}
+
+func (m *Monitor) CheckNamespaceToInject(namespace string, executeTime time.Time, traceID string) error {
 	nsKey := fmt.Sprintf(namespaceKeyPattern, namespace)
 
 	// Get namespace data from Redis
@@ -138,11 +160,6 @@ func (m *Monitor) checkNamespaceToInject(namespace string, executeTime time.Time
 
 	if len(values) == 0 {
 		return fmt.Errorf("failed to find the item of the namespace %s", namespace)
-	}
-
-	// Check status
-	if values["status"] != "true" {
-		return fmt.Errorf("the service in namespace %s is not yet fully ready for fault injection", namespace)
 	}
 
 	// Check end time
@@ -174,7 +191,6 @@ func (m *Monitor) getNamespaceToRestart(endTime time.Time, traceID string) strin
 	}
 
 	nowTime := time.Now().Unix()
-
 	// Use a Redis transaction to atomically check and update namespace locks
 	for _, ns := range namespaces {
 		nsKey := fmt.Sprintf(namespaceKeyPattern, ns)
@@ -257,35 +273,4 @@ func (m *Monitor) setTime(namespace string, endTime time.Time, traceID string) {
 	} else {
 		logrus.WithField("namespace", namespace).Info("release namespace lock")
 	}
-}
-
-func (m *Monitor) InspectLock() (map[string]*MonitorItem, error) {
-	// Get all namespaces
-	namespaces, err := m.redisClient.SMembers(m.ctx, namespacesKey).Result()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get namespaces from Redis: %v", err)
-	}
-
-	nsMap := make(map[string]*MonitorItem, len(namespaces))
-
-	// Get data for each namespace
-	for _, ns := range namespaces {
-		nsKey := fmt.Sprintf(namespaceKeyPattern, ns)
-		values, err := m.redisClient.HGetAll(m.ctx, nsKey).Result()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get data for namespace %s: %v", ns, err)
-		}
-
-		endTimeUnix, err := strconv.ParseInt(values["end_time"], 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("invalid end_time format for namespace %s: %v", ns, err)
-		}
-
-		nsMap[ns] = &MonitorItem{
-			EndTime: time.Unix(endTimeUnix, 0),
-			TraceID: values["trace_id"],
-		}
-	}
-
-	return nsMap, nil
 }

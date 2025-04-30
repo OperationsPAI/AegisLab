@@ -3,7 +3,6 @@ package dto
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strconv"
 	"time"
 
@@ -100,18 +99,14 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 			return nil, fmt.Errorf("failed to find key %d in the children", node.Value)
 		}
 
-		m := config.GetMap("injection.namespace_target_map")
-		namespacePrefixs := make([]string, 0, len(m))
-		namespaceTargetMap := make(map[string]int, len(m))
-		for ns, value := range m {
-			count, _ := value.(int64)
-			namespaceTargetMap[ns] = int(count)
-			namespacePrefixs = append(namespacePrefixs, ns)
+		nsPrefixs := config.GetNsPrefixs()
+		nsTargetMap, err := config.GetNsTargetMap()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get namespace target map in configuration")
 		}
 
-		sort.Strings(namespacePrefixs)
 		index := childNode.Children[consts.NamespaceNodeKey].Value
-		namespaceCount := namespaceTargetMap[namespacePrefixs[index]]
+		namespaceCount := nsTargetMap[nsPrefixs[index]]
 
 		var execTime time.Time
 		if idx < namespaceCount {
