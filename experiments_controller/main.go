@@ -67,19 +67,15 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	m := config.GetMap("injection.namespace_target_map")
-	namespaceTargetMap := make(map[string]int, len(m))
-	for ns, value := range m {
-		count, ok := value.(int64)
-		if !ok {
-			logrus.Fatalf("failed to parse target count for namespace '%s': expected integer value but got %T", ns, value)
-		}
-
-		namespaceTargetMap[ns] = int(count)
+	nsTargetMap, err := config.GetNsTargetMap()
+	if err != nil {
+		logrus.Fatal(err)
 	}
 
 	targetLabelKey := config.GetString("injection.target_label_key")
-	chaos.InitTargetConfig(namespaceTargetMap, targetLabelKey)
+	if err := chaos.InitTargetConfig(nsTargetMap, targetLabelKey); err != nil {
+		logrus.Fatal(err)
+	}
 
 	// Producer 子命令
 	var producerCmd = &cobra.Command{
