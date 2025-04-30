@@ -50,25 +50,25 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 			return err
 		}
 
-		c := k8s.GetK8sController()
-		if err := c.CheckNamespaceToInject(payload.namespace, time.Now(), task.TraceID); err != nil {
-			k8s.GetK8sController().ReleaseLock(payload.namespace)
-			span.RecordError(fmt.Errorf("failed to inject fault: %v", err))
-			span.AddEvent("failed to inject fault")
+		monitor := k8s.GetMonitor()
+		if err := monitor.CheckNamespaceToInject(payload.namespace, time.Now(), task.TraceID); err != nil {
+			monitor.ReleaseLock(payload.namespace)
+			span.RecordError(fmt.Errorf("failed to get namespace to inject fault: %v", err))
+			span.AddEvent("failed to get namespace to inject fault")
 			return err
 		}
 
 		annotations, err := getAnnotations(childCtx, task)
 		if err != nil {
-			k8s.GetK8sController().ReleaseLock(payload.namespace)
+			monitor.ReleaseLock(payload.namespace)
 			span.RecordError(err)
 			span.AddEvent("failed to get annotations")
 			return err
 		}
 
-		namespaceIndex, err := extractNamespaceIndex(payload.namespace)
+		prefix, index, err := extractNamespace(payload.namespace)
 		if err != nil {
-			k8s.GetK8sController().ReleaseLock(payload.namespace)
+			monitor.ReleaseLock(payload.namespace)
 			span.RecordError(err)
 			span.AddEvent("failed to read namespace index")
 			return fmt.Errorf("failed to read namespace index: %v", err)
@@ -76,7 +76,7 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 
 		name, err := payload.conf.Create(
 			childCtx,
-			namespaceIndex,
+			index,
 			annotations,
 			map[string]string{
 				consts.CRDTaskID:      task.TaskID,
@@ -86,13 +86,23 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 				consts.CRDPreDuration: strconv.Itoa(payload.preDuration),
 			})
 		if err != nil {
-			k8s.GetK8sController().ReleaseLock(payload.namespace)
+			monitor.ReleaseLock(payload.namespace)
+			span.RecordError(err)
+			span.AddEvent("failed to inject fault")
 			return fmt.Errorf("failed to inject fault: %v", err)
+		}
+
+		m, err := config.GetNsTargetMap()
+		if err != nil {
+			monitor.ReleaseLock(payload.namespace)
+			span.RecordError(err)
+			span.AddEvent("failed to get namespace target map in configuration")
+			return fmt.Errorf("failed to get namespace target map in configuration: %v", err)
 		}
 
 		childNode := payload.node.Children[strconv.Itoa(payload.node.Value)]
 		childNode.Children[strconv.Itoa(len(childNode.Children))] = &chaos.Node{
-			Value: namespaceIndex%5 + 1,
+			Value: index % m[prefix],
 		}
 
 		engineConfig := chaos.NodeToMap(payload.node, true)
@@ -136,9 +146,11 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 			return err
 		}
 
+		monitor := k8s.GetMonitor()
+
 		t := time.Now()
 		deltaTime := time.Duration(payload.interval) * consts.DefaultTimeUnit
-		namespace := k8s.GetK8sController().AcquireLock(t.Add(deltaTime), task.TraceID)
+		namespace := monitor.AcquireLock(t.Add(deltaTime), task.TraceID)
 		if namespace == "" {
 			randomFactor := 0.7 + rand.Float64()*0.6 // Random factor between 0.7 and 1.3
 			deltaTime = time.Duration(math.Min(math.Pow(2, float64(task.ReStartNum)), 10.0)*randomFactor) * consts.DefaultTimeUnit
@@ -173,9 +185,9 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 		deltaTime = time.Duration(payload.interval-payload.faultDuration) * consts.DefaultTimeUnit
 		injectTime := t.Add(deltaTime)
 
-		namespaceIndex, err := extractNamespaceIndex(namespace)
+		_, index, err := extractNamespace(namespace)
 		if err != nil {
-			k8s.GetK8sController().ReleaseLock(namespace)
+			monitor.ReleaseLock(namespace)
 			span.RecordError(err)
 			span.AddEvent("failed to read namespace index")
 			return fmt.Errorf("failed to read namespace index: %v", err)
@@ -184,10 +196,11 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 		if err := installTS(
 			childCtx,
 			namespace,
-			fmt.Sprintf("3009%d", namespaceIndex),
+			// TODO not hard code
+			fmt.Sprintf("3009%d", index),
 			config.GetString("injection.ts_image_tag"),
 		); err != nil {
-			k8s.GetK8sController().ReleaseLock(namespace)
+			monitor.ReleaseLock(namespace)
 			span.RecordError(err)
 			span.AddEvent("failed to install Train Ticket")
 			return err
@@ -205,7 +218,7 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 			TraceCarrier: task.TraceCarrier,
 		}
 		if _, _, err := SubmitTask(childCtx, injectTask); err != nil {
-			k8s.GetK8sController().ReleaseLock(namespace)
+			monitor.ReleaseLock(namespace)
 			span.RecordError(err)
 			span.AddEvent("failed to submit inject task")
 			return fmt.Errorf("failed to submit inject task: %v", err)
@@ -331,7 +344,6 @@ func parseStructFromMap[T any](ctx context.Context, payload map[string]any, key 
 
 func installTS(ctx context.Context, namespace, port, imageTag string) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
-
 		client, err := client.NewHelmClient(namespace)
 		if err != nil {
 			return fmt.Errorf("error creating Helm client: %v", err)
@@ -356,23 +368,23 @@ func installTS(ctx context.Context, namespace, port, imageTag string) error {
 	})
 }
 
-func extractNamespaceIndex(namespace string) (int, error) {
+func extractNamespace(namespace string) (string, int, error) {
 	pattern := `^([a-zA-Z]+)(\d+)$`
 	re := regexp.MustCompile(pattern)
 	match := re.FindStringSubmatch(namespace)
 
 	if len(match) < 3 {
-		return 0, fmt.Errorf("failed to extract index from namespace %s", namespace)
+		return "", 0, fmt.Errorf("failed to extract index from namespace %s", namespace)
 	}
 
 	if _, ok := config.GetMap("injection.namespace_target_map")[match[1]]; !ok {
-		return 0, fmt.Errorf("namespace %s is not defined in configuration 'injection.namespace_target_map'", match[1])
+		return "", 0, fmt.Errorf("namespace %s is not defined in configuration 'injection.namespace_target_map'", match[1])
 	}
 
 	num, err := strconv.Atoi(match[2])
 	if err != nil {
-		return 0, fmt.Errorf("failed to convert extracted index to integer: %v", err)
+		return "", 0, fmt.Errorf("failed to convert extracted index to integer: %v", err)
 	}
 
-	return num, nil
+	return match[1], num, nil
 }

@@ -1,7 +1,9 @@
 package config
 
 import (
+	"fmt"
 	"os"
+	"sort"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -27,13 +29,13 @@ func Init(configPath string) {
 	if err := viper.ReadInConfig(); err != nil {
 		configFile := viper.ConfigFileUsed()
 		content, readErr := os.ReadFile(configFile)
-	
+
 		if readErr != nil {
 			logrus.Errorf("读取配置文件内容失败: %v", readErr)
 		} else {
 			logrus.Errorf("配置文件原始内容:\n%s", string(content))
 		}
-	
+
 		if parseErr, ok := err.(*viper.ConfigParseError); ok {
 			logrus.Fatalf("配置文件解析失败: %v\n详细信息: %v", parseErr, parseErr.Error())
 		} else {
@@ -97,4 +99,47 @@ func GetList(key string) []any {
 		return list
 	}
 	return nil
+}
+
+func GetNsPrefixs() []string {
+	m := GetMap("injection.namespace_target_map")
+	nsPrefixs := make([]string, 0, len(m))
+	for ns, _ := range m {
+		nsPrefixs = append(nsPrefixs, ns)
+	}
+
+	sort.Strings(nsPrefixs)
+	return nsPrefixs
+}
+
+func GetAllNamespaces() ([]string, error) {
+	m := GetMap("injection.namespace_target_map")
+	namespaces := make([]string, 0, len(m))
+	for ns, value := range m {
+		vInt, ok := value.(int64)
+		if !ok {
+			return nil, fmt.Errorf("invalid namespace value for %s", ns)
+		}
+
+		for idx := range vInt {
+			namespaces = append(namespaces, fmt.Sprintf("%s%d", ns, idx))
+		}
+	}
+
+	return namespaces, nil
+}
+
+func GetNsTargetMap() (map[string]int, error) {
+	m := GetMap("injection.namespace_target_map")
+	nsTargetMap := make(map[string]int, len(m))
+	for ns, value := range m {
+		vInt, ok := value.(int64)
+		if !ok {
+			return nil, fmt.Errorf("invalid namespace value for %s", ns)
+		}
+
+		nsTargetMap[ns] = int(vInt)
+	}
+
+	return nsTargetMap, nil
 }

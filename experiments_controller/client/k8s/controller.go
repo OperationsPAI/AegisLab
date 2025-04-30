@@ -68,9 +68,9 @@ type Controller struct {
 }
 
 func NewController() *Controller {
-	namespaces, err := GetNS2Monitor()
+	namespaces, err := config.GetAllNamespaces()
 	if err != nil {
-		logrus.WithField("func", "GetNS2Monitor").Error(err)
+		logrus.WithField("func", "config.GetAllNamespaces").Error(err)
 		panic(err)
 	}
 
@@ -113,18 +113,6 @@ func NewController() *Controller {
 		podInformer:  platformFactory.Core().V1().Pods().Informer(),
 		queue:        queue,
 	}
-}
-
-func (c *Controller) CheckNamespaceToInject(namespace string, executeTime time.Time, traceID string) error {
-	return c.monitor.checkNamespaceToInject(namespace, executeTime, traceID)
-}
-
-func (c *Controller) AcquireLock(endTime time.Time, traceID string) string {
-	return c.monitor.getNamespaceToRestart(endTime, traceID)
-}
-
-func (c *Controller) ReleaseLock(namespace string) {
-	c.monitor.setTime(namespace, time.Now(), "")
 }
 
 func (c *Controller) Run(ctx context.Context, callback Callback) {
@@ -308,7 +296,7 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 				"namespace": u.GetNamespace(),
 				"name":      u.GetName(),
 			}).Info("Chaos experiment deleted successfully")
-			c.ReleaseLock(u.GetNamespace())
+			GetMonitor().ReleaseLock(u.GetNamespace())
 		},
 	}
 }
