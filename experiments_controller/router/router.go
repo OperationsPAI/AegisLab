@@ -55,12 +55,20 @@ func New() *gin.Engine {
 
 	tasks := r.Group("/tasks")
 	{
+		tasks.GET("/queue", handlers.GetQueuedTasks)
+
 		tasksWithID := tasks.Group("/:task_id")
 		{
 			tasksWithID.GET("", handlers.GetTaskDetail)
-			tasksWithID.GET("/stream", handlers.GetTaskStream)
 		}
-		tasks.GET("/queue", handlers.GetQueuedTasks)
+	}
+
+	traces := r.Group("/traces")
+	{
+		tracesWithID := traces.Group("/:trace_id")
+		{
+			tracesWithID.GET("/stream", handlers.GetTraceStream)
+		}
 	}
 
 	router.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

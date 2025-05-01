@@ -2,7 +2,7 @@ from typing import Any, Awaitable, Callable, Dict, Optional, Union
 from ..const import EventType, SSEMsgPrefix, Task, TaskStatus
 from ..logger import logger
 from ..model.error import ModelHTTPError
-from ..model.task import QueueItem, SSEMessage
+from ..model.trace import QueueItem, SSEMessage
 from uuid import UUID
 import aiohttp
 import asyncio
@@ -254,12 +254,11 @@ class AsyncSSEClient:
                 data_parts.append(data_part)
 
             combined_data = "".join(data_parts)
-
             data = json.loads(combined_data)
-            task_id = UUID(data.pop("task_id"))
-            status = data.pop("status")
-            if status == TaskStatus.COMPLETED:
-                result = {task_id: SSEMessage.model_validate(data)}
+
+            message = SSEMessage.model_validate(data)
+            if message.status == TaskStatus.COMPLETED:
+                result = {message.task_id: message}
                 if self.to_client_manager:
                     await self.client_manager.set_client_item(
                         self.client_id,
@@ -268,11 +267,11 @@ class AsyncSSEClient:
                 else:
                     await self._set_client_item(result=result)
 
-            if status == TaskStatus.ERROR:
+            if message.status == TaskStatus.ERROR:
                 error = {
-                    task_id: ModelHTTPError(
+                    message.task_id: ModelHTTPError(
                         status_code=Task.HTTP_ERROR_STATUS_CODE,
-                        detail=data.get("error_msg"),
+                        detail=message.payload.error,
                     )
                 }
                 if self.to_client_manager:

@@ -12,8 +12,6 @@ github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161/go.mod h1:xomTg6
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/toml v1.4.0 h1:kuoIxZQy2WRRk1pttg9asf+WVv6tWQuBNVmK8+nqPr0=
 github.com/BurntSushi/toml v1.4.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
-github.com/CUHK-SE-Group/chaos-experiment v0.0.0-20250430042916-d0e79978f3d8 h1:ZXI1CB6qh49yN7EOVL4ES8taVBWdnK1LDS8LZCXmreI=
-github.com/CUHK-SE-Group/chaos-experiment v0.0.0-20250430042916-d0e79978f3d8/go.mod h1:+aHIWqb8/NbwfomH/8Q1eH6kQRGuNh5n1W2qYb0JhBU=
 github.com/CUHK-SE-Group/chaos-experiment v0.0.0-20250430043326-53c4c896cf8b h1:RcKcjQI4HWImbt9NaOzS8u/yChHeg+KlAta1QD19On8=
 github.com/CUHK-SE-Group/chaos-experiment v0.0.0-20250430043326-53c4c896cf8b/go.mod h1:+aHIWqb8/NbwfomH/8Q1eH6kQRGuNh5n1W2qYb0JhBU=
 github.com/ClickHouse/ch-go v0.65.1 h1:SLuxmLl5Mjj44/XbINsK2HFvzqup0s6rwKLFH347ZhU=

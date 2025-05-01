@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Optional
 from ..const import INJECTION_CONF_MODES, InjectionStatusEnum, TIME_EXAMPLE
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator, model_validator
+from uuid import UUID
 
 
 class GetConfReq(BaseModel):
@@ -56,11 +57,10 @@ class InjectionItem(BaseModel):
         gt=0,
     )
 
-    task_id: str = Field(
+    task_id: UUID = Field(
         ...,
         description="Unique identifier for the task which injection belongs to",
         json_schema_extra={"example": "005f94a9-f9a2-4e50-ad89-61e05c1c15a0"},
-        max_length=64,
     )
 
     fault_type: str = Field(

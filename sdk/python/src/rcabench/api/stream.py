@@ -1,6 +1,6 @@
 from typing import AsyncGenerator, List, Optional
 from ..client.async_client import AsyncSSEClient, ClientManager
-from ..model.task import QueueItem
+from ..model.trace import QueueItem
 from contextlib import asynccontextmanager
 from uuid import UUID
 import aiohttp
