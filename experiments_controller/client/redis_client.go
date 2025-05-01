@@ -12,6 +12,7 @@ import (
 
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
+	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
@@ -24,12 +25,12 @@ var (
 )
 
 type StreamEvent struct {
-	TaskID    string
-	TaskType  consts.TaskType
-	FileName  string
-	Line      int
-	EventName consts.EventType
-	Payload   any
+	TaskID    string           `json:"task_id"`
+	TaskType  consts.TaskType  `json:"task_type"`
+	FileName  string           `json:"file_name"`
+	Line      int              `json:"line"`
+	EventName consts.EventType `json:"event_name"`
+	Payload   any              `json:"payload"`
 }
 
 func (s *StreamEvent) ToRedisStream() map[string]any {
@@ -44,18 +45,10 @@ func (s *StreamEvent) ToRedisStream() map[string]any {
 }
 
 func (s *StreamEvent) ToSSE() (string, error) {
-	message := map[string]any{
-		consts.RdbEventTaskID:   s.TaskID,
-		consts.RdbEventTaskType: s.TaskType,
-		consts.RdbEventName:     s.EventName,
-		consts.RdbEventPayload:  s.Payload,
-	}
-
-	jsonData, err := json.Marshal(message)
+	jsonData, err := json.Marshal(s)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
-
 	return string(jsonData), nil
 }
 
@@ -80,6 +73,10 @@ func GetRedisClient() *redis.Client {
 }
 
 func PublishEvent(ctx context.Context, stream string, event StreamEvent) (string, error) {
+	file, line, _ := utils.GetCallerInfo(2)
+	event.FileName = file
+	event.Line = line
+
 	return GetRedisClient().XAdd(ctx, &redis.XAddArgs{
 		Stream: stream,
 		MaxLen: 10000,

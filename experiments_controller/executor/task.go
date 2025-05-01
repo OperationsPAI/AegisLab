@@ -669,6 +669,12 @@ func updateTaskStatus(ctx context.Context, traceID, taskID, message, taskStatus 
 			span.SetStatus(codes.Error, description)
 		}
 
+		client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, traceID), client.StreamEvent{
+			TaskID:    taskID,
+			EventName: consts.EventTaskStatusUpdate,
+			Payload:   taskStatus,
+		})
+
 		tx := database.DB.WithContext(ctx).Begin()
 		if err := tx.Model(&database.Task{}).
 			Where("id = ?", taskID).
