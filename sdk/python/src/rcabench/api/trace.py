@@ -1,25 +1,25 @@
 import json
-import logging
+from ..logger import logger
 import time
 from enum import Enum
 from typing import Any, Generator, Optional, Dict
 import requests
 from pydantic import BaseModel, Field
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 
 class TaskType(str, Enum):
-    COLLECT_RESULT = "collect_result"
-    # Add other task types as needed
+    DUMMY = ""
+    RESTART_SERVICE = "RestartService"
+    RUN_ALGORITHM = "RunAlgorithm"
+    FAULT_INJECTION = "FaultInjection"
+    BUILD_IMAGES = "BuildImages"
+    BUILD_DATASET = "BuildDataset"
+    COLLECT_RESULT = "CollectResult"
 
 
 class EventType(str, Enum):
     UPDATE = "update"
     END = "end"
-    # Add other event types as needed
 
 
 class StreamEvent(BaseModel):
@@ -30,36 +30,30 @@ class StreamEvent(BaseModel):
     event_name: str = Field(..., alias="event_name")
     payload: Any = Field(..., alias="payload")
 
-    class Config:
-        allow_population_by_field_name = True
+    model_config = {
+        "populate_by_name": True,
+    }
 
 
 class SSEClient:
-    def __init__(self, base_url: str, max_retries: int = 3, retry_delay: int = 5):
-        """
-        Initialize the SSE client.
-
-        Args:
-            base_url: The base URL of the API (e.g., "http://api.example.com")
-            max_retries: Maximum number of connection retry attempts
-            retry_delay: Delay in seconds between retry attempts
-        """
+    def __init__(
+        self,
+        base_url: str,
+        max_retries: int = 3,
+        retry_delay: int = 5,
+        timeout: int = 30,
+        max_backoff: int = 60,
+    ):
         self.base_url = base_url
         self.last_id = "0"
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self.timeout = timeout
+        self.max_backoff = max_backoff
 
     def get_trace_events(self, trace_id: str) -> Generator[StreamEvent, None, None]:
-        """
-        Connect to the SSE endpoint and yield StreamEvent objects.
-
-        Args:
-            trace_id: The trace ID to stream events for
-
-        Yields:
-            Validated StreamEvent objects
-        """
         retries = 0
+        backoff = self.retry_delay
 
         while retries < self.max_retries:
             try:
@@ -67,48 +61,78 @@ class SSEClient:
                 headers = {
                     "Accept": "text/event-stream",
                     "Cache-Control": "no-cache",
-                    "Last-Event-ID": self.last_id,
                 }
 
+                if self.last_id != "0":
+                    headers["Last-Event-ID"] = self.last_id
+
                 logger.info(f"Connecting to {url} with Last-Event-ID: {self.last_id}")
-                response = requests.get(url, headers=headers, stream=True)
+                response = requests.get(
+                    url, headers=headers, stream=True, timeout=self.timeout
+                )
                 response.raise_for_status()
 
+                # Reset backoff on successful connection
+                backoff = self.retry_delay
+
                 # Process the SSE stream
-                buffer = ""
-                for chunk in response.iter_content(chunk_size=1):
-                    if not chunk:
+                event_data = {}
+
+                for line in response.iter_lines(decode_unicode=True):
+                    if not line:
+                        # Empty line means end of event
+                        if event_data:
+                            event_type = event_data.get("event", "message")
+                            data = event_data.get("data")
+
+                            # Store last event ID if present
+                            if "Last-Event-ID" in response.headers:
+                                self.last_id = response.headers["Last-Event-ID"]
+                                logger.debug(
+                                    f"Updated Last-Event-ID from event: {self.last_id}"
+                                )
+
+                            if event_type == "update" and data:
+                                try:
+                                    print(self.last_id)
+                                    json_data = json.loads(data)
+                                    event = StreamEvent.model_validate(json_data)
+                                    yield event
+                                except Exception as e:
+                                    logger.error(
+                                        f"Error parsing event: {e}, data: {data}"
+                                    )
+
+                            if event_type == "end":
+                                logger.info("Received end event, closing connection")
+                                return
+
+                            # Clear event data for the next event
+                            event_data = {}
                         continue
 
-                    chunk_str = chunk.decode("utf-8")
-                    buffer += chunk_str
+                    # Parse the line
+                    if ":" not in line:
+                        continue
 
-                    if buffer.endswith("\n\n"):
-                        lines = buffer.strip().split("\n")
-                        event_type = None
-                        data = None
+                    field, value = line.split(":", 1)
+                    value = value.lstrip()
 
-                        for line in lines:
-                            if line.startswith("event:"):
-                                event_type = line[6:].strip()
-                            elif line.startswith("data:"):
-                                data = line[5:].strip()
-                            elif line.startswith("id:"):
-                                self.last_id = line[3:].strip()
-
-                        if event_type == "update" and data:
-                            try:
-                                event_data = json.loads(data)
-                                event = StreamEvent.parse_obj(event_data)
-                                yield event
-                            except Exception as e:
-                                logger.error(f"Error parsing event: {e}, data: {data}")
-
-                        if event_type == "end":
-                            logger.info("Received end event, closing connection")
-                            return
-
-                        buffer = ""
+                    if field == "event":
+                        event_data["event"] = value
+                    elif field == "data":
+                        if "data" not in event_data:
+                            event_data["data"] = value
+                        else:
+                            event_data["data"] += "\n" + value
+                    elif field == "retry":
+                        try:
+                            self.retry_delay = int(value)
+                            logger.debug(
+                                f"Server requested retry delay: {self.retry_delay}"
+                            )
+                        except ValueError:
+                            pass
 
                 # If we reach here, the connection was closed normally
                 logger.info("Connection closed")
@@ -120,7 +144,13 @@ class SSEClient:
                     f"Connection error: {e}. Retry {retries}/{self.max_retries}"
                 )
                 if retries < self.max_retries:
-                    time.sleep(self.retry_delay)
+                    # Apply exponential backoff with jitter
+                    sleep_time = min(
+                        backoff * (0.8 + 0.4 * (time.time() % 1)), self.max_backoff
+                    )
+                    logger.info(f"Waiting {sleep_time:.1f} seconds before retry")
+                    time.sleep(sleep_time)
+                    backoff = min(backoff * 2, self.max_backoff)
                 else:
                     logger.error("Max retries reached, giving up")
                     raise
@@ -136,6 +166,8 @@ class SSEClient:
         Yields:
             Validated StreamEvent objects
         """
+        backoff = self.retry_delay
+
         while True:
             try:
                 yield from self.get_trace_events(trace_id)
@@ -143,7 +175,12 @@ class SSEClient:
                 return
             except Exception as e:
                 logger.error(f"Error in stream_events: {e}")
-                time.sleep(self.retry_delay)
+                sleep_time = min(
+                    backoff * (0.8 + 0.4 * (time.time() % 1)), self.max_backoff
+                )
+                logger.info(f"Waiting {sleep_time:.1f} seconds before reconnection")
+                time.sleep(sleep_time)
+                backoff = min(backoff * 2, self.max_backoff)
 
     def filter_events(
         self,

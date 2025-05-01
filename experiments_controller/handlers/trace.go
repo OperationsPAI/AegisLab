@@ -63,7 +63,7 @@ func GetTraceStream(c *gin.Context) {
 			return
 
 		default:
-			newMessages, err := client.ReadStreamEvents(ctx, streamKey, lastID, 5, time.Second)
+			newMessages, err := client.ReadStreamEvents(ctx, streamKey, lastID, 10, time.Second)
 			if err != nil && err != redis.Nil {
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					logEntry.Infof("Context done while reading stream: %v", err)
@@ -74,6 +74,7 @@ func GetTraceStream(c *gin.Context) {
 			}
 
 			lastID, err = sendSSEMessages(c, newMessages)
+			logrus.Info("Sent SSE messages, lastID:", lastID)
 			if err != nil {
 				logEntry.Error(err)
 				return
