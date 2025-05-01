@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -64,6 +65,10 @@ func GetTraceStream(c *gin.Context) {
 		default:
 			newMessages, err := client.ReadStreamEvents(ctx, streamKey, lastID, 5, time.Second)
 			if err != nil && err != redis.Nil {
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					logEntry.Infof("Context done while reading stream: %v", err)
+					return
+				}
 				logEntry.Errorf("Error reading stream: %v", err)
 				continue
 			}
@@ -93,10 +98,12 @@ func sendSSEMessages(c *gin.Context, messages []redis.XStream) (string, error) {
 				return "", fmt.Errorf("failed to parse streamEvent to sse message: %v", err)
 			}
 
+			c.Writer.Header().Set("Last-Event-ID", msg.ID)
 			c.SSEvent(consts.EventUpdate, sseMessage)
 			c.Writer.Flush()
 
 			if isTerminatingMessage(streamEvent, consts.TaskTypeCollectResult) {
+				c.Writer.Header().Set("Last-Event-ID", msg.ID)
 				c.SSEvent(consts.EventEnd, nil)
 				c.Writer.Flush()
 				return lastID, nil
