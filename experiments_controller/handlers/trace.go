@@ -10,6 +10,7 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/dto"
+	"github.com/gin-contrib/sse"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
@@ -99,13 +100,20 @@ func sendSSEMessages(c *gin.Context, messages []redis.XStream) (string, error) {
 				return "", fmt.Errorf("failed to parse streamEvent to sse message: %v", err)
 			}
 
-			c.Writer.Header().Set("Last-Event-ID", msg.ID)
-			c.SSEvent(consts.EventUpdate, sseMessage)
+			c.Render(-1, sse.Event{
+				Id:    msg.ID,
+				Event: consts.EventUpdate,
+				Data:  sseMessage,
+			})
+
 			c.Writer.Flush()
 
 			if isTerminatingMessage(streamEvent, consts.TaskTypeCollectResult) {
-				c.Writer.Header().Set("Last-Event-ID", msg.ID)
-				c.SSEvent(consts.EventEnd, nil)
+				c.Render(-1, sse.Event{
+					Id:    msg.ID,
+					Event: consts.EventUpdate,
+					Data:  sseMessage,
+				})
 				c.Writer.Flush()
 				return lastID, nil
 			}
