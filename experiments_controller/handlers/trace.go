@@ -14,18 +14,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// GetTraceStream
-//
-//	@Summary      获取 trace 任务状态事件流
-//	@Description  通过Server-Sent Events (SSE) 实时获取任务的执行状态更新，直到任务完成或连接关闭
-//	@Tags         injection
-//	@Produce      text/event-stream
-//	@Consumes	  application/json
-//	@Param        trace_id path      string  				true  "需要监控的链路ID"
-//	@Success      200      {object}  nil     				"成功建立SSE连接，持续推送事件流"
-//	@Failure      400      {object}  dto.GenericResponse[any]	"无效的链路ID格式"
-//	@Failure      404      {object}  dto.GenericResponse[any]  	"指定ID的链路不存在"
-//	@Failure      500      {object}  dto.GenericResponse[any]  	"服务器内部错误"
 func GetTraceStream(c *gin.Context) {
 	var req dto.TraceReq
 	if err := c.BindUri(&req); err != nil {

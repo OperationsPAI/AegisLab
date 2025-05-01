@@ -417,6 +417,12 @@ func processTask(ctx context.Context, taskData string) {
 		return
 	}
 
+	client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), client.StreamEvent{
+		TaskID:    task.TaskID,
+		EventName: consts.EventTaskStarted,
+		Payload:   task,
+	})
+
 	// Previously, ctx is an empty context.
 	// ExtractContext injects the context information into the context
 	traceCtx, taskCtx := ExtractContext(ctx, &task)

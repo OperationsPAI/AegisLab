@@ -36,10 +36,10 @@ type StreamEvent struct {
 func (s *StreamEvent) ToRedisStream() map[string]any {
 	return map[string]any{
 		consts.RdbEventTaskID:   s.TaskID,
-		consts.RdbEventTaskType: s.TaskType,
+		consts.RdbEventTaskType: string(s.TaskType),
 		consts.RdbEventFileName: s.FileName,
 		consts.RdbEventLine:     s.Line,
-		consts.RdbEventName:     s.EventName,
+		consts.RdbEventName:     string(s.EventName),
 		consts.RdbEventPayload:  s.Payload,
 	}
 }
@@ -77,13 +77,18 @@ func PublishEvent(ctx context.Context, stream string, event StreamEvent) (string
 	event.FileName = file
 	event.Line = line
 
-	return GetRedisClient().XAdd(ctx, &redis.XAddArgs{
+	res, err := GetRedisClient().XAdd(ctx, &redis.XAddArgs{
 		Stream: stream,
 		MaxLen: 10000,
 		Approx: true,
 		ID:     "*",
 		Values: event.ToRedisStream(),
 	}).Result()
+	if err != nil {
+		return "", fmt.Errorf("failed to publish event to Redis stream: %w", err)
+	}
+	logrus.Infof("Published event to Redis stream %s: %s", stream, res)
+	return res, nil
 }
 
 func ReadStreamEvents(ctx context.Context, stream string, lastID string, count int64, block time.Duration) ([]redis.XStream, error) {
@@ -130,19 +135,19 @@ func ParseEventFromValues(values map[string]any) (*StreamEvent, error) {
 	if !ok || taskID == "" {
 		return nil, fmt.Errorf(message, consts.RdbEventTaskID)
 	}
-
-	taskType, ok := values[consts.RdbEventTaskType].(consts.TaskType)
-	if !ok || taskID == "" {
-		return nil, fmt.Errorf(message, consts.RdbEventTaskType)
-	}
-
 	event := &StreamEvent{
-		TaskID:   taskID,
-		TaskType: taskType,
+		TaskID: taskID,
 	}
 
-	_, exists := values[consts.RdbEventPayload]
-	if exists {
+	if _, exists := values[consts.RdbEventTaskType]; exists {
+		taskType, ok := values[consts.RdbEventTaskType].(consts.TaskType)
+		if !ok || taskID == "" {
+			return nil, fmt.Errorf(message, consts.RdbEventTaskType)
+		}
+		event.TaskType = taskType
+	}
+
+	if _, exists := values[consts.RdbEventPayload]; exists {
 		payload, ok := values[consts.RdbEventPayload].(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf(message, consts.RdbEventPayload)
@@ -151,8 +156,7 @@ func ParseEventFromValues(values map[string]any) (*StreamEvent, error) {
 		event.Payload = payload
 	}
 
-	_, exists = values[consts.RdbEventFileName]
-	if exists {
+	if _, exists := values[consts.RdbEventFileName]; exists {
 		fileName, ok := values[consts.RdbEventFileName].(string)
 		if !ok || fileName == "" {
 			return nil, fmt.Errorf(message, consts.RdbEventTaskID)
@@ -161,8 +165,7 @@ func ParseEventFromValues(values map[string]any) (*StreamEvent, error) {
 		event.FileName = fileName
 	}
 
-	_, exists = values[consts.RdbEventLine]
-	if exists {
+	if _, exists := values[consts.RdbEventLine]; exists {
 		lineInt64, ok := values[consts.RdbEventLine].(int64)
 		if !ok || lineInt64 == 0 {
 			return nil, fmt.Errorf(message, consts.RdbEventLine)
@@ -171,8 +174,7 @@ func ParseEventFromValues(values map[string]any) (*StreamEvent, error) {
 		event.Line = int(lineInt64)
 	}
 
-	_, exists = values[consts.RdbEventName]
-	if exists {
+	if _, exists := values[consts.RdbEventName]; exists {
 		eventName, ok := values[consts.RdbEventName].(consts.EventType)
 		if !ok || eventName == "" {
 			return nil, fmt.Errorf(message, consts.RdbEventName)
