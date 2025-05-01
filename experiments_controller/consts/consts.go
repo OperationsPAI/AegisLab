@@ -117,6 +117,7 @@ const (
 	EventAlgoResultCollection    EventType = "algorithm.collect_result"
 	EventDatasetResultCollection EventType = "algorithm.dataset_result"
 	EventTaskStatusUpdate        EventType = "task.status.update"
+	EventTaskStarted             EventType = "task.started"
 )
 
 // K8s Job 名称
