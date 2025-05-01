@@ -73,6 +73,9 @@ func GetTraceStream(c *gin.Context) {
 				logEntry.Errorf("Error reading stream: %v", err)
 				continue
 			}
+			if err == redis.Nil {
+				continue
+			}
 
 			lastID, err = sendSSEMessages(c, newMessages)
 			logrus.Info("Sent SSE messages, lastID:", lastID)
