@@ -93,23 +93,22 @@ const (
 	HarborTimeUnit = time.Second
 )
 
-// Redis 订阅消息频道和字段
+// Redis stream 频道和字段
 const (
-	SubChannel = "trace:%s:channel"
+	StreamLogKey = "trace:%s:log"
 
-	RdbMsgStatus         = "status"
-	RdbMsgTaskID         = "task_id"
-	RdbMsgTaskType       = "task_type"
-	RdbMsgDataset        = "dataset"
-	RdbMsgExecutionID    = "execution_id"
-	RdbMsgDetectorResult = "detector_result"
-	RdbMsgErr            = "error"
-	RdbMsgErrMsg         = "error_msg"
-)
+	RdbEventTaskID   = "task_id"
+	RdbEventTaskType = "task_type"
+	RdbEventStatus   = "status"
+	RdbEventFileName = "file_name"
+	RdbEventLine     = "event_line"
+	RdbEventName     = "event_name"
+	RdbEventPayload  = "event_payload"
 
-const (
-	RdbTraceItemKey            = "trace:%s:item"
-	RdbTraceItemRestartPayload = "restart_payload"
+	RdbPayloadErr            = "error"
+	RdbPayloadDataset        = "dataset"
+	RdbPayloadExecutionID    = "execution_id"
+	RdbPayloadDetectorResult = "detector_result"
 )
 
 // K8s Job 名称

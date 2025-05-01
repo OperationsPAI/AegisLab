@@ -12,7 +12,6 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
-	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/tracing"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
@@ -482,7 +481,19 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 
 	message := fmt.Sprintf("Task failed after %d attempts", task.RetryPolicy.MaxAttempts)
 	handleFinalFailure(ctx, task, message)
-	updateTaskError(nil, task.TaskID, task.TraceID, task.Type, err, message)
+	updateTaskStatus(
+		ctx,
+		task.TraceID,
+		message,
+		map[string]any{
+			consts.RdbEventTaskID:   task.TaskID,
+			consts.RdbEventTaskType: task.Type,
+			consts.RdbEventStatus:   consts.TaskStatusError,
+			consts.RdbEventPayload: map[string]any{
+				consts.RdbPayloadErr: err.Error(),
+			},
+		},
+	)
 }
 
 // -----------------------------------------------------------------------------
@@ -648,109 +659,43 @@ func removeFromList(ctx context.Context, cli *redis.Client, key, taskID string) 
 // Task Status Update Functions
 // -----------------------------------------------------------------------------
 
-// parseRdbMsgFromPayload extracts a RdbMsg from the task payload
-func parseRdbMsgFromPayload(payload map[string]any) (*dto.RdbMsg, error) {
-	message := "missing or invalid '%s' key in payload"
-
-	status, ok := payload[consts.RdbMsgStatus].(string)
-	if !ok || status == "" {
-		return nil, fmt.Errorf(message, consts.RdbMsgStatus)
-	}
-
-	taskType, ok := payload[consts.RdbMsgTaskType].(consts.TaskType)
-	if !ok {
-		return nil, fmt.Errorf(message, consts.RdbMsgTaskType)
-	}
-
-	rdbMsg := &dto.RdbMsg{
-		Status: status,
-		Type:   taskType,
-	}
-	if status == consts.TaskStatusError {
-		errMsg, ok := payload[consts.RdbMsgErrMsg].(string)
-		if !ok || errMsg == "" {
-			return nil, fmt.Errorf(message, consts.RdbMsgErrMsg)
-		}
-
-		e, exists := payload[consts.RdbMsgErr]
-		if exists {
-			err, ok := e.(error)
-			if !ok {
-				return nil, fmt.Errorf(message, consts.RdbMsgErr)
-			}
-
-			rdbMsg.Error = fmt.Sprintf("%s: %v", errMsg, err)
-		} else {
-			rdbMsg.Error = errMsg
-		}
-	}
-
-	return rdbMsg, nil
-}
-
-// updateTaskError updates the task status to error
-func updateTaskError(ctx context.Context, taskID, traceID string, taskType consts.TaskType, err error, errMsg string) {
-	fields := map[string]any{
-		consts.RdbMsgStatus:   consts.TaskStatusError,
-		consts.RdbMsgTaskID:   taskID,
-		consts.RdbMsgTaskType: taskType,
-		consts.RdbMsgErrMsg:   errMsg,
-	}
-	if err != nil {
-		fields[consts.RdbMsgErr] = err
-	}
-
-	updateTaskStatus(
-		ctx,
-		taskID,
-		traceID,
-		fmt.Sprintf(consts.TaskMsgFailed, taskID),
-		fields,
-	)
-}
-
 // updateTaskStatus updates the task status and publishes the update
-func updateTaskStatus(ctx context.Context, taskID, traceID, message string, payload map[string]any) {
+func updateTaskStatus(ctx context.Context, traceID, message string, values map[string]any) {
 	tracing.WithSpan(ctx, func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
-		rdbMsg, err := parseRdbMsgFromPayload(payload)
+		logEntry := logrus.WithField("trace_id", traceID)
+		streamEvent, err := client.ParseEventFromValues(values)
 		if err != nil {
-			logrus.WithField("task_id", taskID).Error(err)
+			logEntry.Error(err)
 			return err
 		}
 
-		description := fmt.Sprintf(consts.SpanStatusDescription, taskID, rdbMsg.Status)
-		if rdbMsg.Status == consts.TaskStatusCompleted {
+		logEntry = logEntry.WithField("task_id", streamEvent.TaskID)
+		span.AddEvent(message)
+
+		description := fmt.Sprintf(consts.SpanStatusDescription, streamEvent.TaskID, streamEvent.Status)
+		if streamEvent.Status == consts.TaskStatusCompleted {
 			span.SetStatus(codes.Ok, description)
 		}
 
-		if rdbMsg.Status == consts.TaskStatusError {
-			span.AddEvent(rdbMsg.Error)
+		if streamEvent.Status == consts.TaskStatusError {
+			errMsg, _ := streamEvent.Payload[consts.RdbPayloadErr].(string)
+			span.AddEvent(errMsg)
 			span.SetStatus(codes.Error, description)
 		}
-
-		span.AddEvent(message)
 
 		// Update task status in database
 		tx := database.DB.WithContext(ctx).Begin()
 		if err := tx.Model(&database.Task{}).
-			Where("id = ?", taskID).
-			Update("status", rdbMsg.Status).Error; err != nil {
+			Where("id = ?", streamEvent.TaskID).
+			Update("status", streamEvent.Status).Error; err != nil {
 			tx.Rollback()
-			logrus.WithField("task_id", taskID).Errorf("failed to update database: %v", err)
+			logEntry.Errorf("failed to update database: %v", err)
 			return err
 		}
 		tx.Commit()
 
-		// Publish status update
-		delete(payload, consts.RdbMsgErr)
-		msg, err := json.Marshal(payload)
-		if err != nil {
-			logrus.WithField("task_id", taskID).Errorf("failed to marshal payload: %v", err)
-			return err
-		}
-
-		client.GetRedisClient().Publish(ctx, fmt.Sprintf(consts.SubChannel, traceID), msg)
+		client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, traceID), *streamEvent)
 		return nil
 	})
 }

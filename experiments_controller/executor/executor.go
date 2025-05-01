@@ -11,7 +11,6 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/repository"
-	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -63,13 +62,12 @@ func (e *Executor) HandleCRDAdd(annotations map[string]string, labels map[string
 
 	updateTaskStatus(
 		ctx,
-		parsedLabels.TaskID,
 		parsedLabels.TraceID,
 		fmt.Sprintf("executing fault injection for task %s", parsedLabels.TaskID),
 		map[string]any{
-			consts.RdbMsgStatus:   consts.TaskStatusRunning,
-			consts.RdbMsgTaskID:   parsedLabels.TaskID,
-			consts.RdbMsgTaskType: consts.TaskTypeFaultInjection,
+			consts.RdbEventTaskID:   parsedLabels.TaskID,
+			consts.RdbEventTaskType: consts.TaskTypeFaultInjection,
+			consts.RdbEventStatus:   consts.TaskStatusRunning,
 		})
 }
 
@@ -78,14 +76,18 @@ func (e *Executor) HandleCRDFailed(name string, annotations map[string]string, l
 	parsedLabels, _ := parseCRDLabels(labels)
 	ctx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.TaskCarrier)
 
-	updateTaskError(
+	updateTaskStatus(
 		ctx,
-		parsedLabels.TaskID,
 		parsedLabels.TraceID,
-		consts.TaskTypeFaultInjection,
-		err,
 		errMsg,
-	)
+		map[string]any{
+			consts.RdbEventTaskID:   parsedLabels.TaskID,
+			consts.RdbEventTaskType: consts.TaskTypeFaultInjection,
+			consts.RdbEventStatus:   consts.TaskStatusError,
+			consts.RdbEventPayload: map[string]any{
+				consts.RdbPayloadErr: err.Error(),
+			},
+		})
 }
 
 func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, annotations map[string]string, labels map[string]string) {
@@ -99,27 +101,30 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 			"trace_id": parsedLabels.TraceID,
 		}).Error(err)
 
-		updateTaskError(
+		updateTaskStatus(
 			ctx,
-			parsedLabels.TaskID,
 			parsedLabels.TraceID,
-			consts.TaskTypeFaultInjection,
-			err,
 			"update execution times failed",
-		)
+			map[string]any{
+				consts.RdbEventTaskID:   parsedLabels.TaskID,
+				consts.RdbEventTaskType: consts.TaskTypeFaultInjection,
+				consts.RdbEventStatus:   consts.TaskStatusError,
+				consts.RdbEventPayload: map[string]any{
+					consts.RdbPayloadErr: err.Error(),
+				},
+			})
 
 		return
 	}
 
 	updateTaskStatus(
 		ctx,
-		parsedLabels.TaskID,
 		parsedLabels.TraceID,
 		fmt.Sprintf(consts.TaskMsgCompleted, parsedLabels.TaskID),
 		map[string]any{
-			consts.RdbMsgStatus:   consts.TaskStatusCompleted,
-			consts.RdbMsgTaskID:   parsedLabels.TaskID,
-			consts.RdbMsgTaskType: consts.TaskTypeFaultInjection,
+			consts.RdbEventTaskID:   parsedLabels.TaskID,
+			consts.RdbEventTaskType: consts.TaskTypeFaultInjection,
+			consts.RdbEventStatus:   consts.TaskStatusCompleted,
 		})
 
 	envVars := map[string]string{
@@ -172,13 +177,12 @@ func (e *Executor) HandleJobAdd(annotations map[string]string, labels map[string
 
 	updateTaskStatus(
 		ctx,
-		taskOptions.TaskID,
 		taskOptions.TraceID,
 		message,
 		map[string]any{
-			consts.RdbMsgStatus:   consts.TaskStatusRunning,
-			consts.RdbMsgTaskID:   taskOptions.TaskID,
-			consts.RdbMsgTaskType: taskOptions.Type,
+			consts.RdbEventTaskID:   taskOptions.TaskID,
+			consts.RdbEventTaskType: taskOptions.Type,
+			consts.RdbEventStatus:   consts.TaskStatusRunning,
 		})
 }
 
@@ -213,38 +217,39 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 	switch taskOptions.Type {
 	case consts.TaskTypeBuildDataset:
 		options, _ := parseDatasetOptions(labels)
-
 		logEntry.WithField("dataset", options.Dataset).Errorf("dataset build failed: %v", errMsg)
 
-		fields := map[string]any{
-			consts.RdbMsgStatus:   consts.TaskStatusError,
-			consts.RdbMsgTaskID:   taskOptions.TaskID,
-			consts.RdbMsgTaskType: taskOptions.Type,
-			consts.RdbMsgErr:      err,
-			consts.RdbMsgErrMsg:   errMsg,
+		if err := repository.UpdateStatusByDataset(options.Dataset, consts.DatasetBuildFailed); err != nil {
+			span.AddEvent("update dataset status failed")
+			span.RecordError(err)
+			updateTaskStatus(
+				taskCtx,
+				taskOptions.TraceID,
+				"update dataset status failed",
+				map[string]any{
+					consts.RdbEventTaskID:   taskOptions.TaskID,
+					consts.RdbEventTaskType: taskOptions.Type,
+					consts.RdbEventStatus:   consts.TaskStatusError,
+					consts.RdbEventPayload: map[string]any{
+						consts.RdbPayloadErr: err.Error(),
+					},
+				},
+			)
 		}
 
 		updateTaskStatus(
 			taskCtx,
-			taskOptions.TaskID,
 			taskOptions.TraceID,
 			fmt.Sprintf(consts.TaskMsgFailed, taskOptions.TaskID),
-			fields,
+			map[string]any{
+				consts.RdbEventTaskID:   taskOptions.TaskID,
+				consts.RdbEventTaskType: taskOptions.Type,
+				consts.RdbEventStatus:   consts.TaskStatusError,
+				consts.RdbEventPayload: map[string]any{
+					consts.RdbPayloadErr: err.Error(),
+				},
+			},
 		)
-		if err := repository.UpdateStatusByDataset(options.Dataset, consts.DatasetBuildFailed); err != nil {
-			span.AddEvent("update dataset status failed")
-			span.RecordError(err)
-			updateTaskError(
-				taskCtx,
-				taskOptions.TaskID,
-				taskOptions.TraceID,
-				taskOptions.Type,
-				err,
-				podLog,
-			)
-		}
-	default:
-
 	}
 
 }
@@ -261,26 +266,22 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 		"trace_id": taskOptions.TraceID,
 	})
 
-	baseFields := map[string]any{
-		consts.RdbMsgStatus:   consts.TaskStatusCompleted,
-		consts.RdbMsgTaskID:   taskOptions.TaskID,
-		consts.RdbMsgTaskType: taskOptions.Type,
-	}
-
 	switch taskOptions.Type {
 	case consts.TaskTypeRunAlgorithm:
-
 		options, _ := parseExecutionOptions(labels)
 		logEntry.WithField("algorithm", options.Algorithm).Info("algorithm execute successfully")
-		updateFields := utils.CloneMap(baseFields)
-		updateFields[consts.RdbMsgExecutionID] = options.ExecutionID
-
 		updateTaskStatus(
 			taskCtx,
-			taskOptions.TaskID,
 			taskOptions.TraceID,
 			fmt.Sprintf(consts.TaskMsgCompleted, taskOptions.TaskID),
-			updateFields,
+			map[string]any{
+				consts.RdbEventTaskID:   taskOptions.TaskID,
+				consts.RdbEventTaskType: taskOptions.Type,
+				consts.RdbEventStatus:   consts.TaskStatusCompleted,
+				consts.RdbEventPayload: map[string]any{
+					consts.RdbPayloadExecutionID: options.ExecutionID,
+				},
+			},
 		)
 
 		task := &UnifiedTask{
@@ -297,7 +298,6 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 		task.SetTraceCtx(traceCtx)
 
 		_, _, err := SubmitTask(taskCtx, task)
-
 		if err != nil {
 			logEntry.WithField("algorithm", options.Algorithm).Errorf("submit result collection task failed: %v", err)
 			taskSpan.AddEvent("submit result collection task failed")
@@ -306,22 +306,25 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 
 	case consts.TaskTypeBuildDataset:
 		options, _ := parseDatasetOptions(labels)
-
 		logEntry.WithField("dataset", options.Dataset).Info("dataset build successfully")
-
-		updateFields := utils.CloneMap(baseFields)
-		updateFields[consts.RdbMsgDataset] = options.Dataset
 		updateTaskStatus(
 			taskCtx,
-			taskOptions.TaskID,
 			taskOptions.TraceID,
 			fmt.Sprintf(consts.TaskMsgCompleted, taskOptions.TaskID),
-			updateFields,
+			map[string]any{
+				consts.RdbEventTaskID:   taskOptions.TaskID,
+				consts.RdbEventTaskType: taskOptions.Type,
+				consts.RdbEventStatus:   consts.TaskStatusCompleted,
+				consts.RdbEventPayload: map[string]any{
+					consts.RdbPayloadDataset: options.Dataset,
+				},
+			},
 		)
 
 		// TODO: replace with config.string, rather than hardcode
 		image := "detector"
-		if _, err := client.GetHarborClient().GetLatestTag(image); err != nil {
+		tag, err := client.GetHarborClient().GetLatestTag(image)
+		if err != nil {
 			logrus.Errorf("failed to get latest tag of %s: %v", image, err)
 		}
 
@@ -331,25 +334,23 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 			return
 		}
 
-		executionPayload := map[string]any{
-			consts.ExecuteImage:   image,
-			consts.ExecuteTag:     "latest",
-			consts.ExecuteDataset: options.Dataset,
-			consts.ExecuteEnvVars: map[string]string{
-				consts.ExecuteEnvVarService: options.Service,
-			},
-		}
-
 		task := &UnifiedTask{
-			Type:      consts.TaskTypeRunAlgorithm,
-			Payload:   executionPayload,
+			Type: consts.TaskTypeRunAlgorithm,
+			Payload: map[string]any{
+				consts.ExecuteImage:   image,
+				consts.ExecuteTag:     tag,
+				consts.ExecuteDataset: options.Dataset,
+				consts.ExecuteEnvVars: map[string]string{
+					consts.ExecuteEnvVarService: options.Service,
+				},
+			},
 			Immediate: true,
 			TraceID:   taskOptions.TraceID,
 			GroupID:   taskOptions.GroupID,
 		}
 		task.SetTraceCtx(traceCtx)
 
-		_, _, err := SubmitTask(traceCtx, task)
+		_, _, err = SubmitTask(traceCtx, task)
 		if err != nil {
 			logEntry.WithField("dataset", options.Dataset).Errorf("submit algorithm execution task failed: %v", err)
 			taskSpan.AddEvent("submit algorithm execution task failed")

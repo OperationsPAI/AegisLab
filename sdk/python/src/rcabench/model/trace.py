@@ -1,7 +1,6 @@
 from typing import Dict, List, Optional, Union
 from .error import ModelHTTPError
 from ..const import Task
-from ..logger import logger
 from pydantic import BaseModel, Field, field_validator
 from uuid import UUID
 
@@ -11,16 +10,9 @@ class StreamBatchReq(BaseModel):
     批量流式请求参数
 
     Attributes:
-        task_ids: 需要监控的任务ID列表
         trace_ids: 需要监控的链路ID列表
         client_timeout: 流式连接的最大超时时间（秒）
     """
-
-    task_ids: List[UUID] = Field(
-        ...,
-        description="List of task IDs to monito",
-        json_schema_extra={"example": [UUID("005f94a9-f9a2-4e50-ad89-61e05c1c15a0")]},
-    )
 
     trace_ids: List[UUID] = Field(
         ...,
@@ -41,7 +33,6 @@ class StreamAllReq(StreamBatchReq):
     全部流式请求参数
 
     Attributes:
-        task_ids: 需要监控的任务ID列表
         trace_ids: 需要监控的链路ID列表
         client_timeout: 流式连接的最大超时时间
         wait_timeout: 等待全部完成的最大超时时间（秒），None表示无超时
@@ -60,17 +51,10 @@ class StreamSingleReq(BaseModel):
     流式请求参数
 
     Attributes:
-        task_id: 需要监控的任务ID
         trace_id: 需要监控的链路ID
         client_timeout: 流式连接的最大超时时间（秒）
         wait_timeout: 等待全部完成的最大超时时间（秒），None表示无超时
     """
-
-    task_id: UUID = Field(
-        ...,
-        description="Task ID to monito",
-        json_schema_extra={"example": [UUID("005f94a9-f9a2-4e50-ad89-61e05c1c15a0")]},
-    )
 
     trace_id: UUID = Field(
         ...,
@@ -93,24 +77,23 @@ class StreamSingleReq(BaseModel):
     )
 
 
-class SSEMessage(BaseModel):
+class SSEMessagePayload(BaseModel):
     """
-    SSE消息数据模型
-
-    表示服务器发送事件(Server-Sent Events)的消息结构。
+    SSE消息的负载数据模型
 
     Attributes:
-        task_type: 任务类型标识
-        dataset: 关联的数据集名称（可选）
-        execution_id: 任务执行ID（可选）
-        has_detector_result: detector算法执行是否有结果（可选）
-    """
+        dataset (Optional[str]): 关联的数据集名称，通常包含故障注入的目标服务和类型
+            例如: "ts-ts-travel2-service-pod-failure-m77s56"
 
-    task_type: str = Field(
-        ...,
-        description="Task type identifier (e.g., FaultInjection/RunAlgorithm)",
-        json_schema_extra={"example": "FaultInjection"},
-    )
+        detector_result (Optional[str]): 表示检测算法的结果
+
+        execution_id (Optional[int]): 算法执行任务的唯一ID，用于追踪和查询具体执行实例
+            例如: 311
+
+        error (Optional[str]): 记录任务执行过程中的错误信息
+            - 仅当任务状态为Error时存在
+            - 包含详细的错误描述，便于调试和排查问题
+    """
 
     dataset: Optional[str] = Field(
         None,
@@ -118,16 +101,78 @@ class SSEMessage(BaseModel):
         json_schema_extra={"example": "ts-ts-travel2-service-pod-failure-m77s56"},
     )
 
+    detector_result: Optional[str] = Field(
+        None,
+        description="The result of detector algorithm",
+    )
+
     execution_id: Optional[int] = Field(
         None,
-        description="Task execution ID",
+        description="Run algorithm task execution ID",
         json_schema_extra={"example": 311},
     )
 
-    has_detector_result: Optional[bool] = Field(
+    error: Optional[str] = Field(
         None,
-        description="Whether the result of detector algorithm is empty",
-        json_schema_extra={"example": True},
+        description="Task runtime error",
+    )
+
+
+class SSEMessage(BaseModel):
+    """
+    SSE消息数据模型
+
+    表示服务器发送事件(Server-Sent Events)的完整消息结构，用于在服务端和客户端之间
+    传递异步任务的状态更新、进度通知和结果信息。
+
+    该模型是RCABench系统中实时状态更新的核心数据结构，支持故障注入、算法执行等
+    各类任务的状态监控。
+
+    Attributes:
+        task_id (UUID): 任务的唯一标识符，用于关联和追踪具体任务实例
+            例如: UUID("da1d9598-3a08-4456-bfce-04da8cf850b0")
+
+        task_type (str): 任务类型标识，指明消息关联的操作类别
+            可选值:
+            - "FaultInjection": 故障注入任务
+            - "RunAlgorithm": 算法执行任务
+            - "CollectResult": 结果收集任务
+            - "RestartService": 服务重启任务
+
+        status (str): 任务的当前状态
+            可选值:
+            - "Running": 任务正在执行中
+            - "Completed": 任务已成功完成
+            - "Error": 任务执行出错
+
+        payload (Optional[SSEMessagePayload]): 任务详细信息负载
+            - 包含与任务相关的额外数据，如数据集名称、执行ID等
+            - 当状态为Error时，包含错误详情
+            - 可能为None，表示无额外信息
+
+    """
+
+    task_id: UUID = Field(
+        ...,
+        description="Task identifier",
+        json_schema_extra={"example": UUID("da1d9598-3a08-4456-bfce-04da8cf850b0")},
+    )
+
+    task_type: str = Field(
+        ...,
+        description="Task type identifier (e.g., FaultInjection/RunAlgorithm)",
+        json_schema_extra={"example": "FaultInjection"},
+    )
+
+    status: str = Field(
+        ...,
+        description="Task status (e.g., Completed/Error)",
+        json_schema_extra={"example": "Completed"},
+    )
+
+    payload: Optional[SSEMessagePayload] = Field(
+        None,
+        description="Task status (e.g., Completed/Error)",
     )
 
 
@@ -165,7 +210,9 @@ class QueueDataItem(BaseModel):
         json_schema_extra={
             "example": {
                 UUID("792aa5aa-2dc3-4284-a852-b48fda567dff"): SSEMessage(
-                    task_type="fault_injection"
+                    task_id=UUID("da1d9598-3a08-4456-bfce-04da8cf850b0"),
+                    task_type="fault_injection",
+                    status="Completed",
                 )
             }
         },
@@ -237,11 +284,11 @@ class StreamResult(BaseModel):
         json_schema_extra={
             "example": {
                 UUID("12da92c5-4075-4634-8a50-61920f94ca1e"): {
-                    UUID("12da92c5-4075-4634-8a50-61920f94ca1e"): {
-                        "execution_id": 311,
-                        "status": "Completed",
-                        "task_type": "RunAlgorithm",
-                    },
+                    UUID("12da92c5-4075-4634-8a50-61920f94ca1e"): SSEMessage(
+                        task_id=UUID("12da92c5-4075-4634-8a50-61920f94ca1e"),
+                        task_type="FaultInjection",
+                        status="Completed",
+                    ),
                 }
             }
         },

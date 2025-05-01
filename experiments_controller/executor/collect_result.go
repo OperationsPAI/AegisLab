@@ -55,14 +55,15 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 				logrus.Info("the detector result is empty")
 				updateTaskStatus(
 					ctx,
-					task.TaskID,
 					task.TraceID,
 					fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
 					map[string]any{
-						consts.RdbMsgStatus:         consts.TaskStatusCompleted,
-						consts.RdbMsgTaskID:         task.TaskID,
-						consts.RdbMsgTaskType:       consts.TaskTypeCollectResult,
-						consts.RdbMsgDetectorResult: "",
+						consts.RdbEventTaskID:   task.TaskID,
+						consts.RdbEventTaskType: consts.TaskTypeCollectResult,
+						consts.RdbEventStatus:   consts.TaskStatusCompleted,
+						consts.RdbEventPayload: map[string]any{
+							consts.RdbPayloadDetectorResult: results,
+						},
 					})
 
 				return nil
@@ -76,14 +77,15 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 
 			updateTaskStatus(
 				ctx,
-				task.TaskID,
 				task.TraceID,
 				fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
 				map[string]any{
-					consts.RdbMsgStatus:         consts.TaskStatusCompleted,
-					consts.RdbMsgTaskID:         task.TaskID,
-					consts.RdbMsgTaskType:       consts.TaskTypeCollectResult,
-					consts.RdbMsgDetectorResult: results,
+					consts.RdbEventTaskID:   task.TaskID,
+					consts.RdbEventTaskType: consts.TaskTypeCollectResult,
+					consts.RdbEventStatus:   consts.TaskStatusCompleted,
+					consts.RdbEventPayload: map[string]any{
+						consts.RdbPayloadDetectorResult: "",
+					},
 				})
 		} else {
 			resultCSV := filepath.Join(path, collectPayload.Dataset, "result.csv")
@@ -109,13 +111,12 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 
 			updateTaskStatus(
 				ctx,
-				task.TaskID,
 				task.TraceID,
 				fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
 				map[string]any{
-					consts.RdbMsgStatus:   consts.TaskStatusCompleted,
-					consts.RdbMsgTaskID:   task.TaskID,
-					consts.RdbMsgTaskType: consts.TaskTypeCollectResult,
+					consts.RdbEventTaskID:   task.TaskID,
+					consts.RdbEventTaskType: consts.TaskTypeCollectResult,
+					consts.RdbEventStatus:   consts.TaskStatusCompleted,
 				})
 		}
 
