@@ -29,6 +29,7 @@ const (
 )
 
 const (
+	TaskTypeDummy          TaskType = ""
 	TaskTypeRestartService TaskType = "RestartService"
 	TaskTypeRunAlgorithm   TaskType = "RunAlgorithm"
 	TaskTypeFaultInjection TaskType = "FaultInjection"
