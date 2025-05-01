@@ -679,7 +679,7 @@ func updateTaskStatus(ctx context.Context, traceID, taskID, message, taskStatus 
 			TaskID:    taskID,
 			EventName: consts.EventTaskStatusUpdate,
 			Payload:   taskStatus,
-		})
+		}, client.WithCallerLevel(3))
 
 		tx := database.DB.WithContext(ctx).Begin()
 		if err := tx.Model(&database.Task{}).

@@ -73,8 +73,27 @@ func GetRedisClient() *redis.Client {
 	return redisClient
 }
 
-func PublishEvent(ctx context.Context, stream string, event StreamEvent) (string, error) {
-	file, line, _ := utils.GetCallerInfo(2)
+type EventConf struct {
+	CallerLevel int
+}
+
+type EventConfOption func(*EventConf)
+
+func WithCallerLevel(level int) func(*EventConf) {
+	return func(c *EventConf) {
+		c.CallerLevel = level
+	}
+}
+
+func PublishEvent(ctx context.Context, stream string, event StreamEvent, opts ...EventConfOption) (string, error) {
+	conf := &EventConf{
+		CallerLevel: 2,
+	}
+	for _, opt := range opts {
+		opt(conf)
+	}
+
+	file, line, _ := utils.GetCallerInfo(conf.CallerLevel)
 	event.FileName = file
 	event.Line = line
 
