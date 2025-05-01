@@ -14,7 +14,6 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/tracing"
-	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -35,7 +34,6 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 		}
 
 		path := config.GetString("nfs.path")
-		file, line, _ := utils.GetCallerInfo(1)
 
 		if collectPayload.Algorithm == "detector" {
 			conclusionCSV := filepath.Join(path, collectPayload.Dataset, consts.DetectorConclusionFile)
@@ -63,7 +61,6 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 					fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
 					consts.TaskStatusCompleted,
 				)
-
 				return nil
 			}
 
@@ -76,9 +73,7 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 			client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), client.StreamEvent{
 				TaskID:    task.TaskID,
 				TaskType:  consts.TaskTypeCollectResult,
-				FileName:  file,
-				Line:      line,
-				EventName: consts.EventNameDatasetResultCollection,
+				EventName: consts.EventDatasetResultCollection,
 				Payload:   results,
 			})
 
@@ -114,9 +109,7 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 			client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), client.StreamEvent{
 				TaskID:    task.TaskID,
 				TaskType:  consts.TaskTypeCollectResult,
-				FileName:  file,
-				Line:      line,
-				EventName: consts.EventNameAlgoResultCollection,
+				EventName: consts.EventAlgoResultCollection,
 				Payload:   results,
 			})
 
