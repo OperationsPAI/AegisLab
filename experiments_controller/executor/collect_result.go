@@ -9,10 +9,12 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/tracing"
+	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -33,6 +35,7 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 		}
 
 		path := config.GetString("nfs.path")
+		file, line, _ := utils.GetCallerInfo(1)
 
 		if collectPayload.Algorithm == "detector" {
 			conclusionCSV := filepath.Join(path, collectPayload.Dataset, consts.DetectorConclusionFile)
@@ -56,15 +59,10 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 				updateTaskStatus(
 					ctx,
 					task.TraceID,
+					task.TaskID,
 					fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
-					map[string]any{
-						consts.RdbEventTaskID:   task.TaskID,
-						consts.RdbEventTaskType: consts.TaskTypeCollectResult,
-						consts.RdbEventStatus:   consts.TaskStatusCompleted,
-						consts.RdbEventPayload: map[string]any{
-							consts.RdbPayloadDetectorResult: results,
-						},
-					})
+					consts.TaskStatusCompleted,
+				)
 
 				return nil
 			}
@@ -75,18 +73,22 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 				return fmt.Errorf("failed to save conclusion.csv to database: %v", err)
 			}
 
+			client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), client.StreamEvent{
+				TaskID:    task.TaskID,
+				TaskType:  consts.TaskTypeCollectResult,
+				FileName:  file,
+				Line:      line,
+				EventName: consts.EventNameDatasetResultCollection,
+				Payload:   results,
+			})
+
 			updateTaskStatus(
 				ctx,
 				task.TraceID,
+				task.TaskID,
 				fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
-				map[string]any{
-					consts.RdbEventTaskID:   task.TaskID,
-					consts.RdbEventTaskType: consts.TaskTypeCollectResult,
-					consts.RdbEventStatus:   consts.TaskStatusCompleted,
-					consts.RdbEventPayload: map[string]any{
-						consts.RdbPayloadDetectorResult: "",
-					},
-				})
+				consts.TaskStatusCompleted,
+			)
 		} else {
 			resultCSV := filepath.Join(path, collectPayload.Dataset, "result.csv")
 			content, err := os.ReadFile(resultCSV)
@@ -109,15 +111,22 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 				return fmt.Errorf("save result.csv to database failed: %v", err)
 			}
 
+			client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), client.StreamEvent{
+				TaskID:    task.TaskID,
+				TaskType:  consts.TaskTypeCollectResult,
+				FileName:  file,
+				Line:      line,
+				EventName: consts.EventNameAlgoResultCollection,
+				Payload:   results,
+			})
+
 			updateTaskStatus(
 				ctx,
 				task.TraceID,
+				task.TaskID,
 				fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
-				map[string]any{
-					consts.RdbEventTaskID:   task.TaskID,
-					consts.RdbEventTaskType: consts.TaskTypeCollectResult,
-					consts.RdbEventStatus:   consts.TaskStatusCompleted,
-				})
+				consts.TaskStatusCompleted,
+			)
 		}
 
 		return nil

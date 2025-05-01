@@ -24,23 +24,21 @@ var (
 )
 
 type StreamEvent struct {
-	TaskID   string
-	TaskType consts.TaskType
-	Status   string
-	FileName string
-	Line     int
-	Name     string
-	Payload  map[string]any
+	TaskID    string
+	TaskType  consts.TaskType
+	FileName  string
+	Line      int
+	EventName consts.EventType
+	Payload   any
 }
 
 func (s *StreamEvent) ToRedisStream() map[string]any {
 	return map[string]any{
 		consts.RdbEventTaskID:   s.TaskID,
 		consts.RdbEventTaskType: s.TaskType,
-		consts.RdbEventStatus:   s.Status,
 		consts.RdbEventFileName: s.FileName,
 		consts.RdbEventLine:     s.Line,
-		consts.RdbEventName:     s.Name,
+		consts.RdbEventName:     s.EventName,
 		consts.RdbEventPayload:  s.Payload,
 	}
 }
@@ -49,7 +47,7 @@ func (s *StreamEvent) ToSSE() (string, error) {
 	message := map[string]any{
 		consts.RdbEventTaskID:   s.TaskID,
 		consts.RdbEventTaskType: s.TaskType,
-		consts.RdbEventStatus:   s.Status,
+		consts.RdbEventName:     s.EventName,
 		consts.RdbEventPayload:  s.Payload,
 	}
 
@@ -141,15 +139,9 @@ func ParseEventFromValues(values map[string]any) (*StreamEvent, error) {
 		return nil, fmt.Errorf(message, consts.RdbEventTaskType)
 	}
 
-	status, ok := values[consts.RdbEventStatus].(string)
-	if !ok || status == "" {
-		return nil, fmt.Errorf(message, consts.RdbEventStatus)
-	}
-
 	event := &StreamEvent{
 		TaskID:   taskID,
 		TaskType: taskType,
-		Status:   status,
 	}
 
 	_, exists := values[consts.RdbEventPayload]
@@ -180,6 +172,15 @@ func ParseEventFromValues(values map[string]any) (*StreamEvent, error) {
 		}
 
 		event.Line = int(lineInt64)
+	}
+
+	_, exists = values[consts.RdbEventName]
+	if exists {
+		eventName, ok := values[consts.RdbEventName].(consts.EventType)
+		if !ok || eventName == "" {
+			return nil, fmt.Errorf(message, consts.RdbEventName)
+		}
+		event.EventName = eventName
 	}
 
 	return event, nil
