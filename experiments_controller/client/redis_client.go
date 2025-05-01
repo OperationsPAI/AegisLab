@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -85,6 +86,7 @@ func PublishEvent(ctx context.Context, stream string, event StreamEvent) (string
 		Values: event.ToRedisStream(),
 	}).Result()
 	if err != nil {
+		logrus.Errorf("Failed to publish event to Redis stream %s: %v", stream, err)
 		return "", fmt.Errorf("failed to publish event to Redis stream: %w", err)
 	}
 	logrus.Infof("Published event to Redis stream %s: %s", stream, res)
@@ -140,15 +142,15 @@ func ParseEventFromValues(values map[string]any) (*StreamEvent, error) {
 	}
 
 	if _, exists := values[consts.RdbEventTaskType]; exists {
-		taskType, ok := values[consts.RdbEventTaskType].(consts.TaskType)
-		if !ok || taskID == "" {
+		taskType, ok := values[consts.RdbEventTaskType].(string)
+		if !ok {
 			return nil, fmt.Errorf(message, consts.RdbEventTaskType)
 		}
-		event.TaskType = taskType
+		event.TaskType = consts.TaskType(taskType)
 	}
 
 	if _, exists := values[consts.RdbEventPayload]; exists {
-		payload, ok := values[consts.RdbEventPayload].(map[string]any)
+		payload, ok := values[consts.RdbEventPayload]
 		if !ok {
 			return nil, fmt.Errorf(message, consts.RdbEventPayload)
 		}
@@ -158,7 +160,7 @@ func ParseEventFromValues(values map[string]any) (*StreamEvent, error) {
 
 	if _, exists := values[consts.RdbEventFileName]; exists {
 		fileName, ok := values[consts.RdbEventFileName].(string)
-		if !ok || fileName == "" {
+		if !ok {
 			return nil, fmt.Errorf(message, consts.RdbEventTaskID)
 		}
 
@@ -166,20 +168,24 @@ func ParseEventFromValues(values map[string]any) (*StreamEvent, error) {
 	}
 
 	if _, exists := values[consts.RdbEventLine]; exists {
-		lineInt64, ok := values[consts.RdbEventLine].(int64)
-		if !ok || lineInt64 == 0 {
+		lineInt64, ok := values[consts.RdbEventLine].(string)
+		if !ok {
 			return nil, fmt.Errorf(message, consts.RdbEventLine)
 		}
 
-		event.Line = int(lineInt64)
+		line, err := strconv.Atoi(lineInt64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid line number: %w", err)
+		}
+		event.Line = line
 	}
 
 	if _, exists := values[consts.RdbEventName]; exists {
-		eventName, ok := values[consts.RdbEventName].(consts.EventType)
-		if !ok || eventName == "" {
+		eventName, ok := values[consts.RdbEventName].(string)
+		if !ok {
 			return nil, fmt.Errorf(message, consts.RdbEventName)
 		}
-		event.EventName = eventName
+		event.EventName = consts.EventType(eventName)
 	}
 
 	return event, nil
