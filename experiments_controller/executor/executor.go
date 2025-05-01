@@ -63,12 +63,10 @@ func (e *Executor) HandleCRDAdd(annotations map[string]string, labels map[string
 	updateTaskStatus(
 		ctx,
 		parsedLabels.TraceID,
+		parsedLabels.TaskID,
 		fmt.Sprintf("executing fault injection for task %s", parsedLabels.TaskID),
-		map[string]any{
-			consts.RdbEventTaskID:   parsedLabels.TaskID,
-			consts.RdbEventTaskType: consts.TaskTypeFaultInjection,
-			consts.RdbEventStatus:   consts.TaskStatusRunning,
-		})
+		consts.TaskStatusRunning,
+	)
 }
 
 func (e *Executor) HandleCRDFailed(name string, annotations map[string]string, labels map[string]string, err error, errMsg string) {
@@ -79,15 +77,10 @@ func (e *Executor) HandleCRDFailed(name string, annotations map[string]string, l
 	updateTaskStatus(
 		ctx,
 		parsedLabels.TraceID,
+		parsedLabels.TaskID,
 		errMsg,
-		map[string]any{
-			consts.RdbEventTaskID:   parsedLabels.TaskID,
-			consts.RdbEventTaskType: consts.TaskTypeFaultInjection,
-			consts.RdbEventStatus:   consts.TaskStatusError,
-			consts.RdbEventPayload: map[string]any{
-				consts.RdbPayloadErr: err.Error(),
-			},
-		})
+		consts.TaskStatusError,
+	)
 }
 
 func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, annotations map[string]string, labels map[string]string) {
@@ -104,15 +97,10 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 		updateTaskStatus(
 			ctx,
 			parsedLabels.TraceID,
+			parsedLabels.TaskID,
 			"update execution times failed",
-			map[string]any{
-				consts.RdbEventTaskID:   parsedLabels.TaskID,
-				consts.RdbEventTaskType: consts.TaskTypeFaultInjection,
-				consts.RdbEventStatus:   consts.TaskStatusError,
-				consts.RdbEventPayload: map[string]any{
-					consts.RdbPayloadErr: err.Error(),
-				},
-			})
+			consts.TaskStatusError,
+		)
 
 		return
 	}
@@ -120,12 +108,10 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 	updateTaskStatus(
 		ctx,
 		parsedLabels.TraceID,
+		parsedLabels.TaskID,
 		fmt.Sprintf(consts.TaskMsgCompleted, parsedLabels.TaskID),
-		map[string]any{
-			consts.RdbEventTaskID:   parsedLabels.TaskID,
-			consts.RdbEventTaskType: consts.TaskTypeFaultInjection,
-			consts.RdbEventStatus:   consts.TaskStatusCompleted,
-		})
+		consts.TaskStatusCompleted,
+	)
 
 	envVars := map[string]string{
 		consts.BuildEnvVarNamespace: namespace,
@@ -178,12 +164,10 @@ func (e *Executor) HandleJobAdd(annotations map[string]string, labels map[string
 	updateTaskStatus(
 		ctx,
 		taskOptions.TraceID,
+		taskOptions.TaskID,
 		message,
-		map[string]any{
-			consts.RdbEventTaskID:   taskOptions.TaskID,
-			consts.RdbEventTaskType: taskOptions.Type,
-			consts.RdbEventStatus:   consts.TaskStatusRunning,
-		})
+		consts.TaskStatusRunning,
+	)
 }
 
 func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string, err error, errMsg string) {
@@ -225,30 +209,18 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 			updateTaskStatus(
 				taskCtx,
 				taskOptions.TraceID,
+				taskOptions.TaskID,
 				"update dataset status failed",
-				map[string]any{
-					consts.RdbEventTaskID:   taskOptions.TaskID,
-					consts.RdbEventTaskType: taskOptions.Type,
-					consts.RdbEventStatus:   consts.TaskStatusError,
-					consts.RdbEventPayload: map[string]any{
-						consts.RdbPayloadErr: err.Error(),
-					},
-				},
+				consts.TaskStatusError,
 			)
 		}
 
 		updateTaskStatus(
 			taskCtx,
 			taskOptions.TraceID,
+			taskOptions.TaskID,
 			fmt.Sprintf(consts.TaskMsgFailed, taskOptions.TaskID),
-			map[string]any{
-				consts.RdbEventTaskID:   taskOptions.TaskID,
-				consts.RdbEventTaskType: taskOptions.Type,
-				consts.RdbEventStatus:   consts.TaskStatusError,
-				consts.RdbEventPayload: map[string]any{
-					consts.RdbPayloadErr: err.Error(),
-				},
-			},
+			consts.TaskStatusError,
 		)
 	}
 
@@ -273,15 +245,9 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 		updateTaskStatus(
 			taskCtx,
 			taskOptions.TraceID,
+			taskOptions.TaskID,
 			fmt.Sprintf(consts.TaskMsgCompleted, taskOptions.TaskID),
-			map[string]any{
-				consts.RdbEventTaskID:   taskOptions.TaskID,
-				consts.RdbEventTaskType: taskOptions.Type,
-				consts.RdbEventStatus:   consts.TaskStatusCompleted,
-				consts.RdbEventPayload: map[string]any{
-					consts.RdbPayloadExecutionID: options.ExecutionID,
-				},
-			},
+			consts.TaskStatusCompleted,
 		)
 
 		task := &UnifiedTask{
@@ -310,15 +276,9 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 		updateTaskStatus(
 			taskCtx,
 			taskOptions.TraceID,
+			taskOptions.TaskID,
 			fmt.Sprintf(consts.TaskMsgCompleted, taskOptions.TaskID),
-			map[string]any{
-				consts.RdbEventTaskID:   taskOptions.TaskID,
-				consts.RdbEventTaskType: taskOptions.Type,
-				consts.RdbEventStatus:   consts.TaskStatusCompleted,
-				consts.RdbEventPayload: map[string]any{
-					consts.RdbPayloadDataset: options.Dataset,
-				},
-			},
+			consts.TaskStatusCompleted,
 		)
 
 		// TODO: replace with config.string, rather than hardcode

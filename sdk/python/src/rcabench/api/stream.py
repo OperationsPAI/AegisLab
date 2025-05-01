@@ -75,7 +75,6 @@ class Stream:
     async def start_multiple_stream(
         self, client_ids: List[UUID], urls: List[str], client_timeout: float
     ) -> None:
-        """批量启动多个SSE流"""
         for idx, (client_id, url) in enumerate(zip(client_ids, urls)):
             self.index += idx + 1
             asyncio.create_task(
@@ -90,19 +89,16 @@ class Stream:
             )
 
     async def stop_stream(self, client_id: UUID):
-        """停止指定SSE流"""
         for task in asyncio.all_tasks():
             if task.get_name() == self.CLIENT_NAME.format(client_id=client_id):
                 task.cancel()
                 break
 
     async def stop_all_streams(self):
-        """停止所有SSE流"""
         for client_id in list(self.active_connections):
             await self.stop_stream(client_id)
 
     async def cleanup(self):
-        """清理所有资源"""
         await self.stop_all_streams()
         while not self.conn_pool.empty():
             session = await self.conn_pool.get()

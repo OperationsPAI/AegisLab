@@ -117,9 +117,5 @@ func sendSSEMessages(c *gin.Context, messages []redis.XStream) (string, error) {
 }
 
 func isTerminatingMessage(streamEvent *client.StreamEvent, expectedTaskType consts.TaskType) bool {
-	if streamEvent.Status == consts.TaskStatusCompleted {
-		return streamEvent.TaskType == expectedTaskType
-	}
-
-	return streamEvent.Status == consts.TaskStatusError
+	return streamEvent.TaskType == expectedTaskType
 }

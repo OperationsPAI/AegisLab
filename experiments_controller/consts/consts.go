@@ -111,6 +111,13 @@ const (
 	RdbPayloadDetectorResult = "detector_result"
 )
 
+type EventType string
+
+const (
+	EventNameAlgoResultCollection    EventType = "algorithm.collect_result"
+	EventNameDatasetResultCollection EventType = "algorithm.dataset_result"
+)
+
 // K8s Job 名称
 const (
 	DatasetJobName = "dataset"

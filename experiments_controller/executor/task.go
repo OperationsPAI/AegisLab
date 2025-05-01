@@ -484,15 +484,9 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 	updateTaskStatus(
 		ctx,
 		task.TraceID,
+		task.TaskID,
 		message,
-		map[string]any{
-			consts.RdbEventTaskID:   task.TaskID,
-			consts.RdbEventTaskType: task.Type,
-			consts.RdbEventStatus:   consts.TaskStatusError,
-			consts.RdbEventPayload: map[string]any{
-				consts.RdbPayloadErr: err.Error(),
-			},
-		},
+		consts.TaskStatusError,
 	)
 }
 
@@ -660,42 +654,30 @@ func removeFromList(ctx context.Context, cli *redis.Client, key, taskID string) 
 // -----------------------------------------------------------------------------
 
 // updateTaskStatus updates the task status and publishes the update
-func updateTaskStatus(ctx context.Context, traceID, message string, values map[string]any) {
+func updateTaskStatus(ctx context.Context, traceID, taskID, message, taskStatus string) {
 	tracing.WithSpan(ctx, func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
-		logEntry := logrus.WithField("trace_id", traceID)
-		streamEvent, err := client.ParseEventFromValues(values)
-		if err != nil {
-			logEntry.Error(err)
-			return err
-		}
-
-		logEntry = logEntry.WithField("task_id", streamEvent.TaskID)
+		logEntry := logrus.WithField("trace_id", traceID).WithField("task_id", taskID)
 		span.AddEvent(message)
 
-		description := fmt.Sprintf(consts.SpanStatusDescription, streamEvent.TaskID, streamEvent.Status)
-		if streamEvent.Status == consts.TaskStatusCompleted {
+		description := fmt.Sprintf(consts.SpanStatusDescription, taskID, taskStatus)
+		if taskStatus == consts.TaskStatusCompleted {
 			span.SetStatus(codes.Ok, description)
 		}
 
-		if streamEvent.Status == consts.TaskStatusError {
-			errMsg, _ := streamEvent.Payload[consts.RdbPayloadErr].(string)
-			span.AddEvent(errMsg)
+		if taskStatus == consts.TaskStatusError {
 			span.SetStatus(codes.Error, description)
 		}
 
-		// Update task status in database
 		tx := database.DB.WithContext(ctx).Begin()
 		if err := tx.Model(&database.Task{}).
-			Where("id = ?", streamEvent.TaskID).
-			Update("status", streamEvent.Status).Error; err != nil {
+			Where("id = ?", taskID).
+			Update("status", taskStatus).Error; err != nil {
 			tx.Rollback()
 			logEntry.Errorf("failed to update database: %v", err)
 			return err
 		}
 		tx.Commit()
-
-		client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, traceID), *streamEvent)
 		return nil
 	})
 }
