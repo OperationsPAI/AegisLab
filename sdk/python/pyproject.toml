@@ -12,6 +12,7 @@ dependencies = [
     "tqdm>=4.67.1",
     "twine>=5.1.1",
     "wheel>=0.45.1",
+    "loguru>=0.7.3",
 ]
 
 # default settings of `uv init --lib`

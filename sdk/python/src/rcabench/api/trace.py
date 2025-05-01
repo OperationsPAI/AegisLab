@@ -1,5 +1,5 @@
 import json
-from ..logger import logger
+from loguru import logger
 import time
 from enum import Enum
 from typing import Any, Generator, Optional, Dict
@@ -85,13 +85,6 @@ class SSEClient:
                             event_type = event_data.get("event", "message")
                             data = event_data.get("data")
 
-                            # Store last event ID if present
-                            if "Last-Event-ID" in response.headers:
-                                self.last_id = response.headers["Last-Event-ID"]
-                                logger.debug(
-                                    f"Updated Last-Event-ID from event: {self.last_id}"
-                                )
-
                             if event_type == "update" and data:
                                 try:
                                     print(self.last_id)
@@ -111,14 +104,16 @@ class SSEClient:
                             event_data = {}
                         continue
 
-                    # Parse the line
                     if ":" not in line:
                         continue
 
                     field, value = line.split(":", 1)
                     value = value.lstrip()
 
-                    if field == "event":
+                    if field == "id":
+                        self.last_id = value
+                        logger.debug(f"Updated Last-Event-ID: {self.last_id}")
+                    elif field == "event":
                         event_data["event"] = value
                     elif field == "data":
                         if "data" not in event_data:
