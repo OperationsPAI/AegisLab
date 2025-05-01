@@ -32,6 +32,10 @@ func GetTraceStream(c *gin.Context) {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid param")
 		return
 	}
+	lastID := c.GetHeader("Last-Event-ID")
+	if lastID == "" {
+		lastID = "0"
+	}
 
 	streamKey := fmt.Sprintf(consts.StreamLogKey, req.TraceID)
 	logEntry := logrus.WithFields(logrus.Fields{
@@ -46,7 +50,6 @@ func GetTraceStream(c *gin.Context) {
 		return
 	}
 
-	lastID := "0"
 	logEntry.Infof("Reading historical events from Stream")
 	historicalMessages, err := client.ReadStreamEvents(ctx, streamKey, lastID, 100, 0)
 	if err != nil && err != redis.Nil {
