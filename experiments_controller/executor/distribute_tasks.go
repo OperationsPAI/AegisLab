@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"runtime/debug"
 
+	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/tracing"
 	"github.com/sirupsen/logrus"
@@ -23,6 +24,13 @@ func dispatchTask(ctx context.Context, task *UnifiedTask) error {
 	tracing.SetSpanAttribute(ctx, consts.TaskIDKey, task.TaskID)
 	tracing.SetSpanAttribute(ctx, consts.TaskTypeKey, string(task.Type))
 	tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStatusRunning))
+
+	client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), client.StreamEvent{
+		TaskID:    task.TaskID,
+		TaskType:  task.Type,
+		EventName: consts.EventTaskStarted,
+		Payload:   task,
+	})
 
 	var err error
 	switch task.Type {

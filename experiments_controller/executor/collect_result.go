@@ -60,6 +60,7 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 					task.TaskID,
 					fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
 					consts.TaskStatusCompleted,
+					task.Type,
 				)
 				return nil
 			}
@@ -83,6 +84,7 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 				task.TaskID,
 				fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
 				consts.TaskStatusCompleted,
+				task.Type,
 			)
 		} else {
 			resultCSV := filepath.Join(path, collectPayload.Dataset, "result.csv")
@@ -119,6 +121,7 @@ func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
 				task.TaskID,
 				fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
 				consts.TaskStatusCompleted,
+				task.Type,
 			)
 		}
 

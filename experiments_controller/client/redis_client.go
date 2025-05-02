@@ -29,6 +29,7 @@ type StreamEvent struct {
 	TaskID    string           `json:"task_id"`
 	TaskType  consts.TaskType  `json:"task_type"`
 	FileName  string           `json:"file_name"`
+	FnName    string           `json:"function_name"`
 	Line      int              `json:"line"`
 	EventName consts.EventType `json:"event_name"`
 	Payload   any              `json:"payload"`
@@ -45,6 +46,7 @@ func (s *StreamEvent) ToRedisStream() map[string]any {
 		consts.RdbEventTaskID:   s.TaskID,
 		consts.RdbEventTaskType: string(s.TaskType),
 		consts.RdbEventFileName: s.FileName,
+		consts.RdbEventFn:       s.FnName,
 		consts.RdbEventLine:     s.Line,
 		consts.RdbEventName:     string(s.EventName),
 		consts.RdbEventPayload:  payload,
@@ -99,9 +101,10 @@ func PublishEvent(ctx context.Context, stream string, event StreamEvent, opts ..
 		opt(conf)
 	}
 
-	file, line, _ := utils.GetCallerInfo(conf.CallerLevel)
+	file, line, fn := utils.GetCallerInfo(conf.CallerLevel)
 	event.FileName = file
 	event.Line = line
+	event.FnName = fn
 
 	res, err := GetRedisClient().XAdd(ctx, &redis.XAddArgs{
 		Stream: stream,
@@ -170,6 +173,14 @@ func ParseEventFromValues(values map[string]any) (*StreamEvent, error) {
 			return nil, fmt.Errorf(message, consts.RdbEventTaskType)
 		}
 		event.TaskType = consts.TaskType(taskType)
+	}
+
+	if _, exists := values[consts.RdbEventFn]; exists {
+		fnName, ok := values[consts.RdbEventFn].(string)
+		if !ok {
+			return nil, fmt.Errorf(message, consts.RdbEventFn)
+		}
+		event.FnName = fnName
 	}
 
 	if _, exists := values[consts.RdbEventPayload]; exists {

@@ -417,12 +417,6 @@ func processTask(ctx context.Context, taskData string) {
 		return
 	}
 
-	client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), client.StreamEvent{
-		TaskID:    task.TaskID,
-		EventName: consts.EventTaskStarted,
-		Payload:   task,
-	})
-
 	// Previously, ctx is an empty context.
 	// ExtractContext injects the context information into the context
 	traceCtx, taskCtx := ExtractContext(ctx, &task)
@@ -493,6 +487,7 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 		task.TaskID,
 		message,
 		consts.TaskStatusError,
+		task.Type,
 	)
 }
 
@@ -660,7 +655,7 @@ func removeFromList(ctx context.Context, cli *redis.Client, key, taskID string) 
 // -----------------------------------------------------------------------------
 
 // updateTaskStatus updates the task status and publishes the update
-func updateTaskStatus(ctx context.Context, traceID, taskID, message, taskStatus string) {
+func updateTaskStatus(ctx context.Context, traceID, taskID, message, taskStatus string, taskType consts.TaskType) {
 	tracing.WithSpan(ctx, func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
 		logEntry := logrus.WithField("trace_id", traceID).WithField("task_id", taskID)
@@ -677,6 +672,7 @@ func updateTaskStatus(ctx context.Context, traceID, taskID, message, taskStatus 
 
 		client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, traceID), client.StreamEvent{
 			TaskID:    taskID,
+			TaskType:  taskType,
 			EventName: consts.EventTaskStatusUpdate,
 			Payload:   fmt.Sprintf("Status updated to %s, message: %s", taskStatus, message),
 		}, client.WithCallerLevel(5))
