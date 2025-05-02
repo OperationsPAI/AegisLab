@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Optional
-from ..const import INJECTION_CONF_MODES, InjectionStatusEnum, TIME_EXAMPLE
+from ..const import INJECTION_CONF_MODES, InjectionStatus, TIME_EXAMPLE
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator, model_validator
 from uuid import UUID
@@ -74,7 +74,7 @@ class InjectionItem(BaseModel):
         description="Specification parameters for the fault injection",
     )
 
-    status: InjectionStatusEnum = Field(
+    status: InjectionStatus = Field(
         ...,
         description="Status value:initial, inject_success, inject_failed, build_success, build_failed, deleted",
         json_schema_extra={"example": ["initial"]},

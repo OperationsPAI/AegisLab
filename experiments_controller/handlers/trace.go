@@ -17,19 +17,26 @@ import (
 )
 
 func GetTraceStream(c *gin.Context) {
-	var req dto.TraceReq
-	if err := c.BindUri(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid param")
+	var traceReq dto.TraceReq
+	if err := c.BindUri(&traceReq); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid URI")
 		return
 	}
-	lastID := c.GetHeader("Last-Event-ID")
+
+	var req dto.TraceStreamReq
+	if err := c.BindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid Param")
+		return
+	}
+
+	lastID := req.LastID
 	if lastID == "" {
 		lastID = "0"
 	}
 
-	streamKey := fmt.Sprintf(consts.StreamLogKey, req.TraceID)
+	streamKey := fmt.Sprintf(consts.StreamLogKey, traceReq.TraceID)
 	logEntry := logrus.WithFields(logrus.Fields{
-		"trace_id":   req.TraceID,
+		"trace_id":   traceReq.TraceID,
 		"stream_key": streamKey,
 	})
 
@@ -111,21 +118,17 @@ func sendSSEMessages(c *gin.Context, messages []redis.XStream) (string, error) {
 
 			c.Writer.Flush()
 
-			if isTerminatingMessage(streamEvent, consts.TaskTypeCollectResult) {
-				c.Render(-1, sse.Event{
-					Id:    msg.ID,
-					Event: consts.EventUpdate,
-					Data:  sseMessage,
-				})
-				c.Writer.Flush()
-				return lastID, nil
+			if streamEvent.TaskType == consts.TaskTypeCollectResult {
+				if payload, ok := streamEvent.Payload.(client.InfoPayloadTemplate); ok {
+					if payload.Status == consts.TaskStatusCompleted {
+						c.SSEvent(consts.EventEnd, nil)
+						c.Writer.Flush()
+						return lastID, nil
+					}
+				}
 			}
 		}
 	}
 
 	return lastID, nil
-}
-
-func isTerminatingMessage(streamEvent *client.StreamEvent, expectedTaskType consts.TaskType) bool {
-	return streamEvent.TaskType == expectedTaskType
 }
