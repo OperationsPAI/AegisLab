@@ -77,6 +77,8 @@ func main() {
 		logrus.Fatal(err)
 	}
 
+	executor.InitConcurrencyLock(ctx)
+
 	// Producer 子命令
 	var producerCmd = &cobra.Command{
 		Use:   "producer",

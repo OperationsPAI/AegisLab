@@ -545,6 +545,13 @@ func releaseConcurrencyLock(ctx context.Context) {
 	}
 }
 
+func InitConcurrencyLock(ctx context.Context) {
+	redisCli := client.GetRedisClient()
+	if err := redisCli.Set(ctx, ConcurrencyLockKey, 0, 0).Err(); err != nil {
+		logrus.Fatalf("error setting concurrency lock to 0: %v", err)
+	}
+}
+
 // CancelTask cancels a task and removes it from the queues
 func CancelTask(taskID string) error {
 	// Cancel execution context
