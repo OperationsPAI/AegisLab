@@ -178,12 +178,6 @@ func (c *Controller) registerEventHandlers() {
 	}
 }
 
-func (c *Controller) genObEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
-	return cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {},
-	}
-}
-
 func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
@@ -422,11 +416,8 @@ func (c *Controller) processQueueItem() bool {
 		}
 
 		err = deleteCRD(context.Background(), item.GVR, item.Namespace, item.Name)
-		logrus.Infof("deleting CRD, ns: %s, name: %s", item.Namespace, item.Name)
-
 	case DeleteJob:
 		err = deleteJob(context.Background(), item.Namespace, item.Name)
-		logrus.Infof("deleting job, ns: %s, name: %s", item.Namespace, item.Name)
 
 	default:
 		logrus.Errorf("unknown resource type: %s", item.Type)
@@ -541,34 +532,6 @@ func getCRDEventTimeRanges(records []any) []timeRange {
 	return []timeRange{}
 }
 
-func getNamespaceDesiredPodNum(namespace string) (int, error) {
-	desiredNum := 0
-
-	deployments, err := k8sClient.AppsV1().Deployments(namespace).List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		return 0, fmt.Errorf("failed to get deployments in namespace %s: %v", namespace, err)
-	}
-
-	for _, item := range deployments.Items {
-		if item.Spec.Replicas != nil {
-			desiredNum += int(*item.Spec.Replicas)
-		}
-	}
-
-	statefulSets, err := k8sClient.AppsV1().StatefulSets(namespace).List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		return 0, fmt.Errorf("failed to get statefulSets in namespace %s: %v", namespace, err)
-	}
-
-	for _, item := range statefulSets.Items {
-		if item.Spec.Replicas != nil {
-			desiredNum += int(*item.Spec.Replicas)
-		}
-	}
-
-	return desiredNum, nil
-}
-
 func parseEventTime(event map[string]any) (*time.Time, error) {
 	t, _, _ := unstructured.NestedString(event, "timestamp")
 	if t, err := time.Parse(time.RFC3339, t); err == nil {
@@ -586,20 +549,6 @@ func extractJobError(job *batchv1.Job) string {
 	}
 
 	return ""
-}
-
-func checkPodReady(pod *corev1.Pod) bool {
-	if pod.Status.Phase != corev1.PodRunning {
-		return false
-	}
-
-	for _, cond := range pod.Status.Conditions {
-		if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
-			return true
-		}
-	}
-
-	return false
 }
 
 func checkPodReason(pod *corev1.Pod, reason string) bool {

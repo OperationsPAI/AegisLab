@@ -16,7 +16,7 @@ __all__ = ["HTTPClient"]
 
 def handle_http_errors(func: Callable):
     @wraps(func)
-    def wrapper(*args, **kwargs) -> Union[Any, ModelHTTPError]:
+    def wrapper(*args, **kwargs) -> Union[Dict, Response, ModelHTTPError]:
         try:
             resp = func(*args, **kwargs)
             sig = inspect.signature(func)
@@ -53,12 +53,10 @@ class HTTPClient:
     def __init__(
         self,
         base_url: str,
-        timeout: int = 10,
         max_retries: int = 3,
         backoff_factor: float = 0.5,
     ):
         self.base_url = base_url
-        self.timeout = timeout
         self.max_retries = max_retries
         self.backoff_factor = backoff_factor
 
@@ -72,8 +70,10 @@ class HTTPClient:
         self,
         method: str,
         endpoint: str,
+        headers: Optional[Dict] = None,
         params: Optional[Dict] = None,
         json: Optional[Any] = None,
+        timeout: Optional[float] = None,
         stream: bool = False,
     ) -> Response:
         full_url = f"{self.base_url}{endpoint}"
@@ -83,9 +83,10 @@ class HTTPClient:
                 response = self.session.request(
                     method=method,
                     url=full_url,
+                    headers=headers,
                     params=params,
                     json=json,
-                    timeout=self.timeout,
+                    timeout=timeout,
                     stream=stream,
                 )
                 response.raise_for_status()
@@ -132,21 +133,45 @@ class HTTPClient:
         time.sleep(sleep_time)
 
     @handle_http_errors
-    def delete(self, endpoint: str, params: Optional[Dict] = None) -> Any:
+    def delete(
+        self,
+        endpoint: str,
+        params: Optional[Dict] = None,
+    ) -> Response:
         return self._request("DELETE", endpoint, params=params)
 
     @handle_http_errors
     def get(
-        self, endpoint: str, params: Optional[Dict] = None, stream: bool = False
-    ) -> Any:
-        return self._request("GET", endpoint, params=params, stream=stream)
+        self,
+        endpoint: str,
+        headers: Optional[Dict] = None,
+        params: Optional[Dict] = None,
+        stream: bool = False,
+        timeout: Optional[float] = None,
+    ) -> Response:
+        return self._request(
+            "GET",
+            endpoint,
+            headers=headers,
+            params=params,
+            stream=stream,
+            timeout=timeout,
+        )
 
     @handle_http_errors
-    def post(self, endpoint: str, json: Dict) -> Any:
+    def post(
+        self,
+        endpoint: str,
+        json: Dict,
+    ) -> Response:
         return self._request("POST", endpoint, json=json)
 
     @handle_http_errors
-    def put(self, endpoint: str, json: Dict) -> Any:
+    def put(
+        self,
+        endpoint: str,
+        json: Dict,
+    ) -> Response:
         return self._request("PUT", endpoint, json=json)
 
     def __enter__(self):

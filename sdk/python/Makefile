@@ -27,17 +27,6 @@ build-docker: ## Build SDK docker image
 
 ##@ Upload to pip
 upload:
-	uv build && uv publish
-
-##@ test
-test-algorithm: ## test algorithm
-	uv run pytest -s tests/test_algorithm_api.py
-
-test-dataset: ## test dataset
-	uv run pytest -s tests/test_dataset_api.py
-
-test-injection: ## test injection
-	uv run pytest -s tests/test_injection_api.py
-
-test-task: ## test task
-	uv run pytest -s tests/test_task_api.py
+	rm -rf dist
+	@if [ ! -f token ]; then echo "Error: token file not found"; exit 1; fi
+	uv build && uv publish --token $(shell cat token)

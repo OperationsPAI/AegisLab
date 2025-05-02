@@ -287,7 +287,8 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 			taskOptions.TaskID,
 			fmt.Sprintf(consts.TaskMsgCompleted, taskOptions.TaskID),
 			consts.TaskStatusCompleted,
-			taskOptions.Type)
+			taskOptions.Type,
+		)
 
 		// TODO: replace with config.string, rather than hardcode
 		image := "detector"
