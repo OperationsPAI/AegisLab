@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
@@ -171,6 +172,10 @@ func (c *HelmClient) UninstallRelease(releaseName string) error {
 
 	_, err := client.Run(releaseName)
 	if err != nil {
+		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "release: not found") {
+			logrus.Infof("Release %s is not installed, nothing to uninstall", releaseName)
+			return nil
+		}
 		return fmt.Errorf("failed to uninstall release %s: %w", releaseName, err)
 	}
 

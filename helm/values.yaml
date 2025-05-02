@@ -40,7 +40,7 @@ configmap:
     timezone: "Asia/Shanghai"
   injection:
     enable_duplicate: true
-    namespace_target_map: { ts: 5 }
+    namespace_target_map: { ts: 10 }
     target_label_key: "app"
     ts_image_tag: "637600ea"
   database:
