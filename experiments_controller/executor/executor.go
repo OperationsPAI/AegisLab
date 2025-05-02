@@ -66,6 +66,7 @@ func (e *Executor) HandleCRDAdd(annotations map[string]string, labels map[string
 		parsedLabels.TaskID,
 		fmt.Sprintf("executing fault injection for task %s", parsedLabels.TaskID),
 		consts.TaskStatusRunning,
+		"",
 	)
 }
 
@@ -80,6 +81,7 @@ func (e *Executor) HandleCRDFailed(name string, annotations map[string]string, l
 		parsedLabels.TaskID,
 		errMsg,
 		consts.TaskStatusError,
+		"",
 	)
 }
 
@@ -100,6 +102,7 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 			parsedLabels.TaskID,
 			"update execution times failed",
 			consts.TaskStatusError,
+			"",
 		)
 
 		return
@@ -111,6 +114,7 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 		parsedLabels.TaskID,
 		fmt.Sprintf(consts.TaskMsgCompleted, parsedLabels.TaskID),
 		consts.TaskStatusCompleted,
+		"",
 	)
 
 	envVars := map[string]string{
@@ -167,6 +171,7 @@ func (e *Executor) HandleJobAdd(annotations map[string]string, labels map[string
 		taskOptions.TaskID,
 		message,
 		consts.TaskStatusRunning,
+		taskOptions.Type,
 	)
 }
 
@@ -212,6 +217,7 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 				taskOptions.TaskID,
 				"update dataset status failed",
 				consts.TaskStatusError,
+				taskOptions.Type,
 			)
 		}
 
@@ -221,6 +227,7 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 			taskOptions.TaskID,
 			fmt.Sprintf(consts.TaskMsgFailed, taskOptions.TaskID),
 			consts.TaskStatusError,
+			taskOptions.Type,
 		)
 	}
 
@@ -248,6 +255,7 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 			taskOptions.TaskID,
 			fmt.Sprintf(consts.TaskMsgCompleted, taskOptions.TaskID),
 			consts.TaskStatusCompleted,
+			taskOptions.Type,
 		)
 
 		task := &UnifiedTask{
@@ -279,7 +287,7 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 			taskOptions.TaskID,
 			fmt.Sprintf(consts.TaskMsgCompleted, taskOptions.TaskID),
 			consts.TaskStatusCompleted,
-		)
+			taskOptions.Type)
 
 		// TODO: replace with config.string, rather than hardcode
 		image := "detector"

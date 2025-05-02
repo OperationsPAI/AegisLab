@@ -229,6 +229,7 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 			TaskID:    task.TaskID,
 			TaskType:  consts.TaskTypeRestartService,
 			EventName: consts.EventRestartServiceCompleted,
+			Payload:   fmt.Sprintf("Injection started at %s, fault duration %d seconds", injectTime.String(), payload.faultDuration),
 		})
 
 		tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStatusScheduled))

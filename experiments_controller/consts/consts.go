@@ -102,9 +102,10 @@ const (
 	RdbEventTaskType = "task_type"
 	RdbEventStatus   = "status"
 	RdbEventFileName = "file_name"
-	RdbEventLine     = "event_line"
-	RdbEventName     = "event_name"
-	RdbEventPayload  = "event_payload"
+	RdbEventLine     = "line"
+	RdbEventName     = "name"
+	RdbEventPayload  = "payload"
+	RdbEventFn       = "function_name"
 
 	RdbPayloadErr            = "error"
 	RdbPayloadDataset        = "dataset"
