@@ -444,7 +444,7 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 
 	span := trace.SpanFromContext(ctx)
 
-	var err error
+	errs := make([]error, 0)
 	for attempt := 0; attempt <= task.RetryPolicy.MaxAttempts; attempt++ {
 		if attempt > 0 {
 			select {
@@ -458,7 +458,7 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 		ctxWithCancel, cancel := context.WithCancel(ctx)
 		_ = cancel
 
-		err = dispatchTask(ctxWithCancel, task)
+		err := dispatchTask(ctxWithCancel, task)
 		if err == nil {
 			tasksProcessed.WithLabelValues(string(task.Type), "success").Inc()
 			span.SetStatus(codes.Ok, fmt.Sprintf("Task %s of type %s completed successfully after %d attempts",
@@ -475,11 +475,20 @@ func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
 		message := fmt.Sprintf("Attempt %d failed: %v", attempt+1, err)
 		span.AddEvent(message)
 		logrus.WithField("task_id", task.TaskID).Warn(message)
+		client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), client.StreamEvent{
+			TaskID:    task.TaskID,
+			TaskType:  task.Type,
+			EventName: consts.EventTaskRetryStatus,
+			Payload: client.InfoPayloadTemplate{
+				Status: consts.TaskStatusError,
+				Msg:    err.Error(),
+			},
+		})
 	}
 
 	tasksProcessed.WithLabelValues(string(task.Type), "failed").Inc()
 
-	message := fmt.Sprintf("Task failed after %d attempts", task.RetryPolicy.MaxAttempts)
+	message := fmt.Sprintf("Task failed after %d attempts, errors: [%v]", task.RetryPolicy.MaxAttempts, errs)
 	handleFinalFailure(ctx, task, message)
 	updateTaskStatus(
 		ctx,
