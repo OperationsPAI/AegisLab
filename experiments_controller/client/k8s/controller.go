@@ -444,7 +444,6 @@ func (c *Controller) processQueueItem() bool {
 }
 
 func (c *Controller) checkRecoveryStatus(gvr *schema.GroupVersionResource, namespace, name string) error {
-	// 实现与原异步goroutine相同的检查逻辑
 	obj, err := k8sDynamicClient.Resource(*gvr).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {

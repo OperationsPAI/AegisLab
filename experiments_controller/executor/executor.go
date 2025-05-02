@@ -64,7 +64,7 @@ func (e *Executor) HandleCRDAdd(annotations map[string]string, labels map[string
 		ctx,
 		parsedLabels.TraceID,
 		parsedLabels.TaskID,
-		fmt.Sprintf("executing fault injection for task %s", parsedLabels.TaskID),
+		"injecting",
 		consts.TaskStatusRunning,
 		consts.TaskTypeFaultInjection,
 	)
@@ -112,9 +112,9 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 		ctx,
 		parsedLabels.TraceID,
 		parsedLabels.TaskID,
-		fmt.Sprintf(consts.TaskMsgCompleted, parsedLabels.TaskID),
+		"injection completed",
 		consts.TaskStatusCompleted,
-		"",
+		consts.TaskTypeFaultInjection,
 	)
 
 	envVars := map[string]string{

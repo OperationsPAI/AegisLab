@@ -674,7 +674,10 @@ func updateTaskStatus(ctx context.Context, traceID, taskID, message, taskStatus 
 			TaskID:    taskID,
 			TaskType:  taskType,
 			EventName: consts.EventTaskStatusUpdate,
-			Payload:   fmt.Sprintf("Status updated to %s, message: %s", taskStatus, message),
+			Payload: client.InfoPayloadTemplate{
+				Status: taskStatus,
+				Msg:    message,
+			},
 		}, client.WithCallerLevel(5))
 
 		tx := database.DB.WithContext(ctx).Begin()
