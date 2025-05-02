@@ -163,6 +163,13 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 			}).Warnf("Failed to acquire lock for namespace, retrying at in %v", executeTime.String())
 			span.AddEvent("failed to acquire lock for namespace, retrying")
 
+			client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), client.StreamEvent{
+				TaskID:    task.TaskID,
+				TaskType:  consts.TaskTypeRestartService,
+				EventName: consts.EventNoNamespaceAvailable,
+				Payload:   executeTime.String(),
+			})
+
 			if _, _, err := SubmitTask(ctx, &UnifiedTask{
 				Type:         consts.TaskTypeRestartService,
 				Immediate:    false,
@@ -193,6 +200,12 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 			return fmt.Errorf("failed to read namespace index: %v", err)
 		}
 
+		client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), client.StreamEvent{
+			TaskID:    task.TaskID,
+			TaskType:  consts.TaskTypeRestartService,
+			EventName: consts.EventRestartServiceStarted,
+		})
+
 		if err := installTS(
 			childCtx,
 			namespace,
@@ -203,8 +216,20 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 			monitor.ReleaseLock(namespace)
 			span.RecordError(err)
 			span.AddEvent("failed to install Train Ticket")
+			client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), client.StreamEvent{
+				TaskID:    task.TaskID,
+				TaskType:  consts.TaskTypeRestartService,
+				EventName: consts.EventRestartServiceFailed,
+				Payload:   err.Error(),
+			})
 			return err
 		}
+
+		client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), client.StreamEvent{
+			TaskID:    task.TaskID,
+			TaskType:  consts.TaskTypeRestartService,
+			EventName: consts.EventRestartServiceCompleted,
+		})
 
 		tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStatusScheduled))
 

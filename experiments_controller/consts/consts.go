@@ -119,6 +119,10 @@ const (
 	EventDatasetResultCollection EventType = "algorithm.dataset_result"
 	EventTaskStatusUpdate        EventType = "task.status.update"
 	EventTaskStarted             EventType = "task.started"
+	EventNoNamespaceAvailable    EventType = "no.namespace.available"
+	EventRestartServiceStarted   EventType = "restart.service.started"
+	EventRestartServiceCompleted EventType = "restart.service.completed"
+	EventRestartServiceFailed    EventType = "restart.service.failed"
 )
 
 // K8s Job 名称
