@@ -66,7 +66,7 @@ func (e *Executor) HandleCRDAdd(annotations map[string]string, labels map[string
 		parsedLabels.TaskID,
 		fmt.Sprintf("executing fault injection for task %s", parsedLabels.TaskID),
 		consts.TaskStatusRunning,
-		"",
+		consts.TaskTypeFaultInjection,
 	)
 }
 
@@ -81,7 +81,7 @@ func (e *Executor) HandleCRDFailed(name string, annotations map[string]string, l
 		parsedLabels.TaskID,
 		errMsg,
 		consts.TaskStatusError,
-		"",
+		consts.TaskTypeFaultInjection,
 	)
 }
 
@@ -102,7 +102,7 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 			parsedLabels.TaskID,
 			"update execution times failed",
 			consts.TaskStatusError,
-			"",
+			consts.TaskTypeFaultInjection,
 		)
 
 		return
