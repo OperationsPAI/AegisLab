@@ -678,8 +678,8 @@ func updateTaskStatus(ctx context.Context, traceID, taskID, message, taskStatus 
 		client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, traceID), client.StreamEvent{
 			TaskID:    taskID,
 			EventName: consts.EventTaskStatusUpdate,
-			Payload:   taskStatus,
-		}, client.WithCallerLevel(3))
+			Payload:   fmt.Sprintf("Status updated to %s, message: %s", taskStatus, message),
+		}, client.WithCallerLevel(5))
 
 		tx := database.DB.WithContext(ctx).Begin()
 		if err := tx.Model(&database.Task{}).

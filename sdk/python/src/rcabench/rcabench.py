@@ -1,4 +1,4 @@
-from .api import Algorithm, Dataset, Evaluation, Injection, Task, Trace
+from .api import Algorithm, Dataset, Evaluation, Injection, Task
 from .client.http_client import HTTPClient
 
 
@@ -13,4 +13,3 @@ class RCABenchSDK:
         self.evaluation = Evaluation(client, api_version)
         self.injection = Injection(client, api_version)
         self.task = Task(client, api_version)
-        self.trace = Trace(client, api_version, max_connections)
