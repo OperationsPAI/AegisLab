@@ -2,7 +2,7 @@ import json
 from loguru import logger
 import time
 from enum import Enum
-from typing import Any, Generator, Optional, Dict
+from typing import Any, Generator, Optional
 import requests
 from pydantic import BaseModel, Field
 
@@ -212,5 +212,5 @@ if __name__ == "__main__":
         # Process the event as needed
 
     # # Advanced usage - filter events
-    # for event in client.filter_events(trace_id, task_type="collect_result"):
-    #     print(f"Received collect_result event: {event}")
+    for event in client.filter_events(trace_id, task_type="collect_result"):
+        print(f"Received collect_result event: {event}")

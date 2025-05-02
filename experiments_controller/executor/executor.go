@@ -170,7 +170,7 @@ func (e *Executor) HandleJobAdd(annotations map[string]string, labels map[string
 	)
 }
 
-func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string, err error, errMsg string) {
+func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string, errC error, errMsg string) {
 	logs, err := k8s.GetJobPodLogs(context.Background(), job.Namespace, job.Name)
 	if err != nil {
 		logrus.WithField("job_name", job.Name).Errorf("failed to get job logs: %v", err)
