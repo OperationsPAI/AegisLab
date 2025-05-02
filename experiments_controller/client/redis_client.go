@@ -35,13 +35,19 @@ type StreamEvent struct {
 }
 
 func (s *StreamEvent) ToRedisStream() map[string]any {
+	payload, err := json.Marshal(s.Payload)
+	if err != nil {
+		logrus.Errorf("Failed to marshal payload: %v", err)
+		return nil
+	}
+
 	return map[string]any{
 		consts.RdbEventTaskID:   s.TaskID,
 		consts.RdbEventTaskType: string(s.TaskType),
 		consts.RdbEventFileName: s.FileName,
 		consts.RdbEventLine:     s.Line,
 		consts.RdbEventName:     string(s.EventName),
-		consts.RdbEventPayload:  s.Payload,
+		consts.RdbEventPayload:  payload,
 	}
 }
 
