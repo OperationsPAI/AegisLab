@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional, Union, Generator
 from .validation import validate_request_response
 from ..client.http_client import HTTPClient
 from ..model.error import ModelHTTPError
