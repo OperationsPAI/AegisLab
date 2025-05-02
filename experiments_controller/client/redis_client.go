@@ -35,6 +35,11 @@ type StreamEvent struct {
 	Payload   any              `json:"payload"`
 }
 
+type InfoPayloadTemplate struct {
+	Status string `json:"status"`
+	Msg    string `json:"msg"`
+}
+
 func (s *StreamEvent) ToRedisStream() map[string]any {
 	payload, err := json.Marshal(s.Payload)
 	if err != nil {
