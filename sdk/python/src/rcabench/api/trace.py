@@ -60,7 +60,7 @@ class Trace:
 
                     if event_type == "end":
                         logger.info("Received end event, closing connection")
-                        return {"events": events}
+                        return {"last_event_id": last_event_id, "events": events}
 
                     event_data = {}
                     continue
@@ -72,8 +72,7 @@ class Trace:
             value = value.lstrip()
 
             if field == "id":
-                self.last_id = value
-                logger.debug(f"Updated Last-Event-ID: {self.last_id}")
+                last_event_id = value
             elif field == "event":
                 event_data["event"] = value
             elif field == "data":
@@ -81,12 +80,6 @@ class Trace:
                     event_data["data"] = value
                 else:
                     event_data["data"] += "\n" + value
-            elif field == "retry":
-                try:
-                    self.retry_delay = int(value)
-                    logger.debug(f"Server requested retry delay: {self.retry_delay}")
-                except ValueError:
-                    pass
 
         logger.info("Connection closed")
-        return {"events": events}
+        return {"last_event_id": last_event_id, "events": events}
