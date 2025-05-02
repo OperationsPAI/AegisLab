@@ -121,6 +121,7 @@ const (
 	EventDataset                 EventType = "dataset"
 	EventExecutionID             EventType = "execution_id"
 	EventTaskStatusUpdate        EventType = "task.status.update"
+	EventTaskRetryStatus         EventType = "task.retry.status"
 	EventTaskStarted             EventType = "task.started"
 	EventNoNamespaceAvailable    EventType = "no.namespace.available"
 	EventRestartServiceStarted   EventType = "restart.service.started"
