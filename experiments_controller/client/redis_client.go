@@ -85,7 +85,7 @@ func WithCallerLevel(level int) func(*EventConf) {
 	}
 }
 
-func PublishEvent(ctx context.Context, stream string, event StreamEvent, opts ...EventConfOption) (string, error) {
+func PublishEvent(ctx context.Context, stream string, event StreamEvent, opts ...EventConfOption) {
 	conf := &EventConf{
 		CallerLevel: 2,
 	}
@@ -106,10 +106,8 @@ func PublishEvent(ctx context.Context, stream string, event StreamEvent, opts ..
 	}).Result()
 	if err != nil {
 		logrus.Errorf("Failed to publish event to Redis stream %s: %v", stream, err)
-		return "", fmt.Errorf("failed to publish event to Redis stream: %w", err)
 	}
 	logrus.Infof("Published event to Redis stream %s: %s", stream, res)
-	return res, nil
 }
 
 func ReadStreamEvents(ctx context.Context, stream string, lastID string, count int64, block time.Duration) ([]redis.XStream, error) {

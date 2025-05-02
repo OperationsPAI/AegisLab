@@ -104,7 +104,7 @@ func GetList(key string) []any {
 func GetNsPrefixs() []string {
 	m := GetMap("injection.namespace_target_map")
 	nsPrefixs := make([]string, 0, len(m))
-	for ns, _ := range m {
+	for ns := range m {
 		nsPrefixs = append(nsPrefixs, ns)
 	}
 
