@@ -249,6 +249,13 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 	case consts.TaskTypeRunAlgorithm:
 		options, _ := parseExecutionOptions(labels)
 		logEntry.WithField("algorithm", options.Algorithm).Info("algorithm execute successfully")
+		client.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), client.StreamEvent{
+			TaskID:    taskOptions.TaskID,
+			TaskType:  consts.TaskType(taskOptions.TraceID),
+			EventName: consts.EventExecutionID,
+			Payload:   options.ExecutionID,
+		}, client.WithCallerLevel(4))
+
 		updateTaskStatus(
 			taskCtx,
 			taskOptions.TraceID,
@@ -281,6 +288,13 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 	case consts.TaskTypeBuildDataset:
 		options, _ := parseDatasetOptions(labels)
 		logEntry.WithField("dataset", options.Dataset).Info("dataset build successfully")
+		client.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), client.StreamEvent{
+			TaskID:    taskOptions.TaskID,
+			TaskType:  consts.TaskType(taskOptions.TraceID),
+			EventName: consts.EventDataset,
+			Payload:   options.Dataset,
+		}, client.WithCallerLevel(4))
+
 		updateTaskStatus(
 			taskCtx,
 			taskOptions.TraceID,

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -118,12 +119,15 @@ func sendSSEMessages(c *gin.Context, messages []redis.XStream) (string, error) {
 
 			c.Writer.Flush()
 
-			if streamEvent.TaskType == consts.TaskTypeCollectResult {
-				if payload, ok := streamEvent.Payload.(client.InfoPayloadTemplate); ok {
-					if payload.Status == consts.TaskStatusCompleted {
-						c.SSEvent(consts.EventEnd, nil)
-						c.Writer.Flush()
-						return lastID, nil
+			if streamEvent.TaskType == consts.TaskTypeCollectResult && streamEvent.EventName == consts.EventTaskStatusUpdate {
+				if payloadStr, ok := streamEvent.Payload.(string); ok {
+					var payload client.InfoPayloadTemplate
+					if err := json.Unmarshal([]byte(payloadStr), &payload); err == nil {
+						if payload.Status == consts.TaskStatusCompleted {
+							c.SSEvent(consts.EventEnd, nil)
+							c.Writer.Flush()
+							return lastID, nil
+						}
 					}
 				}
 			}

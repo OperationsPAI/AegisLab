@@ -78,11 +78,21 @@ class TraceEvents(BaseModel):
     TraceEvents 跟踪事件集合模型
 
     Attributes:
+        last_event_id (str): 返回的事件集合中最后一个事件的ID
+            - 格式通常为 "{timestamp}-{sequence}"，来自Redis Stream的消息ID体系
+            - 用于后续请求的分页标记，实现增量获取事件
+            - 客户端应在下次请求中将此值作为起始ID传递，以获取更新的事件
+
         events (List[StreamEvent]): 事件列表，按时间顺序记录链路中的各个状态变更和操作
             - 列表中的每个元素为一个StreamEvent对象
             - 通常按时间先后顺序排列，从链路开始到结束
             - 包含任务生命周期中的所有关键状态变更和操作记录
     """
+
+    last_event_id: str = Field(
+        ...,
+        description="ID of the last event in the returned collection, used for pagination and incremental event retrieval. ",
+    )
 
     events: List[StreamEvent] = Field(
         ...,

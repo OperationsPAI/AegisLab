@@ -8,7 +8,7 @@ import pytest
 
 @pytest.mark.parametrize(
     "trace_id, last_event_id, timeout",
-    [("559e22ce-cbb4-4c78-8822-cb5142f76da3", "0", 60)],
+    [("8c3e4dd4-db86-49d9-b034-06e5a97c632c", "0", 600)],
 )
 def test_get_trace_events(
     sdk, trace_id: str, last_event_id: str, timeout: Optional[float]
