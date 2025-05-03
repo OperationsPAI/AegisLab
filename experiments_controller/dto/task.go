@@ -126,3 +126,44 @@ type TaskQueuePaginationRequest struct {
 	Page     int `form:"page" binding:"min=1"`
 	PageSize int `form:"pageSize" binding:"min=1"`
 }
+
+type StreamEvent struct {
+	TaskID    string           `json:"task_id"`
+	TaskType  consts.TaskType  `json:"task_type"`
+	FileName  string           `json:"file_name"`
+	FnName    string           `json:"function_name"`
+	Line      int              `json:"line"`
+	EventName consts.EventType `json:"event_name"`
+	Payload   any              `json:"payload"`
+}
+
+type InfoPayloadTemplate struct {
+	Status string `json:"status"`
+	Msg    string `json:"msg"`
+}
+
+func (s *StreamEvent) ToRedisStream() map[string]any {
+	payload, err := json.Marshal(s.Payload)
+	if err != nil {
+		logrus.Errorf("Failed to marshal payload: %v", err)
+		return nil
+	}
+
+	return map[string]any{
+		consts.RdbEventTaskID:   s.TaskID,
+		consts.RdbEventTaskType: string(s.TaskType),
+		consts.RdbEventFileName: s.FileName,
+		consts.RdbEventFn:       s.FnName,
+		consts.RdbEventLine:     s.Line,
+		consts.RdbEventName:     string(s.EventName),
+		consts.RdbEventPayload:  payload,
+	}
+}
+
+func (s *StreamEvent) ToSSE() (string, error) {
+	jsonData, err := json.Marshal(s)
+	if err != nil {
+		return "", err
+	}
+	return string(jsonData), nil
+}

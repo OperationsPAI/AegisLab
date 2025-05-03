@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/dto"
@@ -357,11 +356,11 @@ func executeTaskWithRetry(ctx context.Context, task *dto.UnifiedTask) {
 		message := fmt.Sprintf("Attempt %d failed: %v", attempt+1, err)
 		span.AddEvent(message)
 		logrus.WithField("task_id", task.TaskID).Warn(message)
-		client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), client.StreamEvent{
+		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 			TaskID:    task.TaskID,
 			TaskType:  task.Type,
 			EventName: consts.EventTaskRetryStatus,
-			Payload: client.InfoPayloadTemplate{
+			Payload: dto.InfoPayloadTemplate{
 				Status: consts.TaskStatusError,
 				Msg:    err.Error(),
 			},
@@ -483,15 +482,15 @@ func updateTaskStatus(ctx context.Context, traceID, taskID, message, taskStatus 
 			span.SetStatus(codes.Error, description)
 		}
 
-		client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, traceID), client.StreamEvent{
+		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, traceID), dto.StreamEvent{
 			TaskID:    taskID,
 			TaskType:  taskType,
 			EventName: consts.EventTaskStatusUpdate,
-			Payload: client.InfoPayloadTemplate{
+			Payload: dto.InfoPayloadTemplate{
 				Status: taskStatus,
 				Msg:    message,
 			},
-		}, client.WithCallerLevel(5))
+		}, repository.WithCallerLevel(5))
 
 		err := repository.UpdateTaskStatus(ctx, taskID, taskStatus)
 		if err != nil {

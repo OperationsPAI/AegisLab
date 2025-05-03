@@ -18,6 +18,7 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
 	"github.com/CUHK-SE-Group/rcabench/dto"
+	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/CUHK-SE-Group/rcabench/tracing"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
@@ -164,7 +165,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 			}).Warnf("Failed to acquire lock for namespace, retrying at in %v", executeTime.String())
 			span.AddEvent("failed to acquire lock for namespace, retrying")
 
-			client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), client.StreamEvent{
+			repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 				TaskID:    task.TaskID,
 				TaskType:  consts.TaskTypeRestartService,
 				EventName: consts.EventNoNamespaceAvailable,
@@ -201,7 +202,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 			return fmt.Errorf("failed to read namespace index: %v", err)
 		}
 
-		client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), client.StreamEvent{
+		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 			TaskID:    task.TaskID,
 			TaskType:  consts.TaskTypeRestartService,
 			EventName: consts.EventRestartServiceStarted,
@@ -217,7 +218,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 			monitor.ReleaseLock(namespace)
 			span.RecordError(err)
 			span.AddEvent("failed to install Train Ticket")
-			client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), client.StreamEvent{
+			repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 				TaskID:    task.TaskID,
 				TaskType:  consts.TaskTypeRestartService,
 				EventName: consts.EventRestartServiceFailed,
@@ -226,7 +227,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 			return err
 		}
 
-		client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), client.StreamEvent{
+		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 			TaskID:    task.TaskID,
 			TaskType:  consts.TaskTypeRestartService,
 			EventName: consts.EventRestartServiceCompleted,

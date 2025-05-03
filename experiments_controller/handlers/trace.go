@@ -2,15 +2,14 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/dto"
+	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/gin-contrib/sse"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -49,7 +48,7 @@ func GetTraceStream(c *gin.Context) {
 	}
 
 	logEntry.Infof("Reading historical events from Stream")
-	historicalMessages, err := client.ReadStreamEvents(ctx, streamKey, lastID, 100, 0)
+	historicalMessages, err := repository.ReadStreamEvents(ctx, streamKey, lastID, 100, 0)
 	if err != nil && err != redis.Nil {
 		logEntry.Errorf("failed to read historical events: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to read event history")
@@ -72,7 +71,7 @@ func GetTraceStream(c *gin.Context) {
 			return
 
 		default:
-			newMessages, err := client.ReadStreamEvents(ctx, streamKey, lastID, 10, time.Second)
+			newMessages, err := repository.ReadStreamEvents(ctx, streamKey, lastID, 10, time.Second)
 			if err != nil && err != redis.Nil {
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					logEntry.Infof("Context done while reading stream: %v", err)
@@ -96,41 +95,24 @@ func GetTraceStream(c *gin.Context) {
 }
 
 func sendSSEMessages(c *gin.Context, messages []redis.XStream) (string, error) {
-	var lastID string
-	for _, stream := range messages {
-		for _, msg := range stream.Messages {
-			lastID = msg.ID
+	lastID, sseMessages, err := repository.ProcessStreamMessagesForSSE(messages)
+	if err != nil {
+		return "", err
+	}
 
-			streamEvent, err := client.ParseEventFromValues(msg.Values)
-			if err != nil {
-				return "", fmt.Errorf("failed to parse stream message value: %v", err)
-			}
+	for _, message := range sseMessages {
+		c.Render(-1, sse.Event{
+			Id:    message.ID,
+			Event: consts.EventUpdate,
+			Data:  message.Data,
+		})
 
-			sseMessage, err := streamEvent.ToSSE()
-			if err != nil {
-				return "", fmt.Errorf("failed to parse streamEvent to sse message: %v", err)
-			}
+		c.Writer.Flush()
 
-			c.Render(-1, sse.Event{
-				Id:    msg.ID,
-				Event: consts.EventUpdate,
-				Data:  sseMessage,
-			})
-
+		if message.IsCompleted {
+			c.SSEvent(consts.EventEnd, nil)
 			c.Writer.Flush()
-
-			if streamEvent.TaskType == consts.TaskTypeCollectResult && streamEvent.EventName == consts.EventTaskStatusUpdate {
-				if payloadStr, ok := streamEvent.Payload.(string); ok {
-					var payload client.InfoPayloadTemplate
-					if err := json.Unmarshal([]byte(payloadStr), &payload); err == nil {
-						if payload.Status == consts.TaskStatusCompleted {
-							c.SSEvent(consts.EventEnd, nil)
-							c.Writer.Flush()
-							return lastID, nil
-						}
-					}
-				}
-			}
+			return lastID, nil
 		}
 	}
 

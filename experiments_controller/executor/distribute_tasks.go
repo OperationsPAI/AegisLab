@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"runtime/debug"
 
-	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/dto"
+	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/CUHK-SE-Group/rcabench/tracing"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
@@ -26,7 +26,7 @@ func dispatchTask(ctx context.Context, task *dto.UnifiedTask) error {
 	tracing.SetSpanAttribute(ctx, consts.TaskTypeKey, string(task.Type))
 	tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStatusRunning))
 
-	client.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), client.StreamEvent{
+	repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 		TaskID:    task.TaskID,
 		TaskType:  task.Type,
 		EventName: consts.EventTaskStarted,
