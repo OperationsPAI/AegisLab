@@ -351,6 +351,8 @@ func executeTaskWithRetry(ctx context.Context, task *dto.UnifiedTask) {
 			return
 		}
 
+		errs = append(errs, err)
+
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			logrus.WithField("task_id", task.TaskID).Info("Task canceled")
 			span.RecordError(err)
