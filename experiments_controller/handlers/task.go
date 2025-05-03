@@ -70,7 +70,7 @@ func GetQueuedTasks(c *gin.Context) {
 
 	ctx := c.Request.Context()
 	redisCli := client.GetRedisClient()
-	var tasks []executor.UnifiedTask
+	var tasks []dto.UnifiedTask
 
 	// Get tasks from ready queue (immediate execution)
 	readyTasks, err := redisCli.LRange(ctx, executor.ReadyQueueKey, 0, -1).Result()
@@ -81,7 +81,7 @@ func GetQueuedTasks(c *gin.Context) {
 	}
 
 	for _, taskData := range readyTasks {
-		var task executor.UnifiedTask
+		var task dto.UnifiedTask
 		if err := json.Unmarshal([]byte(taskData), &task); err != nil {
 			logrus.Warnf("Invalid task data: %v", err)
 			continue
@@ -110,7 +110,7 @@ func GetQueuedTasks(c *gin.Context) {
 			continue
 		}
 
-		var task executor.UnifiedTask
+		var task dto.UnifiedTask
 		if err := json.Unmarshal([]byte(taskData), &task); err != nil {
 			logrus.Warnf("Invalid delayed task data: %v", err)
 			continue
@@ -132,7 +132,7 @@ func GetQueuedTasks(c *gin.Context) {
 	end := start + req.PageSize
 	if start >= totalTasks {
 		// Return empty array if page is out of range
-		tasks = []executor.UnifiedTask{}
+		tasks = []dto.UnifiedTask{}
 	} else if end > totalTasks {
 		// Adjust end if it exceeds the total number of tasks
 		tasks = tasks[start:]

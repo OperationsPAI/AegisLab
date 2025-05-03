@@ -13,6 +13,7 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
+	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/CUHK-SE-Group/rcabench/tracing"
 )
@@ -26,7 +27,7 @@ type datasetPayload struct {
 	EndTime     time.Time
 }
 
-func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
+func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
 		payload, err := parseDatasetPayload(task.Payload)

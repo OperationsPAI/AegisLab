@@ -13,6 +13,7 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/tracing"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
@@ -24,7 +25,7 @@ type CollectionPayload struct {
 	ExecutionID int
 }
 
-func executeCollectResult(ctx context.Context, task *UnifiedTask) error {
+func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
 

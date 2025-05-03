@@ -23,7 +23,7 @@ type executionPayload struct {
 	EnvVars map[string]string
 }
 
-func executeAlgorithm(ctx context.Context, task *UnifiedTask) error {
+func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
 		payload, err := parseExecutionPayload(task.Payload)

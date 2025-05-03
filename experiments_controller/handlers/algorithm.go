@@ -133,7 +133,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 
 	traces := make([]dto.Trace, 0, len(payloads))
 	for idx, payload := range payloads {
-		task := &executor.UnifiedTask{
+		task := &dto.UnifiedTask{
 			Type:      consts.TaskTypeRunAlgorithm,
 			Payload:   utils.StructToMap(payload),
 			Immediate: true,
@@ -248,7 +248,7 @@ func SubmitAlgorithmBuilding(c *gin.Context) {
 		payload[consts.BuildAlgorithmPath] = extractDir
 	}
 
-	taskID, traceID, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
+	taskID, traceID, err := executor.SubmitTask(context.Background(), &dto.UnifiedTask{
 		Type:      consts.TaskTypeBuildImages,
 		Payload:   payload,
 		Immediate: true,

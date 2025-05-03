@@ -9,6 +9,7 @@ import (
 
 	con "github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
+	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/utils"
 
 	"github.com/docker/cli/cli/config"
@@ -35,7 +36,7 @@ type BuildOptions struct {
 	ContextDir     string
 }
 
-func executeBuildImages(ctx context.Context, task *UnifiedTask) error {
+func executeBuildImages(ctx context.Context, task *dto.UnifiedTask) error {
 	algoName, ok := task.Payload[consts.BuildAlgorithm].(string)
 	if !ok {
 		return errors.New("failed to get algorithm name")

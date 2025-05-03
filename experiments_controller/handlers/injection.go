@@ -209,7 +209,7 @@ func SubmitFaultInjection(c *gin.Context) {
 			},
 		}
 
-		task := &executor.UnifiedTask{
+		task := &dto.UnifiedTask{
 			Type:        consts.TaskTypeRestartService,
 			Payload:     payload,
 			Immediate:   false,
