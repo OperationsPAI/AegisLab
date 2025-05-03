@@ -243,14 +243,13 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 						return
 					}
 
-					// 计时协程去判断是否恢复成功
 					if duration > 0 {
 						c.queue.AddAfter(QueueItem{
-							Type:      "CheckRecovery",
+							Type:      CheckRecovery,
 							Namespace: newU.GetNamespace(),
 							Name:      newU.GetName(),
 							GVR:       &gvr,
-						}, time.Duration(duration)*time.Minute)
+						}, time.Duration(duration+1)*time.Minute) // +1 minute to ensure the crd is finished
 					}
 				}
 
