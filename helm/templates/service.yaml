@@ -48,7 +48,7 @@ metadata:
   name: {{ .Release.Name }}-buildkit
 spec:
   selector:
-    app: buildkit
+    app: {{ .Release.Name }}-buildkit
   ports:
     - port: 1234
       targetPort: 1234
