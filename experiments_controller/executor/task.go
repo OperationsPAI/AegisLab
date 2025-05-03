@@ -12,6 +12,8 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/CUHK-SE-Group/rcabench/dto"
+	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/CUHK-SE-Group/rcabench/tracing"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
@@ -22,7 +24,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -63,77 +64,11 @@ var (
 	taskCancelFuncsMutex sync.RWMutex                          // Mutex to protect the map
 )
 
-// -----------------------------------------------------------------------------
-// Data Structures
-// -----------------------------------------------------------------------------
-
-// UnifiedTask represents a task that can be scheduled and executed
-type UnifiedTask struct {
-	TaskID       string                 `json:"task_id"`                 // Unique identifier for the task
-	Type         consts.TaskType        `json:"type"`                    // Task type (determines how it's processed)
-	Immediate    bool                   `json:"immediate"`               // Whether to execute immediately
-	ExecuteTime  int64                  `json:"execute_time"`            // Unix timestamp for delayed execution
-	CronExpr     string                 `json:"cron_expr,omitempty"`     // Cron expression for recurring tasks
-	ReStartNum   int                    `json:"restart_num"`             // Number of restarts for the task
-	RetryPolicy  RetryPolicy            `json:"retry_policy"`            // Policy for retrying failed tasks
-	Payload      map[string]any         `json:"payload"`                 // Task-specific data
-	TraceID      string                 `json:"trace_id,omitempty"`      // ID for tracing related tasks
-	GroupID      string                 `json:"group_id,omitempty"`      // ID for grouping tasks
-	TraceCarrier propagation.MapCarrier `json:"trace_carrier,omitempty"` // Carrier for trace context
-	GroupCarrier propagation.MapCarrier `json:"group_carrier,omitempty"` // Carrier for group context
-}
-
-// RetryPolicy defines how tasks should be retried on failure
-type RetryPolicy struct {
-	MaxAttempts int `json:"max_attempts"` // Maximum number of retry attempts
-	BackoffSec  int `json:"backoff_sec"`  // Seconds to wait between retries
-}
-
 // LastBatchInfo stores information about the last batch execution
 type LastBatchInfo struct {
 	ExecutionTime time.Time // When the batch was executed
 	Interval      int       // Interval between batches
 	Num           int       // Number of tasks in the batch
-}
-
-// -----------------------------------------------------------------------------
-// Context Management Methods
-// -----------------------------------------------------------------------------
-
-// GetTraceCtx extracts the trace context from the carrier
-func (t *UnifiedTask) GetTraceCtx() context.Context {
-	if t.TraceCarrier == nil {
-		logrus.WithField("task_id", t.TaskID).WithField("task_type", t.Type).Error("No group context, create a new one")
-		return context.Background()
-	}
-	traceCtx := otel.GetTextMapPropagator().Extract(context.Background(), t.TraceCarrier)
-	return traceCtx
-}
-
-// GetGroupCtx extracts the group context from the carrier
-func (t *UnifiedTask) GetGroupCtx() context.Context {
-	if t.GroupCarrier == nil {
-		logrus.WithField("task_id", t.TaskID).WithField("task_type", t.Type).Error("No group context, create a new one")
-		return context.Background()
-	}
-	traceCtx := otel.GetTextMapPropagator().Extract(context.Background(), t.GroupCarrier)
-	return traceCtx
-}
-
-// SetTraceCtx injects the trace context into the carrier
-func (t *UnifiedTask) SetTraceCtx(ctx context.Context) {
-	if t.TraceCarrier == nil {
-		t.TraceCarrier = make(propagation.MapCarrier)
-	}
-	otel.GetTextMapPropagator().Inject(ctx, t.TraceCarrier)
-}
-
-// SetGroupCtx injects the group context into the carrier
-func (t *UnifiedTask) SetGroupCtx(ctx context.Context) {
-	if t.GroupCarrier == nil {
-		t.GroupCarrier = make(propagation.MapCarrier)
-	}
-	otel.GetTextMapPropagator().Inject(ctx, t.GroupCarrier)
 }
 
 // -----------------------------------------------------------------------------
@@ -159,7 +94,7 @@ func (t *UnifiedTask) SetGroupCtx(ctx context.Context) {
 //	               -> Task 3
 //	               -> Task 4
 //	               -> Task 5
-func SubmitTask(ctx context.Context, task *UnifiedTask) (string, string, error) {
+func SubmitTask(ctx context.Context, task *dto.UnifiedTask) (string, string, error) {
 	if task.TaskID == "" {
 		task.TaskID = uuid.NewString()
 	}
@@ -188,53 +123,30 @@ func SubmitTask(ctx context.Context, task *UnifiedTask) (string, string, error) 
 		return "", "", err
 	}
 
+	taskData, err := marshalTask(task)
+	if err != nil {
+		return "", "", err
+	}
+
 	if task.Immediate {
-		return task.TaskID, task.TraceID, submitImmediateTask(ctx, task)
+		err = repository.SubmitImmediateTask(ctx, taskData, task.TaskID)
+	} else {
+		executeTime, err := calculateExecuteTime(task)
+		if err != nil {
+			return "", "", err
+		}
+		err = repository.SubmitDelayedTask(ctx, taskData, task.TaskID, executeTime)
 	}
 
-	return task.TaskID, task.TraceID, submitDelayedTask(ctx, task)
-}
-
-// submitImmediateTask sends a task to the ready queue for immediate execution
-func submitImmediateTask(ctx context.Context, task *UnifiedTask) error {
-	taskData, err := marshalTask(task)
 	if err != nil {
-		return err
+		return "", "", err
 	}
 
-	redisCli := client.GetRedisClient()
-	if err := redisCli.LPush(ctx, ReadyQueueKey, taskData).Err(); err != nil {
-		return err
-	}
-
-	return redisCli.HSet(ctx, TaskIndexKey, task.TaskID, ReadyQueueKey).Err()
-}
-
-// submitDelayedTask sends a task to the delayed queue for future execution
-func submitDelayedTask(ctx context.Context, task *UnifiedTask) error {
-	executeTime, err := calculateExecuteTime(task)
-	if err != nil {
-		return err
-	}
-
-	taskData, err := marshalTask(task)
-	if err != nil {
-		return err
-	}
-
-	redisCli := client.GetRedisClient()
-	if err := redisCli.ZAdd(ctx, DelayedQueueKey, redis.Z{
-		Score:  float64(executeTime),
-		Member: taskData,
-	}).Err(); err != nil {
-		return err
-	}
-
-	return redisCli.HSet(ctx, TaskIndexKey, task.TaskID, DelayedQueueKey).Err()
+	return task.TaskID, task.TraceID, nil
 }
 
 // marshalTask serializes a task to JSON
-func marshalTask(task *UnifiedTask) ([]byte, error) {
+func marshalTask(task *dto.UnifiedTask) ([]byte, error) {
 	taskData, err := json.Marshal(task)
 	if err != nil {
 		return nil, fmt.Errorf("task marshaling failed: %w", err)
@@ -261,30 +173,9 @@ func StartScheduler(ctx context.Context) {
 	}
 }
 
-// Lua script for processing delayed tasks efficiently
-var delayedTaskScript = redis.NewScript(`
-    local tasks = redis.call('ZRANGEBYSCORE', KEYS[1], 0, ARGV[1])
-    if #tasks > 0 then
-        redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, ARGV[1])
-        redis.call('LPUSH', KEYS[2], unpack(tasks))
-        -- Update task index
-        for _, task in ipairs(tasks) do
-            local t = cjson.decode(task)
-            redis.call('HSET', KEYS[3], t.task_id, KEYS[2])
-        end
-    end
-    return tasks
-`)
-
 // ProcessDelayedTasks moves tasks from delayed queue to ready queue when their time arrives
 func ProcessDelayedTasks(ctx context.Context) {
-	redisCli := client.GetRedisClient()
-	now := time.Now().Unix()
-
-	result, err := delayedTaskScript.Run(ctx, redisCli,
-		[]string{DelayedQueueKey, ReadyQueueKey, TaskIndexKey},
-		now,
-	).StringSlice()
+	result, err := repository.ProcessDelayedTasks(ctx)
 
 	if err != nil && err != redis.Nil {
 		logrus.Errorf("scheduler error: %v", err)
@@ -292,7 +183,7 @@ func ProcessDelayedTasks(ctx context.Context) {
 	}
 
 	for _, taskData := range result {
-		var task UnifiedTask
+		var task dto.UnifiedTask
 		if err := json.Unmarshal([]byte(taskData), &task); err != nil {
 			logrus.Warnf("failed to parse task: %v", err)
 			continue
@@ -302,26 +193,18 @@ func ProcessDelayedTasks(ctx context.Context) {
 			nextTime, err := cronNextTime(task.CronExpr)
 			if err != nil {
 				logrus.Warnf("invalid cron expr: %v", err)
-				handleCronRescheduleFailure(ctx, &task)
+				repository.HandleCronRescheduleFailure(ctx, []byte(taskData))
 				continue
 			}
 
 			task.ExecuteTime = nextTime.Unix()
-			if err := submitDelayedTask(ctx, &task); err != nil {
+			taskData, _ := marshalTask(&task)
+			if err := repository.SubmitDelayedTask(ctx, taskData, task.TaskID, task.ExecuteTime); err != nil {
 				logrus.Errorf("failed to reschedule cron task %s: %v", task.TaskID, err)
-				handleCronRescheduleFailure(ctx, &task)
+				repository.HandleCronRescheduleFailure(ctx, []byte(taskData))
 			}
 		}
 	}
-}
-
-// handleCronRescheduleFailure moves a failed cron task to the dead letter queue
-func handleCronRescheduleFailure(ctx context.Context, task *UnifiedTask) {
-	taskData, _ := json.Marshal(task)
-	client.GetRedisClient().ZAdd(ctx, DeadLetterKey, redis.Z{
-		Score:  float64(time.Now().Unix()),
-		Member: taskData,
-	})
 }
 
 // -----------------------------------------------------------------------------
@@ -337,18 +220,17 @@ func ConsumeTasks() {
 	}()
 	logrus.Info("start consume tasks")
 	ctx := context.Background()
-	redisCli := client.GetRedisClient()
 
 	for {
-		if !acquireConcurrencyLock(ctx) {
+		if !repository.AcquireConcurrencyLock(ctx) {
 			logrus.Info("no lock")
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
 
-		result, err := redisCli.BRPop(ctx, 30*time.Second, ReadyQueueKey).Result()
+		taskData, err := repository.GetTask(ctx, 30*time.Second)
 		if err != nil {
-			releaseConcurrencyLock(ctx)
+			repository.ReleaseConcurrencyLock(ctx)
 			if err == redis.Nil {
 				continue
 			}
@@ -357,7 +239,7 @@ func ConsumeTasks() {
 			continue
 		}
 
-		go processTask(ctx, result[1])
+		go processTask(ctx, taskData)
 	}
 }
 
@@ -368,7 +250,7 @@ func ConsumeTasks() {
 // 2.1 If there is no trace carrier, create a new trace span
 // 2.2 If there is a trace carrier, extract the trace context
 // 2.3 Always create a new task span
-func ExtractContext(ctx context.Context, task *UnifiedTask) (context.Context, context.Context) {
+func ExtractContext(ctx context.Context, task *dto.UnifiedTask) (context.Context, context.Context) {
 	var traceCtx context.Context
 	var traceSpan trace.Span
 
@@ -404,14 +286,14 @@ func ExtractContext(ctx context.Context, task *UnifiedTask) (context.Context, co
 
 // processTask handles a task from the queue
 func processTask(ctx context.Context, taskData string) {
-	defer releaseConcurrencyLock(ctx)
+	defer repository.ReleaseConcurrencyLock(ctx)
 	defer func() {
 		if r := recover(); r != nil {
 			logrus.Errorf("task panic: %v\n%s", r, debug.Stack())
 		}
 	}()
 
-	var task UnifiedTask
+	var task dto.UnifiedTask
 	if err := json.Unmarshal([]byte(taskData), &task); err != nil {
 		logrus.Warnf("invalid task data: %v", err)
 		return
@@ -436,7 +318,7 @@ func processTask(ctx context.Context, taskData string) {
 }
 
 // executeTaskWithRetry attempts to execute a task with retry logic
-func executeTaskWithRetry(ctx context.Context, task *UnifiedTask) {
+func executeTaskWithRetry(ctx context.Context, task *dto.UnifiedTask) {
 	retryCtx, retryCancel := context.WithCancel(ctx)
 	registerCancelFunc(task.TaskID, retryCancel)
 	defer retryCancel()
@@ -519,14 +401,9 @@ func unregisterCancelFunc(taskID string) {
 }
 
 // handleFinalFailure moves a failed task to the dead letter queue
-func handleFinalFailure(ctx context.Context, task *UnifiedTask, errMsg string) {
-	deadLetterTime := time.Now().Add(time.Duration(task.RetryPolicy.BackoffSec) * time.Second).Unix()
-	redisCli := client.GetRedisClient()
-	taskData, _ := json.Marshal(task)
-	redisCli.ZAdd(ctx, DeadLetterKey, redis.Z{
-		Score:  float64(deadLetterTime),
-		Member: taskData,
-	})
+func handleFinalFailure(ctx context.Context, task *dto.UnifiedTask, errMsg string) {
+	taskData, _ := marshalTask(task)
+	repository.HandleFailedTask(ctx, taskData, task.RetryPolicy.BackoffSec)
 
 	span := trace.SpanFromContext(ctx)
 	span.AddEvent(errMsg)
@@ -536,27 +413,9 @@ func handleFinalFailure(ctx context.Context, task *UnifiedTask, errMsg string) {
 	logrus.WithField("task_id", task.TaskID).Errorf("failed after %d attempts", task.RetryPolicy.MaxAttempts)
 }
 
-// acquireConcurrencyLock attempts to acquire a lock for task execution
-func acquireConcurrencyLock(ctx context.Context) bool {
-	redisCli := client.GetRedisClient()
-	currentCount, _ := redisCli.Get(ctx, ConcurrencyLockKey).Int64()
-	if currentCount >= MaxConcurrency {
-		return false
-	}
-	return redisCli.Incr(ctx, ConcurrencyLockKey).Err() == nil
-}
-
-// releaseConcurrencyLock releases a lock after task execution
-func releaseConcurrencyLock(ctx context.Context) {
-	redisCli := client.GetRedisClient()
-	if err := redisCli.Decr(ctx, ConcurrencyLockKey).Err(); err != nil {
-		logrus.Warnf("error releasing concurrency lock: %v", err)
-	}
-}
-
+// InitConcurrencyLock initializes the concurrency lock counter
 func InitConcurrencyLock(ctx context.Context) {
-	redisCli := client.GetRedisClient()
-	if err := redisCli.Set(ctx, ConcurrencyLockKey, 0, 0).Err(); err != nil {
+	if err := repository.InitConcurrencyLock(ctx); err != nil {
 		logrus.Fatalf("error setting concurrency lock to 0: %v", err)
 	}
 }
@@ -574,96 +433,34 @@ func CancelTask(taskID string) error {
 
 	// Remove task from Redis
 	ctx := context.Background()
-	redisCli := client.GetRedisClient()
 
 	// Locate queue using index
-	queueType, err := redisCli.HGet(ctx, TaskIndexKey, taskID).Result()
+	queueType, err := repository.GetTaskQueue(ctx, taskID)
 	if err == nil {
 		switch queueType {
-		case ReadyQueueKey:
-			if _, err := removeFromList(ctx, redisCli, ReadyQueueKey, taskID); err != nil {
+		case repository.ReadyQueueKey:
+			if _, err := repository.RemoveFromList(ctx, repository.ReadyQueueKey, taskID); err != nil {
 				logrus.Warnf("failed to remove from list: %v", err)
 			}
-		case DelayedQueueKey:
-			if s := removeFromZSet(ctx, redisCli, DelayedQueueKey, taskID); !s {
+		case repository.DelayedQueueKey:
+			if s := repository.RemoveFromZSet(ctx, repository.DelayedQueueKey, taskID); !s {
 				logrus.Warnf("failed to remove from delayed queue: %v", err)
 			}
-		case DeadLetterKey:
-			if s := removeFromZSet(ctx, redisCli, DeadLetterKey, taskID); !s {
+		case repository.DeadLetterKey:
+			if s := repository.RemoveFromZSet(ctx, repository.DeadLetterKey, taskID); !s {
 				logrus.Warnf("failed to remove from dead letter queue: %v", err)
 			}
 		}
 	}
 
 	// Clean up index
-	redisCli.HDel(ctx, TaskIndexKey, taskID)
+	repository.DeleteTaskIndex(ctx, taskID)
 
 	if exists || err == nil {
 		return nil
 	}
 
 	return fmt.Errorf("task %s not found", taskID)
-}
-
-// -----------------------------------------------------------------------------
-// Redis Utility Functions
-// -----------------------------------------------------------------------------
-
-// removeFromZSet removes a task from a Redis sorted set
-func removeFromZSet(ctx context.Context, cli *redis.Client, key, taskID string) bool {
-	members, err := cli.ZRangeByScore(ctx, key, &redis.ZRangeBy{
-		Min: "-inf",
-		Max: "+inf",
-	}).Result()
-	if err != nil {
-		return false
-	}
-
-	for _, member := range members {
-		var t UnifiedTask
-		if json.Unmarshal([]byte(member), &t) == nil && t.TaskID == taskID {
-			if err := cli.ZRem(ctx, key, member).Err(); err != nil {
-				logrus.Warnf("failed to remove from ZSet: %v", err)
-				return false
-			}
-			return true
-		}
-	}
-
-	return false
-}
-
-// removeFromList removes a task from a Redis list using Lua script
-func removeFromList(ctx context.Context, cli *redis.Client, key, taskID string) (bool, error) {
-	// Efficient list removal Lua script
-	var removeFromListScript = redis.NewScript(`
-		local key = KEYS[1]
-		local taskID = ARGV[1]
-		local count = 0
-
-		for i=0, redis.call('LLEN', key)-1 do
-			local item = redis.call('LINDEX', key, i)
-			if item then
-				local task = cjson.decode(item)
-				if task.task_id == taskID then
-					redis.call('LSET', key, i, "__DELETED__")
-					count = count + 1
-				end
-			end
-		end
-
-		if count > 0 then
-			redis.call('LREM', key, count, "__DELETED__")
-		end
-		
-		return count
-	`)
-	result, err := removeFromListScript.Run(ctx, cli, []string{key}, taskID).Int()
-	if err != nil {
-		return false, fmt.Errorf("failed to remove from list: %w", err)
-	}
-
-	return result > 0, nil
 }
 
 // -----------------------------------------------------------------------------
@@ -696,16 +493,11 @@ func updateTaskStatus(ctx context.Context, traceID, taskID, message, taskStatus 
 			},
 		}, client.WithCallerLevel(5))
 
-		tx := database.DB.WithContext(ctx).Begin()
-		if err := tx.Model(&database.Task{}).
-			Where("id = ?", taskID).
-			Update("status", taskStatus).Error; err != nil {
-			tx.Rollback()
+		err := repository.UpdateTaskStatus(ctx, taskID, taskStatus)
+		if err != nil {
 			logEntry.Errorf("failed to update database: %v", err)
-			return err
 		}
-		tx.Commit()
-		return nil
+		return err
 	})
 }
 
@@ -714,7 +506,7 @@ func updateTaskStatus(ctx context.Context, traceID, taskID, message, taskStatus 
 // -----------------------------------------------------------------------------
 
 // calculateExecuteTime determines when a task should be executed
-func calculateExecuteTime(task *UnifiedTask) (int64, error) {
+func calculateExecuteTime(task *dto.UnifiedTask) (int64, error) {
 	if task.Type == "cron" {
 		next, err := cronNextTime(task.CronExpr)
 		if err != nil {

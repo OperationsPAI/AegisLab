@@ -8,13 +8,14 @@ import (
 
 	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/consts"
+	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/tracing"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 )
 
-func dispatchTask(ctx context.Context, task *UnifiedTask) error {
+func dispatchTask(ctx context.Context, task *dto.UnifiedTask) error {
 	defer func() {
 		if r := recover(); r != nil {
 			logrus.Errorf("Task panic: %v\n%s", r, debug.Stack())
@@ -57,7 +58,7 @@ func dispatchTask(ctx context.Context, task *UnifiedTask) error {
 	return nil
 }
 
-func getAnnotations(ctx context.Context, task *UnifiedTask) (map[string]string, error) {
+func getAnnotations(ctx context.Context, task *dto.UnifiedTask) (map[string]string, error) {
 	taskCarrier := make(propagation.MapCarrier)
 	otel.GetTextMapPropagator().Inject(ctx, taskCarrier)
 	taskCarrierBytes, err := json.Marshal(taskCarrier)

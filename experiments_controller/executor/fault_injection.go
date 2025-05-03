@@ -17,6 +17,7 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/config"
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/tracing"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
@@ -39,7 +40,7 @@ type restartPayload struct {
 }
 
 // 执行故障注入任务
-func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
+func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(ctx)
 
@@ -134,7 +135,7 @@ func executeFaultInjection(ctx context.Context, task *UnifiedTask) error {
 	})
 }
 
-func executeRestartService(ctx context.Context, task *UnifiedTask) error {
+func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(ctx)
 		span.AddEvent(fmt.Sprintf("Starting retry attempt %d", task.ReStartNum+1))
@@ -170,7 +171,7 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 				Payload:   executeTime.String(),
 			})
 
-			if _, _, err := SubmitTask(ctx, &UnifiedTask{
+			if _, _, err := SubmitTask(ctx, &dto.UnifiedTask{
 				Type:         consts.TaskTypeRestartService,
 				Immediate:    false,
 				ExecuteTime:  executeTime.Unix(),
@@ -234,7 +235,7 @@ func executeRestartService(ctx context.Context, task *UnifiedTask) error {
 
 		tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStatusScheduled))
 
-		injectTask := &UnifiedTask{
+		injectTask := &dto.UnifiedTask{
 			Type:         consts.TaskTypeFaultInjection,
 			Payload:      payload.injectPayload,
 			Immediate:    false,

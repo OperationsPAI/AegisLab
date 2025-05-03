@@ -1,11 +1,81 @@
 package dto
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 
+	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
+
+// -----------------------------------------------------------------------------
+// Data Structures
+// -----------------------------------------------------------------------------
+// RetryPolicy defines how tasks should be retried on failure
+type RetryPolicy struct {
+	MaxAttempts int `json:"max_attempts"` // Maximum number of retry attempts
+	BackoffSec  int `json:"backoff_sec"`  // Seconds to wait between retries
+}
+
+// UnifiedTask represents a task that can be scheduled and executed
+type UnifiedTask struct {
+	TaskID       string                 `json:"task_id"`                 // Unique identifier for the task
+	Type         consts.TaskType        `json:"type"`                    // Task type (determines how it's processed)
+	Immediate    bool                   `json:"immediate"`               // Whether to execute immediately
+	ExecuteTime  int64                  `json:"execute_time"`            // Unix timestamp for delayed execution
+	CronExpr     string                 `json:"cron_expr,omitempty"`     // Cron expression for recurring tasks
+	ReStartNum   int                    `json:"restart_num"`             // Number of restarts for the task
+	RetryPolicy  RetryPolicy            `json:"retry_policy"`            // Policy for retrying failed tasks
+	Payload      map[string]any         `json:"payload"`                 // Task-specific data
+	TraceID      string                 `json:"trace_id,omitempty"`      // ID for tracing related tasks
+	GroupID      string                 `json:"group_id,omitempty"`      // ID for grouping tasks
+	TraceCarrier propagation.MapCarrier `json:"trace_carrier,omitempty"` // Carrier for trace context
+	GroupCarrier propagation.MapCarrier `json:"group_carrier,omitempty"` // Carrier for group context
+}
+
+// -----------------------------------------------------------------------------
+// Context Management Methods
+// -----------------------------------------------------------------------------
+
+// GetTraceCtx extracts the trace context from the carrier
+func (t *UnifiedTask) GetTraceCtx() context.Context {
+	if t.TraceCarrier == nil {
+		logrus.WithField("task_id", t.TaskID).WithField("task_type", t.Type).Error("No group context, create a new one")
+		return context.Background()
+	}
+	traceCtx := otel.GetTextMapPropagator().Extract(context.Background(), t.TraceCarrier)
+	return traceCtx
+}
+
+// GetGroupCtx extracts the group context from the carrier
+func (t *UnifiedTask) GetGroupCtx() context.Context {
+	if t.GroupCarrier == nil {
+		logrus.WithField("task_id", t.TaskID).WithField("task_type", t.Type).Error("No group context, create a new one")
+		return context.Background()
+	}
+	traceCtx := otel.GetTextMapPropagator().Extract(context.Background(), t.GroupCarrier)
+	return traceCtx
+}
+
+// SetTraceCtx injects the trace context into the carrier
+func (t *UnifiedTask) SetTraceCtx(ctx context.Context) {
+	if t.TraceCarrier == nil {
+		t.TraceCarrier = make(propagation.MapCarrier)
+	}
+	otel.GetTextMapPropagator().Inject(ctx, t.TraceCarrier)
+}
+
+// SetGroupCtx injects the group context into the carrier
+func (t *UnifiedTask) SetGroupCtx(ctx context.Context) {
+	if t.GroupCarrier == nil {
+		t.GroupCarrier = make(propagation.MapCarrier)
+	}
+	otel.GetTextMapPropagator().Inject(ctx, t.GroupCarrier)
+}
 
 type TaskDetailResp struct {
 	Task TaskItem `json:"task"`

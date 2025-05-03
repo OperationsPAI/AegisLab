@@ -10,6 +10,7 @@ import (
 	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/client/k8s"
 	"github.com/CUHK-SE-Group/rcabench/consts"
+	"github.com/CUHK-SE-Group/rcabench/dto"
 	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
@@ -130,7 +131,7 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 		consts.BuildEndTime:     endTime,
 	}
 
-	taskID, traceID, err := SubmitTask(ctx, &UnifiedTask{
+	taskID, traceID, err := SubmitTask(ctx, &dto.UnifiedTask{
 		Type:         consts.TaskTypeBuildDataset,
 		Payload:      datasetPayload,
 		Immediate:    true,
@@ -265,7 +266,7 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 			taskOptions.Type,
 		)
 
-		task := &UnifiedTask{
+		task := &dto.UnifiedTask{
 			Type: consts.TaskTypeCollectResult,
 			Payload: map[string]any{
 				consts.CollectAlgorithm:   options.Algorithm,
@@ -317,7 +318,7 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 			return
 		}
 
-		task := &UnifiedTask{
+		task := &dto.UnifiedTask{
 			Type: consts.TaskTypeRunAlgorithm,
 			Payload: map[string]any{
 				consts.ExecuteImage:   image,

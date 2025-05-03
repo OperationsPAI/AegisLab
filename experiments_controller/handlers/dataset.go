@@ -374,7 +374,7 @@ func SubmitDatasetBuilding(c *gin.Context) {
 
 	traces := make([]dto.Trace, 0, len(payloads))
 	for idx, payload := range payloads {
-		task := &executor.UnifiedTask{
+		task := &dto.UnifiedTask{
 			Type:      consts.TaskTypeBuildDataset,
 			Payload:   utils.StructToMap(payload),
 			Immediate: true,
