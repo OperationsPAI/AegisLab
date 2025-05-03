@@ -412,3 +412,95 @@ func ProcessStreamMessagesForSSE(messages []redis.XStream) (string, []dto.SSEMes
 
 	return lastID, sseMessages, nil
 }
+
+// TaskFilter defines filtering options for task queries
+type TaskFilter struct {
+	TaskID         *string
+	TaskType       *string
+	Immediate      *bool
+	ExecuteTimeGT  *int64
+	ExecuteTimeLT  *int64
+	ExecuteTimeGTE *int64
+	ExecuteTimeLTE *int64
+	Status         *string
+	TraceID        *string
+	GroupID        *string
+}
+
+// FindTasks searches for tasks with pagination and filtering
+func FindTasks(filter TaskFilter, pageNum, pageSize int, sortField string) (int64, []database.Task, error) {
+	// Build the WHERE condition dynamically
+	whereConditions := []string{}
+	whereArgs := []interface{}{}
+
+	if filter.TaskID != nil {
+		whereConditions = append(whereConditions, "id = ?")
+		whereArgs = append(whereArgs, *filter.TaskID)
+	}
+
+	if filter.TaskType != nil {
+		whereConditions = append(whereConditions, "type = ?")
+		whereArgs = append(whereArgs, *filter.TaskType)
+	}
+
+	if filter.Immediate != nil {
+		whereConditions = append(whereConditions, "immediate = ?")
+		whereArgs = append(whereArgs, *filter.Immediate)
+	}
+
+	if filter.ExecuteTimeGT != nil {
+		whereConditions = append(whereConditions, "execute_time > ?")
+		whereArgs = append(whereArgs, *filter.ExecuteTimeGT)
+	}
+
+	if filter.ExecuteTimeLT != nil {
+		whereConditions = append(whereConditions, "execute_time < ?")
+		whereArgs = append(whereArgs, *filter.ExecuteTimeLT)
+	}
+
+	if filter.ExecuteTimeGTE != nil {
+		whereConditions = append(whereConditions, "execute_time >= ?")
+		whereArgs = append(whereArgs, *filter.ExecuteTimeGTE)
+	}
+
+	if filter.ExecuteTimeLTE != nil {
+		whereConditions = append(whereConditions, "execute_time <= ?")
+		whereArgs = append(whereArgs, *filter.ExecuteTimeLTE)
+	}
+
+	if filter.Status != nil {
+		whereConditions = append(whereConditions, "status = ?")
+		whereArgs = append(whereArgs, *filter.Status)
+	}
+
+	if filter.TraceID != nil {
+		whereConditions = append(whereConditions, "trace_id = ?")
+		whereArgs = append(whereArgs, *filter.TraceID)
+	}
+
+	if filter.GroupID != nil {
+		whereConditions = append(whereConditions, "group_id = ?")
+		whereArgs = append(whereArgs, *filter.GroupID)
+	}
+
+	// Combine all conditions with AND
+	whereClause := "1=1" // Default condition that's always true
+	if len(whereConditions) > 0 {
+		whereClause = strings.Join(whereConditions, " AND ")
+	}
+
+	// If sortField is empty, default to created_at desc
+	if sortField == "" {
+		sortField = "created_at desc"
+	}
+
+	// Use the generic pagination function
+	return paginateQuery[database.Task](
+		whereClause,
+		whereArgs,
+		sortField,
+		pageNum,
+		pageSize,
+		nil,
+	)
+}
