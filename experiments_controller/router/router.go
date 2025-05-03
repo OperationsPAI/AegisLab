@@ -56,6 +56,7 @@ func New() *gin.Engine {
 	tasks := r.Group("/tasks")
 	{
 		tasks.GET("/queue", handlers.GetQueuedTasks)
+		tasks.GET("/list", handlers.ListTasks)
 
 		tasksWithID := tasks.Group("/:task_id")
 		{

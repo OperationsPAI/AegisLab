@@ -151,3 +151,94 @@ func GetQueuedTasks(c *gin.Context) {
 		},
 	})
 }
+
+func ListTasks(c *gin.Context) {
+	// Parse query parameters for filtering and pagination
+	var req dto.TaskListReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
+		return
+	}
+
+	// Set default values for pagination if not provided
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.PageSize <= 0 {
+		req.PageSize = 10
+	}
+
+	// Build filter from request
+	filter := buildTaskFilter(req)
+
+	// Query tasks from repository
+	total, tasks, err := repository.FindTasks(filter, req.Page, req.PageSize, req.SortField)
+	if err != nil {
+		logrus.Errorf("Failed to fetch tasks: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch tasks")
+		return
+	}
+
+	// Convert database tasks to DTOs
+	taskItems := make([]dto.TaskItem, 0, len(tasks))
+	for _, task := range tasks {
+		var item dto.TaskItem
+		if err := item.Convert(task); err != nil {
+			logrus.Warnf("Failed to convert task: %v", err)
+			continue
+		}
+		taskItems = append(taskItems, item)
+	}
+
+	// Calculate total pages
+	totalPages := (total + int64(req.PageSize) - 1) / int64(req.PageSize)
+
+	// Return response
+	dto.SuccessResponse(c, gin.H{
+		"tasks": taskItems,
+		"pagination": gin.H{
+			"page":       req.Page,
+			"pageSize":   req.PageSize,
+			"totalItems": total,
+			"totalPages": totalPages,
+		},
+	})
+}
+
+// Helper function to build task filter from request
+func buildTaskFilter(req dto.TaskListReq) repository.TaskFilter {
+	filter := repository.TaskFilter{}
+
+	if req.TaskID != "" {
+		filter.TaskID = &req.TaskID
+	}
+	if req.TaskType != "" {
+		filter.TaskType = &req.TaskType
+	}
+	if req.Status != "" {
+		filter.Status = &req.Status
+	}
+	if req.TraceID != "" {
+		filter.TraceID = &req.TraceID
+	}
+	if req.GroupID != "" {
+		filter.GroupID = &req.GroupID
+	}
+	if req.Immediate != nil {
+		filter.Immediate = req.Immediate
+	}
+	if req.ExecuteTimeGT != nil {
+		filter.ExecuteTimeGT = req.ExecuteTimeGT
+	}
+	if req.ExecuteTimeLT != nil {
+		filter.ExecuteTimeLT = req.ExecuteTimeLT
+	}
+	if req.ExecuteTimeGTE != nil {
+		filter.ExecuteTimeGTE = req.ExecuteTimeGTE
+	}
+	if req.ExecuteTimeLTE != nil {
+		filter.ExecuteTimeLTE = req.ExecuteTimeLTE
+	}
+
+	return filter
+}

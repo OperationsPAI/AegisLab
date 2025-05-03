@@ -167,3 +167,23 @@ func (s *StreamEvent) ToSSE() (string, error) {
 	}
 	return string(jsonData), nil
 }
+
+// TaskListReq defines the query parameters for listing tasks
+type TaskListReq struct {
+	// Filter parameters
+	TaskID         string `form:"task_id"`
+	TaskType       string `form:"task_type"`
+	Status         string `form:"status"`
+	TraceID        string `form:"trace_id"`
+	GroupID        string `form:"group_id"`
+	Immediate      *bool  `form:"immediate"`
+	ExecuteTimeGT  *int64 `form:"execute_time_gt"`
+	ExecuteTimeLT  *int64 `form:"execute_time_lt"`
+	ExecuteTimeGTE *int64 `form:"execute_time_gte"`
+	ExecuteTimeLTE *int64 `form:"execute_time_lte"`
+
+	// Pagination parameters
+	Page      int    `form:"page"`
+	PageSize  int    `form:"page_size"`
+	SortField string `form:"sort_field"` // Format: "field_name asc/desc"
+}
