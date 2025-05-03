@@ -117,8 +117,10 @@ type EventType string
 
 const (
 	EventAlgoResultCollection    EventType = "algorithm.collect_result"
-	EventDatasetResultCollection EventType = "algorithm.dataset_result"
-	EventDataset                 EventType = "dataset"
+	EventDatasetResultCollection EventType = "dataset.result.collection"
+	EventDatasetNoAnomaly        EventType = "dataset.no_anomaly"
+	EventDatasetNoConclusionFile EventType = "dataset.no_conclusion_file"
+	EventDatasetBuildSucceed     EventType = "dataset.build.succeed"
 	EventExecutionID             EventType = "execution_id"
 	EventTaskStatusUpdate        EventType = "task.status.update"
 	EventTaskRetryStatus         EventType = "task.retry.status"

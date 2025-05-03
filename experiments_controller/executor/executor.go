@@ -291,8 +291,8 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 		logEntry.WithField("dataset", options.Dataset).Info("dataset build successfully")
 		repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
 			TaskID:    taskOptions.TaskID,
-			TaskType:  consts.TaskType(taskOptions.TraceID),
-			EventName: consts.EventDataset,
+			TaskType:  consts.TaskTypeBuildDataset,
+			EventName: consts.EventDatasetBuildSucceed,
 			Payload:   options.Dataset,
 		}, repository.WithCallerLevel(4))
 

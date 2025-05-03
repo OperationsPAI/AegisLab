@@ -200,7 +200,11 @@ func ProcessDelayedTasks(ctx context.Context) {
 			taskData, _ := marshalTask(&task)
 			if err := repository.SubmitDelayedTask(ctx, taskData, task.TaskID, task.ExecuteTime); err != nil {
 				logrus.Errorf("failed to reschedule cron task %s: %v", task.TaskID, err)
-				repository.HandleCronRescheduleFailure(ctx, []byte(taskData))
+				err := repository.HandleCronRescheduleFailure(ctx, []byte(taskData))
+				if err != nil {
+					logrus.Errorf("failed to handle cron reschedule failure: %v", err)
+				}
+
 			}
 		}
 	}
