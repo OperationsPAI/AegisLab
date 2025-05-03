@@ -406,7 +406,10 @@ func (c *Controller) processQueueItem() bool {
 	var err error
 	switch item.Type {
 	case CheckRecovery:
-		c.checkRecoveryStatus(item.GVR, item.Namespace, item.Name)
+		err := c.checkRecoveryStatus(item.GVR, item.Namespace, item.Name)
+		if err != nil {
+			logrus.WithField("namespace", item.Namespace).WithField("name", item.Name).Error(err)
+		}
 	case DeleteCRD:
 		if item.GVR == nil {
 			logrus.Error("The groupVersionResource can not be nil")

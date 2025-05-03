@@ -47,12 +47,25 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 
 			results, err := readDetectorCSV(content, collectPayload.ExecutionID)
 			if err != nil {
+				repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+					TaskID:    task.TaskID,
+					TaskType:  consts.TaskTypeCollectResult,
+					EventName: consts.EventDatasetNoConclusionFile,
+					Payload:   results,
+				})
 				span.AddEvent("failed to convert conclusion.csv to database struct")
 				span.RecordError(err)
 				return fmt.Errorf("failed to convert conclusion.csv to database struct: %v", err)
 			}
 
 			if len(results) == 0 {
+				repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+					TaskID:    task.TaskID,
+					TaskType:  consts.TaskTypeCollectResult,
+					EventName: consts.EventDatasetNoAnomaly,
+					Payload:   results,
+				})
+
 				span.AddEvent("the detector result is empty")
 				logrus.Info("the detector result is empty")
 				updateTaskStatus(
