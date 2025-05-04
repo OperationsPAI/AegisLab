@@ -395,7 +395,7 @@ func ProcessStreamMessagesForSSE(messages []redis.XStream) (string, []dto.SSEMes
 				if payloadStr, ok := streamEvent.Payload.(string); ok {
 					var payload dto.InfoPayloadTemplate
 					if err := json.Unmarshal([]byte(payloadStr), &payload); err == nil {
-						if payload.Status == consts.TaskStatusCompleted {
+						if payload.Status == consts.TaskStatusCompleted || payload.Status == consts.TaskStatusError || payload.Status == consts.TaskStatusCanceled {
 							isCompleted = true
 						}
 					}
