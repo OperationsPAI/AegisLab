@@ -75,11 +75,12 @@ func CreateJob(ctx context.Context, jobConfig JobConfig) error {
 						RestartPolicy: jobConfig.RestartPolicy,
 						Containers: []corev1.Container{
 							{
-								Name:         jobConfig.JobName,
-								Image:        jobConfig.Image,
-								Command:      jobConfig.Command,
-								Env:          jobConfig.EnvVars,
-								VolumeMounts: volumeMounts,
+								Name:            jobConfig.JobName,
+								Image:           jobConfig.Image,
+								Command:         jobConfig.Command,
+								Env:             jobConfig.EnvVars,
+								VolumeMounts:    volumeMounts,
+								ImagePullPolicy: corev1.PullAlways,
 							},
 						},
 						Volumes: volumes,
