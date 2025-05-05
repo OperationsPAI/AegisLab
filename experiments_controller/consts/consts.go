@@ -116,16 +116,21 @@ const (
 type EventType string
 
 const (
-	EventAlgoResultCollection    EventType = "algorithm.collect_result"
+	// when adding the consts, remember to update the consts in python sdk, const.py
+	EventAlgoResultCollection EventType = "algorithm.collect_result"
+	EventAlgoRunSucceed       EventType = "algorithm.run.succeed"
+
 	EventDatasetResultCollection EventType = "dataset.result.collection"
 	EventDatasetNoAnomaly        EventType = "dataset.no_anomaly"
 	EventDatasetNoConclusionFile EventType = "dataset.no_conclusion_file"
 	EventDatasetBuildSucceed     EventType = "dataset.build.succeed"
-	EventExecutionID             EventType = "execution_id"
-	EventTaskStatusUpdate        EventType = "task.status.update"
-	EventTaskRetryStatus         EventType = "task.retry.status"
-	EventTaskStarted             EventType = "task.started"
-	EventNoNamespaceAvailable    EventType = "no.namespace.available"
+
+	EventTaskStatusUpdate EventType = "task.status.update"
+	EventTaskRetryStatus  EventType = "task.retry.status"
+	EventTaskStarted      EventType = "task.started"
+
+	EventNoNamespaceAvailable EventType = "no.namespace.available"
+
 	EventRestartServiceStarted   EventType = "restart.service.started"
 	EventRestartServiceCompleted EventType = "restart.service.completed"
 	EventRestartServiceFailed    EventType = "restart.service.failed"

@@ -54,15 +54,19 @@ class EventStatus(str, Enum):
 
 class EventType(str, Enum):
     EventAlgoResultCollection = "algorithm.collect_result"
+    EventAlgoRunSucceed = "algorithm.run.succeed"
+
     EventDatasetResultCollection = "dataset.result.collection"
     EventDatasetNoAnomaly = "dataset.no_anomaly"
     EventDatasetNoConclusionFile = "dataset.no_conclusion_file"
     EventDatasetBuildSucceed = "dataset.build.succeed"
-    EventExecutionID = "execution_id"
+
     EventTaskStatusUpdate = "task.status.update"
     EventTaskRetryStatus = "task.retry.status"
     EventTaskStarted = "task.started"
+
     EventNoNamespaceAvailable = "no.namespace.available"
+
     EventRestartServiceStarted = "restart.service.started"
     EventRestartServiceCompleted = "restart.service.completed"
     EventRestartServiceFailed = "restart.service.failed"
