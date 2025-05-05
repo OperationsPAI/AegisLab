@@ -387,7 +387,7 @@ func installTS(ctx context.Context, namespace, port, imageTag string) error {
 			return fmt.Errorf("error updating repositories: %v", err)
 		}
 
-		if err := client.InstallTrainTicket(namespace, imageTag, port); err != nil {
+		if err := client.InstallTrainTicket(ctx, namespace, imageTag, port); err != nil {
 			return fmt.Errorf("error installing Train Ticket: %v", err)
 		}
 
