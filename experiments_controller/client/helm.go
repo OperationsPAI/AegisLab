@@ -1,12 +1,14 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/CUHK-SE-Group/rcabench/tracing"
 	"github.com/sirupsen/logrus"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -182,33 +184,41 @@ func (c *HelmClient) UninstallRelease(releaseName string) error {
 	return nil
 }
 
-func (c *HelmClient) InstallRelease(releaseName, chartName string, vals map[string]interface{}) error {
-	client := action.NewInstall(c.actionConfig)
-	client.ReleaseName = releaseName
-	client.Namespace = c.namespace
-	client.Wait = true
-	client.Timeout = 300 * time.Second
-	client.CreateNamespace = true
+func (c *HelmClient) InstallRelease(ctx context.Context, releaseName, chartName string, vals map[string]interface{}) error {
+	return tracing.WithSpan(ctx, func(ctx context.Context) error {
+		now := time.Now()
 
-	cp, err := client.ChartPathOptions.LocateChart(chartName, c.settings)
-	if err != nil {
-		return fmt.Errorf("failed to locate chart %s: %w", chartName, err)
-	}
+		defer func() {
+			log.Printf("InstallRelease took %s", time.Since(now))
+		}()
 
-	chart, err := loader.Load(cp)
-	if err != nil {
-		return fmt.Errorf("failed to load chart %s: %w", chartName, err)
-	}
+		client := action.NewInstall(c.actionConfig)
+		client.ReleaseName = releaseName
+		client.Namespace = c.namespace
+		client.Wait = true
+		client.Timeout = 300 * time.Second
+		client.CreateNamespace = true
 
-	_, err = client.Run(chart, vals)
-	if err != nil {
-		return fmt.Errorf("failed to install release %s: %w", releaseName, err)
-	}
+		cp, err := client.ChartPathOptions.LocateChart(chartName, c.settings)
+		if err != nil {
+			return fmt.Errorf("failed to locate chart %s: %w", chartName, err)
+		}
 
-	return nil
+		chart, err := loader.Load(cp)
+		if err != nil {
+			return fmt.Errorf("failed to load chart %s: %w", chartName, err)
+		}
+
+		_, err = client.Run(chart, vals)
+		if err != nil {
+			return fmt.Errorf("failed to install release %s: %w", releaseName, err)
+		}
+
+		return nil
+	})
 }
 
-func (c *HelmClient) InstallTrainTicket(releaseName, imageTag, nodePort string) error {
+func (c *HelmClient) InstallTrainTicket(ctx context.Context, releaseName, imageTag, nodePort string) error {
 	installed, err := c.IsReleaseInstalled(releaseName)
 	if err != nil {
 		return err
