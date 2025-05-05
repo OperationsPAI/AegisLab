@@ -248,14 +248,9 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 
 	switch taskOptions.Type {
 	case consts.TaskTypeRunAlgorithm:
+
 		options, _ := parseExecutionOptions(labels)
 		logEntry.WithField("algorithm", options.Algorithm).Info("algorithm execute successfully")
-		repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
-			TaskID:    taskOptions.TaskID,
-			TaskType:  consts.TaskType(taskOptions.TraceID),
-			EventName: consts.EventExecutionID,
-			Payload:   options.ExecutionID,
-		}, repository.WithCallerLevel(4))
 
 		updateTaskStatus(
 			taskCtx,
@@ -278,6 +273,13 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 			GroupID:   taskOptions.GroupID,
 		}
 		task.SetTraceCtx(traceCtx)
+
+		repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
+			TaskID:    taskOptions.TaskID,
+			TaskType:  consts.TaskTypeRunAlgorithm,
+			EventName: consts.EventAlgoRunSucceed,
+			Payload:   task,
+		}, repository.WithCallerLevel(4))
 
 		_, _, err := SubmitTask(taskCtx, task)
 		if err != nil {
