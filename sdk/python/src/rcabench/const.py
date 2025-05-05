@@ -53,14 +53,19 @@ class EventStatus(str, Enum):
 
 
 class EventType(str, Enum):
-    ALGO_RESULT_COLLECTION = "algorithm.collect_result"
-    DATASET_RESULT_COLLECTION = "algorithm.dataset_result"
-    TASK_STATUS_UPDATE = "task.status.update"
-    TASK_STARTED = "task.started"
-    NO_NAMESPACE_AVAILABLE = "no.namespace.available"
-    RESTART_SERVICE_STARTED = "restart.service.started"
-    RESTART_SERVICE_COMPLETED = "restart.service.completed"
-    RESTART_SERVICE_FAILED = "restart.service.failed"
+    EventAlgoResultCollection = "algorithm.collect_result"
+    EventDatasetResultCollection = "dataset.result.collection"
+    EventDatasetNoAnomaly = "dataset.no_anomaly"
+    EventDatasetNoConclusionFile = "dataset.no_conclusion_file"
+    EventDatasetBuildSucceed = "dataset.build.succeed"
+    EventExecutionID = "execution_id"
+    EventTaskStatusUpdate = "task.status.update"
+    EventTaskRetryStatus = "task.retry.status"
+    EventTaskStarted = "task.started"
+    EventNoNamespaceAvailable = "no.namespace.available"
+    EventRestartServiceStarted = "restart.service.started"
+    EventRestartServiceCompleted = "restart.service.completed"
+    EventRestartServiceFailed = "restart.service.failed"
 
 
 class TaskType(str, Enum):
