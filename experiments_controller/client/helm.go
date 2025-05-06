@@ -249,5 +249,5 @@ func (c *HelmClient) InstallTrainTicket(ctx context.Context, releaseName, imageT
 		},
 	}
 
-	return c.InstallRelease(releaseName, "train-ticket/trainticket", values)
+	return c.InstallRelease(ctx, releaseName, "train-ticket/trainticket", values)
 }
