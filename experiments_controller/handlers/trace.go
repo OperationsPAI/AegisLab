@@ -9,6 +9,7 @@ import (
 
 	"github.com/CUHK-SE-Group/rcabench/consts"
 	"github.com/CUHK-SE-Group/rcabench/dto"
+	"github.com/CUHK-SE-Group/rcabench/executor/analyzer"
 	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/gin-contrib/sse"
 	"github.com/gin-gonic/gin"
@@ -117,4 +118,13 @@ func sendSSEMessages(c *gin.Context, messages []redis.XStream) (string, error) {
 	}
 
 	return lastID, nil
+}
+
+func AnalyzeTrace(c *gin.Context) {
+	stats, err := analyzer.AnalyzeTrace(c.Request.Context())
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to analyze trace")
+		return
+	}
+	dto.SuccessResponse(c, stats)
 }
