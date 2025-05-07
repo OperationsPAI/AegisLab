@@ -24,7 +24,7 @@ type TraceStatistic struct {
 }
 
 func GetTraceEvents(ctx context.Context, traceId string) ([]*dto.StreamEvent, error) {
-	historicalMessages, err := ReadStreamEvents(ctx, fmt.Sprintf(consts.StreamLogKey, traceId), "0", 200, 0)
+	historicalMessages, err := ReadStreamEvents(ctx, fmt.Sprintf(consts.StreamLogKey, traceId), "0", 200, -1)
 	if err != nil && err != redis.Nil {
 		return nil, err
 	}
@@ -48,6 +48,9 @@ func GetTraceStatistic(ctx context.Context, traceId string) (*TraceStatistic, er
 	events, err := GetTraceEvents(ctx, traceId)
 	if err != nil {
 		return nil, err
+	}
+	if len(events) == 0 {
+		return nil, fmt.Errorf("no events found for trace ID: %s", traceId)
 	}
 
 	totalStartTime := time.UnixMilli(int64(events[0].TimeStamp))
@@ -81,12 +84,16 @@ func GetTraceStatistic(ctx context.Context, traceId string) (*TraceStatistic, er
 		case consts.EventRestartServiceFailed:
 			stat.IntermediateFailed = true
 		default:
+			// logrus.WithField("event_name", event.EventName).Warn("Unknown event name")
 		}
 	}
 
-	stat.TotalDuration = totalEndTime.Sub(totalStartTime).Seconds()
-	stat.RestartDuration = restartFormalEnd.Sub(restartFormalBegin).Seconds()
-
+	if !totalEndTime.IsZero() {
+		stat.TotalDuration = totalEndTime.Sub(totalStartTime).Minutes()
+	}
+	if !restartFormalBegin.IsZero() && !restartFormalEnd.IsZero() {
+		stat.RestartDuration = restartFormalEnd.Sub(restartFormalBegin).Minutes()
+	}
 	return stat, nil
 }
 
