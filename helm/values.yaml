@@ -42,7 +42,7 @@ configmap:
     enable_duplicate: true
     namespace_target_map: { ts: 10 }
     target_label_key: "app"
-    ts_image_tag: "5ac85936"
+    ts_image_tag: "7fcb70ba"
   database:
     clickhouse_host: "10.10.10.58"
     mysql_user: "root"

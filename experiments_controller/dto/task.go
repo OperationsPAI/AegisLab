@@ -128,6 +128,7 @@ type TaskQueuePaginationRequest struct {
 }
 
 type StreamEvent struct {
+	TimeStamp int              `json:"timestamp,omitempty"`
 	TaskID    string           `json:"task_id"`
 	TaskType  consts.TaskType  `json:"task_type"`
 	FileName  string           `json:"file_name"`

@@ -70,6 +70,7 @@ func New() *gin.Engine {
 		{
 			tracesWithID.GET("/stream", handlers.GetTraceStream)
 		}
+		traces.GET("/analyze", handlers.AnalyzeTrace)
 	}
 
 	router.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
