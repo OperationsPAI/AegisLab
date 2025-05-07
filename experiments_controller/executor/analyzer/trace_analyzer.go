@@ -24,12 +24,11 @@ func AnalyzeTrace(ctx context.Context) (*Statistics, error) {
 		return nil, err
 	}
 
-	for groupID, traceIDs := range groupTrace {
-		logrus.WithField("group_id", groupID).WithField("trace_ids", traceIDs).Info("Group to Trace IDs")
+	for _, traceIDs := range groupTrace {
 		for _, traceID := range traceIDs {
 			stat, err := repository.GetTraceStatistic(ctx, traceID)
 			if err != nil {
-				logrus.WithError(err).WithField("trace_id", traceID).Error("Failed to get trace statistic")
+				logrus.WithError(err).WithField("trace_id", traceID).Debug("Failed to get trace statistic")
 				continue
 			}
 			stats.TotalTraces++
