@@ -176,7 +176,7 @@ func readDetectorCSV(csvContent []byte, executionID int) ([]database.Detector, e
 		return nil, fmt.Errorf("failed to read CSV header: %v", err)
 	}
 
-	expectedHeader := []string{"SpanName", "Issues", "AvgDuration", "SuccRate", "P90", "P95", "P99"}
+	expectedHeader := []string{"SpanName", "Issues", "AbnormalAvgDuration", "NormalAvgDuration", "AbnormalSuccRate", "NormalSuccRate", "AbnormalP90", "NormalP90", "AbnormalP95", "NormalP95", "AbnormalP99", "NormalP99"}
 	if len(header) != len(expectedHeader) {
 		return nil, fmt.Errorf("unexpected header length: got %d, expected %d", len(header), len(expectedHeader))
 	}
@@ -202,55 +202,96 @@ func readDetectorCSV(csvContent []byte, executionID int) ([]database.Detector, e
 		issues := row[1]
 
 		// 处理空值
-		var avgDuration, succRate, p90, p95, p99 *float64
+		var abnormalAvgDuration, normalAvgDuration, abnormalSuccRate, normalSuccRate *float64
+		var abnormalP90, normalP90, abnormalP95, normalP95, abnormalP99, normalP99 *float64
 
 		// 如果字段非空，转换为 float64，否则设置为 nil
 		if row[2] != "" {
 			val, err := strconv.ParseFloat(row[2], 64)
 			if err != nil {
-				return nil, fmt.Errorf("invalid AvgDuration value in row %d: %v", i+1, err)
+				return nil, fmt.Errorf("invalid AbnormalAvgDuration value in row %d: %v", i+1, err)
 			}
-			avgDuration = &val
+			abnormalAvgDuration = &val
 		}
 		if row[3] != "" {
 			val, err := strconv.ParseFloat(row[3], 64)
 			if err != nil {
-				return nil, fmt.Errorf("invalid SuccRate value in row %d: %v", i+1, err)
+				return nil, fmt.Errorf("invalid NormalAvgDuration value in row %d: %v", i+1, err)
 			}
-			succRate = &val
+			normalAvgDuration = &val
 		}
 		if row[4] != "" {
 			val, err := strconv.ParseFloat(row[4], 64)
 			if err != nil {
-				return nil, fmt.Errorf("invalid P90 value in row %d: %v", i+1, err)
+				return nil, fmt.Errorf("invalid AbnormalSuccRate value in row %d: %v", i+1, err)
 			}
-			p90 = &val
+			abnormalSuccRate = &val
 		}
 		if row[5] != "" {
 			val, err := strconv.ParseFloat(row[5], 64)
 			if err != nil {
-				return nil, fmt.Errorf("invalid P95 value in row %d: %v", i+1, err)
+				return nil, fmt.Errorf("invalid NormalSuccRate value in row %d: %v", i+1, err)
 			}
-			p95 = &val
+			normalSuccRate = &val
 		}
 		if row[6] != "" {
 			val, err := strconv.ParseFloat(row[6], 64)
 			if err != nil {
-				return nil, fmt.Errorf("invalid P99 value in row %d: %v", i+1, err)
+				return nil, fmt.Errorf("invalid AbnormalP90 value in row %d: %v", i+1, err)
 			}
-			p99 = &val
+			abnormalP90 = &val
+		}
+		if row[7] != "" {
+			val, err := strconv.ParseFloat(row[7], 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid NormalP90 value in row %d: %v", i+1, err)
+			}
+			normalP90 = &val
+		}
+		if row[8] != "" {
+			val, err := strconv.ParseFloat(row[8], 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid AbnormalP95 value in row %d: %v", i+1, err)
+			}
+			abnormalP95 = &val
+		}
+		if row[9] != "" {
+			val, err := strconv.ParseFloat(row[9], 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid NormalP95 value in row %d: %v", i+1, err)
+			}
+			normalP95 = &val
+		}
+		if row[10] != "" {
+			val, err := strconv.ParseFloat(row[10], 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid AbnormalP99 value in row %d: %v", i+1, err)
+			}
+			abnormalP99 = &val
+		}
+		if row[11] != "" {
+			val, err := strconv.ParseFloat(row[11], 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid NormalP99 value in row %d: %v", i+1, err)
+			}
+			normalP99 = &val
 		}
 
 		// 将数据添加到结果
 		results = append(results, database.Detector{
-			ExecutionID: executionID,
-			SpanName:    spanName,
-			Issues:      issues,
-			AvgDuration: avgDuration,
-			SuccRate:    succRate,
-			P90:         p90,
-			P95:         p95,
-			P99:         p99,
+			ExecutionID:         executionID,
+			SpanName:            spanName,
+			Issues:              issues,
+			AbnormalAvgDuration: abnormalAvgDuration,
+			NormalAvgDuration:   normalAvgDuration,
+			AbnormalSuccRate:    abnormalSuccRate,
+			NormalSuccRate:      normalSuccRate,
+			AbnormalP90:         abnormalP90,
+			NormalP90:           normalP90,
+			AbnormalP95:         abnormalP95,
+			NormalP95:           normalP95,
+			AbnormalP99:         abnormalP99,
+			NormalP99:           normalP99,
 		})
 	}
 

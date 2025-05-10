@@ -282,8 +282,8 @@ spec:
               subPath: config
             - name: data
               mountPath: /var/lib/rcabench
-            - name: algorithms-data
-              mountPath: "{{ .Values.configmap.algo.storage_path }}"
+            # - name: algorithms-data
+            #   mountPath: "{{ .Values.configmap.algo.storage_path }}"
             - name: docker-config-volume
               mountPath: /root/.docker/config.json
               subPath: config.json
