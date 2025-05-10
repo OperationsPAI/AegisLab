@@ -67,17 +67,22 @@ type GranularityResult struct {
 }
 
 type Detector struct {
-	ID          int       `gorm:"primaryKey"`
-	ExecutionID int       `gorm:"index,unique" json:"execution_id"` // ExecutionID 是主键
-	SpanName    string    `gorm:"type:varchar(255)"`                // SpanName 数据库字段类型
-	Issues      string    `gorm:"type:text"`                        // Issues 字段类型为文本
-	AvgDuration *float64  `gorm:"type:float"`                       // AvgDuration 是浮点类型
-	SuccRate    *float64  `gorm:"type:float"`                       // SuccRate 是浮点类型
-	P90         *float64  `gorm:"type:float"`                       // P90 是浮点类型
-	P95         *float64  `gorm:"type:float"`                       // P95 是浮点类型
-	P99         *float64  `gorm:"type:float"`                       // P99 是浮点类型
-	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"` // CreatedAt 自动设置为当前时间
-	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"` // UpdatedAt 自动更新时间
+	ID                  int       `gorm:"primaryKey"`
+	ExecutionID         int       `gorm:"index,unique" json:"execution_id"` // ExecutionID 是主键
+	SpanName            string    `gorm:"type:varchar(255)"`                // SpanName 数据库字段类型
+	Issues              string    `gorm:"type:text"`                        // Issues 字段类型为文本
+	AbnormalAvgDuration *float64  `gorm:"type:float"`                       // 异常时段的平均耗时
+	NormalAvgDuration   *float64  `gorm:"type:float"`                       // 正常时段的平均耗时
+	AbnormalSuccRate    *float64  `gorm:"type:float"`                       // 异常时段的成功率
+	NormalSuccRate      *float64  `gorm:"type:float"`                       // 正常时段的成功率
+	AbnormalP90         *float64  `gorm:"type:float"`                       // 异常时段的P90
+	NormalP90           *float64  `gorm:"type:float"`                       // 正常时段的P90
+	AbnormalP95         *float64  `gorm:"type:float"`                       // 异常时段的P95
+	NormalP95           *float64  `gorm:"type:float"`                       // 正常时段的P95
+	AbnormalP99         *float64  `gorm:"type:float"`                       // 异常时段的P99
+	NormalP99           *float64  `gorm:"type:float"`                       // 正常时段的P99
+	CreatedAt           time.Time `gorm:"autoCreateTime" json:"created_at"` // CreatedAt 自动设置为当前时间
+	UpdatedAt           time.Time `gorm:"autoUpdateTime" json:"updated_at"` // UpdatedAt 自动更新时间
 }
 
 func InitDB() {
