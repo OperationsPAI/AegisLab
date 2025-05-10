@@ -62,7 +62,7 @@ configmap:
   algo:
     storage_path: "/app/algorithms"
   debugging:
-    enable: true
+    enable: false
   buildkit:
     address: "tcp://{{ .Release.Name }}-buildkit:1234"
 
