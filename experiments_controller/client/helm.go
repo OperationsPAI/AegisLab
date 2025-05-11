@@ -196,7 +196,7 @@ func (c *HelmClient) InstallRelease(ctx context.Context, releaseName, chartName 
 		client.ReleaseName = releaseName
 		client.Namespace = c.namespace
 		client.Wait = true
-		client.Timeout = 300 * time.Second
+		client.Timeout = 500 * time.Second
 		client.CreateNamespace = true
 
 		cp, err := client.ChartPathOptions.LocateChart(chartName, c.settings)

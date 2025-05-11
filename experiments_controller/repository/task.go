@@ -260,7 +260,7 @@ func PublishEvent(ctx context.Context, stream string, event dto.StreamEvent, opt
 	if err != nil {
 		logrus.Errorf("Failed to publish event to Redis stream %s: %v", stream, err)
 	}
-	logrus.Infof("Published event to Redis stream %s: %s", stream, res)
+	logrus.Debugf("Published event to Redis stream %s: %s", stream, res)
 }
 
 func ReadStreamEvents(ctx context.Context, stream string, lastID string, count int64, block time.Duration) ([]redis.XStream, error) {
