@@ -14,13 +14,18 @@ type AlgorithmExecutionPayload struct {
 }
 
 type DetectorRecord struct {
-	SpanName    string   `json:"span_name"`
-	Issues      string   `json:"issue"`
-	AvgDuration *float64 `json:"avg_duration"`
-	SuccRate    *float64 `json:"succ_rate"`
-	P90         *float64 `json:"P90"`
-	P95         *float64 `json:"P95"`
-	P99         *float64 `json:"P99"`
+	SpanName            string   `json:"span_name"`
+	Issues              string   `json:"issue"`
+	AbnormalAvgDuration *float64 `json:"abnormal_avg_duration"`
+	NormalAvgDuration   *float64 `json:"normal_avg_duration"`
+	AbnormalSuccRate    *float64 `json:"abnormal_succ_rate"`
+	NormalSuccRate      *float64 `json:"normal_succ_rate"`
+	AbnormalP90         *float64 `json:"abnormal_p90"`
+	NormalP90           *float64 `json:"normal_p90"`
+	AbnormalP95         *float64 `json:"abnormal_p95"`
+	NormalP95           *float64 `json:"normal_p95"`
+	AbnormalP99         *float64 `json:"abnormal_p99"`
+	NormalP99           *float64 `json:"normal_p99"`
 }
 
 type ExecutionRecord struct {
