@@ -38,11 +38,16 @@ func GetDetectorRecordByDatasetID(datasetID int) (dto.DetectorRecord, error) {
 	selectFields := `
         detectors.span_name AS span_name,
         detectors.issues AS issues,
-        detectors.avg_duration AS avg_duration,
-        detectors.succ_rate AS succ_rate,
-        detectors.p90 AS p90,
-        detectors.p95 AS p95,
-        detectors.p99 AS p99
+        detectors.abnormal_avg_duration AS abnormal_avg_duration,
+        detectors.normal_avg_duration AS normal_avg_duration,
+        detectors.abnormal_succ_rate AS abnormal_succ_rate,
+        detectors.normal_succ_rate AS normal_succ_rate,
+        detectors.abnormal_p90 AS abnormal_p90,
+        detectors.normal_p90 AS normal_p90,
+        detectors.abnormal_p95 AS abnormal_p95,
+        detectors.normal_p95 AS normal_p95,
+        detectors.abnormal_p99 AS abnormal_p99,
+        detectors.normal_p99 AS normal_p99
     `
 
 	query := database.DB.
