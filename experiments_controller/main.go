@@ -68,6 +68,7 @@ func main() {
 	defer cancel()
 
 	nsTargetMap, err := config.GetNsTargetMap()
+	logrus.Infof("initalized nsTargetMap: %v", nsTargetMap)
 	if err != nil {
 		logrus.Fatal(err)
 	}

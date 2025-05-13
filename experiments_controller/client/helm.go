@@ -230,8 +230,8 @@ func (c *HelmClient) InstallTrainTicket(ctx context.Context, releaseName, imageT
 		if err := c.UninstallRelease(releaseName); err != nil {
 			return err
 		}
-		// Wait a bit for resources to be cleaned up
-		time.Sleep(5 * time.Second)
+
+		time.Sleep(2 * time.Minute)
 	} else {
 		log.Printf("No existing %s release found", releaseName)
 	}
