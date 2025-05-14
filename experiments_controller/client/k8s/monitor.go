@@ -9,6 +9,9 @@ import (
 
 	"github.com/CUHK-SE-Group/rcabench/client"
 	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/CUHK-SE-Group/rcabench/consts"
+	"github.com/CUHK-SE-Group/rcabench/dto"
+	"github.com/CUHK-SE-Group/rcabench/repository"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
@@ -110,12 +113,129 @@ func initMonitor() *Monitor {
 	}
 }
 
-func (m *Monitor) AcquireLock(endTime time.Time, traceID string) string {
-	return m.getNamespaceToRestart(endTime, traceID)
+// acquireNamespaceLock attempts to acquire a lock on a namespace
+// Returns nil on success, error if the lock cannot be acquired
+func (m *Monitor) acquireNamespaceLock(namespace string, endTime time.Time, traceID string) error {
+	var err error
+
+	defer func() {
+		repository.PublishEvent(context.Background(), fmt.Sprintf(consts.StreamLogKey, namespace), dto.StreamEvent{
+			TaskType:  consts.TaskTypeRestartService,
+			EventName: consts.EventAcquireLock,
+			Payload:   map[string]any{"trace_id": traceID, "end_time": endTime, "error": err},
+		})
+	}()
+
+	nsKey := fmt.Sprintf(namespaceKeyPattern, namespace)
+	nowTime := time.Now().Unix()
+
+	return m.redisClient.Watch(m.ctx, func(tx *redis.Tx) error {
+		// Check if the lock is still available
+		currentEndTimeStr, err := tx.HGet(m.ctx, nsKey, "end_time").Result()
+		if err != nil && err != redis.Nil {
+			return err
+		}
+
+		currentEndTime, err := strconv.ParseInt(currentEndTimeStr, 10, 64)
+		if err != nil {
+			return err
+		}
+
+		currentTraceID, err := tx.HGet(m.ctx, nsKey, "trace_id").Result()
+		if err != nil && err != redis.Nil {
+			return err
+		}
+
+		// If lock is held by someone else and not expired
+		if currentTraceID != "" && currentTraceID != traceID && nowTime < currentEndTime {
+			return redis.TxFailedErr // Lock was taken by someone else
+		}
+
+		// Try to acquire the lock
+		_, err = tx.TxPipelined(m.ctx, func(pipe redis.Pipeliner) error {
+			pipe.HSet(m.ctx, nsKey, "end_time", endTime.Unix())
+			pipe.HSet(m.ctx, nsKey, "trace_id", traceID)
+			return nil
+		})
+		return err
+	}, nsKey)
 }
 
-func (m *Monitor) ReleaseLock(namespace string) {
-	m.setTime(namespace, time.Now(), "")
+// releaseNamespaceLock releases a lock on a namespace if it's owned by the specified traceID
+func (m *Monitor) releaseNamespaceLock(namespace string, traceID string) (err error) {
+
+	defer func() {
+		repository.PublishEvent(context.Background(), fmt.Sprintf(consts.StreamLogKey, namespace), dto.StreamEvent{
+			TaskType:  consts.TaskTypeRestartService,
+			EventName: consts.EventReleaseLock,
+			Payload:   map[string]any{"trace_id": traceID, "error": err},
+		})
+	}()
+
+	nsKey := fmt.Sprintf(namespaceKeyPattern, namespace)
+
+	// Check if namespace exists
+	var exists int64
+	exists, err = m.redisClient.Exists(m.ctx, nsKey).Result()
+	if err != nil {
+		err = fmt.Errorf("failed to check namespace existence: %v", err)
+		return
+	}
+
+	if exists == 0 {
+		err = fmt.Errorf("namespace %s not found", namespace)
+		return
+	}
+
+	// Check if the lock is actually held by this traceID
+	currentTraceID, err := m.redisClient.HGet(m.ctx, nsKey, "trace_id").Result()
+	if err != nil && err != redis.Nil {
+		err = fmt.Errorf("failed to get current trace_id: %v", err)
+		return
+	}
+
+	// If the lock is held by someone else or is already released
+	if currentTraceID != traceID {
+		err = fmt.Errorf("cannot release lock: namespace %s is not owned by trace_id %s (current owner: %s)",
+			namespace, traceID, currentTraceID)
+		return
+	}
+
+	// Update namespace lock info - release by setting current time and empty trace ID
+	_, err = m.redisClient.Pipelined(m.ctx, func(pipe redis.Pipeliner) error {
+		pipe.HSet(m.ctx, nsKey, "end_time", time.Now().Unix())
+		pipe.HSet(m.ctx, nsKey, "trace_id", "")
+		return nil
+	})
+
+	return
+}
+
+// Update the ReleaseLock method to pass traceID
+func (m *Monitor) ReleaseLock(namespace string, traceID string) {
+	if namespace == "" || traceID == "" {
+		logrus.WithFields(logrus.Fields{
+			"namespace": namespace,
+			"trace_id":  traceID,
+		}).Error("namespace or trace_id is empty")
+		return
+	}
+	err := m.releaseNamespaceLock(namespace, traceID)
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"namespace": namespace,
+			"trace_id":  traceID,
+		}).Errorf("Failed to release namespace lock: %v", err)
+	} else {
+		logrus.WithFields(logrus.Fields{
+			"namespace": namespace,
+			"trace_id":  traceID,
+		}).Info("released namespace lock")
+	}
+}
+
+func (m *Monitor) AcquireLock(endTime time.Time, traceID string) string {
+	return m.getNamespaceToRestart(endTime, traceID)
 }
 
 func (m *Monitor) InspectLock() (map[string]*MonitorItem, error) {
@@ -167,17 +287,46 @@ func (m *Monitor) CheckNamespaceToInject(namespace string, executeTime time.Time
 	if err != nil {
 		return fmt.Errorf("invalid end_time format in Redis: %v", err)
 	}
-
 	endTime := time.Unix(endTimeUnix, 0)
-	if !endTime.After(executeTime) {
-		return fmt.Errorf("cannot inject fault: namespace %s is locked until %v (current execution time: %v)",
-			namespace, endTime.Format(time.RFC3339), executeTime.Format(time.RFC3339))
+
+	// Check if the lock is held by current client
+	isOwnLock := values["trace_id"] == traceID
+
+	// Check if the lock is expired (regardless of who owns it)
+	isLockExpired := time.Now().After(endTime)
+
+	// If the lock is held by another client and hasn't expired yet
+	if !isOwnLock && !isLockExpired && values["trace_id"] != "" {
+		return fmt.Errorf("cannot inject fault: namespace %s is occupied by %v at %v (current execution time: %v)",
+			namespace, values["trace_id"], endTime.Format(time.RFC3339), executeTime.Format(time.RFC3339))
 	}
 
-	// Check trace ID
-	if values["trace_id"] != "" && values["trace_id"] != traceID {
-		return fmt.Errorf("namespace %s is currently locked by another trace (trace_id: %s)", namespace, values["trace_id"])
+	// At this point, either:
+	// 1. We own the lock already
+	// 2. The lock is expired
+	// 3. The lock is not assigned to anyone
+	// In all cases, we should be able to acquire/refresh the lock
+
+	// Refresh or acquire the lock
+	proposedEndTime := executeTime.Add(time.Duration(5) * time.Minute)
+
+	// Use the extracted helper function
+	err = m.acquireNamespaceLock(namespace, proposedEndTime, traceID)
+
+	if err != nil {
+		if err == redis.TxFailedErr {
+			return fmt.Errorf("cannot inject fault: namespace %s was concurrently acquired by another client", namespace)
+		}
+		return fmt.Errorf("failed to acquire lock: %v", err)
 	}
+
+	logrus.WithFields(
+		logrus.Fields{
+			"namespace": namespace,
+			"trace_id":  traceID,
+			"end_time":  proposedEndTime,
+		},
+	).Info("refreshed or acquired namespace lock")
 
 	return nil
 }
@@ -191,7 +340,8 @@ func (m *Monitor) getNamespaceToRestart(endTime time.Time, traceID string) strin
 	}
 
 	nowTime := time.Now().Unix()
-	// Use a Redis transaction to atomically check and update namespace locks
+
+	// Try to acquire an available namespace
 	for _, ns := range namespaces {
 		nsKey := fmt.Sprintf(namespaceKeyPattern, ns)
 
@@ -210,27 +360,8 @@ func (m *Monitor) getNamespaceToRestart(endTime time.Time, traceID string) strin
 
 		// If the lock has expired
 		if nsEndTime < nowTime {
-			// Try to acquire the lock using WATCH/MULTI/EXEC for atomicity
-			err := m.redisClient.Watch(m.ctx, func(tx *redis.Tx) error {
-				// Check if the lock is still available
-				currentEndTime, err := tx.HGet(m.ctx, nsKey, "end_time").Int64()
-				if err != nil {
-					return err
-				}
-
-				if nowTime < currentEndTime {
-					return redis.TxFailedErr // Lock was taken by someone else
-				}
-
-				// Try to acquire the lock
-				_, err = tx.TxPipelined(m.ctx, func(pipe redis.Pipeliner) error {
-					pipe.HSet(m.ctx, nsKey, "end_time", endTime.Unix())
-					pipe.HSet(m.ctx, nsKey, "trace_id", traceID)
-					return nil
-				})
-				return err
-			}, nsKey)
-
+			// Try to acquire the lock using the extracted helper function
+			err := m.acquireNamespaceLock(ns, endTime, traceID)
 			if err == nil {
 				logrus.WithFields(
 					logrus.Fields{
@@ -244,33 +375,4 @@ func (m *Monitor) getNamespaceToRestart(endTime time.Time, traceID string) strin
 	}
 
 	return ""
-}
-
-func (m *Monitor) setTime(namespace string, endTime time.Time, traceID string) {
-	nsKey := fmt.Sprintf(namespaceKeyPattern, namespace)
-
-	// Check if namespace exists
-	exists, err := m.redisClient.Exists(m.ctx, nsKey).Result()
-	if err != nil {
-		logrus.WithField("namespace", namespace).Errorf("Failed to check namespace existence: %v", err)
-		return
-	}
-
-	if exists == 0 {
-		logrus.WithField("namespace", namespace).Warn("Namespace not found in Redis")
-		return
-	}
-
-	// Update namespace lock info
-	_, err = m.redisClient.Pipelined(m.ctx, func(pipe redis.Pipeliner) error {
-		pipe.HSet(m.ctx, nsKey, "end_time", endTime.Unix())
-		pipe.HSet(m.ctx, nsKey, "trace_id", traceID)
-		return nil
-	})
-
-	if err != nil {
-		logrus.WithField("namespace", namespace).Errorf("Failed to update namespace lock: %v", err)
-	} else {
-		logrus.WithField("namespace", namespace).Info("release namespace lock")
-	}
 }

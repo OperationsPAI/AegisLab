@@ -134,6 +134,9 @@ const (
 	EventRestartServiceStarted   EventType = "restart.service.started"
 	EventRestartServiceCompleted EventType = "restart.service.completed"
 	EventRestartServiceFailed    EventType = "restart.service.failed"
+
+	EventAcquireLock EventType = "acquire.lock"
+	EventReleaseLock EventType = "release.lock"
 )
 
 // K8s Job 名称
