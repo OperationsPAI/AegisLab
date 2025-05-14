@@ -54,7 +54,7 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 
 		monitor := k8s.GetMonitor()
 		if err := monitor.CheckNamespaceToInject(payload.namespace, time.Now(), task.TraceID); err != nil {
-			monitor.ReleaseLock(payload.namespace)
+			monitor.ReleaseLock(payload.namespace, task.TraceID)
 			span.RecordError(fmt.Errorf("failed to get namespace to inject fault: %v", err))
 			span.AddEvent("failed to get namespace to inject fault")
 			return err
@@ -62,7 +62,7 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 
 		annotations, err := getAnnotations(childCtx, task)
 		if err != nil {
-			monitor.ReleaseLock(payload.namespace)
+			monitor.ReleaseLock(payload.namespace, task.TraceID)
 			span.RecordError(err)
 			span.AddEvent("failed to get annotations")
 			return err
@@ -70,7 +70,7 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 
 		prefix, index, err := extractNamespace(payload.namespace)
 		if err != nil {
-			monitor.ReleaseLock(payload.namespace)
+			monitor.ReleaseLock(payload.namespace, task.TraceID)
 			span.RecordError(err)
 			span.AddEvent("failed to read namespace index")
 			return fmt.Errorf("failed to read namespace index: %v", err)
@@ -88,7 +88,7 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 				consts.CRDPreDuration: strconv.Itoa(payload.preDuration),
 			})
 		if err != nil {
-			monitor.ReleaseLock(payload.namespace)
+			monitor.ReleaseLock(payload.namespace, task.TraceID)
 			span.RecordError(err)
 			span.AddEvent("failed to inject fault")
 			return fmt.Errorf("failed to inject fault: %v", err)
@@ -96,7 +96,7 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 
 		m, err := config.GetNsTargetMap()
 		if err != nil {
-			monitor.ReleaseLock(payload.namespace)
+			monitor.ReleaseLock(payload.namespace, task.TraceID)
 			span.RecordError(err)
 			span.AddEvent("failed to get namespace target map in configuration")
 			return fmt.Errorf("failed to get namespace target map in configuration: %v", err)
@@ -196,7 +196,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 
 		_, index, err := extractNamespace(namespace)
 		if err != nil {
-			monitor.ReleaseLock(namespace)
+			monitor.ReleaseLock(namespace, task.TraceID)
 			span.RecordError(err)
 			span.AddEvent("failed to read namespace index")
 			return fmt.Errorf("failed to read namespace index: %v", err)
@@ -215,7 +215,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 			fmt.Sprintf("3009%d", index),
 			config.GetString("injection.ts_image_tag"),
 		); err != nil {
-			monitor.ReleaseLock(namespace)
+			monitor.ReleaseLock(namespace, task.TraceID)
 			span.RecordError(err)
 			span.AddEvent("failed to install Train Ticket")
 			repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
@@ -246,7 +246,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 			TraceCarrier: task.TraceCarrier,
 		}
 		if _, _, err := SubmitTask(childCtx, injectTask); err != nil {
-			monitor.ReleaseLock(namespace)
+			monitor.ReleaseLock(namespace, task.TraceID)
 			span.RecordError(err)
 			span.AddEvent("failed to submit inject task")
 			return fmt.Errorf("failed to submit inject task: %v", err)
