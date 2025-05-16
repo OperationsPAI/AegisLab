@@ -84,6 +84,12 @@ func (e *Executor) HandleCRDFailed(name string, annotations map[string]string, l
 		consts.TaskStatusError,
 		consts.TaskTypeFaultInjection,
 	)
+
+	repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, parsedLabels.TraceID), dto.StreamEvent{
+		TaskID:    parsedLabels.TaskID,
+		TaskType:  consts.TaskTypeFaultInjection,
+		EventName: consts.EventFaultInjectionFailed,
+	})
 }
 
 func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, annotations map[string]string, labels map[string]string) {
@@ -130,6 +136,12 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 		consts.BuildStartTime:   startTime,
 		consts.BuildEndTime:     endTime,
 	}
+
+	repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, parsedLabels.TraceID), dto.StreamEvent{
+		TaskID:    parsedLabels.TaskID,
+		TaskType:  consts.TaskTypeFaultInjection,
+		EventName: consts.EventFaultInjectionCompleted,
+	})
 
 	taskID, traceID, err := SubmitTask(ctx, &dto.UnifiedTask{
 		Type:         consts.TaskTypeBuildDataset,
