@@ -125,6 +125,12 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			Status:        consts.DatasetInitial,
 			InjectionName: name,
 		}
+
+		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+			TaskID:    task.TaskID,
+			TaskType:  consts.TaskTypeFaultInjection,
+			EventName: consts.EventFaultInjectionStarted,
+		})
 		if err = database.DB.Create(&faultRecord).Error; err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to write fault injection schedule to database")
@@ -152,7 +158,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 
 		t := time.Now()
 		deltaTime := time.Duration(payload.interval) * consts.DefaultTimeUnit
-		namespace := monitor.AcquireLock(t.Add(deltaTime), task.TraceID)
+		namespace := monitor.GetNamespaceToRestart(t.Add(deltaTime), task.TraceID)
 		if namespace == "" {
 			randomFactor := 0.7 + rand.Float64()*0.6 // Random factor between 0.7 and 1.3
 			deltaTime = time.Duration(math.Min(math.Pow(2, float64(task.ReStartNum)), 10.0)*randomFactor) * consts.DefaultTimeUnit

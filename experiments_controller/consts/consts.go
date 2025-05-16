@@ -135,6 +135,10 @@ const (
 	EventRestartServiceCompleted EventType = "restart.service.completed"
 	EventRestartServiceFailed    EventType = "restart.service.failed"
 
+	EventFaultInjectionStarted   EventType = "fault.injection.started"
+	EventFaultInjectionCompleted EventType = "fault.injection.completed"
+	EventFaultInjectionFailed    EventType = "fault.injection.failed"
+
 	EventAcquireLock EventType = "acquire.lock"
 	EventReleaseLock EventType = "release.lock"
 )
