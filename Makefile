@@ -93,7 +93,7 @@ upgrade-dep: git-sync ## Upgrade Git submodules to latest main branch
 ##@ Train Ticket Deployment
 
 deploy-ts: ## Deploy Train Ticket application
-	helm repo add train-ticket https://cuhk-se-group.github.io/train-ticket
+	helm repo add train-ticket https://lgu-se-internal.github.io/train-ticket
 	helm repo update
 	@echo "Checking for existing Train Ticket installation..."
 	@if helm status $(TS_NS) -n $(TS_NS) >/dev/null 2>&1; then \
