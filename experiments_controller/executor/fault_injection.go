@@ -378,7 +378,7 @@ func installTS(ctx context.Context, namespace, port, imageTag string) error {
 		}
 
 		// Add Train Ticket repository
-		if err := client.AddRepo("train-ticket", "https://cuhk-se-group.github.io/train-ticket"); err != nil {
+		if err := client.AddRepo("train-ticket", "https://lgu-se-internal.github.io/train-ticket"); err != nil {
 			return fmt.Errorf("error adding repository: %v", err)
 		}
 
