@@ -81,6 +81,7 @@ ports: ## Port-forward service
 install-hooks: ## Install pre-commit hooks
 	chmod +x scripts/hooks/pre-commit
 	cp scripts/hooks/pre-commit .git/hooks/pre-commit
+	chmod +x .git/hooks/pre-commit
 
 git-sync: ## Synchronize Git submodules
 	git submodule update --init --recursive --remote
