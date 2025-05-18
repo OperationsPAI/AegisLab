@@ -42,7 +42,7 @@ type TaskOptions struct {
 
 type DatasetOptions struct {
 	Dataset string
-	Service string
+	// Service string
 }
 
 type ExecutionOptions struct {
@@ -218,7 +218,14 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 
 	switch taskOptions.Type {
 	case consts.TaskTypeBuildDataset:
-		options, _ := parseDatasetOptions(labels)
+
+		options, err := parseDatasetOptions(labels)
+		if err != nil {
+			logEntry.WithField("dataset", options.Dataset).Errorf("failed to parse dataset options: %v", err)
+			span.AddEvent("failed to parse dataset options")
+			span.RecordError(err)
+			return
+		}
 		logEntry.WithField("dataset", options.Dataset).Errorf("dataset build failed: %v", errMsg)
 
 		if err := repository.UpdateStatusByDataset(options.Dataset, consts.DatasetBuildFailed); err != nil {
@@ -301,7 +308,13 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 		}
 
 	case consts.TaskTypeBuildDataset:
-		options, _ := parseDatasetOptions(labels)
+		options, err := parseDatasetOptions(labels)
+		if err != nil {
+			logEntry.WithField("dataset", options.Dataset).Errorf("failed to parse dataset options: %v", err)
+			taskSpan.AddEvent("failed to parse dataset options")
+			taskSpan.RecordError(err)
+			return
+		}
 		logEntry.WithField("dataset", options.Dataset).Info("dataset build successfully")
 		repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
 			TaskID:    taskOptions.TaskID,
@@ -338,9 +351,9 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 				consts.ExecuteImage:   image,
 				consts.ExecuteTag:     tag,
 				consts.ExecuteDataset: options.Dataset,
-				consts.ExecuteEnvVars: map[string]string{
-					consts.ExecuteEnvVarService: options.Service,
-				},
+				// consts.ExecuteEnvVars: map[string]string{
+				// 	consts.ExecuteEnvVarService: options.Service,
+				// },
 			},
 			Immediate: true,
 			TraceID:   taskOptions.TraceID,
@@ -468,14 +481,14 @@ func parseDatasetOptions(labels map[string]string) (*DatasetOptions, error) {
 		return nil, fmt.Errorf(message, consts.LabelDataset)
 	}
 
-	service, ok := labels[consts.LabelService]
-	if !ok || service == "" {
-		return nil, fmt.Errorf(message, consts.LabelService)
-	}
+	// service, ok := labels[consts.LabelService]
+	// if !ok || service == "" {
+	// 	return nil, fmt.Errorf(message, consts.LabelService)
+	// }
 
 	return &DatasetOptions{
 		Dataset: dataset,
-		Service: service,
+		// Service: service,
 	}, nil
 }
 

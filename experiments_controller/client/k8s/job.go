@@ -39,6 +39,11 @@ func CreateJob(ctx context.Context, jobConfig JobConfig) error {
 				Name:      "nfs-volume",
 				MountPath: "/data",
 			},
+			{
+				Name:      "kube-config",
+				MountPath: "/root/.kube/config",
+				SubPath:   "config",
+			},
 		}
 		pvc := config.GetString("nfs.pvc_name")
 		if config.GetString("nfs.pvc_name") == "" {
@@ -50,6 +55,20 @@ func CreateJob(ctx context.Context, jobConfig JobConfig) error {
 				VolumeSource: corev1.VolumeSource{
 					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 						ClaimName: pvc,
+					},
+				},
+			},
+			{
+				Name: "kube-config",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: "kube-config",
+						Items: []corev1.KeyToPath{
+							{
+								Key:  "config",
+								Path: "config",
+							},
+						},
 					},
 				},
 			},
