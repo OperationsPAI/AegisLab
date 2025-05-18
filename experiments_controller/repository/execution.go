@@ -3,8 +3,8 @@ package repository
 import (
 	"fmt"
 
-	"github.com/CUHK-SE-Group/rcabench/database"
-	"github.com/CUHK-SE-Group/rcabench/dto"
+	"github.com/LGU-SE-Internal/rcabench/database"
+	"github.com/LGU-SE-Internal/rcabench/dto"
 )
 
 func CreateExecutionResult(algorithm, taskID string, datasetID int) (int, error) {

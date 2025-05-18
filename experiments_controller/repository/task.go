@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CUHK-SE-Group/rcabench/client"
-	"github.com/CUHK-SE-Group/rcabench/consts"
-	"github.com/CUHK-SE-Group/rcabench/database"
-	"github.com/CUHK-SE-Group/rcabench/dto"
-	"github.com/CUHK-SE-Group/rcabench/utils"
+	"github.com/LGU-SE-Internal/rcabench/client"
+	"github.com/LGU-SE-Internal/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/database"
+	"github.com/LGU-SE-Internal/rcabench/dto"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
@@ -299,8 +299,52 @@ func AcknowledgeMessage(ctx context.Context, stream, group, id string) error {
 	return client.GetRedisClient().XAck(ctx, stream, group, id).Err()
 }
 
+// ProcessStreamMessagesForSSE processes Redis stream messages and prepares them for SSE events
+// Returns the last message ID and a slice of prepared SSE messages
+func ProcessStreamMessagesForSSE(messages []redis.XStream) (string, []dto.SSEMessageData, error) {
+	var lastID string
+	var sseMessages []dto.SSEMessageData
+
+	for _, stream := range messages {
+		for _, msg := range stream.Messages {
+			lastID = msg.ID
+
+			streamEvent, err := parseEventFromValues(msg.Values)
+			if err != nil {
+				return "", nil, fmt.Errorf("failed to parse stream message value: %v", err)
+			}
+
+			sseMessage, err := streamEvent.ToSSE()
+			if err != nil {
+				return "", nil, fmt.Errorf("failed to parse streamEvent to sse message: %v", err)
+			}
+
+			// Check if this is a completion event
+			isCompleted := false
+			if streamEvent.TaskType == consts.TaskTypeCollectResult && streamEvent.EventName == consts.EventTaskStatusUpdate {
+				if payloadStr, ok := streamEvent.Payload.(string); ok {
+					var payload dto.InfoPayloadTemplate
+					if err := json.Unmarshal([]byte(payloadStr), &payload); err == nil {
+						if payload.Status == consts.TaskStatusCompleted || payload.Status == consts.TaskStatusError || payload.Status == consts.TaskStatusCanceled {
+							isCompleted = true
+						}
+					}
+				}
+			}
+
+			sseMessages = append(sseMessages, dto.SSEMessageData{
+				ID:          msg.ID,
+				Data:        sseMessage,
+				IsCompleted: isCompleted,
+			})
+		}
+	}
+
+	return lastID, sseMessages, nil
+}
+
 // ParseEventFromValues 从 Redis Stream 消息解析事件
-func ParseEventFromValues(values map[string]any) (*dto.StreamEvent, error) {
+func parseEventFromValues(values map[string]any) (*dto.StreamEvent, error) {
 	message := "missing or invalid key %s in redis stream message values"
 
 	taskID, ok := values[consts.RdbEventTaskID].(string)
@@ -369,69 +413,11 @@ func ParseEventFromValues(values map[string]any) (*dto.StreamEvent, error) {
 	return event, nil
 }
 
-// ProcessStreamMessagesForSSE processes Redis stream messages and prepares them for SSE events
-// Returns the last message ID and a slice of prepared SSE messages
-func ProcessStreamMessagesForSSE(messages []redis.XStream) (string, []dto.SSEMessageData, error) {
-	var lastID string
-	var sseMessages []dto.SSEMessageData
-
-	for _, stream := range messages {
-		for _, msg := range stream.Messages {
-			lastID = msg.ID
-
-			streamEvent, err := ParseEventFromValues(msg.Values)
-			if err != nil {
-				return "", nil, fmt.Errorf("failed to parse stream message value: %v", err)
-			}
-
-			sseMessage, err := streamEvent.ToSSE()
-			if err != nil {
-				return "", nil, fmt.Errorf("failed to parse streamEvent to sse message: %v", err)
-			}
-
-			// Check if this is a completion event
-			isCompleted := false
-			if streamEvent.TaskType == consts.TaskTypeCollectResult && streamEvent.EventName == consts.EventTaskStatusUpdate {
-				if payloadStr, ok := streamEvent.Payload.(string); ok {
-					var payload dto.InfoPayloadTemplate
-					if err := json.Unmarshal([]byte(payloadStr), &payload); err == nil {
-						if payload.Status == consts.TaskStatusCompleted || payload.Status == consts.TaskStatusError || payload.Status == consts.TaskStatusCanceled {
-							isCompleted = true
-						}
-					}
-				}
-			}
-
-			sseMessages = append(sseMessages, dto.SSEMessageData{
-				ID:          msg.ID,
-				Data:        sseMessage,
-				IsCompleted: isCompleted,
-			})
-		}
-	}
-
-	return lastID, sseMessages, nil
-}
-
-// TaskFilter defines filtering options for task queries
-type TaskFilter struct {
-	TaskID         *string
-	TaskType       *string
-	Immediate      *bool
-	ExecuteTimeGT  *int64
-	ExecuteTimeLT  *int64
-	ExecuteTimeGTE *int64
-	ExecuteTimeLTE *int64
-	Status         *string
-	TraceID        *string
-	GroupID        *string
-}
-
 // FindTasks searches for tasks with pagination and filtering
-func FindTasks(filter TaskFilter, pageNum, pageSize int, sortField string) (int64, []database.Task, error) {
+func FindTasks(filter dto.TaskDatabaseFilter, pageNum, pageSize int, sortField string) (int64, []database.Task, error) {
 	// Build the WHERE condition dynamically
 	whereConditions := []string{}
-	whereArgs := []interface{}{}
+	whereArgs := []any{}
 
 	if filter.TaskID != nil {
 		whereConditions = append(whereConditions, "id = ?")

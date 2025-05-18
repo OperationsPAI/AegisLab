@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CUHK-SE-Group/rcabench/consts"
-	"github.com/CUHK-SE-Group/rcabench/database"
-	"github.com/CUHK-SE-Group/rcabench/dto"
+	"github.com/LGU-SE-Internal/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/database"
+	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -28,22 +28,27 @@ func GetTraceEvents(ctx context.Context, traceId string) ([]*dto.StreamEvent, er
 	if err != nil && err != redis.Nil {
 		return nil, err
 	}
+
 	events := make([]*dto.StreamEvent, 0)
 	for _, stream := range historicalMessages {
 		for _, msg := range stream.Messages {
-			streamEvent, err := ParseEventFromValues(msg.Values)
+			streamEvent, err := parseEventFromValues(msg.Values)
 			if err != nil {
 				return nil, err
 			}
+
 			streamEvent.TimeStamp, err = strconv.Atoi(strings.Split(msg.ID, "-")[0])
 			if err != nil {
 				return nil, err
 			}
+
 			events = append(events, streamEvent)
 		}
 	}
+
 	return events, nil
 }
+
 func GetTraceStatistic(ctx context.Context, traceId string) (*TraceStatistic, error) {
 	events, err := GetTraceEvents(ctx, traceId)
 	if err != nil {

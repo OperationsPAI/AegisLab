@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"sort"
 
-	"github.com/CUHK-SE-Group/rcabench/client"
-	"github.com/CUHK-SE-Group/rcabench/dto"
-	"github.com/CUHK-SE-Group/rcabench/executor"
-	"github.com/CUHK-SE-Group/rcabench/repository"
+	"github.com/LGU-SE-Internal/rcabench/client"
+	"github.com/LGU-SE-Internal/rcabench/dto"
+	"github.com/LGU-SE-Internal/rcabench/executor"
+	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
@@ -58,12 +58,11 @@ func GetTaskDetail(c *gin.Context) {
 }
 
 func GetQueuedTasks(c *gin.Context) {
-	// Set default values and bind pagination parameters
-	req := dto.TaskQueuePaginationRequest{
-		Page:     1,
+	req := dto.PaginationReq{
+		PageNum:  1,
 		PageSize: 10,
 	}
-	if err := c.ShouldBindQuery(&req); err != nil {
+	if err := c.BindQuery(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid pagination parameters")
 		return
 	}
@@ -126,9 +125,7 @@ func GetQueuedTasks(c *gin.Context) {
 
 	// Apply pagination
 	totalTasks := len(tasks)
-	totalPages := (totalTasks + req.PageSize - 1) / req.PageSize
-
-	start := (req.Page - 1) * req.PageSize
+	start := (req.PageNum - 1) * req.PageSize
 	end := start + req.PageSize
 	if start >= totalTasks {
 		// Return empty array if page is out of range
@@ -140,46 +137,37 @@ func GetQueuedTasks(c *gin.Context) {
 		tasks = tasks[start:end]
 	}
 
-	// Return paginated response with metadata
-	dto.SuccessResponse(c, gin.H{
-		"tasks": tasks,
-		"pagination": gin.H{
-			"page":       req.Page,
-			"pageSize":   req.PageSize,
-			"totalItems": totalTasks,
-			"totalPages": totalPages,
-		},
+	totalPages := (totalTasks + req.PageSize - 1) / req.PageSize
+	dto.SuccessResponse(c, dto.PaginationResp[dto.UnifiedTask]{
+		Total:      int64(totalTasks),
+		TotalPages: int64(totalPages),
+		Data:       tasks,
 	})
 }
 
 func ListTasks(c *gin.Context) {
-	// Parse query parameters for filtering and pagination
 	var req dto.TaskListReq
-	if err := c.ShouldBindQuery(&req); err != nil {
+	if err := c.BindQuery(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
 		return
 	}
 
 	// Set default values for pagination if not provided
-	if req.Page <= 0 {
-		req.Page = 1
+	if req.PageNum <= 0 {
+		req.PageNum = 1
 	}
 	if req.PageSize <= 0 {
 		req.PageSize = 10
 	}
 
-	// Build filter from request
-	filter := buildTaskFilter(req)
-
-	// Query tasks from repository
-	total, tasks, err := repository.FindTasks(filter, req.Page, req.PageSize, req.SortField)
+	filter := req.Convert()
+	total, tasks, err := repository.FindTasks(filter, req.PageNum, req.PageSize, req.SortField)
 	if err != nil {
 		logrus.Errorf("Failed to fetch tasks: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch tasks")
 		return
 	}
 
-	// Convert database tasks to DTOs
 	taskItems := make([]dto.TaskItem, 0, len(tasks))
 	for _, task := range tasks {
 		var item dto.TaskItem
@@ -187,58 +175,14 @@ func ListTasks(c *gin.Context) {
 			logrus.Warnf("Failed to convert task: %v", err)
 			continue
 		}
+
 		taskItems = append(taskItems, item)
 	}
 
-	// Calculate total pages
 	totalPages := (total + int64(req.PageSize) - 1) / int64(req.PageSize)
-
-	// Return response
-	dto.SuccessResponse(c, gin.H{
-		"tasks": taskItems,
-		"pagination": gin.H{
-			"page":       req.Page,
-			"pageSize":   req.PageSize,
-			"totalItems": total,
-			"totalPages": totalPages,
-		},
+	dto.SuccessResponse(c, dto.PaginationResp[dto.TaskItem]{
+		Total:      total,
+		TotalPages: totalPages,
+		Data:       taskItems,
 	})
-}
-
-// Helper function to build task filter from request
-func buildTaskFilter(req dto.TaskListReq) repository.TaskFilter {
-	filter := repository.TaskFilter{}
-
-	if req.TaskID != "" {
-		filter.TaskID = &req.TaskID
-	}
-	if req.TaskType != "" {
-		filter.TaskType = &req.TaskType
-	}
-	if req.Status != "" {
-		filter.Status = &req.Status
-	}
-	if req.TraceID != "" {
-		filter.TraceID = &req.TraceID
-	}
-	if req.GroupID != "" {
-		filter.GroupID = &req.GroupID
-	}
-	if req.Immediate != nil {
-		filter.Immediate = req.Immediate
-	}
-	if req.ExecuteTimeGT != nil {
-		filter.ExecuteTimeGT = req.ExecuteTimeGT
-	}
-	if req.ExecuteTimeLT != nil {
-		filter.ExecuteTimeLT = req.ExecuteTimeLT
-	}
-	if req.ExecuteTimeGTE != nil {
-		filter.ExecuteTimeGTE = req.ExecuteTimeGTE
-	}
-	if req.ExecuteTimeLTE != nil {
-		filter.ExecuteTimeLTE = req.ExecuteTimeLTE
-	}
-
-	return filter
 }

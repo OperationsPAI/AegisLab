@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/sirupsen/logrus"
 
 	"gorm.io/driver/mysql"

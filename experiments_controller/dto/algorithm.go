@@ -1,6 +1,6 @@
 package dto
 
-import "github.com/CUHK-SE-Group/rcabench/database"
+import "github.com/LGU-SE-Internal/rcabench/database"
 
 type AlgorithmListResp struct {
 	Algorithms []string `json:"algorithms"`

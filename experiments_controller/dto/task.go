@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/CUHK-SE-Group/rcabench/consts"
-	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/LGU-SE-Internal/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
@@ -121,12 +121,6 @@ func (t *TaskStreamItem) Convert(task database.Task) {
 	t.TraceID = task.TraceID
 }
 
-// Define pagination request structure
-type TaskQueuePaginationRequest struct {
-	Page     int `form:"page" binding:"min=1"`
-	PageSize int `form:"page_size" binding:"min=1"`
-}
-
 type StreamEvent struct {
 	TimeStamp int              `json:"timestamp,omitempty"`
 	TaskID    string           `json:"task_id"`
@@ -184,7 +178,56 @@ type TaskListReq struct {
 	ExecuteTimeLTE *int64 `form:"execute_time_lte"`
 
 	// Pagination parameters
-	Page      int    `form:"page"`
-	PageSize  int    `form:"page_size"`
+	PaginationReq
 	SortField string `form:"sort_field"` // Format: "field_name asc/desc"
+}
+
+type TaskDatabaseFilter struct {
+	TaskID         *string
+	TaskType       *string
+	Immediate      *bool
+	ExecuteTimeGT  *int64
+	ExecuteTimeLT  *int64
+	ExecuteTimeGTE *int64
+	ExecuteTimeLTE *int64
+	Status         *string
+	TraceID        *string
+	GroupID        *string
+}
+
+func (r *TaskListReq) Convert() TaskDatabaseFilter {
+	filter := TaskDatabaseFilter{}
+
+	if r.TaskID != "" {
+		filter.TaskID = &r.TaskID
+	}
+	if r.TaskType != "" {
+		filter.TaskType = &r.TaskType
+	}
+	if r.Status != "" {
+		filter.Status = &r.Status
+	}
+	if r.TraceID != "" {
+		filter.TraceID = &r.TraceID
+	}
+	if r.GroupID != "" {
+		filter.GroupID = &r.GroupID
+	}
+	if r.Immediate != nil {
+		filter.Immediate = r.Immediate
+	}
+	if r.ExecuteTimeGT != nil {
+		filter.ExecuteTimeGT = r.ExecuteTimeGT
+	}
+	if r.ExecuteTimeLT != nil {
+		filter.ExecuteTimeLT = r.ExecuteTimeLT
+	}
+	if r.ExecuteTimeGTE != nil {
+		filter.ExecuteTimeGTE = r.ExecuteTimeGTE
+	}
+	if r.ExecuteTimeLTE != nil {
+		filter.ExecuteTimeLTE = r.ExecuteTimeLTE
+	}
+
+	return filter
 }

@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CUHK-SE-Group/rcabench/config"
-	"github.com/CUHK-SE-Group/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/config"
+	"github.com/LGU-SE-Internal/rcabench/consts"
 )
 
 // 单例模式的 Harbor 客户端

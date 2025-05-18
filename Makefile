@@ -44,7 +44,7 @@ local-debug: ## Start local debug environment (databases + controller)
 
 import: ## Import the latest version of chaos-experiment library
 	cd $(CONTROLLER_DIR) && \
-	go get github.com/CUHK-SE-Group/chaos-experiment@injectionv2 && \
+	go get github.com/LGU-SE-Internal/chaos-experiment@injectionv2 && \
 	go mod tidy
 
 swagger: ## Generate Swagger API documentation

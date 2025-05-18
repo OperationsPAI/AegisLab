@@ -9,7 +9,7 @@ import (
 
 	"maps"
 
-	"github.com/CUHK-SE-Group/chaos-experiment/handler"
+	"github.com/LGU-SE-Internal/chaos-experiment/handler"
 )
 
 type GranularityResult struct {

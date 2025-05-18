@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"time"
 
-	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
-	"github.com/CUHK-SE-Group/rcabench/config"
-	"github.com/CUHK-SE-Group/rcabench/consts"
-	"github.com/CUHK-SE-Group/rcabench/database"
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	"github.com/LGU-SE-Internal/rcabench/config"
+	"github.com/LGU-SE-Internal/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/database"
 )
 
 type InjectCancelResp struct {

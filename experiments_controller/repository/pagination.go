@@ -3,7 +3,7 @@ package repository
 import (
 	"fmt"
 
-	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/sirupsen/logrus"
 )
 

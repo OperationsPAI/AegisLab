@@ -183,7 +183,7 @@ spec:
             - containerPort: 8081
           env:
             - name: GOPRIVATE
-              value: "github.com/CUHK-SE-Group/chaos-experiment"
+              value: "github.com/LGU-SE-Internal/chaos-experiment"
             - name: ENV
               value: "prod"
           volumeMounts:
@@ -270,7 +270,7 @@ spec:
           command: ["/app/entrypoint.sh", "consumer"]
           env:
             - name: GOPRIVATE
-              value: "github.com/CUHK-SE-Group/chaos-experiment"
+              value: "github.com/LGU-SE-Internal/chaos-experiment"
             - name: ENV
               value: "prod"
           volumeMounts:

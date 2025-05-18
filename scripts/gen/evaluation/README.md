@@ -12,8 +12,9 @@ A CLI tool for evaluating RCA Benchmark results, generating structured metrics a
 ## 📦 Installation
 
 ### From Source
+
 ```bash
-git clone https://github.com/CUHK-SE-Group/rcabench.git
+git clone https://github.com/LGU-SE-Internal/rcabench.git
 cd scripts/gen/evaluation
 # Generates binaries in bin/
 make linux  # or make windows
@@ -29,27 +30,27 @@ eval --input result.csv --service <service-name> [--output custom/path.json]
 
 ### Required Flags
 
-| Flag               | Description                          | Example                  |
-|--------------------|--------------------------------------|--------------------------|
-| `-i`, `--input`    | Path to result.csv file              | `-i ./data/result.csv`   |
-| `-s`, `--service`  | Target service name for analysis     | `-s payment-service`     |
+| Flag              | Description                      | Example                |
+| ----------------- | -------------------------------- | ---------------------- |
+| `-i`, `--input`   | Path to result.csv file          | `-i ./data/result.csv` |
+| `-s`, `--service` | Target service name for analysis | `-s payment-service`   |
 
 ### Optional Flags
 
-| Flag               | Default Path                         | Valid Format     |
-|--------------------|--------------------------------------|------------------|
-| `-o`, `--output`   | `./eval-tool/output/{UUID}.json`     | `.json` only     |
+| Flag             | Default Path                     | Valid Format |
+| ---------------- | -------------------------------- | ------------ |
+| `-o`, `--output` | `./eval-tool/output/{UUID}.json` | `.json` only |
 
 ## 📄 Input Format
 
 ### Required Columns
 
-| Column       | Type     | Description                                  | Example Value              |
-|--------------|----------|----------------------------------------------|----------------------------|
-| `level`      | string   | Error impact level identifier (`service`, `pod`, `span`, `metric`) | `service`          |
-| `result`     | string   | Full service name (must follow k8s service naming convention) | `ts-avatar-service` |
-| `rank`       | integer  | Sorting sequence number (1 indicates highest priority) | `1`                |
-| `confidence` | float    | Diagnosis confidence score (0.0-1.0, currently set to 0) | `0`                |
+| Column       | Type    | Description                                                        | Example Value       |
+| ------------ | ------- | ------------------------------------------------------------------ | ------------------- |
+| `level`      | string  | Error impact level identifier (`service`, `pod`, `span`, `metric`) | `service`           |
+| `result`     | string  | Full service name (must follow k8s service naming convention)      | `ts-avatar-service` |
+| `rank`       | integer | Sorting sequence number (1 indicates highest priority)             | `1`                 |
+| `confidence` | float   | Diagnosis confidence score (0.0-1.0, currently set to 0)           | `0`                 |
 
 ### Example CSV Snippet
 
@@ -83,13 +84,14 @@ service,ts-news-service,3,0
   ],
   "metric_2": [
     // ... metric-specific conclusions
-  ],
+  ]
 }
 ```
 
-## 📌 Report issues <a href="https://github.com/CUHK-SE-Group/rcabench/issues">here</a>
+## 📌 Report issues <a href="https://github.com/LGU-SE-Internal/rcabench/issues">here</a>
 
 Key Features:
+
 - Clear installation paths for different user types
 - Visual flag documentation table
 - Output schema preview
@@ -99,4 +101,3 @@ Key Features:
 - Direct issue reporting channel
 
 Let me know if you need any section expanded!
-

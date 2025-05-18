@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/CUHK-SE-Group/rcabench/dto"
-	"github.com/CUHK-SE-Group/rcabench/executor"
-	"github.com/CUHK-SE-Group/rcabench/repository"
+	"github.com/LGU-SE-Internal/rcabench/dto"
+	"github.com/LGU-SE-Internal/rcabench/executor"
+	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/k0kubun/pp/v3"
 	"golang.org/x/sync/errgroup"
 

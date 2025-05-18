@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
