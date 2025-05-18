@@ -161,7 +161,8 @@ func createDatasetJob(ctx context.Context, jobName, image string, annotations ma
 		parallelism := int32(1)
 		completions := int32(1)
 		jobNamespace := config.GetString("k8s.namespace")
-		command := []string{"python", "prepare_inputs.py"}
+		// command := []string{"python", "prepare_inputs.py"}
+		command := []string{"bash", "/entrypoint.sh"}
 
 		envVars := getDatasetJobEnvVars(payload)
 		return k8s.CreateJob(ctx, k8s.JobConfig{
