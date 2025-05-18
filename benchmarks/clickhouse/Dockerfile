@@ -1,9 +1,9 @@
 # https://github.com/LGU-SE-Internal/rcabench-platform/blob/main/cli/prepare_inputs.py
-FROM 10.10.10.240/library/rcabench-platform:eefefe8
+FROM 10.10.10.240/library/rcabench-platform:5588fef
 
 WORKDIR /app
 
-COPY entrypoint.sh /entrypoint.sh
+COPY benchmarks/clickhouse/entrypoint.sh /entrypoint.sh
 
 ARG ABNORMAL_START_VAR
 ARG ABNORMAL_END_VAR
