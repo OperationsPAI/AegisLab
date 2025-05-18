@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CUHK-SE-Group/rcabench/tracing"
+	"github.com/LGU-SE-Internal/rcabench/tracing"
 	"github.com/sirupsen/logrus"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"

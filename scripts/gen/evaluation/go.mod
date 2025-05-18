@@ -3,7 +3,7 @@ module eval-tool
 go 1.23.4
 
 require (
-	github.com/CUHK-SE-Group/chaos-experiment v0.0.0-20250320101602-24cdabf65183
+	github.com/LGU-SE-Internal/chaos-experiment v0.0.0-20250320101602-24cdabf65183
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
 	github.com/google/uuid v1.3.1
 	github.com/sirupsen/logrus v1.9.3

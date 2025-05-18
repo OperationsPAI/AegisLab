@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/CUHK-SE-Group/rcabench/database"
+	"github.com/LGU-SE-Internal/rcabench/database"
 )
 
 func listGranularityWithFilters(executionIDs []int, levels []string, rank int) ([]database.GranularityResult, error) {

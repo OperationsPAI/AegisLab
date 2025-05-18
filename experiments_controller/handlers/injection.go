@@ -7,15 +7,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CUHK-SE-Group/chaos-experiment/handler"
-	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
-	"github.com/CUHK-SE-Group/rcabench/client/k8s"
-	conf "github.com/CUHK-SE-Group/rcabench/config"
-	"github.com/CUHK-SE-Group/rcabench/consts"
-	"github.com/CUHK-SE-Group/rcabench/dto"
-	"github.com/CUHK-SE-Group/rcabench/executor"
-	"github.com/CUHK-SE-Group/rcabench/middleware"
-	"github.com/CUHK-SE-Group/rcabench/repository"
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	"github.com/LGU-SE-Internal/rcabench/client/k8s"
+	conf "github.com/LGU-SE-Internal/rcabench/config"
+	"github.com/LGU-SE-Internal/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/dto"
+	"github.com/LGU-SE-Internal/rcabench/executor"
+	"github.com/LGU-SE-Internal/rcabench/middleware"
+	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/codes"
@@ -32,7 +31,7 @@ func GetInjectionConf(c *gin.Context) {
 		return
 	}
 
-	root, err := chaos.StructToNode[handler.InjectionConf](req.Namespace)
+	root, err := chaos.StructToNode[chaos.InjectionConf](req.Namespace)
 	if err != nil {
 		logrus.Errorf("struct InjectionConf to node failed: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to read injection conf")
@@ -124,9 +123,11 @@ func GetInjectionList(c *gin.Context) {
 		items = append(items, item)
 	}
 
+	totalPages := (total + int64(req.PageSize) - 1) / int64(req.PageSize)
 	dto.SuccessResponse(c, &dto.PaginationResp[dto.InjectionItem]{
-		Total: total,
-		Data:  items,
+		Total:      total,
+		TotalPages: totalPages,
+		Data:       items,
 	})
 }
 

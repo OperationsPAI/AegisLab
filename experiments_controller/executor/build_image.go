@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"time"
 
-	con "github.com/CUHK-SE-Group/rcabench/config"
-	"github.com/CUHK-SE-Group/rcabench/consts"
-	"github.com/CUHK-SE-Group/rcabench/dto"
-	"github.com/CUHK-SE-Group/rcabench/utils"
+	con "github.com/LGU-SE-Internal/rcabench/config"
+	"github.com/LGU-SE-Internal/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/dto"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 
 	"github.com/docker/cli/cli/config"
 	"github.com/moby/buildkit/client"

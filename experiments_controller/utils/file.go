@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/CUHK-SE-Group/rcabench/config"
+	"github.com/LGU-SE-Internal/rcabench/config"
 )
 
 type ExculdeRule struct {

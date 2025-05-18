@@ -38,7 +38,7 @@ services:
       context: ./experiments_controller
     container_name: exp
     environment:
-      GOPRIVATE: "github.com/CUHK-SE-Group/chaos-experiment"
+      GOPRIVATE: "github.com/LGU-SE-Internal/chaos-experiment"
       ENV: "prod"
     command: ["/app/exp", "both", "--port", "8081"]
     volumes:

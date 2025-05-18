@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CUHK-SE-Group/rcabench/client"
-	"github.com/CUHK-SE-Group/rcabench/config"
-	"github.com/CUHK-SE-Group/rcabench/consts"
-	"github.com/CUHK-SE-Group/rcabench/dto"
-	"github.com/CUHK-SE-Group/rcabench/repository"
+	"github.com/LGU-SE-Internal/rcabench/client"
+	"github.com/LGU-SE-Internal/rcabench/config"
+	"github.com/LGU-SE-Internal/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/dto"
+	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
