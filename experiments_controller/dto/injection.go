@@ -21,13 +21,14 @@ type InjectionConfReq struct {
 }
 
 type InjectionItem struct {
-	ID        int            `json:"id"`
-	TaskID    string         `json:"task_id"`
-	FaultType string         `json:"fault_type"`
-	Spec      map[string]any `json:"spec"`
-	Status    string         `json:"status"`
-	StartTime time.Time      `json:"start_time"`
-	EndTime   time.Time      `json:"end_time"`
+	ID          int            `json:"id"`
+	TaskID      string         `json:"task_id"`
+	FaultType   string         `json:"fault_type"`
+	Status      string         `json:"status"`
+	Spec        map[string]any `json:"spec"`
+	PreDuration int            `json:"pre_duration"`
+	StartTime   time.Time      `json:"start_time"`
+	EndTime     time.Time      `json:"end_time"`
 }
 
 func (i *InjectionItem) Convert(record database.FaultInjectionSchedule) error {
@@ -39,8 +40,9 @@ func (i *InjectionItem) Convert(record database.FaultInjectionSchedule) error {
 	i.ID = record.ID
 	i.TaskID = record.TaskID
 	i.FaultType = chaos.ChaosTypeMap[chaos.ChaosType(record.FaultType)]
-	i.Spec = config
 	i.Status = DatasetStatusMap[record.Status]
+	i.Spec = config
+	i.PreDuration = record.PreDuration
 	i.StartTime = record.StartTime
 	i.EndTime = record.EndTime
 
@@ -156,4 +158,9 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 	}
 
 	return configs, nil
+}
+
+type QueryInjectionReq struct {
+	Name   string `form:"name" binding:"omitempty,max=64"`
+	TaskID string `form:"task_id" binding:"omitempty,max=64"`
 }

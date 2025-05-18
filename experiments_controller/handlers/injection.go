@@ -24,6 +24,18 @@ import (
 func CancelInjection(c *gin.Context) {
 }
 
+// GetInjectionConf
+//
+//	@Summary		获取故障注入配置
+//	@Description	获取指定命名空间的故障注入配置信息
+//	@Tags			injection
+//	@Produce		json
+//	@Param			namespace	query		string	true	"命名空间"
+//	@Param			mode		query		string	true	"显示模式(display/engine)"
+//	@Success		200			{object}	dto.GenericResponse[map[string]any]
+//	@Failure		400			{object}	dto.GenericResponse[any]
+//	@Failure		500			{object}	dto.GenericResponse[any]
+//	@Router			/api/v1/injections/conf [get]
 func GetInjectionConf(c *gin.Context) {
 	var req dto.InjectionConfReq
 	if err := c.BindQuery(&req); err != nil {
@@ -94,9 +106,11 @@ func GetInjectionConf(c *gin.Context) {
 //	@Tags			injection
 //	@Produce		json
 //	@Consumes		application/json
-//	@Success		200	{object}		dto.GenericResponse[dto.PaginationResp[dto.InjectionItem]]
-//	@Failure		400	{object}		dto.GenericResponse[any]
-//	@Failure		500	{object}		dto.GenericResponse[any]
+//	@Param			page_num	query		int	false	"页码"	default(1)
+//	@Param			page_size	query		int	false	"每页大小"	default(10)
+//	@Success		200			{object}	dto.GenericResponse[dto.PaginationResp[dto.InjectionItem]]
+//	@Failure		400			{object}	dto.GenericResponse[any]
+//	@Failure		500			{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/injections/getlist [post]
 func GetInjectionList(c *gin.Context) {
 	var req dto.InjectionListReq
@@ -131,6 +145,35 @@ func GetInjectionList(c *gin.Context) {
 	})
 }
 
+func QueryInjection(c *gin.Context) {
+	var req dto.QueryInjectionReq
+	if err := c.BindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, formatErrorMessage(err, map[string]string{}))
+		return
+	}
+
+	if req.Name == "" && req.TaskID == "" {
+		dto.ErrorResponse(c, http.StatusBadRequest, "At least one of the name or task_id parameters must be provided")
+		return
+	}
+
+	queryColumn := "injection_name"
+	queryParam := req.Name
+	if queryParam == "" {
+		queryColumn = "task_id"
+		queryParam = req.TaskID
+	}
+
+	item, err := repository.GetInjection(queryColumn, queryParam)
+	if err != nil {
+		logrus.Errorf("failed to get injection record: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get injection record")
+		return
+	}
+
+	dto.SuccessResponse(c, item)
+}
+
 // SubmitFaultInjection
 //
 //	@Summary		注入故障
@@ -138,7 +181,7 @@ func GetInjectionList(c *gin.Context) {
 //	@Tags			injection
 //	@Produce		json
 //	@Consumes		application/json
-//	@Param			body	body		[]dto.InjectionSubmitReq	true	"请求体"
+//	@Param			body	body		dto.InjectionSubmitReq	true	"请求体"
 //	@Success		200		{object}	dto.GenericResponse[dto.SubmitResp]
 //	@Failure		400		{object}	dto.GenericResponse[any]
 //	@Failure		500		{object}	dto.GenericResponse[any]
@@ -243,6 +286,7 @@ func GetNSLock(c *gin.Context) {
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to inspect lock")
 		return
 	}
+
 	dto.SuccessResponse(c, items)
 }
 

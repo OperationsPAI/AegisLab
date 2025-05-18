@@ -73,8 +73,8 @@ func QueryDataset(c *gin.Context) {
 
 	item, err := repository.GetDatasetByName(req.Name, consts.DatasetBuildSuccess)
 	if err != nil {
-		logrus.Errorf("failed to get injection record: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to retrieve dataset")
+		logrus.Errorf("failed to get dataset: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get dataset")
 		return
 	}
 

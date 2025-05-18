@@ -164,6 +164,22 @@ func GetEngineConfigByNames(names []string) ([]string, error) {
 	return configs, nil
 }
 
+func GetInjection(column, param string) (*dto.InjectionItem, error) {
+	query := database.DB.Where(fmt.Sprintf("%s = ?", column), param)
+
+	var record database.FaultInjectionSchedule
+	if err := query.First(&record).Error; err != nil {
+		return nil, err
+	}
+
+	var item dto.InjectionItem
+	if err := item.Convert(record); err != nil {
+		return nil, err
+	}
+
+	return &item, nil
+}
+
 func ListDatasetByExecutionIDs(executionIDs []int) ([]dto.DatasetItemWithID, error) {
 	query := database.DB.
 		Model(&database.FaultInjectionSchedule{}).

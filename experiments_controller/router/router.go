@@ -30,8 +30,8 @@ func New() *gin.Engine {
 	{
 		datasets.DELETE("", handlers.DeleteDataset)
 		datasets.GET("", handlers.GetDatasetList)
-		datasets.GET("/query", handlers.QueryDataset)
 		datasets.GET("/download", handlers.DownloadDataset)
+		datasets.GET("/query", handlers.QueryDataset)
 		datasets.POST("", handlers.SubmitDatasetBuilding)
 	}
 
@@ -44,8 +44,9 @@ func New() *gin.Engine {
 	{
 		injections.GET("", handlers.GetInjectionList)
 		injections.GET("/conf", handlers.GetInjectionConf)
-		injections.POST("", handlers.SubmitFaultInjection)
 		injections.GET("/ns/status", handlers.GetNSLock)
+		injections.GET("/query", handlers.QueryInjection)
+		injections.POST("", handlers.SubmitFaultInjection)
 
 		tasks := injections.Group("/:task_id")
 		{
@@ -66,11 +67,12 @@ func New() *gin.Engine {
 
 	traces := r.Group("/traces")
 	{
+		traces.GET("/analyze", handlers.AnalyzeTrace)
+
 		tracesWithID := traces.Group("/:trace_id")
 		{
 			tracesWithID.GET("/stream", handlers.GetTraceStream)
 		}
-		traces.GET("/analyze", handlers.AnalyzeTrace)
 	}
 
 	router.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
