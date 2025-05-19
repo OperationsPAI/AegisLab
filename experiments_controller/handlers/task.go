@@ -148,7 +148,7 @@ func GetQueuedTasks(c *gin.Context) {
 func ListTasks(c *gin.Context) {
 	var req dto.TaskListReq
 	if err := c.BindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
+		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid query parameters, %v", err))
 		return
 	}
 
