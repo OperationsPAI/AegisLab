@@ -6,7 +6,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/tracing"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
@@ -35,29 +34,29 @@ func CreateJob(ctx context.Context, jobConfig JobConfig) error {
 		span := trace.SpanFromContext(ctx)
 
 		volumeMounts := []corev1.VolumeMount{
-			{
-				Name:      "nfs-volume",
-				MountPath: "/data",
-			},
+			// {
+			// 	Name:      "nfs-volume",
+			// 	MountPath: "/data",
+			// },
 			{
 				Name:      "kube-config",
 				MountPath: "/root/.kube/config",
 				SubPath:   "config",
 			},
 		}
-		pvc := config.GetString("nfs.pvc_name")
-		if config.GetString("nfs.pvc_name") == "" {
-			pvc = "nfs-shared-pvc"
-		}
+		// pvc := config.GetString("nfs.pvc_name")
+		// if config.GetString("nfs.pvc_name") == "" {
+		// pvc = "nfs-shared-pvc"
+		// }
 		volumes := []corev1.Volume{
-			{
-				Name: "nfs-volume",
-				VolumeSource: corev1.VolumeSource{
-					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: pvc,
-					},
-				},
-			},
+			// {
+			// 	Name: "nfs-volume",
+			// 	VolumeSource: corev1.VolumeSource{
+			// 		PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+			// 			ClaimName: pvc,
+			// 		},
+			// 	},
+			// },
 			{
 				Name: "kube-config",
 				VolumeSource: corev1.VolumeSource{
