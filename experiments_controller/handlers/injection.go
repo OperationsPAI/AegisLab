@@ -138,10 +138,10 @@ func GetInjectionList(c *gin.Context) {
 	}
 
 	totalPages := (total + int64(req.PageSize) - 1) / int64(req.PageSize)
-	dto.SuccessResponse(c, &dto.PaginationResp[dto.InjectionItem]{
+	dto.SuccessResponse(c, dto.PaginationResp[dto.InjectionItem]{
 		Total:      total,
 		TotalPages: totalPages,
-		Data:       items,
+		Items:      items,
 	})
 }
 

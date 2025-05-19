@@ -17,7 +17,7 @@ type GenericResponse[T any] struct {
 type PaginationResp[T any] struct {
 	Total      int64 `json:"total"`
 	TotalPages int64 `json:"total_pages"`
-	Data       []T   `json:"-"`
+	Items      []T   `json:"items"`
 }
 
 type Trace struct {

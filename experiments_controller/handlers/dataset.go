@@ -144,10 +144,10 @@ func GetDatasetList(c *gin.Context) {
 	}
 
 	totalPages := (total + int64(req.PageSize) - 1) / int64(req.PageSize)
-	dto.SuccessResponse(c, &dto.PaginationResp[dto.DatasetItem]{
+	dto.SuccessResponse(c, dto.PaginationResp[dto.DatasetItem]{
 		Total:      total,
 		TotalPages: totalPages,
-		Data:       items,
+		Items:      items,
 	})
 }
 

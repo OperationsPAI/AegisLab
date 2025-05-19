@@ -228,7 +228,8 @@ class ListResult(BaseModel):
 
     Attributes:
         total: 数据集总数
-        datasets: 数据集条目列表
+        total_pages: 数据集记录总页数
+        items: 数据集条目列表
     """
 
     total: int = Field(
@@ -238,7 +239,14 @@ class ListResult(BaseModel):
         ge=0,
     )
 
-    datasets: List[DatasetItem] = Field(
+    total_pages: int = Field(
+        default=0,
+        ge=0,
+        description="Total number of injections pages",
+        json_schema_extra={"example": 20},
+    )
+
+    items: List[DatasetItem] = Field(
         default_factory=list,
         description="List of datasets",
     )
