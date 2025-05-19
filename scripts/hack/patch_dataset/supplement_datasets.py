@@ -34,7 +34,7 @@ ORDER BY id DESC""")
             print("📋 查询结果：")
             for row in rows:
                 print(row[1])
-                sdk.dataset.submit(
+                resp = sdk.dataset.submit(
                     [
                         {
                             "benchmark": "clickhouse",
@@ -46,7 +46,8 @@ ORDER BY id DESC""")
                         }
                     ]
                 )
-                time.sleep(80)
+                print(f"🔄 提交数据集：{resp}")
+                time.sleep(20)
 
     except Error as e:
         print(f"❌ 查询失败：{e}")
