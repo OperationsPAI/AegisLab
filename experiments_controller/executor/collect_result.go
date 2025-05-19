@@ -9,12 +9,14 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/LGU-SE-Internal/rcabench/config"
+	"github.com/LGU-SE-Internal/rcabench/client"
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/LGU-SE-Internal/rcabench/tracing"
+	"github.com/google/uuid"
+	"github.com/minio/minio-go/v7"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -33,16 +35,30 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 		if err != nil {
 			return err
 		}
-
-		path := config.GetString("nfs.path")
+		s3cli, err := client.GetS3Client()
 
 		if collectPayload.Algorithm == "detector" {
-			conclusionCSV := filepath.Join(path, collectPayload.Dataset, consts.DetectorConclusionFile)
-			content, err := os.ReadFile(conclusionCSV)
 			if err != nil {
-				span.AddEvent(fmt.Sprintf("there is no conclusion.csv file in %s, please check whether it is nomal", conclusionCSV))
+				span.AddEvent("failed to get s3 client")
 				span.RecordError(err)
-				return fmt.Errorf("there is no conclusion.csv file in %s, please check whether it is nomal", conclusionCSV)
+				return fmt.Errorf("failed to get s3 client: %v", err)
+			}
+
+			tempPath := filepath.Join("/tmp", uuid.New().String())
+			err = s3cli.FGetObject(ctx, "rcabench-dataset", fmt.Sprintf("%s/%s", collectPayload.Dataset, consts.DetectorConclusionFile), tempPath, minio.GetObjectOptions{})
+
+			if err != nil {
+				span.AddEvent("failed to download conclusion.csv from s3")
+				span.RecordError(err)
+				logrus.WithField("trace_id", task.TraceID).Errorf("failed to download conclusion.csv from s3: %v", err)
+				return fmt.Errorf("failed to download conclusion.csv from s3: %v", err)
+			}
+
+			content, err := os.ReadFile(tempPath)
+			if err != nil {
+				span.AddEvent("failed to read conclusion.csv file")
+				span.RecordError(err)
+				return fmt.Errorf("failed to read conclusion.csv file: %v", err)
 			}
 
 			results, err := readDetectorCSV(content, collectPayload.ExecutionID)
@@ -101,12 +117,19 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				task.Type,
 			)
 		} else {
-			resultCSV := filepath.Join(path, collectPayload.Dataset, "result.csv")
-			content, err := os.ReadFile(resultCSV)
+			tempPath := filepath.Join("/tmp", uuid.New().String())
+			err := s3cli.FGetObject(ctx, "rcabench-dataset", fmt.Sprintf("%s/%s", collectPayload.Dataset, consts.ExecutionResultFile), tempPath, minio.GetObjectOptions{})
+
 			if err != nil {
-				span.AddEvent(fmt.Sprintf("there is no result.csv file in %s, please check whether it is nomal", resultCSV))
+				span.AddEvent("failed to download result.csv from s3")
 				span.RecordError(err)
-				return fmt.Errorf("There is no result.csv file, please check whether it is nomal")
+				return fmt.Errorf("failed to download result.csv from s3: %v", err)
+			}
+			content, err := os.ReadFile(tempPath)
+			if err != nil {
+				span.AddEvent("failed to read result.csv file")
+				span.RecordError(err)
+				return fmt.Errorf("failed to read result.csv file: %v", err)
 			}
 
 			results, err := readCSVContent2Result(content, collectPayload.ExecutionID)

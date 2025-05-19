@@ -53,6 +53,12 @@ data:
 
     [buildkit]
     address = "tcp://{{ .Release.Name }}-buildkit:1234"
+
+    [s3]
+    endpoint = "{{ .Values.configmap.s3.endpoint }}"
+    access_key = "{{ .Values.configmap.s3.access_key }}"
+    secret_key = "{{ .Values.configmap.s3.secret_key }}"
+    use_ssl = {{ .Values.configmap.s3.use_ssl }}
     
 ---
 apiVersion: v1

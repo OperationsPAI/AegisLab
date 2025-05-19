@@ -45,3 +45,9 @@ storage_path = "/app/algorithms"
 
 [debugging]
 enable = false
+
+[s3]
+endpoint = "10.10.10.38:9000"
+access_key = "minioadmin"
+secret_key = "minioadmin"
+use_ssl = false
