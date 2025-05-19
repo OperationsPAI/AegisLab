@@ -72,7 +72,15 @@ func (c *HelmClient) AddRepo(name, url string) error {
 
 	// Check if the repo already exists
 	if f.Has(name) {
-		// Repository already exists, nothing to do
+		if f.Get(name).URL != url {
+			f.Get(name).URL = url
+		}
+
+		if err := f.WriteFile(repoFile, 0644); err != nil {
+			return fmt.Errorf("failed to write repository file: %w", err)
+		}
+
+		logrus.Infof("Updated repository %s URL to %s", name, url)
 		return nil
 	}
 
@@ -81,7 +89,6 @@ func (c *HelmClient) AddRepo(name, url string) error {
 		Name: name,
 		URL:  url,
 	}
-
 	r, err := repo.NewChartRepository(entry, getter.All(c.settings))
 	if err != nil {
 		return fmt.Errorf("failed to create chart repository: %w", err)
@@ -92,7 +99,6 @@ func (c *HelmClient) AddRepo(name, url string) error {
 	}
 
 	f.Update(entry)
-
 	if err := f.WriteFile(repoFile, 0644); err != nil {
 		return fmt.Errorf("failed to write repository file: %w", err)
 	}
@@ -184,7 +190,7 @@ func (c *HelmClient) UninstallRelease(releaseName string) error {
 	return nil
 }
 
-func (c *HelmClient) InstallRelease(ctx context.Context, releaseName, chartName string, vals map[string]interface{}) error {
+func (c *HelmClient) InstallRelease(ctx context.Context, releaseName, chartName string, vals map[string]any) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
 		now := time.Now()
 
@@ -218,7 +224,7 @@ func (c *HelmClient) InstallRelease(ctx context.Context, releaseName, chartName 
 	})
 }
 
-func (c *HelmClient) InstallTrainTicket(ctx context.Context, releaseName, imageTag, nodePort string) error {
+func (c *HelmClient) InstallTrainTicket(ctx context.Context, releaseName, nodePort string) error {
 	installed, err := c.IsReleaseInstalled(releaseName)
 	if err != nil {
 		return err
@@ -236,14 +242,20 @@ func (c *HelmClient) InstallTrainTicket(ctx context.Context, releaseName, imageT
 		log.Printf("No existing %s release found", releaseName)
 	}
 
-	values := map[string]interface{}{
-		"global": map[string]interface{}{
-			"image": map[string]interface{}{
+	imageName := "ts-train-service"
+	imageTag, err := GetHarborClient().GetLatestTag(imageName)
+	if err != nil {
+		return fmt.Errorf("failed to get lataest tag of %s: %v", imageName, err)
+	}
+
+	values := map[string]any{
+		"global": map[string]any{
+			"image": map[string]any{
 				"tag": imageTag,
 			},
 		},
-		"services": map[string]interface{}{
-			"tsUiDashboard": map[string]interface{}{
+		"services": map[string]any{
+			"tsUiDashboard": map[string]any{
 				"nodePort": nodePort,
 			},
 		},

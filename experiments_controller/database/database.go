@@ -41,6 +41,7 @@ type FaultInjectionSchedule struct {
 	EndTime       time.Time `gorm:"default:null" json:"end_time"`       // 预计故障结束时间
 	Status        int       `json:"status"`                             // 0: 初始状态 1: 注入结束且成功 2: 注入结束且失败 3: 收集数据成功 4:收集数据失败
 	Description   string    `json:"description"`                        // 描述（可选字段）
+	Benchmark     string    `json:"benchmark"`                          // 基准数据库
 	InjectionName string    `gorm:"unique,index" json:"injection_name"` // 在k8s资源里注入的名字
 	CreatedAt     time.Time `gorm:"autoCreateTime" json:"created_at"`   // 创建时间
 	UpdatedAt     time.Time `gorm:"autoUpdateTime" json:"updated_at"`   // 更新时间

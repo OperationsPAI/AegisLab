@@ -42,7 +42,6 @@ type TaskOptions struct {
 
 type DatasetOptions struct {
 	Dataset string
-	// Service string
 }
 
 type ExecutionOptions struct {
@@ -126,7 +125,6 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 
 	envVars := map[string]string{
 		consts.BuildEnvVarNamespace: namespace,
-		consts.BuildEnvVarService:   pod,
 	}
 	datasetPayload := map[string]any{
 		consts.BuildBenchmark:   parsedLabels.Benchmark,
@@ -351,9 +349,6 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 				consts.ExecuteImage:   image,
 				consts.ExecuteTag:     tag,
 				consts.ExecuteDataset: options.Dataset,
-				// consts.ExecuteEnvVars: map[string]string{
-				// 	consts.ExecuteEnvVarService: options.Service,
-				// },
 			},
 			Immediate: true,
 			TraceID:   taskOptions.TraceID,
@@ -481,14 +476,8 @@ func parseDatasetOptions(labels map[string]string) (*DatasetOptions, error) {
 		return nil, fmt.Errorf(message, consts.LabelDataset)
 	}
 
-	// service, ok := labels[consts.LabelService]
-	// if !ok || service == "" {
-	// 	return nil, fmt.Errorf(message, consts.LabelService)
-	// }
-
 	return &DatasetOptions{
 		Dataset: dataset,
-		// Service: service,
 	}, nil
 }
 

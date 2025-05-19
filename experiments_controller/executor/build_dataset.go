@@ -60,7 +60,6 @@ func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
 			consts.LabelGroupID:  task.GroupID,
 			consts.LabelTaskType: string(consts.TaskTypeBuildDataset),
 			consts.LabelDataset:  payload.Name,
-			consts.LabelService:  payload.EnvVars[consts.BuildEnvVarService],
 		}
 
 		return createDatasetJob(ctx, jobName, image, annotations, labels, payload)
@@ -105,7 +104,7 @@ func parseDatasetPayload(payload map[string]any) (*datasetPayload, error) {
 			startTime = *startTimePtr
 			endTime = *endTimePtr
 		} else {
-			datasetItem, err := repository.GetDatasetByName(name, consts.DatasetInjectSuccess)
+			datasetItem, err := repository.GetDatasetByName(name, consts.DatasetInjectSuccess, consts.DatasetBuildFailed)
 			if err != nil {
 				return nil, fmt.Errorf("query database for dataset failed: %v", err)
 			}
@@ -161,7 +160,6 @@ func createDatasetJob(ctx context.Context, jobName, image string, annotations ma
 		parallelism := int32(1)
 		completions := int32(1)
 		jobNamespace := config.GetString("k8s.namespace")
-		// command := []string{"python", "prepare_inputs.py"}
 		command := []string{"bash", "/entrypoint.sh"}
 
 		envVars := getDatasetJobEnvVars(payload)
