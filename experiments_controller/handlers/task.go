@@ -141,7 +141,7 @@ func GetQueuedTasks(c *gin.Context) {
 	dto.SuccessResponse(c, dto.PaginationResp[dto.UnifiedTask]{
 		Total:      int64(totalTasks),
 		TotalPages: int64(totalPages),
-		Data:       tasks,
+		Items:      tasks,
 	})
 }
 
@@ -183,6 +183,6 @@ func ListTasks(c *gin.Context) {
 	dto.SuccessResponse(c, dto.PaginationResp[dto.TaskItem]{
 		Total:      total,
 		TotalPages: totalPages,
-		Data:       taskItems,
+		Items:      taskItems,
 	})
 }

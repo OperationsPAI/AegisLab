@@ -99,7 +99,8 @@ class ListResult(BaseModel):
 
     Attributes:
         total: 注入任务总数
-        injections: 注入任务列表
+        total_pages: 注入记录总页数
+        items: 注入任务列表
     """
 
     total: int = Field(
@@ -109,7 +110,14 @@ class ListResult(BaseModel):
         json_schema_extra={"example": 20},
     )
 
-    injections: List[InjectionItem] = Field(
+    total_pages: int = Field(
+        default=0,
+        ge=0,
+        description="Total number of injections pages",
+        json_schema_extra={"example": 20},
+    )
+
+    items: List[InjectionItem] = Field(
         default_factory=list,
         description="List of injections",
     )
