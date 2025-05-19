@@ -463,12 +463,6 @@ class EnvVar(BaseModel):
         json_schema_extra={"example": "ts"},
     )
 
-    SERVICE: Optional[str] = Field(
-        None,
-        description="Full name of microservice to monitor",
-        json_schema_extra={"example": "ts-ts-preserve-service"},
-    )
-
 
 class BuildPayload(BaseModel):
     benchmark: str = Field(

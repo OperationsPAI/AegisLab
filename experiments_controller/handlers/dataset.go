@@ -356,12 +356,21 @@ func SubmitDatasetBuilding(c *gin.Context) {
 		return
 	}
 
+	payloads, err := repository.GetDatasetBuildPayloads(payloads)
+	if err != nil {
+		message := "failed to get dataset build payloads"
+		logrus.Errorf("%s: %v", message, err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, message)
+		return
+	}
+
 	ctx, ok := c.Get(middleware.SpanContextKey)
 	if !ok {
 		logrus.Error("failed to get span context from gin.Context")
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get span context")
 		return
 	}
+
 	spanCtx := ctx.(context.Context)
 	for i := range payloads {
 		for key := range payloads[i].EnvVars {
@@ -395,7 +404,9 @@ func SubmitDatasetBuilding(c *gin.Context) {
 		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID, Index: idx})
 	}
 
-	dto.JSONResponse(c, http.StatusAccepted, "Dataset building submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
+	dto.JSONResponse(c, http.StatusAccepted, "Dataset building submitted successfully",
+		dto.SubmitResp{GroupID: groupID, Traces: traces},
+	)
 }
 
 func UploadDataset(c *gin.Context) {

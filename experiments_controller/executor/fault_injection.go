@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"math/rand/v2"
-	"reflect"
 	"regexp"
 	"strconv"
 	"time"
@@ -14,12 +13,12 @@ import (
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"github.com/LGU-SE-Internal/rcabench/client"
 	"github.com/LGU-SE-Internal/rcabench/client/k8s"
-	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/LGU-SE-Internal/rcabench/tracing"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -68,7 +67,7 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			return err
 		}
 
-		prefix, index, err := extractNamespace(payload.namespace)
+		index, err := extractNamespace(payload.namespace)
 		if err != nil {
 			monitor.ReleaseLock(payload.namespace, task.TraceID)
 			span.RecordError(err)
@@ -94,18 +93,8 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			return fmt.Errorf("failed to inject fault: %v", err)
 		}
 
-		m, err := config.GetNsTargetMap()
-		if err != nil {
-			monitor.ReleaseLock(payload.namespace, task.TraceID)
-			span.RecordError(err)
-			span.AddEvent("failed to get namespace target map in configuration")
-			return fmt.Errorf("failed to get namespace target map in configuration: %v", err)
-		}
-
 		childNode := payload.node.Children[strconv.Itoa(payload.node.Value)]
-		childNode.Children[strconv.Itoa(len(childNode.Children))] = &chaos.Node{
-			Value: index % m[prefix],
-		}
+		childNode.Children[strconv.Itoa(len(childNode.Children))] = &chaos.Node{Value: index}
 
 		engineConfig := chaos.NodeToMap(payload.node, true)
 		engineData, err := json.Marshal(engineConfig)
@@ -121,8 +110,9 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			DisplayConfig: payload.displayData,
 			EngineConfig:  string(engineData),
 			PreDuration:   payload.preDuration,
-			Description:   fmt.Sprintf("Fault for task %s", task.TaskID),
 			Status:        consts.DatasetInitial,
+			Description:   fmt.Sprintf("Fault for task %s", task.TaskID),
+			Benchmark:     payload.benchmark,
 			InjectionName: name,
 		}
 
@@ -200,7 +190,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 		deltaTime = time.Duration(payload.interval-payload.faultDuration) * consts.DefaultTimeUnit
 		injectTime := t.Add(deltaTime)
 
-		_, index, err := extractNamespace(namespace)
+		index, err := extractNamespace(namespace)
 		if err != nil {
 			monitor.ReleaseLock(namespace, task.TraceID)
 			span.RecordError(err)
@@ -219,7 +209,6 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 			namespace,
 			// TODO not hard code
 			fmt.Sprintf("3009%d", index),
-			config.GetString("injection.ts_image_tag"),
 		); err != nil {
 			monitor.ReleaseLock(namespace, task.TraceID)
 			span.RecordError(err)
@@ -294,12 +283,12 @@ func parseInjectionPayload(ctx context.Context, payload map[string]any) (*inject
 			return nil, fmt.Errorf(message, consts.InjectDisplayData)
 		}
 
-		conf, err := parseStructFromMap[chaos.InjectionConf](ctx, payload, consts.InjectConf, message)
+		conf, err := utils.MapToStruct[chaos.InjectionConf](payload, consts.InjectConf, message)
 		if err != nil {
 			return nil, err
 		}
 
-		node, err := parseStructFromMap[chaos.Node](ctx, payload, consts.InjectNode, message)
+		node, err := utils.MapToStruct[chaos.Node](payload, consts.InjectNode, message)
 		if err != nil {
 			return nil, err
 		}
@@ -346,54 +335,24 @@ func parseRestartPayload(ctx context.Context, payload map[string]any) (*restartP
 	})
 }
 
-func parseStructFromMap[T any](ctx context.Context, payload map[string]any, key string, errorMsgTemplate string) (*T, error) {
-	return tracing.WithSpanReturnValue(ctx, func(ctx context.Context) (*T, error) {
-		rawValue, ok := payload[key]
-		if !ok {
-			return nil, fmt.Errorf(errorMsgTemplate, key)
-		}
-
-		innerMap, ok := rawValue.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("%s: expected map[string]any, got %T", fmt.Sprintf(errorMsgTemplate, key), rawValue)
-		}
-
-		jsonData, err := json.Marshal(innerMap)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal intermediate map for key '%s': %w", key, err)
-		}
-
-		var result T
-		if err := json.Unmarshal(jsonData, &result); err != nil {
-			typeName := reflect.TypeOf(result).Name()
-			if typeName == "" {
-				typeName = reflect.TypeOf(result).String()
-			}
-			return nil, fmt.Errorf("failed to unmarshal JSON for key '%s' into type %s: %w", key, typeName, err)
-		}
-
-		return &result, nil
-	})
-}
-
-func installTS(ctx context.Context, namespace, port, imageTag string) error {
+func installTS(ctx context.Context, namespace, port string) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
-		client, err := client.NewHelmClient(namespace)
+		helmClient, err := client.NewHelmClient(namespace)
 		if err != nil {
 			return fmt.Errorf("error creating Helm client: %v", err)
 		}
 
 		// Add Train Ticket repository
-		if err := client.AddRepo("train-ticket", "https://lgu-se-internal.github.io/train-ticket"); err != nil {
+		if err := helmClient.AddRepo("train-ticket", "https://lgu-se-internal.github.io/train-ticket"); err != nil {
 			return fmt.Errorf("error adding repository: %v", err)
 		}
 
 		// Update repositories
-		if err := client.UpdateRepo(); err != nil {
+		if err := helmClient.UpdateRepo(); err != nil {
 			return fmt.Errorf("error updating repositories: %v", err)
 		}
 
-		if err := client.InstallTrainTicket(ctx, namespace, imageTag, port); err != nil {
+		if err := helmClient.InstallTrainTicket(ctx, namespace, port); err != nil {
 			return fmt.Errorf("error installing Train Ticket: %v", err)
 		}
 
@@ -402,23 +361,19 @@ func installTS(ctx context.Context, namespace, port, imageTag string) error {
 	})
 }
 
-func extractNamespace(namespace string) (string, int, error) {
+func extractNamespace(namespace string) (int, error) {
 	pattern := `^([a-zA-Z]+)(\d+)$`
 	re := regexp.MustCompile(pattern)
 	match := re.FindStringSubmatch(namespace)
 
 	if len(match) < 3 {
-		return "", 0, fmt.Errorf("failed to extract index from namespace %s", namespace)
-	}
-
-	if _, ok := config.GetMap("injection.namespace_target_map")[match[1]]; !ok {
-		return "", 0, fmt.Errorf("namespace %s is not defined in configuration 'injection.namespace_target_map'", match[1])
+		return 0, fmt.Errorf("failed to extract index from namespace %s", namespace)
 	}
 
 	num, err := strconv.Atoi(match[2])
 	if err != nil {
-		return "", 0, fmt.Errorf("failed to convert extracted index to integer: %v", err)
+		return 0, fmt.Errorf("failed to convert extracted index to integer: %v", err)
 	}
 
-	return match[1], num, nil
+	return num, nil
 }

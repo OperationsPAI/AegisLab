@@ -10,9 +10,8 @@ timezone = "Asia/Shanghai"
 
 [injection]
 enable_duplicate = true
-namespace_target_map = { ts = 5 }
+namespace_target_map = { ts = 6 }
 target_label_key = "app"
-ts_image_tag = "637600ea"
 
 [database]
 clickhouse_host = "10.10.10.58"
