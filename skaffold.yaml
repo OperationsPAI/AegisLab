@@ -8,10 +8,6 @@ build:
       context: .
       docker:
         dockerfile: experiments_controller/Dockerfile
-    - image: 10.10.10.240/library/clickhouse_dataset
-      context: .
-      docker:
-        dockerfile: benchmarks/clickhouse/Dockerfile
 deploy:
   helm:
     releases:
