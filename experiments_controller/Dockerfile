@@ -24,7 +24,6 @@ COPY --from=builder /app/exp /app/exp
 COPY ./algorithms ./algorithms
 COPY ./algorithms ./legacy_algorithms
 COPY ./experiments_controller/entrypoint.sh ./entrypoint.sh
-COPY ./benchmarks ./benchmarks
 COPY ./experiments ./experiments
 # COPY ./Makefile ./Makefile
 
