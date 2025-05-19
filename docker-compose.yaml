@@ -44,7 +44,6 @@ services:
     volumes:
       - /home/nn/.kube/config:/root/.kube/config
       - ./algorithms:/app/algorithms
-      - ./benchmarks:/app/benchmarks
       - ./experiments:/app/experiments
       - ./reports:/app/reports
       - ./experiments_controller/config.prod.toml:/etc/rcabench/config.prod.toml
