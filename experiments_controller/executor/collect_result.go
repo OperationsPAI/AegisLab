@@ -35,6 +35,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 		if err != nil {
 			return err
 		}
+
 		s3cli, err := client.GetS3Client()
 
 		if collectPayload.Algorithm == "detector" {

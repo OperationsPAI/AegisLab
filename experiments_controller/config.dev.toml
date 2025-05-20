@@ -25,7 +25,7 @@ mysql_db = "rcabench"
 endpoint = "localhost:4318"
 
 [redis]
-host = "localhost:6379"
+host = "10.10.10.220:32279"
 
 [harbor]
 host = "10.10.10.240"

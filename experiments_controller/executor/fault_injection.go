@@ -93,6 +93,12 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			return fmt.Errorf("failed to inject fault: %v", err)
 		}
 
+		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+			TaskID:    task.TaskID,
+			TaskType:  consts.TaskTypeFaultInjection,
+			EventName: consts.EventFaultInjectionStarted,
+		})
+
 		childNode := payload.node.Children[strconv.Itoa(payload.node.Value)]
 		childNode.Children[strconv.Itoa(len(childNode.Children))] = &chaos.Node{Value: index}
 
@@ -115,12 +121,6 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			Benchmark:     payload.benchmark,
 			InjectionName: name,
 		}
-
-		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
-			TaskID:    task.TaskID,
-			TaskType:  consts.TaskTypeFaultInjection,
-			EventName: consts.EventFaultInjectionStarted,
-		})
 		if err = database.DB.Create(&faultRecord).Error; err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to write fault injection schedule to database")
