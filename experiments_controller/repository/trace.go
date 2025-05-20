@@ -7,20 +7,22 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LGU-SE-Internal/rcabench/client"
 	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/redis/go-redis/v9"
 )
 
 type TraceStatistic struct {
-	DetectAnomaly    bool
-	RestartWaitTimes int
-
 	IntermediateFailed bool
+	Finished           bool
+	DetectAnomaly      bool
 
-	TotalDuration   float64
-	RestartDuration float64
+	TotalDuration float64
+	EndEvent      *dto.StreamEvent
+	StatusTimeMap map[consts.EventType]float64
+
+	Payload any
 }
 
 func GetTraceEvents(ctx context.Context, traceId string) ([]*dto.StreamEvent, error) {
@@ -49,92 +51,114 @@ func GetTraceEvents(ctx context.Context, traceId string) ([]*dto.StreamEvent, er
 	return events, nil
 }
 
-func GetTraceStatistic(ctx context.Context, traceId string) (*TraceStatistic, error) {
-	events, err := GetTraceEvents(ctx, traceId)
-	if err != nil {
-		return nil, err
-	}
-	if len(events) == 0 {
-		return nil, fmt.Errorf("no events found for trace ID: %s", traceId)
+func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceStatistic, error) {
+	stat := &TraceStatistic{
+		IntermediateFailed: false,
+		Finished:           false,
+		DetectAnomaly:      false,
+		StatusTimeMap:      make(map[consts.EventType]float64),
 	}
 
-	totalStartTime := time.UnixMilli(int64(events[0].TimeStamp))
-	totalEndTime := time.Time{}
-	restartFormalBegin := time.Time{}
-	restartFormalEnd := time.Time{}
+	startTime := time.UnixMilli(int64(events[0].TimeStamp))
+	var endTime time.Time
+	var taskStartTime time.Time
+	var stageStartTime time.Time
+	restartWaitTimes := 0
 
-	stat := &TraceStatistic{}
 	for _, event := range events {
-		switch event.EventName {
-		case consts.EventDatasetNoAnomaly:
-			stat.DetectAnomaly = false
-			totalEndTime = time.UnixMilli(int64(event.TimeStamp))
-		case consts.EventDatasetResultCollection:
-			stat.DetectAnomaly = true
-			totalEndTime = time.UnixMilli(int64(event.TimeStamp))
-		case consts.EventDatasetNoConclusionFile:
-			stat.IntermediateFailed = true
-			totalEndTime = time.UnixMilli(int64(event.TimeStamp))
-		case consts.EventNoNamespaceAvailable:
-			stat.RestartWaitTimes++
+		eventTime := time.UnixMilli(int64(event.TimeStamp))
 
+		switch event.EventName {
+		case consts.EventTaskStarted:
+			taskStartTime = eventTime
+
+		// 重启服务相关事件
+		case consts.EventNoNamespaceAvailable:
+			restartWaitTimes++
 		case consts.EventRestartServiceStarted:
-			if restartFormalBegin.IsZero() {
-				restartFormalBegin = time.UnixMilli(int64(event.TimeStamp))
-			}
+			stageStartTime = eventTime
 		case consts.EventRestartServiceCompleted:
-			if restartFormalEnd.IsZero() {
-				restartFormalEnd = time.UnixMilli(int64(event.TimeStamp))
+			stat.StatusTimeMap[event.EventName] = eventTime.Sub(startTime).Seconds()
+			stat.Payload = map[string]any{
+				"restart_duration":   eventTime.Sub(stageStartTime).Seconds(),
+				"restart_wait_times": restartWaitTimes,
 			}
 		case consts.EventRestartServiceFailed:
 			stat.IntermediateFailed = true
-		default:
-			// logrus.WithField("event_name", event.EventName).Warn("Unknown event name")
+			stat.Payload = event.Payload
+			endTime = eventTime
+
+		// 故障注入相关事件
+		case consts.EventFaultInjectionStarted:
+			stageStartTime = eventTime
+		case consts.EventFaultInjectionCompleted:
+			stat.StatusTimeMap[event.EventName] = eventTime.Sub(taskStartTime).Seconds()
+			stat.Payload = map[string]any{
+				"inject_duration": eventTime.Sub(stageStartTime).Seconds(),
+			}
+		case consts.EventFaultInjectionFailed:
+			stat.IntermediateFailed = true
+			stat.Payload = event.Payload
+			endTime = eventTime
+
+		// 数据集构建相关事件
+		case consts.EventDatasetBuildSucceed:
+			stat.StatusTimeMap[event.EventName] = eventTime.Sub(taskStartTime).Seconds()
+
+		// 算法运行相关事件
+		case consts.EventAlgoRunSucceed:
+			stat.StatusTimeMap[event.EventName] = eventTime.Sub(taskStartTime).Seconds()
+
+		// 结果收集相关事件
+		case consts.EventDatasetNoAnomaly:
+			stat.StatusTimeMap[event.EventName] = eventTime.Sub(taskStartTime).Seconds()
+			stat.Finished = true
+			stat.DetectAnomaly = false
+			endTime = eventTime
+		case consts.EventDatasetResultCollection:
+			stat.StatusTimeMap[event.EventName] = eventTime.Sub(taskStartTime).Seconds()
+			stat.Finished = true
+			stat.DetectAnomaly = true
+			endTime = eventTime
+		case consts.EventDatasetNoConclusionFile:
+			stat.StatusTimeMap[event.EventName] = eventTime.Sub(taskStartTime).Seconds()
+			stat.IntermediateFailed = true
+			endTime = eventTime
 		}
 	}
 
-	if !totalEndTime.IsZero() {
-		stat.TotalDuration = totalEndTime.Sub(totalStartTime).Minutes()
+	// 计算总时间
+	if !endTime.IsZero() {
+		stat.TotalDuration = endTime.Sub(startTime).Seconds()
 	}
-	if !restartFormalBegin.IsZero() && !restartFormalEnd.IsZero() {
-		stat.RestartDuration = restartFormalEnd.Sub(restartFormalBegin).Minutes()
-	}
+
+	stat.EndEvent = events[len(events)-1]
 	return stat, nil
 }
 
-func GetGroupToTraceIDsMap() (map[string][]string, error) {
-	groupToTraceIDs := make(map[string][]string)
+func GetAllTraceIDsFromRedis(ctx context.Context) ([]string, error) {
+	// 使用简单的SCAN命令遍历键
+	var cursor uint64
+	var traceIDs []string
 
-	type Result struct {
-		GroupID string
-		TraceID string
-	}
-
-	var results []Result
-
-	err := database.DB.Model(&database.Task{}).
-		Select("DISTINCT group_id, trace_id").
-		Where("group_id <> ''").
-		Where("trace_id <> ''").
-		Find(&results).Error
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to get group to trace IDs map: %w", err)
-	}
-
-	seenTraceIDs := make(map[string]map[string]bool)
-
-	for _, result := range results {
-		if _, exists := seenTraceIDs[result.GroupID]; !exists {
-			seenTraceIDs[result.GroupID] = make(map[string]bool)
-			groupToTraceIDs[result.GroupID] = make([]string, 0)
+	for {
+		keys, nextCursor, err := client.GetRedisClient().Scan(ctx, cursor, "trace:*:log", 100).Result()
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan Redis keys: %v", err)
 		}
 
-		if !seenTraceIDs[result.GroupID][result.TraceID] {
-			groupToTraceIDs[result.GroupID] = append(groupToTraceIDs[result.GroupID], result.TraceID)
-			seenTraceIDs[result.GroupID][result.TraceID] = true
+		for _, key := range keys {
+			parts := strings.Split(key, ":")
+			if len(parts) == 3 && parts[0] == "trace" && parts[2] == "log" {
+				traceIDs = append(traceIDs, parts[1])
+			}
+		}
+
+		cursor = nextCursor
+		if cursor == 0 {
+			break
 		}
 	}
 
-	return groupToTraceIDs, nil
+	return traceIDs, nil
 }

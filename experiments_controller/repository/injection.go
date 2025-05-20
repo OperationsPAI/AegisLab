@@ -188,6 +188,30 @@ func GetDatasetByName(name string, status ...int) (*dto.DatasetItemWithID, error
 	return &item, nil
 }
 
+func GetDisplayConfigByTraceIDs(traceIDs []string) (map[string]string, error) {
+	if len(traceIDs) == 0 {
+		return nil, fmt.Errorf("empty trace IDs")
+	}
+
+	result := make(map[string]string)
+
+	var records []struct {
+		TraceID       string `gorm:"column:trace_id"`
+		DisplayConfig string `gorm:"column:display_config"`
+	}
+
+	if err := database.DB.
+		Model(&database.FaultInjectionSchedule{}).
+		Select("tasks.trace_id, fault_injection_schedules.display_config").
+		Joins("JOIN tasks ON tasks.id = fault_injection_schedules.task_id").
+		Where("tasks.trace_id IN (?)", traceIDs).
+		Find(&records).Error; err != nil {
+		return nil, fmt.Errorf("failed to query display configs: %v", err)
+	}
+
+	return result, nil
+}
+
 func GetEngineConfigByNames(names []string) ([]string, error) {
 	if len(names) == 0 {
 		return []string{}, nil
