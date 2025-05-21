@@ -41,9 +41,8 @@ data:
     [k8s]
     namespace = "{{ .Values.configmap.k8s.namespace }}"
 
-    [nfs]
-    path = "{{ .Values.configmap.nfs.path }}"
-    pvc_name = "{{ .Values.configmap.nfs.pvc_name }}"
+    [jfs]
+    path = "{{ .Values.configmap.jfs.path }}"
 
     [algo]
     storage_path = "{{ .Values.configmap.algo.storage_path }}"

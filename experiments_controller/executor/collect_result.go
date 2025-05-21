@@ -9,14 +9,12 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/LGU-SE-Internal/rcabench/client"
+	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/LGU-SE-Internal/rcabench/tracing"
-	"github.com/google/uuid"
-	"github.com/minio/minio-go/v7"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -35,27 +33,12 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 		if err != nil {
 			return err
 		}
-
-		s3cli, err := client.GetS3Client()
+		path := config.GetString("jfs.path")
+		// s3cli, err := client.GetS3Client()
 
 		if collectPayload.Algorithm == "detector" {
-			if err != nil {
-				span.AddEvent("failed to get s3 client")
-				span.RecordError(err)
-				return fmt.Errorf("failed to get s3 client: %v", err)
-			}
-
-			tempPath := filepath.Join("/tmp", uuid.New().String())
-			err = s3cli.FGetObject(ctx, "rcabench-dataset", fmt.Sprintf("%s/%s", collectPayload.Dataset, consts.DetectorConclusionFile), tempPath, minio.GetObjectOptions{})
-
-			if err != nil {
-				span.AddEvent("failed to download conclusion.csv from s3")
-				span.RecordError(err)
-				logrus.WithField("trace_id", task.TraceID).Errorf("failed to download conclusion.csv from s3: %v", err)
-				return fmt.Errorf("failed to download conclusion.csv from s3: %v", err)
-			}
-
-			content, err := os.ReadFile(tempPath)
+			conclusionCSV := filepath.Join(path, collectPayload.Dataset, consts.DetectorConclusionFile)
+			content, err := os.ReadFile(conclusionCSV)
 			if err != nil {
 				span.AddEvent("failed to read conclusion.csv file")
 				span.RecordError(err)
@@ -118,15 +101,8 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				task.Type,
 			)
 		} else {
-			tempPath := filepath.Join("/tmp", uuid.New().String())
-			err := s3cli.FGetObject(ctx, "rcabench-dataset", fmt.Sprintf("%s/%s", collectPayload.Dataset, consts.ExecutionResultFile), tempPath, minio.GetObjectOptions{})
-
-			if err != nil {
-				span.AddEvent("failed to download result.csv from s3")
-				span.RecordError(err)
-				return fmt.Errorf("failed to download result.csv from s3: %v", err)
-			}
-			content, err := os.ReadFile(tempPath)
+			resultCSV := filepath.Join(path, collectPayload.Dataset, "result.csv")
+			content, err := os.ReadFile(resultCSV)
 			if err != nil {
 				span.AddEvent("failed to read result.csv file")
 				span.RecordError(err)

@@ -55,9 +55,8 @@ configmap:
     password: "Harbor12345"
   k8s:
     namespace: "exp"
-  nfs:
+  jfs:
     path: "/var/lib/rcabench"
-    pvc_name: "nfs-shared-pvc"
   algo:
     storage_path: "/app/algorithms"
   debugging:

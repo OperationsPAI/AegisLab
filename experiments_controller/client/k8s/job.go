@@ -34,10 +34,10 @@ func CreateJob(ctx context.Context, jobConfig JobConfig) error {
 		span := trace.SpanFromContext(ctx)
 
 		volumeMounts := []corev1.VolumeMount{
-			// {
-			// 	Name:      "nfs-volume",
-			// 	MountPath: "/data",
-			// },
+			{
+				Name:      "jfs-volume",
+				MountPath: "/data",
+			},
 			{
 				Name:      "kube-config",
 				MountPath: "/root/.kube/config",
@@ -49,14 +49,18 @@ func CreateJob(ctx context.Context, jobConfig JobConfig) error {
 		// pvc = "nfs-shared-pvc"
 		// }
 		volumes := []corev1.Volume{
-			// {
-			// 	Name: "nfs-volume",
-			// 	VolumeSource: corev1.VolumeSource{
-			// 		PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-			// 			ClaimName: pvc,
-			// 		},
-			// 	},
-			// },
+			{
+				Name: "jfs-volume",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/mnt/jfs/rcabench_dataset",
+						Type: func() *corev1.HostPathType {
+							hostPathType := corev1.HostPathDirectory
+							return &hostPathType
+						}(),
+					},
+				},
+			},
 			{
 				Name: "kube-config",
 				VolumeSource: corev1.VolumeSource{
