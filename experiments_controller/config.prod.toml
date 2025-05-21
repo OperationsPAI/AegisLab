@@ -36,9 +36,8 @@ password = "Harbor12345"
 [k8s]
 namespace = "experiment"
 
-[nfs]
-path = "/var/lib/rcabench"
-pvc_name = "nfs-shared-pvc"
+[jfs]
+path = "/mnt/jfs/rcabench_dataset"
 
 [algo]
 storage_path = "/app/algorithms"
