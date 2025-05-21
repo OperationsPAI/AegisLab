@@ -1,4 +1,6 @@
 
+
+
 # Prepare Env (first time dev/deploy)
 
 | Reource | Name                 | Volume    | Mode       | NFS Path                     | NFS Service     | StorageClass                  | PVC Bind     |
@@ -29,3 +31,15 @@ skaffold debug --default-repo=10.10.10.240/library # debug the service to k8s, i
 
 kubectl get pods -n exp # check whether the service is healthy.
 ```
+
+
+# Related Repo
+
+- [algorithm contrib](https://github.com/LGU-SE-Internal/rca-algo-contrib), community-driven implementation of RCA algorithms.
+- [rcabench platform](https://github.com/LGU-SE-Internal/rcabench-platform), common tools integrated Python library.
+- [documentation](https://github.com/LGU-SE-Internal/rcabench-doc)
+- Workloads
+    - [trainticket](https://github.com/LGU-SE-Internal/train-ticket)
+    - [OpenTelemetry Astronomy Shop](https://github.com/LGU-SE-Internal/opentelemetry-demo)
+    - [Online Boutique](https://github.com/LGU-SE-Internal/microservices-demo)
+    - ...
