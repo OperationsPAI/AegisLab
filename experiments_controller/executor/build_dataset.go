@@ -9,12 +9,13 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/CUHK-SE-Group/rcabench/client"
-	"github.com/CUHK-SE-Group/rcabench/client/k8s"
-	"github.com/CUHK-SE-Group/rcabench/config"
-	"github.com/CUHK-SE-Group/rcabench/consts"
-	"github.com/CUHK-SE-Group/rcabench/repository"
-	"github.com/CUHK-SE-Group/rcabench/tracing"
+	"github.com/LGU-SE-Internal/rcabench/client"
+	"github.com/LGU-SE-Internal/rcabench/client/k8s"
+	"github.com/LGU-SE-Internal/rcabench/config"
+	"github.com/LGU-SE-Internal/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/dto"
+	"github.com/LGU-SE-Internal/rcabench/repository"
+	"github.com/LGU-SE-Internal/rcabench/tracing"
 )
 
 type datasetPayload struct {
@@ -26,7 +27,7 @@ type datasetPayload struct {
 	EndTime     time.Time
 }
 
-func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
+func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
 		payload, err := parseDatasetPayload(task.Payload)
@@ -59,7 +60,6 @@ func executeBuildDataset(ctx context.Context, task *UnifiedTask) error {
 			consts.LabelGroupID:  task.GroupID,
 			consts.LabelTaskType: string(consts.TaskTypeBuildDataset),
 			consts.LabelDataset:  payload.Name,
-			consts.LabelService:  payload.EnvVars[consts.BuildEnvVarService],
 		}
 
 		return createDatasetJob(ctx, jobName, image, annotations, labels, payload)
@@ -104,7 +104,7 @@ func parseDatasetPayload(payload map[string]any) (*datasetPayload, error) {
 			startTime = *startTimePtr
 			endTime = *endTimePtr
 		} else {
-			datasetItem, err := repository.GetDatasetByName(name, consts.DatasetInjectSuccess)
+			datasetItem, err := repository.GetDatasetByName(name, consts.DatasetInjectSuccess, consts.DatasetBuildFailed)
 			if err != nil {
 				return nil, fmt.Errorf("query database for dataset failed: %v", err)
 			}
@@ -160,7 +160,7 @@ func createDatasetJob(ctx context.Context, jobName, image string, annotations ma
 		parallelism := int32(1)
 		completions := int32(1)
 		jobNamespace := config.GetString("k8s.namespace")
-		command := []string{"python", "prepare_inputs.py"}
+		command := []string{"bash", "/entrypoint.sh"}
 
 		envVars := getDatasetJobEnvVars(payload)
 		return k8s.CreateJob(ctx, k8s.JobConfig{

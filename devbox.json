@@ -11,7 +11,7 @@
     "scripts": {
       "lint-go": ["cd experiments_controller && golangci-lint run"],
       "lint-py": ["ruff check --fix --show-fixes --exclude algorithms"],
-      "deploy": ["skaffold build --default-repo=10.10.10.240/library"]
+      "build":  ["skaffold build --default-repo=10.10.10.240/library"]
     }
   }
 }

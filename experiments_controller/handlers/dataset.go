@@ -8,13 +8,13 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/CUHK-SE-Group/rcabench/config"
-	"github.com/CUHK-SE-Group/rcabench/consts"
-	"github.com/CUHK-SE-Group/rcabench/dto"
-	"github.com/CUHK-SE-Group/rcabench/executor"
-	"github.com/CUHK-SE-Group/rcabench/middleware"
-	"github.com/CUHK-SE-Group/rcabench/repository"
-	"github.com/CUHK-SE-Group/rcabench/utils"
+	"github.com/LGU-SE-Internal/rcabench/config"
+	"github.com/LGU-SE-Internal/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/dto"
+	"github.com/LGU-SE-Internal/rcabench/executor"
+	"github.com/LGU-SE-Internal/rcabench/middleware"
+	"github.com/LGU-SE-Internal/rcabench/repository"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
@@ -73,8 +73,8 @@ func QueryDataset(c *gin.Context) {
 
 	item, err := repository.GetDatasetByName(req.Name, consts.DatasetBuildSuccess)
 	if err != nil {
-		logrus.Errorf("failed to get injection record: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to retrieve dataset")
+		logrus.Errorf("failed to get dataset: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get dataset")
 		return
 	}
 
@@ -143,9 +143,11 @@ func GetDatasetList(c *gin.Context) {
 		items = append(items, item)
 	}
 
-	dto.SuccessResponse(c, &dto.PaginationResp[dto.DatasetItem]{
-		Total: total,
-		Data:  items,
+	totalPages := (total + int64(req.PageSize) - 1) / int64(req.PageSize)
+	dto.SuccessResponse(c, dto.PaginationResp[dto.DatasetItem]{
+		Total:      total,
+		TotalPages: totalPages,
+		Items:      items,
 	})
 }
 
@@ -354,12 +356,21 @@ func SubmitDatasetBuilding(c *gin.Context) {
 		return
 	}
 
+	payloads, err := repository.GetDatasetBuildPayloads(payloads)
+	if err != nil {
+		message := "failed to get dataset build payloads"
+		logrus.Errorf("%s: %v", message, err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, message)
+		return
+	}
+
 	ctx, ok := c.Get(middleware.SpanContextKey)
 	if !ok {
 		logrus.Error("failed to get span context from gin.Context")
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get span context")
 		return
 	}
+
 	spanCtx := ctx.(context.Context)
 	for i := range payloads {
 		for key := range payloads[i].EnvVars {
@@ -374,7 +385,7 @@ func SubmitDatasetBuilding(c *gin.Context) {
 
 	traces := make([]dto.Trace, 0, len(payloads))
 	for idx, payload := range payloads {
-		task := &executor.UnifiedTask{
+		task := &dto.UnifiedTask{
 			Type:      consts.TaskTypeBuildDataset,
 			Payload:   utils.StructToMap(payload),
 			Immediate: true,
@@ -393,7 +404,9 @@ func SubmitDatasetBuilding(c *gin.Context) {
 		traces = append(traces, dto.Trace{TraceID: traceID, HeadTaskID: taskID, Index: idx})
 	}
 
-	dto.JSONResponse(c, http.StatusAccepted, "Dataset building submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
+	dto.JSONResponse(c, http.StatusAccepted, "Dataset building submitted successfully",
+		dto.SubmitResp{GroupID: groupID, Traces: traces},
+	)
 }
 
 func UploadDataset(c *gin.Context) {

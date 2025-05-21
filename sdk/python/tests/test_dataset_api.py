@@ -71,15 +71,15 @@ def test_delete_datatsets(sdk, names):
             [
                 {
                     "benchmark": "clickhouse",
-                    "name": "ts-ts-ui-dashboard-pod-failure-8hlbmk",
+                    "name": "ts2-ts-travel2-service-pod-failure-zchjt6",
                     "pre_duration": 1,
-                    "env_vars": {"NAMESPACE": "ts", "SERVICE": "ts-ui-dashboard-pod"},
+                    "env_vars": {"NAMESPACE": "ts2"},
                 }
             ]
         )
     ],
 )
 def test_submit_building_datasets(sdk, payloads):
-    """测试批量删除数据集"""
+    """测试批量构建数据集"""
     data = sdk.dataset.submit(payloads)
     pprint(data)

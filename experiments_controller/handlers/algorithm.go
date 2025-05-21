@@ -11,13 +11,13 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	"github.com/CUHK-SE-Group/rcabench/client"
-	"github.com/CUHK-SE-Group/rcabench/config"
-	"github.com/CUHK-SE-Group/rcabench/consts"
-	"github.com/CUHK-SE-Group/rcabench/dto"
-	"github.com/CUHK-SE-Group/rcabench/executor"
-	"github.com/CUHK-SE-Group/rcabench/middleware"
-	"github.com/CUHK-SE-Group/rcabench/utils"
+	"github.com/LGU-SE-Internal/rcabench/client"
+	"github.com/LGU-SE-Internal/rcabench/config"
+	"github.com/LGU-SE-Internal/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/dto"
+	"github.com/LGU-SE-Internal/rcabench/executor"
+	"github.com/LGU-SE-Internal/rcabench/middleware"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
@@ -133,7 +133,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 
 	traces := make([]dto.Trace, 0, len(payloads))
 	for idx, payload := range payloads {
-		task := &executor.UnifiedTask{
+		task := &dto.UnifiedTask{
 			Type:      consts.TaskTypeRunAlgorithm,
 			Payload:   utils.StructToMap(payload),
 			Immediate: true,
@@ -248,7 +248,7 @@ func SubmitAlgorithmBuilding(c *gin.Context) {
 		payload[consts.BuildAlgorithmPath] = extractDir
 	}
 
-	taskID, traceID, err := executor.SubmitTask(context.Background(), &executor.UnifiedTask{
+	taskID, traceID, err := executor.SubmitTask(context.Background(), &dto.UnifiedTask{
 		Type:      consts.TaskTypeBuildImages,
 		Payload:   payload,
 		Immediate: true,

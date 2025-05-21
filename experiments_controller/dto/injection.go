@@ -3,14 +3,13 @@ package dto
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strconv"
 	"time"
 
-	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
-	"github.com/CUHK-SE-Group/rcabench/config"
-	"github.com/CUHK-SE-Group/rcabench/consts"
-	"github.com/CUHK-SE-Group/rcabench/database"
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	"github.com/LGU-SE-Internal/rcabench/config"
+	"github.com/LGU-SE-Internal/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/database"
 )
 
 type InjectCancelResp struct {
@@ -22,13 +21,14 @@ type InjectionConfReq struct {
 }
 
 type InjectionItem struct {
-	ID        int            `json:"id"`
-	TaskID    string         `json:"task_id"`
-	FaultType string         `json:"fault_type"`
-	Spec      map[string]any `json:"spec"`
-	Status    string         `json:"status"`
-	StartTime time.Time      `json:"start_time"`
-	EndTime   time.Time      `json:"end_time"`
+	ID          int            `json:"id"`
+	TaskID      string         `json:"task_id"`
+	FaultType   string         `json:"fault_type"`
+	Status      string         `json:"status"`
+	Spec        map[string]any `json:"spec"`
+	PreDuration int            `json:"pre_duration"`
+	StartTime   time.Time      `json:"start_time"`
+	EndTime     time.Time      `json:"end_time"`
 }
 
 func (i *InjectionItem) Convert(record database.FaultInjectionSchedule) error {
@@ -40,8 +40,9 @@ func (i *InjectionItem) Convert(record database.FaultInjectionSchedule) error {
 	i.ID = record.ID
 	i.TaskID = record.TaskID
 	i.FaultType = chaos.ChaosTypeMap[chaos.ChaosType(record.FaultType)]
-	i.Spec = config
 	i.Status = DatasetStatusMap[record.Status]
+	i.Spec = config
+	i.PreDuration = record.PreDuration
 	i.StartTime = record.StartTime
 	i.EndTime = record.EndTime
 
@@ -100,18 +101,14 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 			return nil, fmt.Errorf("failed to find key %d in the children", node.Value)
 		}
 
-		m := config.GetMap("injection.namespace_target_map")
-		namespacePrefixs := make([]string, 0, len(m))
-		namespaceTargetMap := make(map[string]int, len(m))
-		for ns, value := range m {
-			count, _ := value.(int64)
-			namespaceTargetMap[ns] = int(count)
-			namespacePrefixs = append(namespacePrefixs, ns)
+		nsPrefixs := config.GetNsPrefixs()
+		nsTargetMap, err := config.GetNsTargetMap()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get namespace target map in configuration")
 		}
 
-		sort.Strings(namespacePrefixs)
 		index := childNode.Children[consts.NamespaceNodeKey].Value
-		namespaceCount := namespaceTargetMap[namespacePrefixs[index]]
+		namespaceCount := nsTargetMap[nsPrefixs[index]]
 
 		var execTime time.Time
 		if idx < namespaceCount {
@@ -161,4 +158,9 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 	}
 
 	return configs, nil
+}
+
+type QueryInjectionReq struct {
+	Name   string `form:"name" binding:"omitempty,max=64"`
+	TaskID string `form:"task_id" binding:"omitempty,max=64"`
 }

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	chaosCli "github.com/CUHK-SE-Group/chaos-experiment/client"
+	chaosCli "github.com/LGU-SE-Internal/chaos-experiment/client"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -15,8 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/CUHK-SE-Group/rcabench/config"
-	"github.com/CUHK-SE-Group/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/config"
+	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -68,24 +68,10 @@ type Controller struct {
 }
 
 func NewController() *Controller {
-	m := config.GetMap("injection.namespace_target_map")
-	namespacePrefixs := make([]string, 0, len(m))
-	namespaceTargetMap := make(map[string]int, len(m))
-	for ns, value := range m {
-		count, ok := value.(int64)
-		if !ok {
-			logrus.Fatalf("failed to parse target count for namespace '%s': expected integer value but got %T", ns, value)
-		}
-
-		namespaceTargetMap[ns] = int(count)
-		namespacePrefixs = append(namespacePrefixs, ns)
-	}
-
-	namespaces := make([]string, 0)
-	for _, ns := range namespacePrefixs {
-		for i := range namespaceTargetMap[ns] {
-			namespaces = append(namespaces, fmt.Sprintf("%s%d", ns, i+1))
-		}
+	namespaces, err := config.GetAllNamespaces()
+	if err != nil {
+		logrus.WithField("func", "config.GetAllNamespaces").Error(err)
+		panic(err)
 	}
 
 	chaosGVRs := make([]schema.GroupVersionResource, 0, len(chaosCli.GetCRDMapping()))
@@ -127,18 +113,6 @@ func NewController() *Controller {
 		podInformer:  platformFactory.Core().V1().Pods().Informer(),
 		queue:        queue,
 	}
-}
-
-func (c *Controller) CheckNamespaceToInject(namespace string, executeTime time.Time, traceID string) error {
-	return c.monitor.checkNamespaceToInject(namespace, executeTime, traceID)
-}
-
-func (c *Controller) AcquireLock(endTime time.Time, traceID string) string {
-	return c.monitor.getNamespaceToRestart(endTime, traceID)
-}
-
-func (c *Controller) ReleaseLock(namespace string) {
-	c.monitor.setTime(namespace, time.Now(), "")
 }
 
 func (c *Controller) Run(ctx context.Context, callback Callback) {
@@ -201,12 +175,6 @@ func (c *Controller) registerEventHandlers() {
 	if _, err := c.podInformer.AddEventHandler(c.genPodEventHandlerFuncs()); err != nil {
 		logrus.WithField("func", "genPodEventHandlerFuncs").Error("failed to add event handler")
 		return
-	}
-}
-
-func (c *Controller) genObEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
-	return cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {},
 	}
 }
 
@@ -275,14 +243,13 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 						return
 					}
 
-					// 计时协程去判断是否恢复成功
 					if duration > 0 {
 						c.queue.AddAfter(QueueItem{
-							Type:      "CheckRecovery",
+							Type:      CheckRecovery,
 							Namespace: newU.GetNamespace(),
 							Name:      newU.GetName(),
 							GVR:       &gvr,
-						}, time.Duration(duration)*time.Minute)
+						}, time.Duration(duration+1)*time.Minute) // +1 minute to ensure the crd is finished
 					}
 				}
 
@@ -322,7 +289,8 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 				"namespace": u.GetNamespace(),
 				"name":      u.GetName(),
 			}).Info("Chaos experiment deleted successfully")
-			c.ReleaseLock(u.GetNamespace())
+			traceId := u.GetLabels()[consts.CRDTraceID]
+			GetMonitor().ReleaseLock(u.GetNamespace(), traceId)
 		},
 	}
 }
@@ -439,7 +407,10 @@ func (c *Controller) processQueueItem() bool {
 	var err error
 	switch item.Type {
 	case CheckRecovery:
-		c.checkRecoveryStatus(item.GVR, item.Namespace, item.Name)
+		err := c.checkRecoveryStatus(item.GVR, item.Namespace, item.Name)
+		if err != nil {
+			logrus.WithField("namespace", item.Namespace).WithField("name", item.Name).Error(err)
+		}
 	case DeleteCRD:
 		if item.GVR == nil {
 			logrus.Error("The groupVersionResource can not be nil")
@@ -448,11 +419,8 @@ func (c *Controller) processQueueItem() bool {
 		}
 
 		err = deleteCRD(context.Background(), item.GVR, item.Namespace, item.Name)
-		logrus.Infof("deleting CRD, ns: %s, name: %s", item.Namespace, item.Name)
-
 	case DeleteJob:
 		err = deleteJob(context.Background(), item.Namespace, item.Name)
-		logrus.Infof("deleting job, ns: %s, name: %s", item.Namespace, item.Name)
 
 	default:
 		logrus.Errorf("unknown resource type: %s", item.Type)
@@ -470,7 +438,6 @@ func (c *Controller) processQueueItem() bool {
 }
 
 func (c *Controller) checkRecoveryStatus(gvr *schema.GroupVersionResource, namespace, name string) error {
-	// 实现与原异步goroutine相同的检查逻辑
 	obj, err := k8sDynamicClient.Resource(*gvr).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -568,34 +535,6 @@ func getCRDEventTimeRanges(records []any) []timeRange {
 	return []timeRange{}
 }
 
-func getNamespaceDesiredPodNum(namespace string) (int, error) {
-	desiredNum := 0
-
-	deployments, err := k8sClient.AppsV1().Deployments(namespace).List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		return 0, fmt.Errorf("failed to get deployments in namespace %s: %v", namespace, err)
-	}
-
-	for _, item := range deployments.Items {
-		if item.Spec.Replicas != nil {
-			desiredNum += int(*item.Spec.Replicas)
-		}
-	}
-
-	statefulSets, err := k8sClient.AppsV1().StatefulSets(namespace).List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		return 0, fmt.Errorf("failed to get statefulSets in namespace %s: %v", namespace, err)
-	}
-
-	for _, item := range statefulSets.Items {
-		if item.Spec.Replicas != nil {
-			desiredNum += int(*item.Spec.Replicas)
-		}
-	}
-
-	return desiredNum, nil
-}
-
 func parseEventTime(event map[string]any) (*time.Time, error) {
 	t, _, _ := unstructured.NestedString(event, "timestamp")
 	if t, err := time.Parse(time.RFC3339, t); err == nil {
@@ -613,20 +552,6 @@ func extractJobError(job *batchv1.Job) string {
 	}
 
 	return ""
-}
-
-func checkPodReady(pod *corev1.Pod) bool {
-	if pod.Status.Phase != corev1.PodRunning {
-		return false
-	}
-
-	for _, cond := range pod.Status.Conditions {
-		if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
-			return true
-		}
-	}
-
-	return false
 }
 
 func checkPodReason(pod *corev1.Pod, reason string) bool {

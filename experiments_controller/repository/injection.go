@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CUHK-SE-Group/rcabench/consts"
-	"github.com/CUHK-SE-Group/rcabench/database"
-	"github.com/CUHK-SE-Group/rcabench/dto"
-	"github.com/CUHK-SE-Group/rcabench/utils"
+	"github.com/LGU-SE-Internal/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/database"
+	"github.com/LGU-SE-Internal/rcabench/dto"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -96,6 +96,48 @@ func FindExistingDisplayConfigs(configs []string) ([]string, error) {
 	return existingEngineConfigs, nil
 }
 
+func GetDatasetBuildPayloads(payloads []dto.DatasetBuildPayload) ([]dto.DatasetBuildPayload, error) {
+	if len(payloads) == 0 {
+		return nil, fmt.Errorf("empty payloads")
+	}
+
+	names := make([]string, 0, len(payloads))
+	payloadNameMap := make(map[string]*dto.DatasetBuildPayload, len(payloads))
+	for i := range payloads {
+		names = append(names, payloads[i].Name)
+		payloadNameMap[payloads[i].Name] = &payloads[i]
+	}
+
+	var records []struct {
+		InjectionName string `gorm:"column:injection_name"`
+		PreDuration   int    `gorm:"column:pre_duration"`
+		Benchmark     string `gorm:"column:benchmark"`
+	}
+
+	if err := database.DB.
+		Model(&database.FaultInjectionSchedule{}).
+		Select("injection_name, pre_duration, benchmark").
+		Where("injection_name IN ?", names).
+		Find(&records).Error; err != nil {
+		return nil, fmt.Errorf("failed to query injection schedules: %v", err)
+	}
+
+	if len(records) == 0 {
+		return nil, fmt.Errorf("no records found for the given names")
+	}
+
+	result := make([]dto.DatasetBuildPayload, 0, len(records))
+	for _, record := range records {
+		if payload, ok := payloadNameMap[record.InjectionName]; ok {
+			payload.PreDuration = record.PreDuration
+			payload.Benchmark = record.Benchmark
+			result = append(result, *payload)
+		}
+	}
+
+	return result, nil
+}
+
 func GetDatasetWithGroupIDs(groupIDs []string) ([]dto.DatasetJoinedResult, error) {
 	var results []struct {
 		GroupID string `gorm:"column:group_id"`
@@ -146,6 +188,30 @@ func GetDatasetByName(name string, status ...int) (*dto.DatasetItemWithID, error
 	return &item, nil
 }
 
+func GetDisplayConfigByTraceIDs(traceIDs []string) (map[string]string, error) {
+	if len(traceIDs) == 0 {
+		return nil, fmt.Errorf("empty trace IDs")
+	}
+
+	result := make(map[string]string)
+
+	var records []struct {
+		TraceID       string `gorm:"column:trace_id"`
+		DisplayConfig string `gorm:"column:display_config"`
+	}
+
+	if err := database.DB.
+		Model(&database.FaultInjectionSchedule{}).
+		Select("tasks.trace_id, fault_injection_schedules.display_config").
+		Joins("JOIN tasks ON tasks.id = fault_injection_schedules.task_id").
+		Where("tasks.trace_id IN (?)", traceIDs).
+		Find(&records).Error; err != nil {
+		return nil, fmt.Errorf("failed to query display configs: %v", err)
+	}
+
+	return result, nil
+}
+
 func GetEngineConfigByNames(names []string) ([]string, error) {
 	if len(names) == 0 {
 		return []string{}, nil
@@ -162,6 +228,22 @@ func GetEngineConfigByNames(names []string) ([]string, error) {
 	}
 
 	return configs, nil
+}
+
+func GetInjection(column, param string) (*dto.InjectionItem, error) {
+	query := database.DB.Where(fmt.Sprintf("%s = ?", column), param)
+
+	var record database.FaultInjectionSchedule
+	if err := query.First(&record).Error; err != nil {
+		return nil, err
+	}
+
+	var item dto.InjectionItem
+	if err := item.Convert(record); err != nil {
+		return nil, err
+	}
+
+	return &item, nil
 }
 
 func ListDatasetByExecutionIDs(executionIDs []int) ([]dto.DatasetItemWithID, error) {

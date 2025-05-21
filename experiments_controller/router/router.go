@@ -1,9 +1,9 @@
 package router
 
 import (
-	"github.com/CUHK-SE-Group/rcabench/middleware"
+	"github.com/LGU-SE-Internal/rcabench/middleware"
 
-	"github.com/CUHK-SE-Group/rcabench/handlers"
+	"github.com/LGU-SE-Internal/rcabench/handlers"
 
 	"github.com/gin-contrib/cors"
 	swaggerFiles "github.com/swaggo/files"
@@ -30,8 +30,8 @@ func New() *gin.Engine {
 	{
 		datasets.DELETE("", handlers.DeleteDataset)
 		datasets.GET("", handlers.GetDatasetList)
-		datasets.GET("/query", handlers.QueryDataset)
 		datasets.GET("/download", handlers.DownloadDataset)
+		datasets.GET("/query", handlers.QueryDataset)
 		datasets.POST("", handlers.SubmitDatasetBuilding)
 	}
 
@@ -44,8 +44,9 @@ func New() *gin.Engine {
 	{
 		injections.GET("", handlers.GetInjectionList)
 		injections.GET("/conf", handlers.GetInjectionConf)
-		injections.POST("", handlers.SubmitFaultInjection)
 		injections.GET("/ns/status", handlers.GetNSLock)
+		injections.GET("/query", handlers.QueryInjection)
+		injections.POST("", handlers.SubmitFaultInjection)
 
 		tasks := injections.Group("/:task_id")
 		{
@@ -55,10 +56,22 @@ func New() *gin.Engine {
 
 	tasks := r.Group("/tasks")
 	{
+		tasks.GET("/queue", handlers.GetQueuedTasks)
+		tasks.GET("/list", handlers.ListTasks)
+
 		tasksWithID := tasks.Group("/:task_id")
 		{
 			tasksWithID.GET("", handlers.GetTaskDetail)
-			tasksWithID.GET("/stream", handlers.GetTaskStream)
+		}
+	}
+
+	traces := r.Group("/traces")
+	{
+		traces.GET("/analyze", handlers.AnalyzeTrace)
+
+		tracesWithID := traces.Group("/:trace_id")
+		{
+			tracesWithID.GET("/stream", handlers.GetTraceStream)
 		}
 	}
 

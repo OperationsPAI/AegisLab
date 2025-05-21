@@ -1,12 +1,15 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/LGU-SE-Internal/rcabench/tracing"
+	"github.com/sirupsen/logrus"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
@@ -69,7 +72,15 @@ func (c *HelmClient) AddRepo(name, url string) error {
 
 	// Check if the repo already exists
 	if f.Has(name) {
-		// Repository already exists, nothing to do
+		if f.Get(name).URL != url {
+			f.Get(name).URL = url
+		}
+
+		if err := f.WriteFile(repoFile, 0644); err != nil {
+			return fmt.Errorf("failed to write repository file: %w", err)
+		}
+
+		logrus.Infof("Updated repository %s URL to %s", name, url)
 		return nil
 	}
 
@@ -78,7 +89,6 @@ func (c *HelmClient) AddRepo(name, url string) error {
 		Name: name,
 		URL:  url,
 	}
-
 	r, err := repo.NewChartRepository(entry, getter.All(c.settings))
 	if err != nil {
 		return fmt.Errorf("failed to create chart repository: %w", err)
@@ -89,7 +99,6 @@ func (c *HelmClient) AddRepo(name, url string) error {
 	}
 
 	f.Update(entry)
-
 	if err := f.WriteFile(repoFile, 0644); err != nil {
 		return fmt.Errorf("failed to write repository file: %w", err)
 	}
@@ -171,39 +180,51 @@ func (c *HelmClient) UninstallRelease(releaseName string) error {
 
 	_, err := client.Run(releaseName)
 	if err != nil {
+		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "release: not found") {
+			logrus.Infof("Release %s is not installed, nothing to uninstall", releaseName)
+			return nil
+		}
 		return fmt.Errorf("failed to uninstall release %s: %w", releaseName, err)
 	}
 
 	return nil
 }
 
-func (c *HelmClient) InstallRelease(releaseName, chartName string, vals map[string]interface{}) error {
-	client := action.NewInstall(c.actionConfig)
-	client.ReleaseName = releaseName
-	client.Namespace = c.namespace
-	client.Wait = true
-	client.Timeout = 300 * time.Second
-	client.CreateNamespace = true
+func (c *HelmClient) InstallRelease(ctx context.Context, releaseName, chartName string, vals map[string]any) error {
+	return tracing.WithSpan(ctx, func(ctx context.Context) error {
+		now := time.Now()
 
-	cp, err := client.ChartPathOptions.LocateChart(chartName, c.settings)
-	if err != nil {
-		return fmt.Errorf("failed to locate chart %s: %w", chartName, err)
-	}
+		defer func() {
+			log.Printf("InstallRelease took %s", time.Since(now))
+		}()
 
-	chart, err := loader.Load(cp)
-	if err != nil {
-		return fmt.Errorf("failed to load chart %s: %w", chartName, err)
-	}
+		client := action.NewInstall(c.actionConfig)
+		client.ReleaseName = releaseName
+		client.Namespace = c.namespace
+		client.Wait = true
+		client.Timeout = 500 * time.Second
+		client.CreateNamespace = true
 
-	_, err = client.Run(chart, vals)
-	if err != nil {
-		return fmt.Errorf("failed to install release %s: %w", releaseName, err)
-	}
+		cp, err := client.ChartPathOptions.LocateChart(chartName, c.settings)
+		if err != nil {
+			return fmt.Errorf("failed to locate chart %s: %w", chartName, err)
+		}
 
-	return nil
+		chart, err := loader.Load(cp)
+		if err != nil {
+			return fmt.Errorf("failed to load chart %s: %w", chartName, err)
+		}
+
+		_, err = client.Run(chart, vals)
+		if err != nil {
+			return fmt.Errorf("failed to install release %s: %w", releaseName, err)
+		}
+
+		return nil
+	})
 }
 
-func (c *HelmClient) InstallTrainTicket(releaseName, imageTag, nodePort string) error {
+func (c *HelmClient) InstallTrainTicket(ctx context.Context, releaseName, nodePort string) error {
 	installed, err := c.IsReleaseInstalled(releaseName)
 	if err != nil {
 		return err
@@ -215,24 +236,30 @@ func (c *HelmClient) InstallTrainTicket(releaseName, imageTag, nodePort string) 
 		if err := c.UninstallRelease(releaseName); err != nil {
 			return err
 		}
-		// Wait a bit for resources to be cleaned up
-		time.Sleep(5 * time.Second)
+
+		time.Sleep(2 * time.Minute)
 	} else {
 		log.Printf("No existing %s release found", releaseName)
 	}
 
-	values := map[string]interface{}{
-		"global": map[string]interface{}{
-			"image": map[string]interface{}{
+	imageName := "ts-train-service"
+	imageTag, err := GetHarborClient().GetLatestTag(imageName)
+	if err != nil {
+		return fmt.Errorf("failed to get lataest tag of %s: %v", imageName, err)
+	}
+
+	values := map[string]any{
+		"global": map[string]any{
+			"image": map[string]any{
 				"tag": imageTag,
 			},
 		},
-		"services": map[string]interface{}{
-			"tsUiDashboard": map[string]interface{}{
+		"services": map[string]any{
+			"tsUiDashboard": map[string]any{
 				"nodePort": nodePort,
 			},
 		},
 	}
 
-	return c.InstallRelease(releaseName, "train-ticket/trainticket", values)
+	return c.InstallRelease(ctx, releaseName, "train-ticket/trainticket", values)
 }

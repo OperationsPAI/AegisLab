@@ -9,11 +9,11 @@ import (
 
 	"maps"
 
-	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
-	"github.com/CUHK-SE-Group/rcabench/consts"
-	"github.com/CUHK-SE-Group/rcabench/dto"
-	"github.com/CUHK-SE-Group/rcabench/repository"
-	"github.com/CUHK-SE-Group/rcabench/utils"
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	"github.com/LGU-SE-Internal/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/dto"
+	"github.com/LGU-SE-Internal/rcabench/repository"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 )
 
 type conclusionACatK struct {

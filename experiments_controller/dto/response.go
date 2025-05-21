@@ -1,13 +1,9 @@
 package dto
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
-	"github.com/CUHK-SE-Group/rcabench/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,8 +15,9 @@ type GenericResponse[T any] struct {
 }
 
 type PaginationResp[T any] struct {
-	Total int64 `json:"total"`
-	Data  []T   `json:"-"`
+	Total      int64 `json:"total"`
+	TotalPages int64 `json:"total_pages"`
+	Items      []T   `json:"items"`
 }
 
 type Trace struct {
@@ -32,21 +29,6 @@ type Trace struct {
 type SubmitResp struct {
 	GroupID string  `json:"group_id"`
 	Traces  []Trace `json:"traces"`
-}
-
-func (p *PaginationResp[T]) MarshalJSON() ([]byte, error) {
-	var t T
-	typeName := utils.GetTypeName(t)
-
-	snakeCase := utils.ToSnakeCase(typeName)
-	dataKey := fmt.Sprintf("%ss", strings.Split(snakeCase, "_")[0])
-
-	result := map[string]any{
-		"total": p.Total,
-		dataKey: p.Data,
-	}
-
-	return json.Marshal(result)
 }
 
 func JSONResponse[T any](c *gin.Context, code int, message string, data T) {

@@ -228,7 +228,8 @@ class ListResult(BaseModel):
 
     Attributes:
         total: 数据集总数
-        datasets: 数据集条目列表
+        total_pages: 数据集记录总页数
+        items: 数据集条目列表
     """
 
     total: int = Field(
@@ -238,7 +239,14 @@ class ListResult(BaseModel):
         ge=0,
     )
 
-    datasets: List[DatasetItem] = Field(
+    total_pages: int = Field(
+        default=0,
+        ge=0,
+        description="Total number of injections pages",
+        json_schema_extra={"example": 20},
+    )
+
+    items: List[DatasetItem] = Field(
         default_factory=list,
         description="List of datasets",
     )
@@ -251,11 +259,16 @@ class DetectorRecord(BaseModel):
     Attributes:
         span_name: 存在问题的Span名称
         issue: 检测到的异常描述
-        avg_duration: 平均持续时间指标（分钟）
-        succ_rate: 成功率百分比（0-1范围）
-        p90: 90分位延迟测量值
-        p95: 95分位延迟测量值
-        p99: 99分位延迟测量值
+        abnormal_avg_duration: 异常时段的平均持续时间指标（秒）
+        normal_avg_duration: 正常时段的平均持续时间指标（秒）
+        abnormal_succ_rate: 异常时段的成功率百分比（0-1范围）
+        normal_succ_rate: 正常时段的成功率百分比（0-1范围）
+        abnormal_p90: 异常时段的90分位延迟测量值
+        normal_p90: 正常时段的90分位延迟测量值
+        abnormal_p95: 异常时段的95分位延迟测量值
+        normal_p95: 正常时段的95分位延迟测量值
+        abnormal_p99: 异常时段的99分位延迟测量值
+        normal_p99: 正常时段的99分位延迟测量值
     """
 
     span_name: str = Field(
@@ -268,40 +281,70 @@ class DetectorRecord(BaseModel):
         description="Description of detected anomaly",
     )
 
-    avg_duration: Optional[float] = Field(
+    abnormal_avg_duration: Optional[float] = Field(
         None,
-        description="Average duration metric (seconds)",
+        description="Average duration metric for abnormal period (seconds)",
     )
 
-    succ_rate: Optional[float] = Field(
+    normal_avg_duration: Optional[float] = Field(
         None,
-        description="Success rate percentage (0-1 scale)",
+        description="Average duration metric for normal period (seconds)",
+    )
+
+    abnormal_succ_rate: Optional[float] = Field(
+        None,
+        description="Success rate percentage for abnormal period (0-1 scale)",
         ge=0,
         le=1,
     )
 
-    p90: Optional[float] = Field(
+    normal_succ_rate: Optional[float] = Field(
         None,
-        alias="P90",
-        description="90th percentile latency measurement",
+        description="Success rate percentage for normal period (0-1 scale)",
         ge=0,
         le=1,
     )
 
-    p95: Optional[float] = Field(
+    abnormal_p90: Optional[float] = Field(
         None,
-        alias="P95",
-        description="95th percentile latency measurement",
+        alias="abnormal_P90",
+        description="90th percentile latency measurement for abnormal period",
         ge=0,
-        le=1,
     )
 
-    p99: Optional[float] = Field(
+    normal_p90: Optional[float] = Field(
         None,
-        alias="P99",
-        description="99th percentile latency measurement",
+        alias="normal_P90",
+        description="90th percentile latency measurement for normal period",
         ge=0,
-        le=1,
+    )
+
+    abnormal_p95: Optional[float] = Field(
+        None,
+        alias="abnormal_P95",
+        description="95th percentile latency measurement for abnormal period",
+        ge=0,
+    )
+
+    normal_p95: Optional[float] = Field(
+        None,
+        alias="normal_P95",
+        description="95th percentile latency measurement for normal period",
+        ge=0,
+    )
+
+    abnormal_p99: Optional[float] = Field(
+        None,
+        alias="abnormal_P99",
+        description="99th percentile latency measurement for abnormal period",
+        ge=0,
+    )
+
+    normal_p99: Optional[float] = Field(
+        None,
+        alias="normal_P99",
+        description="99th percentile latency measurement for normal period",
+        ge=0,
     )
 
 
@@ -426,12 +469,6 @@ class EnvVar(BaseModel):
         None,
         description="Target Kubernetes namespace",
         json_schema_extra={"example": "ts"},
-    )
-
-    SERVICE: Optional[str] = Field(
-        None,
-        description="Full name of microservice to monitor",
-        json_schema_extra={"example": "ts-ts-preserve-service"},
     )
 
 

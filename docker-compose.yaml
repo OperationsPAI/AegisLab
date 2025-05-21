@@ -38,13 +38,12 @@ services:
       context: ./experiments_controller
     container_name: exp
     environment:
-      GOPRIVATE: "github.com/CUHK-SE-Group/chaos-experiment"
+      GOPRIVATE: "github.com/LGU-SE-Internal/chaos-experiment"
       ENV: "prod"
     command: ["/app/exp", "both", "--port", "8081"]
     volumes:
       - /home/nn/.kube/config:/root/.kube/config
       - ./algorithms:/app/algorithms
-      - ./benchmarks:/app/benchmarks
       - ./experiments:/app/experiments
       - ./reports:/app/reports
       - ./experiments_controller/config.prod.toml:/etc/rcabench/config.prod.toml

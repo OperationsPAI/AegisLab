@@ -6,14 +6,16 @@ import (
 	"fmt"
 	"runtime/debug"
 
-	"github.com/CUHK-SE-Group/rcabench/consts"
-	"github.com/CUHK-SE-Group/rcabench/tracing"
+	"github.com/LGU-SE-Internal/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/dto"
+	"github.com/LGU-SE-Internal/rcabench/repository"
+	"github.com/LGU-SE-Internal/rcabench/tracing"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 )
 
-func dispatchTask(ctx context.Context, task *UnifiedTask) error {
+func dispatchTask(ctx context.Context, task *dto.UnifiedTask) error {
 	defer func() {
 		if r := recover(); r != nil {
 			logrus.Errorf("Task panic: %v\n%s", r, debug.Stack())
@@ -23,6 +25,13 @@ func dispatchTask(ctx context.Context, task *UnifiedTask) error {
 	tracing.SetSpanAttribute(ctx, consts.TaskIDKey, task.TaskID)
 	tracing.SetSpanAttribute(ctx, consts.TaskTypeKey, string(task.Type))
 	tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStatusRunning))
+
+	repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+		TaskID:    task.TaskID,
+		TaskType:  task.Type,
+		EventName: consts.EventTaskStarted,
+		Payload:   task,
+	})
 
 	var err error
 	switch task.Type {
@@ -49,7 +58,7 @@ func dispatchTask(ctx context.Context, task *UnifiedTask) error {
 	return nil
 }
 
-func getAnnotations(ctx context.Context, task *UnifiedTask) (map[string]string, error) {
+func getAnnotations(ctx context.Context, task *dto.UnifiedTask) (map[string]string, error) {
 	taskCarrier := make(propagation.MapCarrier)
 	otel.GetTextMapPropagator().Inject(ctx, taskCarrier)
 	taskCarrierBytes, err := json.Marshal(taskCarrier)

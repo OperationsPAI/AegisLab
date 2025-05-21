@@ -7,9 +7,10 @@ import (
 	"path/filepath"
 	"time"
 
-	con "github.com/CUHK-SE-Group/rcabench/config"
-	"github.com/CUHK-SE-Group/rcabench/consts"
-	"github.com/CUHK-SE-Group/rcabench/utils"
+	con "github.com/LGU-SE-Internal/rcabench/config"
+	"github.com/LGU-SE-Internal/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/dto"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 
 	"github.com/docker/cli/cli/config"
 	"github.com/moby/buildkit/client"
@@ -35,7 +36,7 @@ type BuildOptions struct {
 	ContextDir     string
 }
 
-func executeBuildImages(ctx context.Context, task *UnifiedTask) error {
+func executeBuildImages(ctx context.Context, task *dto.UnifiedTask) error {
 	algoName, ok := task.Payload[consts.BuildAlgorithm].(string)
 	if !ok {
 		return errors.New("failed to get algorithm name")

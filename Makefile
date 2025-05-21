@@ -1,11 +1,17 @@
 # Global Variables
 DEFAULT_REPO ?= 10.10.10.240/library
-NS           ?= exp
-CHAOS_TYPES  ?= dnschaos httpchaos jvmchaos networkchaos podchaos stresschaos timechaos
-TS_NS ?= "ts"
-PORT ?= "30080"
+NS          ?= exp
+CHAOS_TYPES ?= dnschaos httpchaos jvmchaos networkchaos podchaos stresschaos timechaos
+TS_NS       ?= ts
+PORT        ?= 30080
+CONTROLLER_DIR = experiments_controller
 
-.PHONY: build run debug swagger build-sdk-python gen-dataset-dev gen-dataset-prod import jobs pods ports help deploy-ts
+# 声明所有非文件目标
+.PHONY: help build run debug swagger import clean-finalizer delete-chaos k8s-resources ports \
+        install-hooks git-sync upgrade-dep deploy-ts
+
+# 默认目标
+.DEFAULT_GOAL := help
 
 help:  ## Display targets with category headers
 	@awk 'BEGIN { \
@@ -22,84 +28,81 @@ help:  ## Display targets with category headers
 
 ##@ Building
 
-build: ## Build and deploy using skaffold
+run: ## Build and deploy using skaffold
 	skaffold run --default-repo=$(DEFAULT_REPO)
 
-run: ## Run application in debug mode with skaffold
+remote-debug: ## Run application in debug mode with skaffold
 	skaffold debug --default-repo=$(DEFAULT_REPO)
 
 ##@ Development
 
-debug: ## Start local debug environment (databases + controller)
+local-debug: ## Start local debug environment (databases + controller)
 	docker compose down && \
 	docker compose up redis mariadb jaeger -d && \
 	kubectl delete jobs --all -n $(NS) && \
-	cd experiments_controller && go run main.go both --port 8082
+	cd $(CONTROLLER_DIR) && go run main.go both --port 8082
 
-import: ## import the latest version of github.com/CUHK-SE-Group/chaos-experiment
-	cd experiments_controller && \
-	go get github.com/CUHK-SE-Group/chaos-experiment@injectionv2 && \
+import: ## Import the latest version of chaos-experiment library
+	cd $(CONTROLLER_DIR) && \
+	go get github.com/LGU-SE-Internal/chaos-experiment@injectionv2 && \
 	go mod tidy
 
 swagger: ## Generate Swagger API documentation
-	swag init \
-		-d ./experiments_controller \
-		--parseDependency \
-		--parseDepth 1 --output ./experiments_controller/docs 
+	swag init -d ./$(CONTROLLER_DIR) --parseDependency --parseDepth 1 --output ./$(CONTROLLER_DIR)/docs
 
-##@ chaos-mesh CRD
+##@ Chaos Management
 
 clean-finalizer: ## Clean finalizers for specified chaos types in namespace $(NS)
 	@for type in $(CHAOS_TYPES); do \
-        kubectl get $$type -n $(NS) -o jsonpath='{range .items[*]}{.metadata.namespace}{":"}{.metadata.name}{"\n"}{end}' | while IFS=: read -r ns name; do \
-            if [ -n "$$name" ]; then \
-                kubectl patch $$type "$$name" -n "$$ns" --type=merge -p '{"metadata":{"finalizers":[]}}'; \
-            fi \
-        done; \
-    done
+		kubectl get $$type -n $(NS) -o jsonpath='{range .items[*]}{.metadata.namespace}{":"}{.metadata.name}{"\n"}{end}' | \
+		while IFS=: read -r ns name; do \
+			[ -n "$$name" ] && kubectl patch $$type "$$name" -n "$$ns" --type=merge -p '{"metadata":{"finalizers":[]}}'; \
+		done; \
+	done
 
 delete-chaos: ## Delete specified chaos types in namespace $(NS)
 	@for type in $(CHAOS_TYPES); do \
-		  kubectl delete $$type --all -n $(NS); \
+		kubectl delete $$type --all -n $(NS); \
 	done
 
 ##@ Kubernetes
 
-jobs: ## List all jobs
-	kubectl get jobs -n $(NS)
-
-pods: ## List all pods
-	kubectl get pods -n $(NS)
+k8s-resources: ## Display all jobs and pods
+	@echo "Jobs in namespace $(NS):"
+	@kubectl get jobs -n $(NS)
+	@echo "\nPods in namespace $(NS):"
+	@kubectl get pods -n $(NS)
 
 ports: ## Port-forward service
 	kubectl port-forward svc/exp -n $(NS) --address 0.0.0.0 8081:8081 &
 
-
-##@ Git Hook
+##@ Git Management
 
 install-hooks: ## Install pre-commit hooks
 	chmod +x scripts/hooks/pre-commit
 	cp scripts/hooks/pre-commit .git/hooks/pre-commit
+	chmod +x .git/hooks/pre-commit
 
-##@ Git Submodule
-
-sync-dep: ## Synchronize Git submodules
+git-sync: ## Synchronize Git submodules
 	git submodule update --init --recursive --remote
 
-upgrade-dep: ## Upgrade Git submodules to the latest main branch
+upgrade-dep: git-sync ## Upgrade Git submodules to latest main branch
 	@git submodule foreach 'branch=$$(git config -f $$toplevel/.gitmodules submodule.$$name.branch || echo main); \
-        echo "Updating $$name to branch: $$branch"; \
-        git checkout $$branch && git pull origin $$branch'
+		echo "Updating $$name to branch: $$branch"; \
+		git checkout $$branch && git pull origin $$branch'
 
-deploy-ts:
-	helm repo add train-ticket https://cuhk-se-group.github.io/train-ticket
+##@ Train Ticket Deployment
+
+deploy-ts: ## Deploy Train Ticket application
+	helm repo add train-ticket https://lgu-se-internal.github.io/train-ticket
 	helm repo update
-	helm search repo train-ticket
+	@echo "Checking for existing Train Ticket installation..."
 	@if helm status $(TS_NS) -n $(TS_NS) >/dev/null 2>&1; then \
-			echo "Uninstalling existing $(TS_NS) release"; \
-			helm uninstall $(TS_NS) -n $(TS_NS); \
-			sleep 5; \
+		echo "Uninstalling existing $(TS_NS) release"; \
+		helm uninstall $(TS_NS) -n $(TS_NS); \
+		sleep 5; \
 	else \
-			echo "No existing $(TS_NS) release found"; \
-	fi; \
+		echo "No existing $(TS_NS) release found"; \
+	fi
+	@echo "Installing Train Ticket..."
 	helm install $(TS_NS) train-ticket/trainticket -n $(TS_NS) --set global.image.tag=637600ea --set services.tsUiDashboard.nodePort=$(PORT)

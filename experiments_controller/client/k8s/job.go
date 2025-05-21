@@ -6,8 +6,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/CUHK-SE-Group/rcabench/config"
-	"github.com/CUHK-SE-Group/rcabench/tracing"
+	"github.com/LGU-SE-Internal/rcabench/tracing"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
 	batchv1 "k8s.io/api/batch/v1"
@@ -36,20 +35,43 @@ func CreateJob(ctx context.Context, jobConfig JobConfig) error {
 
 		volumeMounts := []corev1.VolumeMount{
 			{
-				Name:      "nfs-volume",
+				Name:      "jfs-volume",
 				MountPath: "/data",
 			},
+			{
+				Name:      "kube-config",
+				MountPath: "/root/.kube/config",
+				SubPath:   "config",
+			},
 		}
-		pvc := config.GetString("nfs.pvc_name")
-		if config.GetString("nfs.pvc_name") == "" {
-			pvc = "nfs-shared-pvc"
-		}
+		// pvc := config.GetString("nfs.pvc_name")
+		// if config.GetString("nfs.pvc_name") == "" {
+		// pvc = "nfs-shared-pvc"
+		// }
 		volumes := []corev1.Volume{
 			{
-				Name: "nfs-volume",
+				Name: "jfs-volume",
 				VolumeSource: corev1.VolumeSource{
-					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: pvc,
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/mnt/jfs/rcabench_dataset",
+						Type: func() *corev1.HostPathType {
+							hostPathType := corev1.HostPathDirectory
+							return &hostPathType
+						}(),
+					},
+				},
+			},
+			{
+				Name: "kube-config",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: "kube-config",
+						Items: []corev1.KeyToPath{
+							{
+								Key:  "config",
+								Path: "config",
+							},
+						},
 					},
 				},
 			},
@@ -75,11 +97,12 @@ func CreateJob(ctx context.Context, jobConfig JobConfig) error {
 						RestartPolicy: jobConfig.RestartPolicy,
 						Containers: []corev1.Container{
 							{
-								Name:         jobConfig.JobName,
-								Image:        jobConfig.Image,
-								Command:      jobConfig.Command,
-								Env:          jobConfig.EnvVars,
-								VolumeMounts: volumeMounts,
+								Name:            jobConfig.JobName,
+								Image:           jobConfig.Image,
+								Command:         jobConfig.Command,
+								Env:             jobConfig.EnvVars,
+								VolumeMounts:    volumeMounts,
+								ImagePullPolicy: corev1.PullAlways,
 							},
 						},
 						Volumes: volumes,

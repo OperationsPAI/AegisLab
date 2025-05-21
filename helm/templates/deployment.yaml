@@ -183,7 +183,7 @@ spec:
             - containerPort: 8081
           env:
             - name: GOPRIVATE
-              value: "github.com/CUHK-SE-Group/chaos-experiment"
+              value: "github.com/LGU-SE-Internal/chaos-experiment"
             - name: ENV
               value: "prod"
           volumeMounts:
@@ -193,8 +193,8 @@ spec:
             - name: kube-config
               mountPath: /root/.kube/config
               subPath: config
-            - name: data
-              mountPath: /var/lib/rcabench
+            # - name: data
+            #   mountPath: /var/lib/rcabench
             - name: algorithms-data
               mountPath: "{{ .Values.configmap.algo.storage_path }}"
       volumes:
@@ -207,9 +207,9 @@ spec:
             items:
               - key: config
                 path: config
-        - name: data
-          persistentVolumeClaim:
-            claimName: nfs-shared-pvc
+        # - name: data
+        #   persistentVolumeClaim:
+        #     claimName: nfs-shared-pvc
         - name: algorithms-data
           persistentVolumeClaim:
             claimName: algorithms-data
@@ -270,7 +270,7 @@ spec:
           command: ["/app/entrypoint.sh", "consumer"]
           env:
             - name: GOPRIVATE
-              value: "github.com/CUHK-SE-Group/chaos-experiment"
+              value: "github.com/LGU-SE-Internal/chaos-experiment"
             - name: ENV
               value: "prod"
           volumeMounts:
@@ -280,10 +280,10 @@ spec:
             - name: kube-config
               mountPath: /root/.kube/config
               subPath: config
-            - name: data
-              mountPath: /var/lib/rcabench
-            - name: algorithms-data
-              mountPath: "{{ .Values.configmap.algo.storage_path }}"
+            # - name: data
+            #   mountPath: /var/lib/rcabench
+            # - name: algorithms-data
+            #   mountPath: "{{ .Values.configmap.algo.storage_path }}"
             - name: docker-config-volume
               mountPath: /root/.docker/config.json
               subPath: config.json
@@ -297,9 +297,9 @@ spec:
             items:
               - key: config
                 path: config
-        - name: data
-          persistentVolumeClaim:
-            claimName: nfs-shared-pvc
+        # - name: data
+        #   persistentVolumeClaim:
+        #     claimName: nfs-shared-pvc
         - name: algorithms-data
           persistentVolumeClaim:
             claimName: algorithms-data
@@ -344,8 +344,8 @@ spec:
             - name: kube-config
               mountPath: /root/.kube/config
               subPath: config
-            - name: data
-              mountPath: /var/lib/rcabench
+            # - name: data
+            #   mountPath: /var/lib/rcabench
             - name: algorithms-data
               mountPath: "{{ .Values.configmap.algo.storage_path }}"
             - name: buildkit-socket
@@ -366,9 +366,9 @@ spec:
             items:
               - key: config
                 path: config
-        - name: data
-          persistentVolumeClaim:
-            claimName: nfs-shared-pvc
+        # - name: data
+        #   persistentVolumeClaim:
+        #     claimName: nfs-shared-pvc
         - name: algorithms-data
           persistentVolumeClaim:
             claimName: algorithms-data
