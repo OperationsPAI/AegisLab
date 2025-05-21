@@ -9,8 +9,8 @@ spec:
     - ReadWriteMany  
   persistentVolumeReclaimPolicy: Retain 
   nfs:
-    path: /mnt/data/rcabench_dataset
-    server: 10.26.1.146  
+    path: /srv/nfs_share/rcabench_dataset
+    server: 10.10.10.38  
   mountOptions:
     - vers=4  
   storageClassName: nfs-storage-class
@@ -38,8 +38,8 @@ spec:
     - ReadWriteMany  
   persistentVolumeReclaimPolicy: Retain 
   nfs:
-    path: /mnt/data/rcabench_algo
-    server: 10.26.1.146  
+    path: /srv/nfs_share/rcabench_algo
+    server: 10.10.10.38  
   mountOptions:
     - vers=4  
   storageClassName: algorithms-data-storage-class

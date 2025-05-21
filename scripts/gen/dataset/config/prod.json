@@ -1,9 +1,0 @@
-{
-    "base_url": "http://10.10.10.220:32080",
-    "benchmark": "clickhouse",
-    "pre_duration": 10,
-    "fault_duration": 15,
-    "interval": 30,
-    "n_trial": 1,
-    "seed": 42
-}

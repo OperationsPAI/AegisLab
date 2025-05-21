@@ -10,15 +10,15 @@ import (
 	"path"
 	"runtime"
 
-	cli "github.com/CUHK-SE-Group/chaos-experiment/client"
-	chaos "github.com/CUHK-SE-Group/chaos-experiment/handler"
-	"github.com/CUHK-SE-Group/rcabench/client"
-	"github.com/CUHK-SE-Group/rcabench/client/k8s"
-	"github.com/CUHK-SE-Group/rcabench/config"
-	"github.com/CUHK-SE-Group/rcabench/database"
-	_ "github.com/CUHK-SE-Group/rcabench/docs"
-	"github.com/CUHK-SE-Group/rcabench/executor"
-	"github.com/CUHK-SE-Group/rcabench/router"
+	cli "github.com/LGU-SE-Internal/chaos-experiment/client"
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	"github.com/LGU-SE-Internal/rcabench/client"
+	"github.com/LGU-SE-Internal/rcabench/client/k8s"
+	"github.com/LGU-SE-Internal/rcabench/config"
+	"github.com/LGU-SE-Internal/rcabench/database"
+	_ "github.com/LGU-SE-Internal/rcabench/docs"
+	"github.com/LGU-SE-Internal/rcabench/executor"
+	"github.com/LGU-SE-Internal/rcabench/router"
 	nested "github.com/antonfisher/nested-logrus-formatter"
 	"github.com/go-logr/stdr"
 	"github.com/sirupsen/logrus"
@@ -67,19 +67,18 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	m := config.GetMap("injection.namespace_target_map")
-	namespaceTargetMap := make(map[string]int, len(m))
-	for ns, value := range m {
-		count, ok := value.(int64)
-		if !ok {
-			logrus.Fatalf("failed to parse target count for namespace '%s': expected integer value but got %T", ns, value)
-		}
-
-		namespaceTargetMap[ns] = int(count)
+	nsTargetMap, err := config.GetNsTargetMap()
+	logrus.Infof("initalized nsTargetMap: %v", nsTargetMap)
+	if err != nil {
+		logrus.Fatal(err)
 	}
 
 	targetLabelKey := config.GetString("injection.target_label_key")
-	chaos.InitTargetConfig(namespaceTargetMap, targetLabelKey)
+	if err := chaos.InitTargetConfig(nsTargetMap, targetLabelKey); err != nil {
+		logrus.Fatal(err)
+	}
+
+	executor.InitConcurrencyLock(ctx)
 
 	// Producer 子命令
 	var producerCmd = &cobra.Command{

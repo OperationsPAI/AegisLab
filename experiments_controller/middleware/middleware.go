@@ -23,9 +23,10 @@ func SSEPath() gin.HandlerFunc {
 		sseRegex := regexp.MustCompile(`^/stream(/.*)?$`)
 		if sseRegex.MatchString(c.Request.URL.Path) {
 			// 设置 SSE 响应头
-			c.Header("Content-Type", "text/event-stream")
-			c.Header("Cache-Control", "no-cache")
-			c.Header("Connection", "keep-alive")
+			c.Writer.Header().Set("Content-Type", "text/event-stream")
+			c.Writer.Header().Set("Cache-Control", "no-cache")
+			c.Writer.Header().Set("Connection", "keep-alive")
+			c.Writer.Header().Set("Transfer-Encoding", "chunked")
 		}
 
 		c.Next()

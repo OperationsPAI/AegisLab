@@ -29,6 +29,7 @@ const (
 )
 
 const (
+	TaskTypeDummy          TaskType = ""
 	TaskTypeRestartService TaskType = "RestartService"
 	TaskTypeRunAlgorithm   TaskType = "RunAlgorithm"
 	TaskTypeFaultInjection TaskType = "FaultInjection"
@@ -93,23 +94,53 @@ const (
 	HarborTimeUnit = time.Second
 )
 
-// Redis 订阅消息频道和字段
+// Redis stream 频道和字段
 const (
-	SubChannel = "trace:%s:channel"
+	StreamLogKey = "trace:%s:log"
 
-	RdbMsgStatus            = "status"
-	RdbMsgTaskID            = "task_id"
-	RdbMsgTaskType          = "task_type"
-	RdbMsgDataset           = "dataset"
-	RdbMsgExecutionID       = "execution_id"
-	RdbMsgHasDetectorResult = "has_detector_result"
-	RdbMsgErr               = "error"
-	RdbMsgErrMsg            = "error_msg"
+	RdbEventTaskID   = "task_id"
+	RdbEventTaskType = "task_type"
+	RdbEventStatus   = "status"
+	RdbEventFileName = "file_name"
+	RdbEventLine     = "line"
+	RdbEventName     = "name"
+	RdbEventPayload  = "payload"
+	RdbEventFn       = "function_name"
+
+	RdbPayloadErr            = "error"
+	RdbPayloadDataset        = "dataset"
+	RdbPayloadExecutionID    = "execution_id"
+	RdbPayloadDetectorResult = "detector_result"
 )
 
+type EventType string
+
 const (
-	RdbTraceItemKey            = "trace:%s:item"
-	RdbTraceItemRestartPayload = "restart_payload"
+	// when adding the consts, remember to update the consts in python sdk, const.py
+	EventAlgoRunSucceed EventType = "algorithm.run.succeed"
+
+	// TODO 校验算法执行结果
+	EventAlgoResultCollection    EventType = "algorithm.collect_result"
+	EventDatasetResultCollection EventType = "dataset.result.collection"
+	EventDatasetNoAnomaly        EventType = "dataset.no_anomaly"
+	EventDatasetNoConclusionFile EventType = "dataset.no_conclusion_file"
+	EventDatasetBuildSucceed     EventType = "dataset.build.succeed"
+
+	EventTaskStatusUpdate EventType = "task.status.update"
+	EventTaskRetryStatus  EventType = "task.retry.status"
+	EventTaskStarted      EventType = "task.started"
+
+	EventNoNamespaceAvailable    EventType = "no.namespace.available"
+	EventRestartServiceStarted   EventType = "restart.service.started"
+	EventRestartServiceCompleted EventType = "restart.service.completed"
+	EventRestartServiceFailed    EventType = "restart.service.failed"
+
+	EventFaultInjectionStarted   EventType = "fault.injection.started"
+	EventFaultInjectionCompleted EventType = "fault.injection.completed"
+	EventFaultInjectionFailed    EventType = "fault.injection.failed"
+
+	EventAcquireLock EventType = "acquire.lock"
+	EventReleaseLock EventType = "release.lock"
 )
 
 // K8s Job 名称
@@ -141,7 +172,6 @@ const (
 	LabelAlgorithm   = "algorithm"
 	LabelDataset     = "dataset"
 	LabelExecutionID = "execution_id"
-	LabelService     = "service"
 )
 
 // sse 事件类型

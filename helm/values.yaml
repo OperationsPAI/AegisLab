@@ -40,20 +40,14 @@ configmap:
     timezone: "Asia/Shanghai"
   injection:
     enable_duplicate: true
-    namespace_target_map: { ts: 5 }
+    namespace_target_map: { ts: 6 }
     target_label_key: "app"
-    ts_image_tag: "637600ea"
   database:
     clickhouse_host: "10.10.10.58"
     mysql_user: "root"
     mysql_password: "yourpassword"
-    mysql_host: "{{ .Release.Name }}-mariadb"
     mysql_port: "3306"
     mysql_db: "rcabench"
-  jaeger:
-    endpoint: "{{ .Release.Name }}-jaeger:4318"
-  redis:
-    host: "{{ .Release.Name }}-redis:6379"
   harbor:
     host: "10.10.10.240"
     repository: "10.10.10.240/library"
@@ -61,15 +55,19 @@ configmap:
     password: "Harbor12345"
   k8s:
     namespace: "exp"
-  nfs:
+  jfs:
     path: "/var/lib/rcabench"
-    pvc_name: "nfs-shared-pvc"
   algo:
     storage_path: "/app/algorithms"
   debugging:
-    enable: true
+    enable: false
   buildkit:
     address: "tcp://{{ .Release.Name }}-buildkit:1234"
+  s3:
+    endpoint: "10.10.10.38:9000"
+    access_key: "minioadmin"
+    secret_key: "minioadmin"
+    use_ssl: false
 
 persistence:
   mariadb:
