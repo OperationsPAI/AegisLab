@@ -1,6 +1,0 @@
-[submodule "lib/rcaeval"]
-	path = lib/rcaeval
-	url = git@github.com:phamquiluan/RCAEval.git
-[submodule "algorithms/detector"]
-	path = algorithms/detector
-	url = git@github.com:LGU-SE-Internal/ts-anomaly-detector.git
