@@ -94,7 +94,7 @@ type InjectionParaResp struct {
 type InjectionSubmitReq struct {
 	Interval    int              `json:"interval"`
 	PreDuration int              `json:"pre_duration"`
-	Specs       []map[string]any `json:"specs"`
+	Specs       []map[string]any `json:"specs" swaggertype:"array,object"`
 	Benchmark   string           `json:"benchmark"`
 }
 
