@@ -99,6 +99,38 @@ func GetInjectionConf(c *gin.Context) {
 	dto.SuccessResponse(c, chaosMap)
 }
 
+// GetConfigList
+//
+//	@Summary		获取故障注入配置列表
+//	@Description	根据多个 TraceID 获取对应的故障注入配置信息
+//	@Tags			injection
+//	@Produce		json
+//	@Param			trace_ids	query		[]string	true	"Trace ID 列表"
+//	@Success		200			{object}	dto.GenericResponse[map[string]any]
+//	@Failure		400			{object}	dto.GenericResponse[any]
+//	@Failure		500			{object}	dto.GenericResponse[any]
+//	@Router			/api/v1/injections/configs [get]
+func GetDisplayConfigList(c *gin.Context) {
+	var req dto.InjectionConfigListReq
+	if err := c.BindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid Parameters")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid request: %v", err))
+		return
+	}
+
+	configs, err := repository.GetDisplayConfigByTraceIDs(req.TraceIDs)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get injection config list")
+		return
+	}
+
+	dto.SuccessResponse(c, configs)
+}
+
 // GetInjectionList
 //
 //	@Summary		分页查询注入记录列表
@@ -143,6 +175,17 @@ func GetInjectionList(c *gin.Context) {
 		TotalPages: totalPages,
 		Items:      items,
 	})
+}
+
+func GetNSLock(c *gin.Context) {
+	cli := k8s.GetMonitor()
+	items, err := cli.InspectLock()
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to inspect lock")
+		return
+	}
+
+	dto.SuccessResponse(c, items)
 }
 
 func QueryInjection(c *gin.Context) {
@@ -277,17 +320,6 @@ func SubmitFaultInjection(c *gin.Context) {
 	span.SetStatus(codes.Ok, fmt.Sprintf("Successfully submitted %d fault injections with groupID: %s", len(traces), groupID))
 
 	dto.JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
-}
-
-func GetNSLock(c *gin.Context) {
-	cli := k8s.GetMonitor()
-	items, err := cli.InspectLock()
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to inspect lock")
-		return
-	}
-
-	dto.SuccessResponse(c, items)
 }
 
 func getNewConfigs(configs []*dto.InjectionConfig, interval int) ([]*dto.InjectionConfig, error) {

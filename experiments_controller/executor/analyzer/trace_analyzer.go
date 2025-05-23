@@ -2,7 +2,6 @@ package analyzer
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"runtime"
 	"sync"
@@ -14,40 +13,123 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type DurationStats struct {
-	Total       int
-	AvgDuration float64
-	MinDuration float64
-	MaxDuration float64
+type Statistics struct {
+	Total       int     `json:"total"`
+	AvgDuration float64 `json:"avg_duration"`
+	MinDuration float64 `json:"min_duration"`
+	MaxDuration float64 `json:"max_duration"`
+
+	EndCountMap        map[consts.TaskType]map[string]int     `json:"end_count_map"`
+	TraceStatusTimeMap map[string]map[consts.TaskType]float64 `json:"trace_status_time_map"`
+	TraceCompletedList []string                               `json:"trace_completed_list"`
+	TraceErrors        any                                    `json:"trace_errors"`
 }
 
-type Statistics struct {
-	Total       int
-	AvgDuration float64
-	MinDuration float64
-	MaxDuration float64
-
-	AnomalyTraceMap    map[string]string
-	NoAnomalyTraceMap  map[string]string
-	EndNameMap         map[consts.EventType]int
-	StatusMetaMap      map[consts.EventType]DurationStats
-	TraceStatusTimeMap map[string]map[consts.EventType]float64
-	TraceRunningList   []string
-	TraceErrorMap      map[string]any
+type traceResult struct {
+	TraceID       string
+	Stat          *repository.TraceStatistic
+	IsAnomaly     bool
+	IsCompleted   bool
+	IsFailed      bool
+	StatusTimeMap map[consts.TaskType]float64
+	EndTaskType   consts.TaskType
+	TotalDuration float64
+	Error         error
+	Payload       any
 }
 
 func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Statistics, error) {
-	// 初始化统计结构
-	stats := &Statistics{
-		MinDuration:        math.MaxFloat64,
-		EndNameMap:         make(map[consts.EventType]int),
-		StatusMetaMap:      map[consts.EventType]DurationStats{},
-		TraceStatusTimeMap: make(map[string]map[consts.EventType]float64),
-		TraceErrorMap:      make(map[string]any),
-		AnomalyTraceMap:    make(map[string]string),
-		NoAnomalyTraceMap:  make(map[string]string),
+	resultChan, err := getTraceResults(ctx, opts)
+	if err != nil {
+		return nil, err
 	}
 
+	stats := &Statistics{
+		MinDuration:        math.MaxFloat64,
+		EndCountMap:        make(map[consts.TaskType]map[string]int),
+		TraceStatusTimeMap: make(map[string]map[consts.TaskType]float64),
+	}
+
+	// 收集结果
+	totalDuration := 0.0
+	validTracesNum := 0
+
+	traceErrorMap := make(map[string]any)
+	for result := range resultChan {
+		stats.Total++
+
+		if _, exists := stats.EndCountMap[result.EndTaskType]; !exists {
+			stats.EndCountMap[result.EndTaskType] = make(map[string]int)
+		}
+
+		if result.IsCompleted {
+			stats.EndCountMap[result.EndTaskType]["completed"]++
+			stats.TraceCompletedList = append(stats.TraceCompletedList, result.TraceID)
+		} else {
+			if result.IsFailed {
+				stats.EndCountMap[result.EndTaskType]["failed"]++
+				traceErrorMap[result.TraceID] = result.Payload
+			} else {
+				stats.EndCountMap[result.EndTaskType]["running"]++
+			}
+		}
+
+		stats.TraceStatusTimeMap[result.TraceID] = result.StatusTimeMap
+
+		if result.TotalDuration > 0 {
+			totalDuration += result.TotalDuration
+			validTracesNum++
+
+			stats.MinDuration = math.Min(stats.MinDuration, result.TotalDuration)
+			stats.MaxDuration = math.Max(stats.MaxDuration, result.TotalDuration)
+		}
+	}
+
+	if opts.ErrorStruct == dto.ErrorStructMap {
+		stats.TraceErrors = traceErrorMap
+	} else {
+		traceErrorList := make([]string, 0, len(traceErrorMap))
+		for traceID := range traceErrorMap {
+			traceErrorList = append(traceErrorList, traceID)
+		}
+
+		stats.TraceErrors = traceErrorList
+	}
+
+	// 计算平均值
+	if validTracesNum > 0 {
+		stats.AvgDuration = totalDuration / float64(validTracesNum)
+	} else {
+		stats.MinDuration = 0
+	}
+
+	return stats, nil
+}
+
+func GetCompletedMap(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (map[consts.EventType]any, error) {
+	resultChan, err := getTraceResults(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var anomalyTraces, noAnomalyTraces []string
+	for result := range resultChan {
+		if result.IsCompleted {
+			if result.IsAnomaly {
+				anomalyTraces = append(anomalyTraces, result.TraceID)
+			} else {
+				noAnomalyTraces = append(noAnomalyTraces, result.TraceID)
+			}
+		}
+	}
+
+	return map[consts.EventType]any{
+		consts.EventDatasetResultCollection: anomalyTraces,
+		consts.EventDatasetNoAnomaly:        noAnomalyTraces,
+	}, nil
+}
+
+func getTraceResults(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (chan traceResult, error) {
 	traceIDs, err := repository.GetAllTraceIDsFromRedis(ctx)
 	if err != nil {
 		logrus.WithError(err).Error("failed to get group to trace IDs map")
@@ -65,19 +147,6 @@ func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Sta
 	} else {
 		endTime = now
 		startTime = time.Time{}
-	}
-
-	type traceResult struct {
-		TraceID       string
-		Stat          *repository.TraceStatistic
-		IsAnomaly     bool
-		IsFinished    bool
-		IsFailed      bool
-		StatusTimeMap map[consts.EventType]float64
-		EndEventName  consts.EventType
-		TotalDuration float64
-		Error         error
-		Payload       any
 	}
 
 	resultChan := make(chan traceResult, len(traceIDs))
@@ -104,18 +173,11 @@ func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Sta
 				return
 			}
 
-			var filterEvents []*dto.StreamEvent
-			for _, event := range events {
-				if event.EventName != consts.EventTaskStatusUpdate {
-					filterEvents = append(filterEvents, event)
-				}
-			}
-
-			if len(filterEvents) == 0 {
+			if opts.FirstTaskType != consts.TaskType("") && events[0].TaskType != opts.FirstTaskType {
 				return
 			}
 
-			firstEventTime := time.UnixMilli(int64(filterEvents[0].TimeStamp))
+			firstEventTime := time.UnixMilli(int64(events[0].TimeStamp))
 			if !startTime.IsZero() && firstEventTime.Before(startTime) {
 				logrus.WithField("trace_id", traceID).Debug("no valid events found")
 				return
@@ -125,12 +187,7 @@ func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Sta
 				return
 			}
 
-			if opts.EventName != consts.EventType("") && opts.EventName != filterEvents[len(filterEvents)-1].EventName {
-				logrus.WithField("trace_id", traceID).Debug("event name does not match")
-				return
-			}
-
-			stat, err := repository.GetTraceStatistic(ctx, filterEvents)
+			stat, err := repository.GetTraceStatistic(ctx, events)
 			if err != nil {
 				logrus.WithField("trace_id", traceID).Errorf("failed to get trace statistic: %v", err)
 				return
@@ -140,7 +197,7 @@ func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Sta
 				TraceID:       traceID,
 				Stat:          stat,
 				IsAnomaly:     stat.DetectAnomaly && stat.Finished,
-				IsFinished:    stat.Finished,
+				IsCompleted:   stat.Finished,
 				IsFailed:      stat.IntermediateFailed,
 				StatusTimeMap: stat.StatusTimeMap,
 				TotalDuration: stat.TotalDuration,
@@ -148,7 +205,7 @@ func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Sta
 			}
 
 			if stat.EndEvent != nil {
-				result.EndEventName = stat.EndEvent.EventName
+				result.EndTaskType = stat.EndEvent.TaskType
 			}
 
 			resultChan <- result
@@ -160,86 +217,5 @@ func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Sta
 		close(resultChan)
 	}()
 
-	// 收集结果
-	var anomalyTraces, noAnomalyTraces []string
-	totalDuration := 0.0
-	validTraces := 0
-
-	for result := range resultChan {
-		stats.Total++
-
-		if result.IsFinished {
-			if result.IsAnomaly {
-				anomalyTraces = append(anomalyTraces, result.TraceID)
-			} else {
-				noAnomalyTraces = append(noAnomalyTraces, result.TraceID)
-			}
-		} else {
-			if result.IsFailed {
-				stats.TraceErrorMap[result.TraceID] = result.Payload
-			} else {
-				stats.TraceRunningList = append(stats.TraceRunningList, result.TraceID)
-			}
-		}
-
-		if result.EndEventName != "" && result.EndEventName != consts.EventTaskStarted {
-			stats.EndNameMap[result.EndEventName]++
-		}
-
-		stats.TraceStatusTimeMap[result.TraceID] = result.StatusTimeMap
-
-		for eventName, duration := range result.StatusTimeMap {
-			if _, ok := stats.StatusMetaMap[eventName]; !ok {
-				stats.StatusMetaMap[eventName] = DurationStats{
-					Total:       0,
-					AvgDuration: 0,
-					MinDuration: math.MaxFloat64,
-					MaxDuration: 0,
-				}
-			}
-
-			current := stats.StatusMetaMap[eventName]
-
-			current.Total++
-			current.AvgDuration = current.AvgDuration + (duration-current.AvgDuration)/float64(current.Total)
-			current.MinDuration = math.Min(current.MinDuration, duration)
-			current.MaxDuration = math.Max(current.MaxDuration, duration)
-
-			stats.StatusMetaMap[eventName] = current
-		}
-
-		if result.TotalDuration > 0 {
-			totalDuration += result.TotalDuration
-			validTraces++
-
-			stats.MinDuration = math.Min(stats.MinDuration, result.TotalDuration)
-			stats.MaxDuration = math.Max(stats.MaxDuration, result.TotalDuration)
-		}
-	}
-
-	// 批量获取display config以减少数据库操作
-	if len(anomalyTraces) > 0 {
-		anomalyTraceMap, err := repository.GetDisplayConfigByTraceIDs(anomalyTraces)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get display config for anomaly traces: %v", err)
-		}
-		stats.AnomalyTraceMap = anomalyTraceMap
-	}
-
-	if len(noAnomalyTraces) > 0 {
-		noAnomalyTraceMap, err := repository.GetDisplayConfigByTraceIDs(noAnomalyTraces)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get display config for noAnomaly traces: %v", err)
-		}
-		stats.NoAnomalyTraceMap = noAnomalyTraceMap
-	}
-
-	// 计算平均值
-	if validTraces > 0 {
-		stats.AvgDuration = totalDuration / float64(validTraces)
-	} else {
-		stats.MinDuration = 0
-	}
-
-	return stats, nil
+	return resultChan, nil
 }

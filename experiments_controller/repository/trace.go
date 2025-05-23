@@ -20,7 +20,7 @@ type TraceStatistic struct {
 
 	TotalDuration float64
 	EndEvent      *dto.StreamEvent
-	StatusTimeMap map[consts.EventType]float64
+	StatusTimeMap map[consts.TaskType]float64
 
 	Payload any
 }
@@ -56,7 +56,7 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 		IntermediateFailed: false,
 		Finished:           false,
 		DetectAnomaly:      false,
-		StatusTimeMap:      make(map[consts.EventType]float64),
+		StatusTimeMap:      make(map[consts.TaskType]float64),
 	}
 
 	startTime := time.UnixMilli(int64(events[0].TimeStamp))
@@ -78,7 +78,7 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 		case consts.EventRestartServiceStarted:
 			stageStartTime = eventTime
 		case consts.EventRestartServiceCompleted:
-			stat.StatusTimeMap[event.EventName] = eventTime.Sub(startTime).Seconds()
+			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(startTime).Seconds()
 			stat.Payload = map[string]any{
 				"restart_duration":   eventTime.Sub(stageStartTime).Seconds(),
 				"restart_wait_times": restartWaitTimes,
@@ -92,7 +92,7 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 		case consts.EventFaultInjectionStarted:
 			stageStartTime = eventTime
 		case consts.EventFaultInjectionCompleted:
-			stat.StatusTimeMap[event.EventName] = eventTime.Sub(taskStartTime).Seconds()
+			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(taskStartTime).Seconds()
 			stat.Payload = map[string]any{
 				"inject_duration": eventTime.Sub(stageStartTime).Seconds(),
 			}
@@ -103,27 +103,36 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 
 		// 数据集构建相关事件
 		case consts.EventDatasetBuildSucceed:
-			stat.StatusTimeMap[event.EventName] = eventTime.Sub(taskStartTime).Seconds()
+			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(taskStartTime).Seconds()
 
 		// 算法运行相关事件
 		case consts.EventAlgoRunSucceed:
-			stat.StatusTimeMap[event.EventName] = eventTime.Sub(taskStartTime).Seconds()
+			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(taskStartTime).Seconds()
 
 		// 结果收集相关事件
 		case consts.EventDatasetNoAnomaly:
-			stat.StatusTimeMap[event.EventName] = eventTime.Sub(taskStartTime).Seconds()
+			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(taskStartTime).Seconds()
 			stat.Finished = true
 			stat.DetectAnomaly = false
 			endTime = eventTime
 		case consts.EventDatasetResultCollection:
-			stat.StatusTimeMap[event.EventName] = eventTime.Sub(taskStartTime).Seconds()
+			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(taskStartTime).Seconds()
 			stat.Finished = true
 			stat.DetectAnomaly = true
 			endTime = eventTime
 		case consts.EventDatasetNoConclusionFile:
-			stat.StatusTimeMap[event.EventName] = eventTime.Sub(taskStartTime).Seconds()
+			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(taskStartTime).Seconds()
 			stat.IntermediateFailed = true
 			endTime = eventTime
+
+		case consts.EventTaskStatusUpdate:
+			if payload, ok := event.Payload.(map[string]any); ok {
+				if status, ok := payload["status"].(string); ok {
+					if status == consts.TaskStatusError {
+						stat.IntermediateFailed = true
+					}
+				}
+			}
 		}
 	}
 
