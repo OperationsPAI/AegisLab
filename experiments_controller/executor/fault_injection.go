@@ -150,8 +150,8 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 		deltaTime := time.Duration(payload.interval) * consts.DefaultTimeUnit
 		namespace := monitor.GetNamespaceToRestart(t.Add(deltaTime), task.TraceID)
 		if namespace == "" {
-			randomFactor := 0.7 + rand.Float64()*0.6 // Random factor between 0.7 and 1.3
-			deltaTime = time.Duration(math.Min(math.Pow(2, float64(task.ReStartNum)), 10.0)*randomFactor) * consts.DefaultTimeUnit
+			randomFactor := 0.3 + rand.Float64()*0.7 // Random factor between 0.3 and 1.0
+			deltaTime = time.Duration(math.Min(math.Pow(2, float64(task.ReStartNum)), 5.0)*randomFactor) * consts.DefaultTimeUnit
 			executeTime := time.Now().Add(deltaTime)
 
 			tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStautsRescheduled))

@@ -3,6 +3,7 @@ package dto
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -113,10 +114,10 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 	}
 
 	intervalDuration := time.Duration(r.Interval) * consts.DefaultTimeUnit
-	preDuration := time.Duration(r.PreDuration) * consts.DefaultTimeUnit
+	// preDuration := time.Duration(r.PreDuration) * consts.DefaultTimeUnit
 
 	currentTime := time.Now()
-	prevEnd := currentTime
+	// prevEnd := currentTime
 	configs := make([]*InjectionConfig, 0, len(r.Specs))
 	for idx, spec := range r.Specs {
 		node, err := chaos.MapToNode(spec)
@@ -140,24 +141,24 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 
 		var execTime time.Time
 		if idx < namespaceCount {
-			execTime = currentTime
+			execTime = currentTime.Add(time.Second * time.Duration(rand.Int()%20)) // random delay
 		} else {
-			execTime = currentTime.Add(intervalDuration * time.Duration(idx/namespaceCount)).Add(consts.DefaultTimeUnit)
+			execTime = currentTime.Add(intervalDuration * time.Duration(idx/namespaceCount)).Add(time.Second * time.Duration(rand.Int()%60))
 		}
 
 		faultDuration := childNode.Children[consts.DurationNodeKey].Value
-		if !config.GetBool("debugging.enable") {
-			if idx%namespaceCount == 0 {
-				start := execTime.Add(-preDuration)
-				end := execTime.Add(time.Duration(faultDuration) * consts.DefaultTimeUnit)
+		// if !config.GetBool("debugging.enable") {
+		// 	if idx%namespaceCount == 0 {
+		// 		start := execTime.Add(-preDuration)
+		// 		end := execTime.Add(time.Duration(faultDuration) * consts.DefaultTimeUnit)
 
-				if idx > 0 && !start.After(prevEnd) {
-					return nil, fmt.Errorf("spec[%d] time conflict", idx)
-				}
+		// 		if idx > 0 && !start.After(prevEnd) {
+		// 			return nil, fmt.Errorf("spec[%d] time conflict", idx)
+		// 		}
 
-				prevEnd = end
-			}
-		}
+		// 		prevEnd = end
+		// 	}
+		// }
 
 		conf, err := chaos.NodeToStruct[chaos.InjectionConf](node)
 		if err != nil {
