@@ -49,9 +49,9 @@ import: ## Import the latest version of chaos-experiment library
 
 swagger: ## Generate Swagger API documentation
 	swag init -d ./$(CONTROLLER_DIR) --parseDependency --parseDepth 1 --output ./$(CONTROLLER_DIR)/docs
+	docker run --rm -u $(shell id -u):$(shell id -g) -v $(shell pwd):/local openapitools/openapi-generator-cli:latest generate -i /local/experiments_controller/docs/swagger.json -g python -o /local/sdk/python-gen
 
 ##@ Chaos Management
-
 clean-finalizer: ## Clean finalizers for specified chaos types in namespace $(NS)
 	@for type in $(CHAOS_TYPES); do \
 		kubectl get $$type -n $(NS) -o jsonpath='{range .items[*]}{.metadata.namespace}{":"}{.metadata.name}{"\n"}{end}' | \
