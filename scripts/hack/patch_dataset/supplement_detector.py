@@ -26,7 +26,7 @@ WHERE NOT EXISTS (
     SELECT 1
     FROM execution_results e
     WHERE e.dataset = s.id
-) AND created_at > '2025-05-16 00:00:00' and status=2
+) AND created_at > '2025-05-16 00:00:00' AND status=4
 ORDER BY id DESC""")
 
             rows = cursor.fetchall()
@@ -34,20 +34,18 @@ ORDER BY id DESC""")
             print("📋 查询结果：")
             for row in rows:
                 print(row[1])
-                resp = sdk.dataset.submit(
+                resp = sdk.algorithm.submit(
                     [
                         {
-                            "benchmark": "clickhouse",
-                            "name": row[1],
-                            "pre_duration": 4,
-                            "env_vars": {
-                                "NAMESPACE": row[1].split("-")[0],
-                            },
+                            "image": "detector",
+                            "dataset": row[1],
+                            "tag": "latest",
+                            "env_vars": {},
                         }
                     ]
                 )
                 print(f"🔄 提交数据集：{resp}")
-                time.sleep(20)
+                time.sleep(4)
 
     except Error as e:
         print(f"❌ 查询失败：{e}")
