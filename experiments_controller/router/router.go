@@ -44,6 +44,7 @@ func New() *gin.Engine {
 	{
 		injections.GET("", handlers.GetInjectionList)
 		injections.GET("/conf", handlers.GetInjectionConf)
+		injections.GET("/configs", handlers.GetDisplayConfigList)
 		injections.GET("/ns/status", handlers.GetNSLock)
 		injections.GET("/query", handlers.QueryInjection)
 		injections.POST("", handlers.SubmitFaultInjection)
@@ -68,6 +69,7 @@ func New() *gin.Engine {
 	traces := r.Group("/traces")
 	{
 		traces.GET("/analyze", handlers.AnalyzeTrace)
+		traces.GET("/completed", handlers.GetCompletedMap)
 
 		tracesWithID := traces.Group("/:trace_id")
 		{

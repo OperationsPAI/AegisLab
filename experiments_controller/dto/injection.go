@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
+	"github.com/google/uuid"
 )
 
 type InjectCancelResp struct {
@@ -45,6 +47,32 @@ func (i *InjectionItem) Convert(record database.FaultInjectionSchedule) error {
 	i.PreDuration = record.PreDuration
 	i.StartTime = record.StartTime
 	i.EndTime = record.EndTime
+
+	return nil
+}
+
+type InjectionConfigListReq struct {
+	TraceIDs []string `form:"trace_ids" binding:"required"`
+}
+
+func (req *InjectionConfigListReq) Validate() error {
+	filteredIDs := make([]string, 0, len(req.TraceIDs))
+	for _, id := range req.TraceIDs {
+		if strings.TrimSpace(id) != "" {
+			filteredIDs = append(filteredIDs, strings.TrimSpace(id))
+		}
+	}
+
+	req.TraceIDs = filteredIDs
+	if len(req.TraceIDs) == 0 {
+		return fmt.Errorf("trace_ids must not be blank")
+	}
+
+	for _, id := range req.TraceIDs {
+		if _, err := uuid.Parse(id); err != nil {
+			return fmt.Errorf("Invalid trace_id: %s", id)
+		}
+	}
 
 	return nil
 }

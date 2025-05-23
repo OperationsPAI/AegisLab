@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -188,12 +189,11 @@ func GetDatasetByName(name string, status ...int) (*dto.DatasetItemWithID, error
 	return &item, nil
 }
 
-func GetDisplayConfigByTraceIDs(traceIDs []string) (map[string]string, error) {
-	if len(traceIDs) == 0 {
-		return nil, fmt.Errorf("empty trace IDs")
+func GetDisplayConfigByTraceIDs(traceIDs []string) (map[string]any, error) {
+	result := make(map[string]any)
+	for _, traceID := range traceIDs {
+		result[traceID] = nil
 	}
-
-	result := make(map[string]string)
 
 	var records []struct {
 		TraceID       string `gorm:"column:trace_id"`
@@ -209,14 +209,19 @@ func GetDisplayConfigByTraceIDs(traceIDs []string) (map[string]string, error) {
 		return nil, fmt.Errorf("failed to query display configs: %v", err)
 	}
 
+	for _, record := range records {
+		var config map[string]any
+		if err := json.Unmarshal([]byte(record.DisplayConfig), &config); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal display config for trace_id %s: %v", record.TraceID, err)
+		}
+
+		result[record.TraceID] = config
+	}
+
 	return result, nil
 }
 
 func GetEngineConfigByNames(names []string) ([]string, error) {
-	if len(names) == 0 {
-		return []string{}, nil
-	}
-
 	query := database.DB.
 		Model(&database.FaultInjectionSchedule{}).
 		Select("engine_config").
