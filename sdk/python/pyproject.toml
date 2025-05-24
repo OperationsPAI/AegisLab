@@ -13,6 +13,9 @@ dependencies = [
     "twine>=5.1.1",
     "wheel>=0.45.1",
     "loguru>=0.7.3",
+    "urllib3>=2.2.3, < 3.0.0",
+    "python-dateutil>=2.9.0.post0",
+    "typing-extensions>=4.12.2",
 ]
 
 # default settings of `uv init --lib`
