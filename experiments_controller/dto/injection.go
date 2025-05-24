@@ -15,8 +15,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type InjectCancelResp struct {
-}
+type InjectCancelResp struct{}
 
 type InjectionConfReq struct {
 	Namespace string `form:"namespace" binding:"required"`
