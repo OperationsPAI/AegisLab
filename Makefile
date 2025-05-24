@@ -118,7 +118,7 @@ generate-sdk: swag-init ## Generate Python SDK from Swagger documentation
 		-g python \
 		-o /local/$(SDK_DIR) \
 		-c /local/.openapi-generator/config.properties \
-		--additional-properties=packageName=rcabench_client,projectName=rcabench-client
+		--additional-properties=packageName=rcabench_client,projectName=rcabench
 	@echo "📦 Post-processing generated SDK..."
 	./scripts/fix-generated-sdk.sh
 

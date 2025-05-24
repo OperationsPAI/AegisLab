@@ -55,7 +55,7 @@ fi
 log_info "Creating modern pyproject.toml with version $VERSION"
 cat > pyproject.toml << EOF
 [project]
-name = "rcabench-client"
+name = "rcabench"
 version = "$VERSION"
 description = "RCABench API Python Client - A comprehensive root cause analysis benchmarking platform"
 readme = "README.md"
@@ -258,7 +258,7 @@ EOF
 fi
 
 log_info "✅ SDK post-processing completed successfully!"
-log_info "📦 Package name: rcabench-client"
+log_info "📦 Package name: rcabench"
 log_info "🏷️  Version: $VERSION"
 log_info "🔧 Build system: hatchling"
 log_info ""
