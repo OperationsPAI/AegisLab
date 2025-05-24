@@ -27,7 +27,7 @@ type InjectionItem struct {
 	TaskID      string         `json:"task_id"`
 	FaultType   string         `json:"fault_type"`
 	Status      string         `json:"status"`
-	Spec        map[string]any `json:"spec"`
+	Spec        map[string]any `json:"spec" swaggertype:"object"`
 	PreDuration int            `json:"pre_duration"`
 	StartTime   time.Time      `json:"start_time"`
 	EndTime     time.Time      `json:"end_time"`
@@ -82,12 +82,12 @@ type InjectionListReq struct {
 }
 
 type InjectionNamespaceInfoResp struct {
-	NamespaceInfo map[string][]string `json:"namespace_info"`
+	NamespaceInfo map[string][]string `json:"namespace_info" swaggertype:"object"`
 }
 
 type InjectionParaResp struct {
-	Specification map[string][]chaos.ActionSpace `json:"specification"`
-	KeyMap        map[chaos.ChaosType]string     `json:"keymap"`
+	Specification map[string][]chaos.ActionSpace `json:"specification" swaggertype:"object"`
+	KeyMap        map[chaos.ChaosType]string     `json:"keymap" swaggertype:"object"`
 }
 
 type InjectionSubmitReq struct {

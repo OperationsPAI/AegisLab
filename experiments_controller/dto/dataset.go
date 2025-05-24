@@ -87,7 +87,7 @@ type DatasetBuildPayload struct {
 	Benchmark   string            `json:"benchmark"`
 	Name        string            `json:"name"`
 	PreDuration int               `json:"pre_duration"`
-	EnvVars     map[string]string `json:"env_vars"`
+	EnvVars     map[string]string `json:"env_vars" swaggertype:"object"`
 }
 
 type DatasetJoinedResult struct {

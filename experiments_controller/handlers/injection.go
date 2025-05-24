@@ -21,6 +21,17 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// CancelInjection
+//
+//	@Summary		取消故障注入任务
+//	@Description	取消指定的故障注入任务
+//	@Tags			injection
+//	@Produce		application/json
+//	@Param			task_id	path		string	true	"任务ID"
+//	@Success		200		{object}	dto.GenericResponse[any]
+//	@Failure		400		{object}	dto.GenericResponse[any]
+//	@Failure		500		{object}	dto.GenericResponse[any]
+//	@Router			/api/v1/injections/{task_id}/cancel [put]
 func CancelInjection(c *gin.Context) {
 }
 
@@ -152,7 +163,7 @@ func GetDisplayConfigList(c *gin.Context) {
 //	@Success		200			{object}	dto.GenericResponse[dto.PaginationResp[dto.InjectionItem]]
 //	@Failure		400			{object}	dto.GenericResponse[any]
 //	@Failure		500			{object}	dto.GenericResponse[any]
-//	@Router			/api/v1/injections/getlist [post]
+//	@Router			/api/v1/injections [get]
 func GetInjectionList(c *gin.Context) {
 	var req dto.InjectionListReq
 	if err := c.BindQuery(&req); err != nil {
@@ -186,6 +197,15 @@ func GetInjectionList(c *gin.Context) {
 	})
 }
 
+// GetNSLock
+//
+//	@Summary		获取命名空间锁状态
+//	@Description	获取命名空间锁状态信息
+//	@Tags			injection
+//	@Produce		json
+//	@Success		200	{object}	dto.GenericResponse[any]
+//	@Failure		500	{object}	dto.GenericResponse[any]
+//	@Router			/api/v1/injections/ns/status [get]
 func GetNSLock(c *gin.Context) {
 	cli := k8s.GetMonitor()
 	items, err := cli.InspectLock()
@@ -197,6 +217,18 @@ func GetNSLock(c *gin.Context) {
 	dto.SuccessResponse(c, items)
 }
 
+// QueryInjection
+//
+//	@Summary		查询故障注入记录
+//	@Description	根据名称或任务ID查询故障注入记录详情
+//	@Tags			injection
+//	@Produce		json
+//	@Param			name		query		string	false	"注入名称"
+//	@Param			task_id		query		string	false	"任务ID"
+//	@Success		200			{object}	dto.GenericResponse[any]
+//	@Failure		400			{object}	dto.GenericResponse[any]
+//	@Failure		500			{object}	dto.GenericResponse[any]
+//	@Router			/api/v1/injections/query [get]
 func QueryInjection(c *gin.Context) {
 	var req dto.QueryInjectionReq
 	if err := c.BindQuery(&req); err != nil {

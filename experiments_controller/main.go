@@ -1,4 +1,8 @@
 // @title           RCABench
+// @version         1.0.0
+// @description     RCABench API documentation
+// @host            http://localhost
+// @BasePath        /
 
 package main
 
