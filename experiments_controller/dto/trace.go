@@ -2,6 +2,8 @@ package dto
 
 import (
 	"fmt"
+	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/LGU-SE-Internal/rcabench/consts"
@@ -9,6 +11,39 @@ import (
 
 const ErrorStructList = "list"
 const ErrorStructMap = "map"
+
+// parseLookbackDuration parses a duration string with format like "5m", "2h", "1d"
+// Supports: m (minutes), h (hours), d (days)
+func parseLookbackDuration(lookback string) (time.Duration, error) {
+	if lookback == "custom" {
+		return 0, nil
+	}
+
+	// Use regex to match patterns like "5m", "2h", "1d"
+	re := regexp.MustCompile(`^(\d+)([mhd])$`)
+	matches := re.FindStringSubmatch(lookback)
+
+	if len(matches) != 3 {
+		return 0, fmt.Errorf("invalid duration format: %s (expected format: 5m, 2h, 1d)", lookback)
+	}
+
+	value, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return 0, fmt.Errorf("invalid duration value: %s", matches[1])
+	}
+
+	unit := matches[2]
+	switch unit {
+	case "m":
+		return time.Duration(value) * time.Minute, nil
+	case "h":
+		return time.Duration(value) * time.Hour, nil
+	case "d":
+		return time.Duration(value) * 24 * time.Hour, nil
+	default:
+		return 0, fmt.Errorf("invalid duration unit: %s (supported: m, h, d)", unit)
+	}
+}
 
 const (
 	LookbackFiveMinutes = 5 * time.Minute
@@ -93,7 +128,9 @@ type GetCompletedMapReq struct {
 
 func (req *GetCompletedMapReq) Validate() error {
 	if req.Lookback != "" {
-		if _, exists := ValidLookbackValues[req.Lookback]; !exists {
+		// Try to parse the lookback duration using the flexible parser
+		_, err := parseLookbackDuration(req.Lookback)
+		if err != nil {
 			return fmt.Errorf("Invalid lookback value: %s", req.Lookback)
 		}
 
@@ -124,7 +161,6 @@ func (req *GetCompletedMapReq) Convert() (*TraceAnalyzeFilterOptions, error) {
 	}
 
 	if req.Lookback != "" {
-		duration := ValidLookbackValues[req.Lookback]
 		if req.Lookback == "custom" {
 			customStart, err := time.Parse(time.RFC3339, req.CustomStartStr)
 			if err != nil {
@@ -140,6 +176,11 @@ func (req *GetCompletedMapReq) Convert() (*TraceAnalyzeFilterOptions, error) {
 			opts.CustomStartTime = customStart
 			opts.CustomEndTime = customEnd
 		} else {
+			// Use the flexible duration parser
+			duration, err := parseLookbackDuration(req.Lookback)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid lookback value: %v", err)
+			}
 			opts.Lookback = duration
 		}
 	}
@@ -163,7 +204,9 @@ func (req *TraceAnalyzeReq) Validate() error {
 	}
 
 	if req.Lookback != "" {
-		if _, exists := ValidLookbackValues[req.Lookback]; !exists {
+		// Try to parse the lookback duration using the flexible parser
+		_, err := parseLookbackDuration(req.Lookback)
+		if err != nil {
 			return fmt.Errorf("Invalid lookback value: %s", req.Lookback)
 		}
 
@@ -202,7 +245,6 @@ func (req *TraceAnalyzeReq) Convert() (*TraceAnalyzeFilterOptions, error) {
 	}
 
 	if req.Lookback != "" {
-		duration := ValidLookbackValues[req.Lookback]
 		if req.Lookback == "custom" {
 			customStart, err := time.Parse(time.RFC3339, req.CustomStartStr)
 			if err != nil {
@@ -218,6 +260,11 @@ func (req *TraceAnalyzeReq) Convert() (*TraceAnalyzeFilterOptions, error) {
 			opts.CustomStartTime = customStart
 			opts.CustomEndTime = customEnd
 		} else {
+			// Use the flexible duration parser
+			duration, err := parseLookbackDuration(req.Lookback)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid lookback value: %v", err)
+			}
 			opts.Lookback = duration
 		}
 	}
