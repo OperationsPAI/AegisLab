@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/redis/go-redis/v9"
+	"github.com/sirupsen/logrus"
 )
 
 type TraceStatistic struct {
@@ -18,13 +20,20 @@ type TraceStatistic struct {
 	Finished           bool
 	DetectAnomaly      bool
 
+	CurrentTaskType consts.TaskType
+
 	TotalDuration float64
-	EndEvent      *dto.StreamEvent
 	StatusTimeMap map[consts.TaskType]float64
 
-	Payload any
+	// Payload any 移除 payload，语义不明确，引起误导，且有重复赋值。
+	RestartDuration  float64
+	RestartWaitTimes int
+	InjectDuration   float64
+
+	ErrorMsgs []string
 }
 
+// TODO@wangrui: 增加判断机制 1. 在筛选 traceid 的时候根据第一条 event 的时间来筛选，不需要取所有的 traceid； 2. 需要规定 stream key 的类型，例如 uuid 格式的，是我们能取的，因为还有些 ts0 这样的 key 在存储 namespace 的信息
 func GetTraceEvents(ctx context.Context, traceId string) ([]*dto.StreamEvent, error) {
 	historicalMessages, err := ReadStreamEvents(ctx, fmt.Sprintf(consts.StreamLogKey, traceId), "0", 200, -1)
 	if err != nil && err != redis.Nil {
@@ -57,6 +66,7 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 		Finished:           false,
 		DetectAnomaly:      false,
 		StatusTimeMap:      make(map[consts.TaskType]float64),
+		ErrorMsgs:          make([]string, 0),
 	}
 
 	startTime := time.UnixMilli(int64(events[0].TimeStamp))
@@ -71,6 +81,7 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 		switch event.EventName {
 		case consts.EventTaskStarted:
 			taskStartTime = eventTime
+			stat.CurrentTaskType = event.TaskType
 
 		// 重启服务相关事件
 		case consts.EventNoNamespaceAvailable:
@@ -79,13 +90,10 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 			stageStartTime = eventTime
 		case consts.EventRestartServiceCompleted:
 			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(startTime).Seconds()
-			stat.Payload = map[string]any{
-				"restart_duration":   eventTime.Sub(stageStartTime).Seconds(),
-				"restart_wait_times": restartWaitTimes,
-			}
+			stat.RestartDuration = eventTime.Sub(stageStartTime).Seconds()
+			stat.RestartWaitTimes = restartWaitTimes
 		case consts.EventRestartServiceFailed:
 			stat.IntermediateFailed = true
-			stat.Payload = event.Payload
 			endTime = eventTime
 
 		// 故障注入相关事件
@@ -93,12 +101,10 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 			stageStartTime = eventTime
 		case consts.EventFaultInjectionCompleted:
 			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(taskStartTime).Seconds()
-			stat.Payload = map[string]any{
-				"inject_duration": eventTime.Sub(stageStartTime).Seconds(),
-			}
+			stat.InjectDuration = eventTime.Sub(stageStartTime).Seconds()
+
 		case consts.EventFaultInjectionFailed:
 			stat.IntermediateFailed = true
-			stat.Payload = event.Payload
 			endTime = eventTime
 
 		// 数据集构建相关事件
@@ -124,24 +130,26 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(taskStartTime).Seconds()
 			stat.IntermediateFailed = true
 			endTime = eventTime
-
 		case consts.EventTaskStatusUpdate:
-			if payload, ok := event.Payload.(map[string]any); ok {
-				if status, ok := payload["status"].(string); ok {
-					if status == consts.TaskStatusError {
-						stat.IntermediateFailed = true
-					}
+			if payload, ok := event.Payload.(string); ok {
+				pl := dto.InfoPayloadTemplate{}
+				err := json.Unmarshal([]byte(payload), &pl)
+				if err != nil {
+					logrus.Errorf("Failed to unmarshal payload: %v", err)
+					continue
+				}
+				if pl.Status == consts.TaskStatusError {
+					stat.IntermediateFailed = true
+					stat.ErrorMsgs = append(stat.ErrorMsgs, pl.Msg)
 				}
 			}
 		}
 	}
 
-	// 计算总时间
 	if !endTime.IsZero() {
 		stat.TotalDuration = endTime.Sub(startTime).Seconds()
 	}
 
-	stat.EndEvent = events[len(events)-1]
 	return stat, nil
 }
 

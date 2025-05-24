@@ -288,6 +288,9 @@ spec:
             - name: docker-config-volume
               mountPath: /root/.docker/config.json
               subPath: config.json
+            - name: harbor-cert
+              mountPath: /usr/local/share/ca-certificates/harbor.lab.pj.crt
+              subPath: harbor.lab.pj.crt
       volumes:
         - name: config
           configMap:
@@ -311,6 +314,12 @@ spec:
             items:
               - key: config.json
                 path: config.json
+        - name: harbor-cert
+          secret:
+            secretName: harbor-cert
+            items:
+              - key: harbor.lab.pj.crt
+                path: harbor.lab.pj.crt
 
 ---
 apiVersion: apps/v1

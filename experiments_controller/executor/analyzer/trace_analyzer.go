@@ -10,6 +10,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/repository"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -35,7 +36,7 @@ type traceResult struct {
 	EndTaskType   consts.TaskType
 	TotalDuration float64
 	Error         error
-	Payload       any
+	ErrorMsgs     []string
 }
 
 func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Statistics, error) {
@@ -54,7 +55,8 @@ func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Sta
 	totalDuration := 0.0
 	validTracesNum := 0
 
-	traceErrorMap := make(map[string]any)
+	traceErrorMap := make(map[consts.TaskType]map[string]any)
+
 	for result := range resultChan {
 		stats.Total++
 
@@ -68,7 +70,10 @@ func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Sta
 		} else {
 			if result.IsFailed {
 				stats.EndCountMap[result.EndTaskType]["failed"]++
-				traceErrorMap[result.TraceID] = result.Payload
+				if _, exists := traceErrorMap[result.EndTaskType]; !exists {
+					traceErrorMap[result.EndTaskType] = make(map[string]any)
+				}
+				traceErrorMap[result.EndTaskType][result.TraceID] = result.ErrorMsgs
 			} else {
 				stats.EndCountMap[result.EndTaskType]["running"]++
 			}
@@ -88,12 +93,13 @@ func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Sta
 	if opts.ErrorStruct == dto.ErrorStructMap {
 		stats.TraceErrors = traceErrorMap
 	} else {
-		traceErrorList := make([]string, 0, len(traceErrorMap))
-		for traceID := range traceErrorMap {
-			traceErrorList = append(traceErrorList, traceID)
-		}
+		// TODO：不返回这个，没必要，参数也没有说明
+		// traceErrorList := make([]string, 0, len(traceErrorMap))
+		// for traceID := range traceErrorMap {
+		// 	traceErrorList = append(traceErrorList, traceID)
+		// }
 
-		stats.TraceErrors = traceErrorList
+		// stats.TraceErrors = traceErrorList
 	}
 
 	// 计算平均值
@@ -128,7 +134,12 @@ func GetCompletedMap(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (m
 		consts.EventDatasetNoAnomaly:        noAnomalyTraces,
 	}, nil
 }
+func isValidUUID(s string) bool {
+	_, err := uuid.Parse(s)
+	return err == nil
+}
 
+// TODO@wangrui:  此函数抽象不合理。 这里应该只做数据提取的操作。然后在外部 analyze trace 的时候统一统计信息。
 func getTraceResults(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (chan traceResult, error) {
 	traceIDs, err := repository.GetAllTraceIDsFromRedis(ctx)
 	if err != nil {
@@ -156,6 +167,9 @@ func getTraceResults(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (c
 	semaphore := make(chan struct{}, maxWorkers)
 
 	for _, traceID := range traceIDs {
+		if !isValidUUID(traceID) {
+			continue
+		}
 		wg.Add(1)
 		go func(traceID string) {
 			defer wg.Done()
@@ -165,7 +179,7 @@ func getTraceResults(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (c
 
 			events, err := repository.GetTraceEvents(ctx, traceID)
 			if err != nil {
-				logrus.WithField("trace_id", traceID).Errorf("failed to get trace events: %v", err)
+				logrus.WithField("trace_id", traceID).Errorf("%s, failed to get trace events: %v", traceID, err)
 				return
 			}
 			if len(events) == 0 {
@@ -186,7 +200,8 @@ func getTraceResults(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (c
 				logrus.WithField("trace_id", traceID).Debug("event time is out of range")
 				return
 			}
-
+			// pp.Println(events)
+			// TODO：即这里，应该提取到外部。收到一个 trace 信息的所有 event 之后一次性把他处理成一个统计结构。
 			stat, err := repository.GetTraceStatistic(ctx, events)
 			if err != nil {
 				logrus.WithField("trace_id", traceID).Errorf("failed to get trace statistic: %v", err)
@@ -201,11 +216,8 @@ func getTraceResults(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (c
 				IsFailed:      stat.IntermediateFailed,
 				StatusTimeMap: stat.StatusTimeMap,
 				TotalDuration: stat.TotalDuration,
-				Payload:       stat.Payload,
-			}
-
-			if stat.EndEvent != nil {
-				result.EndTaskType = stat.EndEvent.TaskType
+				ErrorMsgs:     stat.ErrorMsgs,
+				EndTaskType:   stat.CurrentTaskType,
 			}
 
 			resultChan <- result
