@@ -238,7 +238,7 @@ func (m *Monitor) ReleaseLock(namespace string, traceID string) (err error) {
 	}
 
 	// If the lock is held by someone else or is already released
-	if currentTraceID != traceID {
+	if currentTraceID != traceID && currentTraceID != "" {
 		err = fmt.Errorf("cannot release lock: namespace %s is not owned by trace_id %s (current owner: %s)",
 			namespace, traceID, currentTraceID)
 		return

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 )
 
 func DeleteDatasetByName(names []string) (int64, []string, error) {
@@ -320,9 +322,18 @@ func updateRecord(name string, updates map[string]any) error {
 	}
 
 	var record database.FaultInjectionSchedule
+	err := database.DB.
+		Where("injection_name = ?", name).
+		First(&record).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("record with name %q not found", name)
+		}
+		return fmt.Errorf("failed to query record: %v", err)
+	}
+
 	result := database.DB.
 		Model(&record).
-		Where("injection_name = ?", name).
 		Updates(updates)
 
 	if result.Error != nil {
@@ -330,7 +341,7 @@ func updateRecord(name string, updates map[string]any) error {
 	}
 
 	if result.RowsAffected == 0 {
-		return fmt.Errorf("no records updated")
+		return fmt.Errorf("record found but no fields were updated, possibly because values are unchanged")
 	}
 
 	return nil
