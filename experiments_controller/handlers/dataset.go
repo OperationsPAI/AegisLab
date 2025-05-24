@@ -48,16 +48,16 @@ func DeleteDataset(c *gin.Context) {
 
 // QueryDataset
 //
-//	@Summary		查询单个数据集
-//	@Description	查询单个数据集
+//	@Summary		查询单个数据集详情
+//	@Description	根据数据集名称查询单个数据集的详细信息，包括检测器结果和执行记录
 //	@Tags			dataset
 //	@Produce		json
-//	@Consumes		application/json
-//	@Param			body	body		[]dto.QueryDatasetReq	true	"请求体"
+//	@Param			name	query		string	true	"数据集名称"
+//	@Param			sort	query		string	false	"排序方式"
 //	@Success		200		{object}	dto.GenericResponse[dto.QueryDatasetResp]
 //	@Failure		400		{object}	dto.GenericResponse[any]
 //	@Failure		500		{object}	dto.GenericResponse[any]
-//	@Router			/api/v1/datasets [post]
+//	@Router			/api/v1/datasets/query [get]
 func QueryDataset(c *gin.Context) {
 	var req dto.QueryDatasetReq
 	if err := c.BindQuery(&req); err != nil {
@@ -153,16 +153,18 @@ func GetDatasetList(c *gin.Context) {
 
 // DownloadByGroupIDs 处理数据集下载请求
 //
-//	@Summary		下载数据集打包文件
-//	@Description	将指定路径的多个数据集打包为 ZIP 文件下载（自动排除 result.csv 文件）
-//	@Tags			dataset
-//	@Produce		application/zip
-//	@Consumes		application/json
-//	@Success		200			{string} 	binary 		"ZIP 文件流"
-//	@Failure		400			{object}	dto.GenericResponse[any] "参数绑定错误"
-//	@Failure		403			{object}	dto.GenericResponse[any] "非法路径访问"
-//	@Failure		500			{object}	dto.GenericResponse[any] "文件打包失败"
-//	@Router			/api/v1/datasets/download [get]
+//		@Summary		下载数据集打包文件
+//		@Description	将指定路径的多个数据集打包为 ZIP 文件下载（自动排除 result.csv 文件）
+//		@Tags			dataset
+//		@Produce		application/zip
+//		@Consumes		application/json
+//	 @Param          group_ids    query       []string    false   "数据集组ID列表，与names参数二选一"
+//	 @Param          names        query       []string    false   "数据集名称列表，与group_ids参数二选一"
+//		@Success		200			{string} 	binary 		"ZIP 文件流"
+//		@Failure		400			{object}	dto.GenericResponse[any] "参数绑定错误"
+//		@Failure		403			{object}	dto.GenericResponse[any] "非法路径访问"
+//		@Failure		500			{object}	dto.GenericResponse[any] "文件打包失败"
+//		@Router			/api/v1/datasets/download [get]
 func DownloadDataset(c *gin.Context) {
 	var req dto.DatasetDownloadReq
 	if err := c.BindQuery(&req); err != nil {
@@ -274,7 +276,6 @@ func downloadByGroupIds(zipWriter *zip.Writer, groupIDs []string, excludeRules [
 				zipPath := filepath.ToSlash(fullRelPath)
 				return utils.AddToZip(zipWriter, fileInfo, path, zipPath)
 			})
-
 			if err != nil {
 				logrus.Errorf("failed to packcage: %v", err)
 				return http.StatusForbidden, fmt.Errorf("Failed to pacage")
@@ -324,7 +325,6 @@ func downloadByNames(zipWriter *zip.Writer, names []string, excludeRules []utils
 			zipPath := filepath.ToSlash(fullRelPath)
 			return utils.AddToZip(zipWriter, fileInfo, path, zipPath)
 		})
-
 		if err != nil {
 			logrus.Errorf("failed to packcage: %v", err)
 			return http.StatusForbidden, fmt.Errorf("Failed to pacage")
@@ -341,8 +341,8 @@ func downloadByNames(zipWriter *zip.Writer, names []string, excludeRules []utils
 //	@Tags			dataset
 //	@Produce		json
 //	@Consumes		application/json
-//	@Param			body	body		[]dto.DatasetPayload	true	"请求体"
-//	@Success		200		{object}	dto.GenericResponse[dto.SubmitResp]
+//	@Param			body	body		[]dto.DatasetBuildPayload	true	"请求体"
+//	@Success		202		{object}	dto.GenericResponse[dto.SubmitResp]
 //	@Failure		400		{object}	dto.GenericResponse[any]
 //	@Failure		500		{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/datasets [post]

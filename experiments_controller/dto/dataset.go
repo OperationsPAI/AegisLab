@@ -40,7 +40,7 @@ func (r *DatasetDownloadReq) Validate() error {
 
 type DatasetItem struct {
 	Name      string         `json:"name"`
-	Param     map[string]any `json:"param"`
+	Param     map[string]any `json:"param" swaggertype:"array,object"`
 	StartTime time.Time      `json:"start_time"`
 	EndTime   time.Time      `json:"end_time"`
 }

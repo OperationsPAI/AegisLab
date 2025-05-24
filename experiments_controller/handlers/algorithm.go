@@ -86,7 +86,7 @@ func GetAlgorithmList(c *gin.Context) {
 //	@Produce		application/json
 //	@Consumes		application/json
 //	@Param			body	body		[]dto.AlgorithmExecutionPayload	true	"请求体"
-//	@Success		200		{object}	dto.GenericResponse[dto.SubmitResp]
+//	@Success		202		{object}	dto.GenericResponse[dto.SubmitResp]
 //	@Failure		400		{object}	dto.GenericResponse[any]
 //	@Failure		500		{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/algorithms [post]
@@ -226,7 +226,7 @@ func SubmitAlgorithmBuilding(c *gin.Context) {
 
 		// Create extraction directory
 		extractDir = path.Join(config.GetString("algo.storage_path"), algoName)
-		err = os.MkdirAll(extractDir, 0755)
+		err = os.MkdirAll(extractDir, 0o755)
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to create extraction directory")
 			return
@@ -253,7 +253,6 @@ func SubmitAlgorithmBuilding(c *gin.Context) {
 		Payload:   payload,
 		Immediate: true,
 	})
-
 	if err != nil {
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to submit build task")
 		return

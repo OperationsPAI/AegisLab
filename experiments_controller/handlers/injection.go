@@ -32,9 +32,11 @@ func CancelInjection(c *gin.Context) {
 //	@Produce		json
 //	@Param			namespace	query		string	true	"命名空间"
 //	@Param			mode		query		string	true	"显示模式(display/engine)"
-//	@Success		200			{object}	dto.GenericResponse[map[string]any]
-//	@Failure		400			{object}	dto.GenericResponse[any]
-//	@Failure		500			{object}	dto.GenericResponse[any]
+//
+// @Success 200 {object} dto.GenericResponse[any]
+// @Failure 400 {object} dto.GenericResponse[any]
+// @Failure 500 {object} dto.GenericResponse[any]
+//
 //	@Router			/api/v1/injections/conf [get]
 func GetInjectionConf(c *gin.Context) {
 	var req dto.InjectionConfReq
@@ -106,28 +108,35 @@ func GetInjectionConf(c *gin.Context) {
 //	@Tags			injection
 //	@Produce		json
 //	@Param			trace_ids	query		[]string	true	"Trace ID 列表"
-//	@Success		200			{object}	dto.GenericResponse[map[string]any]
+//	@Success		200			{object}	dto.GenericResponse[any]
 //	@Failure		400			{object}	dto.GenericResponse[any]
 //	@Failure		500			{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/injections/configs [get]
 func GetDisplayConfigList(c *gin.Context) {
+	logrus.Printf("开始处理获取显示配置列表请求")
+
 	var req dto.InjectionConfigListReq
 	if err := c.BindQuery(&req); err != nil {
+		logrus.Errorf("参数绑定失败: %v", err)
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid Parameters")
 		return
 	}
 
 	if err := req.Validate(); err != nil {
+		logrus.Errorf("参数验证失败: %v", err)
 		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid request: %v", err))
 		return
 	}
 
+	logrus.Printf("开始获取 TraceIDs %v 的显示配置", req.TraceIDs)
 	configs, err := repository.GetDisplayConfigByTraceIDs(req.TraceIDs)
 	if err != nil {
+		logrus.Errorf("获取显示配置失败: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get injection config list")
 		return
 	}
 
+	logrus.Printf("成功获取显示配置,返回 %d 条记录", len(configs))
 	dto.SuccessResponse(c, configs)
 }
 
@@ -225,7 +234,7 @@ func QueryInjection(c *gin.Context) {
 //	@Produce		json
 //	@Consumes		application/json
 //	@Param			body	body		dto.InjectionSubmitReq	true	"请求体"
-//	@Success		200		{object}	dto.GenericResponse[dto.SubmitResp]
+//	@Success		202		{object}	dto.GenericResponse[dto.SubmitResp]
 //	@Failure		400		{object}	dto.GenericResponse[any]
 //	@Failure		500		{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/injections [post]
@@ -306,7 +315,6 @@ func SubmitFaultInjection(c *gin.Context) {
 		task.SetGroupCtx(spanCtx)
 
 		taskID, traceID, err := executor.SubmitTask(spanCtx, task)
-
 		if err != nil {
 			message := "failed to submit injection task"
 			logrus.Errorf("%s: %v", message, err)
