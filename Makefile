@@ -121,6 +121,7 @@ generate-sdk: swag-init ## Generate Python SDK from Swagger documentation
 		--additional-properties=packageName=rcabench_client,projectName=rcabench
 	@echo "📦 Post-processing generated SDK..."
 	./scripts/fix-generated-sdk.sh
+	./scripts/mv-generated-sdk.sh
 
 ##@ Release Management
 release: ## Release a new version (usage: make release VERSION=1.0.1)
