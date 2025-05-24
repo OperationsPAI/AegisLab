@@ -5,11 +5,21 @@ import "github.com/swaggo/swag"
 
 const docTemplate = `{
     "schemes": {{ marshal .Schemes }},
+    "produces": [
+        "application/json"
+    ],
     "swagger": "2.0",
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "contact": {},
+        "contact": {
+            "name": "RCABench Team",
+            "email": "team@rcabench.com"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
@@ -1881,12 +1891,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0.0",
-	Host:             "http://localhost",
-	BasePath:         "/",
-	Schemes:          []string{},
-	Title:            "RCABench",
-	Description:      "RCABench API documentation",
+	Version:          "1.0.1",
+	Host:             "localhost:8080",
+	BasePath:         "/api/v1",
+	Schemes:          []string{"http", "https"},
+	Title:            "RCABench API",
+	Description:      "RCABench - A comprehensive root cause analysis benchmarking platform for microservices\nThis API provides endpoints for managing datasets, algorithms, evaluations, and fault injections\nfor root cause analysis in distributed systems and microservices architectures.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

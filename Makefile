@@ -5,10 +5,11 @@ CHAOS_TYPES ?= dnschaos httpchaos jvmchaos networkchaos podchaos stresschaos tim
 TS_NS       ?= ts
 PORT        ?= 30080
 CONTROLLER_DIR = experiments_controller
+SDK_DIR = sdk/python-gen
 
 # 声明所有非文件目标
 .PHONY: help build run debug swagger import clean-finalizer delete-chaos k8s-resources ports \
-        install-hooks git-sync upgrade-dep deploy-ts
+        install-hooks git-sync upgrade-dep deploy-ts swag-init generate-sdk release
 
 # 默认目标
 .DEFAULT_GOAL := help
@@ -47,9 +48,6 @@ import: ## Import the latest version of chaos-experiment library
 	go get github.com/LGU-SE-Internal/chaos-experiment@injectionv2 && \
 	go mod tidy
 
-swagger: ## Generate Swagger API documentation
-	swag init -d ./$(CONTROLLER_DIR) --parseDependency --parseDepth 1 --output ./$(CONTROLLER_DIR)/docs
-	docker run --rm -u $(shell id -u):$(shell id -g) -v $(shell pwd):/local openapitools/openapi-generator-cli:latest generate -i /local/experiments_controller/docs/swagger.json -g python -o /local/sdk/python-gen
 
 ##@ Chaos Management
 clean-finalizer: ## Clean finalizers for specified chaos types in namespace $(NS)
@@ -106,3 +104,35 @@ deploy-ts: ## Deploy Train Ticket application
 	fi
 	@echo "Installing Train Ticket..."
 	helm install $(TS_NS) train-ticket/trainticket -n $(TS_NS) --set global.image.tag=637600ea --set services.tsUiDashboard.nodePort=$(PORT)
+
+##@ SDK Generation
+swagger: swag-init generate-sdk 
+
+swag-init: ## Initialize Swagger documentation
+	swag init -d ./$(CONTROLLER_DIR) --parseDependency --parseDepth 1 --output ./$(CONTROLLER_DIR)/docs
+
+generate-sdk: swag-init ## Generate Python SDK from Swagger documentation
+	docker run --rm -u $(shell id -u):$(shell id -g) -v $(shell pwd):/local \
+		openapitools/openapi-generator-cli:latest generate \
+		-i /local/$(CONTROLLER_DIR)/docs/swagger.json \
+		-g python \
+		-o /local/$(SDK_DIR) \
+		-c /local/.openapi-generator/config.properties \
+		--additional-properties=packageName=rcabench_client,projectName=rcabench-client
+	@echo "📦 Post-processing generated SDK..."
+	./scripts/fix-generated-sdk.sh
+
+##@ Release Management
+release: ## Release a new version (usage: make release VERSION=1.0.1)
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Please provide a version number: make release VERSION=1.0.1"; \
+		exit 1; \
+	fi
+	./scripts/release.sh $(VERSION)
+
+release-dry-run: ## Dry run release process (usage: make release-dry-run VERSION=1.0.1)
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Please provide a version number: make release-dry-run VERSION=1.0.1"; \
+		exit 1; \
+	fi
+	./scripts/release.sh $(VERSION) --dry-run
