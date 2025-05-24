@@ -17,6 +17,18 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// GetTraceStream
+//
+//	@Summary		获取跟踪流数据
+//	@Description	以SSE方式获取指定跟踪ID的实时日志流
+//	@Tags			trace
+//	@Produce		text/event-stream
+//	@Param			trace_id	path		string	true	"跟踪ID"
+//	@Param			last_id		query		string	false	"最后接收的消息ID"
+//	@Success		200			{string}	string	"SSE数据流"
+//	@Failure		400			{object}	dto.GenericResponse[any]
+//	@Failure		500			{object}	dto.GenericResponse[any]
+//	@Router			/api/v1/traces/{trace_id}/stream [get]
 func GetTraceStream(c *gin.Context) {
 	var traceReq dto.TraceReq
 	if err := c.BindUri(&traceReq); err != nil {
@@ -179,7 +191,7 @@ func AnalyzeTrace(c *gin.Context) {
 // @Success     200 {object}     dto.GenericResponse[any]
 // @Failure     400 {object}     dto.GenericResponse[any]
 // @Failure     500 {object}     dto.GenericResponse[any]
-// @Router      /api/v1/traces/completed_map [get]
+// @Router      /api/v1/traces/completed [get]
 func GetCompletedMap(c *gin.Context) {
 	var req dto.GetCompletedMapReq
 	if err := c.BindQuery(&req); err != nil {

@@ -69,6 +69,18 @@ func GetTaskDetail(c *gin.Context) {
 	dto.SuccessResponse(c, dto.TaskDetailResp{Task: *taskItem, Logs: logs})
 }
 
+// GetQueuedTasks
+//
+//	@Summary		获取队列中的任务
+//	@Description	分页获取队列中等待执行的任务列表
+//	@Tags			task
+//	@Produce		json
+//	@Param			page_num	query		int	false	"页码"		default(1)
+//	@Param			page_size	query		int	false	"每页大小"	default(10)
+//	@Success		200			{object}	dto.GenericResponse[dto.PaginationResp[dto.UnifiedTask]]
+//	@Failure		400			{object}	dto.GenericResponse[any]
+//	@Failure		500			{object}	dto.GenericResponse[any]
+//	@Router			/api/v1/tasks/queue [get]
 func GetQueuedTasks(c *gin.Context) {
 	req := dto.PaginationReq{
 		PageNum:  1,

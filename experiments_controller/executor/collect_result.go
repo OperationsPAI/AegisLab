@@ -58,7 +58,14 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				return fmt.Errorf("failed to convert conclusion.csv to database struct: %v", err)
 			}
 
-			if len(results) == 0 {
+			hasIssues := false
+			for _, v := range results {
+				if v.Issues != "{}" {
+					hasIssues = true
+				}
+			}
+
+			if !hasIssues {
 				repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 					TaskID:    task.TaskID,
 					TaskType:  consts.TaskTypeCollectResult,

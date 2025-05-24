@@ -25,11 +25,11 @@ import (
 //	@Description	删除数据集数据
 //	@Tags			dataset
 //	@Produce		application/json
-//	@Param			datasetID	path		int					true	"数据集 ID"
-//	@Success		200			{object}	dto.GenericResponse[int]
-//	@Failure		400			{object}	dto.GenericResponse[any]
-//	@Failure		500			{object}	dto.GenericResponse[any]
-//	@Router			/api/v1/datasets/delete [delete]
+//	@Param			names	query		[]string	true	"数据集名称列表"
+//	@Success		200		{object}	dto.GenericResponse[dto.DatasetDeleteResp]
+//	@Failure		400		{object}	dto.GenericResponse[any]
+//	@Failure		500		{object}	dto.GenericResponse[any]
+//	@Router			/api/v1/datasets [delete]
 func DeleteDataset(c *gin.Context) {
 	var req dto.DatasetDeleteReq
 	if err := c.BindQuery(&req); err != nil {
@@ -334,7 +334,7 @@ func downloadByNames(zipWriter *zip.Writer, names []string, excludeRules []utils
 	return http.StatusOK, nil
 }
 
-// BuildDataset
+// SubmitDatasetBuilding
 //
 //	@Summary		批量构建数据集
 //	@Description	批量构建数据集
