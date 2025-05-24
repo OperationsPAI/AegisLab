@@ -1,4 +1,4 @@
-basePath: /
+basePath: /api/v1
 definitions:
   consts.TaskType:
     enum:
@@ -533,12 +533,20 @@ definitions:
     additionalProperties:
       type: string
     type: object
-host: http://localhost
+host: localhost:8080
 info:
-  contact: {}
-  description: RCABench API documentation
-  title: RCABench
-  version: 1.0.0
+  contact:
+    email: team@rcabench.com
+    name: RCABench Team
+  description: |-
+    RCABench - A comprehensive root cause analysis benchmarking platform for microservices
+    This API provides endpoints for managing datasets, algorithms, evaluations, and fault injections
+    for root cause analysis in distributed systems and microservices architectures.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  title: RCABench API
+  version: 1.0.1
 paths:
   /api/v1/algorithms:
     get:
@@ -1235,4 +1243,9 @@ paths:
       summary: 获取完成状态的链路
       tags:
       - trace
+produces:
+- application/json
+schemes:
+- http
+- https
 swagger: "2.0"

@@ -1,0 +1,101 @@
+[project]
+name = "rcabench-client"
+version = "{{packageVersion}}"
+description = "RCABench API Python Client - A comprehensive root cause analysis benchmarking platform"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "RCABench Team", email = "team@rcabench.com"}
+]
+maintainers = [
+    {name = "RCABench Team", email = "team@rcabench.com"}
+]
+keywords = [
+    "rcabench",
+    "root-cause-analysis", 
+    "microservices",
+    "benchmarking",
+    "monitoring",
+    "observability",
+    "fault-injection",
+    "openapi",
+    "api-client"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Monitoring",
+    "Topic :: System :: Systems Administration",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "urllib3 >= 2.1.0, < 3.0.0",
+    "python-dateutil >= 2.8.2",
+    "pydantic >= 2",
+    "typing-extensions >= 4.7.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest >= 7.2.1",
+    "pytest-cov >= 2.8.1",
+    "tox >= 3.9.0",
+    "flake8 >= 4.0.0",
+    "types-python-dateutil >= 2.8.19.14",
+    "mypy >= 1.5",
+    "build",
+    "twine",
+]
+
+[project.urls]
+Homepage = "https://github.com/rcabench/rcabench"
+Documentation = "https://rcabench.readthedocs.io/"
+Repository = "https://github.com/rcabench/rcabench"
+"Bug Tracker" = "https://github.com/rcabench/rcabench/issues"
+Changelog = "https://github.com/rcabench/rcabench/blob/main/CHANGELOG.md"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["{{packageName}}"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/{{packageName}}",
+    "/README.md",
+    "/LICENSE",
+]
+exclude = [
+    "/.git",
+    "/test",
+    "/.github",
+]
+
+[tool.pylint.'MESSAGES CONTROL']
+extension-pkg-whitelist = "pydantic"
+
+[tool.mypy]
+files = [
+  "{{packageName}}",
+  "tests",
+]
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+strict_equality = true
+extra_checks = true
+check_untyped_defs = true
+disallow_subclassing_any = true
+disallow_untyped_decorators = true
+disallow_any_generics = true

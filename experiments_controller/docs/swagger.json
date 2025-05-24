@@ -1,13 +1,27 @@
 {
+    "produces": [
+        "application/json"
+    ],
+    "schemes": [
+        "http",
+        "https"
+    ],
     "swagger": "2.0",
     "info": {
-        "description": "RCABench API documentation",
-        "title": "RCABench",
-        "contact": {},
-        "version": "1.0.0"
+        "description": "RCABench - A comprehensive root cause analysis benchmarking platform for microservices\nThis API provides endpoints for managing datasets, algorithms, evaluations, and fault injections\nfor root cause analysis in distributed systems and microservices architectures.",
+        "title": "RCABench API",
+        "contact": {
+            "name": "RCABench Team",
+            "email": "team@rcabench.com"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "1.0.1"
     },
-    "host": "http://localhost",
-    "basePath": "/",
+    "host": "localhost:8080",
+    "basePath": "/api/v1",
     "paths": {
         "/api/v1/algorithms": {
             "get": {
