@@ -74,7 +74,7 @@ jobs:
           -i /local/$CONTROLLER_DIR/docs/swagger.json \
           -g python \
           -o /local/$SDK_DIR \
-          --additional-properties=packageName=rcabench_client,projectName=rcabench-client
+          --additional-properties=packageName=rcabench_client,projectName=rcabench
 
     - name: Build Python package
       run: |
@@ -118,11 +118,11 @@ jobs:
           
           - Updated RCABench API to version ${{ steps.version.outputs.version }}
           - Regenerated Python SDK with latest API changes
-          - Published to PyPI as `rcabench-client`
+          - Published to PyPI as `rcabench`
           
           ### Installation
           ```bash
-          pip install rcabench-client
+          pip install rcabench
           ```
           
           ### Usage
