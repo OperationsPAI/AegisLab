@@ -1022,53 +1022,6 @@
                     }
                 }
             }
-        },
-        "/api/v1/traces/{trace_id}/stream": {
-            "get": {
-                "description": "以SSE方式获取指定跟踪ID的实时日志流",
-                "produces": [
-                    "text/event-stream"
-                ],
-                "tags": [
-                    "trace"
-                ],
-                "summary": "获取跟踪流数据",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "跟踪ID",
-                        "name": "trace_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "最后接收的消息ID",
-                        "name": "last_id",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "SSE数据流",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
         }
     },
     "definitions": {
