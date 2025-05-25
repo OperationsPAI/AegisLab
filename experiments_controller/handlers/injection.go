@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
@@ -362,4 +364,177 @@ func findMissingIndices(confs []string, batch_size int) ([]int, error) {
 	}
 
 	return missingIndices, nil
+}
+
+// GetFaultInjectionNoIssues
+//
+//	@Summary		查询没有问题的故障注入记录
+//	@Description	查询所有没有问题的故障注入记录列表
+//	@Tags			injection
+//	@Produce		json
+//	@Success		200			{object}	dto.GenericResponse[[]dto.FaultInjectionNoIssuesResp]
+//	@Failure		400			{object}	dto.GenericResponse[any]
+//	@Failure		500			{object}	dto.GenericResponse[any]
+//	@Router			/api/v1/injections/analysis/no-issues [get]
+func GetFaultInjectionNoIssues(c *gin.Context) {
+	_, records, err := repository.GetAllFaultInjectionNoIssues()
+	if err != nil {
+		logrus.Errorf("failed to get fault injection no issues: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get fault injection records")
+		return
+	}
+
+	items := make([]dto.FaultInjectionNoIssuesResp, 0, len(records))
+
+	for _, record := range records {
+
+		conf := chaos.Node{}
+		err := json.Unmarshal([]byte(record.EngineConfig), &conf)
+		if err != nil {
+			logrus.Errorf("failed to unmarshal engine config: %v", err)
+			dto.ErrorResponse(c, http.StatusInternalServerError, "failed to parse engine config")
+			return
+		}
+
+		items = append(items, dto.FaultInjectionNoIssuesResp{
+			DatasetID:     record.DatasetID,
+			DisplayConfig: record.DisplayConfig,
+			EngineConfig:  conf,
+			PreDuration:   record.PreDuration,
+			InjectionName: record.InjectionName,
+		})
+	}
+
+	dto.SuccessResponse(c, items)
+}
+
+// GetFaultInjectionWithIssues
+//
+//	@Summary		查询有问题的故障注入记录
+//	@Description	查询所有有问题的故障注入记录列表
+//	@Tags			injection
+//	@Produce		json
+//	@Success		200			{object}	dto.GenericResponse[[]dto.FaultInjectionWithIssuesResp]
+//	@Failure		400			{object}	dto.GenericResponse[any]
+//	@Failure		500			{object}	dto.GenericResponse[any]
+//	@Router			/api/v1/injections/analysis/with-issues [get]
+func GetFaultInjectionWithIssues(c *gin.Context) {
+	_, records, err := repository.GetAllFaultInjectionWithIssues()
+	if err != nil {
+		logrus.Errorf("failed to get fault injection with issues: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get fault injection records")
+		return
+	}
+
+	items := make([]dto.FaultInjectionWithIssuesResp, 0, len(records))
+	for _, record := range records {
+		conf := chaos.Node{}
+		err := json.Unmarshal([]byte(record.EngineConfig), &conf)
+		if err != nil {
+			logrus.Errorf("failed to unmarshal engine config: %v", err)
+			dto.ErrorResponse(c, http.StatusInternalServerError, "failed to parse engine config")
+			return
+		}
+		items = append(items, dto.FaultInjectionWithIssuesResp{
+			DatasetID:     record.DatasetID,
+			DisplayConfig: record.DisplayConfig,
+			EngineConfig:  conf,
+			PreDuration:   record.PreDuration,
+			InjectionName: record.InjectionName,
+			Issues:        record.Issues,
+		})
+	}
+
+	dto.SuccessResponse(c, items)
+}
+
+// GetFaultInjectionStatistics
+//
+//	@Summary		获取故障注入统计信息
+//	@Description	获取故障注入记录的统计信息，包括有问题和没有问题的记录数量
+//	@Tags			injection
+//	@Produce		json
+//	@Success		200	{object}	dto.GenericResponse[dto.FaultInjectionStatisticsResp]
+//	@Failure		500	{object}	dto.GenericResponse[any]
+//	@Router			/api/v1/injections/analysis/statistics [get]
+func GetFaultInjectionStatistics(c *gin.Context) {
+	stats, err := repository.GetFaultInjectionStatistics()
+	if err != nil {
+		logrus.Errorf("failed to get fault injection statistics: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get statistics")
+		return
+	}
+
+	dto.SuccessResponse(c, dto.FaultInjectionStatisticsResp{
+		NoIssuesCount:   stats["no_issues"],
+		WithIssuesCount: stats["with_issues"],
+		TotalCount:      stats["total"],
+	})
+}
+
+// GetFaultInjectionByDatasetID
+//
+//	@Summary		根据数据集ID查询故障注入记录
+//	@Description	根据数据集ID查询故障注入记录详情（包括是否有问题）
+//	@Tags			injection
+//	@Produce		json
+//	@Param			dataset_id	path		int	true	"数据集ID"
+//	@Success		200			{object}	dto.GenericResponse[any]
+//	@Failure		400			{object}	dto.GenericResponse[any]
+//	@Failure		404			{object}	dto.GenericResponse[any]
+//	@Failure		500			{object}	dto.GenericResponse[any]
+//	@Router			/api/v1/injections/analysis/dataset/{dataset_id} [get]
+func GetFaultInjectionByDatasetID(c *gin.Context) {
+	datasetIDStr := c.Param("dataset_id")
+	datasetID, err := strconv.Atoi(datasetIDStr)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid dataset ID")
+		return
+	}
+
+	// 先尝试查询有问题的记录
+	withIssues, err := repository.GetFaultInjectionWithIssuesByDatasetID(datasetID)
+	if err == nil {
+		conf := chaos.Node{}
+		err := json.Unmarshal([]byte(withIssues.EngineConfig), &conf)
+		if err != nil {
+			logrus.Errorf("failed to unmarshal engine config: %v", err)
+			dto.ErrorResponse(c, http.StatusInternalServerError, "failed to parse engine config")
+			return
+		}
+
+		dto.SuccessResponse(c, dto.FaultInjectionWithIssuesResp{
+			DatasetID:     withIssues.DatasetID,
+			DisplayConfig: withIssues.DisplayConfig,
+			EngineConfig:  conf,
+			PreDuration:   withIssues.PreDuration,
+			InjectionName: withIssues.InjectionName,
+			Issues:        withIssues.Issues,
+		})
+		return
+	}
+
+	// 如果没有找到有问题的记录，尝试查询没有问题的记录
+	noIssues, err := repository.GetFaultInjectionNoIssuesByDatasetID(datasetID)
+	if err == nil {
+		conf := chaos.Node{}
+		err := json.Unmarshal([]byte(noIssues.EngineConfig), &conf)
+		if err != nil {
+			logrus.Errorf("failed to unmarshal engine config: %v", err)
+			dto.ErrorResponse(c, http.StatusInternalServerError, "failed to parse engine config")
+			return
+		}
+
+		dto.SuccessResponse(c, dto.FaultInjectionNoIssuesResp{
+			DatasetID:     noIssues.DatasetID,
+			DisplayConfig: noIssues.DisplayConfig,
+			EngineConfig:  conf,
+			PreDuration:   noIssues.PreDuration,
+			InjectionName: noIssues.InjectionName,
+		})
+		return
+	}
+
+	// 如果都没有找到，返回404
+	dto.ErrorResponse(c, http.StatusNotFound, "Fault injection record not found for the given dataset ID")
 }

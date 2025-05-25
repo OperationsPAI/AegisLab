@@ -85,7 +85,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_traces_completed_get**
-> DtoGenericResponseAny api_v1_traces_completed_get(lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
+> DtoGenericResponseDtoGetCompletedMapResp api_v1_traces_completed_get(lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
 
 获取完成状态的链路
 
@@ -96,7 +96,7 @@ No authorization required
 
 ```python
 import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_any import DtoGenericResponseAny
+from rcabench.openapi.models.dto_generic_response_dto_get_completed_map_resp import DtoGenericResponseDtoGetCompletedMapResp
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
@@ -137,7 +137,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**DtoGenericResponseAny**](DtoGenericResponseAny.md)
+[**DtoGenericResponseDtoGetCompletedMapResp**](DtoGenericResponseDtoGetCompletedMapResp.md)
 
 ### Authorization
 

@@ -21,6 +21,7 @@ from pydantic import Field, StrictStr
 from typing import Optional
 from typing_extensions import Annotated
 from rcabench.openapi.models.dto_generic_response_any import DtoGenericResponseAny
+from rcabench.openapi.models.dto_generic_response_dto_get_completed_map_resp import DtoGenericResponseDtoGetCompletedMapResp
 
 from rcabench.openapi.api_client import ApiClient, RequestSerialized
 from rcabench.openapi.api_response import ApiResponse
@@ -377,7 +378,7 @@ class TraceApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseAny:
+    ) -> DtoGenericResponseDtoGetCompletedMapResp:
         """获取完成状态的链路
 
         根据指定的时间范围获取完成状态的链路
@@ -421,7 +422,7 @@ class TraceApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseAny",
+            '200': "DtoGenericResponseDtoGetCompletedMapResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -454,7 +455,7 @@ class TraceApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseAny]:
+    ) -> ApiResponse[DtoGenericResponseDtoGetCompletedMapResp]:
         """获取完成状态的链路
 
         根据指定的时间范围获取完成状态的链路
@@ -498,7 +499,7 @@ class TraceApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseAny",
+            '200': "DtoGenericResponseDtoGetCompletedMapResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -575,7 +576,7 @@ class TraceApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseAny",
+            '200': "DtoGenericResponseDtoGetCompletedMapResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
