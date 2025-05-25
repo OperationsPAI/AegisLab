@@ -53,9 +53,9 @@ class EventStatus(str, Enum):
 
 
 class EventType(str, Enum):
-    EventAlgoResultCollection = "algorithm.collect_result"
     EventAlgoRunSucceed = "algorithm.run.succeed"
 
+    EventAlgoResultCollection = "algorithm.collect_result"
     EventDatasetResultCollection = "dataset.result.collection"
     EventDatasetNoAnomaly = "dataset.no_anomaly"
     EventDatasetNoConclusionFile = "dataset.no_conclusion_file"
@@ -66,10 +66,16 @@ class EventType(str, Enum):
     EventTaskStarted = "task.started"
 
     EventNoNamespaceAvailable = "no.namespace.available"
-
     EventRestartServiceStarted = "restart.service.started"
     EventRestartServiceCompleted = "restart.service.completed"
     EventRestartServiceFailed = "restart.service.failed"
+
+    EventFaultInjectionStarted = "fault.injection.started"
+    EventFaultInjectionCompleted = "fault.injection.completed"
+    EventFaultInjectionFailed = "fault.injection.failed"
+
+    EventAcquireLock = "acquire.lock"
+    EventReleaseLock = "release.lock"
 
 
 class TaskType(str, Enum):
