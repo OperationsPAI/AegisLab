@@ -74,7 +74,7 @@ jobs:
           -i /local/$CONTROLLER_DIR/docs/swagger.json \
           -g python \
           -o /local/$SDK_DIR \
-          --additional-properties=packageName=rcabench_client,projectName=rcabench
+          --additional-properties=packageName=openapi,projectName=rcabench
 
     - name: Build Python package
       run: |
@@ -127,7 +127,7 @@ jobs:
           
           ### Usage
           ```python
-          from rcabench_client import ApiClient, Configuration
+          from openapi import ApiClient, Configuration
           
           config = Configuration(host="http://localhost:8080")
           client = ApiClient(config)

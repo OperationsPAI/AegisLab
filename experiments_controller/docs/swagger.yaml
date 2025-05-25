@@ -217,6 +217,38 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
+  dto.GenericResponse-dto_InjectCancelResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.InjectCancelResp'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_InjectionItem:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.InjectionItem'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
   dto.GenericResponse-dto_PaginationResp-dto_DatasetItem:
     properties:
       code:
@@ -329,6 +361,22 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
+  dto.GenericResponse-handler_Node:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/handler.Node'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
   dto.GranularityRecord:
     properties:
       confidence:
@@ -339,6 +387,8 @@ definitions:
         type: integer
       result:
         type: string
+    type: object
+  dto.InjectCancelResp:
     type: object
   dto.InjectionItem:
     properties:
@@ -528,6 +578,23 @@ definitions:
         allOf:
         - $ref: '#/definitions/consts.TaskType'
         description: Task type (determines how it's processed)
+    type: object
+  handler.Node:
+    properties:
+      children:
+        additionalProperties:
+          $ref: '#/definitions/handler.Node'
+        type: object
+      description:
+        type: string
+      name:
+        type: string
+      range:
+        items:
+          type: integer
+        type: array
+      value:
+        type: integer
     type: object
   propagation.MapCarrier:
     additionalProperties:
@@ -920,7 +987,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
+            $ref: '#/definitions/dto.GenericResponse-dto_InjectCancelResp'
         "400":
           description: Bad Request
           schema:
@@ -952,7 +1019,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
+            $ref: '#/definitions/dto.GenericResponse-handler_Node'
         "400":
           description: Bad Request
           schema:
@@ -1029,7 +1096,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
+            $ref: '#/definitions/dto.GenericResponse-dto_InjectionItem'
         "400":
           description: Bad Request
           schema:
