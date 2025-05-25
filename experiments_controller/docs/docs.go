@@ -590,7 +590,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
+                            "$ref": "#/definitions/dto.GenericResponse-handler_Node"
                         }
                     },
                     "400": {
@@ -707,7 +707,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionItem"
                         }
                     },
                     "400": {
@@ -748,7 +748,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectCancelResp"
                         }
                     },
                     "400": {
@@ -1348,6 +1348,56 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GenericResponse-dto_InjectCancelResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.InjectCancelResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_InjectionItem": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.InjectionItem"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GenericResponse-dto_PaginationResp-dto_DatasetItem": {
             "type": "object",
             "properties": {
@@ -1523,6 +1573,31 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GenericResponse-handler_Node": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/handler.Node"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GranularityRecord": {
             "type": "object",
             "properties": {
@@ -1539,6 +1614,9 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "dto.InjectCancelResp": {
+            "type": "object"
         },
         "dto.InjectionItem": {
             "type": "object",
@@ -1830,6 +1908,32 @@ const docTemplate = `{
                             "$ref": "#/definitions/consts.TaskType"
                         }
                     ]
+                }
+            }
+        },
+        "handler.Node": {
+            "type": "object",
+            "properties": {
+                "children": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/handler.Node"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "range": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "value": {
+                    "type": "integer"
                 }
             }
         },

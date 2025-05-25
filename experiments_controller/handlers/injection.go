@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
@@ -28,7 +27,7 @@ import (
 //	@Tags			injection
 //	@Produce		application/json
 //	@Param			task_id	path		string	true	"任务ID"
-//	@Success		200		{object}	dto.GenericResponse[any]
+//	@Success		200		{object}	dto.GenericResponse[dto.InjectCancelResp]
 //	@Failure		400		{object}	dto.GenericResponse[any]
 //	@Failure		500		{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/injections/{task_id}/cancel [put]
@@ -43,10 +42,9 @@ func CancelInjection(c *gin.Context) {
 //	@Produce		json
 //	@Param			namespace	query		string	true	"命名空间"
 //	@Param			mode		query		string	true	"显示模式(display/engine)"
-//
-// @Success 200 {object} dto.GenericResponse[any]
-// @Failure 400 {object} dto.GenericResponse[any]
-// @Failure 500 {object} dto.GenericResponse[any]
+//	@Success		200			{object}	dto.GenericResponse[chaos.Node]
+//	@Failure		400			{object}	dto.GenericResponse[any]
+//	@Failure		500			{object}	dto.GenericResponse[any]
 //
 //	@Router			/api/v1/injections/conf [get]
 func GetInjectionConf(c *gin.Context) {
@@ -63,53 +61,7 @@ func GetInjectionConf(c *gin.Context) {
 		return
 	}
 
-	if req.Mode == "engine" {
-		dto.SuccessResponse(c, chaos.NodeToMap(root, true))
-		return
-	}
-
-	type NodeItem struct {
-		Description string `json:"description"`
-		Range       []int  `json:"range"`
-	}
-
-	type result struct {
-		key   string
-		value map[string]NodeItem
-	}
-
-	chaosMap := make(map[string]map[string]NodeItem, len(root.Children))
-	resultChan := make(chan result, len(root.Children))
-	var wg sync.WaitGroup
-
-	// 并行处理每个节点
-	for _, node := range root.Children {
-		wg.Add(1)
-		go func(n *chaos.Node) {
-			defer wg.Done()
-			m := make(map[string]NodeItem, len(n.Children))
-			for _, child := range n.Children {
-				m[child.Name] = NodeItem{
-					Description: child.Description,
-					Range:       child.Range,
-				}
-			}
-			resultChan <- result{key: n.Name, value: m}
-		}(node)
-	}
-
-	// 等待所有处理完成并关闭channel
-	go func() {
-		wg.Wait()
-		close(resultChan)
-	}()
-
-	// 收集处理结果
-	for res := range resultChan {
-		chaosMap[res.key] = res.value
-	}
-
-	dto.SuccessResponse(c, chaosMap)
+	dto.SuccessResponse(c, root)
 }
 
 // GetConfigList
@@ -124,30 +76,23 @@ func GetInjectionConf(c *gin.Context) {
 //	@Failure		500			{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/injections/configs [get]
 func GetDisplayConfigList(c *gin.Context) {
-	logrus.Printf("开始处理获取显示配置列表请求")
-
 	var req dto.InjectionConfigListReq
 	if err := c.BindQuery(&req); err != nil {
-		logrus.Errorf("参数绑定失败: %v", err)
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid Parameters")
 		return
 	}
 
 	if err := req.Validate(); err != nil {
-		logrus.Errorf("参数验证失败: %v", err)
 		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid request: %v", err))
 		return
 	}
 
-	logrus.Printf("开始获取 TraceIDs %v 的显示配置", req.TraceIDs)
 	configs, err := repository.GetDisplayConfigByTraceIDs(req.TraceIDs)
 	if err != nil {
-		logrus.Errorf("获取显示配置失败: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get injection config list")
 		return
 	}
 
-	logrus.Printf("成功获取显示配置,返回 %d 条记录", len(configs))
 	dto.SuccessResponse(c, configs)
 }
 
@@ -225,7 +170,7 @@ func GetNSLock(c *gin.Context) {
 //	@Produce		json
 //	@Param			name		query		string	false	"注入名称"
 //	@Param			task_id		query		string	false	"任务ID"
-//	@Success		200			{object}	dto.GenericResponse[any]
+//	@Success		200			{object}	dto.GenericResponse[dto.InjectionItem]
 //	@Failure		400			{object}	dto.GenericResponse[any]
 //	@Failure		500			{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/injections/query [get]

@@ -124,11 +124,11 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["rcabench_client"]
+packages = ["openapi"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "/rcabench_client",
+    "/openapi",
     "/README.md",
     "/LICENSE",
 ]
@@ -143,7 +143,7 @@ extension-pkg-whitelist = "pydantic"
 
 [tool.mypy]
 files = [
-  "rcabench_client",
+  "openapi",
   "tests",
 ]
 warn_unused_configs = true
@@ -158,15 +158,15 @@ disallow_any_generics = true
 EOF
 
 # Fix package directory name if needed
-if [ -d "rcabench" ] && [ ! -d "rcabench_client" ]; then
-    log_info "Renaming package directory from 'rcabench' to 'rcabench_client'"
-    mv rcabench rcabench_client
+if [ -d "rcabench" ] && [ ! -d "openapi" ]; then
+    log_info "Renaming package directory from 'rcabench' to 'openapi'"
+    mv rcabench openapi
 fi
 
 # Update imports in __init__.py if needed
-if [ -f "rcabench_client/__init__.py" ]; then
+if [ -f "openapi/__init__.py" ]; then
     log_info "Updating package imports"
-    sed -i 's/from rcabench\./from rcabench_client./g' rcabench_client/__init__.py
+    sed -i 's/from rcabench\./from openapi./g' openapi/__init__.py
 fi
 
 # Create a simple setup.py for backward compatibility (optional)
