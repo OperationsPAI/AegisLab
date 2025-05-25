@@ -86,6 +86,33 @@ type Detector struct {
 	UpdatedAt           time.Time `gorm:"autoUpdateTime" json:"updated_at"` // UpdatedAt 自动更新时间
 }
 
+// FaultInjectionNoIssues 视图模型
+type FaultInjectionNoIssues struct {
+	DatasetID     int    `gorm:"column:DatasetID" json:"dataset_id"`
+	DisplayConfig string `gorm:"column:display_config" json:"display_config"`
+	EngineConfig  string `gorm:"column:engine_config" json:"engine_config"`
+	PreDuration   int    `gorm:"column:pre_duration" json:"pre_duration"`
+	InjectionName string `gorm:"column:injection_name" json:"injection_name"`
+}
+
+func (FaultInjectionNoIssues) TableName() string {
+	return "fault_injection_no_issues"
+}
+
+// FaultInjectionWithIssues 视图模型
+type FaultInjectionWithIssues struct {
+	DatasetID     int    `gorm:"column:DatasetID" json:"dataset_id"`
+	DisplayConfig string `gorm:"column:display_config" json:"display_config"`
+	EngineConfig  string `gorm:"column:engine_config" json:"engine_config"`
+	PreDuration   int    `gorm:"column:pre_duration" json:"pre_duration"`
+	InjectionName string `gorm:"column:injection_name" json:"injection_name"`
+	Issues        string `gorm:"column:issues" json:"issues"`
+}
+
+func (FaultInjectionWithIssues) TableName() string {
+	return "fault_injection_with_issues"
+}
+
 func InitDB() {
 	var err error
 	mysqlUser := config.GetString("database.mysql_user")
@@ -124,4 +151,32 @@ func InitDB() {
 		logrus.Fatalf("Failed to migrate database: %v", err)
 	}
 
+	// Create views
+	// Drop existing views if they exist
+	DB.Migrator().DropView("fault_injection_no_issues")
+	DB.Migrator().DropView("fault_injection_with_issues")
+
+	// Create fault_injection_no_issues view
+	noIssuesQuery := DB.Table("fault_injection_schedules fis").
+		Select("DISTINCT fis.id AS DatasetID, fis.display_config, fis.engine_config, fis.pre_duration, fis.injection_name").
+		Joins("JOIN execution_results er ON fis.id = er.dataset").
+		Joins("JOIN detectors d ON er.id = d.execution_id").
+		Where("d.issues = '{}'")
+
+	err = DB.Migrator().CreateView("fault_injection_no_issues", gorm.ViewOption{Query: noIssuesQuery})
+	if err != nil {
+		logrus.Errorf("Failed to create fault_injection_no_issues view: %v", err)
+	}
+
+	// Create fault_injection_with_issues view
+	withIssuesQuery := DB.Table("fault_injection_schedules fis").
+		Select("fis.id AS DatasetID, fis.display_config, fis.engine_config, fis.pre_duration, fis.injection_name, d.issues").
+		Joins("JOIN execution_results er ON fis.id = er.dataset").
+		Joins("JOIN detectors d ON er.id = d.execution_id").
+		Where("d.issues != '{}'")
+
+	err = DB.Migrator().CreateView("fault_injection_with_issues", gorm.ViewOption{Query: withIssuesQuery})
+	if err != nil {
+		logrus.Errorf("Failed to create fault_injection_with_issues view: %v", err)
+	}
 }

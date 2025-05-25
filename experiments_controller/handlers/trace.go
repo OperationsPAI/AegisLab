@@ -176,7 +176,7 @@ func AnalyzeTrace(c *gin.Context) {
 // @Param       lookback         query   string   false "时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom)"
 // @Param       custom_start_time query   string   false "当lookback=custom时必需，自定义开始时间(RFC3339格式)"
 // @Param       custom_end_time  query   string   false "当lookback=custom时必需，自定义结束时间(RFC3339格式)"
-// @Success     200 {object}     dto.GenericResponse[any]
+// @Success     200 {object}     dto.GenericResponse[dto.GetCompletedMapResp]
 // @Failure     400 {object}     dto.GenericResponse[any]
 // @Failure     500 {object}     dto.GenericResponse[any]
 // @Router      /api/v1/traces/completed [get]

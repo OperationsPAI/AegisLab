@@ -1,0 +1,36 @@
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /api/v1/algorithms        --> github.com/LGU-SE-Internal/rcabench/handlers.GetAlgorithmList (8 handlers)
+[GIN-debug] POST   /api/v1/algorithms        --> github.com/LGU-SE-Internal/rcabench/handlers.SubmitAlgorithmExecution (8 handlers)
+[GIN-debug] POST   /api/v1/algorithms/build  --> github.com/LGU-SE-Internal/rcabench/handlers.SubmitAlgorithmBuilding (8 handlers)
+[GIN-debug] DELETE /api/v1/datasets          --> github.com/LGU-SE-Internal/rcabench/handlers.DeleteDataset (8 handlers)
+[GIN-debug] GET    /api/v1/datasets          --> github.com/LGU-SE-Internal/rcabench/handlers.GetDatasetList (8 handlers)
+[GIN-debug] GET    /api/v1/datasets/download --> github.com/LGU-SE-Internal/rcabench/handlers.DownloadDataset (8 handlers)
+[GIN-debug] GET    /api/v1/datasets/query    --> github.com/LGU-SE-Internal/rcabench/handlers.QueryDataset (8 handlers)
+[GIN-debug] POST   /api/v1/datasets          --> github.com/LGU-SE-Internal/rcabench/handlers.SubmitDatasetBuilding (8 handlers)
+[GIN-debug] GET    /api/v1/evaluations       --> github.com/LGU-SE-Internal/rcabench/handlers.GetEvaluationList (8 handlers)
+[GIN-debug] GET    /api/v1/injections        --> github.com/LGU-SE-Internal/rcabench/handlers.GetInjectionList (8 handlers)
+[GIN-debug] GET    /api/v1/injections/conf   --> github.com/LGU-SE-Internal/rcabench/handlers.GetInjectionConf (8 handlers)
+[GIN-debug] GET    /api/v1/injections/configs --> github.com/LGU-SE-Internal/rcabench/handlers.GetDisplayConfigList (8 handlers)
+[GIN-debug] GET    /api/v1/injections/ns/status --> github.com/LGU-SE-Internal/rcabench/handlers.GetNSLock (8 handlers)
+[GIN-debug] GET    /api/v1/injections/query  --> github.com/LGU-SE-Internal/rcabench/handlers.QueryInjection (8 handlers)
+[GIN-debug] POST   /api/v1/injections        --> github.com/LGU-SE-Internal/rcabench/handlers.SubmitFaultInjection (8 handlers)
+[GIN-debug] GET    /api/v1/injections/analysis/no-issues --> github.com/LGU-SE-Internal/rcabench/handlers.GetFaultInjectionNoIssues (8 handlers)
+[GIN-debug] GET    /api/v1/injections/analysis/with-issues --> github.com/LGU-SE-Internal/rcabench/handlers.GetFaultInjectionWithIssues (8 handlers)
+[GIN-debug] GET    /api/v1/injections/analysis/statistics --> github.com/LGU-SE-Internal/rcabench/handlers.GetFaultInjectionStatistics (8 handlers)
+[GIN-debug] GET    /api/v1/injections/analysis/dataset/:dataset_id --> github.com/LGU-SE-Internal/rcabench/handlers.GetFaultInjectionByDatasetID (8 handlers)
+[GIN-debug] PUT    /api/v1/injections/:task_id/cancel --> github.com/LGU-SE-Internal/rcabench/handlers.CancelInjection (8 handlers)
+[GIN-debug] GET    /api/v1/tasks/queue       --> github.com/LGU-SE-Internal/rcabench/handlers.GetQueuedTasks (8 handlers)
+[GIN-debug] GET    /api/v1/tasks/list        --> github.com/LGU-SE-Internal/rcabench/handlers.ListTasks (8 handlers)
+[GIN-debug] GET    /api/v1/tasks/:task_id    --> github.com/LGU-SE-Internal/rcabench/handlers.GetTaskDetail (8 handlers)
+[GIN-debug] GET    /api/v1/traces/analyze    --> github.com/LGU-SE-Internal/rcabench/handlers.AnalyzeTrace (8 handlers)
+[GIN-debug] GET    /api/v1/traces/completed  --> github.com/LGU-SE-Internal/rcabench/handlers.GetCompletedMap (8 handlers)
+[GIN-debug] GET    /api/v1/traces/:trace_id/stream --> github.com/LGU-SE-Internal/rcabench/handlers.GetTraceStream (8 handlers)
+[GIN-debug] GET    /docs/*any                --> github.com/swaggo/gin-swagger.CustomWrapHandler.func1 (8 handlers)
+[GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
+Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.
+[GIN-debug] Listening and serving HTTP on :8082

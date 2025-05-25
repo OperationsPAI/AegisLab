@@ -346,3 +346,86 @@ func updateRecord(name string, updates map[string]any) error {
 
 	return nil
 }
+
+// GetFaultInjectionNoIssues 查询没有问题的故障注入记录
+func GetFaultInjectionNoIssues(pageNum, pageSize int) (int64, []database.FaultInjectionNoIssues, error) {
+	return paginateQuery[database.FaultInjectionNoIssues](
+		"1 = 1", // 视图本身已经包含过滤条件，这里使用始终为真的条件
+		[]any{},
+		"DatasetID desc", // 按数据集ID降序排序
+		pageNum,
+		pageSize,
+		[]string{}, // 查询所有字段
+	)
+}
+
+// GetFaultInjectionWithIssues 查询有问题的故障注入记录
+func GetFaultInjectionWithIssues(pageNum, pageSize int) (int64, []database.FaultInjectionWithIssues, error) {
+	return paginateQuery[database.FaultInjectionWithIssues](
+		"1 = 1", // 视图本身已经包含过滤条件，这里使用始终为真的条件
+		[]any{},
+		"DatasetID desc", // 按数据集ID降序排序
+		pageNum,
+		pageSize,
+		[]string{}, // 查询所有字段
+	)
+}
+
+// GetAllFaultInjectionNoIssues 查询所有没有问题的故障注入记录（不分页）
+func GetAllFaultInjectionNoIssues() (int64, []database.FaultInjectionNoIssues, error) {
+	return queryAll[database.FaultInjectionNoIssues](
+		"1 = 1", // 视图本身已经包含过滤条件，这里使用始终为真的条件
+		[]any{},
+		"DatasetID desc", // 按数据集ID降序排序
+		[]string{},       // 查询所有字段
+	)
+}
+
+// GetAllFaultInjectionWithIssues 查询所有有问题的故障注入记录（不分页）
+func GetAllFaultInjectionWithIssues() (int64, []database.FaultInjectionWithIssues, error) {
+	return queryAll[database.FaultInjectionWithIssues](
+		"1 = 1", // 视图本身已经包含过滤条件，这里使用始终为真的条件
+		[]any{},
+		"DatasetID desc", // 按数据集ID降序排序
+		[]string{},       // 查询所有字段
+	)
+}
+
+// GetFaultInjectionNoIssuesByDatasetID 根据数据集ID查询没有问题的故障注入记录
+func GetFaultInjectionNoIssuesByDatasetID(datasetID int) (*database.FaultInjectionNoIssues, error) {
+	var record database.FaultInjectionNoIssues
+	if err := database.DB.Where("DatasetID = ?", datasetID).First(&record).Error; err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+// GetFaultInjectionWithIssuesByDatasetID 根据数据集ID查询有问题的故障注入记录
+func GetFaultInjectionWithIssuesByDatasetID(datasetID int) (*database.FaultInjectionWithIssues, error) {
+	var record database.FaultInjectionWithIssues
+	if err := database.DB.Where("DatasetID = ?", datasetID).First(&record).Error; err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+// GetFaultInjectionStatistics 获取故障注入统计信息
+func GetFaultInjectionStatistics() (map[string]int64, error) {
+	var noIssuesCount, withIssuesCount int64
+
+	// 统计没有问题的记录数
+	if err := database.DB.Model(&database.FaultInjectionNoIssues{}).Count(&noIssuesCount).Error; err != nil {
+		return nil, err
+	}
+
+	// 统计有问题的记录数
+	if err := database.DB.Model(&database.FaultInjectionWithIssues{}).Count(&withIssuesCount).Error; err != nil {
+		return nil, err
+	}
+
+	return map[string]int64{
+		"no_issues":   noIssuesCount,
+		"with_issues": withIssuesCount,
+		"total":       noIssuesCount + withIssuesCount,
+	}, nil
+}

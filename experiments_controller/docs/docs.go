@@ -560,6 +560,143 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/injections/analysis/dataset/{dataset_id}": {
+            "get": {
+                "description": "根据数据集ID查询故障注入记录详情（包括是否有问题）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "injection"
+                ],
+                "summary": "根据数据集ID查询故障注入记录",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "数据集ID",
+                        "name": "dataset_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/injections/analysis/no-issues": {
+            "get": {
+                "description": "查询所有没有问题的故障注入记录列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "injection"
+                ],
+                "summary": "查询没有问题的故障注入记录",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-array_dto_FaultInjectionNoIssuesResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/injections/analysis/statistics": {
+            "get": {
+                "description": "获取故障注入记录的统计信息，包括有问题和没有问题的记录数量",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "injection"
+                ],
+                "summary": "获取故障注入统计信息",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_FaultInjectionStatisticsResp"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/injections/analysis/with-issues": {
+            "get": {
+                "description": "查询所有有问题的故障注入记录列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "injection"
+                ],
+                "summary": "查询有问题的故障注入记录",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-array_dto_FaultInjectionWithIssuesResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/injections/conf": {
             "get": {
                 "description": "获取指定命名空间的故障注入配置信息",
@@ -1007,7 +1144,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_GetCompletedMapResp"
                         }
                     },
                     "400": {
@@ -1253,6 +1390,63 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.FaultInjectionNoIssuesResp": {
+            "type": "object",
+            "properties": {
+                "dataset_id": {
+                    "type": "integer"
+                },
+                "display_config": {
+                    "type": "string"
+                },
+                "engine_config": {
+                    "$ref": "#/definitions/handler.Node"
+                },
+                "injection_name": {
+                    "type": "string"
+                },
+                "pre_duration": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.FaultInjectionStatisticsResp": {
+            "type": "object",
+            "properties": {
+                "no_issues_count": {
+                    "type": "integer"
+                },
+                "total_count": {
+                    "type": "integer"
+                },
+                "with_issues_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.FaultInjectionWithIssuesResp": {
+            "type": "object",
+            "properties": {
+                "dataset_id": {
+                    "type": "integer"
+                },
+                "display_config": {
+                    "type": "string"
+                },
+                "engine_config": {
+                    "$ref": "#/definitions/handler.Node"
+                },
+                "injection_name": {
+                    "type": "string"
+                },
+                "issues": {
+                    "type": "string"
+                },
+                "pre_duration": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GenericResponse-any": {
             "type": "object",
             "properties": {
@@ -1262,6 +1456,54 @@ const docTemplate = `{
                 },
                 "data": {
                     "description": "泛型类型的数据"
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-array_dto_FaultInjectionNoIssuesResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.FaultInjectionNoIssuesResp"
+                    }
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-array_dto_FaultInjectionWithIssuesResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.FaultInjectionWithIssuesResp"
+                    }
                 },
                 "message": {
                     "description": "响应消息",
@@ -1335,6 +1577,56 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.EvaluationListResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_FaultInjectionStatisticsResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.FaultInjectionStatisticsResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_GetCompletedMapResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.GetCompletedMapResp"
                         }
                     ]
                 },
@@ -1598,6 +1890,25 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GetCompletedMapResp": {
+            "type": "object",
+            "properties": {
+                "has_anomaly": {
+                    "description": "检测到异常的链路ID列表",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "no_anomaly": {
+                    "description": "没有异常的链路ID列表",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "dto.GranularityRecord": {
             "type": "object",
             "properties": {
@@ -1662,7 +1973,7 @@ const docTemplate = `{
                 "specs": {
                     "type": "array",
                     "items": {
-                        "type": "object"
+                        "$ref": "#/definitions/handler.Node"
                     }
                 }
             }

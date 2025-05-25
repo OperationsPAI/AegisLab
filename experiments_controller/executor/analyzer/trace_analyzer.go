@@ -134,6 +134,7 @@ func GetCompletedMap(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (m
 		consts.EventDatasetNoAnomaly:        noAnomalyTraces,
 	}, nil
 }
+
 func isValidUUID(s string) bool {
 	_, err := uuid.Parse(s)
 	return err == nil

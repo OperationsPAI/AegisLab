@@ -8,7 +8,7 @@ Name | Type | Description | Notes
 **benchmark** | **str** |  | [optional] 
 **interval** | **int** |  | [optional] 
 **pre_duration** | **int** |  | [optional] 
-**specs** | **List[object]** |  | [optional] 
+**specs** | [**List[HandlerNode]**](HandlerNode.md) |  | [optional] 
 
 ## Example
 

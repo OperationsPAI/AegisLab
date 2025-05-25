@@ -91,10 +91,10 @@ type InjectionParaResp struct {
 }
 
 type InjectionSubmitReq struct {
-	Interval    int              `json:"interval"`
-	PreDuration int              `json:"pre_duration"`
-	Specs       []map[string]any `json:"specs" swaggertype:"array,object"`
-	Benchmark   string           `json:"benchmark"`
+	Interval    int          `json:"interval"`
+	PreDuration int          `json:"pre_duration"`
+	Specs       []chaos.Node `json:"specs"`
+	Benchmark   string       `json:"benchmark"`
 }
 
 type InjectionConfig struct {
@@ -119,14 +119,10 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 	// prevEnd := currentTime
 	configs := make([]*InjectionConfig, 0, len(r.Specs))
 	for idx, spec := range r.Specs {
-		node, err := chaos.MapToNode(spec)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert spec[%d] to node: %v", idx, err)
-		}
 
-		childNode, exists := node.Children[strconv.Itoa(node.Value)]
+		childNode, exists := spec.Children[strconv.Itoa(spec.Value)]
 		if !exists {
-			return nil, fmt.Errorf("failed to find key %d in the children", node.Value)
+			return nil, fmt.Errorf("failed to find key %d in the children", spec.Value)
 		}
 
 		nsPrefixs := config.GetNsPrefixs()
@@ -159,7 +155,7 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 		// 	}
 		// }
 
-		conf, err := chaos.NodeToStruct[chaos.InjectionConf](node)
+		conf, err := chaos.NodeToStruct[chaos.InjectionConf](&spec)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert node to injecton conf: %v", err)
 		}
@@ -176,11 +172,11 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 
 		configs = append(configs, &InjectionConfig{
 			Index:         idx,
-			FaultType:     node.Value,
+			FaultType:     spec.Value,
 			FaultDuration: faultDuration,
 			DisplayData:   string(displayData),
 			Conf:          conf,
-			Node:          node,
+			Node:          &spec,
 			ExecuteTime:   execTime,
 		})
 	}
@@ -191,4 +187,36 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 type QueryInjectionReq struct {
 	Name   string `form:"name" binding:"omitempty,max=64"`
 	TaskID string `form:"task_id" binding:"omitempty,max=64"`
+}
+
+// FaultInjectionAnalysisReq 故障注入分析请求参数
+type FaultInjectionAnalysisReq struct {
+	PageNum  int `form:"page_num" binding:"min=1" json:"page_num"`
+	PageSize int `form:"page_size" binding:"min=1,max=100" json:"page_size"`
+}
+
+// FaultInjectionNoIssuesResp 没有问题的故障注入响应
+type FaultInjectionNoIssuesResp struct {
+	DatasetID     int        `json:"dataset_id"`
+	DisplayConfig string     `json:"display_config"`
+	EngineConfig  chaos.Node `json:"engine_config"`
+	PreDuration   int        `json:"pre_duration"`
+	InjectionName string     `json:"injection_name"`
+}
+
+// FaultInjectionWithIssuesResp 有问题的故障注入响应
+type FaultInjectionWithIssuesResp struct {
+	DatasetID     int        `json:"dataset_id"`
+	DisplayConfig string     `json:"display_config"`
+	EngineConfig  chaos.Node `json:"engine_config"`
+	PreDuration   int        `json:"pre_duration"`
+	InjectionName string     `json:"injection_name"`
+	Issues        string     `json:"issues"`
+}
+
+// FaultInjectionStatisticsResp 故障注入统计响应
+type FaultInjectionStatisticsResp struct {
+	NoIssuesCount   int64 `json:"no_issues_count"`
+	WithIssuesCount int64 `json:"with_issues_count"`
+	TotalCount      int64 `json:"total_count"`
 }

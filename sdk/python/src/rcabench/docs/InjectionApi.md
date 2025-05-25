@@ -4,6 +4,10 @@ All URIs are relative to *http://localhost:8080/api/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
+[**api_v1_injections_analysis_dataset_dataset_id_get**](InjectionApi.md#api_v1_injections_analysis_dataset_dataset_id_get) | **GET** /api/v1/injections/analysis/dataset/{dataset_id} | 根据数据集ID查询故障注入记录
+[**api_v1_injections_analysis_no_issues_get**](InjectionApi.md#api_v1_injections_analysis_no_issues_get) | **GET** /api/v1/injections/analysis/no-issues | 查询没有问题的故障注入记录
+[**api_v1_injections_analysis_statistics_get**](InjectionApi.md#api_v1_injections_analysis_statistics_get) | **GET** /api/v1/injections/analysis/statistics | 获取故障注入统计信息
+[**api_v1_injections_analysis_with_issues_get**](InjectionApi.md#api_v1_injections_analysis_with_issues_get) | **GET** /api/v1/injections/analysis/with-issues | 查询有问题的故障注入记录
 [**api_v1_injections_conf_get**](InjectionApi.md#api_v1_injections_conf_get) | **GET** /api/v1/injections/conf | 获取故障注入配置
 [**api_v1_injections_configs_get**](InjectionApi.md#api_v1_injections_configs_get) | **GET** /api/v1/injections/configs | 获取故障注入配置列表
 [**api_v1_injections_get**](InjectionApi.md#api_v1_injections_get) | **GET** /api/v1/injections | 分页查询注入记录列表
@@ -12,6 +16,274 @@ Method | HTTP request | Description
 [**api_v1_injections_query_get**](InjectionApi.md#api_v1_injections_query_get) | **GET** /api/v1/injections/query | 查询故障注入记录
 [**api_v1_injections_task_id_cancel_put**](InjectionApi.md#api_v1_injections_task_id_cancel_put) | **PUT** /api/v1/injections/{task_id}/cancel | 取消故障注入任务
 
+
+# **api_v1_injections_analysis_dataset_dataset_id_get**
+> DtoGenericResponseAny api_v1_injections_analysis_dataset_dataset_id_get(dataset_id)
+
+根据数据集ID查询故障注入记录
+
+根据数据集ID查询故障注入记录详情（包括是否有问题）
+
+### Example
+
+
+```python
+import rcabench.openapi
+from rcabench.openapi.models.dto_generic_response_any import DtoGenericResponseAny
+from rcabench.openapi.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = rcabench.openapi.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+
+# Enter a context with an instance of the API client
+with rcabench.openapi.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = rcabench.openapi.InjectionApi(api_client)
+    dataset_id = 56 # int | 数据集ID
+
+    try:
+        # 根据数据集ID查询故障注入记录
+        api_response = api_instance.api_v1_injections_analysis_dataset_dataset_id_get(dataset_id)
+        print("The response of InjectionApi->api_v1_injections_analysis_dataset_dataset_id_get:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling InjectionApi->api_v1_injections_analysis_dataset_dataset_id_get: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **dataset_id** | **int**| 数据集ID | 
+
+### Return type
+
+[**DtoGenericResponseAny**](DtoGenericResponseAny.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | OK |  -  |
+**400** | Bad Request |  -  |
+**404** | Not Found |  -  |
+**500** | Internal Server Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **api_v1_injections_analysis_no_issues_get**
+> DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp api_v1_injections_analysis_no_issues_get()
+
+查询没有问题的故障注入记录
+
+查询所有没有问题的故障注入记录列表
+
+### Example
+
+
+```python
+import rcabench.openapi
+from rcabench.openapi.models.dto_generic_response_array_dto_fault_injection_no_issues_resp import DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp
+from rcabench.openapi.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = rcabench.openapi.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+
+# Enter a context with an instance of the API client
+with rcabench.openapi.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = rcabench.openapi.InjectionApi(api_client)
+
+    try:
+        # 查询没有问题的故障注入记录
+        api_response = api_instance.api_v1_injections_analysis_no_issues_get()
+        print("The response of InjectionApi->api_v1_injections_analysis_no_issues_get:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling InjectionApi->api_v1_injections_analysis_no_issues_get: %s\n" % e)
+```
+
+
+
+### Parameters
+
+This endpoint does not need any parameter.
+
+### Return type
+
+[**DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp**](DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | OK |  -  |
+**400** | Bad Request |  -  |
+**500** | Internal Server Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **api_v1_injections_analysis_statistics_get**
+> DtoGenericResponseDtoFaultInjectionStatisticsResp api_v1_injections_analysis_statistics_get()
+
+获取故障注入统计信息
+
+获取故障注入记录的统计信息，包括有问题和没有问题的记录数量
+
+### Example
+
+
+```python
+import rcabench.openapi
+from rcabench.openapi.models.dto_generic_response_dto_fault_injection_statistics_resp import DtoGenericResponseDtoFaultInjectionStatisticsResp
+from rcabench.openapi.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = rcabench.openapi.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+
+# Enter a context with an instance of the API client
+with rcabench.openapi.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = rcabench.openapi.InjectionApi(api_client)
+
+    try:
+        # 获取故障注入统计信息
+        api_response = api_instance.api_v1_injections_analysis_statistics_get()
+        print("The response of InjectionApi->api_v1_injections_analysis_statistics_get:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling InjectionApi->api_v1_injections_analysis_statistics_get: %s\n" % e)
+```
+
+
+
+### Parameters
+
+This endpoint does not need any parameter.
+
+### Return type
+
+[**DtoGenericResponseDtoFaultInjectionStatisticsResp**](DtoGenericResponseDtoFaultInjectionStatisticsResp.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | OK |  -  |
+**500** | Internal Server Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **api_v1_injections_analysis_with_issues_get**
+> DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp api_v1_injections_analysis_with_issues_get()
+
+查询有问题的故障注入记录
+
+查询所有有问题的故障注入记录列表
+
+### Example
+
+
+```python
+import rcabench.openapi
+from rcabench.openapi.models.dto_generic_response_array_dto_fault_injection_with_issues_resp import DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp
+from rcabench.openapi.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = rcabench.openapi.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+
+# Enter a context with an instance of the API client
+with rcabench.openapi.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = rcabench.openapi.InjectionApi(api_client)
+
+    try:
+        # 查询有问题的故障注入记录
+        api_response = api_instance.api_v1_injections_analysis_with_issues_get()
+        print("The response of InjectionApi->api_v1_injections_analysis_with_issues_get:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling InjectionApi->api_v1_injections_analysis_with_issues_get: %s\n" % e)
+```
+
+
+
+### Parameters
+
+This endpoint does not need any parameter.
+
+### Return type
+
+[**DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp**](DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | OK |  -  |
+**400** | Bad Request |  -  |
+**500** | Internal Server Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_injections_conf_get**
 > DtoGenericResponseHandlerNode api_v1_injections_conf_get(namespace, mode)

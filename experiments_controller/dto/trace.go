@@ -12,6 +12,12 @@ import (
 const ErrorStructList = "list"
 const ErrorStructMap = "map"
 
+// GetCompletedMapResp GetCompletedMap接口的响应结构
+type GetCompletedMapResp struct {
+	AnomalyTraces   []string `json:"has_anomaly"` // 检测到异常的链路ID列表
+	NoAnomalyTraces []string `json:"no_anomaly"`  // 没有异常的链路ID列表
+}
+
 // parseLookbackDuration parses a duration string with format like "5m", "2h", "1d"
 // Supports: m (minutes), h (hours), d (days)
 func parseLookbackDuration(lookback string) (time.Duration, error) {
@@ -87,20 +93,6 @@ var ValidTaskTypes = map[consts.TaskType]struct{}{
 	consts.TaskTypeBuildDataset:   {},
 	consts.TaskTypeRestartService: {},
 	consts.TaskTypeRunAlgorithm:   {},
-}
-
-var ValidLookbackValues = map[string]time.Duration{
-	"5m":     LookbackFiveMinutes,
-	"15m":    LookbackFifteenMin,
-	"30m":    LookbackThirtyMin,
-	"1h":     LookbackOneHour,
-	"2h":     LookbackTwoHours,
-	"3h":     LookbackThreeHours,
-	"6h":     LookbackSixHours,
-	"12h":    LookbackTwelveHours,
-	"1d":     LookbackOneDay,
-	"2d":     LookbackTweDay,
-	"custom": 0,
 }
 
 type TraceReq struct {
