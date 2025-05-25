@@ -1,6 +1,6 @@
 [project]
 name = "rcabench"
-version = "0.3.26"
+version = "1.0.2"
 description = "RCABench SDK"
 readme = "README.md"
 requires-python = ">=3.12"
