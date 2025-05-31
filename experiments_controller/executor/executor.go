@@ -9,6 +9,7 @@ import (
 
 	"github.com/LGU-SE-Internal/rcabench/client"
 	"github.com/LGU-SE-Internal/rcabench/client/k8s"
+	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/repository"
@@ -187,7 +188,12 @@ func (e *Executor) HandleJobAdd(annotations map[string]string, labels map[string
 }
 
 func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string, errC error, errMsg string) {
-	logs, err := k8s.GetJobPodLogs(context.Background(), job.Namespace, job.Name)
+	parsedAnnotations, _ := parseAnnotations(annotations)
+	taskOptions, _ := parseTaskOptions(labels)
+	ctx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.TaskCarrier)
+	span := trace.SpanFromContext(ctx)
+
+	logs, err := k8s.GetJobPodLogs(ctx, job.Namespace, job.Name)
 	if err != nil {
 		logrus.WithField("job_name", job.Name).Errorf("failed to get job logs: %v", err)
 	}
@@ -195,18 +201,8 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 	for podName, log := range logs {
 		logrus.WithField("pod_name", podName).Errorf("job logs: %s", log)
 	}
+
 	podLog := logs[job.Name]
-
-	parsedAnnotations, _ := parseAnnotations(annotations)
-	taskOptions, _ := parseTaskOptions(labels)
-	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.TaskCarrier)
-	span := trace.SpanFromContext(taskCtx)
-
-	logEntry := logrus.WithFields(logrus.Fields{
-		"task_id":  taskOptions.TaskID,
-		"trace_id": taskOptions.TraceID,
-	})
-
 	span.AddEvent("job failed", trace.WithAttributes(
 		attribute.KeyValue{
 			Key:   "logs",
@@ -214,9 +210,12 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 		},
 	))
 
+	logEntry := logrus.WithFields(logrus.Fields{
+		"task_id":  taskOptions.TaskID,
+		"trace_id": taskOptions.TraceID,
+	})
 	switch taskOptions.Type {
 	case consts.TaskTypeBuildDataset:
-
 		options, err := parseDatasetOptions(labels)
 		if err != nil {
 			logEntry.WithField("dataset", options.Dataset).Errorf("failed to parse dataset options: %v", err)
@@ -230,7 +229,7 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 			span.AddEvent("update dataset status failed")
 			span.RecordError(err)
 			updateTaskStatus(
-				taskCtx,
+				ctx,
 				taskOptions.TraceID,
 				taskOptions.TaskID,
 				"update dataset status failed",
@@ -240,7 +239,7 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 		}
 
 		updateTaskStatus(
-			taskCtx,
+			ctx,
 			taskOptions.TraceID,
 			taskOptions.TaskID,
 			fmt.Sprintf(consts.TaskMsgFailed, taskOptions.TaskID),
@@ -265,7 +264,6 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 
 	switch taskOptions.Type {
 	case consts.TaskTypeRunAlgorithm:
-
 		options, _ := parseExecutionOptions(labels)
 		logEntry.WithField("algorithm", options.Algorithm).Info("algorithm execute successfully")
 
@@ -330,8 +328,7 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 			taskOptions.Type,
 		)
 
-		// TODO: replace with config.string, rather than hardcode
-		image := "detector"
+		image := config.GetString("algo.detector_image")
 		tag, err := client.GetHarborClient().GetLatestTag(image)
 		if err != nil {
 			logrus.Errorf("failed to get latest tag of %s: %v", image, err)

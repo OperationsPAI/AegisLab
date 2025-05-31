@@ -42,6 +42,7 @@ func Init(configPath string) {
 			logrus.Fatalf("读取配置文件失败: %v", err)
 		}
 	}
+
 	logrus.Printf("配置文件加载成功: %v; configPath: %v, ", viper.ConfigFileUsed(), configPath)
 
 	// 自动绑定环境变量
@@ -101,6 +102,45 @@ func GetList(key string) []any {
 	return nil
 }
 
+func GetNsConfigMap() (map[string]map[string]any, error) {
+	m := GetMap("injection.namespace_target_map")
+	nsConfigMap := make(map[string]map[string]any, len(m))
+	for ns, c := range m {
+		config, ok := c.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("invalid namespace config for %s", ns)
+		}
+
+		nsConfigMap[ns] = config
+	}
+
+	return nsConfigMap, nil
+}
+
+func GetNsCountMap() (map[string]int, error) {
+	nsConfigMap, err := GetNsConfigMap()
+	if err != nil {
+		return nil, err
+	}
+
+	nsCountMap := make(map[string]int, len(nsConfigMap))
+	for ns, config := range nsConfigMap {
+		value, exists := config["count"]
+		if !exists {
+			return nil, fmt.Errorf("namespace %s does not have a count field", ns)
+		}
+
+		vInt, ok := value.(int64)
+		if !ok {
+			return nil, fmt.Errorf("invalid namespace value for %s", ns)
+		}
+
+		nsCountMap[ns] = int(vInt)
+	}
+
+	return nsCountMap, nil
+}
+
 func GetNsPrefixs() []string {
 	m := GetMap("injection.namespace_target_map")
 	nsPrefixs := make([]string, 0, len(m))
@@ -113,33 +153,17 @@ func GetNsPrefixs() []string {
 }
 
 func GetAllNamespaces() ([]string, error) {
-	m := GetMap("injection.namespace_target_map")
-	namespaces := make([]string, 0, len(m))
-	for ns, value := range m {
-		vInt, ok := value.(int64)
-		if !ok {
-			return nil, fmt.Errorf("invalid namespace value for %s", ns)
-		}
+	nsCountMap, err := GetNsCountMap()
+	if err != nil {
+		return nil, err
+	}
 
-		for idx := range vInt {
+	namespaces := make([]string, 0, len(nsCountMap))
+	for ns, count := range nsCountMap {
+		for idx := range count {
 			namespaces = append(namespaces, fmt.Sprintf("%s%d", ns, idx))
 		}
 	}
 
 	return namespaces, nil
-}
-
-func GetNsTargetMap() (map[string]int, error) {
-	m := GetMap("injection.namespace_target_map")
-	nsTargetMap := make(map[string]int, len(m))
-	for ns, value := range m {
-		vInt, ok := value.(int64)
-		if !ok {
-			return nil, fmt.Errorf("invalid namespace value for %s", ns)
-		}
-
-		nsTargetMap[ns] = int(vInt)
-	}
-
-	return nsTargetMap, nil
 }

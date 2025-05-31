@@ -10,8 +10,13 @@ timezone = "Asia/Shanghai"
 
 [injection]
 enable_duplicate = true
-namespace_target_map = { ts = 6 }
 target_label_key = "app"
+
+[injection.namespace_target_map.ts]
+count = 6
+port = "3009%d"
+repo_name = "train-ticket"
+repo_url = "https://lgu-se-internal.github.io/train-ticket"
 
 [database]
 clickhouse_host = "10.10.10.58"
@@ -40,6 +45,7 @@ namespace = "exp"
 path = "/mnt/jfs/rcabench_dataset"
 
 [algo]
+detector_image = "detector"
 storage_path = "/home/nn/workspace/rcabench/algorithms"
 
 [debugging]
@@ -47,9 +53,3 @@ enable = false
 
 [buildkit]
 address = "tcp://localhost:1234"
-
-[s3]
-endpoint = "10.10.10.38:9000"
-access_key = "minioadmin"
-secret_key = "minioadmin"
-use_ssl = false

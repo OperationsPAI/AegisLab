@@ -34,7 +34,6 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 			return err
 		}
 		path := config.GetString("jfs.path")
-		// s3cli, err := client.GetS3Client()
 
 		if collectPayload.Algorithm == "detector" {
 			conclusionCSV := filepath.Join(path, collectPayload.Dataset, consts.DetectorConclusionFile)

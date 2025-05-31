@@ -119,7 +119,6 @@ const (
 	// when adding the consts, remember to update the consts in python sdk, const.py
 	EventAlgoRunSucceed EventType = "algorithm.run.succeed"
 
-	// TODO 校验算法执行结果
 	EventAlgoResultCollection    EventType = "algorithm.collect_result"
 	EventDatasetResultCollection EventType = "dataset.result.collection"
 	EventDatasetNoAnomaly        EventType = "dataset.no_anomaly"

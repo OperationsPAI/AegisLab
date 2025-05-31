@@ -11,6 +11,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/client"
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/dto"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
@@ -33,8 +34,8 @@ type TraceStatistic struct {
 	ErrorMsgs []string
 }
 
-// TODO@wangrui: 增加判断机制 1. 在筛选 traceid 的时候根据第一条 event 的时间来筛选，不需要取所有的 traceid； 2. 需要规定 stream key 的类型，例如 uuid 格式的，是我们能取的，因为还有些 ts0 这样的 key 在存储 namespace 的信息
-func GetTraceEvents(ctx context.Context, traceId string) ([]*dto.StreamEvent, error) {
+// TODO @wangrui: 增加判断机制 1. 在筛选 traceid 的时候根据第一条 event 的时间来筛选，不需要取所有的 traceid
+func GetTraceEvents(ctx context.Context, traceId string, firstTaskType consts.TaskType, startTime, endTime time.Time) ([]*dto.StreamEvent, error) {
 	historicalMessages, err := ReadStreamEvents(ctx, fmt.Sprintf(consts.StreamLogKey, traceId), "0", 200, -1)
 	if err != nil && err != redis.Nil {
 		return nil, err
@@ -42,7 +43,7 @@ func GetTraceEvents(ctx context.Context, traceId string) ([]*dto.StreamEvent, er
 
 	events := make([]*dto.StreamEvent, 0)
 	for _, stream := range historicalMessages {
-		for _, msg := range stream.Messages {
+		for idx, msg := range stream.Messages {
 			streamEvent, err := parseEventFromValues(msg.Values)
 			if err != nil {
 				return nil, err
@@ -51,6 +52,20 @@ func GetTraceEvents(ctx context.Context, traceId string) ([]*dto.StreamEvent, er
 			streamEvent.TimeStamp, err = strconv.Atoi(strings.Split(msg.ID, "-")[0])
 			if err != nil {
 				return nil, err
+			}
+
+			if idx == 0 {
+				if firstTaskType != consts.TaskType("") && streamEvent.TaskType != firstTaskType {
+					break
+				}
+
+				eventTime := time.UnixMilli(int64(streamEvent.TimeStamp))
+				if !startTime.IsZero() && eventTime.Before(startTime) {
+					break
+				}
+				if !endTime.IsZero() && eventTime.After(endTime) {
+					break
+				}
 			}
 
 			events = append(events, streamEvent)
@@ -153,8 +168,7 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 	return stat, nil
 }
 
-func GetAllTraceIDsFromRedis(ctx context.Context) ([]string, error) {
-	// 使用简单的SCAN命令遍历键
+func GetAllTraceIDsFromRedis(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) ([]string, error) {
 	var cursor uint64
 	var traceIDs []string
 
@@ -167,7 +181,9 @@ func GetAllTraceIDsFromRedis(ctx context.Context) ([]string, error) {
 		for _, key := range keys {
 			parts := strings.Split(key, ":")
 			if len(parts) == 3 && parts[0] == "trace" && parts[2] == "log" {
-				traceIDs = append(traceIDs, parts[1])
+				if utils.IsValidUUID(parts[1]) {
+					traceIDs = append(traceIDs, parts[1])
+				}
 			}
 		}
 

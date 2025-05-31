@@ -113,10 +113,7 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 	}
 
 	intervalDuration := time.Duration(r.Interval) * consts.DefaultTimeUnit
-	// preDuration := time.Duration(r.PreDuration) * consts.DefaultTimeUnit
-
 	currentTime := time.Now()
-	// prevEnd := currentTime
 	configs := make([]*InjectionConfig, 0, len(r.Specs))
 	for idx, spec := range r.Specs {
 
@@ -126,13 +123,13 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 		}
 
 		nsPrefixs := config.GetNsPrefixs()
-		nsTargetMap, err := config.GetNsTargetMap()
+		nsCountMap, err := config.GetNsCountMap()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get namespace target map in configuration")
 		}
 
 		index := childNode.Children[consts.NamespaceNodeKey].Value
-		namespaceCount := nsTargetMap[nsPrefixs[index]]
+		namespaceCount := nsCountMap[nsPrefixs[index]]
 
 		var execTime time.Time
 		if idx < namespaceCount {
@@ -142,18 +139,6 @@ func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
 		}
 
 		faultDuration := childNode.Children[consts.DurationNodeKey].Value
-		// if !config.GetBool("debugging.enable") {
-		// 	if idx%namespaceCount == 0 {
-		// 		start := execTime.Add(-preDuration)
-		// 		end := execTime.Add(time.Duration(faultDuration) * consts.DefaultTimeUnit)
-
-		// 		if idx > 0 && !start.After(prevEnd) {
-		// 			return nil, fmt.Errorf("spec[%d] time conflict", idx)
-		// 		}
-
-		// 		prevEnd = end
-		// 	}
-		// }
 
 		conf, err := chaos.NodeToStruct[chaos.InjectionConf](&spec)
 		if err != nil {
