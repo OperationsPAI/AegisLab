@@ -3,7 +3,14 @@ package utils
 import (
 	"regexp"
 	"strings"
+
+	"github.com/google/uuid"
 )
+
+func IsValidUUID(s string) bool {
+	_, err := uuid.Parse(s)
+	return err == nil
+}
 
 func ToSnakeCase(s string) string {
 	var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")

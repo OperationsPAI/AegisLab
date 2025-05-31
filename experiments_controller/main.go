@@ -80,7 +80,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	nsTargetMap, err := config.GetNsTargetMap()
+	nsTargetMap, err := config.GetNsCountMap()
 	logrus.Infof("initalized nsTargetMap: %v", nsTargetMap)
 	if err != nil {
 		logrus.Fatal(err)

@@ -10,7 +10,6 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/repository"
-	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -27,16 +26,8 @@ type Statistics struct {
 }
 
 type traceResult struct {
-	TraceID       string
-	Stat          *repository.TraceStatistic
-	IsAnomaly     bool
-	IsCompleted   bool
-	IsFailed      bool
-	StatusTimeMap map[consts.TaskType]float64
-	EndTaskType   consts.TaskType
-	TotalDuration float64
-	Error         error
-	ErrorMsgs     []string
+	traceID string
+	events  []*dto.StreamEvent
 }
 
 func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Statistics, error) {
@@ -51,7 +42,6 @@ func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Sta
 		TraceStatusTimeMap: make(map[string]map[consts.TaskType]float64),
 	}
 
-	// 收集结果
 	totalDuration := 0.0
 	validTracesNum := 0
 
@@ -59,47 +49,40 @@ func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Sta
 
 	for result := range resultChan {
 		stats.Total++
-
-		if _, exists := stats.EndCountMap[result.EndTaskType]; !exists {
-			stats.EndCountMap[result.EndTaskType] = make(map[string]int)
+		stat, err := repository.GetTraceStatistic(ctx, result.events)
+		if err != nil {
+			logrus.WithField("trace_id", result.traceID).Errorf("failed to get trace statistic: %v", err)
+			return nil, nil
 		}
 
-		if result.IsCompleted {
-			stats.EndCountMap[result.EndTaskType]["completed"]++
-			stats.TraceCompletedList = append(stats.TraceCompletedList, result.TraceID)
+		if _, exists := stats.EndCountMap[stat.CurrentTaskType]; !exists {
+			stats.EndCountMap[stat.CurrentTaskType] = make(map[string]int)
+		}
+
+		if stat.Finished {
+			stats.EndCountMap[stat.CurrentTaskType]["completed"]++
+			stats.TraceCompletedList = append(stats.TraceCompletedList, result.traceID)
 		} else {
-			if result.IsFailed {
-				stats.EndCountMap[result.EndTaskType]["failed"]++
-				if _, exists := traceErrorMap[result.EndTaskType]; !exists {
-					traceErrorMap[result.EndTaskType] = make(map[string]any)
+			if stat.IntermediateFailed {
+				stats.EndCountMap[stat.CurrentTaskType]["failed"]++
+				if _, exists := traceErrorMap[stat.CurrentTaskType]; !exists {
+					traceErrorMap[stat.CurrentTaskType] = make(map[string]any)
 				}
-				traceErrorMap[result.EndTaskType][result.TraceID] = result.ErrorMsgs
+				traceErrorMap[stat.CurrentTaskType][result.traceID] = stat.ErrorMsgs
 			} else {
-				stats.EndCountMap[result.EndTaskType]["running"]++
+				stats.EndCountMap[stat.CurrentTaskType]["running"]++
 			}
 		}
 
-		stats.TraceStatusTimeMap[result.TraceID] = result.StatusTimeMap
+		stats.TraceStatusTimeMap[result.traceID] = stat.StatusTimeMap
 
-		if result.TotalDuration > 0 {
-			totalDuration += result.TotalDuration
+		if stat.TotalDuration > 0 {
+			totalDuration += stat.TotalDuration
 			validTracesNum++
 
-			stats.MinDuration = math.Min(stats.MinDuration, result.TotalDuration)
-			stats.MaxDuration = math.Max(stats.MaxDuration, result.TotalDuration)
+			stats.MinDuration = math.Min(stats.MinDuration, stat.TotalDuration)
+			stats.MaxDuration = math.Max(stats.MaxDuration, stat.TotalDuration)
 		}
-	}
-
-	if opts.ErrorStruct == dto.ErrorStructMap {
-		stats.TraceErrors = traceErrorMap
-	} else {
-		// TODO：不返回这个，没必要，参数也没有说明
-		// traceErrorList := make([]string, 0, len(traceErrorMap))
-		// for traceID := range traceErrorMap {
-		// 	traceErrorList = append(traceErrorList, traceID)
-		// }
-
-		// stats.TraceErrors = traceErrorList
 	}
 
 	// 计算平均值
@@ -113,18 +96,24 @@ func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Sta
 }
 
 func GetCompletedMap(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (map[consts.EventType]any, error) {
-	resultChan, err := getTraceResults(ctx, opts)
+	results, err := getTraceResults(ctx, opts)
 	if err != nil {
 		return nil, err
 	}
 
 	var anomalyTraces, noAnomalyTraces []string
-	for result := range resultChan {
-		if result.IsCompleted {
-			if result.IsAnomaly {
-				anomalyTraces = append(anomalyTraces, result.TraceID)
+	for result := range results {
+		stat, err := repository.GetTraceStatistic(ctx, result.events)
+		if err != nil {
+			logrus.WithField("trace_id", result.traceID).Errorf("failed to get trace statistic: %v", err)
+			return nil, nil
+		}
+
+		if stat.Finished {
+			if stat.DetectAnomaly && stat.Finished {
+				anomalyTraces = append(anomalyTraces, result.traceID)
 			} else {
-				noAnomalyTraces = append(noAnomalyTraces, result.TraceID)
+				noAnomalyTraces = append(noAnomalyTraces, result.traceID)
 			}
 		}
 	}
@@ -135,14 +124,8 @@ func GetCompletedMap(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (m
 	}, nil
 }
 
-func isValidUUID(s string) bool {
-	_, err := uuid.Parse(s)
-	return err == nil
-}
-
-// TODO@wangrui:  此函数抽象不合理。 这里应该只做数据提取的操作。然后在外部 analyze trace 的时候统一统计信息。
 func getTraceResults(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (chan traceResult, error) {
-	traceIDs, err := repository.GetAllTraceIDsFromRedis(ctx)
+	traceIDs, err := repository.GetAllTraceIDsFromRedis(ctx, opts)
 	if err != nil {
 		logrus.WithError(err).Error("failed to get group to trace IDs map")
 		return nil, err
@@ -166,11 +149,7 @@ func getTraceResults(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (c
 
 	maxWorkers := min(runtime.NumCPU()*2, 8)
 	semaphore := make(chan struct{}, maxWorkers)
-
 	for _, traceID := range traceIDs {
-		if !isValidUUID(traceID) {
-			continue
-		}
 		wg.Add(1)
 		go func(traceID string) {
 			defer wg.Done()
@@ -178,50 +157,20 @@ func getTraceResults(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (c
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 
-			events, err := repository.GetTraceEvents(ctx, traceID)
+			events, err := repository.GetTraceEvents(ctx, traceID, opts.FirstTaskType, startTime, endTime)
 			if err != nil {
 				logrus.WithField("trace_id", traceID).Errorf("%s, failed to get trace events: %v", traceID, err)
 				return
 			}
+
 			if len(events) == 0 {
-				logrus.WithField("trace_id", traceID).Warn("no events found")
 				return
 			}
 
-			if opts.FirstTaskType != consts.TaskType("") && events[0].TaskType != opts.FirstTaskType {
-				return
+			resultChan <- traceResult{
+				traceID: traceID,
+				events:  events,
 			}
-
-			firstEventTime := time.UnixMilli(int64(events[0].TimeStamp))
-			if !startTime.IsZero() && firstEventTime.Before(startTime) {
-				logrus.WithField("trace_id", traceID).Debug("no valid events found")
-				return
-			}
-			if !endTime.IsZero() && firstEventTime.After(endTime) {
-				logrus.WithField("trace_id", traceID).Debug("event time is out of range")
-				return
-			}
-			// pp.Println(events)
-			// TODO：即这里，应该提取到外部。收到一个 trace 信息的所有 event 之后一次性把他处理成一个统计结构。
-			stat, err := repository.GetTraceStatistic(ctx, events)
-			if err != nil {
-				logrus.WithField("trace_id", traceID).Errorf("failed to get trace statistic: %v", err)
-				return
-			}
-
-			result := traceResult{
-				TraceID:       traceID,
-				Stat:          stat,
-				IsAnomaly:     stat.DetectAnomaly && stat.Finished,
-				IsCompleted:   stat.Finished,
-				IsFailed:      stat.IntermediateFailed,
-				StatusTimeMap: stat.StatusTimeMap,
-				TotalDuration: stat.TotalDuration,
-				ErrorMsgs:     stat.ErrorMsgs,
-				EndTaskType:   stat.CurrentTaskType,
-			}
-
-			resultChan <- result
 		}(traceID)
 	}
 

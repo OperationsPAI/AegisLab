@@ -13,6 +13,7 @@ import (
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"github.com/LGU-SE-Internal/rcabench/client"
 	"github.com/LGU-SE-Internal/rcabench/client/k8s"
+	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
@@ -22,6 +23,16 @@ import (
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
 )
+
+const NSConfigPort = "port"
+const NSConfigRepoName = "repo_name"
+const NSConfigRepoURL = "repo_url"
+
+type nsConfig struct {
+	port     string
+	repoName string
+	repoURL  string
+}
 
 type injectionPayload struct {
 	benchmark   string
@@ -67,7 +78,7 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			return err
 		}
 
-		index, err := extractNamespace(payload.namespace)
+		_, index, err := extractNamespace(payload.namespace)
 		if err != nil {
 			monitor.ReleaseLock(payload.namespace, task.TraceID)
 			span.RecordError(err)
@@ -190,7 +201,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 		deltaTime = time.Duration(payload.interval-payload.faultDuration) * consts.DefaultTimeUnit
 		injectTime := t.Add(deltaTime)
 
-		index, err := extractNamespace(namespace)
+		nsPrefix, index, err := extractNamespace(namespace)
 		if err != nil {
 			monitor.ReleaseLock(namespace, task.TraceID)
 			span.RecordError(err)
@@ -204,12 +215,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 			EventName: consts.EventRestartServiceStarted,
 		})
 
-		if err := installTS(
-			childCtx,
-			namespace,
-			// TODO not hard code
-			fmt.Sprintf("3009%d", index),
-		); err != nil {
+		if err := installTS(childCtx, namespace, nsPrefix, index); err != nil {
 			monitor.ReleaseLock(namespace, task.TraceID)
 			span.RecordError(err)
 			span.AddEvent("failed to install Train Ticket")
@@ -251,9 +257,50 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 	})
 }
 
+func installTS(ctx context.Context, namespace, nsPrefix string, namespaceIdx int) error {
+	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
+		nsConfigMap, err := config.GetNsConfigMap()
+		if err != nil {
+			return fmt.Errorf("error getting namespace config map: %v", err)
+		}
+
+		payload, exists := nsConfigMap[nsPrefix]
+		if !exists {
+			return fmt.Errorf("namespace %s not found in config map", nsPrefix)
+		}
+
+		nsConfig, err := parseNamspaceConfig(childCtx, payload)
+		if err != nil {
+			return err
+		}
+
+		helmClient, err := client.NewHelmClient(namespace)
+		if err != nil {
+			return fmt.Errorf("error creating Helm client: %v", err)
+		}
+
+		// Add Train Ticket repository
+		if err := helmClient.AddRepo(nsConfig.repoName, nsConfig.repoURL); err != nil {
+			return fmt.Errorf("error adding repository: %v", err)
+		}
+
+		// Update repositories
+		if err := helmClient.UpdateRepo(); err != nil {
+			return fmt.Errorf("error updating repositories: %v", err)
+		}
+
+		port := fmt.Sprintf(nsConfig.port, namespaceIdx)
+		if err := helmClient.InstallTrainTicket(ctx, namespace, port); err != nil {
+			return fmt.Errorf("error installing Train Ticket: %v", err)
+		}
+
+		logrus.Infof("Train Ticket installed successfully in namespace %s", namespace)
+		return nil
+	})
+}
+
 func parseInjectionPayload(ctx context.Context, payload map[string]any) (*injectionPayload, error) {
 	return tracing.WithSpanReturnValue(ctx, func(childCtx context.Context) (*injectionPayload, error) {
-
 		message := "invalid or missing '%s' in task payload"
 
 		benchmark, ok := payload[consts.InjectBenchmark].(string)
@@ -305,6 +352,33 @@ func parseInjectionPayload(ctx context.Context, payload map[string]any) (*inject
 	})
 }
 
+func parseNamspaceConfig(ctx context.Context, payload map[string]any) (*nsConfig, error) {
+	return tracing.WithSpanReturnValue(ctx, func(childCtx context.Context) (*nsConfig, error) {
+		message := "invalid or missing '%s' in namespace config"
+
+		port, ok := payload[NSConfigPort].(string)
+		if !ok || port == "" {
+			return nil, fmt.Errorf(message, NSConfigPort)
+		}
+
+		repoName, ok := payload[NSConfigRepoName].(string)
+		if !ok || repoName == "" {
+			return nil, fmt.Errorf(message, NSConfigRepoName)
+		}
+
+		repoURL, ok := payload[NSConfigRepoURL].(string)
+		if !ok || repoURL == "" {
+			return nil, fmt.Errorf(message, NSConfigRepoURL)
+		}
+
+		return &nsConfig{
+			port:     port,
+			repoName: repoName,
+			repoURL:  repoURL,
+		}, nil
+	})
+}
+
 func parseRestartPayload(ctx context.Context, payload map[string]any) (*restartPayload, error) {
 	return tracing.WithSpanReturnValue(ctx, func(childCtx context.Context) (*restartPayload, error) {
 
@@ -335,45 +409,19 @@ func parseRestartPayload(ctx context.Context, payload map[string]any) (*restartP
 	})
 }
 
-func installTS(ctx context.Context, namespace, port string) error {
-	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
-		helmClient, err := client.NewHelmClient(namespace)
-		if err != nil {
-			return fmt.Errorf("error creating Helm client: %v", err)
-		}
-
-		// Add Train Ticket repository
-		if err := helmClient.AddRepo("train-ticket", "https://lgu-se-internal.github.io/train-ticket"); err != nil {
-			return fmt.Errorf("error adding repository: %v", err)
-		}
-
-		// Update repositories
-		if err := helmClient.UpdateRepo(); err != nil {
-			return fmt.Errorf("error updating repositories: %v", err)
-		}
-
-		if err := helmClient.InstallTrainTicket(ctx, namespace, port); err != nil {
-			return fmt.Errorf("error installing Train Ticket: %v", err)
-		}
-
-		logrus.Infof("Train Ticket installed successfully in namespace %s", namespace)
-		return nil
-	})
-}
-
-func extractNamespace(namespace string) (int, error) {
+func extractNamespace(namespace string) (string, int, error) {
 	pattern := `^([a-zA-Z]+)(\d+)$`
 	re := regexp.MustCompile(pattern)
 	match := re.FindStringSubmatch(namespace)
 
 	if len(match) < 3 {
-		return 0, fmt.Errorf("failed to extract index from namespace %s", namespace)
+		return "", 0, fmt.Errorf("failed to extract index from namespace %s", namespace)
 	}
 
 	num, err := strconv.Atoi(match[2])
 	if err != nil {
-		return 0, fmt.Errorf("failed to convert extracted index to integer: %v", err)
+		return "", 0, fmt.Errorf("failed to convert extracted index to integer: %v", err)
 	}
 
-	return num, nil
+	return match[1], num, nil
 }
