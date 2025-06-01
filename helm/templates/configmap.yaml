@@ -15,7 +15,16 @@ data:
 
     [injection]
     enable_duplicate = {{ .Values.configmap.injection.enable_duplicate }}
-    namespace_target_map = { {{- range $key, $value := .Values.configmap.injection.namespace_target_map }}{{ if ne $key (first (keys $.Values.configmap.injection.namespace_target_map)) }}, {{ end }}{{ $key }} = {{ $value }}{{- end }} }
+    {{- with .Values.configmap.injection.namespace_target_map }}
+    [injection.namespace_target_map]
+    {{- range $key, $value := . }}
+    [injection.namespace_target_map.{{ $key }}]
+    count = {{ $value.count }}
+    port = "{{ $value.port }}"
+    repo_name = "{{ $value.repo_name }}"
+    repo_url = "{{ $value.repo_url }}"
+    {{- end }}
+    {{- end }}
     target_label_key = "{{ .Values.configmap.injection.target_label_key }}"
 
     [database]

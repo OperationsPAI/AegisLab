@@ -40,7 +40,12 @@ configmap:
     timezone: "Asia/Shanghai"
   injection:
     enable_duplicate: true
-    namespace_target_map: { ts: 6 }
+    namespace_target_map:
+      ts:
+        count: 6
+        port: "3009%d"
+        repo_name: "train-ticket"
+        repo_url: "https://lgu-se-internal.github.io/train-ticket"
     target_label_key: "app"
   database:
     clickhouse_host: "10.10.10.58"
