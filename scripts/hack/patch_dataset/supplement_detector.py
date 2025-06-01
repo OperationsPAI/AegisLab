@@ -20,14 +20,16 @@ def query_mariadb():
             print("✅ 成功连接到 MariaDB")
 
             cursor = connection.cursor()
-            cursor.execute("""SELECT id, injection_name
-FROM fault_injection_schedules s
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM execution_results e
-    WHERE e.dataset = s.id
-) AND created_at > '2025-05-16 00:00:00' AND status=4
-ORDER BY id DESC""")
+            cursor.execute("""SELECT id, injection_name FROM fault_injection_schedules
+WHERE id not in (
+    SELECT DISTINCT fis.id
+    FROM ((`rcabench`.`fault_injection_schedules` `fis` join `rcabench`
+        .`execution_results` `er`
+           ON (`fis`.`id` = `er`.`dataset`)) JOIN `rcabench`.`detectors` `d`
+          ON (`er`.`id` = `d`.`execution_id`))
+) AND status=4
+ORDER BY id DESC;
+""")
 
             rows = cursor.fetchall()
 
@@ -45,7 +47,7 @@ ORDER BY id DESC""")
                     ]
                 )
                 print(f"🔄 提交数据集：{resp}")
-                time.sleep(4)
+                time.sleep(10)
 
     except Error as e:
         print(f"❌ 查询失败：{e}")

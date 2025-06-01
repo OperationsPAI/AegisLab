@@ -74,15 +74,13 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 
 				span.AddEvent("the detector result is empty")
 				logrus.Info("the detector result is empty")
-				updateTaskStatus(
-					ctx,
-					task.TraceID,
-					task.TaskID,
-					fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
-					consts.TaskStatusCompleted,
-					task.Type,
-				)
-				return nil
+			} else {
+				repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+					TaskID:    task.TaskID,
+					TaskType:  consts.TaskTypeCollectResult,
+					EventName: consts.EventDatasetResultCollection,
+					Payload:   results,
+				})
 			}
 
 			if err = database.DB.Create(&results).Error; err != nil {
@@ -90,13 +88,6 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				span.RecordError(err)
 				return fmt.Errorf("failed to save conclusion.csv to database: %v", err)
 			}
-
-			repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
-				TaskID:    task.TaskID,
-				TaskType:  consts.TaskTypeCollectResult,
-				EventName: consts.EventDatasetResultCollection,
-				Payload:   results,
-			})
 
 			updateTaskStatus(
 				ctx,

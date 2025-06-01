@@ -15,6 +15,7 @@ data:
 
     [injection]
     enable_duplicate = {{ .Values.configmap.injection.enable_duplicate }}
+    target_label_key = "{{ .Values.configmap.injection.target_label_key }}"
     {{- with .Values.configmap.injection.namespace_target_map }}
     [injection.namespace_target_map]
     {{- range $key, $value := . }}
@@ -25,7 +26,6 @@ data:
     repo_url = "{{ $value.repo_url }}"
     {{- end }}
     {{- end }}
-    target_label_key = "{{ .Values.configmap.injection.target_label_key }}"
 
     [database]
     clickhouse_host = "{{ .Values.configmap.database.clickhouse_host }}"

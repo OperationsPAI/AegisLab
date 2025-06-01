@@ -51,6 +51,7 @@ func init() {
 		HideKeys:        true,
 		TimestampFormat: "2006-01-02 15:04:05",
 	})
+	logrus.SetLevel(logrus.DebugLevel)
 	logrus.Info("Logger initialized")
 }
 
