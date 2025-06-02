@@ -158,7 +158,7 @@ func InitDB() {
 
 	// Create fault_injection_no_issues view
 	noIssuesQuery := DB.Table("fault_injection_schedules fis").
-		Select("DISTINCT fis.id AS DatasetID, fis.display_config, fis.engine_config, fis.pre_duration, fis.injection_name").
+		Select("DISTINCT fis.id AS DatasetID, fis.fault_type, fis.display_config, fis.engine_config, fis.pre_duration, fis.injection_name").
 		Joins("JOIN execution_results er ON fis.id = er.dataset").
 		Joins("JOIN detectors d ON er.id = d.execution_id").
 		Where("d.issues = '{}'")
@@ -170,7 +170,7 @@ func InitDB() {
 
 	// Create fault_injection_with_issues view
 	withIssuesQuery := DB.Table("fault_injection_schedules fis").
-		Select("fis.id AS DatasetID, fis.display_config, fis.engine_config, fis.pre_duration, fis.injection_name, d.issues").
+		Select("fis.id AS DatasetID, fis.fault_type, fis.display_config, fis.engine_config, fis.pre_duration, fis.injection_name, d.issues").
 		Joins("JOIN execution_results er ON fis.id = er.dataset").
 		Joins("JOIN detectors d ON er.id = d.execution_id").
 		Where("d.issues != '{}'")
