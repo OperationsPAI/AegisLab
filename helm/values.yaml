@@ -39,11 +39,11 @@ configmap:
   system:
     timezone: "Asia/Shanghai"
   injection:
-    enable_duplicate: true
-    namespace_target_map:
+    enable_duplicate: false
+    namespace_config:
       ts:
         count: 6
-        port: "3009%d"
+        port: "31%03d"
         repo_name: "train-ticket"
         repo_url: "https://lgu-se-internal.github.io/train-ticket"
     target_label_key: "app"
@@ -68,11 +68,6 @@ configmap:
     enable: false
   buildkit:
     address: "tcp://{{ .Release.Name }}-buildkit:1234"
-  s3:
-    endpoint: "10.10.10.38:9000"
-    access_key: "minioadmin"
-    secret_key: "minioadmin"
-    use_ssl: false
 
 persistence:
   mariadb:

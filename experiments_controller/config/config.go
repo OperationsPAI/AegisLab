@@ -103,7 +103,7 @@ func GetList(key string) []any {
 }
 
 func GetNsConfigMap() (map[string]map[string]any, error) {
-	m := GetMap("injection.namespace_target_map")
+	m := GetMap("injection.namespace_config")
 	nsConfigMap := make(map[string]map[string]any, len(m))
 	for ns, c := range m {
 		config, ok := c.(map[string]any)
@@ -142,7 +142,7 @@ func GetNsCountMap() (map[string]int, error) {
 }
 
 func GetNsPrefixs() []string {
-	m := GetMap("injection.namespace_target_map")
+	m := GetMap("injection.namespace_config")
 	nsPrefixs := make([]string, 0, len(m))
 	for ns := range m {
 		nsPrefixs = append(nsPrefixs, ns)

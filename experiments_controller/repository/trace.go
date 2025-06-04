@@ -34,42 +34,44 @@ type TraceStatistic struct {
 	ErrorMsgs []string
 }
 
-// TODO @wangrui: 增加判断机制 1. 在筛选 traceid 的时候根据第一条 event 的时间来筛选，不需要取所有的 traceid
 func GetTraceEvents(ctx context.Context, traceId string, firstTaskType consts.TaskType, startTime, endTime time.Time) ([]*dto.StreamEvent, error) {
 	historicalMessages, err := ReadStreamEvents(ctx, fmt.Sprintf(consts.StreamLogKey, traceId), "0", 200, -1)
 	if err != nil && err != redis.Nil {
 		return nil, err
 	}
 
+	if len(historicalMessages) != 1 {
+		return nil, fmt.Errorf("expected exactly one stream for trace %s, got %d", traceId, len(historicalMessages))
+	}
+
 	events := make([]*dto.StreamEvent, 0)
-	for _, stream := range historicalMessages {
-		for idx, msg := range stream.Messages {
-			streamEvent, err := parseEventFromValues(msg.Values)
-			if err != nil {
-				return nil, err
-			}
-
-			streamEvent.TimeStamp, err = strconv.Atoi(strings.Split(msg.ID, "-")[0])
-			if err != nil {
-				return nil, err
-			}
-
-			if idx == 0 {
-				if firstTaskType != consts.TaskType("") && streamEvent.TaskType != firstTaskType {
-					break
-				}
-
-				eventTime := time.UnixMilli(int64(streamEvent.TimeStamp))
-				if !startTime.IsZero() && eventTime.Before(startTime) {
-					break
-				}
-				if !endTime.IsZero() && eventTime.After(endTime) {
-					break
-				}
-			}
-
-			events = append(events, streamEvent)
+	stream := historicalMessages[0]
+	for idx, msg := range stream.Messages {
+		streamEvent, err := parseEventFromValues(msg.Values)
+		if err != nil {
+			return nil, err
 		}
+
+		streamEvent.TimeStamp, err = strconv.Atoi(strings.Split(msg.ID, "-")[0])
+		if err != nil {
+			return nil, err
+		}
+
+		if idx == 0 {
+			if firstTaskType != consts.TaskType("") && streamEvent.TaskType != firstTaskType {
+				break
+			}
+
+			eventTime := time.UnixMilli(int64(streamEvent.TimeStamp))
+			if !startTime.IsZero() && eventTime.Before(startTime) {
+				break
+			}
+			if !endTime.IsZero() && eventTime.After(endTime) {
+				break
+			}
+		}
+
+		events = append(events, streamEvent)
 	}
 
 	return events, nil
