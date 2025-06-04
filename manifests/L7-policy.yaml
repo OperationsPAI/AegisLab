@@ -1,0 +1,54 @@
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-all-with-l7-observability
+  namespace: ts0
+spec:
+  endpointSelector: {}  # 作用于 ts0 命名空间内所有 Pod
+
+  ingress:
+    - fromEntities:
+        - all
+      toPorts:
+        - ports:
+            - port: "4317"
+              protocol: TCP
+            - port: "4318"
+              protocol: TCP
+        - ports:
+            - port: "3306"
+              protocol: TCP
+        - ports:
+            - port: "80"
+              protocol: TCP
+            - port: "8080"
+              protocol: TCP
+          rules:
+            http: [{}]
+
+  egress:
+    - toEntities:
+        - all
+      toPorts:
+        # DNS 放行（UDP + TCP）
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+
+        # 非 L7 的 TCP 服务
+        - ports:
+            - port: "4317"
+              protocol: TCP
+            - port: "3306"
+              protocol: TCP
+
+        # 启用 HTTP L7 可视化
+        - ports:
+            - port: "80"
+              protocol: TCP
+            - port: "8080"
+              protocol: TCP
+          rules:
+            http: [{}]
