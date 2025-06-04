@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -236,6 +237,7 @@ func SubmitFaultInjection(c *gin.Context) {
 	defer func() {
 		if err := recover(); err != nil {
 			logrus.Errorf("SubmitFaultInjection panic: %v", err)
+			logrus.Errorf("Stack trace: %s", debug.Stack())
 			span.SetStatus(codes.Error, "panic in SubmitFaultInjection")
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Internal Server Error")
 		}
@@ -344,7 +346,7 @@ func getNewConfigs(configs []*dto.InjectionConfig, interval int) ([]*dto.Injecti
 	current_time := time.Now()
 	for i, idx := range missingIndices {
 		config := configs[idx]
-		namespaceCount := conf.GetInt("injection.target_namespace_count")
+		namespaceCount := conf.GetInt("injection.namespace_config.ts.count")
 		if i < namespaceCount {
 			config.ExecuteTime = current_time
 		} else {
