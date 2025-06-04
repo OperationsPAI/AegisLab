@@ -110,11 +110,7 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			EventName: consts.EventFaultInjectionStarted,
 		})
 
-		childNode := payload.node.Children[strconv.Itoa(payload.node.Value)]
-		childNode.Children[strconv.Itoa(len(childNode.Children))] = &chaos.Node{Value: index}
-
-		engineConfig := chaos.NodeToMap(payload.node, true)
-		engineData, err := json.Marshal(engineConfig)
+		engineData, err := json.Marshal(payload.node)
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to marshal injection spec to engine config")
