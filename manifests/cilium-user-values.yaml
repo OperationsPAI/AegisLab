@@ -45,3 +45,5 @@ image:
 envoy:
   image:
     override: 10.10.10.240/library/cilium-envoy:v1.32.6
+
+
