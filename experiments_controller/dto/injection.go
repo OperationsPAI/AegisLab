@@ -3,14 +3,10 @@ package dto
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
-	"strconv"
 	"strings"
 	"time"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
-	"github.com/LGU-SE-Internal/rcabench/config"
-	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/google/uuid"
 )
@@ -111,68 +107,6 @@ type InjectionConfig struct {
 	Conf          *chaos.InjectionConf
 	Node          *chaos.Node
 	ExecuteTime   time.Time
-}
-
-func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
-	if len(r.Specs) == 0 {
-		return nil, fmt.Errorf("spec must not be blank")
-	}
-
-	intervalDuration := time.Duration(r.Interval) * consts.DefaultTimeUnit
-	currentTime := time.Now()
-	configs := make([]*InjectionConfig, 0, len(r.Specs))
-	for idx, spec := range r.Specs {
-
-		childNode, exists := spec.Children[strconv.Itoa(spec.Value)]
-		if !exists {
-			return nil, fmt.Errorf("failed to find key %d in the children", spec.Value)
-		}
-
-		nsPrefixs := config.GetNsPrefixs()
-		nsCountMap, err := config.GetNsCountMap()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get namespace target map in configuration")
-		}
-
-		index := childNode.Children[consts.NamespaceNodeKey].Value
-		namespaceCount := nsCountMap[nsPrefixs[index]]
-
-		var execTime time.Time
-		if idx < namespaceCount {
-			execTime = currentTime.Add(time.Second * time.Duration(rand.Int()%20)) // random delay
-		} else {
-			execTime = currentTime.Add(intervalDuration * time.Duration(idx/namespaceCount)).Add(time.Second * time.Duration(rand.Int()%60))
-		}
-
-		faultDuration := childNode.Children[consts.DurationNodeKey].Value
-
-		conf, err := chaos.NodeToStruct[chaos.InjectionConf](&spec)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert node to injecton conf: %v", err)
-		}
-
-		displayConfig, err := conf.GetDisplayConfig()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get display config: %v", err)
-		}
-
-		displayData, err := json.Marshal(displayConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal injection spec to display config: %v", err)
-		}
-
-		configs = append(configs, &InjectionConfig{
-			Index:         idx,
-			FaultType:     spec.Value,
-			FaultDuration: faultDuration,
-			DisplayData:   string(displayData),
-			Conf:          conf,
-			Node:          &spec,
-			ExecuteTime:   execTime,
-		})
-	}
-
-	return configs, nil
 }
 
 type QueryInjectionReq struct {

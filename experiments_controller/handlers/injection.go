@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"runtime/debug"
 	"strconv"
@@ -19,7 +20,6 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -251,32 +251,12 @@ func SubmitFaultInjection(c *gin.Context) {
 		return
 	}
 
-	configs, err := req.ParseInjectionSpecs()
+	configs, err := ParseInjectionSpecs(&req)
 	if err != nil {
 		logrus.Error(err)
 		span.SetStatus(codes.Error, "failed to parse injection specs")
 		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
 		return
-	}
-
-	originalCount := len(configs)
-	if !conf.GetBool("injection.enable_duplicate") {
-		newConfigs, err := getNewConfigs(configs, req.Interval)
-		if err != nil {
-			message := "failed to get the existing configs"
-			logrus.Errorf("%s: %v", message, err)
-			span.SetStatus(codes.Error, message)
-			dto.ErrorResponse(c, http.StatusInternalServerError, message)
-			return
-		}
-
-		duplicatedCount := originalCount - len(newConfigs)
-		span.SetAttributes(
-			attribute.Int("duplicated_count", duplicatedCount),
-			attribute.Int("original_count", originalCount),
-		)
-
-		configs = newConfigs
 	}
 
 	traces := make([]dto.Trace, 0, len(configs))
@@ -321,16 +301,51 @@ func SubmitFaultInjection(c *gin.Context) {
 		Traces:  traces,
 	}}
 	if !conf.GetBool("injection.enable_duplicate") {
-		resp.DuplicatedCount = originalCount - len(configs)
-		resp.OriginalCount = originalCount
-		logrus.Infof("Duplicated %d configurations, original count: %d", resp.DuplicatedCount, resp.OriginalCount)
+		logrus.Infof("Duplicated %d configurations, original count: %d", len(req.Specs)-len(configs), len(req.Specs))
 	}
 
 	dto.JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", resp)
 }
 
-func getNewConfigs(configs []*dto.InjectionConfig, interval int) ([]*dto.InjectionConfig, error) {
-	intervalDuration := time.Duration(interval) * consts.DefaultTimeUnit
+func ParseInjectionSpecs(r *dto.InjectionSubmitReq) ([]*dto.InjectionConfig, error) {
+	if len(r.Specs) == 0 {
+		return nil, fmt.Errorf("spec must not be blank")
+	}
+
+	configs := make([]*dto.InjectionConfig, 0, len(r.Specs))
+	for idx, spec := range r.Specs {
+
+		childNode, exists := spec.Children[strconv.Itoa(spec.Value)]
+		if !exists {
+			return nil, fmt.Errorf("failed to find key %d in the children", spec.Value)
+		}
+
+		faultDuration := childNode.Children[consts.DurationNodeKey].Value
+
+		conf, err := chaos.NodeToStruct[chaos.InjectionConf](&spec)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert node to injecton conf: %v", err)
+		}
+
+		displayConfig, err := conf.GetDisplayConfig()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get display config: %v", err)
+		}
+
+		displayData, err := json.Marshal(displayConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal injection spec to display config: %v", err)
+		}
+
+		configs = append(configs, &dto.InjectionConfig{
+			Index:         idx,
+			FaultType:     spec.Value,
+			FaultDuration: faultDuration,
+			DisplayData:   string(displayData),
+			Conf:          conf,
+			Node:          &spec,
+		})
+	}
 
 	displayDatas := make([]string, 0, len(configs))
 	for _, config := range configs {
@@ -343,18 +358,14 @@ func getNewConfigs(configs []*dto.InjectionConfig, interval int) ([]*dto.Injecti
 	}
 
 	newConfigs := make([]*dto.InjectionConfig, 0, len(missingIndices))
-	current_time := time.Now()
-	for i, idx := range missingIndices {
-		config := configs[idx]
-		namespaceCount := conf.GetInt("injection.namespace_config.ts.count")
-		if i < namespaceCount {
-			config.ExecuteTime = current_time
-		} else {
-			config.ExecuteTime = current_time.Add(intervalDuration * time.Duration(idx/namespaceCount)).Add(consts.DefaultTimeUnit)
-		}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get namespace target map in configuration")
 	}
 
-	return newConfigs, nil
+	for idx := range newConfigs {
+		newConfigs[idx].ExecuteTime = time.Now().Add(time.Second * time.Duration(rand.Int()%120))
+	}
+	return configs, nil
 }
 
 func findMissingIndices(confs []string, batch_size int) ([]int, error) {
