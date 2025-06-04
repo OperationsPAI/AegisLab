@@ -97,6 +97,12 @@ type InjectionSubmitReq struct {
 	Benchmark   string       `json:"benchmark"`
 }
 
+type InjectionSubmitResp struct {
+	SubmitResp
+	DuplicatedCount int `json:"duplicated_count"`
+	OriginalCount   int `json:"original_count"`
+}
+
 type InjectionConfig struct {
 	Index         int
 	FaultType     int

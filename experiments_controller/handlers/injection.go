@@ -18,6 +18,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -256,6 +257,7 @@ func SubmitFaultInjection(c *gin.Context) {
 		return
 	}
 
+	originalCount := len(configs)
 	if !conf.GetBool("injection.enable_duplicate") {
 		newConfigs, err := getNewConfigs(configs, req.Interval)
 		if err != nil {
@@ -265,6 +267,12 @@ func SubmitFaultInjection(c *gin.Context) {
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 			return
 		}
+
+		duplicatedCount := originalCount - len(newConfigs)
+		span.SetAttributes(
+			attribute.Int("duplicated_count", duplicatedCount),
+			attribute.Int("original_count", originalCount),
+		)
 
 		configs = newConfigs
 	}
@@ -306,7 +314,17 @@ func SubmitFaultInjection(c *gin.Context) {
 
 	span.SetStatus(codes.Ok, fmt.Sprintf("Successfully submitted %d fault injections with groupID: %s", len(traces), groupID))
 
-	dto.JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", dto.SubmitResp{GroupID: groupID, Traces: traces})
+	resp := dto.InjectionSubmitResp{SubmitResp: dto.SubmitResp{
+		GroupID: groupID,
+		Traces:  traces,
+	}}
+	if !conf.GetBool("injection.enable_duplicate") {
+		resp.DuplicatedCount = originalCount - len(configs)
+		resp.OriginalCount = originalCount
+		logrus.Infof("Duplicated %d configurations, original count: %d", resp.DuplicatedCount, resp.OriginalCount)
+	}
+
+	dto.JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", resp)
 }
 
 func getNewConfigs(configs []*dto.InjectionConfig, interval int) ([]*dto.InjectionConfig, error) {
@@ -321,8 +339,6 @@ func getNewConfigs(configs []*dto.InjectionConfig, interval int) ([]*dto.Injecti
 	if err != nil {
 		return nil, err
 	}
-
-	logrus.Infof("deduplicated %d configurations (remaining: %d)", len(displayDatas)-len(missingIndices), len(missingIndices))
 
 	newConfigs := make([]*dto.InjectionConfig, 0, len(missingIndices))
 	current_time := time.Now()

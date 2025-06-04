@@ -9,7 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// TODO
 func CreateDetectorForMatchingInjection(prefix string) (bool, error) {
 	query := database.DB.Model(&database.FaultInjectionSchedule{}).
 		Select("id").

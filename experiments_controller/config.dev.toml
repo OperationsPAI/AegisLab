@@ -9,12 +9,12 @@ workspace = "/home/nn/workspace/rcabench"
 timezone = "Asia/Shanghai"
 
 [injection]
-enable_duplicate = true
+enable_duplicate = false
 target_label_key = "app"
 
-[injection.namespace_target_map.ts]
+[injection.namespace_config.ts]
 count = 6
-port = "3009%d"
+port = "31%03d"
 repo_name = "train-ticket"
 repo_url = "https://lgu-se-internal.github.io/train-ticket"
 
