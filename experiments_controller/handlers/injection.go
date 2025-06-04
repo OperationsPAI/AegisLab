@@ -283,6 +283,7 @@ func SubmitFaultInjection(c *gin.Context) {
 		}
 		task.SetGroupCtx(spanCtx)
 
+		// taskID, traceID := "debuging", "debugging"
 		taskID, traceID, err := executor.SubmitTask(spanCtx, task)
 		if err != nil {
 			message := "failed to submit injection task"
@@ -357,13 +358,12 @@ func ParseInjectionSpecs(r *dto.InjectionSubmitReq) ([]*dto.InjectionConfig, err
 		return nil, err
 	}
 
-	newConfigs := make([]*dto.InjectionConfig, 0, len(missingIndices))
-	if err != nil {
-		return nil, fmt.Errorf("failed to get namespace target map in configuration")
-	}
+	newConfigs := make([]*dto.InjectionConfig, 0)
 
-	for idx := range newConfigs {
-		newConfigs[idx].ExecuteTime = time.Now().Add(time.Second * time.Duration(rand.Int()%120))
+	for _, idx := range missingIndices {
+		conf := configs[idx]
+		conf.ExecuteTime = time.Now().Add(time.Second * time.Duration(rand.Int()%120))
+		newConfigs = append(newConfigs, conf)
 	}
 	return configs, nil
 }
