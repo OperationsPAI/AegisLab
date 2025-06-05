@@ -26,7 +26,7 @@ def print_json_highlighted(data: Any) -> None:
 def ns_stat(
     host: str = "http://10.10.10.220:32080",
 ) -> None:
-    """Submit random chaos injection requests to RCABench API."""
+    """get namespace lock status"""
     configuration: Configuration = Configuration(host=host)
 
     with ApiClient(configuration=configuration) as client:
@@ -39,6 +39,7 @@ def ns_stat(
 def task_queue(
     host: str = "http://10.10.10.220:32080",
 ) -> None:
+    """get task queue status"""
     configuration: Configuration = Configuration(host=host)
 
     with ApiClient(configuration=configuration) as client:
@@ -53,10 +54,11 @@ def task_queue(
 
 
 @app.command()
-def trace(
+def trace_stat(
     host: str = "http://10.10.10.220:32080",
     lookback: str = "1h",
 ) -> None:
+    """get trace analysis information"""
     configuration: Configuration = Configuration(host=host)
 
     with ApiClient(configuration=configuration) as client:
@@ -73,6 +75,7 @@ def trace_stream(
     host: str = "http://10.10.10.220:32080",
     timeout: float = 600000,
 ) -> None:
+    """get one trace stream event by trace_id"""
     sdk = RCABenchSDK(host)
     for e in sdk.trace.stream_trace_events(trace_id, timeout=timeout):
         assert isinstance(e, StreamEvent)
