@@ -16,6 +16,9 @@ dependencies = [
     "urllib3>=2.2.3, < 3.0.0",
     "python-dateutil>=2.9.0.post0",
     "typing-extensions>=4.12.2",
+    "click>=8.2.1",
+    "typer>=0.16.0",
+    "rich>=13.0.0",
 ]
 
 # default settings of `uv init --lib`
