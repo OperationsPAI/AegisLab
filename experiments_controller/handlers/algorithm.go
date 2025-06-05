@@ -78,6 +78,7 @@ func GetAlgorithmList(c *gin.Context) {
 	dto.SuccessResponse(c, dto.AlgorithmListResp{Algorithms: algorithms})
 }
 
+// TODO 参数没检查统计
 // SubmitAlgorithmExecution
 //
 //	@Summary		执行算法
