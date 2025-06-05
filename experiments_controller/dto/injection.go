@@ -114,12 +114,6 @@ type QueryInjectionReq struct {
 	TaskID string `form:"task_id" binding:"omitempty,max=64"`
 }
 
-// FaultInjectionAnalysisReq 故障注入分析请求参数
-type FaultInjectionAnalysisReq struct {
-	PageNum  int `form:"page_num" binding:"min=1" json:"page_num"`
-	PageSize int `form:"page_size" binding:"min=1,max=100" json:"page_size"`
-}
-
 // FaultInjectionNoIssuesResp 没有问题的故障注入响应
 type FaultInjectionNoIssuesResp struct {
 	DatasetID     int        `json:"dataset_id"`

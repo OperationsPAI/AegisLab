@@ -251,7 +251,7 @@ func SubmitFaultInjection(c *gin.Context) {
 		return
 	}
 
-	configs, err := ParseInjectionSpecs(&req)
+	configs, err := parseInjectionSpecs(&req)
 	if err != nil {
 		logrus.Error(err)
 		span.SetStatus(codes.Error, "failed to parse injection specs")
@@ -283,7 +283,6 @@ func SubmitFaultInjection(c *gin.Context) {
 		}
 		task.SetGroupCtx(spanCtx)
 
-		// taskID, traceID := "debuging", "debugging"
 		taskID, traceID, err := executor.SubmitTask(spanCtx, task)
 		if err != nil {
 			message := "failed to submit injection task"
@@ -308,14 +307,14 @@ func SubmitFaultInjection(c *gin.Context) {
 	dto.JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", resp)
 }
 
-func ParseInjectionSpecs(r *dto.InjectionSubmitReq) ([]*dto.InjectionConfig, error) {
+func parseInjectionSpecs(r *dto.InjectionSubmitReq) ([]*dto.InjectionConfig, error) {
 	if len(r.Specs) == 0 {
 		return nil, fmt.Errorf("spec must not be blank")
 	}
 
 	configs := make([]*dto.InjectionConfig, 0, len(r.Specs))
+	displayDatas := make([]string, 0, len(r.Specs))
 	for idx, spec := range r.Specs {
-
 		childNode, exists := spec.Children[strconv.Itoa(spec.Value)]
 		if !exists {
 			return nil, fmt.Errorf("failed to find key %d in the children", spec.Value)
@@ -346,11 +345,7 @@ func ParseInjectionSpecs(r *dto.InjectionSubmitReq) ([]*dto.InjectionConfig, err
 			Conf:          conf,
 			Node:          &spec,
 		})
-	}
-
-	displayDatas := make([]string, 0, len(configs))
-	for _, config := range configs {
-		displayDatas = append(displayDatas, config.DisplayData)
+		displayDatas = append(displayDatas, string(displayData))
 	}
 
 	missingIndices, err := findMissingIndices(displayDatas, 10)
@@ -359,12 +354,12 @@ func ParseInjectionSpecs(r *dto.InjectionSubmitReq) ([]*dto.InjectionConfig, err
 	}
 
 	newConfigs := make([]*dto.InjectionConfig, 0)
-
 	for _, idx := range missingIndices {
 		conf := configs[idx]
 		conf.ExecuteTime = time.Now().Add(time.Second * time.Duration(rand.Int()%120))
 		newConfigs = append(newConfigs, conf)
 	}
+
 	return configs, nil
 }
 
@@ -374,8 +369,8 @@ func findMissingIndices(confs []string, batch_size int) ([]int, error) {
 
 	for i := 0; i < len(confs); i += batch_size {
 		end := min(i+batch_size, len(confs))
-
 		batch := confs[i:end]
+
 		existingBatch, err := repository.FindExistingDisplayConfigs(batch)
 		if err != nil {
 			return nil, err
