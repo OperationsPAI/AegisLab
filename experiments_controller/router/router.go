@@ -19,6 +19,13 @@ func New() *gin.Engine {
 	router.Use(middleware.Logging(), middleware.GroupID(), middleware.SSEPath(), cors.New(config), middleware.TracerMiddleware())
 	r := router.Group("/api/v1")
 
+	debug := r.Group("/debug")
+	{
+		debug.GET("/var", handlers.GetVar)
+		debug.GET("/vars", handlers.GetAllVars)
+		debug.POST("/var", handlers.SetVar)
+	}
+
 	algorithms := r.Group("/algorithms")
 	{
 		algorithms.GET("", handlers.GetAlgorithmList)
