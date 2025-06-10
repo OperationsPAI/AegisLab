@@ -275,30 +275,6 @@ func ReadStreamEvents(ctx context.Context, stream string, lastID string, count i
 	}).Result()
 }
 
-// CreateConsumerGroup 创建 Redis Stream 消费者组
-func CreateConsumerGroup(ctx context.Context, stream, group, startID string) error {
-	err := client.GetRedisClient().XGroupCreate(ctx, stream, group, startID).Err()
-	if err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
-		return fmt.Errorf("failed to create consumer group: %w", err)
-	}
-	return nil
-}
-
-// ConsumeStreamEvents 使用消费者组消费 Redis Stream 事件
-func ConsumeStreamEvents(ctx context.Context, stream, group, consumer string, count int64, block time.Duration) ([]redis.XStream, error) {
-	return client.GetRedisClient().XReadGroup(ctx, &redis.XReadGroupArgs{
-		Group:    group,
-		Consumer: consumer,
-		Streams:  []string{stream, ">"},
-		Count:    count,
-		Block:    block,
-	}).Result()
-}
-
-func AcknowledgeMessage(ctx context.Context, stream, group, id string) error {
-	return client.GetRedisClient().XAck(ctx, stream, group, id).Err()
-}
-
 // ProcessStreamMessagesForSSE processes Redis stream messages and prepares them for SSE events
 // Returns the last message ID and a slice of prepared SSE messages
 func ProcessStreamMessagesForSSE(messages []redis.XStream) (string, []dto.SSEMessageData, error) {

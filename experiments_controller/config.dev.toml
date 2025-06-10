@@ -8,6 +8,9 @@ workspace = "/home/nn/workspace/rcabench"
 [system]
 timezone = "Asia/Shanghai"
 
+[debugging]
+enable = true
+
 [injection]
 enable_duplicate = false
 target_label_key = "app"
@@ -48,8 +51,6 @@ path = "/mnt/jfs/rcabench_dataset"
 detector_image = "detector"
 storage_path = "/home/nn/workspace/rcabench/algorithms"
 
-[debugging]
-enable = false
 
 [buildkit]
 address = "tcp://localhost:1234"
