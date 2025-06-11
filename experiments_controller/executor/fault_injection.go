@@ -78,17 +78,9 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			return err
 		}
 
-		_, index, err := extractNamespace(payload.namespace)
-		if err != nil {
-			monitor.ReleaseLock(payload.namespace, task.TraceID)
-			span.RecordError(err)
-			span.AddEvent("failed to read namespace index")
-			return fmt.Errorf("failed to read namespace index: %v", err)
-		}
-
 		name, err := payload.conf.Create(
 			childCtx,
-			index,
+			payload.namespace,
 			annotations,
 			map[string]string{
 				consts.CRDTaskID:      task.TaskID,
