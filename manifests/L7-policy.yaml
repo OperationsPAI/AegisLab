@@ -2,10 +2,12 @@ apiVersion: "cilium.io/v2"
 kind: CiliumNetworkPolicy
 metadata:
   name: allow-all-with-l7-observability
-  namespace: ts0
+  namespace: ${NAMESPACE}
+  labels:
+    owner: team-network
+    auto-generated: "true"
 spec:
-  endpointSelector: {}  # 作用于 ts0 命名空间内所有 Pod
-
+  endpointSelector: {} 
   ingress:
     - fromEntities:
         - all
@@ -25,7 +27,8 @@ spec:
               protocol: TCP
           rules:
             http: [{}]
-
+    - fromEntities:
+        - all
   egress:
     - toEntities:
         - all
@@ -52,3 +55,5 @@ spec:
               protocol: TCP
           rules:
             http: [{}]
+    - toEntities:
+        - all
