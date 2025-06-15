@@ -104,7 +104,7 @@ func parseDatasetPayload(payload map[string]any) (*datasetPayload, error) {
 			startTime = *startTimePtr
 			endTime = *endTimePtr
 		} else {
-			datasetItem, err := repository.GetDatasetByName(name, consts.DatasetInjectSuccess, consts.DatasetBuildFailed)
+			datasetItem, err := repository.GetDatasetByName(name, consts.DatasetInjectSuccess, consts.DatasetBuildFailed, consts.DatasetBuildSuccess)
 			if err != nil {
 				return nil, fmt.Errorf("query database for dataset failed: %v", err)
 			}
