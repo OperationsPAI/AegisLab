@@ -20,14 +20,12 @@ definitions:
     - TaskTypeCollectResult
   dto.AlgorithmExecutionPayload:
     properties:
+      algorithm:
+        type: string
       dataset:
         type: string
       env_vars:
         type: object
-      image:
-        type: string
-      tag:
-        type: string
     type: object
   dto.AlgorithmListResp:
     properties:

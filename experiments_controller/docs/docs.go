@@ -1188,17 +1188,14 @@ const docTemplate = `{
         "dto.AlgorithmExecutionPayload": {
             "type": "object",
             "properties": {
+                "algorithm": {
+                    "type": "string"
+                },
                 "dataset": {
                     "type": "string"
                 },
                 "env_vars": {
                     "type": "object"
-                },
-                "image": {
-                    "type": "string"
-                },
-                "tag": {
-                    "type": "string"
                 }
             }
         },
