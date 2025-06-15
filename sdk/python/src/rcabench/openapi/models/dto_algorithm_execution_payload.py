@@ -27,12 +27,11 @@ class DtoAlgorithmExecutionPayload(BaseModel):
     """
     DtoAlgorithmExecutionPayload
     """ # noqa: E501
+    algorithm: Optional[StrictStr] = None
     dataset: Optional[StrictStr] = None
     env_vars: Optional[Dict[str, Any]] = None
-    image: Optional[StrictStr] = None
-    tag: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["dataset", "env_vars", "image", "tag"]
+    __properties: ClassVar[List[str]] = ["algorithm", "dataset", "env_vars"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -92,10 +91,9 @@ class DtoAlgorithmExecutionPayload(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "algorithm": obj.get("algorithm"),
             "dataset": obj.get("dataset"),
-            "env_vars": obj.get("env_vars"),
-            "image": obj.get("image"),
-            "tag": obj.get("tag")
+            "env_vars": obj.get("env_vars")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

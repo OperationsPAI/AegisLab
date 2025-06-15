@@ -5,10 +5,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**algorithm** | **str** |  | [optional] 
 **dataset** | **str** |  | [optional] 
 **env_vars** | **object** |  | [optional] 
-**image** | **str** |  | [optional] 
-**tag** | **str** |  | [optional] 
 
 ## Example
 
