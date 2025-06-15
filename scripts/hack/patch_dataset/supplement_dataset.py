@@ -22,11 +22,7 @@ def query_mariadb():
             cursor = connection.cursor()
             cursor.execute("""SELECT id, injection_name
 FROM fault_injection_schedules s
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM execution_results e
-    WHERE e.dataset = s.id
-) AND created_at > '2025-05-16 00:00:00' and (status=2 or status=3)
+WHERE  created_at > '2025-06-14 00:00:00' and (status=4)
 ORDER BY id DESC;""")
 
             rows = cursor.fetchall()
