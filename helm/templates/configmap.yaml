@@ -54,6 +54,7 @@ data:
     path = "{{ .Values.configmap.jfs.path }}"
 
     [algo]
+    detector = "{{ .Values.configmap.algo.detector }}"
     storage_path = "{{ .Values.configmap.algo.storage_path }}"
 
     [debugging]

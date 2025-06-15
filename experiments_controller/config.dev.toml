@@ -48,7 +48,7 @@ namespace = "exp"
 path = "/mnt/jfs/rcabench_dataset"
 
 [algo]
-detector_image = "detector"
+detector = "detector"
 storage_path = "/home/nn/workspace/rcabench/algorithms"
 
 

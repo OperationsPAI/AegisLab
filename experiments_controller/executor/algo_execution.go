@@ -17,10 +17,9 @@ import (
 )
 
 type executionPayload struct {
-	Image   string
-	Tag     string
-	Dataset string
-	EnvVars map[string]string
+	Algorithm string
+	Dataset   string
+	EnvVars   map[string]string
 }
 
 func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
@@ -47,14 +46,19 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			return fmt.Errorf("failed to query database for dataset %s: %v", payload.Dataset, err)
 		}
 
-		algorithm := payload.Image
+		algorithm := payload.Algorithm
 		if payload.EnvVars != nil {
 			if algo, ok := payload.EnvVars[consts.ExecuteEnvVarAlgorithm]; ok {
 				algorithm = algo
 			}
 		}
 
-		executionID, err := repository.CreateExecutionResult(algorithm, task.TaskID, record.ID)
+		image, tag, err := repository.GetAlgorithmImageInfo(algorithm)
+		if err != nil {
+			return fmt.Errorf("failed to get algorithm image and tag: %v", err)
+		}
+
+		executionID, err := repository.CreateExecutionResult(task.TaskID, algorithm, record.Name)
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to create execution result")
@@ -62,7 +66,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 		}
 
 		jobName := task.TaskID
-		image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), payload.Image, payload.Tag)
+		fullImage := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), image, tag)
 		labels := map[string]string{
 			consts.LabelTaskID:      task.TaskID,
 			consts.LabelTraceID:     task.TraceID,
@@ -73,7 +77,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			consts.LabelExecutionID: strconv.Itoa(executionID),
 		}
 
-		return createAlgoJob(ctx, config.GetString("k8s.namespace"), jobName, image, annotations, labels, payload, record)
+		return createAlgoJob(ctx, config.GetString("k8s.namespace"), jobName, fullImage, annotations, labels, payload, record)
 	})
 }
 
@@ -81,14 +85,9 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 	message := "missing or invalid '%s' key in payload"
 
-	image, ok := payload[consts.ExecuteImage].(string)
-	if !ok || image == "" {
-		return nil, fmt.Errorf(message, consts.ExecuteImage)
-	}
-
-	tag, ok := payload[consts.ExecuteTag].(string)
-	if !ok || tag == "" {
-		return nil, fmt.Errorf(message, consts.ExecuteTag)
+	algorithm, ok := payload[consts.ExecuteAlgorithm].(string)
+	if !ok || algorithm == "" {
+		return nil, fmt.Errorf(message, consts.ExecuteAlgorithm)
 	}
 
 	dataset, ok := payload[consts.ExecuteDataset].(string)
@@ -97,9 +96,8 @@ func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 	}
 
 	result := executionPayload{
-		Image:   image,
-		Tag:     tag,
-		Dataset: dataset,
+		Algorithm: algorithm,
+		Dataset:   dataset,
 	}
 	if e, exists := payload[consts.ExecuteEnvVars].(map[string]any); exists {
 		envVars := make(map[string]string, len(e))
@@ -124,6 +122,7 @@ func createAlgoJob(ctx context.Context, jobNamespace, jobName, image string, ann
 		backoffLimit := int32(2)
 		parallelism := int32(1)
 		completions := int32(1)
+		// TODO command 添加进数据库
 		command := []string{"bash", "/entrypoint.sh"}
 
 		jobEnvVars, err := getAlgoJobEnvVars(payload, record)

@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	"github.com/LGU-SE-Internal/rcabench/client"
 	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/dto"
@@ -103,17 +102,6 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 	}
 
 	for i := range payloads {
-		if payloads[i].Tag == "" {
-			tag, err := client.GetHarborClient().GetLatestTag(payloads[i].Image)
-			if err != nil {
-				logrus.Errorf("failed to get latest tag of %s: %v", payloads[i].Image, err)
-				dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get latest tag")
-				return
-			}
-
-			payloads[i].Tag = tag
-		}
-
 		for key := range payloads[i].EnvVars {
 			if _, exists := dto.ExecuteEnvVarNameMap[key]; !exists {
 				message := fmt.Sprintf("the key %s is invalid in env_vars", key)

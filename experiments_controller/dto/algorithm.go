@@ -7,10 +7,9 @@ type AlgorithmListResp struct {
 }
 
 type AlgorithmExecutionPayload struct {
-	Image   string            `json:"image"`
-	Tag     string            `json:"tag"`
-	Dataset string            `json:"dataset"`
-	EnvVars map[string]string `json:"env_vars" swaggertype:"object"`
+	Algorithm string            `json:"algorithm"`
+	Dataset   string            `json:"dataset"`
+	EnvVars   map[string]string `json:"env_vars" swaggertype:"object"`
 }
 
 type DetectorRecord struct {

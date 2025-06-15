@@ -61,10 +61,9 @@ const (
 	EvaluateLabel = "app_name"
 	EvaluateLevel = "level"
 
-	ExecuteImage   = "image"
-	ExecuteTag     = "tag"
-	ExecuteDataset = "dataset"
-	ExecuteEnvVars = "env_vars"
+	ExecuteAlgorithm = "algorithm"
+	ExecuteDataset   = "dataset"
+	ExecuteEnvVars   = "env_vars"
 
 	InjectBenchmark   = "benchmark"
 	InjectFaultType   = "fault_type"

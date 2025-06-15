@@ -44,16 +44,16 @@ func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
 			return err
 		}
 
-		imageName := fmt.Sprintf("%s_dataset", payload.Benchmark)
-		tag, err := client.GetHarborClient().GetLatestTag(imageName)
+		image := fmt.Sprintf("%s_dataset", payload.Benchmark)
+		tag, err := client.GetHarborClient().GetLatestTag(image)
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to get latest tag")
-			return fmt.Errorf("failed to get lataest tag of %s: %v", imageName, err)
+			return fmt.Errorf("failed to get lataest tag of %s: %v", image, err)
 		}
 
 		jobName := task.TaskID
-		image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), imageName, tag)
+		fullImage := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), image, tag)
 		labels := map[string]string{
 			consts.LabelTaskID:   task.TaskID,
 			consts.LabelTraceID:  task.TraceID,
@@ -62,7 +62,7 @@ func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
 			consts.LabelDataset:  payload.Name,
 		}
 
-		return createDatasetJob(ctx, jobName, image, annotations, labels, payload)
+		return createDatasetJob(ctx, jobName, fullImage, annotations, labels, payload)
 	})
 }
 
