@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/client"
 	"github.com/LGU-SE-Internal/rcabench/client/k8s"
 	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
@@ -199,7 +198,8 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 	}
 
 	for podName, log := range logs {
-		logrus.WithField("pod_name", podName).Errorf("job logs: %s", log)
+		logrus.WithField("pod_name", podName).Error("job logs:")
+		logrus.Error(log)
 	}
 
 	podLog := logs[job.Name]
@@ -328,12 +328,6 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 			taskOptions.Type,
 		)
 
-		image := config.GetString("algo.detector_image")
-		tag, err := client.GetHarborClient().GetLatestTag(image)
-		if err != nil {
-			logrus.Errorf("failed to get latest tag of %s: %v", image, err)
-		}
-
 		if err := repository.UpdateStatusByDataset(options.Dataset, consts.DatasetBuildSuccess); err != nil {
 			logrus.WithField("dataset", options.Dataset).Errorf("update dataset status failed: %v", err)
 			taskSpan.AddEvent("update dataset status failed")
@@ -343,9 +337,8 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 		task := &dto.UnifiedTask{
 			Type: consts.TaskTypeRunAlgorithm,
 			Payload: map[string]any{
-				consts.ExecuteImage:   image,
-				consts.ExecuteTag:     tag,
-				consts.ExecuteDataset: options.Dataset,
+				consts.ExecuteAlgorithm: config.GetString("algo.detector"),
+				consts.ExecuteDataset:   options.Dataset,
 			},
 			Immediate: true,
 			TraceID:   taskOptions.TraceID,

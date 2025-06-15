@@ -143,3 +143,37 @@ func getGroupedResults(executionIDs []int, algorithms, levels []string, rank int
 
 	return grouped, nil
 }
+
+// func GetCalculatedEvaluationResults(c *gin.Context) {
+// 	var req dto.CalculatedResultsReq
+// 	if err := c.BindQuery(&req); err != nil {
+// 		dto.ErrorResponse(c, http.StatusBadRequest, formatErrorMessage(err, map[string]string{}))
+// 		return
+// 	}
+
+// 	results, err := repository.ListCalculatedResults(req.ExecutionIDs, req.Algorithms, req.Levels)
+// 	if err != nil {
+// 		logrus.Error(err)
+// 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get calculated results")
+// 		return
+// 	}
+
+// 	dto.SuccessResponse(c, dto.CalculatedResultsResp{Results: results})
+// }
+
+func GetEvaluationRawData(c *gin.Context) {
+	var req dto.RawDataReq
+	if err := c.BindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters")
+		return
+	}
+
+	items, err := repository.ListExecutionRawData(req.CartesianProduct())
+	if err != nil {
+		logrus.Error(err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get raw results")
+		return
+	}
+
+	dto.SuccessResponse(c, items)
+}

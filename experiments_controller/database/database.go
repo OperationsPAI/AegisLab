@@ -47,11 +47,23 @@ type FaultInjectionSchedule struct {
 	UpdatedAt     time.Time `gorm:"autoUpdateTime" json:"updated_at"`   // 更新时间
 }
 
+// TODO 添加数据的接口
+type Algorithm struct {
+	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"` // 唯一标识
+	Name      string    `gorm:"index;not null" json:"name"`         // 算法名称
+	Image     string    `gorm:"not null" json:"image"`              // 算法镜像
+	Tag       string    `gorm:"not null" json:"tag"`                // 算法镜像标签
+	Status    bool      `gorm:"default:true" json:"is_public"`      // 0: 已删除 1: 活跃
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`   // 创建时间
+	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`   // 更新时间
+}
+
+// TODO 算法执行状态
 type ExecutionResult struct {
 	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"` // 唯一标识
 	TaskID    string    `gorm:"index" json:"task_id"`               // 从属什么 taskid
-	Dataset   int       `gorm:"index,unique" json:"dataset"`        // 数据集标识
-	Algorithm string    `json:"algorithm"`                          // 使用的算法
+	Algorithm string    `gorm:"index" json:"algorithm"`             // 使用的算法
+	Dataset   string    `gorm:"index" json:"dataset"`               // 数据集标识
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`   // 创建时间
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`   // 更新时间
 }
@@ -146,37 +158,39 @@ func InitDB() {
 	if err != nil {
 		logrus.Fatalf("Failed to connect to database after %d attempts: %v", maxRetries+1, err)
 	}
-	err = DB.AutoMigrate(&Task{}, &FaultInjectionSchedule{}, &ExecutionResult{}, &GranularityResult{}, &Detector{})
+
+	err = DB.AutoMigrate(
+		&Task{},
+		&FaultInjectionSchedule{},
+		&Algorithm{},
+		&ExecutionResult{},
+		&GranularityResult{},
+		&Detector{},
+	)
 	if err != nil {
 		logrus.Fatalf("Failed to migrate database: %v", err)
 	}
 
-	// Create views
-	// Drop existing views if they exist
 	DB.Migrator().DropView("fault_injection_no_issues")
 	DB.Migrator().DropView("fault_injection_with_issues")
 
-	// Create fault_injection_no_issues view
 	noIssuesQuery := DB.Table("fault_injection_schedules fis").
 		Select("DISTINCT fis.id AS DatasetID, fis.fault_type, fis.display_config, fis.engine_config, fis.pre_duration, fis.injection_name").
 		Joins("JOIN execution_results er ON fis.id = er.dataset").
 		Joins("JOIN detectors d ON er.id = d.execution_id").
 		Where("d.issues = '{}'")
-
 	err = DB.Migrator().CreateView("fault_injection_no_issues", gorm.ViewOption{Query: noIssuesQuery})
 	if err != nil {
-		logrus.Errorf("Failed to create fault_injection_no_issues view: %v", err)
+		logrus.Errorf("failed to create fault_injection_no_issues view: %v", err)
 	}
 
-	// Create fault_injection_with_issues view
 	withIssuesQuery := DB.Table("fault_injection_schedules fis").
 		Select("fis.id AS DatasetID, fis.fault_type, fis.display_config, fis.engine_config, fis.pre_duration, fis.injection_name, d.issues").
 		Joins("JOIN execution_results er ON fis.id = er.dataset").
 		Joins("JOIN detectors d ON er.id = d.execution_id").
 		Where("d.issues != '{}'")
-
 	err = DB.Migrator().CreateView("fault_injection_with_issues", gorm.ViewOption{Query: withIssuesQuery})
 	if err != nil {
-		logrus.Errorf("Failed to create fault_injection_with_issues view: %v", err)
+		logrus.Errorf("failed to create fault_injection_with_issues view: %v", err)
 	}
 }

@@ -1,5 +1,36 @@
 package dto
 
+type RawDataReq struct {
+	Algorithms []string `form:"algorithms" bind:"required"`
+	Datasets   []string `form:"datasets" bind:"required"`
+}
+
+type AlgorithmDatasetPair struct {
+	Algorithm string
+	Dataset   string
+}
+
+func (r *RawDataReq) CartesianProduct() []AlgorithmDatasetPair {
+	var result []AlgorithmDatasetPair
+	for _, algorithm := range r.Algorithms {
+		for _, dataset := range r.Datasets {
+			result = append(result, AlgorithmDatasetPair{
+				Algorithm: algorithm,
+				Dataset:   dataset,
+			})
+		}
+	}
+
+	return result
+}
+
+type RawDataItem struct {
+	Algorithm   string              `json:"algorithm"`
+	Dataset     string              `json:"dataset"`
+	Entries     []GranularityRecord `json:"entries"`
+	GroundTruth string              `json:"ground_truth"`
+}
+
 type EvaluationListReq struct {
 	ExecutionIDs []int    `form:"execution_ids"`
 	Algoritms    []string `form:"algorithms"`

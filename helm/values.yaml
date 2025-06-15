@@ -63,6 +63,7 @@ configmap:
   jfs:
     path: "/var/lib/rcabench"
   algo:
+    detector: "detector"
     storage_path: "/app/algorithms"
   debugging:
     enable: false
