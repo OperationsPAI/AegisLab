@@ -71,7 +71,7 @@ config:
                 replacement: $${1}:$${2}
                 target_label: __address__
           - job_name: 'kubernetes-endpoints'
-            scrape_interval: 30s
+            scrape_interval: 10s
             kubernetes_sd_configs:
               - role: endpoints
             relabel_configs:
@@ -83,6 +83,19 @@ config:
                 target_label: __address__
                 regex: (.+)(?::\d+);(\d+)
                 replacement: $$1:$$2
+          - job_name: 'federate'
+            scrape_interval: 15s
+            honor_labels: false
+            params:
+              'match[]':
+                - '{__name__="hubble_http_request_duration_p50_seconds"}'
+                - '{__name__="hubble_http_request_duration_p90_seconds"}'
+                - '{__name__="hubble_http_request_duration_p95_seconds"}'
+                - '{__name__="hubble_http_request_duration_p99_seconds"}'
+            metrics_path: '/federate'
+            static_configs:
+              - targets:
+                  - prometheus.cilium-monitoring.svc.cluster.local:9090
   service:
     telemetry:
       metrics:
