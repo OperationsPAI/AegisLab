@@ -1,8 +1,11 @@
 package repository
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
+
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
@@ -183,6 +186,24 @@ func ListExecutionRawData(pairs []dto.AlgorithmDatasetPair) ([]dto.RawDataItem, 
 		})
 	}
 
+	dataset := make([]string, 0, len(pairs))
+	for _, pair := range pairs {
+		dataset = append(dataset, pair.Dataset)
+	}
+
+	groundtruthMap, err := getGroundtruthMap(dataset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ground truth map: %v", err)
+	}
+
+	for i := range items {
+		if gt, exists := groundtruthMap[items[i].Dataset]; exists {
+			items[i].Groundtruth = gt
+		} else {
+			items[i].Groundtruth = chaos.Groundtruth{}
+		}
+	}
+
 	return items, nil
 }
 
@@ -223,4 +244,35 @@ func getLatestExecutionMap(pairs []dto.AlgorithmDatasetPair) (map[int]string, er
 	}
 
 	return execIDMap, nil
+}
+
+func getGroundtruthMap(datasets []string) (map[string]chaos.Groundtruth, error) {
+	engineConfs, err := ListEngineConfigByNames(datasets)
+	if err != nil {
+		return nil, err
+	}
+
+	groundtruthMap := make(map[string]chaos.Groundtruth, len(engineConfs))
+	for idx, engineConf := range engineConfs {
+		dataset := datasets[idx]
+
+		var node chaos.Node
+		if err := json.Unmarshal([]byte(engineConf), &node); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal chaos-experiment node for dataset %s: %v", dataset, err)
+		}
+
+		conf, err := chaos.NodeToStruct[chaos.InjectionConf](&node)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert chaos-experiment node to InjectionConf for dataset %s: %v", dataset, err)
+		}
+
+		groundtruth, err := conf.GetGroundtruth()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get ground truth for dataset %s: %v", dataset, err)
+		}
+
+		groundtruthMap[datasets[idx]] = groundtruth
+	}
+
+	return groundtruthMap, nil
 }

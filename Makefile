@@ -89,22 +89,6 @@ upgrade-dep: git-sync ## Upgrade Git submodules to latest main branch
 		echo "Updating $$name to branch: $$branch"; \
 		git checkout $$branch && git pull origin $$branch'
 
-##@ Train Ticket Deployment
-
-deploy-ts: ## Deploy Train Ticket application
-	helm repo add train-ticket https://lgu-se-internal.github.io/train-ticket
-	helm repo update
-	@echo "Checking for existing Train Ticket installation..."
-	@if helm status $(TS_NS) -n $(TS_NS) >/dev/null 2>&1; then \
-		echo "Uninstalling existing $(TS_NS) release"; \
-		helm uninstall $(TS_NS) -n $(TS_NS); \
-		sleep 5; \
-	else \
-		echo "No existing $(TS_NS) release found"; \
-	fi
-	@echo "Installing Train Ticket..."
-	helm install $(TS_NS) train-ticket/trainticket -n $(TS_NS) --set global.image.tag=637600ea --set services.tsUiDashboard.nodePort=$(PORT)
-
 ##@ SDK Generation
 swagger: swag-init generate-sdk 
 

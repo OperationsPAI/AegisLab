@@ -223,7 +223,7 @@ func GetDisplayConfigByTraceIDs(traceIDs []string) (map[string]any, error) {
 	return result, nil
 }
 
-func GetEngineConfigByNames(names []string) ([]string, error) {
+func ListEngineConfigByNames(names []string) ([]string, error) {
 	query := database.DB.
 		Model(&database.FaultInjectionSchedule{}).
 		Select("engine_config").

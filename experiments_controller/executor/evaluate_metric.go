@@ -542,7 +542,7 @@ func ParseConfigAndGetGroundTruthMap(executions []dto.Execution) ([]map[string]m
 		return nil, fmt.Errorf("no dataset names found in executions")
 	}
 
-	configs, err := repository.GetEngineConfigByNames(names)
+	configs, err := repository.ListEngineConfigByNames(names)
 	if err != nil {
 		return nil, err
 	}

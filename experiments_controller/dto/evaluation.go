@@ -1,5 +1,9 @@
 package dto
 
+import (
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+)
+
 type RawDataReq struct {
 	Algorithms []string `form:"algorithms" bind:"required"`
 	Datasets   []string `form:"datasets" bind:"required"`
@@ -28,7 +32,7 @@ type RawDataItem struct {
 	Algorithm   string              `json:"algorithm"`
 	Dataset     string              `json:"dataset"`
 	Entries     []GranularityRecord `json:"entries"`
-	GroundTruth string              `json:"ground_truth"`
+	Groundtruth chaos.Groundtruth   `json:"groundtruth"`
 }
 
 type EvaluationListReq struct {

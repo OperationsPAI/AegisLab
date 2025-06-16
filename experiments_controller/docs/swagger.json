@@ -469,6 +469,65 @@
                 }
             }
         },
+        "/api/v1/evaluations/raw-data": {
+            "get": {
+                "description": "根据算法和数据集的笛卡尔积获取对应的原始评估数据，包括粒度记录和真实值信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "evaluation"
+                ],
+                "summary": "获取原始评估数据",
+                "parameters": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "算法数组",
+                        "name": "algorithms",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "数据集数组",
+                        "name": "datasets",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功响应",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-array_dto_RawDataItem"
+                        }
+                    },
+                    "400": {
+                        "description": "参数校验失败",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/injections": {
             "get": {
                 "description": "获取注入记录列表（支持分页参数）",
@@ -1510,6 +1569,30 @@
                 }
             }
         },
+        "dto.GenericResponse-array_dto_RawDataItem": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.RawDataItem"
+                    }
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GenericResponse-dto_AlgorithmListResp": {
             "type": "object",
             "properties": {
@@ -2070,6 +2153,26 @@
                 }
             }
         },
+        "dto.RawDataItem": {
+            "type": "object",
+            "properties": {
+                "algorithm": {
+                    "type": "string"
+                },
+                "dataset": {
+                    "type": "string"
+                },
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.GranularityRecord"
+                    }
+                },
+                "groundtruth": {
+                    "$ref": "#/definitions/handler.Groundtruth"
+                }
+            }
+        },
         "dto.RetryPolicy": {
             "type": "object",
             "properties": {
@@ -2214,6 +2317,47 @@
                             "$ref": "#/definitions/consts.TaskType"
                         }
                     ]
+                }
+            }
+        },
+        "handler.Groundtruth": {
+            "type": "object",
+            "properties": {
+                "container": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "function": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "metric": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "pod": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "service": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "span": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
