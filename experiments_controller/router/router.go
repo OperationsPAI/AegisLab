@@ -45,6 +45,7 @@ func New() *gin.Engine {
 	evaluations := r.Group("/evaluations")
 	{
 		evaluations.GET("", handlers.GetEvaluationList)
+		evaluations.GET("raw-data", handlers.GetEvaluationRawData)
 	}
 
 	injections := r.Group("/injections")

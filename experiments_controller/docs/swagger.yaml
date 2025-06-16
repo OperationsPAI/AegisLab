@@ -238,6 +238,23 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
+  dto.GenericResponse-array_dto_RawDataItem:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        description: 泛型类型的数据
+        items:
+          $ref: '#/definitions/dto.RawDataItem'
+        type: array
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
   dto.GenericResponse-dto_AlgorithmListResp:
     properties:
       code:
@@ -599,6 +616,19 @@ definitions:
       start_time:
         type: string
     type: object
+  dto.RawDataItem:
+    properties:
+      algorithm:
+        type: string
+      dataset:
+        type: string
+      entries:
+        items:
+          $ref: '#/definitions/dto.GranularityRecord'
+        type: array
+      groundtruth:
+        $ref: '#/definitions/handler.Groundtruth'
+    type: object
   dto.RetryPolicy:
     properties:
       backoff_sec:
@@ -692,6 +722,33 @@ definitions:
         allOf:
         - $ref: '#/definitions/consts.TaskType'
         description: Task type (determines how it's processed)
+    type: object
+  handler.Groundtruth:
+    properties:
+      container:
+        items:
+          type: string
+        type: array
+      function:
+        items:
+          type: string
+        type: array
+      metric:
+        items:
+          type: string
+        type: array
+      pod:
+        items:
+          type: string
+        type: array
+      service:
+        items:
+          type: string
+        type: array
+      span:
+        items:
+          type: string
+        type: array
     type: object
   handler.Node:
     properties:
@@ -1025,6 +1082,46 @@ paths:
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
       summary: 获取每种算法的执行历史记录
+      tags:
+      - evaluation
+  /api/v1/evaluations/raw-data:
+    get:
+      consumes:
+      - application/json
+      description: 根据算法和数据集的笛卡尔积获取对应的原始评估数据，包括粒度记录和真实值信息
+      parameters:
+      - collectionFormat: csv
+        description: 算法数组
+        in: query
+        items:
+          type: string
+        name: algorithms
+        required: true
+        type: array
+      - collectionFormat: csv
+        description: 数据集数组
+        in: query
+        items:
+          type: string
+        name: datasets
+        required: true
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功响应
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-array_dto_RawDataItem'
+        "400":
+          description: 参数校验失败
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: 获取原始评估数据
       tags:
       - evaluation
   /api/v1/injections:
