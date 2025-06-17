@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -190,6 +191,65 @@ func (c *HelmClient) UninstallRelease(releaseName string) error {
 	return nil
 }
 
+func (c *HelmClient) isChartCachedLocally(chartName string) (string, bool) {
+	// Check if it's an absolute path or relative path first
+	if _, err := os.Stat(chartName); err == nil {
+		abs, err := filepath.Abs(chartName)
+		if err == nil {
+			logrus.Infof("Found local chart at: %s", abs)
+			return abs, true
+		}
+	}
+
+	// If it's not a local path, check the cache directory
+	// The cache directory structure is: {RepositoryCache}/{repo-name}/{chart-name}-{version}.tgz
+	// We need to check for the chart without knowing the exact version
+	cacheDir := c.settings.RepositoryCache
+
+	// Try to find any cached version of this chart
+	// Chart name format: {repo}/{chart} or just {chart}
+	var searchPatterns []string
+
+	if strings.Contains(chartName, "/") {
+		// Format like "train-ticket/trainticket"
+		parts := strings.Split(chartName, "/")
+		if len(parts) == 2 {
+			chartBaseName := parts[1]
+			// Look for patterns like: cache/{repo-hash}/{chart-name}-{version}.tgz
+			searchPatterns = append(searchPatterns,
+				fmt.Sprintf("%s/*/%s-*.tgz", cacheDir, chartBaseName),
+				fmt.Sprintf("%s/%s-*.tgz", cacheDir, chartBaseName),
+			)
+		}
+	} else {
+		// Just chart name, search in all subdirectories
+		searchPatterns = append(searchPatterns,
+			fmt.Sprintf("%s/*/%s-*.tgz", cacheDir, chartName),
+			fmt.Sprintf("%s/%s-*.tgz", cacheDir, chartName),
+		)
+	}
+
+	// Check each pattern
+	for _, pattern := range searchPatterns {
+		matches, err := filepath.Glob(pattern)
+		if err == nil && len(matches) > 0 {
+			// Return the first (most recent if sorted) match
+			cachedPath := matches[0]
+			logrus.Infof("Found cached chart at: %s", cachedPath)
+			return cachedPath, true
+		}
+	}
+
+	// Also check if the chart directory exists (for local development)
+	localChartDir := filepath.Join(cacheDir, chartName)
+	if stat, err := os.Stat(localChartDir); err == nil && stat.IsDir() {
+		logrus.Infof("Found cached chart directory at: %s", localChartDir)
+		return localChartDir, true
+	}
+
+	return "", false
+}
+
 func (c *HelmClient) InstallRelease(ctx context.Context, releaseName, chartName string, vals map[string]any) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
 		now := time.Now()
@@ -205,9 +265,19 @@ func (c *HelmClient) InstallRelease(ctx context.Context, releaseName, chartName 
 		client.Timeout = 500 * time.Second
 		client.CreateNamespace = true
 
-		cp, err := client.ChartPathOptions.LocateChart(chartName, c.settings)
-		if err != nil {
-			return fmt.Errorf("failed to locate chart %s: %w", chartName, err)
+		var cp string
+		var err error
+
+		// Check if chart is cached locally first
+		if cachedPath, isCached := c.isChartCachedLocally(chartName); isCached {
+			logrus.Infof("Using cached chart for %s at %s", chartName, cachedPath)
+			cp = cachedPath
+		} else {
+			logrus.Infof("Chart %s not found in cache, downloading...", chartName)
+			cp, err = client.ChartPathOptions.LocateChart(chartName, c.settings)
+			if err != nil {
+				return fmt.Errorf("failed to locate chart %s: %w", chartName, err)
+			}
 		}
 
 		chart, err := loader.Load(cp)
