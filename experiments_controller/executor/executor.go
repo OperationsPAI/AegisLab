@@ -216,15 +216,9 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 	})
 	switch taskOptions.Type {
 	case consts.TaskTypeBuildDataset:
-		options, err := parseDatasetOptions(labels)
-		if err != nil {
-			logEntry.WithField("dataset", options.Dataset).Errorf("failed to parse dataset options: %v", err)
-			span.AddEvent("failed to parse dataset options")
-			span.RecordError(err)
-			return
-		}
-		logEntry.WithField("dataset", options.Dataset).Errorf("dataset build failed: %v", errMsg)
+		options, _ := parseDatasetOptions(labels)
 
+		logEntry.WithField("dataset", options.Dataset).Errorf("dataset build failed: %v", errMsg)
 		if err := repository.UpdateStatusByDataset(options.Dataset, consts.DatasetBuildFailed); err != nil {
 			span.AddEvent("update dataset status failed")
 			span.RecordError(err)
@@ -238,16 +232,35 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 			)
 		}
 
-		updateTaskStatus(
-			ctx,
-			taskOptions.TraceID,
-			taskOptions.TaskID,
-			fmt.Sprintf(consts.TaskMsgFailed, taskOptions.TaskID),
-			consts.TaskStatusError,
-			taskOptions.Type,
-		)
+	case consts.TaskTypeRunAlgorithm:
+		options, _ := parseExecutionOptions(labels)
+
+		logEntry.WithFields(logrus.Fields{
+			"algorithm": options.Algorithm,
+			"dataset":   options.Dataset,
+		}).Errorf("algorithm execute failed: %v", errMsg)
+		if err := repository.UpdateStatusByExecID(options.ExecutionID, consts.ExecutionFailed); err != nil {
+			span.AddEvent("update execution status failed")
+			span.RecordError(err)
+			updateTaskStatus(
+				ctx,
+				taskOptions.TraceID,
+				taskOptions.TaskID,
+				"update execution status failed",
+				consts.TaskStatusError,
+				taskOptions.Type,
+			)
+		}
 	}
 
+	updateTaskStatus(
+		ctx,
+		taskOptions.TraceID,
+		taskOptions.TaskID,
+		fmt.Sprintf(consts.TaskMsgFailed, taskOptions.TaskID),
+		consts.TaskStatusError,
+		taskOptions.Type,
+	)
 }
 
 func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[string]string) {
@@ -263,55 +276,13 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 	})
 
 	switch taskOptions.Type {
-	case consts.TaskTypeRunAlgorithm:
-		options, _ := parseExecutionOptions(labels)
-		logEntry.WithField("algorithm", options.Algorithm).Info("algorithm execute successfully")
-
-		updateTaskStatus(
-			taskCtx,
-			taskOptions.TraceID,
-			taskOptions.TaskID,
-			fmt.Sprintf(consts.TaskMsgCompleted, taskOptions.TaskID),
-			consts.TaskStatusCompleted,
-			taskOptions.Type,
-		)
-
-		task := &dto.UnifiedTask{
-			Type: consts.TaskTypeCollectResult,
-			Payload: map[string]any{
-				consts.CollectAlgorithm:   options.Algorithm,
-				consts.CollectDataset:     options.Dataset,
-				consts.CollectExecutionID: options.ExecutionID,
-			},
-			Immediate: true,
-			TraceID:   taskOptions.TraceID,
-			GroupID:   taskOptions.GroupID,
-		}
-		task.SetTraceCtx(traceCtx)
-
-		repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
-			TaskID:    taskOptions.TaskID,
-			TaskType:  consts.TaskTypeRunAlgorithm,
-			EventName: consts.EventAlgoRunSucceed,
-			Payload:   task,
-		}, repository.WithCallerLevel(4))
-
-		_, _, err := SubmitTask(taskCtx, task)
-		if err != nil {
-			logEntry.WithField("algorithm", options.Algorithm).Errorf("submit result collection task failed: %v", err)
-			taskSpan.AddEvent("submit result collection task failed")
-			taskSpan.RecordError(err)
-		}
-
 	case consts.TaskTypeBuildDataset:
-		options, err := parseDatasetOptions(labels)
-		if err != nil {
-			logEntry.WithField("dataset", options.Dataset).Errorf("failed to parse dataset options: %v", err)
-			taskSpan.AddEvent("failed to parse dataset options")
-			taskSpan.RecordError(err)
-			return
-		}
-		logEntry.WithField("dataset", options.Dataset).Info("dataset build successfully")
+		options, _ := parseDatasetOptions(labels)
+		logEntry = logEntry.WithFields(logrus.Fields{
+			"dataset": options.Dataset,
+		})
+
+		logEntry.Info("dataset build successfully")
 		repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
 			TaskID:    taskOptions.TaskID,
 			TaskType:  consts.TaskTypeBuildDataset,
@@ -329,7 +300,7 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 		)
 
 		if err := repository.UpdateStatusByDataset(options.Dataset, consts.DatasetBuildSuccess); err != nil {
-			logrus.WithField("dataset", options.Dataset).Errorf("update dataset status failed: %v", err)
+			logEntry.Errorf("update dataset status failed: %v", err)
 			taskSpan.AddEvent("update dataset status failed")
 			return
 		}
@@ -346,10 +317,60 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 		}
 		task.SetTraceCtx(traceCtx)
 
-		_, _, err = SubmitTask(traceCtx, task)
+		_, _, err := SubmitTask(traceCtx, task)
 		if err != nil {
-			logEntry.WithField("dataset", options.Dataset).Errorf("submit algorithm execution task failed: %v", err)
+			logEntry.Errorf("submit algorithm execution task failed: %v", err)
 			taskSpan.AddEvent("submit algorithm execution task failed")
+			taskSpan.RecordError(err)
+		}
+
+	case consts.TaskTypeRunAlgorithm:
+		options, _ := parseExecutionOptions(labels)
+		logEntry = logEntry.WithFields(logrus.Fields{
+			"algorithm": options.Algorithm,
+			"dataset":   options.Dataset,
+		})
+
+		logEntry.Info("algorithm execute successfully")
+		repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
+			TaskID:    taskOptions.TaskID,
+			TaskType:  consts.TaskTypeRunAlgorithm,
+			EventName: consts.EventAlgoRunSucceed,
+			Payload:   options,
+		}, repository.WithCallerLevel(4))
+
+		updateTaskStatus(
+			taskCtx,
+			taskOptions.TraceID,
+			taskOptions.TaskID,
+			fmt.Sprintf(consts.TaskMsgCompleted, taskOptions.TaskID),
+			consts.TaskStatusCompleted,
+			taskOptions.Type,
+		)
+
+		if err := repository.UpdateStatusByExecID(options.ExecutionID, consts.ExecutionSuccess); err != nil {
+			logEntry.Errorf("update execution status failed: %v", err)
+			taskSpan.AddEvent("update execution status failed")
+			return
+		}
+
+		task := &dto.UnifiedTask{
+			Type: consts.TaskTypeCollectResult,
+			Payload: map[string]any{
+				consts.CollectAlgorithm:   options.Algorithm,
+				consts.CollectDataset:     options.Dataset,
+				consts.CollectExecutionID: options.ExecutionID,
+			},
+			Immediate: true,
+			TraceID:   taskOptions.TraceID,
+			GroupID:   taskOptions.GroupID,
+		}
+		task.SetTraceCtx(traceCtx)
+
+		_, _, err := SubmitTask(taskCtx, task)
+		if err != nil {
+			logEntry.Errorf("submit result collection task failed: %v", err)
+			taskSpan.AddEvent("submit result collection task failed")
 			taskSpan.RecordError(err)
 		}
 	}
