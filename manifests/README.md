@@ -11,6 +11,10 @@ helm upgrade cilium cilium/cilium --version 1.17.4 \
 
 ##  cilium-monitoring
 
+data pipeline:
+
+cilium -> cilium prometheus -> otel collector prome receiver -> clickhouse
+
 ```
 kubectl apply -f cilium-metrics.yaml
 ```
