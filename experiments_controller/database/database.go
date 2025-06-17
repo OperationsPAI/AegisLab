@@ -39,7 +39,7 @@ type FaultInjectionSchedule struct {
 	PreDuration   int       `json:"pre_duration"`                       // 正常数据时间
 	StartTime     time.Time `gorm:"default:null" json:"start_time"`     // 预计故障开始时间
 	EndTime       time.Time `gorm:"default:null" json:"end_time"`       // 预计故障结束时间
-	Status        int       `json:"status"`                             // 0: 初始状态 1: 注入结束且成功 2: 注入结束且失败 3: 收集数据成功 4:收集数据失败
+	Status        int       `json:"status"`                             // -1: 已删除 0: 初始状态 1: 注入结束且失败 2: 注入结束且成功 3: 收集数据失败 4:收集数据成功
 	Description   string    `json:"description"`                        // 描述（可选字段）
 	Benchmark     string    `json:"benchmark"`                          // 基准数据库
 	InjectionName string    `gorm:"unique,index" json:"injection_name"` // 在k8s资源里注入的名字
@@ -49,21 +49,21 @@ type FaultInjectionSchedule struct {
 
 // TODO 添加数据的接口
 type Algorithm struct {
-	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"` // 唯一标识
-	Name      string    `gorm:"index;not null" json:"name"`         // 算法名称
-	Image     string    `gorm:"not null" json:"image"`              // 算法镜像
-	Tag       string    `gorm:"not null" json:"tag"`                // 算法镜像标签
-	Status    bool      `gorm:"default:true" json:"is_public"`      // 0: 已删除 1: 活跃
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`   // 创建时间
-	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`   // 更新时间
+	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`   // 唯一标识
+	Name      string    `gorm:"index;not null" json:"name"`           // 算法名称
+	Image     string    `gorm:"not null" json:"image"`                // 算法镜像
+	Tag       string    `gorm:"not null;default:'latest'" json:"tag"` // 算法镜像标签
+	Status    bool      `gorm:"default:true" json:"status"`           // 0: 已删除 1: 活跃
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`     // 创建时间
+	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`     // 更新时间
 }
 
-// TODO 算法执行状态
 type ExecutionResult struct {
 	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"` // 唯一标识
 	TaskID    string    `gorm:"index" json:"task_id"`               // 从属什么 taskid
 	Algorithm string    `gorm:"index" json:"algorithm"`             // 使用的算法
 	Dataset   string    `gorm:"index" json:"dataset"`               // 数据集标识
+	Status    int       `gorm:"default:0" json:"status"`            // -1: 已删除 0: 初始状态 1: 执行算法成功 2: 执行算法失败
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`   // 创建时间
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`   // 更新时间
 }

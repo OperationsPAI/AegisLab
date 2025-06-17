@@ -2,11 +2,14 @@ package repository
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	"gorm.io/gorm"
 
+	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 )
@@ -16,6 +19,7 @@ func CreateExecutionResult(taskID, algorithm, dataset string) (int, error) {
 		TaskID:    taskID,
 		Algorithm: algorithm,
 		Dataset:   dataset,
+		Status:    consts.ExecutionInitial,
 	}
 	if err := database.DB.Create(&executionResult).Error; err != nil {
 		return 0, err
@@ -207,6 +211,34 @@ func ListExecutionRawData(pairs []dto.AlgorithmDatasetPair) ([]dto.RawDataItem, 
 	return items, nil
 }
 
+func UpdateStatusByExecID(executionID int, status int) error {
+	var record database.ExecutionResult
+	err := database.DB.
+		Where("id = ?", executionID).
+		First(&record).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("record with id %d not found", executionID)
+		}
+
+		return fmt.Errorf("failed to query record: %v", err)
+	}
+
+	result := database.DB.
+		Model(&record).
+		Updates(map[string]any{"status": status})
+
+	if result.Error != nil {
+		return fmt.Errorf("failed to update record: %v", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("record found but no fields were updated, possibly because values are unchanged")
+	}
+
+	return nil
+}
+
 func getLatestExecutionMap(pairs []dto.AlgorithmDatasetPair) (map[int]string, error) {
 	uniquePairs := make(map[string]dto.AlgorithmDatasetPair)
 	for _, pair := range pairs {
@@ -224,15 +256,18 @@ func getLatestExecutionMap(pairs []dto.AlgorithmDatasetPair) (map[int]string, er
 	var executions []database.ExecutionResult
 	if err := database.DB.
 		Model(&database.ExecutionResult{}).
-		Where("algorithm IN (?) AND dataset IN (?)", algorithms, datasets).
+		Where("algorithm IN (?) AND dataset IN (?) AND status = (?)", algorithms, datasets, consts.ExecutionSuccess).
 		Order("algorithm, dataset, created_at DESC").
 		Find(&executions).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("no execution records found for the provided pairs")
+		}
+
 		return nil, fmt.Errorf("failed to batch query executions: %w", err)
 	}
 
 	execIDMap := make(map[int]string)
 	seen := make(map[string]bool)
-
 	for _, exec := range executions {
 		key := fmt.Sprintf("%s_%s", exec.Algorithm, exec.Dataset)
 		if !seen[key] {

@@ -19,6 +19,13 @@ const (
 )
 
 const (
+	ExecutionDeleted = -1
+	ExecutionInitial = 0
+	ExecutionFailed  = 1
+	ExecutionSuccess = 2
+)
+
+const (
 	TaskStatusCanceled    string = "Canceled"
 	TaskStatusCompleted   string = "Completed"
 	TaskStatusError       string = "Error"
