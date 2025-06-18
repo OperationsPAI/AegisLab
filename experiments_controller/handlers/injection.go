@@ -360,7 +360,7 @@ func parseInjectionSpecs(r *dto.InjectionSubmitReq) ([]*dto.InjectionConfig, err
 		newConfigs = append(newConfigs, conf)
 	}
 
-	return configs, nil
+	return newConfigs, nil
 }
 
 func findMissingIndices(confs []string, batch_size int) ([]int, error) {
