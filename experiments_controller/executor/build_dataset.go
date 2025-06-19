@@ -186,6 +186,7 @@ func getDatasetJobEnvVars(payload *datasetPayload) []corev1.EnvVar {
 	}
 
 	jobEnvVars := []corev1.EnvVar{
+		{Name: "ENV_MODE", Value: config.GetString("system.env_mode")},
 		{Name: "TIMEZONE", Value: tz},
 		{Name: "NORMAL_START", Value: strconv.FormatInt(payload.StartTime.Add(-time.Duration(payload.PreDuration)*time.Minute).Unix(), 10)},
 		{Name: "NORMAL_END", Value: strconv.FormatInt(payload.StartTime.Unix(), 10)},

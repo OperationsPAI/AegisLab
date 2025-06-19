@@ -47,6 +47,7 @@ func (t *UnifiedTask) GetTraceCtx() context.Context {
 		logrus.WithField("task_id", t.TaskID).WithField("task_type", t.Type).Error("No group context, create a new one")
 		return context.Background()
 	}
+
 	traceCtx := otel.GetTextMapPropagator().Extract(context.Background(), t.TraceCarrier)
 	return traceCtx
 }
@@ -57,6 +58,7 @@ func (t *UnifiedTask) GetGroupCtx() context.Context {
 		logrus.WithField("task_id", t.TaskID).WithField("task_type", t.Type).Error("No group context, create a new one")
 		return context.Background()
 	}
+
 	traceCtx := otel.GetTextMapPropagator().Extract(context.Background(), t.GroupCarrier)
 	return traceCtx
 }
@@ -66,6 +68,7 @@ func (t *UnifiedTask) SetTraceCtx(ctx context.Context) {
 	if t.TraceCarrier == nil {
 		t.TraceCarrier = make(propagation.MapCarrier)
 	}
+
 	otel.GetTextMapPropagator().Inject(ctx, t.TraceCarrier)
 }
 
@@ -74,6 +77,7 @@ func (t *UnifiedTask) SetGroupCtx(ctx context.Context) {
 	if t.GroupCarrier == nil {
 		t.GroupCarrier = make(propagation.MapCarrier)
 	}
+
 	otel.GetTextMapPropagator().Inject(ctx, t.GroupCarrier)
 }
 
@@ -129,7 +133,8 @@ type StreamEvent struct {
 	FnName    string           `json:"function_name"`
 	Line      int              `json:"line"`
 	EventName consts.EventType `json:"event_name"`
-	Payload   any              `json:"payload"`
+	// TODO 结构化部分payload
+	Payload any `json:"payload"`
 }
 
 type InfoPayloadTemplate struct {

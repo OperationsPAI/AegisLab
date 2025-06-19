@@ -250,7 +250,7 @@ func PublishEvent(ctx context.Context, stream string, event dto.StreamEvent, opt
 	event.Line = line
 	event.FnName = fn
 
-	res, err := client.GetRedisClient().XAdd(ctx, &redis.XAddArgs{
+	_, err := client.GetRedisClient().XAdd(ctx, &redis.XAddArgs{
 		Stream: stream,
 		MaxLen: 10000,
 		Approx: true,
@@ -260,7 +260,6 @@ func PublishEvent(ctx context.Context, stream string, event dto.StreamEvent, opt
 	if err != nil {
 		logrus.Errorf("Failed to publish event to Redis stream %s: %v", stream, err)
 	}
-	logrus.Debugf("Published event to Redis stream %s: %s", stream, res)
 }
 
 func ReadStreamEvents(ctx context.Context, stream string, lastID string, count int64, block time.Duration) ([]redis.XStream, error) {

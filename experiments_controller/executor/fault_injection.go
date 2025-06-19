@@ -35,6 +35,7 @@ type nsConfig struct {
 }
 
 type injectionPayload struct {
+	algorithms  []string
 	benchmark   string
 	faultType   int
 	namespace   string
@@ -127,6 +128,15 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			return fmt.Errorf("failed to write to database")
 		}
 
+		if len(payload.algorithms) != 0 {
+			if err := repository.SetAlgorithmsToRedis(childCtx, task.TraceID, payload.algorithms); err != nil {
+				span.RecordError(err)
+				span.AddEvent("failed to cache algorithms to Redis")
+				logrus.Errorf("failed to cache algorithms to Redis: %v", err)
+				return fmt.Errorf("failed to cache algorithms")
+			}
+		}
+
 		return nil
 	})
 }
@@ -167,7 +177,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 				Payload:   executeTime.String(),
 			})
 
-			if _, _, err := SubmitTask(ctx, &dto.UnifiedTask{
+			if _, _, err := SubmitTask(childCtx, &dto.UnifiedTask{
 				Type:         consts.TaskTypeRestartService,
 				Immediate:    false,
 				ExecuteTime:  executeTime.Unix(),
@@ -291,6 +301,11 @@ func parseInjectionPayload(ctx context.Context, payload map[string]any) (*inject
 	return tracing.WithSpanReturnValue(ctx, func(childCtx context.Context) (*injectionPayload, error) {
 		message := "invalid or missing '%s' in task payload"
 
+		algorithms, err := utils.ConvertToType[[]string](payload[consts.InjectAlgorithms])
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert '%s' to []string: %v", consts.InjectAlgorithms, err)
+		}
+
 		benchmark, ok := payload[consts.InjectBenchmark].(string)
 		if !ok {
 			return nil, fmt.Errorf(message, consts.InjectBenchmark)
@@ -329,6 +344,7 @@ func parseInjectionPayload(ctx context.Context, payload map[string]any) (*inject
 		}
 
 		return &injectionPayload{
+			algorithms:  algorithms,
 			benchmark:   benchmark,
 			faultType:   faultType,
 			namespace:   namespace,
@@ -369,7 +385,6 @@ func parseNamspaceConfig(ctx context.Context, payload map[string]any) (*nsConfig
 
 func parseRestartPayload(ctx context.Context, payload map[string]any) (*restartPayload, error) {
 	return tracing.WithSpanReturnValue(ctx, func(childCtx context.Context) (*restartPayload, error) {
-
 		message := "invalid or missing '%s' in task payload"
 
 		intervalFloat, ok := payload[consts.RestartIntarval].(float64)

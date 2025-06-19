@@ -91,6 +91,7 @@ type InjectionSubmitReq struct {
 	PreDuration int          `json:"pre_duration"`
 	Specs       []chaos.Node `json:"specs"`
 	Benchmark   string       `json:"benchmark"`
+	Algorithms  []string     `json:"algorithms"`
 }
 
 type InjectionSubmitResp struct {

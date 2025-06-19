@@ -12,6 +12,7 @@ import (
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"github.com/LGU-SE-Internal/rcabench/client/k8s"
+	"github.com/LGU-SE-Internal/rcabench/config"
 	conf "github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/dto"
@@ -251,6 +252,43 @@ func SubmitFaultInjection(c *gin.Context) {
 		return
 	}
 
+	validAlgorithms, err := repository.ListAlgorithms(true)
+	if err != nil {
+		logrus.Errorf("failed to list algorithms: %v", err)
+		span.SetStatus(codes.Error, "failed to list algorithms")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to list algorithms")
+		return
+	}
+
+	validAlgorithmMap := make(map[string]struct{}, len(validAlgorithms))
+	for _, algorithm := range validAlgorithms {
+		validAlgorithmMap[algorithm.Name] = struct{}{}
+	}
+
+	for _, algorithm := range req.Algorithms {
+		if algorithm == "" {
+			logrus.Error("algorithm must not be empty")
+			span.SetStatus(codes.Error, "algorithm must not be empty")
+			dto.ErrorResponse(c, http.StatusBadRequest, "Algorithm must not be empty")
+			return
+		}
+
+		detector := config.GetString("algo.detector")
+		if algorithm == detector {
+			logrus.Errorf("algorithm %s is not allowed for fault injection", detector)
+			span.SetStatus(codes.Error, fmt.Sprintf("algorithm %s is not allowed for fault injection", detector))
+			dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Algorithm %s is not allowed for fault injection", detector))
+			return
+		}
+
+		if _, exists := validAlgorithmMap[algorithm]; !exists {
+			logrus.Errorf("invalid algorithm: %s", algorithm)
+			span.SetStatus(codes.Error, fmt.Sprintf("invalid algorithm: %s", algorithm))
+			dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid algorithm: %s", algorithm))
+			return
+		}
+	}
+
 	configs, err := parseInjectionSpecs(&req)
 	if err != nil {
 		logrus.Error(err)
@@ -265,6 +303,7 @@ func SubmitFaultInjection(c *gin.Context) {
 			consts.RestartIntarval:      req.Interval,
 			consts.RestartFaultDuration: config.FaultDuration,
 			consts.RestartInjectPayload: map[string]any{
+				consts.InjectAlgorithms:  req.Algorithms,
 				consts.InjectBenchmark:   req.Benchmark,
 				consts.InjectFaultType:   config.FaultType,
 				consts.InjectPreDuration: req.PreDuration,
@@ -296,10 +335,15 @@ func SubmitFaultInjection(c *gin.Context) {
 
 	span.SetStatus(codes.Ok, fmt.Sprintf("Successfully submitted %d fault injections with groupID: %s", len(traces), groupID))
 
-	resp := dto.InjectionSubmitResp{SubmitResp: dto.SubmitResp{
-		GroupID: groupID,
-		Traces:  traces,
-	}}
+	duplicatedCount := len(req.Specs) - len(configs)
+	resp := dto.InjectionSubmitResp{
+		DuplicatedCount: duplicatedCount,
+		OriginalCount:   len(req.Specs),
+		SubmitResp: dto.SubmitResp{
+			GroupID: groupID,
+			Traces:  traces,
+		},
+	}
 	if !conf.GetBool("injection.enable_duplicate") {
 		logrus.Infof("Duplicated %d configurations, original count: %d", len(req.Specs)-len(configs), len(req.Specs))
 	}

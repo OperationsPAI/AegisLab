@@ -28,12 +28,13 @@ class DtoInjectionSubmitReq(BaseModel):
     """
     DtoInjectionSubmitReq
     """ # noqa: E501
+    algorithms: Optional[List[StrictStr]] = None
     benchmark: Optional[StrictStr] = None
     interval: Optional[StrictInt] = None
     pre_duration: Optional[StrictInt] = None
     specs: Optional[List[HandlerNode]] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["benchmark", "interval", "pre_duration", "specs"]
+    __properties: ClassVar[List[str]] = ["algorithms", "benchmark", "interval", "pre_duration", "specs"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -100,6 +101,7 @@ class DtoInjectionSubmitReq(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "algorithms": obj.get("algorithms"),
             "benchmark": obj.get("benchmark"),
             "interval": obj.get("interval"),
             "pre_duration": obj.get("pre_duration"),

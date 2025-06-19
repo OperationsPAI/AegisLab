@@ -11,6 +11,7 @@ data:
     workspace = "{{ .Values.configmap.workspace }}"
 
     [system]
+    env_mode = "{{ .Values.configmap.system.env_mode }}"
     timezone = "{{ .Values.configmap.system.timezone }}"
 
     [injection]

@@ -26,6 +26,12 @@ const (
 	monitorInitKey = "monitor:initialized"
 )
 
+type LockMessage struct {
+	TraceID string    `json:"trace_id"`
+	EndTime time.Time `json:"end_time,omitempty"`
+	Error   error     `json:"err"`
+}
+
 // MonitorItem represents the state of a namespace lock
 type MonitorItem struct {
 	EndTime time.Time `json:"end_time"`
@@ -120,7 +126,11 @@ func (m *Monitor) acquireNamespaceLock(namespace string, endTime time.Time, trac
 		repository.PublishEvent(context.Background(), fmt.Sprintf(consts.StreamLogKey, namespace), dto.StreamEvent{
 			TaskType:  taskType,
 			EventName: consts.EventAcquireLock,
-			Payload:   map[string]any{"trace_id": traceID, "end_time": endTime, "error": err},
+			Payload: LockMessage{
+				TraceID: traceID,
+				EndTime: endTime,
+				Error:   err,
+			},
 		})
 	}()
 
@@ -196,7 +206,10 @@ func (m *Monitor) ReleaseLock(namespace string, traceID string) (err error) {
 		repository.PublishEvent(context.Background(), fmt.Sprintf(consts.StreamLogKey, namespace), dto.StreamEvent{
 			TaskType:  consts.TaskTypeRestartService,
 			EventName: consts.EventReleaseLock,
-			Payload:   map[string]any{"trace_id": traceID, "error": err},
+			Payload: LockMessage{
+				TraceID: traceID,
+				Error:   err,
+			},
 		})
 		if err != nil {
 			logrus.WithFields(logrus.Fields{
