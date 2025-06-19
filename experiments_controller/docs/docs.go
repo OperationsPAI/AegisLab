@@ -2041,6 +2041,12 @@ const docTemplate = `{
         "dto.InjectionSubmitReq": {
             "type": "object",
             "properties": {
+                "algorithms": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "benchmark": {
                     "type": "string"
                 },

@@ -20,7 +20,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 )
 
-type Annotations struct {
+type Carriers struct {
 	TaskCarrier  propagation.MapCarrier
 	TraceCarrier propagation.MapCarrier
 }
@@ -88,6 +88,10 @@ func (e *Executor) HandleCRDFailed(name string, annotations map[string]string, l
 		TaskID:    parsedLabels.TaskID,
 		TaskType:  consts.TaskTypeFaultInjection,
 		EventName: consts.EventFaultInjectionFailed,
+		Payload: dto.InfoPayloadTemplate{
+			Status: consts.TaskStatusError,
+			Msg:    errMsg,
+		},
 	})
 }
 
@@ -219,6 +223,16 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 		options, _ := parseDatasetOptions(labels)
 
 		logEntry.WithField("dataset", options.Dataset).Errorf("dataset build failed: %v", errMsg)
+		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
+			TaskID:    taskOptions.TaskID,
+			TaskType:  consts.TaskTypeBuildDataset,
+			EventName: consts.EventDatasetBuildFailed,
+			Payload: dto.InfoPayloadTemplate{
+				Status: consts.TaskStatusError,
+				Msg:    errC.Error(),
+			},
+		}, repository.WithCallerLevel(4))
+
 		if err := repository.UpdateStatusByDataset(options.Dataset, consts.DatasetBuildFailed); err != nil {
 			span.AddEvent("update dataset status failed")
 			span.RecordError(err)
@@ -238,7 +252,18 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 		logEntry.WithFields(logrus.Fields{
 			"algorithm": options.Algorithm,
 			"dataset":   options.Dataset,
-		}).Errorf("algorithm execute failed: %v", errMsg)
+		}).Errorf("algorithm execute failed: %v", errMsg) //TODO errMsg为空
+
+		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
+			TaskID:    taskOptions.TaskID,
+			TaskType:  consts.TaskTypeRunAlgorithm,
+			EventName: consts.EventAlgoRunFailed,
+			Payload: dto.InfoPayloadTemplate{
+				Status: consts.TaskStatusError,
+				Msg:    errC.Error(),
+			},
+		}, repository.WithCallerLevel(4))
+
 		if err := repository.UpdateStatusByExecID(options.ExecutionID, consts.ExecutionFailed); err != nil {
 			span.AddEvent("update execution status failed")
 			span.RecordError(err)
@@ -376,7 +401,7 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 	}
 }
 
-func parseAnnotations(annotations map[string]string) (*Annotations, error) {
+func parseAnnotations(annotations map[string]string) (*Carriers, error) {
 	message := "missing or invalid '%s' key in k8s annotations"
 
 	taskCarrierStr, ok := annotations[consts.TaskCarrier]
@@ -399,7 +424,7 @@ func parseAnnotations(annotations map[string]string) (*Annotations, error) {
 		return nil, fmt.Errorf(message, consts.TraceCarrier)
 	}
 
-	return &Annotations{
+	return &Carriers{
 		TaskCarrier:  taskCarrier,
 		TraceCarrier: traceCarrier,
 	}, nil

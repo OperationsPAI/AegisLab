@@ -8,7 +8,7 @@ services:
     restart: always
 
   mariadb:
-    image: mariadb:latest
+    image: mariadb:11.8.1-noble-rc
     container_name: mariadb
     environment:
       MYSQL_DATABASE: rcabench

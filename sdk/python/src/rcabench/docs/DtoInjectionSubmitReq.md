@@ -5,6 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**algorithms** | **List[str]** |  | [optional] 
 **benchmark** | **str** |  | [optional] 
 **interval** | **int** |  | [optional] 
 **pre_duration** | **int** |  | [optional] 

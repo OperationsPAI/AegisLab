@@ -37,6 +37,7 @@ configmap:
   debug: true
   workspace: "/app"
   system:
+    env_mode: "prod"
     timezone: "Asia/Shanghai"
   injection:
     enable_duplicate: false
