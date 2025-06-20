@@ -141,6 +141,7 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 	})
 }
 
+// TODO task状态修改
 func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(ctx)

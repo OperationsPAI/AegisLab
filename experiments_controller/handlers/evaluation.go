@@ -144,24 +144,6 @@ func getGroupedResults(executionIDs []int, algorithms, levels []string, rank int
 	return grouped, nil
 }
 
-// func GetCalculatedEvaluationResults(c *gin.Context) {
-// 	var req dto.CalculatedResultsReq
-// 	if err := c.BindQuery(&req); err != nil {
-// 		dto.ErrorResponse(c, http.StatusBadRequest, formatErrorMessage(err, map[string]string{}))
-// 		return
-// 	}
-
-// 	results, err := repository.ListCalculatedResults(req.ExecutionIDs, req.Algorithms, req.Levels)
-// 	if err != nil {
-// 		logrus.Error(err)
-// 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get calculated results")
-// 		return
-// 	}
-
-//		dto.SuccessResponse(c, dto.CalculatedResultsResp{Results: results})
-//	}
-//
-
 // GetEvaluationRawData 获取算法和数据集的原始评估数据
 //
 //	@Summary		获取原始评估数据
@@ -176,6 +158,7 @@ func getGroupedResults(executionIDs []int, algorithms, levels []string, rank int
 //	@Failure		500			{object}	dto.GenericResponse[any]	"服务器内部错误"
 //	@Router			/api/v1/evaluations/raw-data [get]
 func GetEvaluationRawData(c *gin.Context) {
+	// TODO 可以同时输入算法和数据集的笛卡尔积或者是算法执行ID
 	var req dto.RawDataReq
 	if err := c.BindQuery(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters")
