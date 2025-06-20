@@ -5,7 +5,6 @@ import (
 	"math"
 	"runtime"
 	"sync"
-	"time"
 
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/dto"
@@ -131,18 +130,7 @@ func getTraceResults(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (c
 		return nil, err
 	}
 
-	now := time.Now()
-	var startTime, endTime time.Time
-	if opts.UseCustomRange {
-		startTime = opts.CustomStartTime
-		endTime = opts.CustomEndTime
-	} else if opts.Lookback != 0 {
-		endTime = now
-		startTime = now.Add(-opts.Lookback)
-	} else {
-		endTime = now
-		startTime = time.Time{}
-	}
+	startTime, endTime := opts.GetTimeRange()
 
 	resultChan := make(chan traceResult, len(traceIDs))
 	var wg sync.WaitGroup

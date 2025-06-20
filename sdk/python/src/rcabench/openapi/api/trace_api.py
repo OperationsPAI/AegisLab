@@ -45,7 +45,7 @@ class TraceApi:
     def api_v1_traces_analyze_get(
         self,
         first_task_type: Annotated[Optional[StrictStr], Field(description="子任务类型筛选")] = None,
-        lookback: Annotated[Optional[StrictStr], Field(description="时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom)")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
         custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间(RFC3339格式)")] = None,
         custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间(RFC3339格式)")] = None,
         _request_timeout: Union[
@@ -67,7 +67,7 @@ class TraceApi:
 
         :param first_task_type: 子任务类型筛选
         :type first_task_type: str
-        :param lookback: 时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom)
+        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
         :type lookback: str
         :param custom_start_time: 当lookback=custom时必需，自定义开始时间(RFC3339格式)
         :type custom_start_time: str
@@ -126,7 +126,7 @@ class TraceApi:
     def api_v1_traces_analyze_get_with_http_info(
         self,
         first_task_type: Annotated[Optional[StrictStr], Field(description="子任务类型筛选")] = None,
-        lookback: Annotated[Optional[StrictStr], Field(description="时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom)")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
         custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间(RFC3339格式)")] = None,
         custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间(RFC3339格式)")] = None,
         _request_timeout: Union[
@@ -148,7 +148,7 @@ class TraceApi:
 
         :param first_task_type: 子任务类型筛选
         :type first_task_type: str
-        :param lookback: 时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom)
+        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
         :type lookback: str
         :param custom_start_time: 当lookback=custom时必需，自定义开始时间(RFC3339格式)
         :type custom_start_time: str
@@ -207,7 +207,7 @@ class TraceApi:
     def api_v1_traces_analyze_get_without_preload_content(
         self,
         first_task_type: Annotated[Optional[StrictStr], Field(description="子任务类型筛选")] = None,
-        lookback: Annotated[Optional[StrictStr], Field(description="时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom)")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
         custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间(RFC3339格式)")] = None,
         custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间(RFC3339格式)")] = None,
         _request_timeout: Union[
@@ -229,7 +229,7 @@ class TraceApi:
 
         :param first_task_type: 子任务类型筛选
         :type first_task_type: str
-        :param lookback: 时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom)
+        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
         :type lookback: str
         :param custom_start_time: 当lookback=custom时必需，自定义开始时间(RFC3339格式)
         :type custom_start_time: str
@@ -363,7 +363,7 @@ class TraceApi:
     @validate_call
     def api_v1_traces_completed_get(
         self,
-        lookback: Annotated[Optional[StrictStr], Field(description="时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom)")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
         custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间(RFC3339格式)")] = None,
         custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间(RFC3339格式)")] = None,
         _request_timeout: Union[
@@ -383,7 +383,7 @@ class TraceApi:
 
         根据指定的时间范围获取完成状态的链路
 
-        :param lookback: 时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom)
+        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
         :type lookback: str
         :param custom_start_time: 当lookback=custom时必需，自定义开始时间(RFC3339格式)
         :type custom_start_time: str
@@ -440,7 +440,7 @@ class TraceApi:
     @validate_call
     def api_v1_traces_completed_get_with_http_info(
         self,
-        lookback: Annotated[Optional[StrictStr], Field(description="时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom)")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
         custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间(RFC3339格式)")] = None,
         custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间(RFC3339格式)")] = None,
         _request_timeout: Union[
@@ -460,7 +460,7 @@ class TraceApi:
 
         根据指定的时间范围获取完成状态的链路
 
-        :param lookback: 时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom)
+        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
         :type lookback: str
         :param custom_start_time: 当lookback=custom时必需，自定义开始时间(RFC3339格式)
         :type custom_start_time: str
@@ -517,7 +517,7 @@ class TraceApi:
     @validate_call
     def api_v1_traces_completed_get_without_preload_content(
         self,
-        lookback: Annotated[Optional[StrictStr], Field(description="时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom)")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
         custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间(RFC3339格式)")] = None,
         custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间(RFC3339格式)")] = None,
         _request_timeout: Union[
@@ -537,7 +537,7 @@ class TraceApi:
 
         根据指定的时间范围获取完成状态的链路
 
-        :param lookback: 时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom)
+        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
         :type lookback: str
         :param custom_start_time: 当lookback=custom时必需，自定义开始时间(RFC3339格式)
         :type custom_start_time: str

@@ -115,6 +115,10 @@ type QueryInjectionReq struct {
 	TaskID string `form:"task_id" binding:"omitempty,max=64"`
 }
 
+type FaultInjectionNoIssuesReq struct {
+	TimeRangeQuery
+}
+
 // FaultInjectionNoIssuesResp 没有问题的故障注入响应
 type FaultInjectionNoIssuesResp struct {
 	DatasetID     int        `json:"dataset_id"`
@@ -122,6 +126,10 @@ type FaultInjectionNoIssuesResp struct {
 	EngineConfig  chaos.Node `json:"engine_config"`
 	PreDuration   int        `json:"pre_duration"`
 	InjectionName string     `json:"injection_name"`
+}
+
+type FaultInjectionWithIssuesReq struct {
+	TimeRangeQuery
 }
 
 // FaultInjectionWithIssuesResp 有问题的故障注入响应

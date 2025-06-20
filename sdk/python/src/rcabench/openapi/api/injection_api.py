@@ -321,6 +321,9 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_no_issues_get(
         self,
+        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
+        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间 (RFC3339格式)")] = None,
+        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间 (RFC3339格式)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -336,8 +339,14 @@ class InjectionApi:
     ) -> DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp:
         """查询没有问题的故障注入记录
 
-        查询所有没有问题的故障注入记录列表
+        根据时间范围查询所有没有问题的故障注入记录列表
 
+        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :type lookback: str
+        :param custom_start_time: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
+        :type custom_start_time: str
+        :param custom_end_time: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
+        :type custom_end_time: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -361,6 +370,9 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_analysis_no_issues_get_serialize(
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -386,6 +398,9 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_no_issues_get_with_http_info(
         self,
+        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
+        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间 (RFC3339格式)")] = None,
+        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间 (RFC3339格式)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -401,8 +416,14 @@ class InjectionApi:
     ) -> ApiResponse[DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp]:
         """查询没有问题的故障注入记录
 
-        查询所有没有问题的故障注入记录列表
+        根据时间范围查询所有没有问题的故障注入记录列表
 
+        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :type lookback: str
+        :param custom_start_time: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
+        :type custom_start_time: str
+        :param custom_end_time: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
+        :type custom_end_time: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -426,6 +447,9 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_analysis_no_issues_get_serialize(
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -451,6 +475,9 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_no_issues_get_without_preload_content(
         self,
+        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
+        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间 (RFC3339格式)")] = None,
+        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间 (RFC3339格式)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -466,8 +493,14 @@ class InjectionApi:
     ) -> RESTResponseType:
         """查询没有问题的故障注入记录
 
-        查询所有没有问题的故障注入记录列表
+        根据时间范围查询所有没有问题的故障注入记录列表
 
+        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :type lookback: str
+        :param custom_start_time: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
+        :type custom_start_time: str
+        :param custom_end_time: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
+        :type custom_end_time: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -491,6 +524,9 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_analysis_no_issues_get_serialize(
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -511,6 +547,9 @@ class InjectionApi:
 
     def _api_v1_injections_analysis_no_issues_get_serialize(
         self,
+        lookback,
+        custom_start_time,
+        custom_end_time,
         _request_auth,
         _content_type,
         _headers,
@@ -533,6 +572,18 @@ class InjectionApi:
 
         # process the path parameters
         # process the query parameters
+        if lookback is not None:
+            
+            _query_params.append(('lookback', lookback))
+            
+        if custom_start_time is not None:
+            
+            _query_params.append(('custom_start_time', custom_start_time))
+            
+        if custom_end_time is not None:
+            
+            _query_params.append(('custom_end_time', custom_end_time))
+            
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -820,6 +871,9 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_with_issues_get(
         self,
+        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
+        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间 (RFC3339格式)")] = None,
+        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间 (RFC3339格式)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -835,8 +889,14 @@ class InjectionApi:
     ) -> DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp:
         """查询有问题的故障注入记录
 
-        查询所有有问题的故障注入记录列表
+        根据时间范围查询所有有问题的故障注入记录列表
 
+        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :type lookback: str
+        :param custom_start_time: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
+        :type custom_start_time: str
+        :param custom_end_time: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
+        :type custom_end_time: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -860,6 +920,9 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_analysis_with_issues_get_serialize(
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -885,6 +948,9 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_with_issues_get_with_http_info(
         self,
+        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
+        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间 (RFC3339格式)")] = None,
+        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间 (RFC3339格式)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -900,8 +966,14 @@ class InjectionApi:
     ) -> ApiResponse[DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp]:
         """查询有问题的故障注入记录
 
-        查询所有有问题的故障注入记录列表
+        根据时间范围查询所有有问题的故障注入记录列表
 
+        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :type lookback: str
+        :param custom_start_time: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
+        :type custom_start_time: str
+        :param custom_end_time: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
+        :type custom_end_time: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -925,6 +997,9 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_analysis_with_issues_get_serialize(
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -950,6 +1025,9 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_with_issues_get_without_preload_content(
         self,
+        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
+        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间 (RFC3339格式)")] = None,
+        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间 (RFC3339格式)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -965,8 +1043,14 @@ class InjectionApi:
     ) -> RESTResponseType:
         """查询有问题的故障注入记录
 
-        查询所有有问题的故障注入记录列表
+        根据时间范围查询所有有问题的故障注入记录列表
 
+        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :type lookback: str
+        :param custom_start_time: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
+        :type custom_start_time: str
+        :param custom_end_time: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
+        :type custom_end_time: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -990,6 +1074,9 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_analysis_with_issues_get_serialize(
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1010,6 +1097,9 @@ class InjectionApi:
 
     def _api_v1_injections_analysis_with_issues_get_serialize(
         self,
+        lookback,
+        custom_start_time,
+        custom_end_time,
         _request_auth,
         _content_type,
         _headers,
@@ -1032,6 +1122,18 @@ class InjectionApi:
 
         # process the path parameters
         # process the query parameters
+        if lookback is not None:
+            
+            _query_params.append(('lookback', lookback))
+            
+        if custom_start_time is not None:
+            
+            _query_params.append(('custom_start_time', custom_start_time))
+            
+        if custom_end_time is not None:
+            
+            _query_params.append(('custom_end_time', custom_end_time))
+            
         # process the header parameters
         # process the form parameters
         # process the body parameter

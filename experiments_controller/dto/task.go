@@ -133,10 +133,10 @@ type StreamEvent struct {
 	FnName    string           `json:"function_name"`
 	Line      int              `json:"line"`
 	EventName consts.EventType `json:"event_name"`
-	// TODO 结构化部分payload
-	Payload any `json:"payload"`
+	Payload   any              `json:"payload"`
 }
 
+// TODO 检查swagger导出模型
 type InfoPayloadTemplate struct {
 	Status string `json:"status"`
 	Msg    string `json:"msg"`

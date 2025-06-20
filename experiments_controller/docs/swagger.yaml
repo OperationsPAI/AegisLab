@@ -1247,7 +1247,20 @@ paths:
       - injection
   /api/v1/injections/analysis/no-issues:
     get:
-      description: 查询所有没有问题的故障注入记录列表
+      description: 根据时间范围查询所有没有问题的故障注入记录列表
+      parameters:
+      - description: 相对时间查询，如 1h, 24h, 7d或者是custom
+        in: query
+        name: lookback
+        type: string
+      - description: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
+        in: query
+        name: custom_start_time
+        type: string
+      - description: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
+        in: query
+        name: custom_end_time
+        type: string
       produces:
       - application/json
       responses:
@@ -1256,11 +1269,11 @@ paths:
           schema:
             $ref: '#/definitions/dto.GenericResponse-array_dto_FaultInjectionNoIssuesResp'
         "400":
-          description: Bad Request
+          description: 参数错误或时间格式错误
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: Internal Server Error
+          description: 服务器内部错误
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
       summary: 查询没有问题的故障注入记录
@@ -1285,7 +1298,20 @@ paths:
       - injection
   /api/v1/injections/analysis/with-issues:
     get:
-      description: 查询所有有问题的故障注入记录列表
+      description: 根据时间范围查询所有有问题的故障注入记录列表
+      parameters:
+      - description: 相对时间查询，如 1h, 24h, 7d或者是custom
+        in: query
+        name: lookback
+        type: string
+      - description: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
+        in: query
+        name: custom_start_time
+        type: string
+      - description: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
+        in: query
+        name: custom_end_time
+        type: string
       produces:
       - application/json
       responses:
@@ -1294,11 +1320,11 @@ paths:
           schema:
             $ref: '#/definitions/dto.GenericResponse-array_dto_FaultInjectionWithIssuesResp'
         "400":
-          description: Bad Request
+          description: 参数错误或时间格式错误
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: Internal Server Error
+          description: 服务器内部错误
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
       summary: 查询有问题的故障注入记录
@@ -1520,7 +1546,7 @@ paths:
         in: query
         name: first_task_type
         type: string
-      - description: 时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom)
+      - description: 相对时间查询，如 1h, 24h, 7d或者是custom
         in: query
         name: lookback
         type: string
@@ -1554,7 +1580,7 @@ paths:
     get:
       description: 根据指定的时间范围获取完成状态的链路
       parameters:
-      - description: 时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom)
+      - description: 相对时间查询，如 1h, 24h, 7d或者是custom
         in: query
         name: lookback
         type: string

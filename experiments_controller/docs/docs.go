@@ -668,7 +668,7 @@ const docTemplate = `{
         },
         "/api/v1/injections/analysis/no-issues": {
             "get": {
-                "description": "查询所有没有问题的故障注入记录列表",
+                "description": "根据时间范围查询所有没有问题的故障注入记录列表",
                 "produces": [
                     "application/json"
                 ],
@@ -676,6 +676,26 @@ const docTemplate = `{
                     "injection"
                 ],
                 "summary": "查询没有问题的故障注入记录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "相对时间查询，如 1h, 24h, 7d或者是custom",
+                        "name": "lookback",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "当lookback=custom时必需，自定义开始时间 (RFC3339格式)",
+                        "name": "custom_start_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "当lookback=custom时必需，自定义结束时间 (RFC3339格式)",
+                        "name": "custom_end_time",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -684,13 +704,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "参数错误或时间格式错误",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "服务器内部错误",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -726,7 +746,7 @@ const docTemplate = `{
         },
         "/api/v1/injections/analysis/with-issues": {
             "get": {
-                "description": "查询所有有问题的故障注入记录列表",
+                "description": "根据时间范围查询所有有问题的故障注入记录列表",
                 "produces": [
                     "application/json"
                 ],
@@ -734,6 +754,26 @@ const docTemplate = `{
                     "injection"
                 ],
                 "summary": "查询有问题的故障注入记录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "相对时间查询，如 1h, 24h, 7d或者是custom",
+                        "name": "lookback",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "当lookback=custom时必需，自定义开始时间 (RFC3339格式)",
+                        "name": "custom_start_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "当lookback=custom时必需，自定义结束时间 (RFC3339格式)",
+                        "name": "custom_end_time",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -742,13 +782,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "参数错误或时间格式错误",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "服务器内部错误",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -1130,7 +1170,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom)",
+                        "description": "相对时间查询，如 1h, 24h, 7d或者是custom",
                         "name": "lookback",
                         "in": "query"
                     },
@@ -1182,7 +1222,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom)",
+                        "description": "相对时间查询，如 1h, 24h, 7d或者是custom",
                         "name": "lookback",
                         "in": "query"
                     },

@@ -437,15 +437,36 @@ func findMissingIndices(confs []string, batch_size int) ([]int, error) {
 // GetFaultInjectionNoIssues
 //
 //	@Summary		查询没有问题的故障注入记录
-//	@Description	查询所有没有问题的故障注入记录列表
+//	@Description	根据时间范围查询所有没有问题的故障注入记录列表
 //	@Tags			injection
 //	@Produce		json
-//	@Success		200			{object}	dto.GenericResponse[[]dto.FaultInjectionNoIssuesResp]
-//	@Failure		400			{object}	dto.GenericResponse[any]
-//	@Failure		500			{object}	dto.GenericResponse[any]
+//	@Param			lookback			query		string	false	"相对时间查询，如 1h, 24h, 7d或者是custom"
+//	@Param			custom_start_time	query		string	false	"当lookback=custom时必需，自定义开始时间 (RFC3339格式)"
+//	@Param			custom_end_time		query		string	false	"当lookback=custom时必需，自定义结束时间 (RFC3339格式)"
+//	@Success		200					{object}	dto.GenericResponse[[]dto.FaultInjectionNoIssuesResp]
+//	@Failure		400					{object}	dto.GenericResponse[any]	"参数错误或时间格式错误"
+//	@Failure		500					{object}	dto.GenericResponse[any]	"服务器内部错误"
 //	@Router			/api/v1/injections/analysis/no-issues [get]
 func GetFaultInjectionNoIssues(c *gin.Context) {
-	_, records, err := repository.GetAllFaultInjectionNoIssues()
+	var req dto.FaultInjectionNoIssuesReq
+	if err := c.BindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid Parameters")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid Parameters: %v", err))
+		return
+	}
+
+	opts, err := req.Convert()
+	if err != nil {
+		logrus.Errorf("failed to convert request: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to convert request")
+		return
+	}
+
+	_, records, err := repository.GetAllFaultInjectionNoIssues(*opts)
 	if err != nil {
 		logrus.Errorf("failed to get fault injection no issues: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get fault injection records")
@@ -455,7 +476,6 @@ func GetFaultInjectionNoIssues(c *gin.Context) {
 	items := make([]dto.FaultInjectionNoIssuesResp, 0, len(records))
 
 	for _, record := range records {
-
 		conf := chaos.Node{}
 		err := json.Unmarshal([]byte(record.EngineConfig), &conf)
 		if err != nil {
@@ -479,15 +499,36 @@ func GetFaultInjectionNoIssues(c *gin.Context) {
 // GetFaultInjectionWithIssues
 //
 //	@Summary		查询有问题的故障注入记录
-//	@Description	查询所有有问题的故障注入记录列表
+//	@Description	根据时间范围查询所有有问题的故障注入记录列表
 //	@Tags			injection
 //	@Produce		json
-//	@Success		200			{object}	dto.GenericResponse[[]dto.FaultInjectionWithIssuesResp]
-//	@Failure		400			{object}	dto.GenericResponse[any]
-//	@Failure		500			{object}	dto.GenericResponse[any]
+//	@Param			lookback			query		string	false	"相对时间查询，如 1h, 24h, 7d或者是custom"
+//	@Param			custom_start_time	query		string	false	"当lookback=custom时必需，自定义开始时间 (RFC3339格式)"
+//	@Param			custom_end_time		query		string	false	"当lookback=custom时必需，自定义结束时间 (RFC3339格式)"
+//	@Success		200					{object}	dto.GenericResponse[[]dto.FaultInjectionWithIssuesResp]
+//	@Failure		400					{object}	dto.GenericResponse[any]	"参数错误或时间格式错误"
+//	@Failure		500					{object}	dto.GenericResponse[any]	"服务器内部错误"
 //	@Router			/api/v1/injections/analysis/with-issues [get]
 func GetFaultInjectionWithIssues(c *gin.Context) {
-	_, records, err := repository.GetAllFaultInjectionWithIssues()
+	var req dto.FaultInjectionNoIssuesReq // 注意：这里应该重命名为更通用的名称
+	if err := c.BindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid Parameters")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid Parameters: %v", err))
+		return
+	}
+
+	opts, err := req.Convert()
+	if err != nil {
+		logrus.Errorf("failed to convert request: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to convert request")
+		return
+	}
+
+	_, records, err := repository.GetAllFaultInjectionWithIssues(*opts)
 	if err != nil {
 		logrus.Errorf("failed to get fault injection with issues: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get fault injection records")

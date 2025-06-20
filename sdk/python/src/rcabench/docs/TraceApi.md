@@ -36,7 +36,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.TraceApi(api_client)
     first_task_type = 'first_task_type_example' # str | 子任务类型筛选 (optional)
-    lookback = 'lookback_example' # str | 时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom) (optional)
+    lookback = 'lookback_example' # str | 相对时间查询，如 1h, 24h, 7d或者是custom (optional)
     custom_start_time = 'custom_start_time_example' # str | 当lookback=custom时必需，自定义开始时间(RFC3339格式) (optional)
     custom_end_time = 'custom_end_time_example' # str | 当lookback=custom时必需，自定义结束时间(RFC3339格式) (optional)
 
@@ -57,7 +57,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **first_task_type** | **str**| 子任务类型筛选 | [optional] 
- **lookback** | **str**| 时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom) | [optional] 
+ **lookback** | **str**| 相对时间查询，如 1h, 24h, 7d或者是custom | [optional] 
  **custom_start_time** | **str**| 当lookback&#x3D;custom时必需，自定义开始时间(RFC3339格式) | [optional] 
  **custom_end_time** | **str**| 当lookback&#x3D;custom时必需，自定义结束时间(RFC3339格式) | [optional] 
 
@@ -111,7 +111,7 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.TraceApi(api_client)
-    lookback = 'lookback_example' # str | 时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom) (optional)
+    lookback = 'lookback_example' # str | 相对时间查询，如 1h, 24h, 7d或者是custom (optional)
     custom_start_time = 'custom_start_time_example' # str | 当lookback=custom时必需，自定义开始时间(RFC3339格式) (optional)
     custom_end_time = 'custom_end_time_example' # str | 当lookback=custom时必需，自定义结束时间(RFC3339格式) (optional)
 
@@ -131,7 +131,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **lookback** | **str**| 时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom) | [optional] 
+ **lookback** | **str**| 相对时间查询，如 1h, 24h, 7d或者是custom | [optional] 
  **custom_start_time** | **str**| 当lookback&#x3D;custom时必需，自定义开始时间(RFC3339格式) | [optional] 
  **custom_end_time** | **str**| 当lookback&#x3D;custom时必需，自定义结束时间(RFC3339格式) | [optional] 
 
