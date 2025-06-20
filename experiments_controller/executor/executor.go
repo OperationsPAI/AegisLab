@@ -190,15 +190,21 @@ func (e *Executor) HandleJobAdd(annotations map[string]string, labels map[string
 	)
 }
 
-func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string, errC error, errMsg string) {
+func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string, errMsg string) {
 	parsedAnnotations, _ := parseAnnotations(annotations)
 	taskOptions, _ := parseTaskOptions(labels)
 	ctx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.TaskCarrier)
 	span := trace.SpanFromContext(ctx)
 
+	payload := dto.InfoPayloadTemplate{
+		Status: consts.TaskStatusError,
+		Msg:    errMsg,
+	}
+
 	logs, err := k8s.GetJobPodLogs(ctx, job.Namespace, job.Name)
 	if err != nil {
 		logrus.WithField("job_name", job.Name).Errorf("failed to get job logs: %v", err)
+		payload.Msg = fmt.Sprintf("failed to get job logs: %v", err)
 	}
 
 	for podName, log := range logs {
@@ -213,6 +219,9 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 			Value: attribute.StringValue(podLog),
 		},
 	))
+	if err == nil {
+		payload.Msg = podLog
+	}
 
 	logEntry := logrus.WithFields(logrus.Fields{
 		"task_id":  taskOptions.TaskID,
@@ -227,10 +236,7 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 			TaskID:    taskOptions.TaskID,
 			TaskType:  consts.TaskTypeBuildDataset,
 			EventName: consts.EventDatasetBuildFailed,
-			Payload: dto.InfoPayloadTemplate{
-				Status: consts.TaskStatusError,
-				Msg:    errC.Error(),
-			},
+			Payload:   payload,
 		}, repository.WithCallerLevel(4))
 
 		if err := repository.UpdateStatusByDataset(options.Dataset, consts.DatasetBuildFailed); err != nil {
@@ -258,10 +264,7 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 			TaskID:    taskOptions.TaskID,
 			TaskType:  consts.TaskTypeRunAlgorithm,
 			EventName: consts.EventAlgoRunFailed,
-			Payload: dto.InfoPayloadTemplate{
-				Status: consts.TaskStatusError,
-				Msg:    errC.Error(),
-			},
+			Payload:   payload,
 		}, repository.WithCallerLevel(4))
 
 		if err := repository.UpdateStatusByExecID(options.ExecutionID, consts.ExecutionFailed); err != nil {
