@@ -100,11 +100,12 @@ type Detector struct {
 
 // FaultInjectionNoIssues 视图模型
 type FaultInjectionNoIssues struct {
-	DatasetID     int    `gorm:"column:DatasetID" json:"dataset_id"`
-	DisplayConfig string `gorm:"column:display_config" json:"display_config"`
-	EngineConfig  string `gorm:"column:engine_config" json:"engine_config"`
-	PreDuration   int    `gorm:"column:pre_duration" json:"pre_duration"`
-	InjectionName string `gorm:"column:injection_name" json:"injection_name"`
+	DatasetID     int       `gorm:"column:DatasetID" json:"dataset_id"`
+	DisplayConfig string    `gorm:"column:display_config" json:"display_config"`
+	EngineConfig  string    `gorm:"column:engine_config" json:"engine_config"`
+	PreDuration   int       `gorm:"column:pre_duration" json:"pre_duration"`
+	InjectionName string    `gorm:"column:injection_name" json:"injection_name"`
+	CreatedAt     time.Time `gorm:"column:created_at" json:"created_at"`
 }
 
 func (FaultInjectionNoIssues) TableName() string {
@@ -113,12 +114,13 @@ func (FaultInjectionNoIssues) TableName() string {
 
 // FaultInjectionWithIssues 视图模型
 type FaultInjectionWithIssues struct {
-	DatasetID     int    `gorm:"column:DatasetID" json:"dataset_id"`
-	DisplayConfig string `gorm:"column:display_config" json:"display_config"`
-	EngineConfig  string `gorm:"column:engine_config" json:"engine_config"`
-	PreDuration   int    `gorm:"column:pre_duration" json:"pre_duration"`
-	InjectionName string `gorm:"column:injection_name" json:"injection_name"`
-	Issues        string `gorm:"column:issues" json:"issues"`
+	DatasetID     int       `gorm:"column:DatasetID" json:"dataset_id"`
+	DisplayConfig string    `gorm:"column:display_config" json:"display_config"`
+	EngineConfig  string    `gorm:"column:engine_config" json:"engine_config"`
+	PreDuration   int       `gorm:"column:pre_duration" json:"pre_duration"`
+	InjectionName string    `gorm:"column:injection_name" json:"injection_name"`
+	CreatedAt     time.Time `gorm:"column:created_at" json:"created_at"`
+	Issues        string    `gorm:"column:issues" json:"issues"`
 }
 
 func (FaultInjectionWithIssues) TableName() string {
@@ -175,7 +177,7 @@ func InitDB() {
 	DB.Migrator().DropView("fault_injection_with_issues")
 
 	noIssuesQuery := DB.Table("fault_injection_schedules fis").
-		Select("DISTINCT fis.id AS DatasetID, fis.fault_type, fis.display_config, fis.engine_config, fis.pre_duration, fis.injection_name").
+		Select("DISTINCT fis.id AS DatasetID, fis.fault_type, fis.display_config, fis.engine_config, fis.pre_duration, fis.injection_name, fis.created_at").
 		Joins(`JOIN (
         SELECT id, dataset, algorithm,
                ROW_NUMBER() OVER (PARTITION BY dataset, algorithm ORDER BY created_at DESC, id DESC) as rn
@@ -188,7 +190,7 @@ func InitDB() {
 	}
 
 	withIssuesQuery := DB.Table("fault_injection_schedules fis").
-		Select("DISTINCT fis.id AS DatasetID, fis.fault_type, fis.display_config, fis.engine_config, fis.pre_duration, fis.injection_name, d.issues").
+		Select("DISTINCT fis.id AS DatasetID, fis.fault_type, fis.display_config, fis.engine_config, fis.pre_duration, fis.injection_name, fis.created_at, d.issues").
 		Joins(`JOIN (
         SELECT id, dataset, algorithm,
                ROW_NUMBER() OVER (PARTITION BY dataset, algorithm ORDER BY created_at DESC, id DESC) as rn

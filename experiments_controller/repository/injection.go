@@ -375,7 +375,7 @@ func GetFaultInjectionWithIssues(pageNum, pageSize int) (int64, []database.Fault
 func GetAllFaultInjectionNoIssues(opts dto.TimeFilterOption) (int64, []database.FaultInjectionNoIssues, error) {
 	startTime, endTime := opts.GetTimeRange()
 	return queryAll[database.FaultInjectionNoIssues](
-		"created_at >= ? AND created at <= ?",
+		"created_at >= ? AND created_at <= ?",
 		[]any{startTime, endTime},
 		"DatasetID desc",
 		[]string{},
@@ -386,7 +386,7 @@ func GetAllFaultInjectionNoIssues(opts dto.TimeFilterOption) (int64, []database.
 func GetAllFaultInjectionWithIssues(opts dto.TimeFilterOption) (int64, []database.FaultInjectionWithIssues, error) {
 	startTime, endTime := opts.GetTimeRange()
 	return queryAll[database.FaultInjectionWithIssues](
-		"created_at >= ? AND created at <= ?",
+		"created_at >= ? AND created_at <= ?",
 		[]any{startTime, endTime},
 		"DatasetID desc",
 		[]string{},
