@@ -47,7 +47,7 @@ type Callback interface {
 	HandleCRDFailed(name string, annotations map[string]string, labels map[string]string, err error, errMsg string)
 	HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, annotations map[string]string, labels map[string]string)
 	HandleJobAdd(annotations map[string]string, labels map[string]string)
-	HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string, err error, errMsg string)
+	HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string, errMsg string)
 	HandleJobSucceeded(annotations map[string]string, labels map[string]string)
 }
 
@@ -312,7 +312,7 @@ func (c *Controller) genJobEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 			if oldJob.Name == newJob.Name {
 				if oldJob.Status.Failed == 0 && newJob.Status.Failed > 0 {
 					errorMsg := extractJobError(newJob)
-					c.callback.HandleJobFailed(newJob, newJob.Annotations, newJob.Labels, nil, errorMsg)
+					c.callback.HandleJobFailed(newJob, newJob.Annotations, newJob.Labels, errorMsg)
 				}
 
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {
