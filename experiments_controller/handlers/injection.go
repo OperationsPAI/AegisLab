@@ -473,8 +473,7 @@ func GetFaultInjectionNoIssues(c *gin.Context) {
 		return
 	}
 
-	items := make([]dto.FaultInjectionNoIssuesResp, 0, len(records))
-
+	var items []dto.FaultInjectionNoIssuesResp
 	for _, record := range records {
 		conf := chaos.Node{}
 		err := json.Unmarshal([]byte(record.EngineConfig), &conf)
@@ -535,7 +534,7 @@ func GetFaultInjectionWithIssues(c *gin.Context) {
 		return
 	}
 
-	items := make([]dto.FaultInjectionWithIssuesResp, 0, len(records))
+	var items []dto.FaultInjectionWithIssuesResp
 	for _, record := range records {
 		conf := chaos.Node{}
 		err := json.Unmarshal([]byte(record.EngineConfig), &conf)
