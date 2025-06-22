@@ -29,6 +29,11 @@ mysql_password = "yourpassword"
 mysql_host = "localhost"
 mysql_port = "3306"
 mysql_db = "rcabench"
+postgres_user = "root"
+postgres_password = "yourpassword"
+postgres_host = "127.0.0.1"
+postgres_port = "5432"
+postgres_db = "rcabench"
 
 [jaeger]
 endpoint = "localhost:4318"

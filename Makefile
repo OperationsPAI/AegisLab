@@ -39,7 +39,7 @@ remote-debug: ## Run application in debug mode with skaffold
 
 local-debug: ## Start local debug environment (databases + controller)
 	docker compose down && \
-	docker compose up redis mariadb jaeger -d && \
+	docker compose up redis postgres jaeger -d && \
 	kubectl delete jobs --all -n $(NS) && \
 	cd $(CONTROLLER_DIR) && go run main.go both --port 8082
 

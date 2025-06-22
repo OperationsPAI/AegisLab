@@ -235,6 +235,12 @@ func SubmitFaultInjection(c *gin.Context) {
 	spanCtx := ctx.(context.Context)
 	span := trace.SpanFromContext(spanCtx)
 
+	handleError := func(err error, message string, statusCode int) {
+		logrus.Error(err)
+		span.SetStatus(codes.Error, message)
+		dto.ErrorResponse(c, statusCode, message)
+	}
+
 	defer func() {
 		if err := recover(); err != nil {
 			logrus.Errorf("SubmitFaultInjection panic: %v", err)
@@ -246,87 +252,28 @@ func SubmitFaultInjection(c *gin.Context) {
 
 	var req dto.InjectionSubmitReq
 	if err := c.BindJSON(&req); err != nil {
-		logrus.Error(err)
-		span.SetStatus(codes.Error, "failed to bind JSON")
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid JSON payload")
+		handleError(err, "Invalid JSON payload", http.StatusBadRequest)
 		return
 	}
 
-	validAlgorithms, err := repository.ListAlgorithms(true)
-	if err != nil {
-		logrus.Errorf("failed to list algorithms: %v", err)
-		span.SetStatus(codes.Error, "failed to list algorithms")
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to list algorithms")
+	if err := validateAlgorithms(req.Algorithms); err != nil {
+		handleError(err, err.Error(), http.StatusBadRequest)
 		return
-	}
-
-	validAlgorithmMap := make(map[string]struct{}, len(validAlgorithms))
-	for _, algorithm := range validAlgorithms {
-		validAlgorithmMap[algorithm.Name] = struct{}{}
-	}
-
-	for _, algorithm := range req.Algorithms {
-		if algorithm == "" {
-			logrus.Error("algorithm must not be empty")
-			span.SetStatus(codes.Error, "algorithm must not be empty")
-			dto.ErrorResponse(c, http.StatusBadRequest, "Algorithm must not be empty")
-			return
-		}
-
-		detector := config.GetString("algo.detector")
-		if algorithm == detector {
-			logrus.Errorf("algorithm %s is not allowed for fault injection", detector)
-			span.SetStatus(codes.Error, fmt.Sprintf("algorithm %s is not allowed for fault injection", detector))
-			dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Algorithm %s is not allowed for fault injection", detector))
-			return
-		}
-
-		if _, exists := validAlgorithmMap[algorithm]; !exists {
-			logrus.Errorf("invalid algorithm: %s", algorithm)
-			span.SetStatus(codes.Error, fmt.Sprintf("invalid algorithm: %s", algorithm))
-			dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid algorithm: %s", algorithm))
-			return
-		}
 	}
 
 	configs, err := parseInjectionSpecs(&req)
 	if err != nil {
-		logrus.Error(err)
-		span.SetStatus(codes.Error, "failed to parse injection specs")
-		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		handleError(err, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	traces := make([]dto.Trace, 0, len(configs))
 	for _, config := range configs {
-		payload := map[string]any{
-			consts.RestartIntarval:      req.Interval,
-			consts.RestartFaultDuration: config.FaultDuration,
-			consts.RestartInjectPayload: map[string]any{
-				consts.InjectAlgorithms:  req.Algorithms,
-				consts.InjectBenchmark:   req.Benchmark,
-				consts.InjectFaultType:   config.FaultType,
-				consts.InjectPreDuration: req.PreDuration,
-				consts.InjectDisplayData: config.DisplayData,
-				consts.InjectConf:        config.Conf,
-				consts.InjectNode:        config.Node,
-			},
-		}
-
-		task := &dto.UnifiedTask{
-			Type:        consts.TaskTypeRestartService,
-			Payload:     payload,
-			Immediate:   false,
-			ExecuteTime: config.ExecuteTime.Unix(),
-			GroupID:     groupID,
-		}
-		task.SetGroupCtx(spanCtx)
+		task := createInjectionTask(&req, config, groupID, spanCtx)
 
 		taskID, traceID, err := executor.SubmitTask(spanCtx, task)
 		if err != nil {
-			message := "failed to submit injection task"
-			logrus.Errorf("%s: %v", message, err)
-			dto.ErrorResponse(c, http.StatusInternalServerError, message)
+			handleError(err, "failed to submit injection task", http.StatusInternalServerError)
 			return
 		}
 
@@ -351,6 +298,82 @@ func SubmitFaultInjection(c *gin.Context) {
 	dto.JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", resp)
 }
 
+// validateAlgorithms validates the provided algorithms against the valid algorithm list
+func validateAlgorithms(algorithms []string) error {
+	validAlgorithms, err := repository.ListAlgorithms(true)
+	if err != nil {
+		return fmt.Errorf("failed to list algorithms: %v", err)
+	}
+
+	validAlgorithmMap := make(map[string]struct{}, len(validAlgorithms))
+	for _, algorithm := range validAlgorithms {
+		validAlgorithmMap[algorithm.Name] = struct{}{}
+	}
+
+	for _, algorithm := range algorithms {
+		if algorithm == "" {
+			return fmt.Errorf("algorithm must not be empty")
+		}
+
+		detector := config.GetString("algo.detector")
+		if algorithm == detector {
+			return fmt.Errorf("algorithm %s is not allowed for fault injection", detector)
+		}
+
+		if _, exists := validAlgorithmMap[algorithm]; !exists {
+			return fmt.Errorf("invalid algorithm: %s", algorithm)
+		}
+	}
+
+	return nil
+}
+
+// createInjectionTask creates a unified task for fault injection
+func createInjectionTask(req *dto.InjectionSubmitReq, config *dto.InjectionConfig, groupID string, spanCtx context.Context) *dto.UnifiedTask {
+	var payload map[string]any
+	taskType := consts.TaskTypeRestartService
+	if req.DirectInject {
+		payload = map[string]any{
+			consts.InjectAlgorithms:  req.Algorithms,
+			consts.InjectBenchmark:   req.Benchmark,
+			consts.InjectFaultType:   config.FaultType,
+			consts.InjectPreDuration: req.PreDuration,
+			consts.InjectDisplayData: config.DisplayData,
+			consts.InjectConf:        config.Conf,
+			consts.InjectNode:        config.Node,
+			consts.InjectLabels:      config.Labels,
+			consts.InjectNamespace:   "ts4",
+		}
+		taskType = consts.TaskTypeFaultInjection
+	} else {
+		payload = map[string]any{
+			consts.RestartIntarval:      req.Interval,
+			consts.RestartFaultDuration: config.FaultDuration,
+			consts.RestartInjectPayload: map[string]any{
+				consts.InjectAlgorithms:  req.Algorithms,
+				consts.InjectBenchmark:   req.Benchmark,
+				consts.InjectFaultType:   config.FaultType,
+				consts.InjectPreDuration: req.PreDuration,
+				consts.InjectDisplayData: config.DisplayData,
+				consts.InjectConf:        config.Conf,
+				consts.InjectNode:        config.Node,
+				consts.InjectLabels:      config.Labels,
+			},
+		}
+	}
+
+	task := &dto.UnifiedTask{
+		Type:        taskType,
+		Payload:     payload,
+		Immediate:   false,
+		ExecuteTime: config.ExecuteTime.Unix(),
+		GroupID:     groupID,
+	}
+	task.SetGroupCtx(spanCtx)
+
+	return task
+}
+
 func parseInjectionSpecs(r *dto.InjectionSubmitReq) ([]*dto.InjectionConfig, error) {
 	if len(r.Specs) == 0 {
 		return nil, fmt.Errorf("spec must not be blank")
@@ -358,6 +381,10 @@ func parseInjectionSpecs(r *dto.InjectionSubmitReq) ([]*dto.InjectionConfig, err
 
 	configs := make([]*dto.InjectionConfig, 0, len(r.Specs))
 	displayDatas := make([]string, 0, len(r.Specs))
+	if r.Labels == nil {
+		r.Labels = make([]dto.LabelItem, 0)
+	}
+
 	for idx, spec := range r.Specs {
 		childNode, exists := spec.Children[strconv.Itoa(spec.Value)]
 		if !exists {
@@ -388,6 +415,7 @@ func parseInjectionSpecs(r *dto.InjectionSubmitReq) ([]*dto.InjectionConfig, err
 			DisplayData:   string(displayData),
 			Conf:          conf,
 			Node:          &spec,
+			Labels:        r.Labels,
 		})
 		displayDatas = append(displayDatas, string(displayData))
 	}

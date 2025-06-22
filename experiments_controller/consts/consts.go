@@ -81,6 +81,7 @@ const (
 	InjectDisplayData = "display_data"
 	InjectConf        = "conf"
 	InjectNode        = "node"
+	InjectLabels      = "labels"
 
 	RestartIntarval      = "interval"
 	RestartFaultDuration = "fault_duration"

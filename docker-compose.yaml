@@ -2,34 +2,27 @@ services:
   redis:
     image: redis:8.0-M02-alpine3.20
     container_name: redis
-    ports:
-      - "6379:6379"
     network_mode: host
     restart: always
 
-  mariadb:
-    image: mariadb:11.8.1-noble-rc
-    container_name: mariadb
+  postgres:
+    image: postgres:16-bullseye
+    container_name: postgres
     environment:
-      MYSQL_DATABASE: rcabench
-      MYSQL_ROOT_PASSWORD: yourpassword
-      MYSQL_USER: root
+      POSTGRES_DB: rcabench           
+      POSTGRES_USER: root    
+      POSTGRES_PASSWORD: yourpassword
+      POSTGRES_HOST_AUTH_METHOD: md5
+      POSTGRES_INITDB_ARGS: "--auth-host=md5"
+    command: ["postgres", "-c", "listen_addresses=*", "-c", "log_statement=all"]
     volumes:
-      - mariadb_data:/var/lib/mysql
-    ports:
-      - "3306:3306"
-    network_mode: host
+      - pgdata:/var/lib/postgresql/data
     restart: always
+    network_mode: host
 
   jaeger:
     image: jaegertracing/all-in-one:latest
     container_name: jaeger
-    ports:
-      - "4317:4317"
-      - "4318:4318"
-      - "6831:6831/udp"
-      - "14268:14268"
-      - "16686:16686"
     network_mode: host
     restart: always
 
@@ -50,11 +43,10 @@ services:
       - ./data:/var/lib/rcabench
       - ./output:/app/output
     working_dir: /app
-    ports:
-      - "8081:8081"
     depends_on:
       - redis
-      - mariadb
+      - postgres
+    network_mode: host
 
 volumes:
-  mariadb_data:
+  pgdata:

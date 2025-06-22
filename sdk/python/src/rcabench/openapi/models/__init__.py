@@ -53,6 +53,7 @@ from rcabench.openapi.models.dto_get_completed_map_resp import DtoGetCompletedMa
 from rcabench.openapi.models.dto_granularity_record import DtoGranularityRecord
 from rcabench.openapi.models.dto_injection_item import DtoInjectionItem
 from rcabench.openapi.models.dto_injection_submit_req import DtoInjectionSubmitReq
+from rcabench.openapi.models.dto_label_item import DtoLabelItem
 from rcabench.openapi.models.dto_pagination_resp_dto_dataset_item import DtoPaginationRespDtoDatasetItem
 from rcabench.openapi.models.dto_pagination_resp_dto_injection_item import DtoPaginationRespDtoInjectionItem
 from rcabench.openapi.models.dto_pagination_resp_dto_task_item import DtoPaginationRespDtoTaskItem

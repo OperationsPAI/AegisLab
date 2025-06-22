@@ -86,12 +86,19 @@ type InjectionParaResp struct {
 	KeyMap        map[chaos.ChaosType]string     `json:"keymap" swaggertype:"object"`
 }
 
+type LabelItem struct {
+	Key   string `json:"key" binding:"required,oneof=env batch"`
+	Value string `json:"value" binding:"required,oneof=dev prod test us-cn"`
+}
+
 type InjectionSubmitReq struct {
-	Interval    int          `json:"interval"`
-	PreDuration int          `json:"pre_duration"`
-	Specs       []chaos.Node `json:"specs"`
-	Benchmark   string       `json:"benchmark"`
-	Algorithms  []string     `json:"algorithms"`
+	Interval     int          `json:"interval"`
+	PreDuration  int          `json:"pre_duration"`
+	Specs        []chaos.Node `json:"specs"`
+	Benchmark    string       `json:"benchmark"`
+	Algorithms   []string     `json:"algorithms"`
+	Labels       []LabelItem  `json:"labels" binding:"omitempty,dive"`
+	DirectInject bool         `json:"direct" binding:"omitempty"`
 }
 
 type InjectionSubmitResp struct {
@@ -108,6 +115,7 @@ type InjectionConfig struct {
 	Conf          *chaos.InjectionConf
 	Node          *chaos.Node
 	ExecuteTime   time.Time
+	Labels        []LabelItem
 }
 
 type QueryInjectionReq struct {

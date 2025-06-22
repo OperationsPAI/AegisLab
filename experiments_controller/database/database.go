@@ -1,16 +1,46 @@
 package database
 
 import (
+	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/sirupsen/logrus"
 
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"
 )
+
+type LabelsMap map[string]string
+
+func (l LabelsMap) Value() (driver.Value, error) {
+	if l == nil {
+		return "{}", nil
+	}
+	return json.Marshal(l)
+}
+
+func (l *LabelsMap) Scan(value interface{}) error {
+	if value == nil {
+		*l = make(LabelsMap)
+		return nil
+	}
+
+	var bytes []byte
+	switch v := value.(type) {
+	case []byte:
+		bytes = v
+	case string:
+		bytes = []byte(v)
+	default:
+		return fmt.Errorf("cannot scan %T into LabelsMap", value)
+	}
+
+	return json.Unmarshal(bytes, l)
+}
 
 // 全局 DB 对象
 var DB *gorm.DB
@@ -31,20 +61,21 @@ type Task struct {
 
 // FaultInjectionSchedule 模型
 type FaultInjectionSchedule struct {
-	ID            int       `gorm:"primaryKey;autoIncrement" json:"id"` // 唯一标识
-	TaskID        string    `gorm:"index" json:"task_id"`               // 从属什么 taskid
-	FaultType     int       `gorm:"index" json:"fault_type"`            // 故障类型
-	DisplayConfig string    `json:"display_config"`                     // 面向用户的展示配置
-	EngineConfig  string    `json:"engine_config"`                      // 面向系统的运行配置
-	PreDuration   int       `json:"pre_duration"`                       // 正常数据时间
-	StartTime     time.Time `gorm:"default:null" json:"start_time"`     // 预计故障开始时间
-	EndTime       time.Time `gorm:"default:null" json:"end_time"`       // 预计故障结束时间
-	Status        int       `json:"status"`                             // -1: 已删除 0: 初始状态 1: 注入结束且失败 2: 注入结束且成功 3: 收集数据失败 4:收集数据成功
-	Description   string    `json:"description"`                        // 描述（可选字段）
-	Benchmark     string    `json:"benchmark"`                          // 基准数据库
-	InjectionName string    `gorm:"unique,index" json:"injection_name"` // 在k8s资源里注入的名字
-	CreatedAt     time.Time `gorm:"autoCreateTime" json:"created_at"`   // 创建时间
-	UpdatedAt     time.Time `gorm:"autoUpdateTime" json:"updated_at"`   // 更新时间
+	ID            int       `gorm:"primaryKey;autoIncrement" json:"id"`    // 唯一标识
+	TaskID        string    `gorm:"index" json:"task_id"`                  // 从属什么 taskid
+	FaultType     int       `gorm:"index" json:"fault_type"`               // 故障类型
+	DisplayConfig string    `json:"display_config"`                        // 面向用户的展示配置
+	EngineConfig  string    `json:"engine_config"`                         // 面向系统的运行配置
+	PreDuration   int       `json:"pre_duration"`                          // 正常数据时间
+	StartTime     time.Time `gorm:"default:null" json:"start_time"`        // 预计故障开始时间
+	EndTime       time.Time `gorm:"default:null" json:"end_time"`          // 预计故障结束时间
+	Status        int       `json:"status"`                                // -1: 已删除 0: 初始状态 1: 注入结束且失败 2: 注入结束且成功 3: 收集数据失败 4:收集数据成功
+	Description   string    `json:"description"`                           // 描述（可选字段）
+	Benchmark     string    `json:"benchmark"`                             // 基准数据库
+	InjectionName string    `gorm:"unique,index" json:"injection_name"`    // 在k8s资源里注入的名字
+	Labels        LabelsMap `gorm:"type:jsonb;default:'{}'" json:"labels"` // 用户自定义标签，JSONB格式存储 key-value pairs
+	CreatedAt     time.Time `gorm:"autoCreateTime" json:"created_at"`      // 创建时间
+	UpdatedAt     time.Time `gorm:"autoUpdateTime" json:"updated_at"`      // 更新时间
 }
 
 // TODO 添加数据的接口
@@ -129,19 +160,19 @@ func (FaultInjectionWithIssues) TableName() string {
 
 func InitDB() {
 	var err error
-	mysqlUser := config.GetString("database.mysql_user")
-	mysqlPassWord := config.GetString("database.mysql_password")
-	mysqlHost := config.GetString("database.mysql_host")
-	mysqlPort := config.GetString("database.mysql_port")
-	mysqlDBName := config.GetString("database.mysql_db")
+	pgUser := config.GetString("database.postgres_user")
+	pgPassword := config.GetString("database.postgres_password")
+	pgHost := config.GetString("database.postgres_host")
+	pgPort := config.GetString("database.postgres_port")
+	pgDBName := config.GetString("database.postgres_db")
 
-	mysqlDSN := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", mysqlUser, mysqlPassWord, mysqlHost, mysqlPort, mysqlDBName)
+	pgDSN := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Shanghai", pgHost, pgUser, pgPassword, pgDBName, pgPort)
 
 	maxRetries := 3
 	retryDelay := 10 * time.Second
 
 	for i := 0; i <= maxRetries; i++ {
-		DB, err = gorm.Open(mysql.Open(mysqlDSN), &gorm.Config{})
+		DB, err = gorm.Open(postgres.Open(pgDSN), &gorm.Config{})
 		if err == nil {
 			logrus.Info("Successfully connected to the database.")
 			if err := DB.Use(tracing.NewPlugin()); err != nil {

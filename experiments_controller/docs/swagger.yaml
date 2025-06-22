@@ -548,14 +548,38 @@ definitions:
         type: array
       benchmark:
         type: string
+      direct:
+        type: boolean
       interval:
         type: integer
+      labels:
+        items:
+          $ref: '#/definitions/dto.LabelItem'
+        type: array
       pre_duration:
         type: integer
       specs:
         items:
           $ref: '#/definitions/handler.Node'
         type: array
+    type: object
+  dto.LabelItem:
+    properties:
+      key:
+        enum:
+        - env
+        - batch
+        type: string
+      value:
+        enum:
+        - dev
+        - prod
+        - test
+        - us-cn
+        type: string
+    required:
+    - key
+    - value
     type: object
   dto.PaginationResp-dto_DatasetItem:
     properties:
