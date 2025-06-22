@@ -397,63 +397,37 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/evaluations": {
+        "/api/v1/evaluations/groundtruth": {
             "get": {
-                "description": "返回每种算法的执行历史记录",
+                "description": "根据数据集数组获取对应的 ground truth 数据",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "evaluation"
                 ],
-                "summary": "获取每种算法的执行历史记录",
+                "summary": "获取数据集的 ground truth",
                 "parameters": [
                     {
                         "type": "array",
                         "items": {
-                            "type": "integer"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "执行结果 ID 数组",
-                        "name": "execution_ids",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
                             "type": "string"
                         },
                         "collectionFormat": "csv",
-                        "description": "算法名称数组",
-                        "name": "algorithms",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "级别名称数组",
-                        "name": "levels",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "指标名称数组",
-                        "name": "metrics",
-                        "in": "query"
+                        "description": "数据集数组",
+                        "name": "datasets",
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "成功响应",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_EvaluationListResp"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_GroundTruthResp"
                         }
                     },
                     "400": {
@@ -1309,22 +1283,6 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.Conclusion": {
-            "type": "object",
-            "properties": {
-                "level": {
-                    "description": "例如 service level",
-                    "type": "string"
-                },
-                "metric": {
-                    "description": "例如 topk",
-                    "type": "string"
-                },
-                "rate": {
-                    "type": "number"
-                }
-            }
-        },
         "dto.DatasetBuildPayload": {
             "type": "object",
             "properties": {
@@ -1424,51 +1382,6 @@ const docTemplate = `{
                 },
                 "span_name": {
                     "type": "string"
-                }
-            }
-        },
-        "dto.EvaluationItem": {
-            "type": "object",
-            "properties": {
-                "algorithm": {
-                    "type": "string"
-                },
-                "conclusions": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.Conclusion"
-                    }
-                },
-                "executions": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.Execution"
-                    }
-                }
-            }
-        },
-        "dto.EvaluationListResp": {
-            "type": "object",
-            "properties": {
-                "results": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.EvaluationItem"
-                    }
-                }
-            }
-        },
-        "dto.Execution": {
-            "type": "object",
-            "properties": {
-                "dataset": {
-                    "$ref": "#/definitions/dto.DatasetItem"
-                },
-                "granularity_records": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.GranularityRecord"
-                    }
                 }
             }
         },
@@ -1685,31 +1598,6 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_EvaluationListResp": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "状态码",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "泛型类型的数据",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.EvaluationListResp"
-                        }
-                    ]
-                },
-                "message": {
-                    "description": "响应消息",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "响应生成时间",
-                    "type": "integer"
-                }
-            }
-        },
         "dto.GenericResponse-dto_FaultInjectionStatisticsResp": {
             "type": "object",
             "properties": {
@@ -1747,6 +1635,31 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.GetCompletedMapResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_GroundTruthResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.GroundTruthResp"
                         }
                     ]
                 },
@@ -2044,6 +1957,12 @@ const docTemplate = `{
                 "result": {
                     "type": "string"
                 }
+            }
+        },
+        "dto.GroundTruthResp": {
+            "type": "object",
+            "additionalProperties": {
+                "$ref": "#/definitions/handler.Groundtruth"
             }
         },
         "dto.InjectCancelResp": {
