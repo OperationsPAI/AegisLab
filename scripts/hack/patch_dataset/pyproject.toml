@@ -6,6 +6,13 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "mysql-connector-python>=9.3.0",
-    "pymysql>=1.1.1",
-    "rcabench>=0.3.26",
+    "psycopg[binary]>=3.2.9",
+    "rcabench>=1.0.15",
+    "rich>=14.0.0",
+    "pysync>=0.4.0",
+    "typer>=0.16.0",
 ]
+
+[tool.uv.sources.pysync]
+git = "https://github.com/kedvall/pysync"
+rev = "4384b546c40e5cd773ff9e8fde7337045618e9d6"
