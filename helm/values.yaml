@@ -13,6 +13,10 @@ images:
     repository: 10.10.10.240/library/mariadb
     tag: 11.8.1-noble-rc
     pullPolicy: IfNotPresent
+  postgres:
+    repository: postgres
+    tag: 16-bullseye
+    pullPolicy: IfNotPresent
   jaeger:
     repository: jaegertracing/all-in-one
     tag: latest
@@ -26,9 +30,6 @@ images:
     tag: buildx-stable-1
     pullPolicy: IfNotPresent
 
-config:
-  port: 8081
-  mysqlRootPassword: yourpassword
 
 configmap:
   name: "rcabench"
@@ -37,10 +38,16 @@ configmap:
   debug: true
   workspace: "/app"
   system:
+    env_mode: "prod"
     timezone: "Asia/Shanghai"
   injection:
-    enable_duplicate: true
-    namespace_target_map: { ts: 6 }
+    enable_duplicate: false
+    namespace_config:
+      ts:
+        count: 6
+        port: "31%03d"
+        repo_name: "train-ticket"
+        repo_url: "https://lgu-se-internal.github.io/train-ticket"
     target_label_key: "app"
   database:
     clickhouse_host: "10.10.10.58"
@@ -48,6 +55,10 @@ configmap:
     mysql_password: "yourpassword"
     mysql_port: "3306"
     mysql_db: "rcabench"
+    postgres_user: "postgres"
+    postgres_password: "yourpassword"
+    postgres_port: "5432"
+    postgres_db: "rcabench"
   harbor:
     host: "10.10.10.240"
     repository: "10.10.10.240/library"
@@ -58,19 +69,15 @@ configmap:
   jfs:
     path: "/var/lib/rcabench"
   algo:
+    detector: "detector"
     storage_path: "/app/algorithms"
   debugging:
     enable: false
   buildkit:
     address: "tcp://{{ .Release.Name }}-buildkit:1234"
-  s3:
-    endpoint: "10.10.10.38:9000"
-    access_key: "minioadmin"
-    secret_key: "minioadmin"
-    use_ssl: false
 
 persistence:
-  mariadb:
+  postgres:
     enabled: true
     accessMode: ReadWriteOnce
     size: 1Gi

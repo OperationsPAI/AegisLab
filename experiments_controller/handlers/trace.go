@@ -120,20 +120,12 @@ func sendSSEMessages(c *gin.Context, messages []redis.XStream) (string, error) {
 	return lastID, nil
 }
 
-// GetEventNames 获取所有事件名称
-// @Summary     获取所有事件名称
-// @Description 获取所有事件名称
-// @Tags        trace
-// @Produce     json
-// @Success     200  {object}    dto.GenericResponse[[]consts.EventType]
-// @Router      /api/v1/traces/event_names [get]
-func GetEventNames(c *gin.Context) {
-	eventNames := make([]consts.EventType, 0, len(dto.ValidAnaylzeEventNames))
-	for eventName := range dto.ValidAnaylzeEventNames {
-		eventNames = append(eventNames, eventName)
-	}
+func GetTaskEventMap(c *gin.Context) {
+	dto.SuccessResponse(c, dto.ValidTaskEventMap)
+}
 
-	dto.SuccessResponse(c, eventNames)
+func GetValidTaskTypes(c *gin.Context) {
+	dto.SuccessResponse(c, dto.ValidTaskTypes)
 }
 
 // AnalyzeTrace 处理链路分析请求
@@ -141,13 +133,13 @@ func GetEventNames(c *gin.Context) {
 // @Description 使用多种筛选条件分析链路数据
 // @Tags        trace
 // @Produce     json
-// @Param       event_name       query   string  false  "事件名称筛选"
-// @Param       lookback         query   string  false  "时间回溯范围(5m,15m,30m,1h,2h,3h,6h,12h,1d,2d,custom)"
-// @Param       custom_start_time query   string  false  "当lookback=custom时必需，自定义开始时间(RFC3339格式)"
-// @Param       custom_end_time  query   string  false  "当lookback=custom时必需，自定义结束时间(RFC3339格式)"
-// @Success     200  {object}    dto.GenericResponse[dto.TraceAnalyzeReq]
-// @Failure     400  {object}    dto.GenericResponse[any]
-// @Failure     500  {object}    dto.GenericResponse[any]
+// @Param       first_task_type     query   string  false  "子任务类型筛选"
+// @Param		lookback			query	string	false	"相对时间查询，如 1h, 24h, 7d或者是custom"
+// @Param       custom_start_time 	query   string  false  "当lookback=custom时必需，自定义开始时间(RFC3339格式)"
+// @Param       custom_end_time  	query   string  false  "当lookback=custom时必需，自定义结束时间(RFC3339格式)"
+// @Success     200  {object}    	dto.GenericResponse[any]
+// @Failure     400  {object}    	dto.GenericResponse[any]
+// @Failure     500  {object}    	dto.GenericResponse[any]
 // @Router      /api/v1/traces/analyze [get]
 func AnalyzeTrace(c *gin.Context) {
 	var req dto.TraceAnalyzeReq
@@ -161,17 +153,56 @@ func AnalyzeTrace(c *gin.Context) {
 		return
 	}
 
-	filterOptions := dto.TraceAnalyzeFilterOptions{}
-	if err := filterOptions.Convert(req); err != nil {
+	filterOptions, err := req.Convert()
+	if err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid filter options: %v", err))
 		return
 	}
 
-	stats, err := analyzer.AnalyzeTrace(c.Request.Context(), filterOptions)
+	stats, err := analyzer.AnalyzeTrace(c.Request.Context(), *filterOptions)
 	if err != nil {
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to analyze trace")
 		return
 	}
 
 	dto.SuccessResponse(c, stats)
+}
+
+// GetCompletedMap 获取完成状态的链路
+// @Summary     获取完成状态的链路
+// @Description 根据指定的时间范围获取完成状态的链路
+// @Tags        trace
+// @Produce     json
+// @Param		lookback			query		string	false	"相对时间查询，如 1h, 24h, 7d或者是custom"
+// @Param       custom_start_time 	query   string   false "当lookback=custom时必需，自定义开始时间(RFC3339格式)"
+// @Param       custom_end_time  	query   string   false "当lookback=custom时必需，自定义结束时间(RFC3339格式)"
+// @Success     200 {object}     	dto.GenericResponse[dto.GetCompletedMapResp]
+// @Failure     400 {object}     	dto.GenericResponse[any]
+// @Failure     500 {object}     	dto.GenericResponse[any]
+// @Router      /api/v1/traces/completed [get]
+func GetCompletedMap(c *gin.Context) {
+	var req dto.GetCompletedMapReq
+	if err := c.BindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid Parameters")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid request: %v", err))
+		return
+	}
+
+	filterOptions, err := req.Convert()
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid filter options: %v", err))
+		return
+	}
+
+	result, err := analyzer.GetCompletedMap(c.Request.Context(), *filterOptions)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to analyze trace")
+		return
+	}
+
+	dto.SuccessResponse(c, result)
 }

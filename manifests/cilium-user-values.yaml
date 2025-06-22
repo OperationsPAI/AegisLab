@@ -1,0 +1,49 @@
+USER-SUPPLIED VALUES:
+cluster:
+  id: 1
+  name: kubernetes
+clustermesh:
+  apiserver:
+    metrics:
+      enabled: true
+      etcd:
+        enabled: true
+      kvstoremesh:
+        enabled: true
+  useAPIServer: true
+cni.exclusive: false
+hubble:
+  enabled: true
+  metrics:
+    enableOpenMetrics: true
+    enabled:
+    - dns:destinationContext=pod;sourceContext=pod
+    - drop:destinationContext=pod;sourceContext=pod
+    - tcp:destinationContext=pod;sourceContext=pod
+    - flow:destinationContext=pod;sourceContext=pod
+    - port-distribution:destinationContext=pod;sourceContext=pod
+    - icmp:destinationContext=pod;sourceContext=pod
+    - httpV2:exemplars=true;labelsContext=source_ip,source_namespace,source_workload,destination_ip,destination_namespace,destination_workload,traffic_direction;destinationContext=pod;sourceContext=pod
+  relay:
+    enabled: true
+  ui:
+    enabled: true
+operator:
+  prometheus:
+    enabled: true
+  replicas: 1
+prometheus:
+  enabled: true
+routingMode: tunnel
+socketLB.hostNamespaceOnly: true
+tunnelProtocol: vxlan
+
+image:
+  override: 10.10.10.240/library/cilium:v1.17.4
+  pullPolicy: IfNotPresent
+
+envoy:
+  image:
+    override: 10.10.10.240/library/cilium-envoy:v1.32.6
+
+

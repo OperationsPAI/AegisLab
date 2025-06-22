@@ -1,9 +1,27 @@
 {
+    "produces": [
+        "application/json"
+    ],
+    "schemes": [
+        "http",
+        "https"
+    ],
     "swagger": "2.0",
     "info": {
-        "title": "RCABench",
-        "contact": {}
+        "description": "RCABench - A comprehensive root cause analysis benchmarking platform for microservices\nThis API provides endpoints for managing datasets, algorithms, evaluations, and fault injections\nfor root cause analysis in distributed systems and microservices architectures.",
+        "title": "RCABench API",
+        "contact": {
+            "name": "RCABench Team",
+            "email": "team@rcabench.com"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "1.0.1"
     },
+    "host": "localhost:8080",
+    "basePath": "/api/v1",
     "paths": {
         "/api/v1/algorithms": {
             "get": {
@@ -60,8 +78,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "202": {
+                        "description": "Accepted",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
                         }
@@ -200,14 +218,14 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/dto.DatasetPayload"
+                                "$ref": "#/definitions/dto.DatasetBuildPayload"
                             }
                         }
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "202": {
+                        "description": "Accepted",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
                         }
@@ -225,9 +243,7 @@
                         }
                     }
                 }
-            }
-        },
-        "/api/v1/datasets/delete": {
+            },
             "delete": {
                 "description": "删除数据集数据",
                 "produces": [
@@ -239,10 +255,14 @@
                 "summary": "删除数据集数据",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "数据集 ID",
-                        "name": "datasetID",
-                        "in": "path",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "数据集名称列表",
+                        "name": "names",
+                        "in": "query",
                         "required": true
                     }
                 ],
@@ -250,7 +270,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-int"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetDeleteResp"
                         }
                     },
                     "400": {
@@ -278,6 +298,28 @@
                     "dataset"
                 ],
                 "summary": "下载数据集打包文件",
+                "parameters": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "数据集组ID列表，与names参数二选一",
+                        "name": "group_ids",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "数据集名称列表，与group_ids参数二选一",
+                        "name": "names",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "ZIP 文件流",
@@ -306,63 +348,143 @@
                 }
             }
         },
-        "/api/v1/evaluations": {
+        "/api/v1/datasets/query": {
             "get": {
-                "description": "返回每种算法的执行历史记录",
+                "description": "根据数据集名称查询单个数据集的详细信息，包括检测器结果和执行记录",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "dataset"
+                ],
+                "summary": "查询单个数据集详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "数据集名称",
+                        "name": "name",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "排序方式",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_QueryDatasetResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/evaluations/groundtruth": {
+            "get": {
+                "description": "根据数据集数组获取对应的 ground truth 数据",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "evaluation"
                 ],
-                "summary": "获取每种算法的执行历史记录",
+                "summary": "获取数据集的 ground truth",
                 "parameters": [
                     {
                         "type": "array",
                         "items": {
-                            "type": "integer"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "执行结果 ID 数组",
-                        "name": "execution_ids",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
                             "type": "string"
                         },
                         "collectionFormat": "csv",
-                        "description": "算法名称数组",
-                        "name": "algorithms",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "级别名称数组",
-                        "name": "levels",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "指标名称数组",
-                        "name": "metrics",
-                        "in": "query"
+                        "description": "数据集数组",
+                        "name": "datasets",
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "成功响应",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_EvaluationListResp"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_GroundTruthResp"
+                        }
+                    },
+                    "400": {
+                        "description": "参数校验失败",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/evaluations/raw-data": {
+            "get": {
+                "description": "根据算法和数据集的笛卡尔积获取对应的原始评估数据，包括粒度记录和真实值信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "evaluation"
+                ],
+                "summary": "获取原始评估数据",
+                "parameters": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "算法数组",
+                        "name": "algorithms",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "数据集数组",
+                        "name": "datasets",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功响应",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-array_dto_RawDataItem"
                         }
                     },
                     "400": {
@@ -381,53 +503,7 @@
             }
         },
         "/api/v1/injections": {
-            "post": {
-                "description": "注入故障",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "injection"
-                ],
-                "summary": "注入故障",
-                "parameters": [
-                    {
-                        "description": "请求体",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/dto.InjectionSubmitReq"
-                            }
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/injections/getlist": {
-            "post": {
+            "get": {
                 "description": "获取注入记录列表（支持分页参数）",
                 "produces": [
                     "application/json"
@@ -436,6 +512,22 @@
                     "injection"
                 ],
                 "summary": "分页查询注入记录列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page_num",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "每页大小",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -456,10 +548,714 @@
                         }
                     }
                 }
+            },
+            "post": {
+                "description": "注入故障",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "injection"
+                ],
+                "summary": "注入故障",
+                "parameters": [
+                    {
+                        "description": "请求体",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.InjectionSubmitReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/injections/analysis/dataset/{dataset_id}": {
+            "get": {
+                "description": "根据数据集ID查询故障注入记录详情（包括是否有问题）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "injection"
+                ],
+                "summary": "根据数据集ID查询故障注入记录",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "数据集ID",
+                        "name": "dataset_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/injections/analysis/no-issues": {
+            "get": {
+                "description": "根据时间范围查询所有没有问题的故障注入记录列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "injection"
+                ],
+                "summary": "查询没有问题的故障注入记录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "相对时间查询，如 1h, 24h, 7d或者是custom",
+                        "name": "lookback",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "当lookback=custom时必需，自定义开始时间 (RFC3339格式)",
+                        "name": "custom_start_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "当lookback=custom时必需，自定义结束时间 (RFC3339格式)",
+                        "name": "custom_end_time",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-array_dto_FaultInjectionNoIssuesResp"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误或时间格式错误",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/injections/analysis/statistics": {
+            "get": {
+                "description": "获取故障注入记录的统计信息，包括有问题和没有问题的记录数量",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "injection"
+                ],
+                "summary": "获取故障注入统计信息",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_FaultInjectionStatisticsResp"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/injections/analysis/with-issues": {
+            "get": {
+                "description": "根据时间范围查询所有有问题的故障注入记录列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "injection"
+                ],
+                "summary": "查询有问题的故障注入记录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "相对时间查询，如 1h, 24h, 7d或者是custom",
+                        "name": "lookback",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "当lookback=custom时必需，自定义开始时间 (RFC3339格式)",
+                        "name": "custom_start_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "当lookback=custom时必需，自定义结束时间 (RFC3339格式)",
+                        "name": "custom_end_time",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-array_dto_FaultInjectionWithIssuesResp"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误或时间格式错误",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/injections/conf": {
+            "get": {
+                "description": "获取指定命名空间的故障注入配置信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "injection"
+                ],
+                "summary": "获取故障注入配置",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "命名空间",
+                        "name": "namespace",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "显示模式(display/engine)",
+                        "name": "mode",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-handler_Node"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/injections/configs": {
+            "get": {
+                "description": "根据多个 TraceID 获取对应的故障注入配置信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "injection"
+                ],
+                "summary": "获取故障注入配置列表",
+                "parameters": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Trace ID 列表",
+                        "name": "trace_ids",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/injections/ns/status": {
+            "get": {
+                "description": "获取命名空间锁状态信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "injection"
+                ],
+                "summary": "获取命名空间锁状态",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/injections/query": {
+            "get": {
+                "description": "根据名称或任务ID查询故障注入记录详情",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "injection"
+                ],
+                "summary": "查询故障注入记录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "注入名称",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "任务ID",
+                        "name": "task_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionItem"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/injections/{task_id}/cancel": {
+            "put": {
+                "description": "取消指定的故障注入任务",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "injection"
+                ],
+                "summary": "取消故障注入任务",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "任务ID",
+                        "name": "task_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectCancelResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tasks/list": {
+            "get": {
+                "description": "分页获取任务列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "task"
+                ],
+                "summary": "获取任务列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page_num",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "每页大小",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "排序字段",
+                        "name": "sort_field",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_PaginationResp-dto_TaskItem"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tasks/queue": {
+            "get": {
+                "description": "分页获取队列中等待执行的任务列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "task"
+                ],
+                "summary": "获取队列中的任务",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page_num",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "每页大小",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_PaginationResp-dto_UnifiedTask"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tasks/{task_id}": {
+            "get": {
+                "description": "根据任务ID获取任务详细信息,包括任务基本信息和执行日志",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "task"
+                ],
+                "summary": "获取任务详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "任务ID",
+                        "name": "task_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_TaskDetailResp"
+                        }
+                    },
+                    "400": {
+                        "description": "无效的任务ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "任务不存在",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/traces/analyze": {
+            "get": {
+                "description": "使用多种筛选条件分析链路数据",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "trace"
+                ],
+                "summary": "分析链路数据",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "子任务类型筛选",
+                        "name": "first_task_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "相对时间查询，如 1h, 24h, 7d或者是custom",
+                        "name": "lookback",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "当lookback=custom时必需，自定义开始时间(RFC3339格式)",
+                        "name": "custom_start_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "当lookback=custom时必需，自定义结束时间(RFC3339格式)",
+                        "name": "custom_end_time",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/traces/completed": {
+            "get": {
+                "description": "根据指定的时间范围获取完成状态的链路",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "trace"
+                ],
+                "summary": "获取完成状态的链路",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "相对时间查询，如 1h, 24h, 7d或者是custom",
+                        "name": "lookback",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "当lookback=custom时必需，自定义开始时间(RFC3339格式)",
+                        "name": "custom_start_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "当lookback=custom时必需，自定义结束时间(RFC3339格式)",
+                        "name": "custom_end_time",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_GetCompletedMapResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
             }
         }
     },
     "definitions": {
+        "consts.TaskType": {
+            "type": "string",
+            "enum": [
+                "",
+                "RestartService",
+                "RunAlgorithm",
+                "FaultInjection",
+                "BuildImages",
+                "BuildDataset",
+                "CollectResult"
+            ],
+            "x-enum-varnames": [
+                "TaskTypeDummy",
+                "TaskTypeRestartService",
+                "TaskTypeRunAlgorithm",
+                "TaskTypeFaultInjection",
+                "TaskTypeBuildImages",
+                "TaskTypeBuildDataset",
+                "TaskTypeCollectResult"
+            ]
+        },
         "dto.AlgorithmExecutionPayload": {
             "type": "object",
             "properties": {
@@ -469,11 +1265,8 @@
                 "dataset": {
                     "type": "string"
                 },
-                "service": {
-                    "type": "string"
-                },
-                "tag": {
-                    "type": "string"
+                "env_vars": {
+                    "type": "object"
                 }
             }
         },
@@ -488,19 +1281,34 @@
                 }
             }
         },
-        "dto.Conclusion": {
+        "dto.DatasetBuildPayload": {
             "type": "object",
             "properties": {
-                "level": {
-                    "description": "例如 service level",
+                "benchmark": {
                     "type": "string"
                 },
-                "metric": {
-                    "description": "例如 topk",
+                "env_vars": {
+                    "type": "object"
+                },
+                "name": {
                     "type": "string"
                 },
-                "rate": {
-                    "type": "number"
+                "pre_duration": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.DatasetDeleteResp": {
+            "type": "object",
+            "properties": {
+                "failed_names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "success_count": {
+                    "type": "integer"
                 }
             }
         },
@@ -514,31 +1322,10 @@
                     "type": "string"
                 },
                 "param": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "start_time": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.DatasetPayload": {
-            "type": "object",
-            "properties": {
-                "benchmark": {
-                    "type": "string"
-                },
-                "end_time": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "pre_duration": {
-                    "type": "integer"
-                },
-                "service": {
-                    "type": "string"
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    }
                 },
                 "start_time": {
                     "type": "string"
@@ -548,71 +1335,51 @@
         "dto.DetectorRecord": {
             "type": "object",
             "properties": {
-                "P90": {
-                    "type": "number"
+                "abnormal_avg_duration": {
+                    "type": "number",
+                    "example": 0.5
                 },
-                "P95": {
-                    "type": "number"
+                "abnormal_p90": {
+                    "type": "number",
+                    "example": 1.2
                 },
-                "P99": {
-                    "type": "number"
+                "abnormal_p95": {
+                    "type": "number",
+                    "example": 1.5
                 },
-                "avg_duration": {
-                    "type": "number"
+                "abnormal_p99": {
+                    "type": "number",
+                    "example": 2
+                },
+                "abnormal_succ_rate": {
+                    "type": "number",
+                    "example": 0.8
                 },
                 "issue": {
                     "type": "string"
                 },
+                "normal_avg_duration": {
+                    "type": "number",
+                    "example": 0.3
+                },
+                "normal_p90": {
+                    "type": "number",
+                    "example": 0.8
+                },
+                "normal_p95": {
+                    "type": "number",
+                    "example": 1
+                },
+                "normal_p99": {
+                    "type": "number",
+                    "example": 1.3
+                },
+                "normal_succ_rate": {
+                    "type": "number",
+                    "example": 0.95
+                },
                 "span_name": {
                     "type": "string"
-                },
-                "succ_rate": {
-                    "type": "number"
-                }
-            }
-        },
-        "dto.EvaluationItem": {
-            "type": "object",
-            "properties": {
-                "algorithm": {
-                    "type": "string"
-                },
-                "conclusions": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.Conclusion"
-                    }
-                },
-                "executions": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.Execution"
-                    }
-                }
-            }
-        },
-        "dto.EvaluationListResp": {
-            "type": "object",
-            "properties": {
-                "results": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.EvaluationItem"
-                    }
-                }
-            }
-        },
-        "dto.Execution": {
-            "type": "object",
-            "properties": {
-                "dataset": {
-                    "$ref": "#/definitions/dto.DatasetItem"
-                },
-                "granularity_records": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.GranularityRecord"
-                    }
                 }
             }
         },
@@ -630,6 +1397,63 @@
                 }
             }
         },
+        "dto.FaultInjectionNoIssuesResp": {
+            "type": "object",
+            "properties": {
+                "dataset_id": {
+                    "type": "integer"
+                },
+                "display_config": {
+                    "type": "string"
+                },
+                "engine_config": {
+                    "$ref": "#/definitions/handler.Node"
+                },
+                "injection_name": {
+                    "type": "string"
+                },
+                "pre_duration": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.FaultInjectionStatisticsResp": {
+            "type": "object",
+            "properties": {
+                "no_issues_count": {
+                    "type": "integer"
+                },
+                "total_count": {
+                    "type": "integer"
+                },
+                "with_issues_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.FaultInjectionWithIssuesResp": {
+            "type": "object",
+            "properties": {
+                "dataset_id": {
+                    "type": "integer"
+                },
+                "display_config": {
+                    "type": "string"
+                },
+                "engine_config": {
+                    "$ref": "#/definitions/handler.Node"
+                },
+                "injection_name": {
+                    "type": "string"
+                },
+                "issues": {
+                    "type": "string"
+                },
+                "pre_duration": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GenericResponse-any": {
             "type": "object",
             "properties": {
@@ -639,6 +1463,78 @@
                 },
                 "data": {
                     "description": "泛型类型的数据"
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-array_dto_FaultInjectionNoIssuesResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.FaultInjectionNoIssuesResp"
+                    }
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-array_dto_FaultInjectionWithIssuesResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.FaultInjectionWithIssuesResp"
+                    }
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-array_dto_RawDataItem": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.RawDataItem"
+                    }
                 },
                 "message": {
                     "description": "响应消息",
@@ -675,7 +1571,7 @@
                 }
             }
         },
-        "dto.GenericResponse-dto_EvaluationListResp": {
+        "dto.GenericResponse-dto_DatasetDeleteResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -686,7 +1582,132 @@
                     "description": "泛型类型的数据",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.EvaluationListResp"
+                            "$ref": "#/definitions/dto.DatasetDeleteResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_FaultInjectionStatisticsResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.FaultInjectionStatisticsResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_GetCompletedMapResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.GetCompletedMapResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_GroundTruthResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.GroundTruthResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_InjectCancelResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.InjectCancelResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_InjectionItem": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.InjectionItem"
                         }
                     ]
                 },
@@ -750,6 +1771,56 @@
                 }
             }
         },
+        "dto.GenericResponse-dto_PaginationResp-dto_TaskItem": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.PaginationResp-dto_TaskItem"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_PaginationResp-dto_UnifiedTask": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.PaginationResp-dto_UnifiedTask"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GenericResponse-dto_QueryDatasetResp": {
             "type": "object",
             "properties": {
@@ -800,7 +1871,7 @@
                 }
             }
         },
-        "dto.GenericResponse-int": {
+        "dto.GenericResponse-dto_TaskDetailResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -809,7 +1880,11 @@
                 },
                 "data": {
                     "description": "泛型类型的数据",
-                    "type": "integer"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.TaskDetailResp"
+                        }
+                    ]
                 },
                 "message": {
                     "description": "响应消息",
@@ -818,6 +1893,50 @@
                 "timestamp": {
                     "description": "响应生成时间",
                     "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-handler_Node": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/handler.Node"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GetCompletedMapResp": {
+            "type": "object",
+            "properties": {
+                "has_anomaly": {
+                    "description": "检测到异常的链路ID列表",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "no_anomaly": {
+                    "description": "没有异常的链路ID列表",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -838,14 +1957,67 @@
                 }
             }
         },
+        "dto.GroundTruthResp": {
+            "type": "object",
+            "additionalProperties": {
+                "$ref": "#/definitions/handler.Groundtruth"
+            }
+        },
+        "dto.InjectCancelResp": {
+            "type": "object"
+        },
+        "dto.InjectionItem": {
+            "type": "object",
+            "properties": {
+                "end_time": {
+                    "type": "string"
+                },
+                "fault_type": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "pre_duration": {
+                    "type": "integer"
+                },
+                "spec": {
+                    "type": "object"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "task_id": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.InjectionSubmitReq": {
             "type": "object",
             "properties": {
+                "algorithms": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "benchmark": {
                     "type": "string"
                 },
+                "direct": {
+                    "type": "boolean"
+                },
                 "interval": {
                     "type": "integer"
+                },
+                "labels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelItem"
+                    }
                 },
                 "pre_duration": {
                     "type": "integer"
@@ -853,16 +2025,43 @@
                 "specs": {
                     "type": "array",
                     "items": {
-                        "type": "object",
-                        "additionalProperties": {}
+                        "$ref": "#/definitions/handler.Node"
                     }
+                }
+            }
+        },
+        "dto.LabelItem": {
+            "type": "object",
+            "required": [
+                "key",
+                "value"
+            ],
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "enum": [
+                        "env",
+                        "batch"
+                    ]
+                },
+                "value": {
+                    "type": "string"
                 }
             }
         },
         "dto.PaginationResp-dto_DatasetItem": {
             "type": "object",
             "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DatasetItem"
+                    }
+                },
                 "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
                     "type": "integer"
                 }
             }
@@ -870,27 +2069,51 @@
         "dto.PaginationResp-dto_InjectionItem": {
             "type": "object",
             "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.InjectionItem"
+                    }
+                },
                 "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
                     "type": "integer"
                 }
             }
         },
-        "dto.QueryDatasetReq": {
+        "dto.PaginationResp-dto_TaskItem": {
             "type": "object",
-            "required": [
-                "name"
-            ],
             "properties": {
-                "name": {
-                    "type": "string",
-                    "maxLength": 64
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.TaskItem"
+                    }
                 },
-                "sort": {
-                    "type": "string",
-                    "enum": [
-                        "desc",
-                        "asc"
-                    ]
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.PaginationResp-dto_UnifiedTask": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.UnifiedTask"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
                 }
             }
         },
@@ -913,11 +2136,46 @@
                     "type": "string"
                 },
                 "param": {
-                    "type": "object",
-                    "additionalProperties": {}
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    }
                 },
                 "start_time": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.RawDataItem": {
+            "type": "object",
+            "properties": {
+                "algorithm": {
+                    "type": "string"
+                },
+                "dataset": {
+                    "type": "string"
+                },
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.GranularityRecord"
+                    }
+                },
+                "groundtruth": {
+                    "$ref": "#/definitions/handler.Groundtruth"
+                }
+            }
+        },
+        "dto.RetryPolicy": {
+            "type": "object",
+            "properties": {
+                "backoff_sec": {
+                    "description": "Seconds to wait between retries",
+                    "type": "integer"
+                },
+                "max_attempts": {
+                    "description": "Maximum number of retry attempts",
+                    "type": "integer"
                 }
             }
         },
@@ -935,15 +2193,197 @@
                 }
             }
         },
+        "dto.TaskDetailResp": {
+            "type": "object",
+            "properties": {
+                "logs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "task": {
+                    "$ref": "#/definitions/dto.TaskItem"
+                }
+            }
+        },
+        "dto.TaskItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "payload": {
+                    "type": "object"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "trace_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.Trace": {
             "type": "object",
             "properties": {
                 "head_task_id": {
                     "type": "string"
                 },
+                "index": {
+                    "type": "integer"
+                },
                 "trace_id": {
                     "type": "string"
                 }
+            }
+        },
+        "dto.UnifiedTask": {
+            "type": "object",
+            "properties": {
+                "cron_expr": {
+                    "description": "Cron expression for recurring tasks",
+                    "type": "string"
+                },
+                "execute_time": {
+                    "description": "Unix timestamp for delayed execution",
+                    "type": "integer"
+                },
+                "group_carrier": {
+                    "description": "Carrier for group context",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/propagation.MapCarrier"
+                        }
+                    ]
+                },
+                "group_id": {
+                    "description": "ID for grouping tasks",
+                    "type": "string"
+                },
+                "immediate": {
+                    "description": "Whether to execute immediately",
+                    "type": "boolean"
+                },
+                "payload": {
+                    "description": "Task-specific data",
+                    "type": "object"
+                },
+                "restart_num": {
+                    "description": "Number of restarts for the task",
+                    "type": "integer"
+                },
+                "retry_policy": {
+                    "description": "Policy for retrying failed tasks",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.RetryPolicy"
+                        }
+                    ]
+                },
+                "task_id": {
+                    "description": "Unique identifier for the task",
+                    "type": "string"
+                },
+                "trace_carrier": {
+                    "description": "Carrier for trace context",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/propagation.MapCarrier"
+                        }
+                    ]
+                },
+                "trace_id": {
+                    "description": "ID for tracing related tasks",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "Task type (determines how it's processed)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/consts.TaskType"
+                        }
+                    ]
+                }
+            }
+        },
+        "handler.Groundtruth": {
+            "type": "object",
+            "properties": {
+                "container": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "function": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "metric": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "pod": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "service": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "span": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "handler.Node": {
+            "type": "object",
+            "properties": {
+                "children": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/handler.Node"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "range": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "propagation.MapCarrier": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "string"
             }
         }
     }

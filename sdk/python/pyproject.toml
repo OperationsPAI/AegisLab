@@ -1,6 +1,6 @@
 [project]
 name = "rcabench"
-version = "0.3.26"
+version = "1.0.17"
 description = "RCABench SDK"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -13,6 +13,12 @@ dependencies = [
     "twine>=5.1.1",
     "wheel>=0.45.1",
     "loguru>=0.7.3",
+    "urllib3>=2.2.3, < 3.0.0",
+    "python-dateutil>=2.9.0.post0",
+    "typing-extensions>=4.12.2",
+    "click>=8.2.1",
+    "typer>=0.16.0",
+    "rich>=13.0.0",
 ]
 
 # default settings of `uv init --lib`

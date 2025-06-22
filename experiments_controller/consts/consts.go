@@ -19,6 +19,13 @@ const (
 )
 
 const (
+	ExecutionDeleted = -1
+	ExecutionInitial = 0
+	ExecutionFailed  = 1
+	ExecutionSuccess = 2
+)
+
+const (
 	TaskStatusCanceled    string = "Canceled"
 	TaskStatusCompleted   string = "Completed"
 	TaskStatusError       string = "Error"
@@ -55,17 +62,18 @@ const (
 	BuildAlgorithmPath = "algorithm_path"
 
 	CollectAlgorithm   = "algorithm"
+	CollectAnnotations = "annotations"
 	CollectDataset     = "dataset"
 	CollectExecutionID = "execution_id"
 
 	EvaluateLabel = "app_name"
 	EvaluateLevel = "level"
 
-	ExecuteImage   = "image"
-	ExecuteTag     = "tag"
-	ExecuteDataset = "dataset"
-	ExecuteEnvVars = "env_vars"
+	ExecuteAlgorithm = "algorithm"
+	ExecuteDataset   = "dataset"
+	ExecuteEnvVars   = "env_vars"
 
+	InjectAlgorithms  = "algorithms"
 	InjectBenchmark   = "benchmark"
 	InjectFaultType   = "fault_type"
 	InjectNamespace   = "namespace"
@@ -73,6 +81,7 @@ const (
 	InjectDisplayData = "display_data"
 	InjectConf        = "conf"
 	InjectNode        = "node"
+	InjectLabels      = "labels"
 
 	RestartIntarval      = "interval"
 	RestartFaultDuration = "fault_duration"
@@ -118,13 +127,14 @@ type EventType string
 const (
 	// when adding the consts, remember to update the consts in python sdk, const.py
 	EventAlgoRunSucceed EventType = "algorithm.run.succeed"
+	EventAlgoRunFailed  EventType = "algorithm.run.failed"
 
-	// TODO 校验算法执行结果
 	EventAlgoResultCollection    EventType = "algorithm.collect_result"
 	EventDatasetResultCollection EventType = "dataset.result.collection"
 	EventDatasetNoAnomaly        EventType = "dataset.no_anomaly"
 	EventDatasetNoConclusionFile EventType = "dataset.no_conclusion_file"
 	EventDatasetBuildSucceed     EventType = "dataset.build.succeed"
+	EventDatasetBuildFailed      EventType = "dataset.build.failed"
 
 	EventTaskStatusUpdate EventType = "task.status.update"
 	EventTaskRetryStatus  EventType = "task.retry.status"
@@ -197,7 +207,6 @@ const (
 )
 
 // span attribute keys
-
 const (
 	// TaskIDKey is the key for the task ID attribute.
 	TaskIDKey = "task.task_id"

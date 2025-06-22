@@ -44,10 +44,6 @@ func CreateJob(ctx context.Context, jobConfig JobConfig) error {
 				SubPath:   "config",
 			},
 		}
-		// pvc := config.GetString("nfs.pvc_name")
-		// if config.GetString("nfs.pvc_name") == "" {
-		// pvc = "nfs-shared-pvc"
-		// }
 		volumes := []corev1.Volume{
 			{
 				Name: "jfs-volume",

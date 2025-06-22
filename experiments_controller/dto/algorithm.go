@@ -7,25 +7,24 @@ type AlgorithmListResp struct {
 }
 
 type AlgorithmExecutionPayload struct {
-	Image   string            `json:"image"`
-	Tag     string            `json:"tag"`
-	Dataset string            `json:"dataset"`
-	EnvVars map[string]string `json:"env_vars"`
+	Algorithm string            `json:"algorithm"`
+	Dataset   string            `json:"dataset"`
+	EnvVars   map[string]string `json:"env_vars" swaggertype:"object"`
 }
 
 type DetectorRecord struct {
 	SpanName            string   `json:"span_name"`
 	Issues              string   `json:"issue"`
-	AbnormalAvgDuration *float64 `json:"abnormal_avg_duration"`
-	NormalAvgDuration   *float64 `json:"normal_avg_duration"`
-	AbnormalSuccRate    *float64 `json:"abnormal_succ_rate"`
-	NormalSuccRate      *float64 `json:"normal_succ_rate"`
-	AbnormalP90         *float64 `json:"abnormal_p90"`
-	NormalP90           *float64 `json:"normal_p90"`
-	AbnormalP95         *float64 `json:"abnormal_p95"`
-	NormalP95           *float64 `json:"normal_p95"`
-	AbnormalP99         *float64 `json:"abnormal_p99"`
-	NormalP99           *float64 `json:"normal_p99"`
+	AbnormalAvgDuration *float64 `json:"abnormal_avg_duration" swaggertype:"number" example:"0.5"`
+	NormalAvgDuration   *float64 `json:"normal_avg_duration" swaggertype:"number" example:"0.3"`
+	AbnormalSuccRate    *float64 `json:"abnormal_succ_rate" swaggertype:"number" example:"0.8"`
+	NormalSuccRate      *float64 `json:"normal_succ_rate" swaggertype:"number" example:"0.95"`
+	AbnormalP90         *float64 `json:"abnormal_p90" swaggertype:"number" example:"1.2"`
+	NormalP90           *float64 `json:"normal_p90" swaggertype:"number" example:"0.8"`
+	AbnormalP95         *float64 `json:"abnormal_p95" swaggertype:"number" example:"1.5"`
+	NormalP95           *float64 `json:"normal_p95" swaggertype:"number" example:"1.0"`
+	AbnormalP99         *float64 `json:"abnormal_p99" swaggertype:"number" example:"2.0"`
+	NormalP99           *float64 `json:"normal_p99" swaggertype:"number" example:"1.3"`
 }
 
 type ExecutionRecord struct {

@@ -1,17 +1,25 @@
 package repository
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	"gorm.io/gorm"
+
+	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 )
 
-func CreateExecutionResult(algorithm, taskID string, datasetID int) (int, error) {
+func CreateExecutionResult(taskID, algorithm, dataset string) (int, error) {
 	executionResult := database.ExecutionResult{
 		TaskID:    taskID,
-		Dataset:   datasetID,
 		Algorithm: algorithm,
+		Dataset:   dataset,
+		Status:    consts.ExecutionInitial,
 	}
 	if err := database.DB.Create(&executionResult).Error; err != nil {
 		return 0, err
@@ -108,7 +116,8 @@ func ListExecutionRecordByExecID(executionIDs []int,
 	resultMap := make(map[int]*dto.ExecutionRecordWithDatasetID)
 	for _, exec := range executions {
 		resultMap[exec.ID] = &dto.ExecutionRecordWithDatasetID{
-			DatasetID: exec.Dataset,
+			// TODO 修改
+			DatasetID: 0,
 			ExecutionRecord: dto.ExecutionRecord{
 				Algorithm:          exec.Algorithm,
 				GranularityRecords: []dto.GranularityRecord{},
@@ -130,4 +139,175 @@ func ListExecutionRecordByExecID(executionIDs []int,
 	}
 
 	return results, nil
+}
+
+func ListExecutionRawData(pairs []dto.AlgorithmDatasetPair) ([]dto.RawDataItem, error) {
+	if len(pairs) == 0 {
+		return nil, fmt.Errorf("no algorithm-dataset pairs provided")
+	}
+
+	execIDMap, err := getLatestExecutionMap(pairs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get latest execution IDs: %v", err)
+	}
+
+	if len(execIDMap) == 0 {
+		return nil, fmt.Errorf("no execution IDs found for the provided pairs")
+	}
+
+	var execIDs []int
+	for id := range execIDMap {
+		execIDs = append(execIDs, id)
+	}
+
+	var granularityResults []database.GranularityResult
+	if err := database.DB.
+		Model(&database.GranularityResult{}).
+		Where("execution_id IN (?)", execIDs).
+		Find(&granularityResults).Error; err != nil {
+		return nil, fmt.Errorf("failed to query granularity results: %v", err)
+	}
+
+	var items []dto.RawDataItem
+	for id, pairStr := range execIDMap {
+		parts := strings.Split(pairStr, "_")
+		algorithm := parts[0]
+		dataset := parts[1]
+
+		var records []dto.GranularityRecord
+		for _, gran := range granularityResults {
+			if id == gran.ExecutionID {
+				var record dto.GranularityRecord
+				record.Convert(gran)
+				records = append(records, record)
+			}
+		}
+
+		items = append(items, dto.RawDataItem{
+			Algorithm: algorithm,
+			Dataset:   dataset,
+			Entries:   records,
+		})
+	}
+
+	dataset := make([]string, 0, len(pairs))
+	for _, pair := range pairs {
+		dataset = append(dataset, pair.Dataset)
+	}
+
+	groundtruthMap, err := GetGroundtruthMap(dataset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ground truth map: %v", err)
+	}
+
+	for i := range items {
+		if gt, exists := groundtruthMap[items[i].Dataset]; exists {
+			items[i].Groundtruth = gt
+		} else {
+			items[i].Groundtruth = chaos.Groundtruth{}
+		}
+	}
+
+	return items, nil
+}
+
+func UpdateStatusByExecID(executionID int, status int) error {
+	var record database.ExecutionResult
+	err := database.DB.
+		Where("id = ?", executionID).
+		First(&record).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("record with id %d not found", executionID)
+		}
+
+		return fmt.Errorf("failed to query record: %v", err)
+	}
+
+	result := database.DB.
+		Model(&record).
+		Updates(map[string]any{"status": status})
+
+	if result.Error != nil {
+		return fmt.Errorf("failed to update record: %v", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("record found but no fields were updated, possibly because values are unchanged")
+	}
+
+	return nil
+}
+
+func getLatestExecutionMap(pairs []dto.AlgorithmDatasetPair) (map[int]string, error) {
+	uniquePairs := make(map[string]dto.AlgorithmDatasetPair)
+	for _, pair := range pairs {
+		key := fmt.Sprintf("%s_%s", pair.Algorithm, pair.Dataset)
+		uniquePairs[key] = pair
+	}
+
+	var algorithms []string
+	var datasets []string
+	for _, pair := range uniquePairs {
+		algorithms = append(algorithms, pair.Algorithm)
+		datasets = append(datasets, pair.Dataset)
+	}
+
+	var executions []database.ExecutionResult
+	if err := database.DB.
+		Model(&database.ExecutionResult{}).
+		Where("algorithm IN (?) AND dataset IN (?) AND status = (?)", algorithms, datasets, consts.ExecutionSuccess).
+		Order("algorithm, dataset, created_at DESC").
+		Find(&executions).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("no execution records found for the provided pairs")
+		}
+
+		return nil, fmt.Errorf("failed to batch query executions: %w", err)
+	}
+
+	execIDMap := make(map[int]string)
+	seen := make(map[string]bool)
+	for _, exec := range executions {
+		key := fmt.Sprintf("%s_%s", exec.Algorithm, exec.Dataset)
+		if !seen[key] {
+			if _, exists := uniquePairs[key]; exists {
+				execIDMap[exec.ID] = key
+				seen[key] = true
+			}
+		}
+	}
+
+	return execIDMap, nil
+}
+
+func GetGroundtruthMap(datasets []string) (map[string]chaos.Groundtruth, error) {
+	engineConfs, err := ListEngineConfigByNames(datasets)
+	if err != nil {
+		return nil, err
+	}
+
+	groundtruthMap := make(map[string]chaos.Groundtruth, len(engineConfs))
+	for idx, engineConf := range engineConfs {
+		dataset := datasets[idx]
+
+		var node chaos.Node
+		if err := json.Unmarshal([]byte(engineConf), &node); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal chaos-experiment node for dataset %s: %v", dataset, err)
+		}
+
+		conf, err := chaos.NodeToStruct[chaos.InjectionConf](&node)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert chaos-experiment node to InjectionConf for dataset %s: %v", dataset, err)
+		}
+
+		groundtruth, err := conf.GetGroundtruth()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get ground truth for dataset %s: %v", dataset, err)
+		}
+
+		groundtruthMap[datasets[idx]] = groundtruth
+	}
+
+	return groundtruthMap, nil
 }

@@ -1,0 +1,139 @@
+# Valid values are "daemonset", "deployment", and "statefulset".
+mode: "deployment"
+
+presets:
+  kubernetesEvents:
+    enabled: true
+  clusterMetrics:
+    enabled: true
+
+image:
+  # If you want to use the core image `otel/opentelemetry-collector`, you also need to change `command.name` value to `otelcol`.
+  repository: otel/opentelemetry-collector-contrib
+  tag: "0.123.0-amd64"
+
+configMap:
+  create: true
+
+config:
+  exporters:
+    debug:
+      verbosity: normal
+    clickhouse:
+      endpoint: tcp://10.10.10.58:9000?dial_timeout=10s&compress=lz4&username=default&password=password
+      database: default
+      ttl: 72h
+      logs_table_name: otel_logs
+      traces_table_name: otel_traces
+      metrics_table_name: otel_metrics
+      timeout: 5s
+      retry_on_failure:
+        enabled: true
+        initial_interval: 5s
+        max_interval: 30s
+        max_elapsed_time: 300s
+  extensions:
+    health_check:
+      endpoint: ${env:MY_POD_IP}:13133
+  processors:
+    batch:
+      timeout: 5s
+      send_batch_size: 10000
+    memory_limiter:
+      check_interval: 1s
+      limit_percentage: 80
+      spike_limit_percentage: 25
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: ${env:MY_POD_IP}:4317
+        http:
+          endpoint: ${env:MY_POD_IP}:4318
+    prometheus:
+      config:
+        scrape_configs:
+          - job_name: kube-prom-exporter
+            scrape_interval: 5s
+            static_configs:
+              - targets:
+                - prometheus-stack-prometheus-node-exporter.monitoring:9100
+          - job_name: 'kubernetes-pods'
+            kubernetes_sd_configs:
+              - role: pod
+            relabel_configs:
+              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+                action: keep
+                regex: true
+              - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+                action: replace
+                regex: ([^:]+)(?::\d+)?;(\d+)
+                replacement: $${1}:$${2}
+                target_label: __address__
+          - job_name: 'kubernetes-endpoints'
+            scrape_interval: 10s
+            kubernetes_sd_configs:
+              - role: endpoints
+            relabel_configs:
+              - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+                action: keep
+                regex: true
+              - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+                action: replace
+                target_label: __address__
+                regex: (.+)(?::\d+);(\d+)
+                replacement: $$1:$$2
+          - job_name: 'federate'
+            scrape_interval: 15s
+            honor_labels: false
+            params:
+              'match[]':
+                - '{__name__="hubble_http_request_duration_p50_seconds"}'
+                - '{__name__="hubble_http_request_duration_p90_seconds"}'
+                - '{__name__="hubble_http_request_duration_p95_seconds"}'
+                - '{__name__="hubble_http_request_duration_p99_seconds"}'
+            metrics_path: '/federate'
+            static_configs:
+              - targets:
+                  - prometheus.cilium-monitoring.svc.cluster.local:9090
+  service:
+    telemetry:
+      metrics:
+        address: ${env:MY_POD_IP}:8888
+    extensions:
+      - health_check
+    pipelines:
+      logs: 
+        exporters:
+          - clickhouse
+        processors:
+          - memory_limiter
+          - batch
+        receivers:
+          - otlp
+      metrics: 
+        exporters:
+          - clickhouse
+        processors:
+          - memory_limiter
+          - batch
+        receivers:
+          - otlp
+          - prometheus
+      traces:
+        exporters:
+          - clickhouse
+        processors:
+          - memory_limiter
+          - batch
+        receivers:
+          - otlp
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
