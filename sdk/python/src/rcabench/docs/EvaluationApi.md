@@ -4,23 +4,23 @@ All URIs are relative to *http://localhost:8080/api/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**api_v1_evaluations_get**](EvaluationApi.md#api_v1_evaluations_get) | **GET** /api/v1/evaluations | 获取每种算法的执行历史记录
+[**api_v1_evaluations_groundtruth_get**](EvaluationApi.md#api_v1_evaluations_groundtruth_get) | **GET** /api/v1/evaluations/groundtruth | 获取数据集的 ground truth
 [**api_v1_evaluations_raw_data_get**](EvaluationApi.md#api_v1_evaluations_raw_data_get) | **GET** /api/v1/evaluations/raw-data | 获取原始评估数据
 
 
-# **api_v1_evaluations_get**
-> DtoGenericResponseDtoEvaluationListResp api_v1_evaluations_get(execution_ids=execution_ids, algorithms=algorithms, levels=levels, metrics=metrics)
+# **api_v1_evaluations_groundtruth_get**
+> DtoGenericResponseDtoGroundTruthResp api_v1_evaluations_groundtruth_get(datasets)
 
-获取每种算法的执行历史记录
+获取数据集的 ground truth
 
-返回每种算法的执行历史记录
+根据数据集数组获取对应的 ground truth 数据
 
 ### Example
 
 
 ```python
 import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_dto_evaluation_list_resp import DtoGenericResponseDtoEvaluationListResp
+from rcabench.openapi.models.dto_generic_response_dto_ground_truth_resp import DtoGenericResponseDtoGroundTruthResp
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
@@ -35,18 +35,15 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.EvaluationApi(api_client)
-    execution_ids = [56] # List[int] | 执行结果 ID 数组 (optional)
-    algorithms = ['algorithms_example'] # List[str] | 算法名称数组 (optional)
-    levels = ['levels_example'] # List[str] | 级别名称数组 (optional)
-    metrics = ['metrics_example'] # List[str] | 指标名称数组 (optional)
+    datasets = ['datasets_example'] # List[str] | 数据集数组
 
     try:
-        # 获取每种算法的执行历史记录
-        api_response = api_instance.api_v1_evaluations_get(execution_ids=execution_ids, algorithms=algorithms, levels=levels, metrics=metrics)
-        print("The response of EvaluationApi->api_v1_evaluations_get:\n")
+        # 获取数据集的 ground truth
+        api_response = api_instance.api_v1_evaluations_groundtruth_get(datasets)
+        print("The response of EvaluationApi->api_v1_evaluations_groundtruth_get:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling EvaluationApi->api_v1_evaluations_get: %s\n" % e)
+        print("Exception when calling EvaluationApi->api_v1_evaluations_groundtruth_get: %s\n" % e)
 ```
 
 
@@ -56,14 +53,11 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **execution_ids** | [**List[int]**](int.md)| 执行结果 ID 数组 | [optional] 
- **algorithms** | [**List[str]**](str.md)| 算法名称数组 | [optional] 
- **levels** | [**List[str]**](str.md)| 级别名称数组 | [optional] 
- **metrics** | [**List[str]**](str.md)| 指标名称数组 | [optional] 
+ **datasets** | [**List[str]**](str.md)| 数据集数组 | 
 
 ### Return type
 
-[**DtoGenericResponseDtoEvaluationListResp**](DtoGenericResponseDtoEvaluationListResp.md)
+[**DtoGenericResponseDtoGroundTruthResp**](DtoGenericResponseDtoGroundTruthResp.md)
 
 ### Authorization
 

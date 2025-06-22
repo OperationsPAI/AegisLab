@@ -4,9 +4,15 @@ import (
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 )
 
+type GroundTruthReq struct {
+	Datasets []string `json:"datasets" binding:"required"`
+}
+
+type GroundTruthResp map[string]chaos.Groundtruth
+
 type RawDataReq struct {
-	Algorithms []string `form:"algorithms" bind:"required"`
-	Datasets   []string `form:"datasets" bind:"required"`
+	Algorithms []string `json:"algorithms" binding:"required"`
+	Datasets   []string `json:"datasets" binding:"required"`
 }
 
 type AlgorithmDatasetPair struct {

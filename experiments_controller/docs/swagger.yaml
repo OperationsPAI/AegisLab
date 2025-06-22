@@ -34,17 +34,6 @@ definitions:
           type: string
         type: array
     type: object
-  dto.Conclusion:
-    properties:
-      level:
-        description: 例如 service level
-        type: string
-      metric:
-        description: 例如 topk
-        type: string
-      rate:
-        type: number
-    type: object
   dto.DatasetBuildPayload:
     properties:
       benchmark:
@@ -114,35 +103,6 @@ definitions:
         type: number
       span_name:
         type: string
-    type: object
-  dto.EvaluationItem:
-    properties:
-      algorithm:
-        type: string
-      conclusions:
-        items:
-          $ref: '#/definitions/dto.Conclusion'
-        type: array
-      executions:
-        items:
-          $ref: '#/definitions/dto.Execution'
-        type: array
-    type: object
-  dto.EvaluationListResp:
-    properties:
-      results:
-        items:
-          $ref: '#/definitions/dto.EvaluationItem'
-        type: array
-    type: object
-  dto.Execution:
-    properties:
-      dataset:
-        $ref: '#/definitions/dto.DatasetItem'
-      granularity_records:
-        items:
-          $ref: '#/definitions/dto.GranularityRecord'
-        type: array
     type: object
   dto.ExecutionRecord:
     properties:
@@ -287,22 +247,6 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
-  dto.GenericResponse-dto_EvaluationListResp:
-    properties:
-      code:
-        description: 状态码
-        type: integer
-      data:
-        allOf:
-        - $ref: '#/definitions/dto.EvaluationListResp'
-        description: 泛型类型的数据
-      message:
-        description: 响应消息
-        type: string
-      timestamp:
-        description: 响应生成时间
-        type: integer
-    type: object
   dto.GenericResponse-dto_FaultInjectionStatisticsResp:
     properties:
       code:
@@ -327,6 +271,22 @@ definitions:
       data:
         allOf:
         - $ref: '#/definitions/dto.GetCompletedMapResp'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_GroundTruthResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.GroundTruthResp'
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -518,6 +478,10 @@ definitions:
         type: integer
       result:
         type: string
+    type: object
+  dto.GroundTruthResp:
+    additionalProperties:
+      $ref: '#/definitions/handler.Groundtruth'
     type: object
   dto.InjectCancelResp:
     type: object
@@ -1057,37 +1021,19 @@ paths:
       summary: 查询单个数据集详情
       tags:
       - dataset
-  /api/v1/evaluations:
+  /api/v1/evaluations/groundtruth:
     get:
-      description: 返回每种算法的执行历史记录
+      consumes:
+      - application/json
+      description: 根据数据集数组获取对应的 ground truth 数据
       parameters:
       - collectionFormat: csv
-        description: 执行结果 ID 数组
-        in: query
-        items:
-          type: integer
-        name: execution_ids
-        type: array
-      - collectionFormat: csv
-        description: 算法名称数组
+        description: 数据集数组
         in: query
         items:
           type: string
-        name: algorithms
-        type: array
-      - collectionFormat: csv
-        description: 级别名称数组
-        in: query
-        items:
-          type: string
-        name: levels
-        type: array
-      - collectionFormat: csv
-        description: 指标名称数组
-        in: query
-        items:
-          type: string
-        name: metrics
+        name: datasets
+        required: true
         type: array
       produces:
       - application/json
@@ -1095,7 +1041,7 @@ paths:
         "200":
           description: 成功响应
           schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_EvaluationListResp'
+            $ref: '#/definitions/dto.GenericResponse-dto_GroundTruthResp'
         "400":
           description: 参数校验失败
           schema:
@@ -1104,7 +1050,7 @@ paths:
           description: 服务器内部错误
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 获取每种算法的执行历史记录
+      summary: 获取数据集的 ground truth
       tags:
       - evaluation
   /api/v1/evaluations/raw-data:

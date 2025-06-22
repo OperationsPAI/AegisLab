@@ -195,7 +195,7 @@ func ListExecutionRawData(pairs []dto.AlgorithmDatasetPair) ([]dto.RawDataItem, 
 		dataset = append(dataset, pair.Dataset)
 	}
 
-	groundtruthMap, err := getGroundtruthMap(dataset)
+	groundtruthMap, err := GetGroundtruthMap(dataset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ground truth map: %v", err)
 	}
@@ -281,7 +281,7 @@ func getLatestExecutionMap(pairs []dto.AlgorithmDatasetPair) (map[int]string, er
 	return execIDMap, nil
 }
 
-func getGroundtruthMap(datasets []string) (map[string]chaos.Groundtruth, error) {
+func GetGroundtruthMap(datasets []string) (map[string]chaos.Groundtruth, error) {
 	engineConfs, err := ListEngineConfigByNames(datasets)
 	if err != nil {
 		return nil, err
