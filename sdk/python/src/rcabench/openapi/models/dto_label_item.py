@@ -18,26 +18,33 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictBool, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_label_item import DtoLabelItem
-from rcabench.openapi.models.handler_node import HandlerNode
+from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
+from typing import Any, ClassVar, Dict, List
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoInjectionSubmitReq(BaseModel):
+class DtoLabelItem(BaseModel):
     """
-    DtoInjectionSubmitReq
+    DtoLabelItem
     """ # noqa: E501
-    algorithms: Optional[List[StrictStr]] = None
-    benchmark: Optional[StrictStr] = None
-    direct: Optional[StrictBool] = None
-    interval: Optional[StrictInt] = None
-    labels: Optional[List[DtoLabelItem]] = None
-    pre_duration: Optional[StrictInt] = None
-    specs: Optional[List[HandlerNode]] = None
+    key: StrictStr
+    value: StrictStr
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["algorithms", "benchmark", "direct", "interval", "labels", "pre_duration", "specs"]
+    __properties: ClassVar[List[str]] = ["key", "value"]
+
+    @field_validator('key')
+    def key_validate_enum(cls, value):
+        """Validates the enum"""
+        if value not in set(['env', 'batch']):
+            raise ValueError("must be one of enum values ('env', 'batch')")
+        return value
+
+    @field_validator('value')
+    def value_validate_enum(cls, value):
+        """Validates the enum"""
+        if value not in set(['dev', 'prod', 'test', 'us-cn']):
+            raise ValueError("must be one of enum values ('dev', 'prod', 'test', 'us-cn')")
+        return value
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -57,7 +64,7 @@ class DtoInjectionSubmitReq(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoInjectionSubmitReq from a JSON string"""
+        """Create an instance of DtoLabelItem from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -80,20 +87,6 @@ class DtoInjectionSubmitReq(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of each item in labels (list)
-        _items = []
-        if self.labels:
-            for _item_labels in self.labels:
-                if _item_labels:
-                    _items.append(_item_labels.to_dict())
-            _dict['labels'] = _items
-        # override the default output from pydantic by calling `to_dict()` of each item in specs (list)
-        _items = []
-        if self.specs:
-            for _item_specs in self.specs:
-                if _item_specs:
-                    _items.append(_item_specs.to_dict())
-            _dict['specs'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -103,7 +96,7 @@ class DtoInjectionSubmitReq(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoInjectionSubmitReq from a dict"""
+        """Create an instance of DtoLabelItem from a dict"""
         if obj is None:
             return None
 
@@ -111,13 +104,8 @@ class DtoInjectionSubmitReq(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "algorithms": obj.get("algorithms"),
-            "benchmark": obj.get("benchmark"),
-            "direct": obj.get("direct"),
-            "interval": obj.get("interval"),
-            "labels": [DtoLabelItem.from_dict(_item) for _item in obj["labels"]] if obj.get("labels") is not None else None,
-            "pre_duration": obj.get("pre_duration"),
-            "specs": [HandlerNode.from_dict(_item) for _item in obj["specs"]] if obj.get("specs") is not None else None
+            "key": obj.get("key"),
+            "value": obj.get("value")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

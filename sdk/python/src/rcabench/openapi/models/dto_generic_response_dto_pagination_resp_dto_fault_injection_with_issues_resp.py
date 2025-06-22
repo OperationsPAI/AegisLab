@@ -18,26 +18,22 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_label_item import DtoLabelItem
-from rcabench.openapi.models.handler_node import HandlerNode
+from rcabench.openapi.models.dto_pagination_resp_dto_fault_injection_with_issues_resp import DtoPaginationRespDtoFaultInjectionWithIssuesResp
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoInjectionSubmitReq(BaseModel):
+class DtoGenericResponseDtoPaginationRespDtoFaultInjectionWithIssuesResp(BaseModel):
     """
-    DtoInjectionSubmitReq
+    DtoGenericResponseDtoPaginationRespDtoFaultInjectionWithIssuesResp
     """ # noqa: E501
-    algorithms: Optional[List[StrictStr]] = None
-    benchmark: Optional[StrictStr] = None
-    direct: Optional[StrictBool] = None
-    interval: Optional[StrictInt] = None
-    labels: Optional[List[DtoLabelItem]] = None
-    pre_duration: Optional[StrictInt] = None
-    specs: Optional[List[HandlerNode]] = None
+    code: Optional[StrictInt] = Field(default=None, description="状态码")
+    data: Optional[DtoPaginationRespDtoFaultInjectionWithIssuesResp] = Field(default=None, description="泛型类型的数据")
+    message: Optional[StrictStr] = Field(default=None, description="响应消息")
+    timestamp: Optional[StrictInt] = Field(default=None, description="响应生成时间")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["algorithms", "benchmark", "direct", "interval", "labels", "pre_duration", "specs"]
+    __properties: ClassVar[List[str]] = ["code", "data", "message", "timestamp"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -57,7 +53,7 @@ class DtoInjectionSubmitReq(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoInjectionSubmitReq from a JSON string"""
+        """Create an instance of DtoGenericResponseDtoPaginationRespDtoFaultInjectionWithIssuesResp from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -80,20 +76,9 @@ class DtoInjectionSubmitReq(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of each item in labels (list)
-        _items = []
-        if self.labels:
-            for _item_labels in self.labels:
-                if _item_labels:
-                    _items.append(_item_labels.to_dict())
-            _dict['labels'] = _items
-        # override the default output from pydantic by calling `to_dict()` of each item in specs (list)
-        _items = []
-        if self.specs:
-            for _item_specs in self.specs:
-                if _item_specs:
-                    _items.append(_item_specs.to_dict())
-            _dict['specs'] = _items
+        # override the default output from pydantic by calling `to_dict()` of data
+        if self.data:
+            _dict['data'] = self.data.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -103,7 +88,7 @@ class DtoInjectionSubmitReq(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoInjectionSubmitReq from a dict"""
+        """Create an instance of DtoGenericResponseDtoPaginationRespDtoFaultInjectionWithIssuesResp from a dict"""
         if obj is None:
             return None
 
@@ -111,13 +96,10 @@ class DtoInjectionSubmitReq(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "algorithms": obj.get("algorithms"),
-            "benchmark": obj.get("benchmark"),
-            "direct": obj.get("direct"),
-            "interval": obj.get("interval"),
-            "labels": [DtoLabelItem.from_dict(_item) for _item in obj["labels"]] if obj.get("labels") is not None else None,
-            "pre_duration": obj.get("pre_duration"),
-            "specs": [HandlerNode.from_dict(_item) for _item in obj["specs"]] if obj.get("specs") is not None else None
+            "code": obj.get("code"),
+            "data": DtoPaginationRespDtoFaultInjectionWithIssuesResp.from_dict(obj["data"]) if obj.get("data") is not None else None,
+            "message": obj.get("message"),
+            "timestamp": obj.get("timestamp")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

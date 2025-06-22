@@ -43,6 +43,7 @@ type injectionPayload struct {
 	displayData string
 	conf        *chaos.InjectionConf
 	node        *chaos.Node
+	labels      []dto.LabelItem
 }
 
 type restartPayload struct {
@@ -120,7 +121,13 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			Description:   fmt.Sprintf("Fault for task %s", task.TaskID),
 			Benchmark:     payload.benchmark,
 			InjectionName: name,
+			Labels:        make(database.LabelsMap),
 		}
+
+		for _, label := range payload.labels {
+			faultRecord.Labels[label.Key] = label.Value
+		}
+
 		if err = database.DB.Create(&faultRecord).Error; err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to write fault injection schedule to database")
@@ -344,6 +351,11 @@ func parseInjectionPayload(ctx context.Context, payload map[string]any) (*inject
 			return nil, err
 		}
 
+		labels, err := utils.ConvertToType[[]dto.LabelItem](payload[consts.InjectLabels])
+		if err != nil {
+			return nil, fmt.Errorf(message, consts.InjectLabels)
+		}
+
 		return &injectionPayload{
 			algorithms:  algorithms,
 			benchmark:   benchmark,
@@ -353,6 +365,7 @@ func parseInjectionPayload(ctx context.Context, payload map[string]any) (*inject
 			displayData: displayData,
 			conf:        conf,
 			node:        node,
+			labels:      labels,
 		}, nil
 	})
 }

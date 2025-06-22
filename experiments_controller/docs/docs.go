@@ -2090,8 +2090,17 @@ const docTemplate = `{
                 "benchmark": {
                     "type": "string"
                 },
+                "direct": {
+                    "type": "boolean"
+                },
                 "interval": {
                     "type": "integer"
+                },
+                "labels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelItem"
+                    }
                 },
                 "pre_duration": {
                     "type": "integer"
@@ -2101,6 +2110,31 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/handler.Node"
                     }
+                }
+            }
+        },
+        "dto.LabelItem": {
+            "type": "object",
+            "required": [
+                "key",
+                "value"
+            ],
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "enum": [
+                        "env",
+                        "batch"
+                    ]
+                },
+                "value": {
+                    "type": "string",
+                    "enum": [
+                        "dev",
+                        "prod",
+                        "test",
+                        "us-cn"
+                    ]
                 }
             }
         },

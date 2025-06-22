@@ -7,7 +7,9 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **algorithms** | **List[str]** |  | [optional] 
 **benchmark** | **str** |  | [optional] 
+**direct** | **bool** |  | [optional] 
 **interval** | **int** |  | [optional] 
+**labels** | [**List[DtoLabelItem]**](DtoLabelItem.md) |  | [optional] 
 **pre_duration** | **int** |  | [optional] 
 **specs** | [**List[HandlerNode]**](HandlerNode.md) |  | [optional] 
 
