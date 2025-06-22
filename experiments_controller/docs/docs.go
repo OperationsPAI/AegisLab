@@ -2128,13 +2128,7 @@ const docTemplate = `{
                     ]
                 },
                 "value": {
-                    "type": "string",
-                    "enum": [
-                        "dev",
-                        "prod",
-                        "test",
-                        "us-cn"
-                    ]
+                    "type": "string"
                 }
             }
         },

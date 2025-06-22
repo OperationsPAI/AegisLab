@@ -571,11 +571,6 @@ definitions:
         - batch
         type: string
       value:
-        enum:
-        - dev
-        - prod
-        - test
-        - us-cn
         type: string
     required:
     - key
