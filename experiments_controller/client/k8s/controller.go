@@ -47,7 +47,7 @@ type Callback interface {
 	HandleCRDFailed(name string, annotations map[string]string, labels map[string]string, err error, errMsg string)
 	HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, annotations map[string]string, labels map[string]string)
 	HandleJobAdd(annotations map[string]string, labels map[string]string)
-	HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string, err error, errMsg string)
+	HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string, errMsg string)
 	HandleJobSucceeded(annotations map[string]string, labels map[string]string)
 }
 
@@ -120,7 +120,7 @@ func (c *Controller) Run(ctx context.Context, callback Callback) {
 	defer c.queue.ShutDown()
 
 	c.callback = callback
-	c.registerEventHandlers()
+	c.registerEventHandlers(ctx)
 
 	logrus.Info("Starting informer controller")
 
@@ -153,8 +153,7 @@ func (c *Controller) Run(ctx context.Context, callback Callback) {
 	logrus.Info("Stopping informer controller...")
 }
 
-func (c *Controller) registerEventHandlers() {
-
+func (c *Controller) registerEventHandlers(ctx context.Context) {
 	for _, gvrInformers := range c.crdInformers {
 		for gvr, informer := range gvrInformers {
 			if _, err := informer.AddEventHandler(c.genCRDEventHandlerFuncs(gvr)); err != nil {
@@ -313,7 +312,7 @@ func (c *Controller) genJobEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 			if oldJob.Name == newJob.Name {
 				if oldJob.Status.Failed == 0 && newJob.Status.Failed > 0 {
 					errorMsg := extractJobError(newJob)
-					c.callback.HandleJobFailed(newJob, newJob.Annotations, newJob.Labels, nil, errorMsg)
+					c.callback.HandleJobFailed(newJob, newJob.Annotations, newJob.Labels, errorMsg)
 				}
 
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {
@@ -359,15 +358,16 @@ func (c *Controller) genPodEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 					return
 				}
 
+				// TODO
 				for _, reason := range podReasons {
 					if checkPodReason(newPod, reason) {
-						job, err := GetJob(context.TODO(), newPod.Namespace, jobOwnerRef.Name)
+						job, err := GetJob(context.Background(), newPod.Namespace, jobOwnerRef.Name)
 						if err != nil {
 							logrus.WithField("job_name", jobOwnerRef.Name).Error(err)
 						}
 
 						if job != nil {
-							handlePodError(newPod, job, reason)
+							handlePodError(context.Background(), newPod, job, reason)
 							if !config.GetBool("debugging.enable") {
 								c.queue.Add(QueueItem{
 									Type:      DeleteJob,
@@ -574,9 +574,9 @@ func checkPodReason(pod *corev1.Pod, reason string) bool {
 	return false
 }
 
-func handlePodError(pod *corev1.Pod, job *batchv1.Job, reason string) {
+func handlePodError(ctx context.Context, pod *corev1.Pod, job *batchv1.Job, reason string) {
 	// 获取 Pod 事件
-	events, err := k8sClient.CoreV1().Events(pod.Namespace).List(context.TODO(), metav1.ListOptions{
+	events, err := k8sClient.CoreV1().Events(pod.Namespace).List(ctx, metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("involvedObject.name=%s", pod.Name),
 	})
 	if err != nil {

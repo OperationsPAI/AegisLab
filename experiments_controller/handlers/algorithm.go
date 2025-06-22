@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	"github.com/LGU-SE-Internal/rcabench/client"
 	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/dto"
@@ -78,6 +77,7 @@ func GetAlgorithmList(c *gin.Context) {
 	dto.SuccessResponse(c, dto.AlgorithmListResp{Algorithms: algorithms})
 }
 
+// TODO 参数没检查统计
 // SubmitAlgorithmExecution
 //
 //	@Summary		执行算法
@@ -86,7 +86,7 @@ func GetAlgorithmList(c *gin.Context) {
 //	@Produce		application/json
 //	@Consumes		application/json
 //	@Param			body	body		[]dto.AlgorithmExecutionPayload	true	"请求体"
-//	@Success		200		{object}	dto.GenericResponse[dto.SubmitResp]
+//	@Success		202		{object}	dto.GenericResponse[dto.SubmitResp]
 //	@Failure		400		{object}	dto.GenericResponse[any]
 //	@Failure		500		{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/algorithms [post]
@@ -102,17 +102,6 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 	}
 
 	for i := range payloads {
-		if payloads[i].Tag == "" {
-			tag, err := client.GetHarborClient().GetLatestTag(payloads[i].Image)
-			if err != nil {
-				logrus.Errorf("failed to get latest tag of %s: %v", payloads[i].Image, err)
-				dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get latest tag")
-				return
-			}
-
-			payloads[i].Tag = tag
-		}
-
 		for key := range payloads[i].EnvVars {
 			if _, exists := dto.ExecuteEnvVarNameMap[key]; !exists {
 				message := fmt.Sprintf("the key %s is invalid in env_vars", key)
@@ -226,7 +215,7 @@ func SubmitAlgorithmBuilding(c *gin.Context) {
 
 		// Create extraction directory
 		extractDir = path.Join(config.GetString("algo.storage_path"), algoName)
-		err = os.MkdirAll(extractDir, 0755)
+		err = os.MkdirAll(extractDir, 0o755)
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to create extraction directory")
 			return
@@ -253,7 +242,6 @@ func SubmitAlgorithmBuilding(c *gin.Context) {
 		Payload:   payload,
 		Immediate: true,
 	})
-
 	if err != nil {
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to submit build task")
 		return

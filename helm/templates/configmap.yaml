@@ -11,12 +11,22 @@ data:
     workspace = "{{ .Values.configmap.workspace }}"
 
     [system]
+    env_mode = "{{ .Values.configmap.system.env_mode }}"
     timezone = "{{ .Values.configmap.system.timezone }}"
 
     [injection]
     enable_duplicate = {{ .Values.configmap.injection.enable_duplicate }}
-    namespace_target_map = { {{- range $key, $value := .Values.configmap.injection.namespace_target_map }}{{ if ne $key (first (keys $.Values.configmap.injection.namespace_target_map)) }}, {{ end }}{{ $key }} = {{ $value }}{{- end }} }
     target_label_key = "{{ .Values.configmap.injection.target_label_key }}"
+    {{- with .Values.configmap.injection.namespace_config }}
+    [injection.namespace_config]
+    {{- range $key, $value := . }}
+    [injection.namespace_config.{{ $key }}]
+    count = {{ $value.count }}
+    port = "{{ $value.port }}"
+    repo_name = "{{ $value.repo_name }}"
+    repo_url = "{{ $value.repo_url }}"
+    {{- end }}
+    {{- end }}
 
     [database]
     clickhouse_host = "{{ .Values.configmap.database.clickhouse_host }}"
@@ -25,6 +35,12 @@ data:
     mysql_host = "{{ .Release.Name }}-mariadb"
     mysql_port = "{{ .Values.configmap.database.mysql_port }}"
     mysql_db = "{{ .Values.configmap.database.mysql_db }}"
+    postgres_user = "{{ .Values.configmap.database.postgres_user }}"
+    postgres_password = "{{ .Values.configmap.database.postgres_password }}"
+    postgres_host = "{{ .Release.Name }}-postgres"
+    postgres_port = "{{ .Values.configmap.database.postgres_port }}"
+    postgres_db = "{{ .Values.configmap.database.postgres_db }}"
+
 
     [jaeger]
     endpoint = "{{ .Release.Name }}-jaeger:4318"
@@ -45,20 +61,14 @@ data:
     path = "{{ .Values.configmap.jfs.path }}"
 
     [algo]
+    detector = "{{ .Values.configmap.algo.detector }}"
     storage_path = "{{ .Values.configmap.algo.storage_path }}"
 
     [debugging]
     enable = {{ .Values.configmap.debugging.enable }}
 
     [buildkit]
-    address = "tcp://{{ .Release.Name }}-buildkit:1234"
-
-    [s3]
-    endpoint = "{{ .Values.configmap.s3.endpoint }}"
-    access_key = "{{ .Values.configmap.s3.access_key }}"
-    secret_key = "{{ .Values.configmap.s3.secret_key }}"
-    use_ssl = {{ .Values.configmap.s3.use_ssl }}
-    
+    address = "tcp://{{ .Release.Name }}-buildkit:1234"    
 ---
 apiVersion: v1
 kind: ConfigMap

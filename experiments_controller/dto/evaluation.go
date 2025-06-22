@@ -1,5 +1,46 @@
 package dto
 
+import (
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+)
+
+type GroundTruthReq struct {
+	Datasets []string `json:"datasets" binding:"required"`
+}
+
+type GroundTruthResp map[string]chaos.Groundtruth
+
+type RawDataReq struct {
+	Algorithms []string `json:"algorithms" binding:"required"`
+	Datasets   []string `json:"datasets" binding:"required"`
+}
+
+type AlgorithmDatasetPair struct {
+	Algorithm string
+	Dataset   string
+}
+
+func (r *RawDataReq) CartesianProduct() []AlgorithmDatasetPair {
+	var result []AlgorithmDatasetPair
+	for _, algorithm := range r.Algorithms {
+		for _, dataset := range r.Datasets {
+			result = append(result, AlgorithmDatasetPair{
+				Algorithm: algorithm,
+				Dataset:   dataset,
+			})
+		}
+	}
+
+	return result
+}
+
+type RawDataItem struct {
+	Algorithm   string              `json:"algorithm"`
+	Dataset     string              `json:"dataset"`
+	Entries     []GranularityRecord `json:"entries"`
+	Groundtruth chaos.Groundtruth   `json:"groundtruth"`
+}
+
 type EvaluationListReq struct {
 	ExecutionIDs []int    `form:"execution_ids"`
 	Algoritms    []string `form:"algorithms"`

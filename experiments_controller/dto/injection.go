@@ -3,17 +3,15 @@ package dto
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
+	"strings"
 	"time"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
-	"github.com/LGU-SE-Internal/rcabench/config"
-	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
+	"github.com/google/uuid"
 )
 
-type InjectCancelResp struct {
-}
+type InjectCancelResp struct{}
 
 type InjectionConfReq struct {
 	Namespace string `form:"namespace" binding:"required"`
@@ -25,7 +23,7 @@ type InjectionItem struct {
 	TaskID      string         `json:"task_id"`
 	FaultType   string         `json:"fault_type"`
 	Status      string         `json:"status"`
-	Spec        map[string]any `json:"spec"`
+	Spec        map[string]any `json:"spec" swaggertype:"object"`
 	PreDuration int            `json:"pre_duration"`
 	StartTime   time.Time      `json:"start_time"`
 	EndTime     time.Time      `json:"end_time"`
@@ -49,24 +47,64 @@ func (i *InjectionItem) Convert(record database.FaultInjectionSchedule) error {
 	return nil
 }
 
+type InjectionConfigListReq struct {
+	TraceIDs []string `form:"trace_ids" binding:"required"`
+}
+
+func (req *InjectionConfigListReq) Validate() error {
+	filteredIDs := make([]string, 0, len(req.TraceIDs))
+	for _, id := range req.TraceIDs {
+		if strings.TrimSpace(id) != "" {
+			filteredIDs = append(filteredIDs, strings.TrimSpace(id))
+		}
+	}
+
+	req.TraceIDs = filteredIDs
+	if len(req.TraceIDs) == 0 {
+		return fmt.Errorf("trace_ids must not be blank")
+	}
+
+	for _, id := range req.TraceIDs {
+		if _, err := uuid.Parse(id); err != nil {
+			return fmt.Errorf("Invalid trace_id: %s", id)
+		}
+	}
+
+	return nil
+}
+
 type InjectionListReq struct {
 	PaginationReq
 }
 
 type InjectionNamespaceInfoResp struct {
-	NamespaceInfo map[string][]string `json:"namespace_info"`
+	NamespaceInfo map[string][]string `json:"namespace_info" swaggertype:"object"`
 }
 
 type InjectionParaResp struct {
-	Specification map[string][]chaos.ActionSpace `json:"specification"`
-	KeyMap        map[chaos.ChaosType]string     `json:"keymap"`
+	Specification map[string][]chaos.ActionSpace `json:"specification" swaggertype:"object"`
+	KeyMap        map[chaos.ChaosType]string     `json:"keymap" swaggertype:"object"`
+}
+
+type LabelItem struct {
+	Key   string `json:"key" binding:"required,oneof=env batch"`
+	Value string `json:"value" binding:"required"`
 }
 
 type InjectionSubmitReq struct {
-	Interval    int              `json:"interval"`
-	PreDuration int              `json:"pre_duration"`
-	Specs       []map[string]any `json:"specs"`
-	Benchmark   string           `json:"benchmark"`
+	Interval     int          `json:"interval"`
+	PreDuration  int          `json:"pre_duration"`
+	Specs        []chaos.Node `json:"specs"`
+	Benchmark    string       `json:"benchmark"`
+	Algorithms   []string     `json:"algorithms"`
+	Labels       []LabelItem  `json:"labels" binding:"omitempty,dive"`
+	DirectInject bool         `json:"direct" binding:"omitempty"`
+}
+
+type InjectionSubmitResp struct {
+	SubmitResp
+	DuplicatedCount int `json:"duplicated_count"`
+	OriginalCount   int `json:"original_count"`
 }
 
 type InjectionConfig struct {
@@ -77,90 +115,44 @@ type InjectionConfig struct {
 	Conf          *chaos.InjectionConf
 	Node          *chaos.Node
 	ExecuteTime   time.Time
-}
-
-func (r *InjectionSubmitReq) ParseInjectionSpecs() ([]*InjectionConfig, error) {
-	if len(r.Specs) == 0 {
-		return nil, fmt.Errorf("spec must not be blank")
-	}
-
-	intervalDuration := time.Duration(r.Interval) * consts.DefaultTimeUnit
-	preDuration := time.Duration(r.PreDuration) * consts.DefaultTimeUnit
-
-	currentTime := time.Now()
-	prevEnd := currentTime
-	configs := make([]*InjectionConfig, 0, len(r.Specs))
-	for idx, spec := range r.Specs {
-		node, err := chaos.MapToNode(spec)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert spec[%d] to node: %v", idx, err)
-		}
-
-		childNode, exists := node.Children[strconv.Itoa(node.Value)]
-		if !exists {
-			return nil, fmt.Errorf("failed to find key %d in the children", node.Value)
-		}
-
-		nsPrefixs := config.GetNsPrefixs()
-		nsTargetMap, err := config.GetNsTargetMap()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get namespace target map in configuration")
-		}
-
-		index := childNode.Children[consts.NamespaceNodeKey].Value
-		namespaceCount := nsTargetMap[nsPrefixs[index]]
-
-		var execTime time.Time
-		if idx < namespaceCount {
-			execTime = currentTime
-		} else {
-			execTime = currentTime.Add(intervalDuration * time.Duration(idx/namespaceCount)).Add(consts.DefaultTimeUnit)
-		}
-
-		faultDuration := childNode.Children[consts.DurationNodeKey].Value
-		if !config.GetBool("debugging.enable") {
-			if idx%namespaceCount == 0 {
-				start := execTime.Add(-preDuration)
-				end := execTime.Add(time.Duration(faultDuration) * consts.DefaultTimeUnit)
-
-				if idx > 0 && !start.After(prevEnd) {
-					return nil, fmt.Errorf("spec[%d] time conflict", idx)
-				}
-
-				prevEnd = end
-			}
-		}
-
-		conf, err := chaos.NodeToStruct[chaos.InjectionConf](node)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert node to injecton conf: %v", err)
-		}
-
-		displayConfig, err := conf.GetDisplayConfig()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get display config: %v", err)
-		}
-
-		displayData, err := json.Marshal(displayConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal injection spec to display config: %v", err)
-		}
-
-		configs = append(configs, &InjectionConfig{
-			Index:         idx,
-			FaultType:     node.Value,
-			FaultDuration: faultDuration,
-			DisplayData:   string(displayData),
-			Conf:          conf,
-			Node:          node,
-			ExecuteTime:   execTime,
-		})
-	}
-
-	return configs, nil
+	Labels        []LabelItem
 }
 
 type QueryInjectionReq struct {
 	Name   string `form:"name" binding:"omitempty,max=64"`
 	TaskID string `form:"task_id" binding:"omitempty,max=64"`
+}
+
+type FaultInjectionNoIssuesReq struct {
+	TimeRangeQuery
+}
+
+// FaultInjectionNoIssuesResp 没有问题的故障注入响应
+type FaultInjectionNoIssuesResp struct {
+	DatasetID     int        `json:"dataset_id"`
+	DisplayConfig string     `json:"display_config"`
+	EngineConfig  chaos.Node `json:"engine_config"`
+	PreDuration   int        `json:"pre_duration"`
+	InjectionName string     `json:"injection_name"`
+}
+
+type FaultInjectionWithIssuesReq struct {
+	TimeRangeQuery
+}
+
+// FaultInjectionWithIssuesResp 有问题的故障注入响应
+type FaultInjectionWithIssuesResp struct {
+	DatasetID     int        `json:"dataset_id"`
+	DisplayConfig string     `json:"display_config"`
+	EngineConfig  chaos.Node `json:"engine_config"`
+	PreDuration   int        `json:"pre_duration"`
+	InjectionName string     `json:"injection_name"`
+	Issues        string     `json:"issues"`
+}
+
+// FaultInjectionStatisticsResp 故障注入统计响应
+type FaultInjectionStatisticsResp struct {
+	NoIssuesCount   int64 `json:"no_issues_count"`
+	WithIssuesCount int64 `json:"with_issues_count"`
+	TotalCount      int64 `json:"total_count"`
 }

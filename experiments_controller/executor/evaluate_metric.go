@@ -532,13 +532,19 @@ func parseEvaluationPayload(payload map[string]any) (*EvaluationPayload, error) 
 }
 
 func ParseConfigAndGetGroundTruthMap(executions []dto.Execution) ([]map[string]map[string]struct{}, error) {
-	// 每个 execution 中的 dataset 都是不同的
 	names := make([]string, 0, len(executions))
 	for _, execution := range executions {
 		names = append(names, execution.Dataset.Name)
 	}
 
-	configs, err := repository.GetEngineConfigByNames(names)
+	if len(names) == 0 {
+		return nil, fmt.Errorf("no dataset names found in executions")
+	}
+	return GetGTByDatasetName(names)
+}
+
+func GetGTByDatasetName(names []string) ([]map[string]map[string]struct{}, error) {
+	configs, err := repository.ListEngineConfigByNames(names)
 	if err != nil {
 		return nil, err
 	}
@@ -568,7 +574,6 @@ func ParseConfigAndGetGroundTruthMap(executions []dto.Execution) ([]map[string]m
 		groundtruths = append(groundtruths, gt)
 	}
 
-	// 创建按级别分类的 groundtruth 集合
 	groundtruthMaps := make([]map[string]map[string]struct{}, 0, len(groundtruths))
 	for idx, gt := range groundtruths {
 		t := reflect.TypeOf(gt)

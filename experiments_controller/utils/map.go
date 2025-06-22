@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"strings"
 )
 
 func CloneMap(src map[string]any) map[string]any {
@@ -36,9 +37,14 @@ func GetMapField(m map[string]any, keys ...string) (string, bool) {
 }
 
 func MapToStruct[T any](payload map[string]any, key, errorMsgTemplate string) (*T, error) {
-	rawValue, ok := payload[key]
-	if !ok {
-		return nil, fmt.Errorf(errorMsgTemplate, key)
+	var rawValue any
+	if key == "" {
+		rawValue = payload
+	} else {
+		var ok bool
+		if rawValue, ok = payload[key]; !ok {
+			return nil, fmt.Errorf(errorMsgTemplate, key)
+		}
 	}
 
 	innerMap, ok := rawValue.(map[string]any)
@@ -65,17 +71,45 @@ func MapToStruct[T any](payload map[string]any, key, errorMsgTemplate string) (*
 
 func StructToMap(obj any) map[string]any {
 	result := make(map[string]any)
-	t := reflect.TypeOf(obj)
+
 	v := reflect.ValueOf(obj)
+	t := reflect.TypeOf(obj)
+
+	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return result
+		}
+
+		v = v.Elem()
+		t = t.Elem()
+	}
+
+	if v.Kind() != reflect.Struct {
+		return result
+	}
 
 	for i := range t.NumField() {
 		field := t.Field(i)
-		// 获取 JSON 标签名，如果没有则用字段名
+		fieldValue := v.Field(i)
+
+		if !fieldValue.CanInterface() {
+			continue
+		}
+
 		tag := field.Tag.Get("json")
 		if tag == "" {
 			tag = field.Name
 		}
-		result[tag] = v.Field(i).Interface()
+
+		if commaIdx := strings.Index(tag, ","); commaIdx != -1 {
+			tag = tag[:commaIdx]
+		}
+
+		if tag == "-" {
+			continue
+		}
+
+		result[tag] = fieldValue.Interface()
 	}
 
 	return result

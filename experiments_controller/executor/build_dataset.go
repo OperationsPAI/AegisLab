@@ -44,16 +44,16 @@ func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
 			return err
 		}
 
-		imageName := fmt.Sprintf("%s_dataset", payload.Benchmark)
-		tag, err := client.GetHarborClient().GetLatestTag(imageName)
+		image := fmt.Sprintf("%s_dataset", payload.Benchmark)
+		tag, err := client.GetHarborClient().GetLatestTag(image)
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to get latest tag")
-			return fmt.Errorf("failed to get lataest tag of %s: %v", imageName, err)
+			return fmt.Errorf("failed to get lataest tag of %s: %v", image, err)
 		}
 
 		jobName := task.TaskID
-		image := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), imageName, tag)
+		fullImage := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), image, tag)
 		labels := map[string]string{
 			consts.LabelTaskID:   task.TaskID,
 			consts.LabelTraceID:  task.TraceID,
@@ -62,7 +62,7 @@ func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
 			consts.LabelDataset:  payload.Name,
 		}
 
-		return createDatasetJob(ctx, jobName, image, annotations, labels, payload)
+		return createDatasetJob(ctx, jobName, fullImage, annotations, labels, payload)
 	})
 }
 
@@ -104,7 +104,7 @@ func parseDatasetPayload(payload map[string]any) (*datasetPayload, error) {
 			startTime = *startTimePtr
 			endTime = *endTimePtr
 		} else {
-			datasetItem, err := repository.GetDatasetByName(name, consts.DatasetInjectSuccess, consts.DatasetBuildFailed)
+			datasetItem, err := repository.GetDatasetByName(name, consts.DatasetInjectSuccess, consts.DatasetBuildFailed, consts.DatasetBuildSuccess)
 			if err != nil {
 				return nil, fmt.Errorf("query database for dataset failed: %v", err)
 			}
@@ -186,6 +186,7 @@ func getDatasetJobEnvVars(payload *datasetPayload) []corev1.EnvVar {
 	}
 
 	jobEnvVars := []corev1.EnvVar{
+		{Name: "ENV_MODE", Value: config.GetString("system.env_mode")},
 		{Name: "TIMEZONE", Value: tz},
 		{Name: "NORMAL_START", Value: strconv.FormatInt(payload.StartTime.Add(-time.Duration(payload.PreDuration)*time.Minute).Unix(), 10)},
 		{Name: "NORMAL_END", Value: strconv.FormatInt(payload.StartTime.Unix(), 10)},

@@ -1,4 +1,17 @@
-// @title           RCABench
+// @title           RCABench API
+// @version         1.0.1
+// @description     RCABench - A comprehensive root cause analysis benchmarking platform for microservices
+// @description     This API provides endpoints for managing datasets, algorithms, evaluations, and fault injections
+// @description     for root cause analysis in distributed systems and microservices architectures.
+// @contact.name    RCABench Team
+// @contact.email   team@rcabench.com
+// @license.name    MIT
+// @license.url     https://opensource.org/licenses/MIT
+// @host            localhost:8080
+// @BasePath        /api/v1
+// @schemes         http https
+// @produce         json
+// @consumes        json
 
 package main
 
@@ -38,6 +51,7 @@ func init() {
 		HideKeys:        true,
 		TimestampFormat: "2006-01-02 15:04:05",
 	})
+	logrus.SetLevel(logrus.InfoLevel)
 	logrus.Info("Logger initialized")
 }
 
@@ -67,7 +81,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	nsTargetMap, err := config.GetNsTargetMap()
+	nsTargetMap, err := config.GetNsCountMap()
 	logrus.Infof("initalized nsTargetMap: %v", nsTargetMap)
 	if err != nil {
 		logrus.Fatal(err)

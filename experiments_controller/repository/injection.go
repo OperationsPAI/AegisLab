@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 )
 
 func DeleteDatasetByName(names []string) (int64, []string, error) {
@@ -188,12 +191,11 @@ func GetDatasetByName(name string, status ...int) (*dto.DatasetItemWithID, error
 	return &item, nil
 }
 
-func GetDisplayConfigByTraceIDs(traceIDs []string) (map[string]string, error) {
-	if len(traceIDs) == 0 {
-		return nil, fmt.Errorf("empty trace IDs")
+func GetDisplayConfigByTraceIDs(traceIDs []string) (map[string]any, error) {
+	result := make(map[string]any)
+	for _, traceID := range traceIDs {
+		result[traceID] = nil
 	}
-
-	result := make(map[string]string)
 
 	var records []struct {
 		TraceID       string `gorm:"column:trace_id"`
@@ -209,14 +211,19 @@ func GetDisplayConfigByTraceIDs(traceIDs []string) (map[string]string, error) {
 		return nil, fmt.Errorf("failed to query display configs: %v", err)
 	}
 
+	for _, record := range records {
+		var config map[string]any
+		if err := json.Unmarshal([]byte(record.DisplayConfig), &config); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal display config for trace_id %s: %v", record.TraceID, err)
+		}
+
+		result[record.TraceID] = config
+	}
+
 	return result, nil
 }
 
-func GetEngineConfigByNames(names []string) ([]string, error) {
-	if len(names) == 0 {
-		return []string{}, nil
-	}
-
+func ListEngineConfigByNames(names []string) ([]string, error) {
 	query := database.DB.
 		Model(&database.FaultInjectionSchedule{}).
 		Select("engine_config").
@@ -315,9 +322,18 @@ func updateRecord(name string, updates map[string]any) error {
 	}
 
 	var record database.FaultInjectionSchedule
+	err := database.DB.
+		Where("injection_name = ?", name).
+		First(&record).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("record with name %q not found", name)
+		}
+		return fmt.Errorf("failed to query record: %v", err)
+	}
+
 	result := database.DB.
 		Model(&record).
-		Where("injection_name = ?", name).
 		Updates(updates)
 
 	if result.Error != nil {
@@ -325,8 +341,93 @@ func updateRecord(name string, updates map[string]any) error {
 	}
 
 	if result.RowsAffected == 0 {
-		return fmt.Errorf("no records updated")
+		return fmt.Errorf("record found but no fields were updated, possibly because values are unchanged")
 	}
 
 	return nil
+}
+
+// GetFaultInjectionNoIssues 查询没有问题的故障注入记录
+func GetFaultInjectionNoIssues(pageNum, pageSize int) (int64, []database.FaultInjectionNoIssues, error) {
+	return paginateQuery[database.FaultInjectionNoIssues](
+		"1 = 1", // 视图本身已经包含过滤条件，这里使用始终为真的条件
+		[]any{},
+		"DatasetID desc", // 按数据集ID降序排序
+		pageNum,
+		pageSize,
+		[]string{}, // 查询所有字段
+	)
+}
+
+// GetFaultInjectionWithIssues 查询有问题的故障注入记录
+func GetFaultInjectionWithIssues(pageNum, pageSize int) (int64, []database.FaultInjectionWithIssues, error) {
+	return paginateQuery[database.FaultInjectionWithIssues](
+		"1 = 1", // 视图本身已经包含过滤条件，这里使用始终为真的条件
+		[]any{},
+		"DatasetID desc", // 按数据集ID降序排序
+		pageNum,
+		pageSize,
+		[]string{}, // 查询所有字段
+	)
+}
+
+// GetAllFaultInjectionNoIssues 查询没有问题的故障注入记录（不分页）
+func GetAllFaultInjectionNoIssues(opts dto.TimeFilterOption) (int64, []database.FaultInjectionNoIssues, error) {
+	startTime, endTime := opts.GetTimeRange()
+	return queryAll[database.FaultInjectionNoIssues](
+		"created_at >= ? AND created_at <= ?",
+		[]any{startTime, endTime},
+		"DatasetID desc",
+		[]string{},
+	)
+}
+
+// GetAllFaultInjectionWithIssues 查询所有有问题的故障注入记录（不分页）
+func GetAllFaultInjectionWithIssues(opts dto.TimeFilterOption) (int64, []database.FaultInjectionWithIssues, error) {
+	startTime, endTime := opts.GetTimeRange()
+	return queryAll[database.FaultInjectionWithIssues](
+		"created_at >= ? AND created_at <= ?",
+		[]any{startTime, endTime},
+		"DatasetID desc",
+		[]string{},
+	)
+}
+
+// GetFaultInjectionNoIssuesByDatasetID 根据数据集ID查询没有问题的故障注入记录
+func GetFaultInjectionNoIssuesByDatasetID(datasetID int) (*database.FaultInjectionNoIssues, error) {
+	var record database.FaultInjectionNoIssues
+	if err := database.DB.Where("DatasetID = ?", datasetID).First(&record).Error; err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+// GetFaultInjectionWithIssuesByDatasetID 根据数据集ID查询有问题的故障注入记录
+func GetFaultInjectionWithIssuesByDatasetID(datasetID int) (*database.FaultInjectionWithIssues, error) {
+	var record database.FaultInjectionWithIssues
+	if err := database.DB.Where("DatasetID = ?", datasetID).First(&record).Error; err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+// GetFaultInjectionStatistics 获取故障注入统计信息
+func GetFaultInjectionStatistics() (map[string]int64, error) {
+	var noIssuesCount, withIssuesCount int64
+
+	// 统计没有问题的记录数
+	if err := database.DB.Model(&database.FaultInjectionNoIssues{}).Count(&noIssuesCount).Error; err != nil {
+		return nil, err
+	}
+
+	// 统计有问题的记录数
+	if err := database.DB.Model(&database.FaultInjectionWithIssues{}).Count(&withIssuesCount).Error; err != nil {
+		return nil, err
+	}
+
+	return map[string]int64{
+		"no_issues":   noIssuesCount,
+		"with_issues": withIssuesCount,
+		"total":       noIssuesCount + withIssuesCount,
+	}, nil
 }

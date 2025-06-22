@@ -21,10 +21,10 @@ RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debi
 # RUN curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
 COPY --from=builder /app/exp /app/exp
-COPY ./algorithms ./algorithms
-COPY ./algorithms ./legacy_algorithms
+# COPY ./algorithms ./algorithms
+# COPY ./algorithms ./legacy_algorithms
 COPY ./experiments_controller/entrypoint.sh ./entrypoint.sh
-COPY ./experiments ./experiments
+# COPY ./experiments ./experiments
 # COPY ./Makefile ./Makefile
 
 RUN chmod +x ./entrypoint.sh

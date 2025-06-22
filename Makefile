@@ -5,10 +5,11 @@ CHAOS_TYPES ?= dnschaos httpchaos jvmchaos networkchaos podchaos stresschaos tim
 TS_NS       ?= ts
 PORT        ?= 30080
 CONTROLLER_DIR = experiments_controller
+SDK_DIR = sdk/python-gen
 
 # 声明所有非文件目标
 .PHONY: help build run debug swagger import clean-finalizer delete-chaos k8s-resources ports \
-        install-hooks git-sync upgrade-dep deploy-ts
+        install-hooks git-sync upgrade-dep deploy-ts swag-init generate-sdk release
 
 # 默认目标
 .DEFAULT_GOAL := help
@@ -38,7 +39,7 @@ remote-debug: ## Run application in debug mode with skaffold
 
 local-debug: ## Start local debug environment (databases + controller)
 	docker compose down && \
-	docker compose up redis mariadb jaeger -d && \
+	docker compose up redis postgres jaeger -d && \
 	kubectl delete jobs --all -n $(NS) && \
 	cd $(CONTROLLER_DIR) && go run main.go both --port 8082
 
@@ -47,11 +48,8 @@ import: ## Import the latest version of chaos-experiment library
 	go get github.com/LGU-SE-Internal/chaos-experiment@injectionv2 && \
 	go mod tidy
 
-swagger: ## Generate Swagger API documentation
-	swag init -d ./$(CONTROLLER_DIR) --parseDependency --parseDepth 1 --output ./$(CONTROLLER_DIR)/docs
 
 ##@ Chaos Management
-
 clean-finalizer: ## Clean finalizers for specified chaos types in namespace $(NS)
 	@for type in $(CHAOS_TYPES); do \
 		kubectl get $$type -n $(NS) -o jsonpath='{range .items[*]}{.metadata.namespace}{":"}{.metadata.name}{"\n"}{end}' | \
@@ -91,18 +89,35 @@ upgrade-dep: git-sync ## Upgrade Git submodules to latest main branch
 		echo "Updating $$name to branch: $$branch"; \
 		git checkout $$branch && git pull origin $$branch'
 
-##@ Train Ticket Deployment
+##@ SDK Generation
+swagger: swag-init generate-sdk 
 
-deploy-ts: ## Deploy Train Ticket application
-	helm repo add train-ticket https://lgu-se-internal.github.io/train-ticket
-	helm repo update
-	@echo "Checking for existing Train Ticket installation..."
-	@if helm status $(TS_NS) -n $(TS_NS) >/dev/null 2>&1; then \
-		echo "Uninstalling existing $(TS_NS) release"; \
-		helm uninstall $(TS_NS) -n $(TS_NS); \
-		sleep 5; \
-	else \
-		echo "No existing $(TS_NS) release found"; \
+swag-init: ## Initialize Swagger documentation
+	swag init -d ./$(CONTROLLER_DIR) --parseDependency --parseDepth 1 --output ./$(CONTROLLER_DIR)/docs
+
+generate-sdk: swag-init ## Generate Python SDK from Swagger documentation
+	docker run --rm -u $(shell id -u):$(shell id -g) -v $(shell pwd):/local \
+		openapitools/openapi-generator-cli:latest generate \
+		-i /local/$(CONTROLLER_DIR)/docs/swagger.json \
+		-g python \
+		-o /local/$(SDK_DIR) \
+		-c /local/.openapi-generator/config.properties \
+		--additional-properties=packageName=openapi,projectName=rcabench
+	@echo "📦 Post-processing generated SDK..."
+	./scripts/fix-generated-sdk.sh
+	./scripts/mv-generated-sdk.sh
+
+##@ Release Management
+release: ## Release a new version (usage: make release VERSION=1.0.1)
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Please provide a version number: make release VERSION=1.0.1"; \
+		exit 1; \
 	fi
-	@echo "Installing Train Ticket..."
-	helm install $(TS_NS) train-ticket/trainticket -n $(TS_NS) --set global.image.tag=637600ea --set services.tsUiDashboard.nodePort=$(PORT)
+	./scripts/release.sh $(VERSION)
+
+release-dry-run: ## Dry run release process (usage: make release-dry-run VERSION=1.0.1)
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Please provide a version number: make release-dry-run VERSION=1.0.1"; \
+		exit 1; \
+	fi
+	./scripts/release.sh $(VERSION) --dry-run

@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/client"
 	"github.com/LGU-SE-Internal/rcabench/client/k8s"
+	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/repository"
@@ -20,7 +20,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 )
 
-type Annotations struct {
+type Carriers struct {
 	TaskCarrier  propagation.MapCarrier
 	TraceCarrier propagation.MapCarrier
 }
@@ -88,6 +88,10 @@ func (e *Executor) HandleCRDFailed(name string, annotations map[string]string, l
 		TaskID:    parsedLabels.TaskID,
 		TaskType:  consts.TaskTypeFaultInjection,
 		EventName: consts.EventFaultInjectionFailed,
+		Payload: dto.InfoPayloadTemplate{
+			Status: consts.TaskStatusError,
+			Msg:    errMsg,
+		},
 	})
 }
 
@@ -186,51 +190,60 @@ func (e *Executor) HandleJobAdd(annotations map[string]string, labels map[string
 	)
 }
 
-func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string, errC error, errMsg string) {
-	logs, err := k8s.GetJobPodLogs(context.Background(), job.Namespace, job.Name)
+func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string, errMsg string) {
+	parsedAnnotations, _ := parseAnnotations(annotations)
+	taskOptions, _ := parseTaskOptions(labels)
+	ctx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.TaskCarrier)
+	span := trace.SpanFromContext(ctx)
+
+	payload := dto.InfoPayloadTemplate{
+		Status: consts.TaskStatusError,
+		Msg:    errMsg,
+	}
+
+	logs, err := k8s.GetJobPodLogs(ctx, job.Namespace, job.Name)
 	if err != nil {
 		logrus.WithField("job_name", job.Name).Errorf("failed to get job logs: %v", err)
+		payload.Msg = fmt.Sprintf("failed to get job logs: %v", err)
 	}
 
 	for podName, log := range logs {
-		logrus.WithField("pod_name", podName).Errorf("job logs: %s", log)
+		logrus.WithField("pod_name", podName).Error("job logs:")
+		logrus.Error(log)
 	}
+
 	podLog := logs[job.Name]
-
-	parsedAnnotations, _ := parseAnnotations(annotations)
-	taskOptions, _ := parseTaskOptions(labels)
-	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.TaskCarrier)
-	span := trace.SpanFromContext(taskCtx)
-
-	logEntry := logrus.WithFields(logrus.Fields{
-		"task_id":  taskOptions.TaskID,
-		"trace_id": taskOptions.TraceID,
-	})
-
 	span.AddEvent("job failed", trace.WithAttributes(
 		attribute.KeyValue{
 			Key:   "logs",
 			Value: attribute.StringValue(podLog),
 		},
 	))
+	if err == nil {
+		payload.Msg = podLog
+	}
 
+	logEntry := logrus.WithFields(logrus.Fields{
+		"task_id":  taskOptions.TaskID,
+		"trace_id": taskOptions.TraceID,
+	})
 	switch taskOptions.Type {
 	case consts.TaskTypeBuildDataset:
+		options, _ := parseDatasetOptions(labels)
 
-		options, err := parseDatasetOptions(labels)
-		if err != nil {
-			logEntry.WithField("dataset", options.Dataset).Errorf("failed to parse dataset options: %v", err)
-			span.AddEvent("failed to parse dataset options")
-			span.RecordError(err)
-			return
-		}
 		logEntry.WithField("dataset", options.Dataset).Errorf("dataset build failed: %v", errMsg)
+		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
+			TaskID:    taskOptions.TaskID,
+			TaskType:  consts.TaskTypeBuildDataset,
+			EventName: consts.EventDatasetBuildFailed,
+			Payload:   payload,
+		}, repository.WithCallerLevel(4))
 
 		if err := repository.UpdateStatusByDataset(options.Dataset, consts.DatasetBuildFailed); err != nil {
 			span.AddEvent("update dataset status failed")
 			span.RecordError(err)
 			updateTaskStatus(
-				taskCtx,
+				ctx,
 				taskOptions.TraceID,
 				taskOptions.TaskID,
 				"update dataset status failed",
@@ -239,16 +252,43 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 			)
 		}
 
-		updateTaskStatus(
-			taskCtx,
-			taskOptions.TraceID,
-			taskOptions.TaskID,
-			fmt.Sprintf(consts.TaskMsgFailed, taskOptions.TaskID),
-			consts.TaskStatusError,
-			taskOptions.Type,
-		)
+	case consts.TaskTypeRunAlgorithm:
+		options, _ := parseExecutionOptions(labels)
+
+		logEntry.WithFields(logrus.Fields{
+			"algorithm": options.Algorithm,
+			"dataset":   options.Dataset,
+		}).Errorf("algorithm execute failed: %v", errMsg) //TODO errMsg为空
+
+		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
+			TaskID:    taskOptions.TaskID,
+			TaskType:  consts.TaskTypeRunAlgorithm,
+			EventName: consts.EventAlgoRunFailed,
+			Payload:   payload,
+		}, repository.WithCallerLevel(4))
+
+		if err := repository.UpdateStatusByExecID(options.ExecutionID, consts.ExecutionFailed); err != nil {
+			span.AddEvent("update execution status failed")
+			span.RecordError(err)
+			updateTaskStatus(
+				ctx,
+				taskOptions.TraceID,
+				taskOptions.TaskID,
+				"update execution status failed",
+				consts.TaskStatusError,
+				taskOptions.Type,
+			)
+		}
 	}
 
+	updateTaskStatus(
+		ctx,
+		taskOptions.TraceID,
+		taskOptions.TaskID,
+		fmt.Sprintf(consts.TaskMsgFailed, taskOptions.TaskID),
+		consts.TaskStatusError,
+		taskOptions.Type,
+	)
 }
 
 func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[string]string) {
@@ -264,56 +304,13 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 	})
 
 	switch taskOptions.Type {
-	case consts.TaskTypeRunAlgorithm:
-
-		options, _ := parseExecutionOptions(labels)
-		logEntry.WithField("algorithm", options.Algorithm).Info("algorithm execute successfully")
-
-		updateTaskStatus(
-			taskCtx,
-			taskOptions.TraceID,
-			taskOptions.TaskID,
-			fmt.Sprintf(consts.TaskMsgCompleted, taskOptions.TaskID),
-			consts.TaskStatusCompleted,
-			taskOptions.Type,
-		)
-
-		task := &dto.UnifiedTask{
-			Type: consts.TaskTypeCollectResult,
-			Payload: map[string]any{
-				consts.CollectAlgorithm:   options.Algorithm,
-				consts.CollectDataset:     options.Dataset,
-				consts.CollectExecutionID: options.ExecutionID,
-			},
-			Immediate: true,
-			TraceID:   taskOptions.TraceID,
-			GroupID:   taskOptions.GroupID,
-		}
-		task.SetTraceCtx(traceCtx)
-
-		repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
-			TaskID:    taskOptions.TaskID,
-			TaskType:  consts.TaskTypeRunAlgorithm,
-			EventName: consts.EventAlgoRunSucceed,
-			Payload:   task,
-		}, repository.WithCallerLevel(4))
-
-		_, _, err := SubmitTask(taskCtx, task)
-		if err != nil {
-			logEntry.WithField("algorithm", options.Algorithm).Errorf("submit result collection task failed: %v", err)
-			taskSpan.AddEvent("submit result collection task failed")
-			taskSpan.RecordError(err)
-		}
-
 	case consts.TaskTypeBuildDataset:
-		options, err := parseDatasetOptions(labels)
-		if err != nil {
-			logEntry.WithField("dataset", options.Dataset).Errorf("failed to parse dataset options: %v", err)
-			taskSpan.AddEvent("failed to parse dataset options")
-			taskSpan.RecordError(err)
-			return
-		}
-		logEntry.WithField("dataset", options.Dataset).Info("dataset build successfully")
+		options, _ := parseDatasetOptions(labels)
+		logEntry = logEntry.WithFields(logrus.Fields{
+			"dataset": options.Dataset,
+		})
+
+		logEntry.Info("dataset build successfully")
 		repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
 			TaskID:    taskOptions.TaskID,
 			TaskType:  consts.TaskTypeBuildDataset,
@@ -330,15 +327,8 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 			taskOptions.Type,
 		)
 
-		// TODO: replace with config.string, rather than hardcode
-		image := "detector"
-		tag, err := client.GetHarborClient().GetLatestTag(image)
-		if err != nil {
-			logrus.Errorf("failed to get latest tag of %s: %v", image, err)
-		}
-
 		if err := repository.UpdateStatusByDataset(options.Dataset, consts.DatasetBuildSuccess); err != nil {
-			logrus.WithField("dataset", options.Dataset).Errorf("update dataset status failed: %v", err)
+			logEntry.Errorf("update dataset status failed: %v", err)
 			taskSpan.AddEvent("update dataset status failed")
 			return
 		}
@@ -346,9 +336,8 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 		task := &dto.UnifiedTask{
 			Type: consts.TaskTypeRunAlgorithm,
 			Payload: map[string]any{
-				consts.ExecuteImage:   image,
-				consts.ExecuteTag:     tag,
-				consts.ExecuteDataset: options.Dataset,
+				consts.ExecuteAlgorithm: config.GetString("algo.detector"),
+				consts.ExecuteDataset:   options.Dataset,
 			},
 			Immediate: true,
 			TraceID:   taskOptions.TraceID,
@@ -356,16 +345,66 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 		}
 		task.SetTraceCtx(traceCtx)
 
-		_, _, err = SubmitTask(traceCtx, task)
+		_, _, err := SubmitTask(traceCtx, task)
 		if err != nil {
-			logEntry.WithField("dataset", options.Dataset).Errorf("submit algorithm execution task failed: %v", err)
+			logEntry.Errorf("submit algorithm execution task failed: %v", err)
 			taskSpan.AddEvent("submit algorithm execution task failed")
+			taskSpan.RecordError(err)
+		}
+
+	case consts.TaskTypeRunAlgorithm:
+		options, _ := parseExecutionOptions(labels)
+		logEntry = logEntry.WithFields(logrus.Fields{
+			"algorithm": options.Algorithm,
+			"dataset":   options.Dataset,
+		})
+
+		logEntry.Info("algorithm execute successfully")
+		repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
+			TaskID:    taskOptions.TaskID,
+			TaskType:  consts.TaskTypeRunAlgorithm,
+			EventName: consts.EventAlgoRunSucceed,
+			Payload:   options,
+		}, repository.WithCallerLevel(4))
+
+		updateTaskStatus(
+			taskCtx,
+			taskOptions.TraceID,
+			taskOptions.TaskID,
+			fmt.Sprintf(consts.TaskMsgCompleted, taskOptions.TaskID),
+			consts.TaskStatusCompleted,
+			taskOptions.Type,
+		)
+
+		if err := repository.UpdateStatusByExecID(options.ExecutionID, consts.ExecutionSuccess); err != nil {
+			logEntry.Errorf("update execution status failed: %v", err)
+			taskSpan.AddEvent("update execution status failed")
+			return
+		}
+
+		task := &dto.UnifiedTask{
+			Type: consts.TaskTypeCollectResult,
+			Payload: map[string]any{
+				consts.CollectAlgorithm:   options.Algorithm,
+				consts.CollectDataset:     options.Dataset,
+				consts.CollectExecutionID: options.ExecutionID,
+			},
+			Immediate: true,
+			TraceID:   taskOptions.TraceID,
+			GroupID:   taskOptions.GroupID,
+		}
+		task.SetTraceCtx(traceCtx)
+
+		_, _, err := SubmitTask(taskCtx, task)
+		if err != nil {
+			logEntry.Errorf("submit result collection task failed: %v", err)
+			taskSpan.AddEvent("submit result collection task failed")
 			taskSpan.RecordError(err)
 		}
 	}
 }
 
-func parseAnnotations(annotations map[string]string) (*Annotations, error) {
+func parseAnnotations(annotations map[string]string) (*Carriers, error) {
 	message := "missing or invalid '%s' key in k8s annotations"
 
 	taskCarrierStr, ok := annotations[consts.TaskCarrier]
@@ -388,7 +427,7 @@ func parseAnnotations(annotations map[string]string) (*Annotations, error) {
 		return nil, fmt.Errorf(message, consts.TraceCarrier)
 	}
 
-	return &Annotations{
+	return &Carriers{
 		TaskCarrier:  taskCarrier,
 		TraceCarrier: traceCarrier,
 	}, nil

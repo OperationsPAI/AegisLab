@@ -17,6 +17,18 @@ import (
 	"gorm.io/gorm"
 )
 
+// GetTaskDetail
+//
+//	@Summary		获取任务详情
+//	@Description	根据任务ID获取任务详细信息,包括任务基本信息和执行日志
+//	@Tags			task
+//	@Produce		json
+//	@Param			task_id	path		string	true	"任务ID"
+//	@Success		200		{object}	dto.GenericResponse[dto.TaskDetailResp]
+//	@Failure		400		{object}	dto.GenericResponse[any]	"无效的任务ID"
+//	@Failure		404		{object}	dto.GenericResponse[any]	"任务不存在"
+//	@Failure		500		{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Router			/api/v1/tasks/{task_id} [get]
 func GetTaskDetail(c *gin.Context) {
 	var req dto.TaskReq
 	if err := c.BindUri(&req); err != nil {
@@ -57,6 +69,18 @@ func GetTaskDetail(c *gin.Context) {
 	dto.SuccessResponse(c, dto.TaskDetailResp{Task: *taskItem, Logs: logs})
 }
 
+// GetQueuedTasks
+//
+//	@Summary		获取队列中的任务
+//	@Description	分页获取队列中等待执行的任务列表
+//	@Tags			task
+//	@Produce		json
+//	@Param			page_num	query		int	false	"页码"		default(1)
+//	@Param			page_size	query		int	false	"每页大小"	default(10)
+//	@Success		200			{object}	dto.GenericResponse[dto.PaginationResp[dto.UnifiedTask]]
+//	@Failure		400			{object}	dto.GenericResponse[any]
+//	@Failure		500			{object}	dto.GenericResponse[any]
+//	@Router			/api/v1/tasks/queue [get]
 func GetQueuedTasks(c *gin.Context) {
 	req := dto.PaginationReq{
 		PageNum:  1,
@@ -145,6 +169,19 @@ func GetQueuedTasks(c *gin.Context) {
 	})
 }
 
+// ListTasks
+//
+//	@Summary		获取任务列表
+//	@Description	分页获取任务列表
+//	@Tags			task
+//	@Produce		json
+//	@Param			page_num		query		int		false	"页码"		default(1)
+//	@Param			page_size		query		int		false	"每页大小"	default(10)
+//	@Param			sort_field		query		string	false	"排序字段"
+//	@Success		200	{object}	dto.GenericResponse[dto.PaginationResp[dto.TaskItem]]
+//	@Failure		400	{object}	dto.GenericResponse[any]
+//	@Failure		500	{object}	dto.GenericResponse[any]
+//	@Router			/api/v1/tasks/list [get]
 func ListTasks(c *gin.Context) {
 	var req dto.TaskListReq
 	if err := c.BindQuery(&req); err != nil {

@@ -26,16 +26,15 @@ type CollectionPayload struct {
 }
 
 func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
-	return tracing.WithSpan(ctx, func(ctx context.Context) error {
-		span := trace.SpanFromContext(ctx)
+	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
+		span := trace.SpanFromContext(childCtx)
 
-		collectPayload, err := parseCollectionPayload(task.Payload)
+		collectPayload, err := parseCollectPayload(task.Payload)
 		if err != nil {
 			return err
 		}
-		path := config.GetString("jfs.path")
-		// s3cli, err := client.GetS3Client()
 
+		path := config.GetString("jfs.path")
 		if collectPayload.Algorithm == "detector" {
 			conclusionCSV := filepath.Join(path, collectPayload.Dataset, consts.DetectorConclusionFile)
 			content, err := os.ReadFile(conclusionCSV)
@@ -47,7 +46,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 
 			results, err := readDetectorCSV(content, collectPayload.ExecutionID)
 			if err != nil {
-				repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+				repository.PublishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 					TaskID:    task.TaskID,
 					TaskType:  consts.TaskTypeCollectResult,
 					EventName: consts.EventDatasetNoConclusionFile,
@@ -58,8 +57,15 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				return fmt.Errorf("failed to convert conclusion.csv to database struct: %v", err)
 			}
 
-			if len(results) == 0 {
-				repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+			hasIssues := false
+			for _, v := range results {
+				if v.Issues != "{}" {
+					hasIssues = true
+				}
+			}
+
+			if !hasIssues {
+				repository.PublishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 					TaskID:    task.TaskID,
 					TaskType:  consts.TaskTypeCollectResult,
 					EventName: consts.EventDatasetNoAnomaly,
@@ -68,15 +74,13 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 
 				span.AddEvent("the detector result is empty")
 				logrus.Info("the detector result is empty")
-				updateTaskStatus(
-					ctx,
-					task.TraceID,
-					task.TaskID,
-					fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
-					consts.TaskStatusCompleted,
-					task.Type,
-				)
-				return nil
+			} else {
+				repository.PublishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+					TaskID:    task.TaskID,
+					TaskType:  consts.TaskTypeCollectResult,
+					EventName: consts.EventDatasetResultCollection,
+					Payload:   results,
+				})
 			}
 
 			if err = database.DB.Create(&results).Error; err != nil {
@@ -85,21 +89,57 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				return fmt.Errorf("failed to save conclusion.csv to database: %v", err)
 			}
 
-			repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
-				TaskID:    task.TaskID,
-				TaskType:  consts.TaskTypeCollectResult,
-				EventName: consts.EventDatasetResultCollection,
-				Payload:   results,
-			})
-
 			updateTaskStatus(
-				ctx,
+				childCtx,
 				task.TraceID,
 				task.TaskID,
 				fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
 				consts.TaskStatusCompleted,
 				task.Type,
 			)
+
+			if repository.CheckCachedTraceID(childCtx, task.TraceID) {
+				names, err := repository.GetCachedAlgorithmsFromRedis(childCtx, task.TraceID)
+				if err != nil {
+					span.AddEvent("failed to get algorithms from redis")
+					span.RecordError(err)
+					return fmt.Errorf("failed to get algorithms from redis: %v", err)
+				}
+
+				algorithms, err := repository.ListAlgorithmByNames(names)
+				if err != nil {
+					span.AddEvent("failed to list algorithms by names")
+					span.RecordError(err)
+					return fmt.Errorf("failed to list algorithms by names: %v", err)
+				}
+
+				for _, algorithm := range algorithms {
+					childTask := &dto.UnifiedTask{
+						Type: consts.TaskTypeRunAlgorithm,
+						Payload: map[string]any{
+							consts.ExecuteAlgorithm: algorithm.Name,
+							consts.ExecuteDataset:   collectPayload.Dataset,
+						},
+						Immediate:    true,
+						TraceID:      task.TraceID,
+						GroupID:      task.GroupID,
+						TraceCarrier: task.TraceCarrier,
+					}
+
+					if _, _, err := SubmitTask(childCtx, childTask); err != nil {
+						span.AddEvent("failed to submit algorithm task")
+						span.RecordError(err)
+						return fmt.Errorf("failed to submit algorithm task: %v", err)
+					}
+
+					logrus.WithFields(
+						logrus.Fields{
+							"algorithm": algorithm.Name,
+							"dataset":   collectPayload.Dataset,
+						},
+					).Infof("Algorithm task submitted successfully")
+				}
+			}
 		} else {
 			resultCSV := filepath.Join(path, collectPayload.Dataset, "result.csv")
 			content, err := os.ReadFile(resultCSV)
@@ -122,7 +162,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				return fmt.Errorf("save result.csv to database failed: %v", err)
 			}
 
-			repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+			repository.PublishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 				TaskID:    task.TaskID,
 				TaskType:  consts.TaskTypeCollectResult,
 				EventName: consts.EventAlgoResultCollection,
@@ -130,7 +170,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 			})
 
 			updateTaskStatus(
-				ctx,
+				childCtx,
 				task.TraceID,
 				task.TaskID,
 				fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
@@ -143,7 +183,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 	})
 }
 
-func parseCollectionPayload(payload map[string]any) (*CollectionPayload, error) {
+func parseCollectPayload(payload map[string]any) (*CollectionPayload, error) {
 	algorithm, ok := payload[consts.CollectAlgorithm].(string)
 	if !ok || algorithm == "" {
 		return nil, fmt.Errorf("Missing or invalid '%s' key in payload", consts.CollectAlgorithm)

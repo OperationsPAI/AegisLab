@@ -15,9 +15,16 @@ import (
 func New() *gin.Engine {
 	router := gin.Default()
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:3000", "http://localhost:5173"} // 允许来自前端服务器的请求
+	config.AllowAllOrigins = true
 	router.Use(middleware.Logging(), middleware.GroupID(), middleware.SSEPath(), cors.New(config), middleware.TracerMiddleware())
 	r := router.Group("/api/v1")
+
+	debug := r.Group("/debug")
+	{
+		debug.GET("/var", handlers.GetVar)
+		debug.GET("/vars", handlers.GetAllVars)
+		debug.POST("/var", handlers.SetVar)
+	}
 
 	algorithms := r.Group("/algorithms")
 	{
@@ -37,16 +44,26 @@ func New() *gin.Engine {
 
 	evaluations := r.Group("/evaluations")
 	{
-		evaluations.GET("", handlers.GetEvaluationList)
+		evaluations.GET("groundtruth", handlers.GetGroundtruth)
+		evaluations.GET("raw-data", handlers.GetEvaluationRawData)
 	}
 
 	injections := r.Group("/injections")
 	{
 		injections.GET("", handlers.GetInjectionList)
 		injections.GET("/conf", handlers.GetInjectionConf)
+		injections.GET("/configs", handlers.GetDisplayConfigList)
 		injections.GET("/ns/status", handlers.GetNSLock)
 		injections.GET("/query", handlers.QueryInjection)
 		injections.POST("", handlers.SubmitFaultInjection)
+
+		analysis := injections.Group("/analysis")
+		{
+			analysis.GET("/no-issues", handlers.GetFaultInjectionNoIssues)
+			analysis.GET("/with-issues", handlers.GetFaultInjectionWithIssues)
+			analysis.GET("/statistics", handlers.GetFaultInjectionStatistics)
+			analysis.GET("/dataset/:dataset_id", handlers.GetFaultInjectionByDatasetID)
+		}
 
 		tasks := injections.Group("/:task_id")
 		{
@@ -68,6 +85,7 @@ func New() *gin.Engine {
 	traces := r.Group("/traces")
 	{
 		traces.GET("/analyze", handlers.AnalyzeTrace)
+		traces.GET("/completed", handlers.GetCompletedMap)
 
 		tracesWithID := traces.Group("/:trace_id")
 		{
