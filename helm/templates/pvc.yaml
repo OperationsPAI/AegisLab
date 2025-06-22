@@ -1,19 +1,19 @@
-{{- if .Values.persistence.mariadb.enabled }}
+{{- if .Values.persistence.postgres.enabled }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Release.Name }}-mariadb-data
+  name: {{ .Release.Name }}-postgres-data
   annotations:
     "helm.sh/resource-policy": keep
 spec:
   accessModes:
-    - {{ .Values.persistence.mariadb.accessMode }}
-  {{- if .Values.persistence.mariadb.storageClass }}
-  storageClassName: {{ .Values.persistence.mariadb.storageClass | quote }}
+    - {{ .Values.persistence.postgres.accessMode }}
+  {{- if .Values.persistence.postgres.storageClass }}
+  storageClassName: {{ .Values.persistence.postgres.storageClass | quote }}
   {{- end }}
   resources:
     requests:
-      storage: {{ .Values.persistence.mariadb.size }}
+      storage: {{ .Values.persistence.postgres.size }}
 {{- end }}
 
 {{- if .Values.persistence.redis.enabled }}

@@ -13,6 +13,10 @@ images:
     repository: 10.10.10.240/library/mariadb
     tag: 11.8.1-noble-rc
     pullPolicy: IfNotPresent
+  postgres:
+    repository: postgres
+    tag: 16-bullseye
+    pullPolicy: IfNotPresent
   jaeger:
     repository: jaegertracing/all-in-one
     tag: latest
@@ -26,9 +30,6 @@ images:
     tag: buildx-stable-1
     pullPolicy: IfNotPresent
 
-config:
-  port: 8081
-  mysqlRootPassword: yourpassword
 
 configmap:
   name: "rcabench"
@@ -54,6 +55,10 @@ configmap:
     mysql_password: "yourpassword"
     mysql_port: "3306"
     mysql_db: "rcabench"
+    postgres_user: "postgres"
+    postgres_password: "yourpassword"
+    postgres_port: "5432"
+    postgres_db: "rcabench"
   harbor:
     host: "10.10.10.240"
     repository: "10.10.10.240/library"
@@ -72,7 +77,7 @@ configmap:
     address: "tcp://{{ .Release.Name }}-buildkit:1234"
 
 persistence:
-  mariadb:
+  postgres:
     enabled: true
     accessMode: ReadWriteOnce
     size: 1Gi

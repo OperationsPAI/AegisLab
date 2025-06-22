@@ -16,15 +16,15 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-mariadb
+  name: {{ .Release.Name }}-postgres
 spec:
   type: NodePort
   selector:
-    app: {{ .Release.Name }}-mariadb
+    app: {{ .Release.Name }}-postgres
   ports:
-  - port: 3306
-    targetPort: 3306
-    nodePort: 32336
+  - port: 5432
+    targetPort: 5432
+    nodePort: 32432
 
 ---
 # exp Service

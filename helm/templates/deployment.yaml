@@ -28,67 +28,56 @@ spec:
             claimName: {{ .Release.Name }}-redis-data
 
 ---
-# mariadb
+# postgresql
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-mariadb
+  name: {{ .Release.Name }}-postgres
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ .Release.Name }}-mariadb
+      app: {{ .Release.Name }}-postgres
   template:
     metadata:
       labels:
-        app: {{ .Release.Name }}-mariadb
+        app: {{ .Release.Name }}-postgres
     spec:
-      initContainers:
-        - name: set-root-permissions
-          image: "{{ .Values.images.mariadb.repository }}:{{ .Values.images.mariadb.tag }}"
-          imagePullPolicy: "{{ .Values.images.mariadb.pullPolicy }}"
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              echo "CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';" > /tmp/init/init.sql
-              echo "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;" >> /tmp/init/init.sql
-              echo "FLUSH PRIVILEGES;" >> /tmp/init/init.sql
-          env:
-            - name: MYSQL_ROOT_PASSWORD
-              value: "{{ .Values.config.mysqlRootPassword }}"
-          volumeMounts:
-            - name: init-scripts
-              mountPath: /tmp/init
+      securityContext:
+        fsGroup: 999
+        runAsUser: 999
+        runAsGroup: 999
       containers:
-        - name: mariadb
-          image: "{{ .Values.images.mariadb.repository }}:{{ .Values.images.mariadb.tag }}"
-          imagePullPolicy: "{{ .Values.images.mariadb.pullPolicy }}"
+        - name: postgres
+          image: "{{ .Values.images.postgres.repository }}:{{ .Values.images.postgres.tag }}"
+          imagePullPolicy: "{{ .Values.images.postgres.pullPolicy }}"
+          securityContext:
+            runAsUser: 999
+            runAsGroup: 999
+            allowPrivilegeEscalation: false
           env:
-            - name: MYSQL_ROOT_PASSWORD
-              value: "{{ .Values.config.mysqlRootPassword }}"
-            - name: MYSQL_DATABASE
+            - name: POSTGRES_DB
               value: rcabench
-            - name: MYSQL_USER
-              value: root
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: "{{ .Values.configmap.database.postgres_password }}"
+            - name: POSTGRES_HOST_AUTH_METHOD
+              value: md5
+            - name: POSTGRES_INITDB_ARGS
+              value: "--auth-host=md5"
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          args: ["-c", "listen_addresses=*", "-c", "log_statement=all"]
           ports:
-            - containerPort: 3306
+            - containerPort: 5432
           volumeMounts:
-            - name: mariadb-data
-              mountPath: /var/lib/mysql
-            - name: init-scripts
-              mountPath: /docker-entrypoint-initdb.d
-            - name: mariadb-config
-              mountPath: /etc/mysql/conf.d/my.cnf
-              subPath: my.cnf
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
       volumes:
-        - name: mariadb-data
+        - name: postgres-data
           persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-mariadb-data
-        - name: init-scripts
-          emptyDir: {}
-        - name: mariadb-config
-          configMap:
-            name: {{ .Release.Name }}-mariadb-config
+            claimName: {{ .Release.Name }}-postgres-data
 
 ---
 # jaeger
@@ -152,15 +141,15 @@ spec:
                 echo "Waiting for Redis...";
                 sleep 3;
               done;
-        - name: wait-for-mariadb
+        - name: wait-for-postgres
           image: "{{ .Values.images.busybox.repository }}:{{ .Values.images.busybox.tag }}"
           imagePullPolicy: "{{ .Values.images.busybox.pullPolicy }}"
           command:
             - sh
             - -c
             - >
-              while ! nc -z {{ .Release.Name }}-mariadb 3306; do
-                echo "Waiting for MariaDB...";
+              while ! nc -z {{ .Release.Name }}-postgres 5432; do
+                echo "Waiting for PostgreSQL...";
                 sleep 3;
               done;
         - name: wait-for-jaeger
@@ -242,15 +231,15 @@ spec:
                 echo "Waiting for Redis...";
                 sleep 3;
               done;
-        - name: wait-for-mariadb
+        - name: wait-for-postgres
           image: "{{ .Values.images.busybox.repository }}:{{ .Values.images.busybox.tag }}"
           imagePullPolicy: "{{ .Values.images.busybox.pullPolicy }}"
           command:
             - sh
             - -c
             - >
-              while ! nc -z {{ .Release.Name }}-mariadb 3306; do
-                echo "Waiting for MariaDB...";
+              while ! nc -z {{ .Release.Name }}-postgres 5432; do
+                echo "Waiting for PostgreSQL...";
                 sleep 3;
               done;
         - name: wait-for-jaeger
