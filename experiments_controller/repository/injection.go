@@ -393,19 +393,9 @@ func GetAllFaultInjectionWithIssues(opts dto.TimeFilterOption) (int64, []databas
 	)
 }
 
-// GetFaultInjectionNoIssuesByDatasetID 根据数据集ID查询没有问题的故障注入记录
-func GetFaultInjectionNoIssuesByDatasetID(datasetID int) (*database.FaultInjectionNoIssues, error) {
-	var record database.FaultInjectionNoIssues
-	if err := database.DB.Where("DatasetID = ?", datasetID).First(&record).Error; err != nil {
-		return nil, err
-	}
-	return &record, nil
-}
-
-// GetFaultInjectionWithIssuesByDatasetID 根据数据集ID查询有问题的故障注入记录
-func GetFaultInjectionWithIssuesByDatasetID(datasetID int) (*database.FaultInjectionWithIssues, error) {
-	var record database.FaultInjectionWithIssues
-	if err := database.DB.Where("DatasetID = ?", datasetID).First(&record).Error; err != nil {
+func GetFLByDatasetName(datasetName string) (*database.FaultInjectionSchedule, error) {
+	var record database.FaultInjectionSchedule
+	if err := database.DB.Where("injection_name = ?", datasetName).First(&record).Error; err != nil {
 		return nil, err
 	}
 	return &record, nil

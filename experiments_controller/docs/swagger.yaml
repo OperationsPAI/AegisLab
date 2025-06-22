@@ -18,6 +18,10 @@ definitions:
     - TaskTypeBuildImages
     - TaskTypeBuildDataset
     - TaskTypeCollectResult
+  database.LabelsMap:
+    additionalProperties:
+      type: string
+    type: object
   dto.AlgorithmExecutionPayload:
     properties:
       algorithm:
@@ -112,6 +116,57 @@ definitions:
         items:
           $ref: '#/definitions/dto.GranularityRecord'
         type: array
+    type: object
+  dto.FaultInjectionInjectionResp:
+    properties:
+      benchmark:
+        description: 基准数据库
+        type: string
+      created_at:
+        description: 创建时间
+        type: string
+      description:
+        description: 描述（可选字段）
+        type: string
+      display_config:
+        description: 面向用户的展示配置
+        type: string
+      end_time:
+        description: 预计故障结束时间
+        type: string
+      engine_config:
+        description: 面向系统的运行配置
+        type: string
+      fault_type:
+        description: 故障类型
+        type: integer
+      ground_truth:
+        $ref: '#/definitions/handler.Groundtruth'
+      id:
+        description: 唯一标识
+        type: integer
+      injection_name:
+        description: 在k8s资源里注入的名字
+        type: string
+      labels:
+        allOf:
+        - $ref: '#/definitions/database.LabelsMap'
+        description: 用户自定义标签，JSONB格式存储 key-value pairs
+      pre_duration:
+        description: 正常数据时间
+        type: integer
+      start_time:
+        description: 预计故障开始时间
+        type: string
+      status:
+        description: '-1: 已删除 0: 初始状态 1: 注入结束且失败 2: 注入结束且成功 3: 收集数据失败 4:收集数据成功'
+        type: integer
+      task_id:
+        description: 从属什么 taskid
+        type: string
+      updated_at:
+        description: 更新时间
+        type: string
     type: object
   dto.FaultInjectionNoIssuesResp:
     properties:
@@ -239,6 +294,22 @@ definitions:
       data:
         allOf:
         - $ref: '#/definitions/dto.DatasetDeleteResp'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_FaultInjectionInjectionResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.FaultInjectionInjectionResp'
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -1094,37 +1165,6 @@ paths:
       tags:
       - evaluation
   /api/v1/injections:
-    get:
-      description: 获取注入记录列表（支持分页参数）
-      parameters:
-      - default: 1
-        description: 页码
-        in: query
-        name: page_num
-        type: integer
-      - default: 10
-        description: 每页大小
-        in: query
-        name: page_size
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_PaginationResp-dto_InjectionItem'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 分页查询注入记录列表
-      tags:
-      - injection
     post:
       description: 注入故障
       parameters:
@@ -1177,37 +1217,6 @@ paths:
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
       summary: 取消故障注入任务
-      tags:
-      - injection
-  /api/v1/injections/analysis/dataset/{dataset_id}:
-    get:
-      description: 根据数据集ID查询故障注入记录详情（包括是否有问题）
-      parameters:
-      - description: 数据集ID
-        in: path
-        name: dataset_id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 根据数据集ID查询故障注入记录
       tags:
       - injection
   /api/v1/injections/analysis/no-issues:
@@ -1355,6 +1364,37 @@ paths:
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
       summary: 获取故障注入配置列表
+      tags:
+      - injection
+  /api/v1/injections/detail:
+    get:
+      description: 根据数据集ID查询故障注入记录
+      parameters:
+      - description: 数据集名称
+        in: query
+        name: dataset_name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_FaultInjectionInjectionResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: 根据数据集ID查询故障注入记录
       tags:
       - injection
   /api/v1/injections/ns/status:

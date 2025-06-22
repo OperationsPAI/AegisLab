@@ -113,7 +113,7 @@ func GetDisplayConfigList(c *gin.Context) {
 //	@Success		200			{object}	dto.GenericResponse[dto.PaginationResp[dto.InjectionItem]]
 //	@Failure		400			{object}	dto.GenericResponse[any]
 //	@Failure		500			{object}	dto.GenericResponse[any]
-//	@Router			/api/v1/injections [get]
+//	@Router			/api/v1/injections/detail [get]
 func GetInjectionList(c *gin.Context) {
 	var req dto.InjectionListReq
 	if err := c.BindQuery(&req); err != nil {
@@ -611,66 +611,36 @@ func GetFaultInjectionStatistics(c *gin.Context) {
 // GetFaultInjectionByDatasetID
 //
 //	@Summary		根据数据集ID查询故障注入记录
-//	@Description	根据数据集ID查询故障注入记录详情（包括是否有问题）
+//	@Description	根据数据集ID查询故障注入记录
 //	@Tags			injection
 //	@Produce		json
-//	@Param			dataset_id	path		int	true	"数据集ID"
-//	@Success		200			{object}	dto.GenericResponse[any]
+//	@Param			dataset_name	query		string	true	"数据集名称"
+//	@Success		200			{object}	dto.GenericResponse[dto.FaultInjectionInjectionResp]
 //	@Failure		400			{object}	dto.GenericResponse[any]
 //	@Failure		404			{object}	dto.GenericResponse[any]
 //	@Failure		500			{object}	dto.GenericResponse[any]
-//	@Router			/api/v1/injections/analysis/dataset/{dataset_id} [get]
-func GetFaultInjectionByDatasetID(c *gin.Context) {
-	datasetIDStr := c.Param("dataset_id")
-	datasetID, err := strconv.Atoi(datasetIDStr)
+//	@Router			/api/v1/injections/detail [get]
+func GetFaultInjectionByDatasetName(c *gin.Context) {
+	datasetName := c.Query("dataset_name")
+	if datasetName == "" {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Dataset name is required")
+		return
+	}
+	dataset, err := repository.GetFLByDatasetName(datasetName)
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid dataset ID")
+		logrus.Errorf("failed to get fault injection by dataset name: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get fault injection by dataset name")
 		return
 	}
-
-	// 先尝试查询有问题的记录
-	withIssues, err := repository.GetFaultInjectionWithIssuesByDatasetID(datasetID)
-	if err == nil {
-		conf := chaos.Node{}
-		err := json.Unmarshal([]byte(withIssues.EngineConfig), &conf)
-		if err != nil {
-			logrus.Errorf("failed to unmarshal engine config: %v", err)
-			dto.ErrorResponse(c, http.StatusInternalServerError, "failed to parse engine config")
-			return
-		}
-
-		dto.SuccessResponse(c, dto.FaultInjectionWithIssuesResp{
-			DatasetID:     withIssues.DatasetID,
-			DisplayConfig: withIssues.DisplayConfig,
-			EngineConfig:  conf,
-			PreDuration:   withIssues.PreDuration,
-			InjectionName: withIssues.InjectionName,
-			Issues:        withIssues.Issues,
-		})
+	groundTruth, err := repository.GetGroundtruthMap([]string{datasetName})
+	if err != nil {
+		logrus.Errorf("failed to get ground truth map: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get ground truth map")
 		return
 	}
-
-	// 如果没有找到有问题的记录，尝试查询没有问题的记录
-	noIssues, err := repository.GetFaultInjectionNoIssuesByDatasetID(datasetID)
-	if err == nil {
-		conf := chaos.Node{}
-		err := json.Unmarshal([]byte(noIssues.EngineConfig), &conf)
-		if err != nil {
-			logrus.Errorf("failed to unmarshal engine config: %v", err)
-			dto.ErrorResponse(c, http.StatusInternalServerError, "failed to parse engine config")
-			return
-		}
-
-		dto.SuccessResponse(c, dto.FaultInjectionNoIssuesResp{
-			DatasetID:     noIssues.DatasetID,
-			DisplayConfig: noIssues.DisplayConfig,
-			EngineConfig:  conf,
-			PreDuration:   noIssues.PreDuration,
-			InjectionName: noIssues.InjectionName,
-		})
-		return
+	resp := dto.FaultInjectionInjectionResp{
+		FaultInjectionSchedule: *dataset,
+		GroundTruth:            groundTruth[datasetName],
 	}
-
-	// 如果都没有找到，返回404
-	dto.ErrorResponse(c, http.StatusNotFound, "Fault injection record not found for the given dataset ID")
+	dto.SuccessResponse(c, resp)
 }
