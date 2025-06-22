@@ -39,13 +39,6 @@ class DtoLabelItem(BaseModel):
             raise ValueError("must be one of enum values ('env', 'batch')")
         return value
 
-    @field_validator('value')
-    def value_validate_enum(cls, value):
-        """Validates the enum"""
-        if value not in set(['dev', 'prod', 'test', 'us-cn']):
-            raise ValueError("must be one of enum values ('dev', 'prod', 'test', 'us-cn')")
-        return value
-
     model_config = ConfigDict(
         populate_by_name=True,
         validate_assignment=True,

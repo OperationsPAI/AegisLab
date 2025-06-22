@@ -88,7 +88,7 @@ type InjectionParaResp struct {
 
 type LabelItem struct {
 	Key   string `json:"key" binding:"required,oneof=env batch"`
-	Value string `json:"value" binding:"required,oneof=dev prod test us-cn"`
+	Value string `json:"value" binding:"required"`
 }
 
 type InjectionSubmitReq struct {
