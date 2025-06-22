@@ -56,13 +56,13 @@ func New() *gin.Engine {
 		injections.GET("/ns/status", handlers.GetNSLock)
 		injections.GET("/query", handlers.QueryInjection)
 		injections.POST("", handlers.SubmitFaultInjection)
+		injections.GET("/detail", handlers.GetFaultInjectionByDatasetName)
 
 		analysis := injections.Group("/analysis")
 		{
 			analysis.GET("/no-issues", handlers.GetFaultInjectionNoIssues)
 			analysis.GET("/with-issues", handlers.GetFaultInjectionWithIssues)
 			analysis.GET("/statistics", handlers.GetFaultInjectionStatistics)
-			analysis.GET("/dataset/:dataset_id", handlers.GetFaultInjectionByDatasetID)
 		}
 
 		tasks := injections.Group("/:task_id")

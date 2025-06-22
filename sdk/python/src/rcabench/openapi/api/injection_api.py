@@ -17,16 +17,16 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-from pydantic import Field, StrictInt, StrictStr
+from pydantic import Field, StrictStr
 from typing import List, Optional
 from typing_extensions import Annotated
 from rcabench.openapi.models.dto_generic_response_any import DtoGenericResponseAny
 from rcabench.openapi.models.dto_generic_response_array_dto_fault_injection_no_issues_resp import DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp
 from rcabench.openapi.models.dto_generic_response_array_dto_fault_injection_with_issues_resp import DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp
+from rcabench.openapi.models.dto_generic_response_dto_fault_injection_injection_resp import DtoGenericResponseDtoFaultInjectionInjectionResp
 from rcabench.openapi.models.dto_generic_response_dto_fault_injection_statistics_resp import DtoGenericResponseDtoFaultInjectionStatisticsResp
 from rcabench.openapi.models.dto_generic_response_dto_inject_cancel_resp import DtoGenericResponseDtoInjectCancelResp
 from rcabench.openapi.models.dto_generic_response_dto_injection_item import DtoGenericResponseDtoInjectionItem
-from rcabench.openapi.models.dto_generic_response_dto_pagination_resp_dto_injection_item import DtoGenericResponseDtoPaginationRespDtoInjectionItem
 from rcabench.openapi.models.dto_generic_response_dto_submit_resp import DtoGenericResponseDtoSubmitResp
 from rcabench.openapi.models.dto_generic_response_handler_node import DtoGenericResponseHandlerNode
 from rcabench.openapi.models.dto_injection_submit_req import DtoInjectionSubmitReq
@@ -47,275 +47,6 @@ class InjectionApi:
         if api_client is None:
             api_client = ApiClient.get_default()
         self.api_client = api_client
-
-
-    @validate_call
-    def api_v1_injections_analysis_dataset_dataset_id_get(
-        self,
-        dataset_id: Annotated[StrictInt, Field(description="数据集ID")],
-        _request_timeout: Union[
-            None,
-            Annotated[StrictFloat, Field(gt=0)],
-            Tuple[
-                Annotated[StrictFloat, Field(gt=0)],
-                Annotated[StrictFloat, Field(gt=0)]
-            ]
-        ] = None,
-        _request_auth: Optional[Dict[StrictStr, Any]] = None,
-        _content_type: Optional[StrictStr] = None,
-        _headers: Optional[Dict[StrictStr, Any]] = None,
-        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseAny:
-        """根据数据集ID查询故障注入记录
-
-        根据数据集ID查询故障注入记录详情（包括是否有问题）
-
-        :param dataset_id: 数据集ID (required)
-        :type dataset_id: int
-        :param _request_timeout: timeout setting for this request. If one
-                                 number provided, it will be total request
-                                 timeout. It can also be a pair (tuple) of
-                                 (connection, read) timeouts.
-        :type _request_timeout: int, tuple(int, int), optional
-        :param _request_auth: set to override the auth_settings for an a single
-                              request; this effectively ignores the
-                              authentication in the spec for a single request.
-        :type _request_auth: dict, optional
-        :param _content_type: force content-type for the request.
-        :type _content_type: str, Optional
-        :param _headers: set to override the headers for a single
-                         request; this effectively ignores the headers
-                         in the spec for a single request.
-        :type _headers: dict, optional
-        :param _host_index: set to override the host_index for a single
-                            request; this effectively ignores the host_index
-                            in the spec for a single request.
-        :type _host_index: int, optional
-        :return: Returns the result object.
-        """ # noqa: E501
-
-        _param = self._api_v1_injections_analysis_dataset_dataset_id_get_serialize(
-            dataset_id=dataset_id,
-            _request_auth=_request_auth,
-            _content_type=_content_type,
-            _headers=_headers,
-            _host_index=_host_index
-        )
-
-        _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseAny",
-            '400': "DtoGenericResponseAny",
-            '404': "DtoGenericResponseAny",
-            '500': "DtoGenericResponseAny",
-        }
-        response_data = self.api_client.call_api(
-            *_param,
-            _request_timeout=_request_timeout
-        )
-        response_data.read()
-        return self.api_client.response_deserialize(
-            response_data=response_data,
-            response_types_map=_response_types_map,
-        ).data
-
-
-    @validate_call
-    def api_v1_injections_analysis_dataset_dataset_id_get_with_http_info(
-        self,
-        dataset_id: Annotated[StrictInt, Field(description="数据集ID")],
-        _request_timeout: Union[
-            None,
-            Annotated[StrictFloat, Field(gt=0)],
-            Tuple[
-                Annotated[StrictFloat, Field(gt=0)],
-                Annotated[StrictFloat, Field(gt=0)]
-            ]
-        ] = None,
-        _request_auth: Optional[Dict[StrictStr, Any]] = None,
-        _content_type: Optional[StrictStr] = None,
-        _headers: Optional[Dict[StrictStr, Any]] = None,
-        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseAny]:
-        """根据数据集ID查询故障注入记录
-
-        根据数据集ID查询故障注入记录详情（包括是否有问题）
-
-        :param dataset_id: 数据集ID (required)
-        :type dataset_id: int
-        :param _request_timeout: timeout setting for this request. If one
-                                 number provided, it will be total request
-                                 timeout. It can also be a pair (tuple) of
-                                 (connection, read) timeouts.
-        :type _request_timeout: int, tuple(int, int), optional
-        :param _request_auth: set to override the auth_settings for an a single
-                              request; this effectively ignores the
-                              authentication in the spec for a single request.
-        :type _request_auth: dict, optional
-        :param _content_type: force content-type for the request.
-        :type _content_type: str, Optional
-        :param _headers: set to override the headers for a single
-                         request; this effectively ignores the headers
-                         in the spec for a single request.
-        :type _headers: dict, optional
-        :param _host_index: set to override the host_index for a single
-                            request; this effectively ignores the host_index
-                            in the spec for a single request.
-        :type _host_index: int, optional
-        :return: Returns the result object.
-        """ # noqa: E501
-
-        _param = self._api_v1_injections_analysis_dataset_dataset_id_get_serialize(
-            dataset_id=dataset_id,
-            _request_auth=_request_auth,
-            _content_type=_content_type,
-            _headers=_headers,
-            _host_index=_host_index
-        )
-
-        _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseAny",
-            '400': "DtoGenericResponseAny",
-            '404': "DtoGenericResponseAny",
-            '500': "DtoGenericResponseAny",
-        }
-        response_data = self.api_client.call_api(
-            *_param,
-            _request_timeout=_request_timeout
-        )
-        response_data.read()
-        return self.api_client.response_deserialize(
-            response_data=response_data,
-            response_types_map=_response_types_map,
-        )
-
-
-    @validate_call
-    def api_v1_injections_analysis_dataset_dataset_id_get_without_preload_content(
-        self,
-        dataset_id: Annotated[StrictInt, Field(description="数据集ID")],
-        _request_timeout: Union[
-            None,
-            Annotated[StrictFloat, Field(gt=0)],
-            Tuple[
-                Annotated[StrictFloat, Field(gt=0)],
-                Annotated[StrictFloat, Field(gt=0)]
-            ]
-        ] = None,
-        _request_auth: Optional[Dict[StrictStr, Any]] = None,
-        _content_type: Optional[StrictStr] = None,
-        _headers: Optional[Dict[StrictStr, Any]] = None,
-        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> RESTResponseType:
-        """根据数据集ID查询故障注入记录
-
-        根据数据集ID查询故障注入记录详情（包括是否有问题）
-
-        :param dataset_id: 数据集ID (required)
-        :type dataset_id: int
-        :param _request_timeout: timeout setting for this request. If one
-                                 number provided, it will be total request
-                                 timeout. It can also be a pair (tuple) of
-                                 (connection, read) timeouts.
-        :type _request_timeout: int, tuple(int, int), optional
-        :param _request_auth: set to override the auth_settings for an a single
-                              request; this effectively ignores the
-                              authentication in the spec for a single request.
-        :type _request_auth: dict, optional
-        :param _content_type: force content-type for the request.
-        :type _content_type: str, Optional
-        :param _headers: set to override the headers for a single
-                         request; this effectively ignores the headers
-                         in the spec for a single request.
-        :type _headers: dict, optional
-        :param _host_index: set to override the host_index for a single
-                            request; this effectively ignores the host_index
-                            in the spec for a single request.
-        :type _host_index: int, optional
-        :return: Returns the result object.
-        """ # noqa: E501
-
-        _param = self._api_v1_injections_analysis_dataset_dataset_id_get_serialize(
-            dataset_id=dataset_id,
-            _request_auth=_request_auth,
-            _content_type=_content_type,
-            _headers=_headers,
-            _host_index=_host_index
-        )
-
-        _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseAny",
-            '400': "DtoGenericResponseAny",
-            '404': "DtoGenericResponseAny",
-            '500': "DtoGenericResponseAny",
-        }
-        response_data = self.api_client.call_api(
-            *_param,
-            _request_timeout=_request_timeout
-        )
-        return response_data.response
-
-
-    def _api_v1_injections_analysis_dataset_dataset_id_get_serialize(
-        self,
-        dataset_id,
-        _request_auth,
-        _content_type,
-        _headers,
-        _host_index,
-    ) -> RequestSerialized:
-
-        _host = None
-
-        _collection_formats: Dict[str, str] = {
-        }
-
-        _path_params: Dict[str, str] = {}
-        _query_params: List[Tuple[str, str]] = []
-        _header_params: Dict[str, Optional[str]] = _headers or {}
-        _form_params: List[Tuple[str, str]] = []
-        _files: Dict[
-            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
-        ] = {}
-        _body_params: Optional[bytes] = None
-
-        # process the path parameters
-        if dataset_id is not None:
-            _path_params['dataset_id'] = dataset_id
-        # process the query parameters
-        # process the header parameters
-        # process the form parameters
-        # process the body parameter
-
-
-        # set the HTTP header `Accept`
-        if 'Accept' not in _header_params:
-            _header_params['Accept'] = self.api_client.select_header_accept(
-                [
-                    'application/json'
-                ]
-            )
-
-
-        # authentication setting
-        _auth_settings: List[str] = [
-        ]
-
-        return self.api_client.param_serialize(
-            method='GET',
-            resource_path='/api/v1/injections/analysis/dataset/{dataset_id}',
-            path_params=_path_params,
-            query_params=_query_params,
-            header_params=_header_params,
-            body=_body_params,
-            post_params=_form_params,
-            files=_files,
-            auth_settings=_auth_settings,
-            collection_formats=_collection_formats,
-            _host=_host,
-            _request_auth=_request_auth
-        )
-
-
 
 
     @validate_call
@@ -1725,10 +1456,9 @@ class InjectionApi:
 
 
     @validate_call
-    def api_v1_injections_get(
+    def api_v1_injections_detail_get(
         self,
-        page_num: Annotated[Optional[StrictInt], Field(description="页码")] = None,
-        page_size: Annotated[Optional[StrictInt], Field(description="每页大小")] = None,
+        dataset_name: Annotated[StrictStr, Field(description="数据集名称")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1741,15 +1471,13 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseDtoPaginationRespDtoInjectionItem:
-        """分页查询注入记录列表
+    ) -> DtoGenericResponseDtoFaultInjectionInjectionResp:
+        """根据数据集ID查询故障注入记录
 
-        获取注入记录列表（支持分页参数）
+        根据数据集ID查询故障注入记录
 
-        :param page_num: 页码
-        :type page_num: int
-        :param page_size: 每页大小
-        :type page_size: int
+        :param dataset_name: 数据集名称 (required)
+        :type dataset_name: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1772,9 +1500,8 @@ class InjectionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_injections_get_serialize(
-            page_num=page_num,
-            page_size=page_size,
+        _param = self._api_v1_injections_detail_get_serialize(
+            dataset_name=dataset_name,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1782,8 +1509,9 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoPaginationRespDtoInjectionItem",
+            '200': "DtoGenericResponseDtoFaultInjectionInjectionResp",
             '400': "DtoGenericResponseAny",
+            '404': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -1798,10 +1526,9 @@ class InjectionApi:
 
 
     @validate_call
-    def api_v1_injections_get_with_http_info(
+    def api_v1_injections_detail_get_with_http_info(
         self,
-        page_num: Annotated[Optional[StrictInt], Field(description="页码")] = None,
-        page_size: Annotated[Optional[StrictInt], Field(description="每页大小")] = None,
+        dataset_name: Annotated[StrictStr, Field(description="数据集名称")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1814,15 +1541,13 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseDtoPaginationRespDtoInjectionItem]:
-        """分页查询注入记录列表
+    ) -> ApiResponse[DtoGenericResponseDtoFaultInjectionInjectionResp]:
+        """根据数据集ID查询故障注入记录
 
-        获取注入记录列表（支持分页参数）
+        根据数据集ID查询故障注入记录
 
-        :param page_num: 页码
-        :type page_num: int
-        :param page_size: 每页大小
-        :type page_size: int
+        :param dataset_name: 数据集名称 (required)
+        :type dataset_name: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1845,9 +1570,8 @@ class InjectionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_injections_get_serialize(
-            page_num=page_num,
-            page_size=page_size,
+        _param = self._api_v1_injections_detail_get_serialize(
+            dataset_name=dataset_name,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1855,8 +1579,9 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoPaginationRespDtoInjectionItem",
+            '200': "DtoGenericResponseDtoFaultInjectionInjectionResp",
             '400': "DtoGenericResponseAny",
+            '404': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -1871,10 +1596,9 @@ class InjectionApi:
 
 
     @validate_call
-    def api_v1_injections_get_without_preload_content(
+    def api_v1_injections_detail_get_without_preload_content(
         self,
-        page_num: Annotated[Optional[StrictInt], Field(description="页码")] = None,
-        page_size: Annotated[Optional[StrictInt], Field(description="每页大小")] = None,
+        dataset_name: Annotated[StrictStr, Field(description="数据集名称")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1888,14 +1612,12 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """分页查询注入记录列表
+        """根据数据集ID查询故障注入记录
 
-        获取注入记录列表（支持分页参数）
+        根据数据集ID查询故障注入记录
 
-        :param page_num: 页码
-        :type page_num: int
-        :param page_size: 每页大小
-        :type page_size: int
+        :param dataset_name: 数据集名称 (required)
+        :type dataset_name: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1918,9 +1640,8 @@ class InjectionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_injections_get_serialize(
-            page_num=page_num,
-            page_size=page_size,
+        _param = self._api_v1_injections_detail_get_serialize(
+            dataset_name=dataset_name,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1928,8 +1649,9 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoPaginationRespDtoInjectionItem",
+            '200': "DtoGenericResponseDtoFaultInjectionInjectionResp",
             '400': "DtoGenericResponseAny",
+            '404': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -1939,10 +1661,9 @@ class InjectionApi:
         return response_data.response
 
 
-    def _api_v1_injections_get_serialize(
+    def _api_v1_injections_detail_get_serialize(
         self,
-        page_num,
-        page_size,
+        dataset_name,
         _request_auth,
         _content_type,
         _headers,
@@ -1965,13 +1686,9 @@ class InjectionApi:
 
         # process the path parameters
         # process the query parameters
-        if page_num is not None:
+        if dataset_name is not None:
             
-            _query_params.append(('page_num', page_num))
-            
-        if page_size is not None:
-            
-            _query_params.append(('page_size', page_size))
+            _query_params.append(('dataset_name', dataset_name))
             
         # process the header parameters
         # process the form parameters
@@ -1993,7 +1710,7 @@ class InjectionApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/v1/injections',
+            resource_path='/api/v1/injections/detail',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
