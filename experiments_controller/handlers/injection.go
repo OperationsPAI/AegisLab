@@ -471,12 +471,12 @@ func findMissingIndices(confs []string, batch_size int) ([]int, error) {
 //	@Param			lookback			query		string	false	"相对时间查询，如 1h, 24h, 7d或者是custom"
 //	@Param			custom_start_time	query		string	false	"当lookback=custom时必需，自定义开始时间 (RFC3339格式)"
 //	@Param			custom_end_time		query		string	false	"当lookback=custom时必需，自定义结束时间 (RFC3339格式)"
-//	@Success		200					{object}	dto.GenericResponse[[]dto.FaultInjectionNoIssuesResp]
+//	@Success		200					{object}	dto.GenericResponse[[]dto.TimeRangeQuery]
 //	@Failure		400					{object}	dto.GenericResponse[any]	"参数错误或时间格式错误"
 //	@Failure		500					{object}	dto.GenericResponse[any]	"服务器内部错误"
 //	@Router			/api/v1/injections/analysis/no-issues [get]
 func GetFaultInjectionNoIssues(c *gin.Context) {
-	var req dto.FaultInjectionNoIssuesReq
+	var req dto.TimeRangeQuery
 	if err := c.BindQuery(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid Parameters")
 		return
@@ -532,12 +532,12 @@ func GetFaultInjectionNoIssues(c *gin.Context) {
 //	@Param			lookback			query		string	false	"相对时间查询，如 1h, 24h, 7d或者是custom"
 //	@Param			custom_start_time	query		string	false	"当lookback=custom时必需，自定义开始时间 (RFC3339格式)"
 //	@Param			custom_end_time		query		string	false	"当lookback=custom时必需，自定义结束时间 (RFC3339格式)"
-//	@Success		200					{object}	dto.GenericResponse[[]dto.FaultInjectionWithIssuesResp]
+//	@Success		200					{object}	dto.GenericResponse[[]dto.TimeRangeQuery]
 //	@Failure		400					{object}	dto.GenericResponse[any]	"参数错误或时间格式错误"
 //	@Failure		500					{object}	dto.GenericResponse[any]	"服务器内部错误"
 //	@Router			/api/v1/injections/analysis/with-issues [get]
 func GetFaultInjectionWithIssues(c *gin.Context) {
-	var req dto.FaultInjectionNoIssuesReq // 注意：这里应该重命名为更通用的名称
+	var req dto.TimeRangeQuery
 	if err := c.BindQuery(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid Parameters")
 		return
@@ -555,7 +555,7 @@ func GetFaultInjectionWithIssues(c *gin.Context) {
 		return
 	}
 
-	_, records, err := repository.GetAllFaultInjectionWithIssues(*opts)
+	records, err := repository.GetAllFaultInjectionWithIssues(*opts)
 	if err != nil {
 		logrus.Errorf("failed to get fault injection with issues: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get fault injection records")
