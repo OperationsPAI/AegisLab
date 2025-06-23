@@ -36,7 +36,6 @@ configmap:
     env_mode: "prod"
     timezone: "Asia/Shanghai"
   injection:
-    enable_duplicate: false
     namespace_config:
       ts:
         count: 6

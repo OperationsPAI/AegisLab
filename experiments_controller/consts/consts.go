@@ -5,6 +5,13 @@ import "time"
 // 定义任务类型
 type TaskType string
 
+type ContainerType string
+
+const (
+	ContainerTypeAlgorithm ContainerType = "algorithm"
+	ContainerTypeBenchmark ContainerType = "benchmark"
+)
+
 const (
 	DefaultTimeUnit = time.Minute
 )
@@ -36,7 +43,6 @@ const (
 )
 
 const (
-	TaskTypeDummy          TaskType = ""
 	TaskTypeRestartService TaskType = "RestartService"
 	TaskTypeRunAlgorithm   TaskType = "RunAlgorithm"
 	TaskTypeFaultInjection TaskType = "FaultInjection"

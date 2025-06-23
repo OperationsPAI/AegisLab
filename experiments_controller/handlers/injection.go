@@ -13,12 +13,12 @@ import (
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"github.com/LGU-SE-Internal/rcabench/client/k8s"
 	"github.com/LGU-SE-Internal/rcabench/config"
-	conf "github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/executor"
 	"github.com/LGU-SE-Internal/rcabench/middleware"
 	"github.com/LGU-SE-Internal/rcabench/repository"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/codes"
@@ -283,6 +283,8 @@ func SubmitFaultInjection(c *gin.Context) {
 	span.SetStatus(codes.Ok, fmt.Sprintf("Successfully submitted %d fault injections with groupID: %s", len(traces), groupID))
 
 	duplicatedCount := len(req.Specs) - len(configs)
+	logrus.Infof("Duplicated %d configurations, original count: %d", len(req.Specs)-len(configs), len(req.Specs))
+
 	resp := dto.InjectionSubmitResp{
 		DuplicatedCount: duplicatedCount,
 		OriginalCount:   len(req.Specs),
@@ -291,16 +293,15 @@ func SubmitFaultInjection(c *gin.Context) {
 			Traces:  traces,
 		},
 	}
-	if !conf.GetBool("injection.enable_duplicate") {
-		logrus.Infof("Duplicated %d configurations, original count: %d", len(req.Specs)-len(configs), len(req.Specs))
-	}
-
 	dto.JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", resp)
 }
 
 // validateAlgorithms validates the provided algorithms against the valid algorithm list
 func validateAlgorithms(algorithms []string) error {
-	validAlgorithms, err := repository.ListAlgorithms(true)
+	validAlgorithms, err := repository.ListContainers(&dto.FilterContainerOptions{
+		Status: utils.BoolPtr(true),
+		Type:   consts.ContainerTypeAlgorithm,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to list algorithms: %v", err)
 	}

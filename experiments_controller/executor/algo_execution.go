@@ -54,11 +54,11 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 		}
 
 		// TODO 需不需要添加状态
-		image, tag, err := repository.GetAlgorithmImageInfo(algorithm)
+		container, err := repository.GetContaineInfo(algorithm, consts.ContainerTypeAlgorithm)
 		if err != nil {
 			span.RecordError(err)
-			span.AddEvent("failed to get algorithm image and tag")
-			return fmt.Errorf("failed to get algorithm image and tag: %v", err)
+			span.AddEvent("failed to get container info for algorithm")
+			return fmt.Errorf("failed to get container info for algorithm %s: %v", algorithm, err)
 		}
 
 		executionID, err := repository.CreateExecutionResult(task.TaskID, algorithm, record.Name)
@@ -69,7 +69,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 		}
 
 		jobName := task.TaskID
-		fullImage := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), image, tag)
+		fullImage := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), container.Image, container.Tag)
 		labels := map[string]string{
 			consts.LabelTaskID:      task.TaskID,
 			consts.LabelTraceID:     task.TraceID,

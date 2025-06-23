@@ -15,7 +15,6 @@ data:
     timezone = "{{ .Values.configmap.system.timezone }}"
 
     [injection]
-    enable_duplicate = {{ .Values.configmap.injection.enable_duplicate }}
     target_label_key = "{{ .Values.configmap.injection.target_label_key }}"
     {{- with .Values.configmap.injection.namespace_config }}
     [injection.namespace_config]

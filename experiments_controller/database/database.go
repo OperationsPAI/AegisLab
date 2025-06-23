@@ -79,11 +79,12 @@ type FaultInjectionSchedule struct {
 }
 
 // TODO 添加数据的接口
-type Algorithm struct {
+type Container struct {
 	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`   // 唯一标识
-	Name      string    `gorm:"index;not null" json:"name"`           // 算法名称
-	Image     string    `gorm:"not null" json:"image"`                // 算法镜像
-	Tag       string    `gorm:"not null;default:'latest'" json:"tag"` // 算法镜像标签
+	Type      string    `gorm:"index;not null" json:"type"`           // 镜像类型
+	Name      string    `gorm:"index;not null" json:"name"`           // 名称
+	Image     string    `gorm:"not null" json:"image"`                // 镜像名
+	Tag       string    `gorm:"not null;default:'latest'" json:"tag"` // 镜像标签
 	Status    bool      `gorm:"default:true" json:"status"`           // 0: 已删除 1: 活跃
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`     // 创建时间
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`     // 更新时间
@@ -195,7 +196,7 @@ func InitDB() {
 	err = DB.AutoMigrate(
 		&Task{},
 		&FaultInjectionSchedule{},
-		&Algorithm{},
+		&Container{},
 		&ExecutionResult{},
 		&GranularityResult{},
 		&Detector{},

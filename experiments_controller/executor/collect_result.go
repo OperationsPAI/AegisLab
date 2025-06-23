@@ -15,6 +15,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/LGU-SE-Internal/rcabench/tracing"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -106,7 +107,11 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 					return fmt.Errorf("failed to get algorithms from redis: %v", err)
 				}
 
-				algorithms, err := repository.ListAlgorithmByNames(names)
+				algorithms, err := repository.ListContainers(&dto.FilterContainerOptions{
+					Status: utils.BoolPtr(true),
+					Type:   consts.ContainerTypeAlgorithm,
+					Names:  names,
+				})
 				if err != nil {
 					span.AddEvent("failed to list algorithms by names")
 					span.RecordError(err)
