@@ -131,7 +131,7 @@ type Detector struct {
 
 // FaultInjectionNoIssues 视图模型
 type FaultInjectionNoIssues struct {
-	DatasetID     int       `gorm:"column:DatasetID" json:"dataset_id"`
+	DatasetID     int       `gorm:"column:dataset_id" json:"dataset_id"`
 	DisplayConfig string    `gorm:"column:display_config" json:"display_config"`
 	EngineConfig  string    `gorm:"column:engine_config" json:"engine_config"`
 	PreDuration   int       `gorm:"column:pre_duration" json:"pre_duration"`
