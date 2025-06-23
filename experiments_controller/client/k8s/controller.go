@@ -52,10 +52,12 @@ type Callback interface {
 }
 
 type QueueItem struct {
-	Type      ActionType
-	Namespace string
-	Name      string
-	GVR       *schema.GroupVersionResource
+	Type       ActionType
+	Namespace  string
+	Name       string
+	GVR        *schema.GroupVersionResource
+	RetryCount int
+	MaxRetries int
 }
 
 type Controller struct {
@@ -244,11 +246,13 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 
 					if duration > 0 {
 						c.queue.AddAfter(QueueItem{
-							Type:      CheckRecovery,
-							Namespace: newU.GetNamespace(),
-							Name:      newU.GetName(),
-							GVR:       &gvr,
-						}, time.Duration(duration+1)*time.Minute) // +1 minute to ensure the crd is finished
+							Type:       CheckRecovery,
+							Namespace:  newU.GetNamespace(),
+							Name:       newU.GetName(),
+							GVR:        &gvr,
+							RetryCount: 0,
+							MaxRetries: 3,
+						}, time.Duration(duration+1)*time.Minute)
 					}
 				}
 
@@ -407,9 +411,10 @@ func (c *Controller) processQueueItem() bool {
 	var err error
 	switch item.Type {
 	case CheckRecovery:
-		err := c.checkRecoveryStatus(item.GVR, item.Namespace, item.Name)
+		err := c.checkRecoveryStatus(item)
 		if err != nil {
 			logrus.WithField("namespace", item.Namespace).WithField("name", item.Name).Error(err)
+			return true
 		}
 	case DeleteCRD:
 		if item.GVR == nil {
@@ -437,21 +442,47 @@ func (c *Controller) processQueueItem() bool {
 	return true
 }
 
-func (c *Controller) checkRecoveryStatus(gvr *schema.GroupVersionResource, namespace, name string) error {
-	obj, err := k8sDynamicClient.Resource(*gvr).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
+func (c *Controller) checkRecoveryStatus(item QueueItem) error {
+	logEntry := logrus.WithFields(logrus.Fields{
+		"namespace": item.Namespace,
+		"name":      item.Name,
+	})
+
+	obj, err := k8sDynamicClient.
+		Resource(*item.GVR).
+		Namespace(item.Namespace).
+		Get(context.Background(), item.Name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			logrus.Info("the chaos experiment has been deleted")
+			logEntry.Info("the chaos experiment has been deleted")
 			return nil
 		}
+
 		return fmt.Errorf("failed to get the CRD resource object: %w", err)
 	}
 
 	conditions, _, _ := unstructured.NestedSlice(obj.Object, "status", "conditions")
-	recovered := getCRDConditionStatus(conditions, "AllRecovered")
 
+	recovered := getCRDConditionStatus(conditions, "AllRecovered")
 	if !recovered {
-		c.handleCRDFailed(*gvr, obj, nil, "failed to recover all targets in the chaos experiment")
+		if item.RetryCount < item.MaxRetries {
+			logEntry.Warn("Recovery not complete, scheduling retry after 1 minute")
+			c.queue.AddAfter(QueueItem{
+				Type:       CheckRecovery,
+				Namespace:  item.Namespace,
+				Name:       item.Name,
+				GVR:        item.GVR,
+				RetryCount: item.RetryCount + 1,
+				MaxRetries: item.MaxRetries,
+			}, time.Duration(1)*time.Minute)
+
+			return nil
+		} else {
+			logrus.Errorf("Recovery not complete after %d retries, giving up", item.MaxRetries)
+			c.handleCRDFailed(*item.GVR, obj, nil, "failed to recover all targets in the chaos experiment")
+		}
+	} else {
+		logEntry.Infof("System successfully recovered after %d attempts", item.RetryCount+1)
 	}
 
 	return nil

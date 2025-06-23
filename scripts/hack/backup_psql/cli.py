@@ -20,6 +20,8 @@ DEFAULT_PG_DB = "rcabench"
 
 REQUIRED_BINARIES = ["psql", "pg_dump", "pg_restore"]
 
+# TODO 做一个Docker镜像
+
 
 @dataclass
 class DatabaseConfig:
@@ -34,7 +36,9 @@ def run_command(cmd: list, env: dict):
     try:
         subprocess.run(cmd, check=True, env=env or os.environ.copy())
     except subprocess.CalledProcessError as e:
-        typer.secho(f"[✘] Command failed: {' '.join(cmd)}\nError: {e}", fg=typer.colors.RED)
+        typer.secho(
+            f"[✘] Command failed: {' '.join(cmd)}\nError: {e}", fg=typer.colors.RED
+        )
         raise typer.Exit(code=1)
 
 
@@ -87,7 +91,9 @@ def install_tools(
     """
     missing = check_binaries()
     if not missing:
-        typer.secho("✅ PostgreSQL client tools are already installed.", fg=typer.colors.GREEN)
+        typer.secho(
+            "✅ PostgreSQL client tools are already installed.", fg=typer.colors.GREEN
+        )
 
         # Check version compatibility
         try:
@@ -114,14 +120,17 @@ def install_tools(
                     )
                 else:
                     typer.secho(
-                        f"✅ Version matches: PostgreSQL {version}", fg=typer.colors.GREEN
+                        f"✅ Version matches: PostgreSQL {version}",
+                        fg=typer.colors.GREEN,
                     )
         except Exception:
             pass
 
         return
 
-    typer.secho(f"🔍 Detected missing tools: {', '.join(missing)}", fg=typer.colors.YELLOW)
+    typer.secho(
+        f"🔍 Detected missing tools: {', '.join(missing)}", fg=typer.colors.YELLOW
+    )
     typer.secho(f"🎯 Target version: PostgreSQL {version}", fg=typer.colors.BLUE)
 
     os_name = platform.system()
@@ -173,54 +182,82 @@ def install_tools(
                 # Install postgresql-common (contains automated script)
                 run_command(["sudo", "apt", "update"], env)
                 run_command(["sudo", "apt", "install", "-y", "postgresql-common"], env)
-                
+
                 # Run automated configuration script
-                run_command(["sudo", "/usr/share/postgresql-common/pgdg/apt.postgresql.org.sh"], env)
-                
-                typer.secho("✅ Automated configuration completed!", fg=typer.colors.GREEN)
-                
+                run_command(
+                    ["sudo", "/usr/share/postgresql-common/pgdg/apt.postgresql.org.sh"],
+                    env,
+                )
+
+                typer.secho(
+                    "✅ Automated configuration completed!", fg=typer.colors.GREEN
+                )
+
             except Exception as e:
-                typer.secho(f"⚠️  Automated configuration failed: {e}", fg=typer.colors.YELLOW)
+                typer.secho(
+                    f"⚠️  Automated configuration failed: {e}", fg=typer.colors.YELLOW
+                )
                 typer.echo("📋 Trying manual configuration...")
-                
+
                 # Method 2: Manual configuration (fallback)
                 try:
                     # Install dependencies
-                    run_command(["sudo", "apt", "install", "-y", "curl", "ca-certificates"], env)
-                    
+                    run_command(
+                        ["sudo", "apt", "install", "-y", "curl", "ca-certificates"], env
+                    )
+
                     # Create directory and download key
-                    run_command(["sudo", "install", "-d", "/usr/share/postgresql-common/pgdg"], env)
-                    
+                    run_command(
+                        ["sudo", "install", "-d", "/usr/share/postgresql-common/pgdg"],
+                        env,
+                    )
+
                     key_cmd = [
-                        "sudo", "curl", "-o", "/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc",
-                        "--fail", "https://www.postgresql.org/media/keys/ACCC4CF8.asc"
+                        "sudo",
+                        "curl",
+                        "-o",
+                        "/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc",
+                        "--fail",
+                        "https://www.postgresql.org/media/keys/ACCC4CF8.asc",
                     ]
                     run_command(key_cmd, env)
-                    
+
                     # Get system codename
                     try:
                         codename_result = subprocess.run(
-                            ["sh", "-c", ". /etc/os-release && echo $VERSION_CODENAME"], 
-                            capture_output=True, text=True
+                            ["sh", "-c", ". /etc/os-release && echo $VERSION_CODENAME"],
+                            capture_output=True,
+                            text=True,
                         )
-                        codename = codename_result.stdout.strip() if codename_result.returncode == 0 else "bookworm"
+                        codename = (
+                            codename_result.stdout.strip()
+                            if codename_result.returncode == 0
+                            else "bookworm"
+                        )
                     except Exception:
                         codename = "bookworm"
-                    
+
                     typer.echo(f"📋 Detected system version: {codename}")
-                    
+
                     # Create repository configuration file
                     repo_content = f"deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt {codename}-pgdg main"
                     repo_cmd = [
-                        "sudo", "sh", "-c",
-                        f"echo '{repo_content}' > /etc/apt/sources.list.d/pgdg.list"
+                        "sudo",
+                        "sh",
+                        "-c",
+                        f"echo '{repo_content}' > /etc/apt/sources.list.d/pgdg.list",
                     ]
                     run_command(repo_cmd, env)
-                    
-                    typer.secho("✅ Manual configuration completed!", fg=typer.colors.GREEN)
-                    
+
+                    typer.secho(
+                        "✅ Manual configuration completed!", fg=typer.colors.GREEN
+                    )
+
                 except Exception as manual_error:
-                    typer.secho(f"❌ Manual configuration also failed: {manual_error}", fg=typer.colors.RED)
+                    typer.secho(
+                        f"❌ Manual configuration also failed: {manual_error}",
+                        fg=typer.colors.RED,
+                    )
                     raise typer.Exit(code=1)
 
             # Update package list
@@ -241,18 +278,27 @@ def install_tools(
                 typer.echo("💡 You can create symbolic links:")
                 typer.echo(f"   ./cli.py link-tools --version {version}")
                 typer.echo("💡 Or run manually:")
-                typer.echo(f"   sudo ln -sf /usr/lib/postgresql/{version}/bin/* /usr/local/bin/")
+                typer.echo(
+                    f"   sudo ln -sf /usr/lib/postgresql/{version}/bin/* /usr/local/bin/"
+                )
             else:
-                typer.secho(f"⚠️  Installation may be incomplete, not found: {pg_dump_path}", fg=typer.colors.YELLOW)
+                typer.secho(
+                    f"⚠️  Installation may be incomplete, not found: {pg_dump_path}",
+                    fg=typer.colors.YELLOW,
+                )
 
         else:
-            typer.echo("Current system not supported for automatic installation, please install PostgreSQL client tools manually.")
+            typer.echo(
+                "Current system not supported for automatic installation, please install PostgreSQL client tools manually."
+            )
             typer.echo(
                 f"💡 Please visit https://www.postgresql.org/download/ to download PostgreSQL {version}"
             )
             raise typer.Exit()
     else:
-        typer.echo(f"Current system not supported for automatic installation: {os_name}")
+        typer.echo(
+            f"Current system not supported for automatic installation: {os_name}"
+        )
         typer.echo(
             f"💡 Please visit https://www.postgresql.org/download/ to download PostgreSQL {version}"
         )
@@ -277,11 +323,15 @@ def check_version(
         DEFAULT_PG_HOST, "--host", "-h", help="PostgreSQL host address"
     ),
     port: str = typer.Option(DEFAULT_PG_PORT, "--port", "-p", help="PostgreSQL port"),
-    user: str = typer.Option(DEFAULT_PG_USER, "--user", "-U", help="PostgreSQL username"),
+    user: str = typer.Option(
+        DEFAULT_PG_USER, "--user", "-U", help="PostgreSQL username"
+    ),
     password: str = typer.Option(
         DEFAULT_PG_PASSWORD, "--password", "-W", help="PostgreSQL password"
     ),
-    database: str = typer.Option(DEFAULT_PG_DB, "--database", "-d", help="Database name"),
+    database: str = typer.Option(
+        DEFAULT_PG_DB, "--database", "-d", help="Database name"
+    ),
 ):
     """
     Check PostgreSQL server version
@@ -301,7 +351,9 @@ def check_version(
 
         if server_match:
             server_major = int(server_match.group(1))
-            typer.secho(f"✅ Server major version: {server_major}", fg=typer.colors.GREEN)
+            typer.secho(
+                f"✅ Server major version: {server_major}", fg=typer.colors.GREEN
+            )
         else:
             typer.echo("Unable to parse server version information")
     except Exception:
@@ -314,11 +366,15 @@ def pg_backup(
         DEFAULT_PG_HOST, "--host", "-h", help="PostgreSQL host address"
     ),
     port: str = typer.Option(DEFAULT_PG_PORT, "--port", "-p", help="PostgreSQL port"),
-    user: str = typer.Option(DEFAULT_PG_USER, "--user", "-U", help="PostgreSQL username"),
+    user: str = typer.Option(
+        DEFAULT_PG_USER, "--user", "-U", help="PostgreSQL username"
+    ),
     password: str = typer.Option(
         DEFAULT_PG_PASSWORD, "--password", "-W", help="PostgreSQL password"
     ),
-    database: str = typer.Option(DEFAULT_PG_DB, "--database", "-d", help="Database name"),
+    database: str = typer.Option(
+        DEFAULT_PG_DB, "--database", "-d", help="Database name"
+    ),
     format: str = typer.Option(
         "custom", "--format", "-F", help="Backup format: plain, custom, directory, tar"
     ),
@@ -330,7 +386,8 @@ def pg_backup(
     # Check if pg_dump exists
     if not shutil.which("pg_dump"):
         typer.secho(
-            "❌ pg_dump not found, please install PostgreSQL client tools first", fg=typer.colors.RED
+            "❌ pg_dump not found, please install PostgreSQL client tools first",
+            fg=typer.colors.RED,
         )
         typer.secho("💡 Run: ./cli.py install-tools", fg=typer.colors.YELLOW)
         raise typer.Exit(code=1)
@@ -374,7 +431,9 @@ def pg_backup(
 
     try:
         run_command(cmd, env)
-        typer.secho(f"✅ Database backup completed: {backup_file}", fg=typer.colors.GREEN)
+        typer.secho(
+            f"✅ Database backup completed: {backup_file}", fg=typer.colors.GREEN
+        )
 
         # Display backup file size
         if format == "directory":
@@ -401,12 +460,18 @@ def pg_restore(
         DEFAULT_PG_HOST, "--host", "-h", help="PostgreSQL host address"
     ),
     port: str = typer.Option(DEFAULT_PG_PORT, "--port", "-p", help="PostgreSQL port"),
-    user: str = typer.Option(DEFAULT_PG_USER, "--user", "-U", help="PostgreSQL username"),
+    user: str = typer.Option(
+        DEFAULT_PG_USER, "--user", "-U", help="PostgreSQL username"
+    ),
     password: str = typer.Option(
         DEFAULT_PG_PASSWORD, "--password", "-W", help="PostgreSQL password"
     ),
-    database: str = typer.Option(DEFAULT_PG_DB, "--database", "-d", help="Database name"),
-    clean: bool = typer.Option(False, "--clean", help="Clean database objects before restore"),
+    database: str = typer.Option(
+        DEFAULT_PG_DB, "--database", "-d", help="Database name"
+    ),
+    clean: bool = typer.Option(
+        False, "--clean", help="Clean database objects before restore"
+    ),
     create: bool = typer.Option(False, "--create", help="Create database"),
 ):
     """
@@ -414,7 +479,9 @@ def pg_restore(
     """
     backup_path = BACKUP_DIR / backup_file
     if not backup_path.exists():
-        typer.secho(f"❌ Backup file does not exist: {backup_path}", fg=typer.colors.RED)
+        typer.secho(
+            f"❌ Backup file does not exist: {backup_path}", fg=typer.colors.RED
+        )
         raise typer.Exit()
 
     # Detect backup format
@@ -535,8 +602,12 @@ def help_backup():
     typer.echo("  pg-backup     - Backup database using pg_dump")
     typer.echo("  pg-restore    - Restore database using pg_restore/psql")
     typer.echo("  pg-list       - List available backup files")
-    typer.echo("  auto-install  - Auto-detect server version and install matching client tools")
-    typer.echo("  install-tools - Manually install specific version PostgreSQL client tools")
+    typer.echo(
+        "  auto-install  - Auto-detect server version and install matching client tools"
+    )
+    typer.echo(
+        "  install-tools - Manually install specific version PostgreSQL client tools"
+    )
     typer.echo("  link-tools    - Create symbolic links for PostgreSQL tools")
     typer.echo("  check-version - Check database version")
     typer.echo("")
@@ -563,7 +634,9 @@ def help_backup():
     typer.secho("📋 Format Comparison:", fg=typer.colors.CYAN, bold=True)
     typer.echo("  custom   - Compressed binary, small size, fast restore (recommended)")
     typer.echo("  plain    - Pure SQL text, readable, large size")
-    typer.echo("  directory- Directory format, supports parallel, good for large databases")
+    typer.echo(
+        "  directory- Directory format, supports parallel, good for large databases"
+    )
     typer.echo("  tar      - TAR archive, convenient for transfer")
     typer.echo("")
 
@@ -611,7 +684,9 @@ def link_tools(
 
         try:
             subprocess.run(link_cmd, shell=True, check=True)
-            typer.secho("✅ Symbolic links created successfully!", fg=typer.colors.GREEN)
+            typer.secho(
+                "✅ Symbolic links created successfully!", fg=typer.colors.GREEN
+            )
 
             # Verify
             try:
@@ -628,7 +703,9 @@ def link_tools(
             raise typer.Exit(code=1)
 
     elif os_name == "Darwin":
-        typer.echo("For macOS, please use Homebrew to manage PATH, or manually add to ~/.zshrc")
+        typer.echo(
+            "For macOS, please use Homebrew to manage PATH, or manually add to ~/.zshrc"
+        )
         typer.echo(
             f'💡 Add this line to ~/.zshrc: export PATH="/opt/homebrew/opt/postgresql@{version}/bin:$PATH"'
         )
@@ -639,90 +716,133 @@ def link_tools(
 
 @app.command()
 def auto_install(
-    version: str = typer.Option("16", "--version", "-v", help="PostgreSQL version (e.g.: 16, 15, 14)"),
-    server_host: str = typer.Option(DEFAULT_PG_HOST, "--server-host", help="Server address (for version detection)"),
-    server_port: str = typer.Option(DEFAULT_PG_PORT, "--server-port", help="Server port"),
-    server_user: str = typer.Option(DEFAULT_PG_USER, "--server-user", help="Server username"),
-    server_password: str = typer.Option(DEFAULT_PG_PASSWORD, "--server-password", help="Server password"),
-    server_database: str = typer.Option(DEFAULT_PG_DB, "--server-database", help="Database name"),
+    version: str = typer.Option(
+        "16", "--version", "-v", help="PostgreSQL version (e.g.: 16, 15, 14)"
+    ),
+    server_host: str = typer.Option(
+        DEFAULT_PG_HOST, "--server-host", help="Server address (for version detection)"
+    ),
+    server_port: str = typer.Option(
+        DEFAULT_PG_PORT, "--server-port", help="Server port"
+    ),
+    server_user: str = typer.Option(
+        DEFAULT_PG_USER, "--server-user", help="Server username"
+    ),
+    server_password: str = typer.Option(
+        DEFAULT_PG_PASSWORD, "--server-password", help="Server password"
+    ),
+    server_database: str = typer.Option(
+        DEFAULT_PG_DB, "--server-database", help="Database name"
+    ),
 ):
     """
     Auto-detect server version and install matching client tools
     """
     typer.echo("🔍 Auto-installing PostgreSQL client tools...")
-    
+
     # 1. Detect server version
     typer.echo("📡 Detecting server version...")
-    db_config = DatabaseConfig(server_host, server_port, server_user, server_password, server_database)
+    db_config = DatabaseConfig(
+        server_host, server_port, server_user, server_password, server_database
+    )
     server_version = get_server_version(db_config)
-    
+
     if server_version == "Unknown":
-        typer.secho("⚠️  Unable to detect server version, using specified version", fg=typer.colors.YELLOW)
+        typer.secho(
+            "⚠️  Unable to detect server version, using specified version",
+            fg=typer.colors.YELLOW,
+        )
         target_version = version
     else:
         typer.echo(f"📋 Server version: {server_version}")
-        
+
         # Extract major version
         import re
+
         version_match = re.search(r"(\d+)\.(\d+)", server_version)
-        
+
         if version_match:
             target_version = version_match.group(1)
-            typer.secho(f"🎯 Target version: PostgreSQL {target_version}", fg=typer.colors.GREEN)
+            typer.secho(
+                f"🎯 Target version: PostgreSQL {target_version}", fg=typer.colors.GREEN
+            )
         else:
-            typer.secho("⚠️  Unable to parse server version, using specified version", fg=typer.colors.YELLOW)
+            typer.secho(
+                "⚠️  Unable to parse server version, using specified version",
+                fg=typer.colors.YELLOW,
+            )
             target_version = version
-    
+
     # 2. Check current client version
     current_version = None
     if shutil.which("pg_dump"):
         try:
-            result = subprocess.run(["pg_dump", "--version"], capture_output=True, text=True)
+            result = subprocess.run(
+                ["pg_dump", "--version"], capture_output=True, text=True
+            )
             current_version_str = result.stdout.strip()
             typer.echo(f"📋 Current client: {current_version_str}")
-            
+
             version_match = re.search(r"pg_dump.*?(\d+)", current_version_str)
             if version_match:
                 current_version = version_match.group(1)
-                
+
                 if current_version == target_version:
-                    typer.secho(f"✅ Version already matches: PostgreSQL {current_version}", fg=typer.colors.GREEN)
+                    typer.secho(
+                        f"✅ Version already matches: PostgreSQL {current_version}",
+                        fg=typer.colors.GREEN,
+                    )
                     return
                 else:
-                    typer.secho(f"⚠️  Version mismatch: Current {current_version}, Need {target_version}", fg=typer.colors.YELLOW)
+                    typer.secho(
+                        f"⚠️  Version mismatch: Current {current_version}, Need {target_version}",
+                        fg=typer.colors.YELLOW,
+                    )
         except Exception:
             pass
     else:
         typer.echo("📋 PostgreSQL client tools not detected")
-    
+
     # 3. Install matching version
     typer.echo(f"🔧 Installing PostgreSQL {target_version} client tools...")
-    
+
     # Call install_tools command
     try:
         # Directly call install_tools function
         install_tools(target_version)
-        
+
         # 4. Create symbolic links (Linux only)
         if platform.system() == "Linux":
             typer.echo("🔗 Creating symbolic links...")
             try:
                 link_tools(target_version)
             except Exception as e:
-                typer.secho(f"⚠️  Symbolic link creation failed: {e}", fg=typer.colors.YELLOW)
-                typer.echo(f"💡 Please run manually: ./cli.py link-tools --version {target_version}")
-        
+                typer.secho(
+                    f"⚠️  Symbolic link creation failed: {e}", fg=typer.colors.YELLOW
+                )
+                typer.echo(
+                    f"💡 Please run manually: ./cli.py link-tools --version {target_version}"
+                )
+
         # 5. Verify installation
         typer.echo("✅ Verifying installation...")
         if shutil.which("pg_dump"):
             try:
-                result = subprocess.run(["pg_dump", "--version"], capture_output=True, text=True)
-                typer.secho(f"🎉 Installation successful: {result.stdout.strip()}", fg=typer.colors.GREEN)
+                result = subprocess.run(
+                    ["pg_dump", "--version"], capture_output=True, text=True
+                )
+                typer.secho(
+                    f"🎉 Installation successful: {result.stdout.strip()}",
+                    fg=typer.colors.GREEN,
+                )
             except Exception:
                 pass
-        
-        typer.secho("🚀 Auto-installation completed! You can now run backup commands.", fg=typer.colors.GREEN)
-        
+
+        typer.secho(
+            "🚀 Auto-installation completed! You can now run backup commands.",
+            fg=typer.colors.GREEN,
+        )
+
     except Exception as e:
         typer.secho(f"❌ Auto-installation failed: {e}", fg=typer.colors.RED)
         typer.echo("💡 Please try manual installation:")

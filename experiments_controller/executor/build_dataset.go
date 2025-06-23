@@ -9,7 +9,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/LGU-SE-Internal/rcabench/client"
 	"github.com/LGU-SE-Internal/rcabench/client/k8s"
 	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
@@ -44,16 +43,15 @@ func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
 			return err
 		}
 
-		image := fmt.Sprintf("%s_dataset", payload.Benchmark)
-		tag, err := client.GetHarborClient().GetLatestTag(image)
+		container, err := repository.GetContaineInfo(payload.Benchmark, consts.ContainerTypeBenchmark)
 		if err != nil {
 			span.RecordError(err)
-			span.AddEvent("failed to get latest tag")
-			return fmt.Errorf("failed to get lataest tag of %s: %v", image, err)
+			span.AddEvent("failed to get container info for benchmark")
+			return fmt.Errorf("failed to get container info for benchmark %s: %v", payload.Benchmark, err)
 		}
 
 		jobName := task.TaskID
-		fullImage := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), image, tag)
+		fullImage := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), container.Image, container.Tag)
 		labels := map[string]string{
 			consts.LabelTaskID:   task.TaskID,
 			consts.LabelTraceID:  task.TraceID,

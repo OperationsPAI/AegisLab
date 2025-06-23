@@ -13,7 +13,6 @@ timezone = "Asia/Shanghai"
 enable = true
 
 [injection]
-enable_duplicate = false
 target_label_key = "app"
 
 [injection.namespace_config.ts]
@@ -51,7 +50,6 @@ path = "/mnt/jfs/rcabench_dataset"
 [algo]
 detector = "detector"
 storage_path = "/home/nn/workspace/rcabench/algorithms"
-
 
 [buildkit]
 address = "tcp://localhost:1234"
