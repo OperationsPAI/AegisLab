@@ -9,10 +9,6 @@ images:
     repository: redis
     tag: 8.0-M02-alpine3.20
     pullPolicy: IfNotPresent
-  mariadb:
-    repository: 10.10.10.240/library/mariadb
-    tag: 11.8.1-noble-rc
-    pullPolicy: IfNotPresent
   postgres:
     repository: postgres
     tag: 16-bullseye
@@ -29,7 +25,6 @@ images:
     repository: moby/buildkit
     tag: buildx-stable-1
     pullPolicy: IfNotPresent
-
 
 configmap:
   name: "rcabench"
@@ -51,10 +46,6 @@ configmap:
     target_label_key: "app"
   database:
     clickhouse_host: "10.10.10.58"
-    mysql_user: "root"
-    mysql_password: "yourpassword"
-    mysql_port: "3306"
-    mysql_db: "rcabench"
     postgres_user: "postgres"
     postgres_password: "yourpassword"
     postgres_port: "5432"

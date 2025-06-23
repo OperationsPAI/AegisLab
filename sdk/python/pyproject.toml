@@ -27,10 +27,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.uv]
-dev-dependencies = [
-    "pytest>=8.3.5",
-    "pytest-asyncio>=0.25.3",
-]
+dev-dependencies = ["pytest>=8.3.5", "pytest-asyncio>=0.25.3"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
