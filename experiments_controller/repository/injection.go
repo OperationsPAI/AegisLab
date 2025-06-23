@@ -359,23 +359,20 @@ func GetAllFaultInjectionNoIssues(opts dto.TimeFilterOption) (int64, []database.
 
 func GetAllFaultInjectionWithIssues(opts dto.TimeFilterOption) ([]database.FaultInjectionWithIssues, error) {
 	startTime, endTime := opts.GetTimeRange()
-
-	var results []database.FaultInjectionWithIssues
-
 	subQuery := database.DB.
 		Model(&database.FaultInjectionWithIssues{}).
 		Select("dataset_id, MAX(created_at) as max_created_at").
 		Where("created_at >= ? AND created_at <= ?", startTime, endTime).
 		Group("dataset_id")
 
-	err := database.DB.
+	var results []database.FaultInjectionWithIssues
+	if err := database.DB.
 		Model(&database.FaultInjectionWithIssues{}).
 		Joins("JOIN (?) AS latest ON fault_injection_with_issues.dataset_id = latest.dataset_id AND fault_injection_with_issues.created_at = latest.max_created_at", subQuery).
-		Find(&results).Error
-
-	if err != nil {
+		Find(&results).Error; err != nil {
 		return nil, err
 	}
+
 	return results, nil
 }
 

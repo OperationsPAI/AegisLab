@@ -9,16 +9,16 @@ services:
     image: postgres:16-bullseye
     container_name: postgres
     environment:
-      POSTGRES_DB: rcabench           
-      POSTGRES_USER: root    
+      POSTGRES_DB: rcabench
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: yourpassword
       POSTGRES_HOST_AUTH_METHOD: md5
       POSTGRES_INITDB_ARGS: "--auth-host=md5"
     command: ["postgres", "-c", "listen_addresses=*", "-c", "log_statement=all"]
     volumes:
       - pgdata:/var/lib/postgresql/data
-    restart: always
     network_mode: host
+    restart: always
 
   jaeger:
     image: jaegertracing/all-in-one:latest

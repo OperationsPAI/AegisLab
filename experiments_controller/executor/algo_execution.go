@@ -53,8 +53,11 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			}
 		}
 
+		// TODO 需不需要添加状态
 		image, tag, err := repository.GetAlgorithmImageInfo(algorithm)
 		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to get algorithm image and tag")
 			return fmt.Errorf("failed to get algorithm image and tag: %v", err)
 		}
 
