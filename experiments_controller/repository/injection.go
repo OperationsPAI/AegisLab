@@ -352,7 +352,7 @@ func GetAllFaultInjectionNoIssues(opts dto.TimeFilterOption) (int64, []database.
 	return queryAll[database.FaultInjectionNoIssues](
 		"created_at >= ? AND created_at <= ?",
 		[]any{startTime, endTime},
-		"DatasetID desc",
+		"dataset_id desc",
 		[]string{},
 	)
 }
@@ -384,7 +384,7 @@ func GetFLByDatasetName(datasetName string) (*database.FaultInjectionSchedule, e
 	if err := database.DB.Where("injection_name = ?", datasetName).First(&record).Error; err != nil {
 		return nil, err
 	}
-	
+
 	return &record, nil
 }
 
