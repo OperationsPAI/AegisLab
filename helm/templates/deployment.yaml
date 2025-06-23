@@ -43,6 +43,8 @@ spec:
       labels:
         app: {{ .Release.Name }}-postgres
     spec:
+      nodeSelector:
+        disk: ssd
       securityContext:
         fsGroup: 999
         runAsUser: 999
