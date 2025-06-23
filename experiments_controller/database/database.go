@@ -145,7 +145,7 @@ func (FaultInjectionNoIssues) TableName() string {
 
 // FaultInjectionWithIssues 视图模型
 type FaultInjectionWithIssues struct {
-	DatasetID     int       `gorm:"column:DatasetID" json:"dataset_id"`
+	DatasetID     int       `gorm:"column:dataset_id" json:"dataset_id"`
 	DisplayConfig string    `gorm:"column:display_config" json:"display_config"`
 	EngineConfig  string    `gorm:"column:engine_config" json:"engine_config"`
 	PreDuration   int       `gorm:"column:pre_duration" json:"pre_duration"`
@@ -208,7 +208,7 @@ func InitDB() {
 	DB.Migrator().DropView("fault_injection_with_issues")
 
 	noIssuesQuery := DB.Table("fault_injection_schedules fis").
-		Select("DISTINCT fis.id AS DatasetID, fis.fault_type, fis.display_config, fis.engine_config, fis.pre_duration, fis.injection_name, fis.created_at").
+		Select("DISTINCT fis.id AS dataset_id, fis.fault_type, fis.display_config, fis.engine_config, fis.pre_duration, fis.injection_name, fis.created_at").
 		Joins(`JOIN (
         SELECT id, dataset, algorithm,
                ROW_NUMBER() OVER (PARTITION BY dataset, algorithm ORDER BY created_at DESC, id DESC) as rn
@@ -221,7 +221,7 @@ func InitDB() {
 	}
 
 	withIssuesQuery := DB.Table("fault_injection_schedules fis").
-		Select("DISTINCT fis.id AS DatasetID, fis.fault_type, fis.display_config, fis.engine_config, fis.pre_duration, fis.injection_name, fis.created_at, d.issues").
+		Select("DISTINCT fis.id AS dataset_id, fis.fault_type, fis.display_config, fis.engine_config, fis.pre_duration, fis.injection_name, fis.created_at, d.issues").
 		Joins(`JOIN (
         SELECT id, dataset, algorithm,
                ROW_NUMBER() OVER (PARTITION BY dataset, algorithm ORDER BY created_at DESC, id DESC) as rn
