@@ -64,6 +64,7 @@ func GetGroundtruth(c *gin.Context) {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters")
 		return
 	}
+
 	res, err := repository.GetGroundtruthMap(req.Datasets)
 	if err != nil {
 		logrus.Error(err)

@@ -626,21 +626,23 @@ func GetFaultInjectionByDatasetName(c *gin.Context) {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Dataset name is required")
 		return
 	}
+
 	dataset, err := repository.GetFLByDatasetName(datasetName)
 	if err != nil {
 		logrus.Errorf("failed to get fault injection by dataset name: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get fault injection by dataset name")
 		return
 	}
+
 	groundTruth, err := repository.GetGroundtruthMap([]string{datasetName})
 	if err != nil {
 		logrus.Errorf("failed to get ground truth map: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get ground truth map")
 		return
 	}
-	resp := dto.FaultInjectionInjectionResp{
+
+	dto.SuccessResponse(c, dto.FaultInjectionInjectionResp{
 		FaultInjectionSchedule: *dataset,
 		GroundTruth:            groundTruth[datasetName],
-	}
-	dto.SuccessResponse(c, resp)
+	})
 }

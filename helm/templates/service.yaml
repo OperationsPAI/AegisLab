@@ -12,7 +12,6 @@ spec:
     nodePort: 32279
 
 ---
-# MariaDB Service
 apiVersion: v1
 kind: Service
 metadata:

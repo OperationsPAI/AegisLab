@@ -30,11 +30,6 @@ data:
 
     [database]
     clickhouse_host = "{{ .Values.configmap.database.clickhouse_host }}"
-    mysql_user = "{{ .Values.configmap.database.mysql_user }}"
-    mysql_password = "{{ .Values.configmap.database.mysql_password }}"
-    mysql_host = "{{ .Release.Name }}-mariadb"
-    mysql_port = "{{ .Values.configmap.database.mysql_port }}"
-    mysql_db = "{{ .Values.configmap.database.mysql_db }}"
     postgres_user = "{{ .Values.configmap.database.postgres_user }}"
     postgres_password = "{{ .Values.configmap.database.postgres_password }}"
     postgres_host = "{{ .Release.Name }}-postgres"
@@ -69,16 +64,6 @@ data:
 
     [buildkit]
     address = "tcp://{{ .Release.Name }}-buildkit:1234"    
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ .Release.Name }}-mariadb-config
-data:
-  my.cnf: |
-    [mysqld]
-    bind-address = 0.0.0.0
-
 ---
 apiVersion: v1
 kind: ConfigMap

@@ -384,6 +384,7 @@ func GetFLByDatasetName(datasetName string) (*database.FaultInjectionSchedule, e
 	if err := database.DB.Where("injection_name = ?", datasetName).First(&record).Error; err != nil {
 		return nil, err
 	}
+	
 	return &record, nil
 }
 
