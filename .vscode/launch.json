@@ -7,37 +7,8 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/experiments_controller/main.go",
-      "args": [
-        "both",
-        "-c ./config.dev.toml"
-      ],
+      "args": ["both", "-c ./config.dev.toml"],
       "cwd": "${workspaceFolder}/experiments_controller"
-    },
-    {
-      "name": "rcabench sdk dev",
-      "type": "debugpy",
-      "request": "launch",
-      "module": "pytest",
-      "args": [
-        "sdk/python/tests"
-      ],
-      "env": {
-        "ENV_MODE": "dev"
-      },
-      "cwd": "${workspaceFolder}"
-    },
-    {
-      "name": "rcabench sdk prod",
-      "type": "debugpy",
-      "request": "launch",
-      "module": "pytest",
-      "args": [
-        "sdk/python/tests"
-      ],
-      "env": {
-        "ENV_MODE": "prod"
-      },
-      "cwd": "${workspaceFolder}"
     }
   ]
 }
