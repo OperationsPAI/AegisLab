@@ -174,10 +174,10 @@ func (c *HelmClient) IsReleaseInstalled(releaseName string) (bool, error) {
 	return true, nil
 }
 
-func (c *HelmClient) UninstallRelease(releaseName string) error {
+func (c *HelmClient) UninstallRelease(releaseName string, timeout time.Duration) error {
 	client := action.NewUninstall(c.actionConfig)
 	client.Wait = true
-	client.Timeout = 300 * time.Second
+	client.Timeout = timeout
 
 	_, err := client.Run(releaseName)
 	if err != nil {
@@ -185,6 +185,7 @@ func (c *HelmClient) UninstallRelease(releaseName string) error {
 			logrus.Infof("Release %s is not installed, nothing to uninstall", releaseName)
 			return nil
 		}
+
 		return fmt.Errorf("failed to uninstall release %s: %w", releaseName, err)
 	}
 
@@ -250,7 +251,7 @@ func (c *HelmClient) isChartCachedLocally(chartName string) (string, bool) {
 	return "", false
 }
 
-func (c *HelmClient) InstallRelease(ctx context.Context, releaseName, chartName string, vals map[string]any) error {
+func (c *HelmClient) InstallRelease(ctx context.Context, releaseName, chartName string, vals map[string]any, timeout time.Duration) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
 		now := time.Now()
 
@@ -262,7 +263,7 @@ func (c *HelmClient) InstallRelease(ctx context.Context, releaseName, chartName 
 		client.ReleaseName = releaseName
 		client.Namespace = c.namespace
 		client.Wait = true
-		client.Timeout = 500 * time.Second
+		client.Timeout = timeout
 		client.CreateNamespace = true
 
 		var cp string
@@ -287,14 +288,14 @@ func (c *HelmClient) InstallRelease(ctx context.Context, releaseName, chartName 
 
 		_, err = client.Run(chart, vals)
 		if err != nil {
-			return fmt.Errorf("failed to install release %s: %w", releaseName, err)
+			return fmt.Errorf("failed to install release %s: %v", releaseName, err)
 		}
 
 		return nil
 	})
 }
 
-func (c *HelmClient) InstallTrainTicket(ctx context.Context, releaseName, nodePort string) error {
+func (c *HelmClient) InstallTrainTicket(ctx context.Context, releaseName, nodePort string, installTimeout, unInstallTimeout time.Duration) error {
 	installed, err := c.IsReleaseInstalled(releaseName)
 	if err != nil {
 		return err
@@ -302,14 +303,12 @@ func (c *HelmClient) InstallTrainTicket(ctx context.Context, releaseName, nodePo
 
 	// If installed, uninstall it first
 	if installed {
-		log.Printf("Uninstalling existing %s release", releaseName)
-		if err := c.UninstallRelease(releaseName); err != nil {
+		logrus.Infof("Uninstalling existing %s release", releaseName)
+		if err := c.UninstallRelease(releaseName, unInstallTimeout); err != nil {
 			return err
 		}
-
-		time.Sleep(2 * time.Minute)
 	} else {
-		log.Printf("No existing %s release found", releaseName)
+		logrus.Infof("No existing %s release found", releaseName)
 	}
 
 	imageName := "ts-train-service"
@@ -331,5 +330,5 @@ func (c *HelmClient) InstallTrainTicket(ctx context.Context, releaseName, nodePo
 		},
 	}
 
-	return c.InstallRelease(ctx, releaseName, "train-ticket/trainticket", values)
+	return c.InstallRelease(ctx, releaseName, "train-ticket/trainticket", values, installTimeout)
 }

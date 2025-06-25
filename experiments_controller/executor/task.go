@@ -63,13 +63,6 @@ var (
 	taskCancelFuncsMutex sync.RWMutex                          // Mutex to protect the map
 )
 
-// LastBatchInfo stores information about the last batch execution
-type LastBatchInfo struct {
-	ExecutionTime time.Time // When the batch was executed
-	Interval      int       // Interval between batches
-	Num           int       // Number of tasks in the batch
-}
-
 // -----------------------------------------------------------------------------
 // Task Submission Functions
 // -----------------------------------------------------------------------------

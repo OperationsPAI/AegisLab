@@ -163,6 +163,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 
 		monitor := k8s.GetMonitor()
 
+		// TODO 修改interval改为预热时间
 		t := time.Now()
 		deltaTime := time.Duration(payload.interval) * consts.DefaultTimeUnit
 		namespace := monitor.GetNamespaceToRestart(t.Add(deltaTime), task.TraceID)
@@ -184,6 +185,15 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 				EventName: consts.EventNoNamespaceAvailable,
 				Payload:   executeTime.String(),
 			})
+
+			updateTaskStatus(
+				ctx,
+				task.TraceID,
+				task.TaskID,
+				"failed to acquire lock for namespace, retrying",
+				consts.TaskStautsRescheduled,
+				consts.TaskTypeRestartService,
+			)
 
 			if _, _, err := SubmitTask(childCtx, &dto.UnifiedTask{
 				Type:         consts.TaskTypeRestartService,
@@ -225,21 +235,33 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 			monitor.ReleaseLock(namespace, task.TraceID)
 			span.RecordError(err)
 			span.AddEvent("failed to install Train Ticket")
+
 			repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 				TaskID:    task.TaskID,
 				TaskType:  consts.TaskTypeRestartService,
 				EventName: consts.EventRestartServiceFailed,
 				Payload:   err.Error(),
 			})
+
 			return err
 		}
 
+		message := fmt.Sprintf("Injection start at %s, duration %dm", injectTime.Local().String(), payload.faultDuration)
 		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 			TaskID:    task.TaskID,
 			TaskType:  consts.TaskTypeRestartService,
 			EventName: consts.EventRestartServiceCompleted,
-			Payload:   fmt.Sprintf("Injection start at %s, duration %dm", injectTime.Local().String(), payload.faultDuration),
+			Payload:   message,
 		})
+
+		updateTaskStatus(
+			ctx,
+			task.TraceID,
+			task.TaskID,
+			message,
+			consts.TaskStatusCompleted,
+			consts.TaskTypeRestartService,
+		)
 
 		tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStatusScheduled))
 
@@ -296,7 +318,7 @@ func installTS(ctx context.Context, namespace, nsPrefix string, namespaceIdx int
 		}
 
 		port := fmt.Sprintf(nsConfig.port, namespaceIdx)
-		if err := helmClient.InstallTrainTicket(ctx, namespace, port); err != nil {
+		if err := helmClient.InstallTrainTicket(ctx, namespace, port, 500*time.Second, 300*time.Second); err != nil {
 			return fmt.Errorf("error installing Train Ticket: %v", err)
 		}
 

@@ -48,6 +48,8 @@ func GetTraceStream(c *gin.Context) {
 		return
 	}
 
+	processor := repository.NewStreamProcessor(ctx, traceReq.TraceID)
+
 	logEntry.Infof("Reading historical events from Stream")
 	historicalMessages, err := repository.ReadStreamEvents(ctx, streamKey, lastID, 100, 0)
 	if err != nil && err != redis.Nil {
@@ -57,7 +59,8 @@ func GetTraceStream(c *gin.Context) {
 	}
 
 	if len(historicalMessages) > 0 {
-		lastID, err = sendSSEMessages(c, historicalMessages)
+		processor.Reset()
+		lastID, err = sendSSEMessages(c, processor, historicalMessages)
 		if err != nil {
 			logEntry.Error(err)
 			return
@@ -65,6 +68,7 @@ func GetTraceStream(c *gin.Context) {
 	}
 
 	logEntry.Infof("Switching to real-time event monitoring from ID: %s", lastID)
+	processor.Reset()
 	for {
 		select {
 		case <-c.Done():
@@ -78,43 +82,44 @@ func GetTraceStream(c *gin.Context) {
 					logEntry.Infof("Context done while reading stream: %v", err)
 					return
 				}
+
 				logEntry.Errorf("Error reading stream: %v", err)
 				continue
 			}
+
 			if err == redis.Nil {
 				continue
 			}
 
-			lastID, err = sendSSEMessages(c, newMessages)
-			logrus.Info("Sent SSE messages, lastID:", lastID)
+			lastID, err = sendSSEMessages(c, processor, newMessages)
 			if err != nil {
 				logEntry.Error(err)
 				return
 			}
+
+			logrus.Info("Sent SSE messages, lastID:", lastID)
 		}
 	}
 }
 
-func sendSSEMessages(c *gin.Context, messages []redis.XStream) (string, error) {
-	lastID, sseMessages, err := repository.ProcessStreamMessagesForSSE(messages)
+func sendSSEMessages(c *gin.Context, processor *repository.StreamProcessor, streams []redis.XStream) (string, error) {
+	lastID, sseMessage, err := processor.ProcessMessageForSSE(streams[0].Messages[0])
 	if err != nil {
 		return "", err
 	}
 
-	for _, message := range sseMessages {
-		c.Render(-1, sse.Event{
-			Id:    message.ID,
-			Event: consts.EventUpdate,
-			Data:  message.Data,
-		})
+	processor.GetStats()
 
+	c.Render(-1, sse.Event{
+		Id:    lastID,
+		Event: consts.EventUpdate,
+		Data:  sseMessage,
+	})
+	c.Writer.Flush()
+
+	if processor.IsCompleted() {
+		c.SSEvent(consts.EventEnd, nil)
 		c.Writer.Flush()
-
-		if message.IsCompleted {
-			c.SSEvent(consts.EventEnd, nil)
-			c.Writer.Flush()
-			return lastID, nil
-		}
 	}
 
 	return lastID, nil

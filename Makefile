@@ -50,7 +50,7 @@ import: ## Import the latest version of chaos-experiment library
 
 
 ##@ Chaos Management
-clean-finalizer: ## Clean finalizers for specified chaos types in namespace $(NS)
+clean-finalizer: ## Clean finalizer for specified chaos types in namespace $(NS)
 	@for type in $(CHAOS_TYPES); do \
 		kubectl get $$type -n $(NS) -o jsonpath='{range .items[*]}{.metadata.namespace}{":"}{.metadata.name}{"\n"}{end}' | \
 		while IFS=: read -r ns name; do \
