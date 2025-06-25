@@ -148,7 +148,7 @@ func TestHelmClient_InstallRelease_UsesCachedChart(t *testing.T) {
 
 	// Create a simple test that verifies the method doesn't panic
 	// and handles the basic flow (though it will fail due to missing chart)
-	err := client.InstallRelease(ctx, "test-release", "non-existent-chart", map[string]any{})
+	err := client.InstallRelease(ctx, "test-release", "non-existent-chart", map[string]any{}, 500*time.Second)
 
 	// We expect an error since the chart doesn't exist, but it should be a specific error
 	if err == nil {

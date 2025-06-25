@@ -99,7 +99,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				task.Type,
 			)
 
-			if repository.CheckCachedTraceID(childCtx, task.TraceID) {
+			if hasIssues && repository.CheckCachedTraceID(childCtx, task.TraceID) {
 				names, err := repository.GetCachedAlgorithmsFromRedis(childCtx, task.TraceID)
 				if err != nil {
 					span.AddEvent("failed to get algorithms from redis")

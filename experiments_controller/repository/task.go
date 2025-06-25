@@ -274,48 +274,119 @@ func ReadStreamEvents(ctx context.Context, stream string, lastID string, count i
 	}).Result()
 }
 
-// ProcessStreamMessagesForSSE processes Redis stream messages and prepares them for SSE events
-// Returns the last message ID and a slice of prepared SSE messages
-func ProcessStreamMessagesForSSE(messages []redis.XStream) (string, []dto.SSEMessageData, error) {
-	var lastID string
-	var sseMessages []dto.SSEMessageData
+type StreamProcessor struct {
+	ctx                     context.Context
+	hasIssues               bool
+	isCompleted             bool
+	detectorTaskID          string
+	traceID                 string
+	algorithms              []string
+	completedAlgorithmTasks map[string]bool
+}
 
-	for _, stream := range messages {
-		for _, msg := range stream.Messages {
-			lastID = msg.ID
+func NewStreamProcessor(ctx context.Context, traceID string) *StreamProcessor {
+	return &StreamProcessor{
+		ctx:                     ctx,
+		traceID:                 traceID,
+		completedAlgorithmTasks: make(map[string]bool),
+	}
+}
 
-			streamEvent, err := parseEventFromValues(msg.Values)
-			if err != nil {
-				return "", nil, fmt.Errorf("failed to parse stream message value: %v", err)
+func (sp *StreamProcessor) GetStats() {
+	logrus.Infof("StreamProcessor Stats - TraceID: %s, HasIssues: %t, IsCompleted: %t, DetectorTaskID: %s, Algorithms: %v, CompletedAlgorithmTasks: %v",
+		sp.traceID, sp.hasIssues, sp.isCompleted, sp.detectorTaskID, sp.algorithms, sp.completedAlgorithmTasks)
+}
+
+func (sp *StreamProcessor) IsCompleted() bool {
+	return sp.isCompleted
+}
+
+// TODO 错误处理
+func (sp *StreamProcessor) ProcessMessageForSSE(msg redis.XMessage) (string, string, error) {
+	streamEvent, err := parseEventFromValues(msg.Values)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse stream message value: %v", err)
+	}
+
+	sseMessage, err := streamEvent.ToSSE()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse streamEvent to sse message: %v", err)
+	}
+
+	switch streamEvent.EventName {
+	case consts.EventDatasetNoAnomaly, consts.EventDatasetNoConclusionFile:
+		sp.detectorTaskID = streamEvent.TaskID
+	case consts.EventDatasetResultCollection:
+		sp.detectorTaskID = streamEvent.TaskID
+		sp.hasIssues = true
+	}
+
+	// Check if this is a completion event
+	if sp.isCompletionEvent(streamEvent) {
+		payloadStr, ok := streamEvent.Payload.(string)
+		if !ok {
+			return "", "", fmt.Errorf("invalid payload type for task status update event: %T", streamEvent.Payload)
+		}
+
+		var payload dto.InfoPayloadTemplate
+		if err := json.Unmarshal([]byte(payloadStr), &payload); err != nil {
+			return "", "", fmt.Errorf("failed to unmarshal payload: %v", err)
+		}
+
+		if sp.isTerminalStatus(payload.Status) {
+			if streamEvent.TaskID == sp.detectorTaskID {
+				sp.handleDetectorTaskCompletion()
+			} else {
+				sp.handleAlgorithmTaskCompletion(streamEvent.TaskID)
 			}
-
-			sseMessage, err := streamEvent.ToSSE()
-			if err != nil {
-				return "", nil, fmt.Errorf("failed to parse streamEvent to sse message: %v", err)
-			}
-
-			// Check if this is a completion event
-			isCompleted := false
-			if streamEvent.TaskType == consts.TaskTypeCollectResult && streamEvent.EventName == consts.EventTaskStatusUpdate {
-				if payloadStr, ok := streamEvent.Payload.(string); ok {
-					var payload dto.InfoPayloadTemplate
-					if err := json.Unmarshal([]byte(payloadStr), &payload); err == nil {
-						if payload.Status == consts.TaskStatusCompleted || payload.Status == consts.TaskStatusError || payload.Status == consts.TaskStatusCanceled {
-							isCompleted = true
-						}
-					}
-				}
-			}
-
-			sseMessages = append(sseMessages, dto.SSEMessageData{
-				ID:          msg.ID,
-				Data:        sseMessage,
-				IsCompleted: isCompleted,
-			})
 		}
 	}
 
-	return lastID, sseMessages, nil
+	return msg.ID, sseMessage, nil
+}
+
+func (sp *StreamProcessor) Reset() {
+	sp.hasIssues = false
+	sp.isCompleted = false
+	sp.detectorTaskID = ""
+	sp.algorithms = nil
+	for k := range sp.completedAlgorithmTasks {
+		delete(sp.completedAlgorithmTasks, k)
+	}
+}
+
+func (sp *StreamProcessor) handleDetectorTaskCompletion() {
+	// 完成条件：没有问题 OR (有问题但没有缓存算法)
+	sp.isCompleted = !sp.hasIssues || !CheckCachedTraceID(sp.ctx, sp.traceID)
+
+	// 如果有问题且未完成，获取算法列表
+	if sp.hasIssues && !sp.isCompleted {
+		algorithms, err := GetCachedAlgorithmsFromRedis(sp.ctx, sp.traceID)
+		if err != nil {
+			logrus.Errorf("Failed to get cached algorithms for traceID %s: %v", sp.traceID, err)
+			sp.isCompleted = true
+			return
+		}
+
+		sp.algorithms = algorithms
+	}
+}
+
+func (sp *StreamProcessor) handleAlgorithmTaskCompletion(taskID string) {
+	// 检查算法列表是否已初始化且任务未重复计数
+	if len(sp.algorithms) > 0 && !sp.completedAlgorithmTasks[taskID] {
+		sp.completedAlgorithmTasks[taskID] = true
+		sp.isCompleted = len(sp.completedAlgorithmTasks) >= len(sp.algorithms)
+	}
+}
+
+func (sp *StreamProcessor) isCompletionEvent(event *dto.StreamEvent) bool {
+	return event.TaskType == consts.TaskTypeCollectResult &&
+		event.EventName == consts.EventTaskStatusUpdate
+}
+
+func (sp *StreamProcessor) isTerminalStatus(status string) bool {
+	return status == consts.TaskStatusCompleted || status == consts.TaskStatusError
 }
 
 // ParseEventFromValues 从 Redis Stream 消息解析事件
