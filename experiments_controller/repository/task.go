@@ -292,11 +292,6 @@ func NewStreamProcessor(ctx context.Context, traceID string) *StreamProcessor {
 	}
 }
 
-func (sp *StreamProcessor) GetStats() {
-	logrus.Infof("StreamProcessor Stats - TraceID: %s, HasIssues: %t, IsCompleted: %t, DetectorTaskID: %s, Algorithms: %v, CompletedAlgorithmTasks: %v",
-		sp.traceID, sp.hasIssues, sp.isCompleted, sp.detectorTaskID, sp.algorithms, sp.completedAlgorithmTasks)
-}
-
 func (sp *StreamProcessor) IsCompleted() bool {
 	return sp.isCompleted
 }
@@ -322,7 +317,7 @@ func (sp *StreamProcessor) ProcessMessageForSSE(msg redis.XMessage) (string, str
 	}
 
 	// Check if this is a completion event
-	if sp.isCompletionEvent(streamEvent) {
+	if streamEvent.EventName == consts.EventTaskStatusUpdate {
 		payloadStr, ok := streamEvent.Payload.(string)
 		if !ok {
 			return "", "", fmt.Errorf("invalid payload type for task status update event: %T", streamEvent.Payload)
@@ -333,11 +328,16 @@ func (sp *StreamProcessor) ProcessMessageForSSE(msg redis.XMessage) (string, str
 			return "", "", fmt.Errorf("failed to unmarshal payload: %v", err)
 		}
 
-		if sp.isTerminalStatus(payload.Status) {
-			if streamEvent.TaskID == sp.detectorTaskID {
-				sp.handleDetectorTaskCompletion()
-			} else {
-				sp.handleAlgorithmTaskCompletion(streamEvent.TaskID)
+		switch payload.Status {
+		case consts.TaskStatusError:
+			sp.isCompleted = true
+		case consts.TaskStatusCompleted:
+			if streamEvent.TaskType == consts.TaskTypeCollectResult {
+				if streamEvent.TaskID == sp.detectorTaskID {
+					sp.handleDetectorTaskCompletion()
+				} else {
+					sp.handleAlgorithmTaskCompletion(streamEvent.TaskID)
+				}
 			}
 		}
 	}
@@ -378,15 +378,6 @@ func (sp *StreamProcessor) handleAlgorithmTaskCompletion(taskID string) {
 		sp.completedAlgorithmTasks[taskID] = true
 		sp.isCompleted = len(sp.completedAlgorithmTasks) >= len(sp.algorithms)
 	}
-}
-
-func (sp *StreamProcessor) isCompletionEvent(event *dto.StreamEvent) bool {
-	return event.TaskType == consts.TaskTypeCollectResult &&
-		event.EventName == consts.EventTaskStatusUpdate
-}
-
-func (sp *StreamProcessor) isTerminalStatus(status string) bool {
-	return status == consts.TaskStatusCompleted || status == consts.TaskStatusError
 }
 
 // ParseEventFromValues 从 Redis Stream 消息解析事件
