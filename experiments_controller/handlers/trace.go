@@ -108,8 +108,6 @@ func sendSSEMessages(c *gin.Context, processor *repository.StreamProcessor, stre
 		return "", err
 	}
 
-	processor.GetStats()
-
 	c.Render(-1, sse.Event{
 		Id:    lastID,
 		Event: consts.EventUpdate,
