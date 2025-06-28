@@ -188,6 +188,7 @@ const (
 	LabelAlgorithm   = "algorithm"
 	LabelDataset     = "dataset"
 	LabelExecutionID = "execution_id"
+	LabelPayload     = "payload"
 )
 
 // sse 事件类型

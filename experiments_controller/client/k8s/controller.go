@@ -35,6 +35,8 @@ const (
 	CheckRecovery ActionType = "CheckRecovery"
 	DeleteCRD     ActionType = "DeleteCRD"
 	DeleteJob     ActionType = "DeleteJob"
+
+	RecoveryError string = "recovery_failed"
 )
 
 type timeRange struct {
@@ -44,7 +46,7 @@ type timeRange struct {
 
 type Callback interface {
 	HandleCRDAdd(annotations map[string]string, labels map[string]string)
-	HandleCRDFailed(name string, annotations map[string]string, labels map[string]string, err error, errMsg string)
+	HandleCRDFailed(name string, annotations map[string]string, labels map[string]string, errMsg string)
 	HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, annotations map[string]string, labels map[string]string)
 	HandleJobAdd(annotations map[string]string, labels map[string]string)
 	HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string, errMsg string)
@@ -173,7 +175,7 @@ func (c *Controller) registerEventHandlers(ctx context.Context) {
 		return
 	}
 
-	if _, err := c.podInformer.AddEventHandler(c.genPodEventHandlerFuncs()); err != nil {
+	if _, err := c.podInformer.AddEventHandler(c.genPodEventHandlerFuncs(ctx)); err != nil {
 		logrus.WithField("func", "genPodEventHandlerFuncs").Error("failed to add event handler")
 		return
 	}
@@ -208,14 +210,14 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 
 					selected := getCRDConditionStatus(conditions, "Selected")
 					if !selected {
-						c.handleCRDFailed(gvr, newU, nil, "failed to select app in the chaos experiment")
+						c.handleCRDFailed(gvr, newU, "failed to select app in the chaos experiment")
 						return
 					}
 
 					// 会花费 duration 的时间去尝试注入
 					allInjected := getCRDConditionStatus(conditions, "AllInjected")
 					if !allInjected {
-						c.handleCRDFailed(gvr, newU, nil, "failed to inject all targets in the chaos experiment")
+						c.handleCRDFailed(gvr, newU, "failed to inject all targets in the chaos experiment")
 						return
 					}
 				}
@@ -234,13 +236,13 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 					re := regexp.MustCompile(pattern)
 					match := re.FindStringSubmatch(durationStr)
 					if len(match) <= 1 {
-						c.handleCRDFailed(gvr, newU, nil, "failed to get the duration")
+						c.handleCRDFailed(gvr, newU, "failed to get the duration")
 						return
 					}
 
 					duration, err := strconv.Atoi(match[1])
 					if err != nil {
-						c.handleCRDFailed(gvr, newU, nil, "failed to get the duration of the chaos experiement")
+						c.handleCRDFailed(gvr, newU, "failed to get the duration of the chaos experiement")
 						return
 					}
 
@@ -252,7 +254,7 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 							GVR:        &gvr,
 							RetryCount: 0,
 							MaxRetries: 3,
-						}, time.Duration(duration+1)*time.Minute)
+						}, time.Duration(duration)*time.Minute)
 					}
 				}
 
@@ -264,16 +266,13 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 					newRecords, _, _ := unstructured.NestedSlice(newU.Object, "status", "experiment", "containerRecords")
 					timeRanges := getCRDEventTimeRanges(newRecords)
 					if len(timeRanges) == 0 {
-						c.handleCRDFailed(gvr, newU, nil, "failed to get the start_time and end_time")
+						c.handleCRDFailed(gvr, newU, "failed to get the start_time and end_time")
 						return
 					}
 
 					pod, _, _ := unstructured.NestedString(newU.Object, "spec", "selector", "labelSelectors", "app")
-					annotations, _, _ := unstructured.NestedStringMap(newU.Object, "metadata", "annotations")
-					labels, _, _ := unstructured.NestedStringMap(newU.Object, "metadata", "labels")
-
 					timeRange := timeRanges[0]
-					c.callback.HandleCRDSucceeded(newU.GetNamespace(), pod, newU.GetName(), timeRange.Start, timeRange.End, annotations, labels)
+					c.callback.HandleCRDSucceeded(newU.GetNamespace(), pod, newU.GetName(), timeRange.Start, timeRange.End, newU.GetAnnotations(), newU.GetLabels())
 					if !config.GetBool("debugging.enable") {
 						c.queue.Add(QueueItem{
 							Type:      DeleteCRD,
@@ -292,8 +291,10 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 				"namespace": u.GetNamespace(),
 				"name":      u.GetName(),
 			}).Info("Chaos experiment deleted successfully")
-			traceId := u.GetLabels()[consts.CRDTraceID]
-			GetMonitor().ReleaseLock(u.GetNamespace(), traceId)
+			if errorMsg, exists := u.GetLabels()[consts.LabelPayload]; !exists || errorMsg != RecoveryError {
+				traceId := u.GetLabels()[consts.CRDTraceID]
+				GetMonitor().ReleaseLock(u.GetNamespace(), traceId)
+			}
 		},
 	}
 }
@@ -342,7 +343,7 @@ func (c *Controller) genJobEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 	}
 }
 
-func (c *Controller) genPodEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
+func (c *Controller) genPodEventHandlerFuncs(ctx context.Context) cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj any) {
 			newPod := newObj.(*corev1.Pod)
@@ -365,13 +366,13 @@ func (c *Controller) genPodEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 				// TODO
 				for _, reason := range podReasons {
 					if checkPodReason(newPod, reason) {
-						job, err := GetJob(context.Background(), newPod.Namespace, jobOwnerRef.Name)
+						job, err := GetJob(ctx, newPod.Namespace, jobOwnerRef.Name)
 						if err != nil {
 							logrus.WithField("job_name", jobOwnerRef.Name).Error(err)
 						}
 
 						if job != nil {
-							handlePodError(context.Background(), newPod, job, reason)
+							handlePodError(ctx, newPod, job, reason)
 							if !config.GetBool("debugging.enable") {
 								c.queue.Add(QueueItem{
 									Type:      DeleteJob,
@@ -411,11 +412,7 @@ func (c *Controller) processQueueItem() bool {
 	var err error
 	switch item.Type {
 	case CheckRecovery:
-		err := c.checkRecoveryStatus(item)
-		if err != nil {
-			logrus.WithField("namespace", item.Namespace).WithField("name", item.Name).Error(err)
-			return true
-		}
+		err = c.checkRecoveryStatus(item)
 	case DeleteCRD:
 		if item.GVR == nil {
 			logrus.Error("The groupVersionResource can not be nil")
@@ -444,6 +441,7 @@ func (c *Controller) processQueueItem() bool {
 
 func (c *Controller) checkRecoveryStatus(item QueueItem) error {
 	logEntry := logrus.WithFields(logrus.Fields{
+		"type":      item.GVR.Resource,
 		"namespace": item.Namespace,
 		"name":      item.Name,
 	})
@@ -466,7 +464,7 @@ func (c *Controller) checkRecoveryStatus(item QueueItem) error {
 	recovered := getCRDConditionStatus(conditions, "AllRecovered")
 	if !recovered {
 		if item.RetryCount < item.MaxRetries {
-			logEntry.Warn("Recovery not complete, scheduling retry after 1 minute")
+			logEntry.Warn("recovery not complete, scheduling retry after 1 minute")
 			c.queue.AddAfter(QueueItem{
 				Type:       CheckRecovery,
 				Namespace:  item.Namespace,
@@ -478,8 +476,13 @@ func (c *Controller) checkRecoveryStatus(item QueueItem) error {
 
 			return nil
 		} else {
-			logrus.Errorf("Recovery not complete after %d retries, giving up", item.MaxRetries)
-			c.handleCRDFailed(*item.GVR, obj, nil, "failed to recover all targets in the chaos experiment")
+			logEntry.Warningf("recovery not complete after %d retries, giving up", item.MaxRetries)
+
+			labels := obj.GetLabels()
+			labels[consts.LabelPayload] = RecoveryError
+			obj.SetLabels(labels)
+
+			c.handleCRDFailed(*item.GVR, obj, "failed to recover all targets in the chaos experiment")
 		}
 	} else {
 		logEntry.Infof("System successfully recovered after %d attempts", item.RetryCount+1)
@@ -488,17 +491,14 @@ func (c *Controller) checkRecoveryStatus(item QueueItem) error {
 	return nil
 }
 
-func (c *Controller) handleCRDFailed(gvr schema.GroupVersionResource, u *unstructured.Unstructured, err error, errMsg string) {
+func (c *Controller) handleCRDFailed(gvr schema.GroupVersionResource, u *unstructured.Unstructured, errMsg string) {
 	logrus.WithFields(logrus.Fields{
 		"type":      gvr.Resource,
 		"namespace": u.GetNamespace(),
 		"name":      u.GetName(),
 	}).Errorf("CRD failed: %s", errMsg)
 
-	annotations, _, _ := unstructured.NestedStringMap(u.Object, "metadata", "annotations")
-	labels, _, _ := unstructured.NestedStringMap(u.Object, "metadata", "labels")
-
-	c.callback.HandleCRDFailed(u.GetName(), annotations, labels, err, errMsg)
+	c.callback.HandleCRDFailed(u.GetName(), u.GetAnnotations(), u.GetLabels(), errMsg)
 	if !config.GetBool("debugging.enable") {
 		c.queue.Add(QueueItem{
 			Type:      DeleteCRD,

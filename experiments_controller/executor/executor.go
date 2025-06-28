@@ -70,7 +70,7 @@ func (e *Executor) HandleCRDAdd(annotations map[string]string, labels map[string
 	)
 }
 
-func (e *Executor) HandleCRDFailed(name string, annotations map[string]string, labels map[string]string, err error, errMsg string) {
+func (e *Executor) HandleCRDFailed(name string, annotations map[string]string, labels map[string]string, errMsg string) {
 	parsedAnnotations, _ := parseAnnotations(annotations)
 	parsedLabels, _ := parseCRDLabels(labels)
 	ctx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.TaskCarrier)
