@@ -35,8 +35,6 @@ const (
 	CheckRecovery ActionType = "CheckRecovery"
 	DeleteCRD     ActionType = "DeleteCRD"
 	DeleteJob     ActionType = "DeleteJob"
-
-	RecoveryError string = "recovery_failed"
 )
 
 type timeRange struct {
@@ -291,10 +289,8 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 				"namespace": u.GetNamespace(),
 				"name":      u.GetName(),
 			}).Info("Chaos experiment deleted successfully")
-			if errorMsg, exists := u.GetLabels()[consts.LabelPayload]; !exists || errorMsg != RecoveryError {
-				traceId := u.GetLabels()[consts.CRDTraceID]
-				GetMonitor().ReleaseLock(u.GetNamespace(), traceId)
-			}
+			traceId := u.GetLabels()[consts.CRDTraceID]
+			GetMonitor().ReleaseLock(u.GetNamespace(), traceId)
 		},
 	}
 }
@@ -315,7 +311,7 @@ func (c *Controller) genJobEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 			newJob := newObj.(*batchv1.Job)
 
 			if oldJob.Name == newJob.Name {
-				if oldJob.Status.Failed == 0 && newJob.Status.Failed > 0 {
+				if oldJob.Status.Failed == *oldJob.Spec.BackoffLimit && newJob.Status.Failed == *newJob.Spec.BackoffLimit+1 {
 					errorMsg := extractJobError(newJob)
 					c.callback.HandleJobFailed(newJob, newJob.Annotations, newJob.Labels, errorMsg)
 				}
@@ -477,12 +473,7 @@ func (c *Controller) checkRecoveryStatus(item QueueItem) error {
 			return nil
 		} else {
 			logEntry.Warningf("recovery not complete after %d retries, giving up", item.MaxRetries)
-
-			labels := obj.GetLabels()
-			labels[consts.LabelPayload] = RecoveryError
-			obj.SetLabels(labels)
-
-			c.handleCRDFailed(*item.GVR, obj, "failed to recover all targets in the chaos experiment")
+			logEntry.Error("failed to recover all targets in the chaos experiment")
 		}
 	} else {
 		logEntry.Infof("System successfully recovered after %d attempts", item.RetryCount+1)

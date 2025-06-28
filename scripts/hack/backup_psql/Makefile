@@ -19,4 +19,5 @@ backup:
 
 ##@ Restore
 restore-local: ## Restore local PostgreSQL database from backup
-	uv run python cli.py pg-restore -h 127.0.0.1 -p 5432 --clean
+	$(MAKE) backup
+	uv run python cli.py pg-restore --clean --host 127.0.0.1 --port 5432

@@ -168,11 +168,19 @@ func GetJobPodLogs(ctx context.Context, namespace, jobName string) (map[string]s
 		LabelSelector: fmt.Sprintf("job-name=%s", jobName),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Failed to list pods: %v", err)
+		return nil, fmt.Errorf("failed to list pods: %v", err)
 	}
 
 	logsMap := make(map[string]string)
 	for _, pod := range podList.Items {
+		if !isPodReadyForLogs(pod) {
+			logrus.WithFields(logrus.Fields{
+				"pod":   pod.Name,
+				"phase": pod.Status.Phase,
+			}).Info("Skipping pod logs - pod not ready")
+			continue
+		}
+
 		req := k8sClient.CoreV1().Pods(namespace).GetLogs(pod.Name, &corev1.PodLogOptions{})
 		logStream, err := req.Stream(ctx)
 		if err != nil {
@@ -184,10 +192,28 @@ func GetJobPodLogs(ctx context.Context, namespace, jobName string) (map[string]s
 		if err != nil {
 			return nil, fmt.Errorf("failed to read logs for pod %s: %v", pod.Name, err)
 		}
+
 		logsMap[pod.Name] = string(logData)
 	}
 
 	return logsMap, nil
+}
+
+func isPodReadyForLogs(pod corev1.Pod) bool {
+	switch pod.Status.Phase {
+	case corev1.PodPending:
+		for _, containerStatus := range pod.Status.ContainerStatuses {
+			if containerStatus.State.Running != nil {
+				return true
+			}
+		}
+
+		return false
+	case corev1.PodRunning, corev1.PodSucceeded, corev1.PodFailed:
+		return true
+	default:
+		return false
+	}
 }
 
 func WaitForJobCompletion(ctx context.Context, namespace, jobName string) error {
