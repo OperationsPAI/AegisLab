@@ -84,10 +84,12 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				})
 			}
 
-			if err = database.DB.Create(&results).Error; err != nil {
-				span.AddEvent("failed to save conclusion.csv to database")
-				span.RecordError(err)
-				return fmt.Errorf("failed to save conclusion.csv to database: %v", err)
+			if len(results) != 0 {
+				if err = database.DB.Create(&results).Error; err != nil {
+					span.AddEvent("failed to save conclusion.csv to database")
+					span.RecordError(err)
+					return fmt.Errorf("failed to save conclusion.csv to database: %v", err)
+				}
 			}
 
 			updateTaskStatus(

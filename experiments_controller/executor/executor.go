@@ -199,7 +199,6 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 	logs, err := k8s.GetJobPodLogs(ctx, job.Namespace, job.Name)
 	if err != nil {
 		logrus.WithField("job_name", job.Name).Errorf("failed to get job logs: %v", err)
-
 	}
 
 	for podName, log := range logs {

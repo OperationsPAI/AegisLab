@@ -208,7 +208,6 @@ func InitDB() {
 	DB.Migrator().DropView("fault_injection_no_issues")
 	DB.Migrator().DropView("fault_injection_with_issues")
 
-	// TODO dataset_id一直为0
 	noIssuesQuery := DB.Table("fault_injection_schedules fis").
 		Select("DISTINCT fis.id AS dataset_id, fis.fault_type, fis.display_config, fis.engine_config, fis.pre_duration, fis.injection_name, fis.created_at").
 		Joins(`JOIN (
