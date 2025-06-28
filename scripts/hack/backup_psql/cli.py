@@ -453,9 +453,19 @@ def pg_backup(
         raise typer.Exit(code=1)
 
 
+def _get_latest_backup_file(database: str = DEFAULT_PG_DB) -> Path | None:
+    """
+    Get the latest backup file based on timestamp
+    """
+    backups = sorted(BACKUP_DIR.glob(f"{database}_pg_backup_*"), key=os.path.getmtime)
+    return backups[-1] if backups else None
+
+
 @app.command()
 def pg_restore(
-    backup_file: str,
+    backup_file: str = typer.Option(
+        _get_latest_backup_file(), "--backup-file", "-f", help="Backup file path"
+    ),
     host: str = typer.Option(
         DEFAULT_PG_HOST, "--host", "-h", help="PostgreSQL host address"
     ),
@@ -475,9 +485,9 @@ def pg_restore(
     create: bool = typer.Option(False, "--create", help="Create database"),
 ):
     """
-    Restore database using pg_restore official tool (recommended)
+    Restore database with the latest backup using pg_restore official tool (recommended)
     """
-    backup_path = BACKUP_DIR / backup_file
+    backup_path = Path(backup_file)
     if not backup_path.exists():
         typer.secho(
             f"❌ Backup file does not exist: {backup_path}", fg=typer.colors.RED
