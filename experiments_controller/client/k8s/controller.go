@@ -260,25 +260,7 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 				newAllRecovered := getCRDConditionStatus(newConditions, "AllRecovered")
 				if !oldAllRecovered && newAllRecovered {
 					logEntry.Infof("all targets recoverd in the chaos experiment")
-
-					newRecords, _, _ := unstructured.NestedSlice(newU.Object, "status", "experiment", "containerRecords")
-					timeRanges := getCRDEventTimeRanges(newRecords)
-					if len(timeRanges) == 0 {
-						c.handleCRDFailed(gvr, newU, "failed to get the start_time and end_time")
-						return
-					}
-
-					pod, _, _ := unstructured.NestedString(newU.Object, "spec", "selector", "labelSelectors", "app")
-					timeRange := timeRanges[0]
-					c.callback.HandleCRDSucceeded(newU.GetNamespace(), pod, newU.GetName(), timeRange.Start, timeRange.End, newU.GetAnnotations(), newU.GetLabels())
-					if !config.GetBool("debugging.enable") {
-						c.queue.Add(QueueItem{
-							Type:      DeleteCRD,
-							Namespace: newU.GetNamespace(),
-							Name:      newU.GetName(),
-							GVR:       &gvr,
-						})
-					}
+					c.processCRDSuccess(gvr, newU)
 				}
 			}
 		},
@@ -472,14 +454,37 @@ func (c *Controller) checkRecoveryStatus(item QueueItem) error {
 
 			return nil
 		} else {
+			// If the retry count exceeds the maximum, log it and handle it normally.
 			logEntry.Warningf("recovery not complete after %d retries, giving up", item.MaxRetries)
 			logEntry.Error("failed to recover all targets in the chaos experiment")
+			c.processCRDSuccess(*item.GVR, obj)
 		}
 	} else {
 		logEntry.Infof("System successfully recovered after %d attempts", item.RetryCount+1)
 	}
 
 	return nil
+}
+
+func (c *Controller) processCRDSuccess(gvr schema.GroupVersionResource, u *unstructured.Unstructured) {
+	newRecords, _, _ := unstructured.NestedSlice(u.Object, "status", "experiment", "containerRecords")
+	timeRanges := getCRDEventTimeRanges(newRecords)
+	if len(timeRanges) == 0 {
+		c.handleCRDFailed(gvr, u, "failed to get the start_time and end_time")
+		return
+	}
+
+	pod, _, _ := unstructured.NestedString(u.Object, "spec", "selector", "labelSelectors", "app")
+	timeRange := timeRanges[0]
+	c.callback.HandleCRDSucceeded(u.GetNamespace(), pod, u.GetName(), timeRange.Start, timeRange.End, u.GetAnnotations(), u.GetLabels())
+	if !config.GetBool("debugging.enable") {
+		c.queue.Add(QueueItem{
+			Type:      DeleteCRD,
+			Namespace: u.GetNamespace(),
+			Name:      u.GetName(),
+			GVR:       &gvr,
+		})
+	}
 }
 
 func (c *Controller) handleCRDFailed(gvr schema.GroupVersionResource, u *unstructured.Unstructured, errMsg string) {
