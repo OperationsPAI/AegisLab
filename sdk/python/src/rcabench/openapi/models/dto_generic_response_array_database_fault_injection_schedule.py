@@ -20,16 +20,16 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_pagination_resp_dto_fault_injection_with_issues_resp import DtoPaginationRespDtoFaultInjectionWithIssuesResp
+from rcabench.openapi.models.database_fault_injection_schedule import DatabaseFaultInjectionSchedule
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoGenericResponseDtoPaginationRespDtoFaultInjectionWithIssuesResp(BaseModel):
+class DtoGenericResponseArrayDatabaseFaultInjectionSchedule(BaseModel):
     """
-    DtoGenericResponseDtoPaginationRespDtoFaultInjectionWithIssuesResp
+    DtoGenericResponseArrayDatabaseFaultInjectionSchedule
     """ # noqa: E501
     code: Optional[StrictInt] = Field(default=None, description="状态码")
-    data: Optional[DtoPaginationRespDtoFaultInjectionWithIssuesResp] = Field(default=None, description="泛型类型的数据")
+    data: Optional[List[DatabaseFaultInjectionSchedule]] = Field(default=None, description="泛型类型的数据")
     message: Optional[StrictStr] = Field(default=None, description="响应消息")
     timestamp: Optional[StrictInt] = Field(default=None, description="响应生成时间")
     additional_properties: Dict[str, Any] = {}
@@ -53,7 +53,7 @@ class DtoGenericResponseDtoPaginationRespDtoFaultInjectionWithIssuesResp(BaseMod
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoGenericResponseDtoPaginationRespDtoFaultInjectionWithIssuesResp from a JSON string"""
+        """Create an instance of DtoGenericResponseArrayDatabaseFaultInjectionSchedule from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -76,9 +76,13 @@ class DtoGenericResponseDtoPaginationRespDtoFaultInjectionWithIssuesResp(BaseMod
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of data
+        # override the default output from pydantic by calling `to_dict()` of each item in data (list)
+        _items = []
         if self.data:
-            _dict['data'] = self.data.to_dict()
+            for _item_data in self.data:
+                if _item_data:
+                    _items.append(_item_data.to_dict())
+            _dict['data'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -88,7 +92,7 @@ class DtoGenericResponseDtoPaginationRespDtoFaultInjectionWithIssuesResp(BaseMod
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoGenericResponseDtoPaginationRespDtoFaultInjectionWithIssuesResp from a dict"""
+        """Create an instance of DtoGenericResponseArrayDatabaseFaultInjectionSchedule from a dict"""
         if obj is None:
             return None
 
@@ -97,7 +101,7 @@ class DtoGenericResponseDtoPaginationRespDtoFaultInjectionWithIssuesResp(BaseMod
 
         _obj = cls.model_validate({
             "code": obj.get("code"),
-            "data": DtoPaginationRespDtoFaultInjectionWithIssuesResp.from_dict(obj["data"]) if obj.get("data") is not None else None,
+            "data": [DatabaseFaultInjectionSchedule.from_dict(_item) for _item in obj["data"]] if obj.get("data") is not None else None,
             "message": obj.get("message"),
             "timestamp": obj.get("timestamp")
         })

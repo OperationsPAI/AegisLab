@@ -82,7 +82,7 @@ func GetTaskDetail(c *gin.Context) {
 //	@Failure		500			{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/tasks/queue [get]
 func GetQueuedTasks(c *gin.Context) {
-	req := dto.PaginationReq{
+	req := dto.PaginationQuery{
 		PageNum:  1,
 		PageSize: 10,
 	}
@@ -183,24 +183,23 @@ func GetQueuedTasks(c *gin.Context) {
 //	@Failure		500	{object}	dto.GenericResponse[any]
 //	@Router			/api/v1/tasks/list [get]
 func ListTasks(c *gin.Context) {
-	var req dto.TaskListReq
+	// TODO 修改swagger注释，增加sort_field参数
+	var req dto.ListTasksReq
 	if err := c.BindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid query parameters, %v", err))
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
 		return
 	}
 
-	// Set default values for pagination if not provided
-	if req.PageNum <= 0 {
-		req.PageNum = 1
-	}
-	if req.PageSize <= 0 {
-		req.PageSize = 10
+	opts, err := req.TimeRangeQuery.Convert()
+	if err != nil {
+		logrus.Errorf("failed to convert time range query: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
+		return
 	}
 
-	filter := req.Convert()
-	total, tasks, err := repository.FindTasks(filter, req.PageNum, req.PageSize, req.SortField)
+	total, tasks, err := repository.ListTasks(req, *opts, req.SortField)
 	if err != nil {
-		logrus.Errorf("Failed to fetch tasks: %v", err)
+		logrus.Errorf("failed to fetch tasks: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch tasks")
 		return
 	}
@@ -209,7 +208,7 @@ func ListTasks(c *gin.Context) {
 	for _, task := range tasks {
 		var item dto.TaskItem
 		if err := item.Convert(task); err != nil {
-			logrus.Warnf("Failed to convert task: %v", err)
+			logrus.Warnf("failed to convert task: %v", err)
 			continue
 		}
 

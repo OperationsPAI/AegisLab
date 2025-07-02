@@ -282,7 +282,7 @@ func getLatestExecutionMap(pairs []dto.AlgorithmDatasetPair) (map[int]string, er
 }
 
 func GetGroundtruthMap(datasets []string) (map[string]chaos.Groundtruth, error) {
-	engineConfs, err := ListEngineConfigByNames(datasets)
+	engineConfs, err := ListEngineConfigsByNames(datasets)
 	if err != nil {
 		return nil, err
 	}

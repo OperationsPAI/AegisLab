@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/LGU-SE-Internal/rcabench/client/debug"
+	"github.com/LGU-SE-Internal/rcabench/client/k8s"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/gin-gonic/gin"
 )
@@ -41,4 +42,24 @@ func SetVar(c *gin.Context) {
 	}
 
 	dto.SuccessResponse[any](c, nil)
+}
+
+// GetNSLock
+//
+//	@Summary		获取命名空间锁状态
+//	@Description	获取命名空间锁状态信息
+//	@Tags			debug
+//	@Produce		json
+//	@Success		200	{object}	dto.GenericResponse[any]
+//	@Failure		500	{object}	dto.GenericResponse[any]
+//	@Router			/api/v1/debug/ns/status [get]
+func GetNSLock(c *gin.Context) {
+	cli := k8s.GetMonitor()
+	items, err := cli.InspectLock()
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to inspect lock")
+		return
+	}
+
+	dto.SuccessResponse(c, items)
 }

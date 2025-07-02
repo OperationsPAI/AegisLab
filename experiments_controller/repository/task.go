@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/LGU-SE-Internal/rcabench/client"
@@ -15,6 +14,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 )
 
 // Redis key constants for task queues and indexes
@@ -450,80 +450,48 @@ func parseEventFromValues(values map[string]any) (*dto.StreamEvent, error) {
 	return event, nil
 }
 
-// FindTasks searches for tasks with pagination and filtering
-func FindTasks(filter dto.TaskDatabaseFilter, pageNum, pageSize int, sortField string) (int64, []database.Task, error) {
-	// Build the WHERE condition dynamically
-	whereConditions := []string{}
-	whereArgs := []any{}
+func ListTasks(params dto.ListTasksReq, opts dto.TimeFilterOptions, sortField string) (int64, []database.Task, error) {
+	builder := func(db *gorm.DB) *gorm.DB {
+		query := db
 
-	if filter.TaskID != nil {
-		whereConditions = append(whereConditions, "id = ?")
-		whereArgs = append(whereArgs, *filter.TaskID)
+		if params.TaskID != "" {
+			query = query.Where("id = ?", params.TaskID)
+		}
+
+		if params.TaskType != "" {
+			query = query.Where("type = ?", params.TaskType)
+		}
+
+		if params.Immediate != nil {
+			query = query.Where("immediate = ?", *params.Immediate)
+		}
+
+		if params.Status != "" {
+			query = query.Where("status = ?", params.Status)
+		}
+
+		if params.TraceID != "" {
+			query = query.Where("trace_id = ?", params.TraceID)
+		}
+
+		if params.GroupID != "" {
+			query = query.Where("group_id = ?", params.GroupID)
+		}
+
+		startTime, endTime := opts.GetTimeRange()
+		if !startTime.IsZero() && !endTime.IsZero() {
+			query = query.Where("created_at >= ? AND created_at <= ?", startTime, endTime)
+		}
+
+		return query
 	}
 
-	if filter.TaskType != nil {
-		whereConditions = append(whereConditions, "type = ?")
-		whereArgs = append(whereArgs, *filter.TaskType)
+	// TODO sort
+	genericQueryParams := &genericQueryParams{
+		builder:   builder,
+		sortField: "created_at desc",
+		pageNum:   params.PageNum,
+		pageSize:  params.PageSize,
 	}
-
-	if filter.Immediate != nil {
-		whereConditions = append(whereConditions, "immediate = ?")
-		whereArgs = append(whereArgs, *filter.Immediate)
-	}
-
-	if filter.ExecuteTimeGT != nil {
-		whereConditions = append(whereConditions, "execute_time > ?")
-		whereArgs = append(whereArgs, *filter.ExecuteTimeGT)
-	}
-
-	if filter.ExecuteTimeLT != nil {
-		whereConditions = append(whereConditions, "execute_time < ?")
-		whereArgs = append(whereArgs, *filter.ExecuteTimeLT)
-	}
-
-	if filter.ExecuteTimeGTE != nil {
-		whereConditions = append(whereConditions, "execute_time >= ?")
-		whereArgs = append(whereArgs, *filter.ExecuteTimeGTE)
-	}
-
-	if filter.ExecuteTimeLTE != nil {
-		whereConditions = append(whereConditions, "execute_time <= ?")
-		whereArgs = append(whereArgs, *filter.ExecuteTimeLTE)
-	}
-
-	if filter.Status != nil {
-		whereConditions = append(whereConditions, "status = ?")
-		whereArgs = append(whereArgs, *filter.Status)
-	}
-
-	if filter.TraceID != nil {
-		whereConditions = append(whereConditions, "trace_id = ?")
-		whereArgs = append(whereArgs, *filter.TraceID)
-	}
-
-	if filter.GroupID != nil {
-		whereConditions = append(whereConditions, "group_id = ?")
-		whereArgs = append(whereArgs, *filter.GroupID)
-	}
-
-	// Combine all conditions with AND
-	whereClause := "1=1" // Default condition that's always true
-	if len(whereConditions) > 0 {
-		whereClause = strings.Join(whereConditions, " AND ")
-	}
-
-	// If sortField is empty, default to created_at desc
-	if sortField == "" {
-		sortField = "created_at desc"
-	}
-
-	// Use the generic pagination function
-	return paginateQuery[database.Task](
-		whereClause,
-		whereArgs,
-		sortField,
-		pageNum,
-		pageSize,
-		nil,
-	)
+	return genericQueryWithBuilder[database.Task](genericQueryParams)
 }

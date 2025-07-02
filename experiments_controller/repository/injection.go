@@ -82,21 +82,8 @@ func getMissingNames(requested []string, existing []string) []string {
 			missing = append(missing, name)
 		}
 	}
+
 	return missing
-}
-
-func FindExistingDisplayConfigs(configs []string) ([]string, error) {
-	query := database.DB.
-		Model(&database.FaultInjectionSchedule{}).
-		Select("display_config").
-		Where("display_config in (?) AND status = ?", configs, consts.DatasetBuildSuccess)
-
-	var existingEngineConfigs []string
-	if err := query.Pluck("engine_config", &existingEngineConfigs).Error; err != nil {
-		return nil, err
-	}
-
-	return existingEngineConfigs, nil
 }
 
 func GetDatasetBuildPayloads(payloads []dto.DatasetBuildPayload) ([]dto.DatasetBuildPayload, error) {
@@ -191,10 +178,25 @@ func GetDatasetByName(name string, status ...int) (*dto.DatasetItemWithID, error
 	return &item, nil
 }
 
-func GetDisplayConfigByTraceIDs(traceIDs []string) (map[string]any, error) {
-	result := make(map[string]any)
-	for _, traceID := range traceIDs {
-		result[traceID] = nil
+func GetInjection(column, param string) (*database.FaultInjectionSchedule, error) {
+	query := database.DB.Where(fmt.Sprintf("%s = ?", column), param)
+
+	var record database.FaultInjectionSchedule
+	if err := query.First(&record).Error; err != nil {
+		return nil, err
+	}
+
+	return &record, nil
+}
+
+func ListDisplayConfigsByTraceIDs(traceIDs []string) (map[string]any, error) {
+	query := database.DB.
+		Model(&database.FaultInjectionSchedule{}).
+		Select("tasks.trace_id, fault_injection_schedules.display_config").
+		Joins("JOIN tasks ON tasks.id = fault_injection_schedules.task_id")
+
+	if len(traceIDs) > 0 {
+		query = query.Where("tasks.trace_id IN (?)", traceIDs)
 	}
 
 	var records []struct {
@@ -202,13 +204,15 @@ func GetDisplayConfigByTraceIDs(traceIDs []string) (map[string]any, error) {
 		DisplayConfig string `gorm:"column:display_config"`
 	}
 
-	if err := database.DB.
-		Model(&database.FaultInjectionSchedule{}).
-		Select("tasks.trace_id, fault_injection_schedules.display_config").
-		Joins("JOIN tasks ON tasks.id = fault_injection_schedules.task_id").
-		Where("tasks.trace_id IN (?)", traceIDs).
-		Find(&records).Error; err != nil {
+	if err := query.Find(&records).Error; err != nil {
 		return nil, fmt.Errorf("failed to query display configs: %v", err)
+	}
+
+	result := make(map[string]any, len(records))
+	if len(traceIDs) > 0 {
+		for _, traceID := range traceIDs {
+			result[traceID] = nil
+		}
 	}
 
 	for _, record := range records {
@@ -223,7 +227,21 @@ func GetDisplayConfigByTraceIDs(traceIDs []string) (map[string]any, error) {
 	return result, nil
 }
 
-func ListEngineConfigByNames(names []string) ([]string, error) {
+func ListExistingDisplayConfigs(configs []string) ([]string, error) {
+	query := database.DB.
+		Model(&database.FaultInjectionSchedule{}).
+		Select("display_config").
+		Where("display_config in (?) AND status = ?", configs, consts.DatasetBuildSuccess)
+
+	var existingEngineConfigs []string
+	if err := query.Pluck("engine_config", &existingEngineConfigs).Error; err != nil {
+		return nil, err
+	}
+
+	return existingEngineConfigs, nil
+}
+
+func ListEngineConfigsByNames(names []string) ([]string, error) {
 	query := database.DB.
 		Model(&database.FaultInjectionSchedule{}).
 		Select("engine_config").
@@ -235,22 +253,6 @@ func ListEngineConfigByNames(names []string) ([]string, error) {
 	}
 
 	return configs, nil
-}
-
-func GetInjection(column, param string) (*dto.InjectionItem, error) {
-	query := database.DB.Where(fmt.Sprintf("%s = ?", column), param)
-
-	var record database.FaultInjectionSchedule
-	if err := query.First(&record).Error; err != nil {
-		return nil, err
-	}
-
-	var item dto.InjectionItem
-	if err := item.Convert(record); err != nil {
-		return nil, err
-	}
-
-	return &item, nil
 }
 
 func ListDatasetByExecutionIDs(executionIDs []int) ([]dto.DatasetItemWithID, error) {
@@ -281,25 +283,63 @@ func ListDatasetByExecutionIDs(executionIDs []int) ([]dto.DatasetItemWithID, err
 }
 
 func ListDatasetWithPagination(pageNum, pageSize int) (int64, []database.FaultInjectionSchedule, error) {
-	return paginateQuery[database.FaultInjectionSchedule](
-		"status = ?",
-		[]any{consts.DatasetBuildSuccess},
-		"created_at desc",
-		pageNum,
-		pageSize,
-		[]string{"id", "fault_type", "task_id", "injection_name", "display_config", "pre_duration", "start_time", "end_time"},
-	)
+	genericQueryParams := &genericQueryParams{
+		builder: func(db *gorm.DB) *gorm.DB {
+			return db.Where("status = ?", consts.DatasetBuildSuccess)
+		},
+		sortField:     "created_at desc",
+		pageNum:       pageNum,
+		pageSize:      pageSize,
+		selectColumns: []string{"id", "fault_type", "task_id", "injection_name", "display_config", "pre_duration", "start_time", "end_time"},
+	}
+	return genericQueryWithBuilder[database.FaultInjectionSchedule](genericQueryParams)
 }
 
-func ListInjectionWithPagination(pageNum, pageSize int) (int64, []database.FaultInjectionSchedule, error) {
-	return paginateQuery[database.FaultInjectionSchedule](
-		"status != ?",
-		[]any{consts.DatasetDeleted},
-		"created_at desc",
-		pageNum,
-		pageSize,
-		[]string{"id", "task_id", "fault_type", "display_config", "status", "start_time", "end_time"},
-	)
+func ListInjections(params *dto.ListInjectionsReq) (int64, []database.FaultInjectionSchedule, error) {
+	opts, err := params.TimeRangeQuery.Convert()
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to convert time range query: %v", err)
+	}
+
+	builder := func(db *gorm.DB) *gorm.DB {
+		query := db
+
+		if params.Env != "" {
+			query = query.Where("labels ->> 'env' = ?", params.Env)
+		}
+
+		if params.Batch != "" {
+			query = query.Where("labels ->> 'batch' = ?", params.Batch)
+		}
+
+		if params.Benchmark != "" {
+			query = query.Where("benchmark = ?", params.Benchmark)
+		}
+
+		if params.Status != nil {
+			query = query.Where("status = ?", *params.Status)
+		}
+
+		if params.FaultType != nil {
+			query = query.Where("fault_type = ?", *params.FaultType)
+		}
+
+		if opts != nil {
+			startTime, endTime := opts.GetTimeRange()
+			if !startTime.IsZero() && !endTime.IsZero() {
+				query = query.Where("created_at >= ? AND created_at <= ?", startTime, endTime)
+			}
+		}
+
+		return query
+	}
+
+	genericQueryParams := &genericQueryParams{
+		builder:   builder,
+		sortField: fmt.Sprintf("created_at %s", params.Sort),
+		limit:     params.Limit,
+	}
+	return genericQueryWithBuilder[database.FaultInjectionSchedule](genericQueryParams)
 }
 
 func UpdateStatusByDataset(name string, status int) error {
@@ -347,17 +387,19 @@ func updateRecord(name string, updates map[string]any) error {
 	return nil
 }
 
-func GetAllFaultInjectionNoIssues(opts dto.TimeFilterOption) (int64, []database.FaultInjectionNoIssues, error) {
+func GetAllFaultInjectionNoIssues(opts dto.TimeFilterOptions) (int64, []database.FaultInjectionNoIssues, error) {
 	startTime, endTime := opts.GetTimeRange()
-	return queryAll[database.FaultInjectionNoIssues](
-		"created_at >= ? AND created_at <= ?",
-		[]any{startTime, endTime},
-		"dataset_id desc",
-		[]string{},
-	)
+	genericQueryParams := &genericQueryParams{
+		builder: func(d *gorm.DB) *gorm.DB {
+			return d.Where("created_at >= ? AND created_at <= ?", startTime, endTime)
+		},
+		sortField:     "dataset_id desc",
+		selectColumns: []string{},
+	}
+	return genericQueryWithBuilder[database.FaultInjectionNoIssues](genericQueryParams)
 }
 
-func GetAllFaultInjectionWithIssues(opts dto.TimeFilterOption) ([]database.FaultInjectionWithIssues, error) {
+func GetAllFaultInjectionWithIssues(opts dto.TimeFilterOptions) ([]database.FaultInjectionWithIssues, error) {
 	startTime, endTime := opts.GetTimeRange()
 	subQuery := database.DB.
 		Model(&database.FaultInjectionWithIssues{}).
@@ -385,14 +427,19 @@ func GetFLByDatasetName(datasetName string) (*database.FaultInjectionSchedule, e
 	return &record, nil
 }
 
-func GetFaultInjectionStatistics() (map[string]int64, error) {
+func GetFaultInjectionStatistics(opts dto.TimeFilterOptions) (map[string]int64, error) {
+	startTime, endTime := opts.GetTimeRange()
 	var noIssuesCount, withIssuesCount int64
 
-	if err := database.DB.Model(&database.FaultInjectionNoIssues{}).Count(&noIssuesCount).Error; err != nil {
+	if err := database.DB.Model(&database.FaultInjectionNoIssues{}).
+		Where("created_at >= ? AND created_at <= ?", startTime, endTime).
+		Count(&noIssuesCount).Error; err != nil {
 		return nil, err
 	}
 
-	if err := database.DB.Model(&database.FaultInjectionWithIssues{}).Count(&withIssuesCount).Error; err != nil {
+	if err := database.DB.Model(&database.FaultInjectionWithIssues{}).
+		Where("created_at >= ? AND created_at <= ?", startTime, endTime).
+		Count(&withIssuesCount).Error; err != nil {
 		return nil, err
 	}
 

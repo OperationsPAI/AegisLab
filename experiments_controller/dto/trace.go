@@ -47,7 +47,7 @@ type TraceStreamReq struct {
 
 type TraceAnalyzeFilterOptions struct {
 	FirstTaskType consts.TaskType
-	TimeFilterOption
+	TimeFilterOptions
 }
 
 type GetCompletedMapReq struct {
@@ -70,7 +70,7 @@ func (req *GetCompletedMapReq) Convert() (*TraceAnalyzeFilterOptions, error) {
 	}
 
 	return &TraceAnalyzeFilterOptions{
-		TimeFilterOption: *opts,
+		TimeFilterOptions: *opts,
 	}, nil
 }
 
@@ -96,7 +96,7 @@ func (req *TraceAnalyzeReq) Convert() (*TraceAnalyzeFilterOptions, error) {
 	}
 
 	return &TraceAnalyzeFilterOptions{
-		FirstTaskType:    consts.TaskType(req.FirstTaskType),
-		TimeFilterOption: *opts,
+		FirstTaskType:     consts.TaskType(req.FirstTaskType),
+		TimeFilterOptions: *opts,
 	}, nil
 }
