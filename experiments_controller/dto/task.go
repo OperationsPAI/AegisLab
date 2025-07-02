@@ -168,71 +168,18 @@ func (s *StreamEvent) ToSSE() (string, error) {
 	return string(jsonData), nil
 }
 
-// TaskListReq defines the query parameters for listing tasks
-type TaskListReq struct {
+type ListTasksReq struct {
 	// Filter parameters
-	TaskID         string `form:"task_id"`
-	TaskType       string `form:"task_type"`
-	Status         string `form:"status"`
-	TraceID        string `form:"trace_id"`
-	GroupID        string `form:"group_id"`
-	Immediate      *bool  `form:"immediate"`
-	ExecuteTimeGT  *int64 `form:"execute_time_gt"`
-	ExecuteTimeLT  *int64 `form:"execute_time_lt"`
-	ExecuteTimeGTE *int64 `form:"execute_time_gte"`
-	ExecuteTimeLTE *int64 `form:"execute_time_lte"`
+	TaskID    string `form:"task_id"`
+	TaskType  string `form:"task_type"`
+	Status    string `form:"status"`
+	TraceID   string `form:"trace_id"`
+	GroupID   string `form:"group_id"`
+	Immediate *bool  `form:"immediate"`
 
-	// Pagination parameters
-	PaginationReq
+	TimeRangeQuery
+
+	PaginationQuery
+
 	SortField string `form:"sort_field"` // Format: "field_name asc/desc"
-}
-
-type TaskDatabaseFilter struct {
-	TaskID         *string
-	TaskType       *string
-	Immediate      *bool
-	ExecuteTimeGT  *int64
-	ExecuteTimeLT  *int64
-	ExecuteTimeGTE *int64
-	ExecuteTimeLTE *int64
-	Status         *string
-	TraceID        *string
-	GroupID        *string
-}
-
-func (r *TaskListReq) Convert() TaskDatabaseFilter {
-	filter := TaskDatabaseFilter{}
-
-	if r.TaskID != "" {
-		filter.TaskID = &r.TaskID
-	}
-	if r.TaskType != "" {
-		filter.TaskType = &r.TaskType
-	}
-	if r.Status != "" {
-		filter.Status = &r.Status
-	}
-	if r.TraceID != "" {
-		filter.TraceID = &r.TraceID
-	}
-	if r.GroupID != "" {
-		filter.GroupID = &r.GroupID
-	}
-	if r.Immediate != nil {
-		filter.Immediate = r.Immediate
-	}
-	if r.ExecuteTimeGT != nil {
-		filter.ExecuteTimeGT = r.ExecuteTimeGT
-	}
-	if r.ExecuteTimeLT != nil {
-		filter.ExecuteTimeLT = r.ExecuteTimeLT
-	}
-	if r.ExecuteTimeGTE != nil {
-		filter.ExecuteTimeGTE = r.ExecuteTimeGTE
-	}
-	if r.ExecuteTimeLTE != nil {
-		filter.ExecuteTimeLTE = r.ExecuteTimeLTE
-	}
-
-	return filter
 }

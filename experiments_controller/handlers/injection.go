@@ -11,7 +11,6 @@ import (
 	"time"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
-	"github.com/LGU-SE-Internal/rcabench/client/k8s"
 	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/dto"
@@ -42,152 +41,159 @@ func CancelInjection(c *gin.Context) {
 // GetInjectionConf
 //
 //	@Summary		获取故障注入配置
-//	@Description	获取指定命名空间的故障注入配置信息
+//	@Description	获取指定命名空间的故障注入配置信息，支持不同显示模式的配置树结构
 //	@Tags			injection
 //	@Produce		json
-//	@Param			namespace	query		string	true	"命名空间"
-//	@Param			mode		query		string	true	"显示模式(display/engine)"
-//	@Success		200			{object}	dto.GenericResponse[chaos.Node]
-//	@Failure		400			{object}	dto.GenericResponse[any]
-//	@Failure		500			{object}	dto.GenericResponse[any]
-//
+//	@Param			namespace	query		string	true	"命名空间，指定要获取配置的命名空间"
+//	@Param			mode		query		string	false	"显示模式"	Enums(display, engine) default(engine)
+//	@Success		200			{object}	dto.GenericResponse[chaos.Node]	"成功返回配置树结构"
+//	@Failure		400			{object}	dto.GenericResponse[any]	"请求参数错误，如命名空间或模式参数缺失"
+//	@Failure		500			{object}	dto.GenericResponse[any]	"服务器内部错误"
 //	@Router			/api/v1/injections/conf [get]
 func GetInjectionConf(c *gin.Context) {
 	var req dto.InjectionConfReq
 	if err := c.BindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid Parameters")
+		logrus.Errorf("failed to bind injection conf request: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
 		return
 	}
 
 	root, err := chaos.StructToNode[chaos.InjectionConf](req.Namespace)
 	if err != nil {
-		logrus.Errorf("struct InjectionConf to node failed: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to read injection conf")
+		logrus.WithFields(logrus.Fields{
+			"namespace": req.Namespace,
+			"mode":      req.Mode,
+		}).Errorf("struct InjectionConf to node failed: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to read injection configuration")
 		return
 	}
 
 	dto.SuccessResponse(c, root)
 }
 
-// GetConfigList
+// GetInjectionFieldMapping
 //
-//	@Summary		获取故障注入配置列表
-//	@Description	根据多个 TraceID 获取对应的故障注入配置信息
+//	@Summary		获取字段映射关系
+//	@Description	获取状态和故障类型的字符串与数字映射关系，用于前端显示和API参数验证
 //	@Tags			injection
 //	@Produce		json
-//	@Param			trace_ids	query		[]string	true	"Trace ID 列表"
-//	@Success		200			{object}	dto.GenericResponse[any]
-//	@Failure		400			{object}	dto.GenericResponse[any]
-//	@Failure		500			{object}	dto.GenericResponse[any]
+//	@Success		200	{object}	dto.GenericResponse[dto.InjectionFieldMappingResp]	"成功返回字段映射关系"
+//	@Failure		500	{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Router			/api/v1/injections/mapping [get]
+func GetInjectionFieldMapping(c *gin.Context) {
+	if dto.DatasetStatusMap == nil || chaos.ChaosTypeMap == nil {
+		logrus.Error("field mapping data is not initialized")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Field mapping not available")
+		return
+	}
+
+	dto.SuccessResponse(c, dto.InjectionFieldMappingResp{
+		StatusMap:    dto.DatasetStatusMap,
+		FaultTypeMap: chaos.ChaosTypeMap,
+	})
+}
+
+// ListDisplayConfigs
+//
+//	@Summary		获取已注入故障配置列表
+//	@Description	根据多个TraceID获取对应的故障注入配置信息，用于查看已提交的故障注入任务的配置详情
+//	@Tags			injection
+//	@Produce		json
+//	@Param			trace_ids	query		[]string	false	"TraceID列表，支持多个值，用于查询对应的配置信息"	collectionFormat(multi)
+//	@Success		200			{object}	dto.GenericResponse[any]	"成功返回配置列表"
+//	@Failure		400			{object}	dto.GenericResponse[any]	"请求参数错误，如TraceID参数缺失或格式不正确"
+//	@Failure		500			{object}	dto.GenericResponse[any]	"服务器内部错误"
 //	@Router			/api/v1/injections/configs [get]
-func GetDisplayConfigList(c *gin.Context) {
-	var req dto.InjectionConfigListReq
+func ListDisplayConfigs(c *gin.Context) {
+	var req dto.ListDisplayConfigsReq
 	if err := c.BindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid Parameters")
+		logrus.Errorf("failed to bind query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
 		return
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid request: %v", err))
+		logrus.Errorf("invalid query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	configs, err := repository.GetDisplayConfigByTraceIDs(req.TraceIDs)
+	configs, err := repository.ListDisplayConfigsByTraceIDs(req.TraceIDs)
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get injection config list")
+		logrus.Errorf("failed to get display configs by trace IDs: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get injection configuration list")
 		return
 	}
 
 	dto.SuccessResponse(c, configs)
 }
 
-// GetInjectionList
+// ListInjections
 //
-//	@Summary		分页查询注入记录列表
-//	@Description	获取注入记录列表（支持分页参数）
+//	@Summary		获取故障注入记录列表
+//	@Description	支持排序、过滤的故障注入记录查询接口。返回数据库原始记录列表，不进行数据转换。
 //	@Tags			injection
 //	@Produce		json
-//	@Consumes		application/json
-//	@Param			page_num	query		int	false	"页码"	default(1)
-//	@Param			page_size	query		int	false	"每页大小"	default(10)
-//	@Success		200			{object}	dto.GenericResponse[dto.PaginationResp[dto.InjectionItem]]
-//	@Failure		400			{object}	dto.GenericResponse[any]
-//	@Failure		500			{object}	dto.GenericResponse[any]
-//	@Router			/api/v1/injections/detail [get]
-func GetInjectionList(c *gin.Context) {
-	var req dto.InjectionListReq
+//	@Param			env					query	string	false	"环境标签过滤"
+//	@Param			batch				query	string	false	"批次标签过滤"
+//	@Param			benchmark			query	string	false	"基准测试类型过滤"	Enums(clickhouse)
+//	@Param			status				query	int		false	"状态过滤，具体值参考字段映射接口(/mapping)"	default(0)
+//	@Param			fault_type			query	int		false	"故障类型过滤，具体值参考字段映射接口(/mapping)"	default(0)
+//	@Param			sort				query	string	false	"排序方式，默认desc。按created_at字段排序"	Enums(asc, desc)	default(desc)
+//	@Param			limit				query	int		false	"结果数量限制，用于控制返回记录数量"	minimum(1)
+//	@Param			lookback			query	string	false	"时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置"
+//	@Param			custom_start_time	query	string	false	"自定义开始时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
+//	@Param			custom_end_time		query	string	false	"自定义结束时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
+//	@Success		200					{object}	dto.GenericResponse[[]database.FaultInjectionSchedule]	"成功返回故障注入记录列表"
+//	@Failure		400			{object}	dto.GenericResponse[any]	"请求参数错误，如参数格式不正确、验证失败等"
+//	@Failure		500			{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Router			/api/v1/injections [get]
+func ListInjections(c *gin.Context) {
+	var req dto.ListInjectionsReq
 	if err := c.BindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, formatErrorMessage(err, map[string]string{}))
+		logrus.Errorf("failed to bind query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
 		return
 	}
 
-	total, records, err := repository.ListInjectionWithPagination(req.PageNum, req.PageSize)
+	if err := req.Validate(); err != nil {
+		logrus.Errorf("invalid query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	_, records, err := repository.ListInjections(&req)
 	if err != nil {
 		dto.ErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	items := make([]dto.InjectionItem, 0, len(records))
-	for _, record := range records {
-		var item dto.InjectionItem
-		if err := item.Convert(record); err != nil {
-			logrus.WithField("injection", record.ID).Error(err)
-			dto.ErrorResponse(c, http.StatusInternalServerError, "invalid injection configuration")
-			return
-		}
-
-		items = append(items, item)
-	}
-
-	totalPages := (total + int64(req.PageSize) - 1) / int64(req.PageSize)
-	dto.SuccessResponse(c, dto.PaginationResp[dto.InjectionItem]{
-		Total:      total,
-		TotalPages: totalPages,
-		Items:      items,
-	})
-}
-
-// GetNSLock
-//
-//	@Summary		获取命名空间锁状态
-//	@Description	获取命名空间锁状态信息
-//	@Tags			injection
-//	@Produce		json
-//	@Success		200	{object}	dto.GenericResponse[any]
-//	@Failure		500	{object}	dto.GenericResponse[any]
-//	@Router			/api/v1/injections/ns/status [get]
-func GetNSLock(c *gin.Context) {
-	cli := k8s.GetMonitor()
-	items, err := cli.InspectLock()
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to inspect lock")
-		return
-	}
-
-	dto.SuccessResponse(c, items)
+	dto.SuccessResponse(c, records)
 }
 
 // QueryInjection
 //
-//	@Summary		查询故障注入记录
-//	@Description	根据名称或任务ID查询故障注入记录详情
+//	@Summary		查询单个故障注入记录
+//	@Description	根据名称或任务ID查询故障注入记录详情，两个参数至少提供一个
 //	@Tags			injection
 //	@Produce		json
-//	@Param			name		query		string	false	"注入名称"
+//	@Param			name		query		string	false	"故障注入名称"
 //	@Param			task_id		query		string	false	"任务ID"
-//	@Success		200			{object}	dto.GenericResponse[dto.InjectionItem]
-//	@Failure		400			{object}	dto.GenericResponse[any]
-//	@Failure		500			{object}	dto.GenericResponse[any]
+//	@Success		200			{object}	dto.GenericResponse[database.FaultInjectionSchedule]	"成功返回故障注入记录详情"
+//	@Failure		400			{object}	dto.GenericResponse[any]	"请求参数错误，如参数缺失、格式不正确或验证失败等"
+//	@Failure		500			{object}	dto.GenericResponse[any]	"服务器内部错误"
 //	@Router			/api/v1/injections/query [get]
 func QueryInjection(c *gin.Context) {
 	var req dto.QueryInjectionReq
 	if err := c.BindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, formatErrorMessage(err, map[string]string{}))
+		logrus.Errorf("failed to bind query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
 		return
 	}
 
-	if req.Name == "" && req.TaskID == "" {
-		dto.ErrorResponse(c, http.StatusBadRequest, "At least one of the name or task_id parameters must be provided")
+	if err := req.Validate(); err != nil {
+		logrus.Errorf("invalid query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -210,15 +216,15 @@ func QueryInjection(c *gin.Context) {
 
 // SubmitFaultInjection
 //
-//	@Summary		注入故障
-//	@Description	注入故障
+//	@Summary		提交故障注入任务
+//	@Description	提交故障注入任务，支持批量提交多个故障配置，系统会自动去重并返回提交结果
 //	@Tags			injection
 //	@Produce		json
 //	@Consumes		application/json
-//	@Param			body	body		dto.InjectionSubmitReq	true	"请求体"
-//	@Success		202		{object}	dto.GenericResponse[dto.SubmitResp]
-//	@Failure		400		{object}	dto.GenericResponse[any]
-//	@Failure		500		{object}	dto.GenericResponse[any]
+//	@Param			body	body		dto.SubmitInjectionReq	true	"故障注入请求体"
+//	@Success		202		{object}	dto.GenericResponse[dto.SubmitInjectionResp]	"成功提交故障注入任务"
+//	@Failure		400		{object}	dto.GenericResponse[any]	"请求参数错误，如JSON格式不正确、参数验证失败或算法无效等"
+//	@Failure		500		{object}	dto.GenericResponse[any]	"服务器内部错误"
 //	@Router			/api/v1/injections [post]
 func SubmitFaultInjection(c *gin.Context) {
 	groupID := c.GetString("groupID")
@@ -250,14 +256,19 @@ func SubmitFaultInjection(c *gin.Context) {
 		}
 	}()
 
-	var req dto.InjectionSubmitReq
+	var req dto.SubmitInjectionReq
 	if err := c.BindJSON(&req); err != nil {
 		handleError(err, "Invalid JSON payload", http.StatusBadRequest)
 		return
 	}
 
+	if err := req.Validate(); err != nil {
+		handleError(err, "Invalid query parameters", http.StatusBadRequest)
+		return
+	}
+
 	if err := validateAlgorithms(req.Algorithms); err != nil {
-		handleError(err, err.Error(), http.StatusBadRequest)
+		handleError(err, "Invalid algorithm specified", http.StatusBadRequest)
 		return
 	}
 
@@ -285,25 +296,23 @@ func SubmitFaultInjection(c *gin.Context) {
 	duplicatedCount := len(req.Specs) - len(configs)
 	logrus.Infof("Duplicated %d configurations, original count: %d", len(req.Specs)-len(configs), len(req.Specs))
 
-	resp := dto.InjectionSubmitResp{
+	dto.JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", dto.SubmitInjectionResp{
 		DuplicatedCount: duplicatedCount,
 		OriginalCount:   len(req.Specs),
 		SubmitResp: dto.SubmitResp{
 			GroupID: groupID,
 			Traces:  traces,
 		},
-	}
-	dto.JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", resp)
+	})
 }
 
-// validateAlgorithms validates the provided algorithms against the valid algorithm list
 func validateAlgorithms(algorithms []string) error {
 	validAlgorithms, err := repository.ListContainers(&dto.FilterContainerOptions{
 		Status: utils.BoolPtr(true),
 		Type:   consts.ContainerTypeAlgorithm,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to list algorithms: %v", err)
+		return fmt.Errorf("Failed to list algorithms: %v", err)
 	}
 
 	validAlgorithmMap := make(map[string]struct{}, len(validAlgorithms))
@@ -313,78 +322,25 @@ func validateAlgorithms(algorithms []string) error {
 
 	for _, algorithm := range algorithms {
 		if algorithm == "" {
-			return fmt.Errorf("algorithm must not be empty")
+			return fmt.Errorf("Algorithm must not be empty")
 		}
 
 		detector := config.GetString("algo.detector")
 		if algorithm == detector {
-			return fmt.Errorf("algorithm %s is not allowed for fault injection", detector)
+			return fmt.Errorf("Algorithm %s is not allowed for fault injection", detector)
 		}
 
 		if _, exists := validAlgorithmMap[algorithm]; !exists {
-			return fmt.Errorf("invalid algorithm: %s", algorithm)
+			return fmt.Errorf("Invalid algorithm: %s", algorithm)
 		}
 	}
 
 	return nil
 }
 
-// createInjectionTask creates a unified task for fault injection
-func createInjectionTask(req *dto.InjectionSubmitReq, config *dto.InjectionConfig, groupID string, spanCtx context.Context) *dto.UnifiedTask {
-	var payload map[string]any
-	taskType := consts.TaskTypeRestartService
-	if req.DirectInject {
-		payload = map[string]any{
-			consts.InjectAlgorithms:  req.Algorithms,
-			consts.InjectBenchmark:   req.Benchmark,
-			consts.InjectFaultType:   config.FaultType,
-			consts.InjectPreDuration: req.PreDuration,
-			consts.InjectDisplayData: config.DisplayData,
-			consts.InjectConf:        config.Conf,
-			consts.InjectNode:        config.Node,
-			consts.InjectLabels:      config.Labels,
-			consts.InjectNamespace:   "ts4",
-		}
-		taskType = consts.TaskTypeFaultInjection
-	} else {
-		payload = map[string]any{
-			consts.RestartIntarval:      req.Interval,
-			consts.RestartFaultDuration: config.FaultDuration,
-			consts.RestartInjectPayload: map[string]any{
-				consts.InjectAlgorithms:  req.Algorithms,
-				consts.InjectBenchmark:   req.Benchmark,
-				consts.InjectFaultType:   config.FaultType,
-				consts.InjectPreDuration: req.PreDuration,
-				consts.InjectDisplayData: config.DisplayData,
-				consts.InjectConf:        config.Conf,
-				consts.InjectNode:        config.Node,
-				consts.InjectLabels:      config.Labels,
-			},
-		}
-	}
-
-	task := &dto.UnifiedTask{
-		Type:        taskType,
-		Payload:     payload,
-		Immediate:   false,
-		ExecuteTime: config.ExecuteTime.Unix(),
-		GroupID:     groupID,
-	}
-	task.SetGroupCtx(spanCtx)
-
-	return task
-}
-
-func parseInjectionSpecs(r *dto.InjectionSubmitReq) ([]*dto.InjectionConfig, error) {
-	if len(r.Specs) == 0 {
-		return nil, fmt.Errorf("spec must not be blank")
-	}
-
+func parseInjectionSpecs(r *dto.SubmitInjectionReq) ([]*dto.InjectionConfig, error) {
 	configs := make([]*dto.InjectionConfig, 0, len(r.Specs))
 	displayDatas := make([]string, 0, len(r.Specs))
-	if r.Labels == nil {
-		r.Labels = make([]dto.LabelItem, 0)
-	}
 
 	for idx, spec := range r.Specs {
 		childNode, exists := spec.Children[strconv.Itoa(spec.Value)]
@@ -444,7 +400,7 @@ func findMissingIndices(confs []string, batch_size int) ([]int, error) {
 		end := min(i+batch_size, len(confs))
 		batch := confs[i:end]
 
-		existingBatch, err := repository.FindExistingDisplayConfigs(batch)
+		existingBatch, err := repository.ListExistingDisplayConfigs(batch)
 		if err != nil {
 			return nil, err
 		}
@@ -463,28 +419,60 @@ func findMissingIndices(confs []string, batch_size int) ([]int, error) {
 	return missingIndices, nil
 }
 
+func createInjectionTask(req *dto.SubmitInjectionReq, config *dto.InjectionConfig, groupID string, spanCtx context.Context) *dto.UnifiedTask {
+	payload := map[string]any{
+		consts.RestartIntarval:      req.Interval,
+		consts.RestartFaultDuration: config.FaultDuration,
+		consts.RestartInjectPayload: map[string]any{
+			consts.InjectAlgorithms:  req.Algorithms,
+			consts.InjectBenchmark:   req.Benchmark,
+			consts.InjectFaultType:   config.FaultType,
+			consts.InjectPreDuration: req.PreDuration,
+			consts.InjectDisplayData: config.DisplayData,
+			consts.InjectConf:        config.Conf,
+			consts.InjectNode:        config.Node,
+			consts.InjectLabels:      config.Labels,
+		},
+	}
+
+	task := &dto.UnifiedTask{
+		Type:        consts.TaskTypeRestartService,
+		Payload:     payload,
+		Immediate:   false,
+		ExecuteTime: config.ExecuteTime.Unix(),
+		GroupID:     groupID,
+	}
+	task.SetGroupCtx(spanCtx)
+
+	return task
+}
+
+// analysis
+
 // GetFaultInjectionNoIssues
 //
 //	@Summary		查询没有问题的故障注入记录
-//	@Description	根据时间范围查询所有没有问题的故障注入记录列表
+//	@Description	根据时间范围查询所有没有问题的故障注入记录列表，返回包含配置信息的详细记录
 //	@Tags			injection
 //	@Produce		json
-//	@Param			lookback			query		string	false	"相对时间查询，如 1h, 24h, 7d或者是custom"
-//	@Param			custom_start_time	query		string	false	"当lookback=custom时必需，自定义开始时间 (RFC3339格式)"
-//	@Param			custom_end_time		query		string	false	"当lookback=custom时必需，自定义结束时间 (RFC3339格式)"
-//	@Success		200					{object}	dto.GenericResponse[[]dto.TimeRangeQuery]
-//	@Failure		400					{object}	dto.GenericResponse[any]	"参数错误或时间格式错误"
-//	@Failure		500					{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Param			lookback			query	string	false	"时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置"
+//	@Param			custom_start_time	query	string	false	"自定义开始时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
+//	@Param			custom_end_time		query	string	false	"自定义结束时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
+//	@Success		200					{object}	dto.GenericResponse[[]dto.FaultInjectionNoIssuesResp]	"成功返回没有问题的故障注入记录列表"
+//	@Failure		400					{object}	dto.GenericResponse[any]	"请求参数错误，如时间格式不正确或参数验证失败等"
+//	@Failure		500					{object}	dto.GenericResponse[any]	"服务器内部错"
 //	@Router			/api/v1/injections/analysis/no-issues [get]
 func GetFaultInjectionNoIssues(c *gin.Context) {
 	var req dto.TimeRangeQuery
 	if err := c.BindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid Parameters")
+		logrus.Errorf("failed to bind query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
 		return
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid Parameters: %v", err))
+		logrus.Errorf("invalid query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -497,8 +485,8 @@ func GetFaultInjectionNoIssues(c *gin.Context) {
 
 	_, records, err := repository.GetAllFaultInjectionNoIssues(*opts)
 	if err != nil {
-		logrus.Errorf("failed to get fault injection no issues: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get fault injection records")
+		logrus.Errorf("failed to get injection record with no issues: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get injection records")
 		return
 	}
 
@@ -530,22 +518,24 @@ func GetFaultInjectionNoIssues(c *gin.Context) {
 //	@Description	根据时间范围查询所有有问题的故障注入记录列表
 //	@Tags			injection
 //	@Produce		json
-//	@Param			lookback			query		string	false	"相对时间查询，如 1h, 24h, 7d或者是custom"
-//	@Param			custom_start_time	query		string	false	"当lookback=custom时必需，自定义开始时间 (RFC3339格式)"
-//	@Param			custom_end_time		query		string	false	"当lookback=custom时必需，自定义结束时间 (RFC3339格式)"
-//	@Success		200					{object}	dto.GenericResponse[[]dto.TimeRangeQuery]
-//	@Failure		400					{object}	dto.GenericResponse[any]	"参数错误或时间格式错误"
+//	@Param			lookback			query	string	false	"时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置"
+//	@Param			custom_start_time	query	string	false	"自定义开始时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
+//	@Param			custom_end_time		query	string	false	"自定义结束时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
+//	@Success		200					{object}	dto.GenericResponse[[]dto.FaultInjectionWithIssuesResp]
+//	@Failure		400					{object}	dto.GenericResponse[any]	"请求参数错误，如时间格式不正确或参数验证失败等"
 //	@Failure		500					{object}	dto.GenericResponse[any]	"服务器内部错误"
 //	@Router			/api/v1/injections/analysis/with-issues [get]
 func GetFaultInjectionWithIssues(c *gin.Context) {
 	var req dto.TimeRangeQuery
 	if err := c.BindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid Parameters")
+		logrus.Errorf("failed to bind query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
 		return
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid Parameters: %v", err))
+		logrus.Errorf("invalid query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -559,7 +549,7 @@ func GetFaultInjectionWithIssues(c *gin.Context) {
 	records, err := repository.GetAllFaultInjectionWithIssues(*opts)
 	if err != nil {
 		logrus.Errorf("failed to get fault injection with issues: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get fault injection records")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get fault injection records")
 		return
 	}
 
@@ -569,9 +559,10 @@ func GetFaultInjectionWithIssues(c *gin.Context) {
 		err := json.Unmarshal([]byte(record.EngineConfig), &conf)
 		if err != nil {
 			logrus.Errorf("failed to unmarshal engine config: %v", err)
-			dto.ErrorResponse(c, http.StatusInternalServerError, "failed to parse engine config")
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to parse engine config")
 			return
 		}
+
 		items = append(items, dto.FaultInjectionWithIssuesResp{
 			DatasetID:     record.DatasetID,
 			DisplayConfig: record.DisplayConfig,
@@ -588,17 +579,41 @@ func GetFaultInjectionWithIssues(c *gin.Context) {
 // GetFaultInjectionStatistics
 //
 //	@Summary		获取故障注入统计信息
-//	@Description	获取故障注入记录的统计信息，包括有问题和没有问题的记录数量
+//	@Description	获取故障注入记录的统计信息，包括有问题、没有问题和总记录数量
 //	@Tags			injection
 //	@Produce		json
-//	@Success		200	{object}	dto.GenericResponse[dto.FaultInjectionStatisticsResp]
-//	@Failure		500	{object}	dto.GenericResponse[any]
+//	@Param			lookback			query	string	false	"时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置"
+//	@Param			custom_start_time	query	string	false	"自定义开始时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
+//	@Param			custom_end_time		query	string	false	"自定义结束时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
+//	@Success		200					{object}	dto.GenericResponse[dto.FaultInjectionStatisticsResp]	"成功返回故障注入统计信息"
+//	@Failure		400					{object}	dto.GenericResponse[any]	"请求参数错误，如时间格式不正确或参数验证失败等"
+//	@Failure		500					{object}	dto.GenericResponse[any]	"服务器内部错误"
 //	@Router			/api/v1/injections/analysis/statistics [get]
 func GetFaultInjectionStatistics(c *gin.Context) {
-	stats, err := repository.GetFaultInjectionStatistics()
+	var req dto.TimeRangeQuery
+	if err := c.BindQuery(&req); err != nil {
+		logrus.Errorf("failed to bind query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		logrus.Errorf("invalid query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	opts, err := req.Convert()
 	if err != nil {
-		logrus.Errorf("failed to get fault injection statistics: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get statistics")
+		logrus.Errorf("failed to convert request: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to convert request")
+		return
+	}
+
+	stats, err := repository.GetFaultInjectionStatistics(*opts)
+	if err != nil {
+		logrus.Errorf("failed to get injection statistics: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get injection statistics")
 		return
 	}
 
@@ -606,44 +621,5 @@ func GetFaultInjectionStatistics(c *gin.Context) {
 		NoIssuesCount:   stats["no_issues"],
 		WithIssuesCount: stats["with_issues"],
 		TotalCount:      stats["total"],
-	})
-}
-
-// GetFaultInjectionByDatasetID
-//
-//	@Summary		根据数据集ID查询故障注入记录
-//	@Description	根据数据集ID查询故障注入记录
-//	@Tags			injection
-//	@Produce		json
-//	@Param			dataset_name	query		string	true	"数据集名称"
-//	@Success		200			{object}	dto.GenericResponse[dto.FaultInjectionInjectionResp]
-//	@Failure		400			{object}	dto.GenericResponse[any]
-//	@Failure		404			{object}	dto.GenericResponse[any]
-//	@Failure		500			{object}	dto.GenericResponse[any]
-//	@Router			/api/v1/injections/detail [get]
-func GetFaultInjectionByDatasetName(c *gin.Context) {
-	datasetName := c.Query("dataset_name")
-	if datasetName == "" {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Dataset name is required")
-		return
-	}
-
-	dataset, err := repository.GetFLByDatasetName(datasetName)
-	if err != nil {
-		logrus.Errorf("failed to get fault injection by dataset name: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get fault injection by dataset name")
-		return
-	}
-
-	groundTruth, err := repository.GetGroundtruthMap([]string{datasetName})
-	if err != nil {
-		logrus.Errorf("failed to get ground truth map: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get ground truth map")
-		return
-	}
-
-	dto.SuccessResponse(c, dto.FaultInjectionInjectionResp{
-		FaultInjectionSchedule: *dataset,
-		GroundTruth:            groundTruth[datasetName],
 	})
 }

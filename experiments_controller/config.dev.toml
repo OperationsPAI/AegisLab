@@ -13,6 +13,7 @@ timezone = "Asia/Shanghai"
 enable = true
 
 [injection]
+benchmark = ["clickhouse"]
 target_label_key = "app"
 
 [injection.namespace_config.ts]

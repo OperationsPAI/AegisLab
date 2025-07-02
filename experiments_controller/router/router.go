@@ -6,10 +6,9 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/handlers"
 
 	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
-
-	"github.com/gin-gonic/gin"
 )
 
 func New() *gin.Engine {
@@ -24,6 +23,7 @@ func New() *gin.Engine {
 		debug.GET("/var", handlers.GetVar)
 		debug.GET("/vars", handlers.GetAllVars)
 		debug.POST("/var", handlers.SetVar)
+		debug.GET("/ns/status", handlers.GetNSLock)
 	}
 
 	algorithms := r.Group("/algorithms")
@@ -50,13 +50,12 @@ func New() *gin.Engine {
 
 	injections := r.Group("/injections")
 	{
-		injections.GET("", handlers.GetInjectionList)
+		injections.GET("", handlers.ListInjections)
 		injections.GET("/conf", handlers.GetInjectionConf)
-		injections.GET("/configs", handlers.GetDisplayConfigList)
-		injections.GET("/ns/status", handlers.GetNSLock)
+		injections.GET("/configs", handlers.ListDisplayConfigs)
+		injections.GET("/mapping", handlers.GetInjectionFieldMapping)
 		injections.GET("/query", handlers.QueryInjection)
 		injections.POST("", handlers.SubmitFaultInjection)
-		injections.GET("/detail", handlers.GetFaultInjectionByDatasetName)
 
 		analysis := injections.Group("/analysis")
 		{

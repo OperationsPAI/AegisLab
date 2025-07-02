@@ -317,21 +317,16 @@ func (m *Monitor) CheckNamespaceToInject(namespace string, executeTime time.Time
 
 // GetNamespaceToRestart finds an available namespace for restart and acquires it
 func (m *Monitor) GetNamespaceToRestart(endTime time.Time, traceID string) string {
-	// Get all namespaces
 	namespaces, err := m.redisClient.SMembers(m.ctx, namespacesKey).Result()
 	if err != nil {
-		logrus.Errorf("Failed to get namespaces from Redis: %v", err)
+		logrus.Errorf("failed to get namespaces from Redis: %v", err)
 		return ""
 	}
 
-	// Try to acquire an available namespace
 	for _, ns := range namespaces {
-		// Try to acquire the lock directly
-		err := m.acquireNamespaceLock(ns, endTime, traceID, consts.TaskTypeRestartService)
-		if err == nil {
+		if err := m.acquireNamespaceLock(ns, endTime, traceID, consts.TaskTypeRestartService); err == nil {
 			return ns
 		}
-		// Continue to next namespace on failure
 	}
 
 	return ""

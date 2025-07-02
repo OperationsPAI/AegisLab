@@ -36,6 +36,7 @@ configmap:
     env_mode: "prod"
     timezone: "Asia/Shanghai"
   injection:
+    benchmark: ["clickhouse"]
     namespace_config:
       ts:
         count: 6

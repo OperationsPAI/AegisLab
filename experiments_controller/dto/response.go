@@ -14,10 +14,28 @@ type GenericResponse[T any] struct {
 	Timestamp int64  `json:"timestamp,omitempty"` // 响应生成时间
 }
 
+type ListResp[T any] struct {
+	Total int64 `json:"total"`
+	Items []T   `json:"items"`
+}
+
 type PaginationResp[T any] struct {
 	Total      int64 `json:"total"`
-	TotalPages int64 `json:"total_pages"`
+	TotalPages int64 `json:"total_pages,omitempty"`
 	Items      []T   `json:"items"`
+}
+
+func NewPaginationResponse[T any](total int64, pageSize int, items []T) *PaginationResp[T] {
+	totalPages := int64(0)
+	if pageSize > 0 {
+		totalPages = (total + int64(pageSize) - 1) / int64(pageSize)
+	}
+
+	return &PaginationResp[T]{
+		Total:      total,
+		TotalPages: totalPages,
+		Items:      items,
+	}
 }
 
 type Trace struct {

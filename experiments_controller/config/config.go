@@ -102,6 +102,26 @@ func GetList(key string) []any {
 	return nil
 }
 
+func GetValidBenchmarkMap() map[string]struct{} {
+	benchmarks := GetStringSlice("injection.benchmark")
+	if len(benchmarks) == 0 {
+		logrus.Warn("No benchmarks configured, using default 'clickhouse'")
+		benchmarks = []string{"clickhouse"}
+	}
+
+	benchmarkMap := make(map[string]struct{}, len(benchmarks))
+	for _, benchmark := range benchmarks {
+		if benchmark == "" {
+			logrus.Warn("Empty benchmark name found, skipping")
+			continue
+		}
+
+		benchmarkMap[benchmark] = struct{}{}
+	}
+
+	return benchmarkMap
+}
+
 func GetNsConfigMap() (map[string]map[string]any, error) {
 	m := GetMap("injection.namespace_config")
 	nsConfigMap := make(map[string]map[string]any, len(m))

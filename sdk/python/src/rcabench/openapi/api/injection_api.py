@@ -17,19 +17,21 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-from pydantic import Field, StrictStr
+from datetime import datetime
+from pydantic import Field, StrictInt, StrictStr, field_validator
 from typing import List, Optional
 from typing_extensions import Annotated
 from rcabench.openapi.models.dto_generic_response_any import DtoGenericResponseAny
+from rcabench.openapi.models.dto_generic_response_array_database_fault_injection_schedule import DtoGenericResponseArrayDatabaseFaultInjectionSchedule
 from rcabench.openapi.models.dto_generic_response_array_dto_fault_injection_no_issues_resp import DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp
 from rcabench.openapi.models.dto_generic_response_array_dto_fault_injection_with_issues_resp import DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp
-from rcabench.openapi.models.dto_generic_response_dto_fault_injection_injection_resp import DtoGenericResponseDtoFaultInjectionInjectionResp
+from rcabench.openapi.models.dto_generic_response_database_fault_injection_schedule import DtoGenericResponseDatabaseFaultInjectionSchedule
 from rcabench.openapi.models.dto_generic_response_dto_fault_injection_statistics_resp import DtoGenericResponseDtoFaultInjectionStatisticsResp
 from rcabench.openapi.models.dto_generic_response_dto_inject_cancel_resp import DtoGenericResponseDtoInjectCancelResp
-from rcabench.openapi.models.dto_generic_response_dto_injection_item import DtoGenericResponseDtoInjectionItem
-from rcabench.openapi.models.dto_generic_response_dto_submit_resp import DtoGenericResponseDtoSubmitResp
+from rcabench.openapi.models.dto_generic_response_dto_injection_field_mapping_resp import DtoGenericResponseDtoInjectionFieldMappingResp
+from rcabench.openapi.models.dto_generic_response_dto_submit_injection_resp import DtoGenericResponseDtoSubmitInjectionResp
 from rcabench.openapi.models.dto_generic_response_handler_node import DtoGenericResponseHandlerNode
-from rcabench.openapi.models.dto_injection_submit_req import DtoInjectionSubmitReq
+from rcabench.openapi.models.dto_submit_injection_req import DtoSubmitInjectionReq
 
 from rcabench.openapi.api_client import ApiClient, RequestSerialized
 from rcabench.openapi.api_response import ApiResponse
@@ -52,9 +54,9 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_no_issues_get(
         self,
-        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
-        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间 (RFC3339格式)")] = None,
-        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间 (RFC3339格式)")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -70,14 +72,14 @@ class InjectionApi:
     ) -> DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp:
         """查询没有问题的故障注入记录
 
-        根据时间范围查询所有没有问题的故障注入记录列表
+        根据时间范围查询所有没有问题的故障注入记录列表，返回包含配置信息的详细记录
 
-        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         :type lookback: str
-        :param custom_start_time: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
-        :type custom_start_time: str
-        :param custom_end_time: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
-        :type custom_end_time: str
+        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :type custom_start_time: datetime
+        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -129,9 +131,9 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_no_issues_get_with_http_info(
         self,
-        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
-        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间 (RFC3339格式)")] = None,
-        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间 (RFC3339格式)")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -147,14 +149,14 @@ class InjectionApi:
     ) -> ApiResponse[DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp]:
         """查询没有问题的故障注入记录
 
-        根据时间范围查询所有没有问题的故障注入记录列表
+        根据时间范围查询所有没有问题的故障注入记录列表，返回包含配置信息的详细记录
 
-        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         :type lookback: str
-        :param custom_start_time: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
-        :type custom_start_time: str
-        :param custom_end_time: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
-        :type custom_end_time: str
+        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :type custom_start_time: datetime
+        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -206,9 +208,9 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_no_issues_get_without_preload_content(
         self,
-        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
-        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间 (RFC3339格式)")] = None,
-        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间 (RFC3339格式)")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -224,14 +226,14 @@ class InjectionApi:
     ) -> RESTResponseType:
         """查询没有问题的故障注入记录
 
-        根据时间范围查询所有没有问题的故障注入记录列表
+        根据时间范围查询所有没有问题的故障注入记录列表，返回包含配置信息的详细记录
 
-        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         :type lookback: str
-        :param custom_start_time: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
-        :type custom_start_time: str
-        :param custom_end_time: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
-        :type custom_end_time: str
+        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :type custom_start_time: datetime
+        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -308,12 +310,30 @@ class InjectionApi:
             _query_params.append(('lookback', lookback))
             
         if custom_start_time is not None:
-            
-            _query_params.append(('custom_start_time', custom_start_time))
+            if isinstance(custom_start_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_start_time',
+                        custom_start_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_start_time', custom_start_time))
             
         if custom_end_time is not None:
-            
-            _query_params.append(('custom_end_time', custom_end_time))
+            if isinstance(custom_end_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_end_time',
+                        custom_end_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_end_time', custom_end_time))
             
         # process the header parameters
         # process the form parameters
@@ -354,6 +374,9 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_statistics_get(
         self,
+        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -369,8 +392,14 @@ class InjectionApi:
     ) -> DtoGenericResponseDtoFaultInjectionStatisticsResp:
         """获取故障注入统计信息
 
-        获取故障注入记录的统计信息，包括有问题和没有问题的记录数量
+        获取故障注入记录的统计信息，包括有问题、没有问题和总记录数量
 
+        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+        :type lookback: str
+        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :type custom_start_time: datetime
+        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -394,6 +423,9 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_analysis_statistics_get_serialize(
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -402,6 +434,7 @@ class InjectionApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "DtoGenericResponseDtoFaultInjectionStatisticsResp",
+            '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -418,6 +451,9 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_statistics_get_with_http_info(
         self,
+        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -433,8 +469,14 @@ class InjectionApi:
     ) -> ApiResponse[DtoGenericResponseDtoFaultInjectionStatisticsResp]:
         """获取故障注入统计信息
 
-        获取故障注入记录的统计信息，包括有问题和没有问题的记录数量
+        获取故障注入记录的统计信息，包括有问题、没有问题和总记录数量
 
+        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+        :type lookback: str
+        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :type custom_start_time: datetime
+        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -458,6 +500,9 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_analysis_statistics_get_serialize(
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -466,6 +511,7 @@ class InjectionApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "DtoGenericResponseDtoFaultInjectionStatisticsResp",
+            '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -482,6 +528,9 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_statistics_get_without_preload_content(
         self,
+        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -497,8 +546,14 @@ class InjectionApi:
     ) -> RESTResponseType:
         """获取故障注入统计信息
 
-        获取故障注入记录的统计信息，包括有问题和没有问题的记录数量
+        获取故障注入记录的统计信息，包括有问题、没有问题和总记录数量
 
+        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+        :type lookback: str
+        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :type custom_start_time: datetime
+        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -522,6 +577,9 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_analysis_statistics_get_serialize(
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -530,6 +588,7 @@ class InjectionApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "DtoGenericResponseDtoFaultInjectionStatisticsResp",
+            '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -541,6 +600,9 @@ class InjectionApi:
 
     def _api_v1_injections_analysis_statistics_get_serialize(
         self,
+        lookback,
+        custom_start_time,
+        custom_end_time,
         _request_auth,
         _content_type,
         _headers,
@@ -563,6 +625,36 @@ class InjectionApi:
 
         # process the path parameters
         # process the query parameters
+        if lookback is not None:
+            
+            _query_params.append(('lookback', lookback))
+            
+        if custom_start_time is not None:
+            if isinstance(custom_start_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_start_time',
+                        custom_start_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_start_time', custom_start_time))
+            
+        if custom_end_time is not None:
+            if isinstance(custom_end_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_end_time',
+                        custom_end_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_end_time', custom_end_time))
+            
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -602,9 +694,9 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_with_issues_get(
         self,
-        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
-        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间 (RFC3339格式)")] = None,
-        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间 (RFC3339格式)")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -622,12 +714,12 @@ class InjectionApi:
 
         根据时间范围查询所有有问题的故障注入记录列表
 
-        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         :type lookback: str
-        :param custom_start_time: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
-        :type custom_start_time: str
-        :param custom_end_time: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
-        :type custom_end_time: str
+        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :type custom_start_time: datetime
+        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -679,9 +771,9 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_with_issues_get_with_http_info(
         self,
-        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
-        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间 (RFC3339格式)")] = None,
-        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间 (RFC3339格式)")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -699,12 +791,12 @@ class InjectionApi:
 
         根据时间范围查询所有有问题的故障注入记录列表
 
-        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         :type lookback: str
-        :param custom_start_time: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
-        :type custom_start_time: str
-        :param custom_end_time: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
-        :type custom_end_time: str
+        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :type custom_start_time: datetime
+        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -756,9 +848,9 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_with_issues_get_without_preload_content(
         self,
-        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
-        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间 (RFC3339格式)")] = None,
-        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间 (RFC3339格式)")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -776,12 +868,12 @@ class InjectionApi:
 
         根据时间范围查询所有有问题的故障注入记录列表
 
-        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         :type lookback: str
-        :param custom_start_time: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
-        :type custom_start_time: str
-        :param custom_end_time: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
-        :type custom_end_time: str
+        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :type custom_start_time: datetime
+        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -858,12 +950,30 @@ class InjectionApi:
             _query_params.append(('lookback', lookback))
             
         if custom_start_time is not None:
-            
-            _query_params.append(('custom_start_time', custom_start_time))
+            if isinstance(custom_start_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_start_time',
+                        custom_start_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_start_time', custom_start_time))
             
         if custom_end_time is not None:
-            
-            _query_params.append(('custom_end_time', custom_end_time))
+            if isinstance(custom_end_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_end_time',
+                        custom_end_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_end_time', custom_end_time))
             
         # process the header parameters
         # process the form parameters
@@ -904,8 +1014,8 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_conf_get(
         self,
-        namespace: Annotated[StrictStr, Field(description="命名空间")],
-        mode: Annotated[StrictStr, Field(description="显示模式(display/engine)")],
+        namespace: Annotated[StrictStr, Field(description="命名空间，指定要获取配置的命名空间")],
+        mode: Annotated[Optional[StrictStr], Field(description="显示模式")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -921,11 +1031,11 @@ class InjectionApi:
     ) -> DtoGenericResponseHandlerNode:
         """获取故障注入配置
 
-        获取指定命名空间的故障注入配置信息
+        获取指定命名空间的故障注入配置信息，支持不同显示模式的配置树结构
 
-        :param namespace: 命名空间 (required)
+        :param namespace: 命名空间，指定要获取配置的命名空间 (required)
         :type namespace: str
-        :param mode: 显示模式(display/engine) (required)
+        :param mode: 显示模式
         :type mode: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -977,8 +1087,8 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_conf_get_with_http_info(
         self,
-        namespace: Annotated[StrictStr, Field(description="命名空间")],
-        mode: Annotated[StrictStr, Field(description="显示模式(display/engine)")],
+        namespace: Annotated[StrictStr, Field(description="命名空间，指定要获取配置的命名空间")],
+        mode: Annotated[Optional[StrictStr], Field(description="显示模式")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -994,11 +1104,11 @@ class InjectionApi:
     ) -> ApiResponse[DtoGenericResponseHandlerNode]:
         """获取故障注入配置
 
-        获取指定命名空间的故障注入配置信息
+        获取指定命名空间的故障注入配置信息，支持不同显示模式的配置树结构
 
-        :param namespace: 命名空间 (required)
+        :param namespace: 命名空间，指定要获取配置的命名空间 (required)
         :type namespace: str
-        :param mode: 显示模式(display/engine) (required)
+        :param mode: 显示模式
         :type mode: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -1050,8 +1160,8 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_conf_get_without_preload_content(
         self,
-        namespace: Annotated[StrictStr, Field(description="命名空间")],
-        mode: Annotated[StrictStr, Field(description="显示模式(display/engine)")],
+        namespace: Annotated[StrictStr, Field(description="命名空间，指定要获取配置的命名空间")],
+        mode: Annotated[Optional[StrictStr], Field(description="显示模式")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1067,11 +1177,11 @@ class InjectionApi:
     ) -> RESTResponseType:
         """获取故障注入配置
 
-        获取指定命名空间的故障注入配置信息
+        获取指定命名空间的故障注入配置信息，支持不同显示模式的配置树结构
 
-        :param namespace: 命名空间 (required)
+        :param namespace: 命名空间，指定要获取配置的命名空间 (required)
         :type namespace: str
-        :param mode: 显示模式(display/engine) (required)
+        :param mode: 显示模式
         :type mode: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -1189,7 +1299,7 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_configs_get(
         self,
-        trace_ids: Annotated[List[StrictStr], Field(description="Trace ID 列表")],
+        trace_ids: Annotated[Optional[List[StrictStr]], Field(description="TraceID列表，支持多个值，用于查询对应的配置信息")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1203,11 +1313,11 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseAny:
-        """获取故障注入配置列表
+        """获取已注入故障配置列表
 
-        根据多个 TraceID 获取对应的故障注入配置信息
+        根据多个TraceID获取对应的故障注入配置信息，用于查看已提交的故障注入任务的配置详情
 
-        :param trace_ids: Trace ID 列表 (required)
+        :param trace_ids: TraceID列表，支持多个值，用于查询对应的配置信息
         :type trace_ids: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -1258,7 +1368,7 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_configs_get_with_http_info(
         self,
-        trace_ids: Annotated[List[StrictStr], Field(description="Trace ID 列表")],
+        trace_ids: Annotated[Optional[List[StrictStr]], Field(description="TraceID列表，支持多个值，用于查询对应的配置信息")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1272,11 +1382,11 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseAny]:
-        """获取故障注入配置列表
+        """获取已注入故障配置列表
 
-        根据多个 TraceID 获取对应的故障注入配置信息
+        根据多个TraceID获取对应的故障注入配置信息，用于查看已提交的故障注入任务的配置详情
 
-        :param trace_ids: Trace ID 列表 (required)
+        :param trace_ids: TraceID列表，支持多个值，用于查询对应的配置信息
         :type trace_ids: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -1327,7 +1437,7 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_configs_get_without_preload_content(
         self,
-        trace_ids: Annotated[List[StrictStr], Field(description="Trace ID 列表")],
+        trace_ids: Annotated[Optional[List[StrictStr]], Field(description="TraceID列表，支持多个值，用于查询对应的配置信息")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1341,11 +1451,11 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """获取故障注入配置列表
+        """获取已注入故障配置列表
 
-        根据多个 TraceID 获取对应的故障注入配置信息
+        根据多个TraceID获取对应的故障注入配置信息，用于查看已提交的故障注入任务的配置详情
 
-        :param trace_ids: Trace ID 列表 (required)
+        :param trace_ids: TraceID列表，支持多个值，用于查询对应的配置信息
         :type trace_ids: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -1401,7 +1511,7 @@ class InjectionApi:
         _host = None
 
         _collection_formats: Dict[str, str] = {
-            'trace_ids': 'csv',
+            'trace_ids': 'multi',
         }
 
         _path_params: Dict[str, str] = {}
@@ -1456,9 +1566,18 @@ class InjectionApi:
 
 
     @validate_call
-    def api_v1_injections_detail_get(
+    def api_v1_injections_get(
         self,
-        dataset_name: Annotated[StrictStr, Field(description="数据集名称")],
+        env: Annotated[Optional[StrictStr], Field(description="环境标签过滤")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="批次标签过滤")] = None,
+        benchmark: Annotated[Optional[StrictStr], Field(description="基准测试类型过滤")] = None,
+        status: Annotated[Optional[StrictInt], Field(description="状态过滤，具体值参考字段映射接口(/mapping)")] = None,
+        fault_type: Annotated[Optional[StrictInt], Field(description="故障类型过滤，具体值参考字段映射接口(/mapping)")] = None,
+        sort: Annotated[Optional[StrictStr], Field(description="排序方式，默认desc。按created_at字段排序")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="结果数量限制，用于控制返回记录数量")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1471,13 +1590,31 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseDtoFaultInjectionInjectionResp:
-        """根据数据集ID查询故障注入记录
+    ) -> DtoGenericResponseArrayDatabaseFaultInjectionSchedule:
+        """获取故障注入记录列表
 
-        根据数据集ID查询故障注入记录
+        支持排序、过滤的故障注入记录查询接口。返回数据库原始记录列表，不进行数据转换。
 
-        :param dataset_name: 数据集名称 (required)
-        :type dataset_name: str
+        :param env: 环境标签过滤
+        :type env: str
+        :param batch: 批次标签过滤
+        :type batch: str
+        :param benchmark: 基准测试类型过滤
+        :type benchmark: str
+        :param status: 状态过滤，具体值参考字段映射接口(/mapping)
+        :type status: int
+        :param fault_type: 故障类型过滤，具体值参考字段映射接口(/mapping)
+        :type fault_type: int
+        :param sort: 排序方式，默认desc。按created_at字段排序
+        :type sort: str
+        :param limit: 结果数量限制，用于控制返回记录数量
+        :type limit: int
+        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+        :type lookback: str
+        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :type custom_start_time: datetime
+        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1500,8 +1637,17 @@ class InjectionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_injections_detail_get_serialize(
-            dataset_name=dataset_name,
+        _param = self._api_v1_injections_get_serialize(
+            env=env,
+            batch=batch,
+            benchmark=benchmark,
+            status=status,
+            fault_type=fault_type,
+            sort=sort,
+            limit=limit,
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1509,9 +1655,8 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoFaultInjectionInjectionResp",
+            '200': "DtoGenericResponseArrayDatabaseFaultInjectionSchedule",
             '400': "DtoGenericResponseAny",
-            '404': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -1526,9 +1671,18 @@ class InjectionApi:
 
 
     @validate_call
-    def api_v1_injections_detail_get_with_http_info(
+    def api_v1_injections_get_with_http_info(
         self,
-        dataset_name: Annotated[StrictStr, Field(description="数据集名称")],
+        env: Annotated[Optional[StrictStr], Field(description="环境标签过滤")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="批次标签过滤")] = None,
+        benchmark: Annotated[Optional[StrictStr], Field(description="基准测试类型过滤")] = None,
+        status: Annotated[Optional[StrictInt], Field(description="状态过滤，具体值参考字段映射接口(/mapping)")] = None,
+        fault_type: Annotated[Optional[StrictInt], Field(description="故障类型过滤，具体值参考字段映射接口(/mapping)")] = None,
+        sort: Annotated[Optional[StrictStr], Field(description="排序方式，默认desc。按created_at字段排序")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="结果数量限制，用于控制返回记录数量")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1541,13 +1695,31 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseDtoFaultInjectionInjectionResp]:
-        """根据数据集ID查询故障注入记录
+    ) -> ApiResponse[DtoGenericResponseArrayDatabaseFaultInjectionSchedule]:
+        """获取故障注入记录列表
 
-        根据数据集ID查询故障注入记录
+        支持排序、过滤的故障注入记录查询接口。返回数据库原始记录列表，不进行数据转换。
 
-        :param dataset_name: 数据集名称 (required)
-        :type dataset_name: str
+        :param env: 环境标签过滤
+        :type env: str
+        :param batch: 批次标签过滤
+        :type batch: str
+        :param benchmark: 基准测试类型过滤
+        :type benchmark: str
+        :param status: 状态过滤，具体值参考字段映射接口(/mapping)
+        :type status: int
+        :param fault_type: 故障类型过滤，具体值参考字段映射接口(/mapping)
+        :type fault_type: int
+        :param sort: 排序方式，默认desc。按created_at字段排序
+        :type sort: str
+        :param limit: 结果数量限制，用于控制返回记录数量
+        :type limit: int
+        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+        :type lookback: str
+        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :type custom_start_time: datetime
+        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1570,8 +1742,17 @@ class InjectionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_injections_detail_get_serialize(
-            dataset_name=dataset_name,
+        _param = self._api_v1_injections_get_serialize(
+            env=env,
+            batch=batch,
+            benchmark=benchmark,
+            status=status,
+            fault_type=fault_type,
+            sort=sort,
+            limit=limit,
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1579,9 +1760,8 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoFaultInjectionInjectionResp",
+            '200': "DtoGenericResponseArrayDatabaseFaultInjectionSchedule",
             '400': "DtoGenericResponseAny",
-            '404': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -1596,9 +1776,18 @@ class InjectionApi:
 
 
     @validate_call
-    def api_v1_injections_detail_get_without_preload_content(
+    def api_v1_injections_get_without_preload_content(
         self,
-        dataset_name: Annotated[StrictStr, Field(description="数据集名称")],
+        env: Annotated[Optional[StrictStr], Field(description="环境标签过滤")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="批次标签过滤")] = None,
+        benchmark: Annotated[Optional[StrictStr], Field(description="基准测试类型过滤")] = None,
+        status: Annotated[Optional[StrictInt], Field(description="状态过滤，具体值参考字段映射接口(/mapping)")] = None,
+        fault_type: Annotated[Optional[StrictInt], Field(description="故障类型过滤，具体值参考字段映射接口(/mapping)")] = None,
+        sort: Annotated[Optional[StrictStr], Field(description="排序方式，默认desc。按created_at字段排序")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="结果数量限制，用于控制返回记录数量")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1612,12 +1801,30 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """根据数据集ID查询故障注入记录
+        """获取故障注入记录列表
 
-        根据数据集ID查询故障注入记录
+        支持排序、过滤的故障注入记录查询接口。返回数据库原始记录列表，不进行数据转换。
 
-        :param dataset_name: 数据集名称 (required)
-        :type dataset_name: str
+        :param env: 环境标签过滤
+        :type env: str
+        :param batch: 批次标签过滤
+        :type batch: str
+        :param benchmark: 基准测试类型过滤
+        :type benchmark: str
+        :param status: 状态过滤，具体值参考字段映射接口(/mapping)
+        :type status: int
+        :param fault_type: 故障类型过滤，具体值参考字段映射接口(/mapping)
+        :type fault_type: int
+        :param sort: 排序方式，默认desc。按created_at字段排序
+        :type sort: str
+        :param limit: 结果数量限制，用于控制返回记录数量
+        :type limit: int
+        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+        :type lookback: str
+        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :type custom_start_time: datetime
+        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1640,8 +1847,17 @@ class InjectionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_injections_detail_get_serialize(
-            dataset_name=dataset_name,
+        _param = self._api_v1_injections_get_serialize(
+            env=env,
+            batch=batch,
+            benchmark=benchmark,
+            status=status,
+            fault_type=fault_type,
+            sort=sort,
+            limit=limit,
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1649,9 +1865,8 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoFaultInjectionInjectionResp",
+            '200': "DtoGenericResponseArrayDatabaseFaultInjectionSchedule",
             '400': "DtoGenericResponseAny",
-            '404': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -1661,9 +1876,18 @@ class InjectionApi:
         return response_data.response
 
 
-    def _api_v1_injections_detail_get_serialize(
+    def _api_v1_injections_get_serialize(
         self,
-        dataset_name,
+        env,
+        batch,
+        benchmark,
+        status,
+        fault_type,
+        sort,
+        limit,
+        lookback,
+        custom_start_time,
+        custom_end_time,
         _request_auth,
         _content_type,
         _headers,
@@ -1686,9 +1910,63 @@ class InjectionApi:
 
         # process the path parameters
         # process the query parameters
-        if dataset_name is not None:
+        if env is not None:
             
-            _query_params.append(('dataset_name', dataset_name))
+            _query_params.append(('env', env))
+            
+        if batch is not None:
+            
+            _query_params.append(('batch', batch))
+            
+        if benchmark is not None:
+            
+            _query_params.append(('benchmark', benchmark))
+            
+        if status is not None:
+            
+            _query_params.append(('status', status))
+            
+        if fault_type is not None:
+            
+            _query_params.append(('fault_type', fault_type))
+            
+        if sort is not None:
+            
+            _query_params.append(('sort', sort))
+            
+        if limit is not None:
+            
+            _query_params.append(('limit', limit))
+            
+        if lookback is not None:
+            
+            _query_params.append(('lookback', lookback))
+            
+        if custom_start_time is not None:
+            if isinstance(custom_start_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_start_time',
+                        custom_start_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_start_time', custom_start_time))
+            
+        if custom_end_time is not None:
+            if isinstance(custom_end_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_end_time',
+                        custom_end_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_end_time', custom_end_time))
             
         # process the header parameters
         # process the form parameters
@@ -1710,7 +1988,7 @@ class InjectionApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/v1/injections/detail',
+            resource_path='/api/v1/injections',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1727,7 +2005,7 @@ class InjectionApi:
 
 
     @validate_call
-    def api_v1_injections_ns_status_get(
+    def api_v1_injections_mapping_get(
         self,
         _request_timeout: Union[
             None,
@@ -1741,10 +2019,10 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseAny:
-        """获取命名空间锁状态
+    ) -> DtoGenericResponseDtoInjectionFieldMappingResp:
+        """获取字段映射关系
 
-        获取命名空间锁状态信息
+        获取状态和故障类型的字符串与数字映射关系，用于前端显示和API参数验证
 
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -1768,7 +2046,7 @@ class InjectionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_injections_ns_status_get_serialize(
+        _param = self._api_v1_injections_mapping_get_serialize(
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1776,7 +2054,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseAny",
+            '200': "DtoGenericResponseDtoInjectionFieldMappingResp",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -1791,7 +2069,7 @@ class InjectionApi:
 
 
     @validate_call
-    def api_v1_injections_ns_status_get_with_http_info(
+    def api_v1_injections_mapping_get_with_http_info(
         self,
         _request_timeout: Union[
             None,
@@ -1805,10 +2083,10 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseAny]:
-        """获取命名空间锁状态
+    ) -> ApiResponse[DtoGenericResponseDtoInjectionFieldMappingResp]:
+        """获取字段映射关系
 
-        获取命名空间锁状态信息
+        获取状态和故障类型的字符串与数字映射关系，用于前端显示和API参数验证
 
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -1832,7 +2110,7 @@ class InjectionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_injections_ns_status_get_serialize(
+        _param = self._api_v1_injections_mapping_get_serialize(
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1840,7 +2118,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseAny",
+            '200': "DtoGenericResponseDtoInjectionFieldMappingResp",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -1855,7 +2133,7 @@ class InjectionApi:
 
 
     @validate_call
-    def api_v1_injections_ns_status_get_without_preload_content(
+    def api_v1_injections_mapping_get_without_preload_content(
         self,
         _request_timeout: Union[
             None,
@@ -1870,9 +2148,9 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """获取命名空间锁状态
+        """获取字段映射关系
 
-        获取命名空间锁状态信息
+        获取状态和故障类型的字符串与数字映射关系，用于前端显示和API参数验证
 
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -1896,7 +2174,7 @@ class InjectionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_injections_ns_status_get_serialize(
+        _param = self._api_v1_injections_mapping_get_serialize(
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1904,7 +2182,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseAny",
+            '200': "DtoGenericResponseDtoInjectionFieldMappingResp",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -1914,7 +2192,7 @@ class InjectionApi:
         return response_data.response
 
 
-    def _api_v1_injections_ns_status_get_serialize(
+    def _api_v1_injections_mapping_get_serialize(
         self,
         _request_auth,
         _content_type,
@@ -1958,7 +2236,7 @@ class InjectionApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/v1/injections/ns/status',
+            resource_path='/api/v1/injections/mapping',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1977,7 +2255,7 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_post(
         self,
-        body: Annotated[DtoInjectionSubmitReq, Field(description="请求体")],
+        body: Annotated[DtoSubmitInjectionReq, Field(description="故障注入请求体")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1990,13 +2268,13 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseDtoSubmitResp:
-        """注入故障
+    ) -> DtoGenericResponseDtoSubmitInjectionResp:
+        """提交故障注入任务
 
-        注入故障
+        提交故障注入任务，支持批量提交多个故障配置，系统会自动去重并返回提交结果
 
-        :param body: 请求体 (required)
-        :type body: DtoInjectionSubmitReq
+        :param body: 故障注入请求体 (required)
+        :type body: DtoSubmitInjectionReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2028,7 +2306,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '202': "DtoGenericResponseDtoSubmitResp",
+            '202': "DtoGenericResponseDtoSubmitInjectionResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -2046,7 +2324,7 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_post_with_http_info(
         self,
-        body: Annotated[DtoInjectionSubmitReq, Field(description="请求体")],
+        body: Annotated[DtoSubmitInjectionReq, Field(description="故障注入请求体")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2059,13 +2337,13 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseDtoSubmitResp]:
-        """注入故障
+    ) -> ApiResponse[DtoGenericResponseDtoSubmitInjectionResp]:
+        """提交故障注入任务
 
-        注入故障
+        提交故障注入任务，支持批量提交多个故障配置，系统会自动去重并返回提交结果
 
-        :param body: 请求体 (required)
-        :type body: DtoInjectionSubmitReq
+        :param body: 故障注入请求体 (required)
+        :type body: DtoSubmitInjectionReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2097,7 +2375,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '202': "DtoGenericResponseDtoSubmitResp",
+            '202': "DtoGenericResponseDtoSubmitInjectionResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -2115,7 +2393,7 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_post_without_preload_content(
         self,
-        body: Annotated[DtoInjectionSubmitReq, Field(description="请求体")],
+        body: Annotated[DtoSubmitInjectionReq, Field(description="故障注入请求体")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2129,12 +2407,12 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """注入故障
+        """提交故障注入任务
 
-        注入故障
+        提交故障注入任务，支持批量提交多个故障配置，系统会自动去重并返回提交结果
 
-        :param body: 请求体 (required)
-        :type body: DtoInjectionSubmitReq
+        :param body: 故障注入请求体 (required)
+        :type body: DtoSubmitInjectionReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2166,7 +2444,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '202': "DtoGenericResponseDtoSubmitResp",
+            '202': "DtoGenericResponseDtoSubmitInjectionResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -2243,7 +2521,7 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_query_get(
         self,
-        name: Annotated[Optional[StrictStr], Field(description="注入名称")] = None,
+        name: Annotated[Optional[StrictStr], Field(description="故障注入名称")] = None,
         task_id: Annotated[Optional[StrictStr], Field(description="任务ID")] = None,
         _request_timeout: Union[
             None,
@@ -2257,12 +2535,12 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseDtoInjectionItem:
-        """查询故障注入记录
+    ) -> DtoGenericResponseDatabaseFaultInjectionSchedule:
+        """查询单个故障注入记录
 
-        根据名称或任务ID查询故障注入记录详情
+        根据名称或任务ID查询故障注入记录详情，两个参数至少提供一个
 
-        :param name: 注入名称
+        :param name: 故障注入名称
         :type name: str
         :param task_id: 任务ID
         :type task_id: str
@@ -2298,7 +2576,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoInjectionItem",
+            '200': "DtoGenericResponseDatabaseFaultInjectionSchedule",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -2316,7 +2594,7 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_query_get_with_http_info(
         self,
-        name: Annotated[Optional[StrictStr], Field(description="注入名称")] = None,
+        name: Annotated[Optional[StrictStr], Field(description="故障注入名称")] = None,
         task_id: Annotated[Optional[StrictStr], Field(description="任务ID")] = None,
         _request_timeout: Union[
             None,
@@ -2330,12 +2608,12 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseDtoInjectionItem]:
-        """查询故障注入记录
+    ) -> ApiResponse[DtoGenericResponseDatabaseFaultInjectionSchedule]:
+        """查询单个故障注入记录
 
-        根据名称或任务ID查询故障注入记录详情
+        根据名称或任务ID查询故障注入记录详情，两个参数至少提供一个
 
-        :param name: 注入名称
+        :param name: 故障注入名称
         :type name: str
         :param task_id: 任务ID
         :type task_id: str
@@ -2371,7 +2649,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoInjectionItem",
+            '200': "DtoGenericResponseDatabaseFaultInjectionSchedule",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -2389,7 +2667,7 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_query_get_without_preload_content(
         self,
-        name: Annotated[Optional[StrictStr], Field(description="注入名称")] = None,
+        name: Annotated[Optional[StrictStr], Field(description="故障注入名称")] = None,
         task_id: Annotated[Optional[StrictStr], Field(description="任务ID")] = None,
         _request_timeout: Union[
             None,
@@ -2404,11 +2682,11 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """查询故障注入记录
+        """查询单个故障注入记录
 
-        根据名称或任务ID查询故障注入记录详情
+        根据名称或任务ID查询故障注入记录详情，两个参数至少提供一个
 
-        :param name: 注入名称
+        :param name: 故障注入名称
         :type name: str
         :param task_id: 任务ID
         :type task_id: str
@@ -2444,7 +2722,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoInjectionItem",
+            '200': "DtoGenericResponseDatabaseFaultInjectionSchedule",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }

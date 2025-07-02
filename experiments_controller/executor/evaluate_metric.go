@@ -544,7 +544,7 @@ func ParseConfigAndGetGroundTruthMap(executions []dto.Execution) ([]map[string]m
 }
 
 func GetGTByDatasetName(names []string) ([]map[string]map[string]struct{}, error) {
-	configs, err := repository.ListEngineConfigByNames(names)
+	configs, err := repository.ListEngineConfigsByNames(names)
 	if err != nil {
 		return nil, err
 	}

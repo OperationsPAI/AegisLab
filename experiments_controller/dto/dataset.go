@@ -80,7 +80,7 @@ func (d *DatasetItemWithID) Convert(record database.FaultInjectionSchedule) erro
 }
 
 type DatasetListReq struct {
-	PaginationReq
+	PaginationQuery
 }
 
 type DatasetBuildPayload struct {
@@ -118,6 +118,15 @@ var DatasetStatusMap = map[int]string{
 	consts.DatasetBuildSuccess:  "build_success",
 	consts.DatasetBuildFailed:   "build_failed",
 	consts.DatasetDeleted:       "deleted",
+}
+
+var DatasetStatusReverseMap = map[string]int{
+	"initial":        consts.DatasetInitial,
+	"inject_success": consts.DatasetInjectSuccess,
+	"inject_failed":  consts.DatasetInjectFailed,
+	"build_success":  consts.DatasetBuildSuccess,
+	"build_failed":   consts.DatasetBuildFailed,
+	"deleted":        consts.DatasetDeleted,
 }
 
 var BuildEnvVarNameMap = map[string]struct{}{

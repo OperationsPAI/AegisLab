@@ -18,21 +18,22 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictInt
+from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_fault_injection_no_issues_resp import DtoFaultInjectionNoIssuesResp
+from rcabench.openapi.models.dto_trace import DtoTrace
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoPaginationRespDtoFaultInjectionNoIssuesResp(BaseModel):
+class DtoSubmitInjectionResp(BaseModel):
     """
-    DtoPaginationRespDtoFaultInjectionNoIssuesResp
+    DtoSubmitInjectionResp
     """ # noqa: E501
-    items: Optional[List[DtoFaultInjectionNoIssuesResp]] = None
-    total: Optional[StrictInt] = None
-    total_pages: Optional[StrictInt] = None
+    duplicated_count: Optional[StrictInt] = None
+    group_id: Optional[StrictStr] = None
+    original_count: Optional[StrictInt] = None
+    traces: Optional[List[DtoTrace]] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["items", "total", "total_pages"]
+    __properties: ClassVar[List[str]] = ["duplicated_count", "group_id", "original_count", "traces"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -52,7 +53,7 @@ class DtoPaginationRespDtoFaultInjectionNoIssuesResp(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoPaginationRespDtoFaultInjectionNoIssuesResp from a JSON string"""
+        """Create an instance of DtoSubmitInjectionResp from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -75,13 +76,13 @@ class DtoPaginationRespDtoFaultInjectionNoIssuesResp(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of each item in items (list)
+        # override the default output from pydantic by calling `to_dict()` of each item in traces (list)
         _items = []
-        if self.items:
-            for _item_items in self.items:
-                if _item_items:
-                    _items.append(_item_items.to_dict())
-            _dict['items'] = _items
+        if self.traces:
+            for _item_traces in self.traces:
+                if _item_traces:
+                    _items.append(_item_traces.to_dict())
+            _dict['traces'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -91,7 +92,7 @@ class DtoPaginationRespDtoFaultInjectionNoIssuesResp(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoPaginationRespDtoFaultInjectionNoIssuesResp from a dict"""
+        """Create an instance of DtoSubmitInjectionResp from a dict"""
         if obj is None:
             return None
 
@@ -99,9 +100,10 @@ class DtoPaginationRespDtoFaultInjectionNoIssuesResp(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "items": [DtoFaultInjectionNoIssuesResp.from_dict(_item) for _item in obj["items"]] if obj.get("items") is not None else None,
-            "total": obj.get("total"),
-            "total_pages": obj.get("total_pages")
+            "duplicated_count": obj.get("duplicated_count"),
+            "group_id": obj.get("group_id"),
+            "original_count": obj.get("original_count"),
+            "traces": [DtoTrace.from_dict(_item) for _item in obj["traces"]] if obj.get("traces") is not None else None
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

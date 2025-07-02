@@ -16,6 +16,7 @@ data:
 
     [injection]
     target_label_key = "{{ .Values.configmap.injection.target_label_key }}"
+    benchmark = {{ .Values.configmap.injection.benchmark | toJson }}
     {{- with .Values.configmap.injection.namespace_config }}
     [injection.namespace_config]
     {{- range $key, $value := . }}
