@@ -55,6 +55,7 @@ type QueueItem struct {
 	Type       ActionType
 	Namespace  string
 	Name       string
+	Duration   time.Duration
 	GVR        *schema.GroupVersionResource
 	RetryCount int
 	MaxRetries int
@@ -249,18 +250,12 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 							Type:       CheckRecovery,
 							Namespace:  newU.GetNamespace(),
 							Name:       newU.GetName(),
+							Duration:   time.Duration(duration) * consts.DefaultTimeUnit,
 							GVR:        &gvr,
 							RetryCount: 0,
-							MaxRetries: 3,
+							MaxRetries: 2,
 						}, time.Duration(duration)*time.Minute)
 					}
-				}
-
-				oldAllRecovered := getCRDConditionStatus(oldConditions, "AllRecovered")
-				newAllRecovered := getCRDConditionStatus(newConditions, "AllRecovered")
-				if !oldAllRecovered && newAllRecovered {
-					logEntry.Infof("all targets recoverd in the chaos experiment")
-					c.processCRDSuccess(gvr, newU)
 				}
 			}
 		},
@@ -438,44 +433,43 @@ func (c *Controller) checkRecoveryStatus(item QueueItem) error {
 	}
 
 	conditions, _, _ := unstructured.NestedSlice(obj.Object, "status", "conditions")
-
 	recovered := getCRDConditionStatus(conditions, "AllRecovered")
-	if !recovered {
-		if item.RetryCount < item.MaxRetries {
-			logEntry.Warn("recovery not complete, scheduling retry after 1 minute")
-			c.queue.AddAfter(QueueItem{
-				Type:       CheckRecovery,
-				Namespace:  item.Namespace,
-				Name:       item.Name,
-				GVR:        item.GVR,
-				RetryCount: item.RetryCount + 1,
-				MaxRetries: item.MaxRetries,
-			}, time.Duration(1)*time.Minute)
+	if recovered {
+		logEntry.Infof("all targets recoverd in the chaos experiment after %d attempts", item.RetryCount+1)
+		c.processCRDSuccess(*item.GVR, obj, item.Duration)
+		return nil
+	}
 
-			return nil
-		} else {
-			// If the retry count exceeds the maximum, log it and handle it normally.
-			logEntry.Warningf("recovery not complete after %d retries, giving up", item.MaxRetries)
-			logEntry.Error("failed to recover all targets in the chaos experiment")
-			c.processCRDSuccess(*item.GVR, obj)
-		}
+	if item.RetryCount < item.MaxRetries {
+		logEntry.Warnf("Recovery not complete (attempt %d/%d), scheduling retry after 1 minute",
+			item.RetryCount+1, item.MaxRetries+1)
+		c.queue.AddAfter(QueueItem{
+			Type:       CheckRecovery,
+			Namespace:  item.Namespace,
+			Name:       item.Name,
+			Duration:   item.Duration,
+			GVR:        item.GVR,
+			RetryCount: item.RetryCount + 1,
+			MaxRetries: item.MaxRetries,
+		}, time.Duration(1)*time.Minute)
 	} else {
-		logEntry.Infof("System successfully recovered after %d attempts", item.RetryCount+1)
+		// If the retry count exceeds the maximum, log it and handle it normally.
+		logEntry.Warningf("Recovery not complete after %d retries, giving up but processing as success", item.MaxRetries+1)
+		c.processCRDSuccess(*item.GVR, obj, item.Duration)
 	}
 
 	return nil
 }
 
-func (c *Controller) processCRDSuccess(gvr schema.GroupVersionResource, u *unstructured.Unstructured) {
+func (c *Controller) processCRDSuccess(gvr schema.GroupVersionResource, u *unstructured.Unstructured, duration time.Duration) {
 	newRecords, _, _ := unstructured.NestedSlice(u.Object, "status", "experiment", "containerRecords")
-	timeRanges := getCRDEventTimeRanges(newRecords)
-	if len(timeRanges) == 0 {
+	timeRange := getCRDEventTimeRanges(newRecords, duration)
+	if timeRange == nil {
 		c.handleCRDFailed(gvr, u, "failed to get the start_time and end_time")
 		return
 	}
 
 	pod, _, _ := unstructured.NestedString(u.Object, "spec", "selector", "labelSelectors", "app")
-	timeRange := timeRanges[0]
 	c.callback.HandleCRDSucceeded(u.GetNamespace(), pod, u.GetName(), timeRange.Start, timeRange.End, u.GetAnnotations(), u.GetLabels())
 	if !config.GetBool("debugging.enable") {
 		c.queue.Add(QueueItem{
@@ -522,44 +516,50 @@ func getCRDConditionStatus(conditions []any, conditionType string) bool {
 	return false
 }
 
-func getCRDEventTimeRanges(records []any) []timeRange {
-	var timeRanges []timeRange
-	for _, r := range records {
-		record, ok := r.(map[string]any)
+func getCRDEventTimeRanges(records []any, duration time.Duration) *timeRange {
+	r := records[0]
+	record, ok := r.(map[string]any)
+	if !ok {
+		logrus.Error("invalid record format")
+		return nil
+	}
+
+	var startTimePtr, endTimePtr *time.Time
+	events, _, _ := unstructured.NestedSlice(record, "events")
+	for _, e := range events {
+		event, ok := e.(map[string]any)
 		if !ok {
 			continue
 		}
 
-		var startTime, endTime *time.Time
-		events, _, _ := unstructured.NestedSlice(record, "events")
-		for _, e := range events {
-			event, ok := e.(map[string]any)
-			if !ok {
-				continue
-			}
+		operation, _, _ := unstructured.NestedString(event, "operation")
+		eventType, _, _ := unstructured.NestedString(event, "type")
 
-			operation, _, _ := unstructured.NestedString(event, "operation")
-			eventType, _, _ := unstructured.NestedString(event, "type")
-
-			if eventType == "Succeeded" && operation == "Apply" {
-				startTime, _ = parseEventTime(event)
-			}
-
-			if eventType == "Succeeded" && operation == "Recover" {
-				endTime, _ = parseEventTime(event)
-			}
+		if eventType == "Succeeded" && operation == "Apply" {
+			startTimePtr, _ = parseEventTime(event)
 		}
 
-		if startTime != nil && endTime != nil {
-			timeRanges = append(timeRanges, timeRange{Start: *startTime, End: *endTime})
+		if eventType == "Succeeded" && operation == "Recover" {
+			endTimePtr, _ = parseEventTime(event)
 		}
 	}
 
-	if len(timeRanges) != 0 {
-		return timeRanges
+	if startTimePtr == nil {
+		logrus.Error("start time not found in events")
+		return nil
 	}
 
-	return []timeRange{}
+	startTime := *startTimePtr
+	var endTime time.Time
+
+	if endTimePtr != nil {
+		endTime = *endTimePtr
+	} else {
+		endTime = startTime.Add(duration)
+		logrus.Infof("end time not found, calculated from start time + duration: %v", endTime)
+	}
+
+	return &timeRange{Start: startTime, End: endTime}
 }
 
 func parseEventTime(event map[string]any) (*time.Time, error) {
