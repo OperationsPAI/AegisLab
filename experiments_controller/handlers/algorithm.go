@@ -152,7 +152,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 //	@Accept			multipart/form-data
 //	@Produce		application/json
 //	@Param			file		formData	file	false	"算法文件 (zip/tar.gz)"
-//	@Param			algo	formData	string	false	"算法名称"
+//	@Param			algo		formData	string	false	"算法名称"
 //	@Success		202			{object}	dto.GenericResponse[dto.SubmitResp]
 //	@Failure		400			{object}	dto.GenericResponse[any]
 //	@Failure		500			{object}	dto.GenericResponse[any]

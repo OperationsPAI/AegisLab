@@ -93,6 +93,43 @@ func GetInjectionFieldMapping(c *gin.Context) {
 	})
 }
 
+// GetNsResourceMap
+//
+//	@Summary		获取命名空间资源映射
+//	@Description	获取所有命名空间及其对应的资源信息映射，或查询指定命名空间的资源信息。返回命名空间到资源的映射表，用于故障注入配置和资源管理
+//	@Tags			injection
+//	@Produce		json
+//	@Param			namespace	query		string	false	"命名空间名称，不指定时返回所有命名空间的资源映射"
+//	@Success		200			{object}	dto.GenericResponse[dto.NsResourceResp]	"成功返回命名空间资源映射表"
+//	@Success		200			{object}	dto.GenericResponse[chaos.Resource]		"指定命名空间时返回该命名空间的资源信息"
+//	@Failure		404			{object}	dto.GenericResponse[any]				"指定的命名空间不存在"
+//	@Failure		500			{object}	dto.GenericResponse[any]				"服务器内部错误，无法获取资源映射"
+//	@Router			/api/v1/injections/ns-resources [get]
+func GetNsResourceMap(c *gin.Context) {
+	namespace := c.Query("namespace")
+
+	resourceMap, err := chaos.GetAllResources()
+	if err != nil {
+		logrus.Errorf("failed to get all resources: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get all resources")
+		return
+	}
+
+	if namespace != "" {
+		resource, exists := resourceMap[namespace]
+		if !exists {
+			logrus.Errorf("namespace %s not found in resource map", namespace)
+			dto.ErrorResponse(c, http.StatusNotFound, fmt.Sprintf("Namespace %s not found", namespace))
+			return
+		}
+
+		dto.SuccessResponse(c, resource)
+		return
+	}
+
+	dto.SuccessResponse(c, dto.NsResourceResp(resourceMap))
+}
+
 // ListDisplayConfigs
 //
 //	@Summary		获取已注入故障配置列表
