@@ -9,6 +9,15 @@
       "program": "${workspaceFolder}/experiments_controller/main.go",
       "args": ["both", "-c ./config.dev.toml"],
       "cwd": "${workspaceFolder}/experiments_controller"
+    },
+    {
+      "name": "rcabench-producer",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/experiments_controller/main.go",
+      "args": ["producer", "-c ./config.dev.toml"],
+      "cwd": "${workspaceFolder}/experiments_controller"
     }
   ]
 }

@@ -28,6 +28,8 @@ func (req *InjectionConfReq) Validate() error {
 	return nil
 }
 
+type NsResourceResp map[string]chaos.Resource
+
 type ListDisplayConfigsReq struct {
 	TraceIDs []string `form:"trace_ids" binding:"omitempty"`
 }

@@ -44,8 +44,8 @@ func New() *gin.Engine {
 
 	evaluations := r.Group("/evaluations")
 	{
-		evaluations.GET("groundtruth", handlers.GetGroundtruth)
-		evaluations.GET("raw-data", handlers.GetEvaluationRawData)
+		evaluations.POST("groundtruth", handlers.GetGroundtruth)
+		evaluations.POST("raw-data", handlers.GetEvaluationRawData)
 	}
 
 	injections := r.Group("/injections")
@@ -54,6 +54,7 @@ func New() *gin.Engine {
 		injections.GET("/conf", handlers.GetInjectionConf)
 		injections.GET("/configs", handlers.ListDisplayConfigs)
 		injections.GET("/mapping", handlers.GetInjectionFieldMapping)
+		injections.GET("ns-resources", handlers.GetNsResourceMap)
 		injections.GET("/query", handlers.QueryInjection)
 		injections.POST("", handlers.SubmitFaultInjection)
 

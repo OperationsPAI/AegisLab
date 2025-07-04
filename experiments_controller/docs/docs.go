@@ -424,11 +424,8 @@ const docTemplate = `{
             }
         },
         "/api/v1/evaluations/groundtruth": {
-            "get": {
-                "description": "根据数据集数组获取对应的 ground truth 数据",
-                "consumes": [
-                    "application/json"
-                ],
+            "post": {
+                "description": "根据数据集数组获取对应的 ground truth 数据，用于算法评估的基准数据。支持批量查询多个数据集的真实标签信息",
                 "produces": [
                     "application/json"
                 ],
@@ -438,26 +435,24 @@ const docTemplate = `{
                 "summary": "获取数据集的 ground truth",
                 "parameters": [
                     {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "数据集数组",
-                        "name": "datasets",
-                        "in": "query",
-                        "required": true
+                        "description": "Ground truth查询请求，包含数据集列表",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.GroundTruthReq"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "成功响应",
+                        "description": "成功返回数据集的ground truth信息",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_GroundTruthResp"
                         }
                     },
                     "400": {
-                        "description": "参数校验失败",
+                        "description": "请求参数错误，如JSON格式不正确、数据集数组为空",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -472,11 +467,8 @@ const docTemplate = `{
             }
         },
         "/api/v1/evaluations/raw-data": {
-            "get": {
-                "description": "根据算法和数据集的笛卡尔积获取对应的原始评估数据，包括粒度记录和真实值信息",
-                "consumes": [
-                    "application/json"
-                ],
+            "post": {
+                "description": "根据算法和数据集的笛卡尔积获取对应的原始评估数据，包括粒度记录和真实值信息。支持批量查询多个算法在多个数据集上的执行结果",
                 "produces": [
                     "application/json"
                 ],
@@ -486,37 +478,24 @@ const docTemplate = `{
                 "summary": "获取原始评估数据",
                 "parameters": [
                     {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "算法数组",
-                        "name": "algorithms",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "数据集数组",
-                        "name": "datasets",
-                        "in": "query",
-                        "required": true
+                        "description": "原始数据查询请求，包含算法列表和数据集列表",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.RawDataReq"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "成功响应",
+                        "description": "成功返回原始评估数据列表",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-array_dto_RawDataItem"
                         }
                     },
                     "400": {
-                        "description": "参数校验失败",
+                        "description": "请求参数错误，如JSON格式不正确、算法或数据集数组为空",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -955,6 +934,46 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/injections/ns-resources": {
+            "get": {
+                "description": "获取所有命名空间及其对应的资源信息映射，或查询指定命名空间的资源信息。返回命名空间到资源的映射表，用于故障注入配置和资源管理",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "injection"
+                ],
+                "summary": "获取命名空间资源映射",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "命名空间名称，不指定时返回所有命名空间的资源映射",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "指定命名空间时返回该命名空间的资源信息",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-handler_Resource"
+                        }
+                    },
+                    "404": {
+                        "description": "指定的命名空间不存在",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误，无法获取资源映射",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -1918,6 +1937,31 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GenericResponse-dto_NsResourceResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.NsResourceResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GenericResponse-dto_PaginationResp-dto_DatasetItem": {
             "type": "object",
             "properties": {
@@ -2118,6 +2162,31 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GenericResponse-handler_Resource": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/handler.Resource"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GetCompletedMapResp": {
             "type": "object",
             "properties": {
@@ -2151,6 +2220,20 @@ const docTemplate = `{
                 },
                 "result": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.GroundTruthReq": {
+            "type": "object",
+            "required": [
+                "datasets"
+            ],
+            "properties": {
+                "datasets": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -2191,6 +2274,12 @@ const docTemplate = `{
                 "value": {
                     "type": "string"
                 }
+            }
+        },
+        "dto.NsResourceResp": {
+            "type": "object",
+            "additionalProperties": {
+                "$ref": "#/definitions/handler.Resource"
             }
         },
         "dto.PaginationResp-dto_DatasetItem": {
@@ -2290,6 +2379,27 @@ const docTemplate = `{
                 },
                 "groundtruth": {
                     "$ref": "#/definitions/handler.Groundtruth"
+                }
+            }
+        },
+        "dto.RawDataReq": {
+            "type": "object",
+            "required": [
+                "algorithms",
+                "datasets"
+            ],
+            "properties": {
+                "algorithms": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "datasets": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -2564,6 +2674,64 @@ const docTemplate = `{
                 },
                 "value": {
                     "type": "integer"
+                }
+            }
+        },
+        "handler.Pair": {
+            "type": "object",
+            "properties": {
+                "source": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.Resource": {
+            "type": "object",
+            "properties": {
+                "app_labels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "container_app_names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "database_app_names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "dns_app_names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "http_app_names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "jvm_app_names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "network_pairs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.Pair"
+                    }
                 }
             }
         },

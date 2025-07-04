@@ -11,6 +11,7 @@ Method | HTTP request | Description
 [**api_v1_injections_configs_get**](InjectionApi.md#api_v1_injections_configs_get) | **GET** /api/v1/injections/configs | 获取已注入故障配置列表
 [**api_v1_injections_get**](InjectionApi.md#api_v1_injections_get) | **GET** /api/v1/injections | 获取故障注入记录列表
 [**api_v1_injections_mapping_get**](InjectionApi.md#api_v1_injections_mapping_get) | **GET** /api/v1/injections/mapping | 获取字段映射关系
+[**api_v1_injections_ns_resources_get**](InjectionApi.md#api_v1_injections_ns_resources_get) | **GET** /api/v1/injections/ns-resources | 获取命名空间资源映射
 [**api_v1_injections_post**](InjectionApi.md#api_v1_injections_post) | **POST** /api/v1/injections | 提交故障注入任务
 [**api_v1_injections_query_get**](InjectionApi.md#api_v1_injections_query_get) | **GET** /api/v1/injections/query | 查询单个故障注入记录
 [**api_v1_injections_task_id_cancel_put**](InjectionApi.md#api_v1_injections_task_id_cancel_put) | **PUT** /api/v1/injections/{task_id}/cancel | 取消故障注入任务
@@ -530,6 +531,76 @@ No authorization required
 |-------------|-------------|------------------|
 **200** | 成功返回字段映射关系 |  -  |
 **500** | 服务器内部错误 |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **api_v1_injections_ns_resources_get**
+> DtoGenericResponseHandlerResource api_v1_injections_ns_resources_get(namespace=namespace)
+
+获取命名空间资源映射
+
+获取所有命名空间及其对应的资源信息映射，或查询指定命名空间的资源信息。返回命名空间到资源的映射表，用于故障注入配置和资源管理
+
+### Example
+
+
+```python
+import rcabench.openapi
+from rcabench.openapi.models.dto_generic_response_handler_resource import DtoGenericResponseHandlerResource
+from rcabench.openapi.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = rcabench.openapi.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+
+# Enter a context with an instance of the API client
+with rcabench.openapi.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = rcabench.openapi.InjectionApi(api_client)
+    namespace = 'namespace_example' # str | 命名空间名称，不指定时返回所有命名空间的资源映射 (optional)
+
+    try:
+        # 获取命名空间资源映射
+        api_response = api_instance.api_v1_injections_ns_resources_get(namespace=namespace)
+        print("The response of InjectionApi->api_v1_injections_ns_resources_get:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling InjectionApi->api_v1_injections_ns_resources_get: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **namespace** | **str**| 命名空间名称，不指定时返回所有命名空间的资源映射 | [optional] 
+
+### Return type
+
+[**DtoGenericResponseHandlerResource**](DtoGenericResponseHandlerResource.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | 指定命名空间时返回该命名空间的资源信息 |  -  |
+**404** | 指定的命名空间不存在 |  -  |
+**500** | 服务器内部错误，无法获取资源映射 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
