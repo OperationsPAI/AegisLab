@@ -179,7 +179,25 @@ type SubmitInjectionResp struct {
 // analysis
 
 type FaultInjectionNoIssuesReq struct {
+	Env   string `form:"env" binding:"omitempty"`
+	Batch string `form:"batch" binding:"omitempty"`
+
 	TimeRangeQuery
+}
+
+func (req *FaultInjectionNoIssuesReq) Validate() error {
+	return req.TimeRangeQuery.Validate()
+}
+
+type FaultInjectionWithIssuesReq struct {
+	Env   string `form:"env" binding:"omitempty"`
+	Batch string `form:"batch" binding:"omitempty"`
+
+	TimeRangeQuery
+}
+
+func (req *FaultInjectionWithIssuesReq) Validate() error {
+	return req.TimeRangeQuery.Validate()
 }
 
 // FaultInjectionNoIssuesResp 没有问题的故障注入响应

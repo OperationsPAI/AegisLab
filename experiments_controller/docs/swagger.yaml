@@ -1401,6 +1401,14 @@ paths:
     get:
       description: 根据时间范围查询所有没有问题的故障注入记录列表，返回包含配置信息的详细记录
       parameters:
+      - description: 环境标签过滤
+        in: query
+        name: env
+        type: string
+      - description: 批次标签过滤
+        in: query
+        name: batch
+        type: string
       - description: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         in: query
         name: lookback
@@ -1473,6 +1481,14 @@ paths:
     get:
       description: 根据时间范围查询所有有问题的故障注入记录列表
       parameters:
+      - description: 环境标签过滤
+        in: query
+        name: env
+        type: string
+      - description: 批次标签过滤
+        in: query
+        name: batch
+        type: string
       - description: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         in: query
         name: lookback

@@ -18,7 +18,7 @@ Method | HTTP request | Description
 
 
 # **api_v1_injections_analysis_no_issues_get**
-> DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp api_v1_injections_analysis_no_issues_get(lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
+> DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp api_v1_injections_analysis_no_issues_get(env=env, batch=batch, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
 
 查询没有问题的故障注入记录
 
@@ -44,13 +44,15 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.InjectionApi(api_client)
+    env = 'env_example' # str | 环境标签过滤 (optional)
+    batch = 'batch_example' # str | 批次标签过滤 (optional)
     lookback = 'lookback_example' # str | 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置 (optional)
     custom_start_time = '2013-10-20T19:20:30+01:00' # datetime | 自定义开始时间，RFC3339格式，当lookback=custom时必需 (optional)
     custom_end_time = '2013-10-20T19:20:30+01:00' # datetime | 自定义结束时间，RFC3339格式，当lookback=custom时必需 (optional)
 
     try:
         # 查询没有问题的故障注入记录
-        api_response = api_instance.api_v1_injections_analysis_no_issues_get(lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
+        api_response = api_instance.api_v1_injections_analysis_no_issues_get(env=env, batch=batch, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
         print("The response of InjectionApi->api_v1_injections_analysis_no_issues_get:\n")
         pprint(api_response)
     except Exception as e:
@@ -64,6 +66,8 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
+ **env** | **str**| 环境标签过滤 | [optional] 
+ **batch** | **str**| 批次标签过滤 | [optional] 
  **lookback** | **str**| 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置 | [optional] 
  **custom_start_time** | **datetime**| 自定义开始时间，RFC3339格式，当lookback&#x3D;custom时必需 | [optional] 
  **custom_end_time** | **datetime**| 自定义结束时间，RFC3339格式，当lookback&#x3D;custom时必需 | [optional] 
@@ -166,7 +170,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_injections_analysis_with_issues_get**
-> DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp api_v1_injections_analysis_with_issues_get(lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
+> DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp api_v1_injections_analysis_with_issues_get(env=env, batch=batch, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
 
 查询有问题的故障注入记录
 
@@ -192,13 +196,15 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.InjectionApi(api_client)
+    env = 'env_example' # str | 环境标签过滤 (optional)
+    batch = 'batch_example' # str | 批次标签过滤 (optional)
     lookback = 'lookback_example' # str | 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置 (optional)
     custom_start_time = '2013-10-20T19:20:30+01:00' # datetime | 自定义开始时间，RFC3339格式，当lookback=custom时必需 (optional)
     custom_end_time = '2013-10-20T19:20:30+01:00' # datetime | 自定义结束时间，RFC3339格式，当lookback=custom时必需 (optional)
 
     try:
         # 查询有问题的故障注入记录
-        api_response = api_instance.api_v1_injections_analysis_with_issues_get(lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
+        api_response = api_instance.api_v1_injections_analysis_with_issues_get(env=env, batch=batch, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
         print("The response of InjectionApi->api_v1_injections_analysis_with_issues_get:\n")
         pprint(api_response)
     except Exception as e:
@@ -212,6 +218,8 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
+ **env** | **str**| 环境标签过滤 | [optional] 
+ **batch** | **str**| 批次标签过滤 | [optional] 
  **lookback** | **str**| 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置 | [optional] 
  **custom_start_time** | **datetime**| 自定义开始时间，RFC3339格式，当lookback&#x3D;custom时必需 | [optional] 
  **custom_end_time** | **datetime**| 自定义结束时间，RFC3339格式，当lookback&#x3D;custom时必需 | [optional] 

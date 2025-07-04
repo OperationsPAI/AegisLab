@@ -670,6 +670,18 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
+                        "description": "环境标签过滤",
+                        "name": "env",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "批次标签过滤",
+                        "name": "batch",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置",
                         "name": "lookback",
                         "in": "query"
@@ -776,6 +788,18 @@ const docTemplate = `{
                 ],
                 "summary": "查询有问题的故障注入记录",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "环境标签过滤",
+                        "name": "env",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "批次标签过滤",
+                        "name": "batch",
+                        "in": "query"
+                    },
                     {
                         "type": "string",
                         "description": "时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置",

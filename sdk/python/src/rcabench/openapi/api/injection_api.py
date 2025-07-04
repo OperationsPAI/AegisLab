@@ -55,6 +55,8 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_no_issues_get(
         self,
+        env: Annotated[Optional[StrictStr], Field(description="环境标签过滤")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="批次标签过滤")] = None,
         lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
         custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
         custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
@@ -75,6 +77,10 @@ class InjectionApi:
 
         根据时间范围查询所有没有问题的故障注入记录列表，返回包含配置信息的详细记录
 
+        :param env: 环境标签过滤
+        :type env: str
+        :param batch: 批次标签过滤
+        :type batch: str
         :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         :type lookback: str
         :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
@@ -104,6 +110,8 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_analysis_no_issues_get_serialize(
+            env=env,
+            batch=batch,
             lookback=lookback,
             custom_start_time=custom_start_time,
             custom_end_time=custom_end_time,
@@ -132,6 +140,8 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_no_issues_get_with_http_info(
         self,
+        env: Annotated[Optional[StrictStr], Field(description="环境标签过滤")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="批次标签过滤")] = None,
         lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
         custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
         custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
@@ -152,6 +162,10 @@ class InjectionApi:
 
         根据时间范围查询所有没有问题的故障注入记录列表，返回包含配置信息的详细记录
 
+        :param env: 环境标签过滤
+        :type env: str
+        :param batch: 批次标签过滤
+        :type batch: str
         :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         :type lookback: str
         :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
@@ -181,6 +195,8 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_analysis_no_issues_get_serialize(
+            env=env,
+            batch=batch,
             lookback=lookback,
             custom_start_time=custom_start_time,
             custom_end_time=custom_end_time,
@@ -209,6 +225,8 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_no_issues_get_without_preload_content(
         self,
+        env: Annotated[Optional[StrictStr], Field(description="环境标签过滤")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="批次标签过滤")] = None,
         lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
         custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
         custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
@@ -229,6 +247,10 @@ class InjectionApi:
 
         根据时间范围查询所有没有问题的故障注入记录列表，返回包含配置信息的详细记录
 
+        :param env: 环境标签过滤
+        :type env: str
+        :param batch: 批次标签过滤
+        :type batch: str
         :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         :type lookback: str
         :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
@@ -258,6 +280,8 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_analysis_no_issues_get_serialize(
+            env=env,
+            batch=batch,
             lookback=lookback,
             custom_start_time=custom_start_time,
             custom_end_time=custom_end_time,
@@ -281,6 +305,8 @@ class InjectionApi:
 
     def _api_v1_injections_analysis_no_issues_get_serialize(
         self,
+        env,
+        batch,
         lookback,
         custom_start_time,
         custom_end_time,
@@ -306,6 +332,14 @@ class InjectionApi:
 
         # process the path parameters
         # process the query parameters
+        if env is not None:
+            
+            _query_params.append(('env', env))
+            
+        if batch is not None:
+            
+            _query_params.append(('batch', batch))
+            
         if lookback is not None:
             
             _query_params.append(('lookback', lookback))
@@ -695,6 +729,8 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_with_issues_get(
         self,
+        env: Annotated[Optional[StrictStr], Field(description="环境标签过滤")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="批次标签过滤")] = None,
         lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
         custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
         custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
@@ -715,6 +751,10 @@ class InjectionApi:
 
         根据时间范围查询所有有问题的故障注入记录列表
 
+        :param env: 环境标签过滤
+        :type env: str
+        :param batch: 批次标签过滤
+        :type batch: str
         :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         :type lookback: str
         :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
@@ -744,6 +784,8 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_analysis_with_issues_get_serialize(
+            env=env,
+            batch=batch,
             lookback=lookback,
             custom_start_time=custom_start_time,
             custom_end_time=custom_end_time,
@@ -772,6 +814,8 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_with_issues_get_with_http_info(
         self,
+        env: Annotated[Optional[StrictStr], Field(description="环境标签过滤")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="批次标签过滤")] = None,
         lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
         custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
         custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
@@ -792,6 +836,10 @@ class InjectionApi:
 
         根据时间范围查询所有有问题的故障注入记录列表
 
+        :param env: 环境标签过滤
+        :type env: str
+        :param batch: 批次标签过滤
+        :type batch: str
         :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         :type lookback: str
         :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
@@ -821,6 +869,8 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_analysis_with_issues_get_serialize(
+            env=env,
+            batch=batch,
             lookback=lookback,
             custom_start_time=custom_start_time,
             custom_end_time=custom_end_time,
@@ -849,6 +899,8 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_with_issues_get_without_preload_content(
         self,
+        env: Annotated[Optional[StrictStr], Field(description="环境标签过滤")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="批次标签过滤")] = None,
         lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
         custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
         custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
@@ -869,6 +921,10 @@ class InjectionApi:
 
         根据时间范围查询所有有问题的故障注入记录列表
 
+        :param env: 环境标签过滤
+        :type env: str
+        :param batch: 批次标签过滤
+        :type batch: str
         :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         :type lookback: str
         :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
@@ -898,6 +954,8 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_analysis_with_issues_get_serialize(
+            env=env,
+            batch=batch,
             lookback=lookback,
             custom_start_time=custom_start_time,
             custom_end_time=custom_end_time,
@@ -921,6 +979,8 @@ class InjectionApi:
 
     def _api_v1_injections_analysis_with_issues_get_serialize(
         self,
+        env,
+        batch,
         lookback,
         custom_start_time,
         custom_end_time,
@@ -946,6 +1006,14 @@ class InjectionApi:
 
         # process the path parameters
         # process the query parameters
+        if env is not None:
+            
+            _query_params.append(('env', env))
+            
+        if batch is not None:
+            
+            _query_params.append(('batch', batch))
+            
         if lookback is not None:
             
             _query_params.append(('lookback', lookback))

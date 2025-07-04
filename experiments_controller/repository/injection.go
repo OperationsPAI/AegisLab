@@ -387,31 +387,72 @@ func updateRecord(name string, updates map[string]any) error {
 	return nil
 }
 
-func GetAllFaultInjectionNoIssues(opts dto.TimeFilterOptions) (int64, []database.FaultInjectionNoIssues, error) {
-	startTime, endTime := opts.GetTimeRange()
+func GetAllFaultInjectionNoIssues(params *dto.FaultInjectionNoIssuesReq) (int64, []database.FaultInjectionNoIssues, error) {
+	opts, err := params.TimeRangeQuery.Convert()
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to convert time range query: %v", err)
+	}
+
+	builder := func(db *gorm.DB) *gorm.DB {
+		query := db
+
+		if params.Env != "" {
+			query = query.Where("labels ->> 'env' = ?", params.Env)
+		}
+
+		if params.Batch != "" {
+			query = query.Where("labels ->> 'batch' = ?", params.Batch)
+		}
+
+		if opts != nil {
+			startTime, endTime := opts.GetTimeRange()
+			if !startTime.IsZero() && !endTime.IsZero() {
+				query = query.Where("created_at >= ? AND created_at <= ?", startTime, endTime)
+			}
+		}
+
+		return query
+	}
+
 	genericQueryParams := &genericQueryParams{
-		builder: func(d *gorm.DB) *gorm.DB {
-			return d.Where("created_at >= ? AND created_at <= ?", startTime, endTime)
-		},
+		builder:       builder,
 		sortField:     "dataset_id desc",
 		selectColumns: []string{},
 	}
 	return genericQueryWithBuilder[database.FaultInjectionNoIssues](genericQueryParams)
 }
 
-func GetAllFaultInjectionWithIssues(opts dto.TimeFilterOptions) ([]database.FaultInjectionWithIssues, error) {
-	startTime, endTime := opts.GetTimeRange()
+func GetAllFaultInjectionWithIssues(params *dto.FaultInjectionWithIssuesReq) ([]database.FaultInjectionWithIssues, error) {
+	opts, err := params.TimeRangeQuery.Convert()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert time range query: %v", err)
+	}
+
 	subQuery := database.DB.
 		Model(&database.FaultInjectionWithIssues{}).
-		Select("dataset_id, MAX(created_at) as max_created_at").
-		Where("created_at >= ? AND created_at <= ?", startTime, endTime).
-		Group("dataset_id")
+		Select("dataset_id, MAX(created_at) as max_created_at")
+
+	if params.Env != "" {
+		subQuery = subQuery.Where("labels ->> 'env' = ?", params.Env)
+	}
+
+	if params.Batch != "" {
+		subQuery = subQuery.Where("labels ->> 'batch' = ?", params.Batch)
+	}
+
+	if opts != nil {
+		startTime, endTime := opts.GetTimeRange()
+		if !startTime.IsZero() && !endTime.IsZero() {
+			subQuery = subQuery.Where("created_at >= ? AND created_at <= ?", startTime, endTime)
+		}
+	}
+
+	subQuery = subQuery.Group("dataset_id")
 
 	var results []database.FaultInjectionWithIssues
 	if err := database.DB.
 		Model(&database.FaultInjectionWithIssues{}).
-		Joins("JOIN (?) AS latest ON fault_injection_with_issues.dataset_id = latest.dataset_id AND fault_injection_with_issues.created_at = latest.max_created_at", subQuery).
-		Find(&results).Error; err != nil {
+		Joins("JOIN (?) AS latest ON fault_injection_with_issues.dataset_id = latest.dataset_id AND fault_injection_with_issues.created_at = latest.max_created_at", subQuery).Find(&results).Error; err != nil {
 		return nil, err
 	}
 
