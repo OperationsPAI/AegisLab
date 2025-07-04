@@ -209,7 +209,7 @@ func InitDB() {
 	DB.Migrator().DropView("fault_injection_with_issues")
 
 	noIssuesQuery := DB.Table("fault_injection_schedules fis").
-		Select("DISTINCT fis.id AS dataset_id, fis.fault_type, fis.display_config, fis.engine_config, fis.pre_duration, fis.injection_name, fis.created_at").
+		Select("DISTINCT fis.id AS dataset_id, fis.fault_type, fis.display_config, fis.engine_config, fis.pre_duration, fis.labels, fis.injection_name, fis.created_at").
 		Joins(`JOIN (
         SELECT id, dataset, algorithm,
                ROW_NUMBER() OVER (PARTITION BY dataset, algorithm ORDER BY created_at DESC, id DESC) as rn
@@ -222,7 +222,7 @@ func InitDB() {
 	}
 
 	withIssuesQuery := DB.Table("fault_injection_schedules fis").
-		Select("DISTINCT fis.id AS dataset_id, fis.fault_type, fis.display_config, fis.engine_config, fis.pre_duration, fis.injection_name, fis.created_at, d.issues").
+		Select("DISTINCT fis.id AS dataset_id, fis.fault_type, fis.display_config, fis.engine_config, fis.pre_duration, fis.labels, fis.injection_name, fis.created_at, d.issues").
 		Joins(`JOIN (
         SELECT id, dataset, algorithm,
                ROW_NUMBER() OVER (PARTITION BY dataset, algorithm ORDER BY created_at DESC, id DESC) as rn

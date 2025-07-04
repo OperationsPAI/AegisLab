@@ -4,7 +4,7 @@ go 1.23.2
 
 require (
 	github.com/BurntSushi/toml v1.4.0
-	github.com/LGU-SE-Internal/chaos-experiment v0.0.0-20250703164100-9f4e99bf1840
+	github.com/LGU-SE-Internal/chaos-experiment v0.0.0-20250704012906-ae4959ba67b6
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
 	github.com/docker/cli v27.4.1+incompatible
 	github.com/gin-contrib/cors v1.7.3

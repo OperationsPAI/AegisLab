@@ -492,6 +492,8 @@ func createInjectionTask(req *dto.SubmitInjectionReq, config *dto.InjectionConfi
 //	@Description	根据时间范围查询所有没有问题的故障注入记录列表，返回包含配置信息的详细记录
 //	@Tags			injection
 //	@Produce		json
+//	@Param			env					query	string	false	"环境标签过滤"
+//	@Param			batch				query	string	false	"批次标签过滤"
 //	@Param			lookback			query	string	false	"时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置"
 //	@Param			custom_start_time	query	string	false	"自定义开始时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
 //	@Param			custom_end_time		query	string	false	"自定义结束时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
@@ -500,7 +502,7 @@ func createInjectionTask(req *dto.SubmitInjectionReq, config *dto.InjectionConfi
 //	@Failure		500					{object}	dto.GenericResponse[any]	"服务器内部错"
 //	@Router			/api/v1/injections/analysis/no-issues [get]
 func GetFaultInjectionNoIssues(c *gin.Context) {
-	var req dto.TimeRangeQuery
+	var req dto.FaultInjectionNoIssuesReq
 	if err := c.BindQuery(&req); err != nil {
 		logrus.Errorf("failed to bind query parameters: %v", err)
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
@@ -513,14 +515,7 @@ func GetFaultInjectionNoIssues(c *gin.Context) {
 		return
 	}
 
-	opts, err := req.Convert()
-	if err != nil {
-		logrus.Errorf("failed to convert request: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to convert request")
-		return
-	}
-
-	_, records, err := repository.GetAllFaultInjectionNoIssues(*opts)
+	_, records, err := repository.GetAllFaultInjectionNoIssues(&req)
 	if err != nil {
 		logrus.Errorf("failed to get injection record with no issues: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get injection records")
@@ -555,6 +550,8 @@ func GetFaultInjectionNoIssues(c *gin.Context) {
 //	@Description	根据时间范围查询所有有问题的故障注入记录列表
 //	@Tags			injection
 //	@Produce		json
+//	@Param			env					query	string	false	"环境标签过滤"
+//	@Param			batch				query	string	false	"批次标签过滤"
 //	@Param			lookback			query	string	false	"时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置"
 //	@Param			custom_start_time	query	string	false	"自定义开始时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
 //	@Param			custom_end_time		query	string	false	"自定义结束时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
@@ -563,7 +560,7 @@ func GetFaultInjectionNoIssues(c *gin.Context) {
 //	@Failure		500					{object}	dto.GenericResponse[any]	"服务器内部错误"
 //	@Router			/api/v1/injections/analysis/with-issues [get]
 func GetFaultInjectionWithIssues(c *gin.Context) {
-	var req dto.TimeRangeQuery
+	var req dto.FaultInjectionWithIssuesReq
 	if err := c.BindQuery(&req); err != nil {
 		logrus.Errorf("failed to bind query parameters: %v", err)
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
@@ -576,14 +573,7 @@ func GetFaultInjectionWithIssues(c *gin.Context) {
 		return
 	}
 
-	opts, err := req.Convert()
-	if err != nil {
-		logrus.Errorf("failed to convert request: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to convert request")
-		return
-	}
-
-	records, err := repository.GetAllFaultInjectionWithIssues(*opts)
+	records, err := repository.GetAllFaultInjectionWithIssues(&req)
 	if err != nil {
 		logrus.Errorf("failed to get fault injection with issues: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get fault injection records")
