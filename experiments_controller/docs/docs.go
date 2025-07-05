@@ -939,6 +939,26 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/injections/key-resource": {
+            "get": {
+                "description": "获取系统中定义的键值资源映射表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "injection"
+                ],
+                "summary": "获取键值资源映射",
+                "responses": {
+                    "200": {
+                        "description": "成功返回键值资源映射表",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_KeyResourceResp"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/injections/mapping": {
             "get": {
                 "description": "获取状态和故障类型的字符串与数字映射关系，用于前端显示和API参数验证",
@@ -987,7 +1007,7 @@ const docTemplate = `{
                     "200": {
                         "description": "指定命名空间时返回该命名空间的资源信息",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-handler_Resource"
+                            "$ref": "#/definitions/dto.GenericResponse-handler_Resources"
                         }
                     },
                     "404": {
@@ -1961,7 +1981,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_NsResourceResp": {
+        "dto.GenericResponse-dto_KeyResourceResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -1972,7 +1992,32 @@ const docTemplate = `{
                     "description": "泛型类型的数据",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.NsResourceResp"
+                            "$ref": "#/definitions/dto.KeyResourceResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_NsResourcesResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.NsResourcesResp"
                         }
                     ]
                 },
@@ -2186,7 +2231,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-handler_Resource": {
+        "dto.GenericResponse-handler_Resources": {
             "type": "object",
             "properties": {
                 "code": {
@@ -2197,7 +2242,7 @@ const docTemplate = `{
                     "description": "泛型类型的数据",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/handler.Resource"
+                            "$ref": "#/definitions/handler.Resources"
                         }
                     ]
                 },
@@ -2281,6 +2326,12 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.KeyResourceResp": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
         "dto.LabelItem": {
             "type": "object",
             "required": [
@@ -2300,10 +2351,10 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.NsResourceResp": {
+        "dto.NsResourcesResp": {
             "type": "object",
             "additionalProperties": {
-                "$ref": "#/definitions/handler.Resource"
+                "$ref": "#/definitions/handler.Resources"
             }
         },
         "dto.PaginationResp-dto_DatasetItem": {
@@ -2712,7 +2763,7 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.Resource": {
+        "handler.Resources": {
             "type": "object",
             "properties": {
                 "app_labels": {
@@ -2721,7 +2772,7 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
-                "container_app_names": {
+                "container_names": {
                     "type": "array",
                     "items": {
                         "type": "string"

@@ -2,7 +2,6 @@ package dto
 
 import (
 	"fmt"
-	"time"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"github.com/LGU-SE-Internal/rcabench/config"
@@ -27,8 +26,6 @@ func (req *InjectionConfReq) Validate() error {
 	req.setDefaults()
 	return nil
 }
-
-type NsResourceResp map[string]chaos.Resource
 
 type ListDisplayConfigsReq struct {
 	TraceIDs []string `form:"trace_ids" binding:"omitempty"`
@@ -154,28 +151,6 @@ func (req *SubmitInjectionReq) Validate() error {
 	return nil
 }
 
-type InjectionConfig struct {
-	Index         int
-	FaultType     int
-	FaultDuration int
-	DisplayData   string
-	Conf          *chaos.InjectionConf
-	Node          *chaos.Node
-	ExecuteTime   time.Time
-	Labels        []LabelItem
-}
-
-type InjectionFieldMappingResp struct {
-	StatusMap    map[int]string             `json:"status" swaggertype:"object"`
-	FaultTypeMap map[chaos.ChaosType]string `json:"fault_type" swaggertype:"object"`
-}
-
-type SubmitInjectionResp struct {
-	SubmitResp
-	DuplicatedCount int `json:"duplicated_count"`
-	OriginalCount   int `json:"original_count"`
-}
-
 // analysis
 
 type FaultInjectionNoIssuesReq struct {
@@ -198,6 +173,21 @@ type FaultInjectionWithIssuesReq struct {
 
 func (req *FaultInjectionWithIssuesReq) Validate() error {
 	return req.TimeRangeQuery.Validate()
+}
+
+type KeyResourceResp map[string]string
+
+type NsResourcesResp map[string]chaos.Resources
+
+type InjectionFieldMappingResp struct {
+	StatusMap    map[int]string             `json:"status" swaggertype:"object"`
+	FaultTypeMap map[chaos.ChaosType]string `json:"fault_type" swaggertype:"object"`
+}
+
+type SubmitInjectionResp struct {
+	SubmitResp
+	DuplicatedCount int `json:"duplicated_count"`
+	OriginalCount   int `json:"original_count"`
 }
 
 // FaultInjectionNoIssuesResp 没有问题的故障注入响应

@@ -93,22 +93,34 @@ func GetInjectionFieldMapping(c *gin.Context) {
 	})
 }
 
-// GetNsResourceMap
+// GetKeyResourceMap
+//
+//	@Summary		获取键值资源映射
+//	@Description	获取系统中定义的键值资源映射表
+//	@Tags			injection
+//	@Produce		json
+//	@Success		200	{object}	dto.GenericResponse[dto.KeyResourceResp]	"成功返回键值资源映射表"
+//	@Router			/api/v1/injections/key-resource [get]
+func GetKeyResourceMap(c *gin.Context) {
+	dto.SuccessResponse(c, dto.KeyResourceResp(chaos.KeyResourceMap))
+}
+
+// GetNsResourcesMap
 //
 //	@Summary		获取命名空间资源映射
 //	@Description	获取所有命名空间及其对应的资源信息映射，或查询指定命名空间的资源信息。返回命名空间到资源的映射表，用于故障注入配置和资源管理
 //	@Tags			injection
 //	@Produce		json
 //	@Param			namespace	query		string	false	"命名空间名称，不指定时返回所有命名空间的资源映射"
-//	@Success		200			{object}	dto.GenericResponse[dto.NsResourceResp]	"成功返回命名空间资源映射表"
-//	@Success		200			{object}	dto.GenericResponse[chaos.Resource]		"指定命名空间时返回该命名空间的资源信息"
-//	@Failure		404			{object}	dto.GenericResponse[any]				"指定的命名空间不存在"
-//	@Failure		500			{object}	dto.GenericResponse[any]				"服务器内部错误，无法获取资源映射"
+//	@Success		200			{object}	dto.GenericResponse[dto.NsResourcesResp]	"成功返回命名空间资源映射表"
+//	@Success		200			{object}	dto.GenericResponse[chaos.Resources]		"指定命名空间时返回该命名空间的资源信息"
+//	@Failure		404			{object}	dto.GenericResponse[any]					"指定的命名空间不存在"
+//	@Failure		500			{object}	dto.GenericResponse[any]					"服务器内部错误，无法获取资源映射"
 //	@Router			/api/v1/injections/ns-resources [get]
 func GetNsResourceMap(c *gin.Context) {
 	namespace := c.Query("namespace")
 
-	resourceMap, err := chaos.GetAllResources()
+	resourcesMap, err := chaos.GetNsResources()
 	if err != nil {
 		logrus.Errorf("failed to get all resources: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get all resources")
@@ -116,18 +128,18 @@ func GetNsResourceMap(c *gin.Context) {
 	}
 
 	if namespace != "" {
-		resource, exists := resourceMap[namespace]
+		resources, exists := resourcesMap[namespace]
 		if !exists {
-			logrus.Errorf("namespace %s not found in resource map", namespace)
+			logrus.Errorf("namespace %s not found in resources map", namespace)
 			dto.ErrorResponse(c, http.StatusNotFound, fmt.Sprintf("Namespace %s not found", namespace))
 			return
 		}
 
-		dto.SuccessResponse(c, resource)
+		dto.SuccessResponse(c, resources)
 		return
 	}
 
-	dto.SuccessResponse(c, dto.NsResourceResp(resourceMap))
+	dto.SuccessResponse(c, dto.NsResourcesResp(resourcesMap))
 }
 
 // ListDisplayConfigs
@@ -249,6 +261,17 @@ func QueryInjection(c *gin.Context) {
 	}
 
 	dto.SuccessResponse(c, item)
+}
+
+type InjectionConfig struct {
+	Index         int
+	FaultType     int
+	FaultDuration int
+	DisplayData   string
+	Conf          *chaos.InjectionConf
+	Node          *chaos.Node
+	ExecuteTime   time.Time
+	Labels        []dto.LabelItem
 }
 
 // SubmitFaultInjection
@@ -375,8 +398,8 @@ func validateAlgorithms(algorithms []string) error {
 	return nil
 }
 
-func parseInjectionSpecs(r *dto.SubmitInjectionReq) ([]*dto.InjectionConfig, error) {
-	configs := make([]*dto.InjectionConfig, 0, len(r.Specs))
+func parseInjectionSpecs(r *dto.SubmitInjectionReq) ([]InjectionConfig, error) {
+	configs := make([]InjectionConfig, 0, len(r.Specs))
 	displayDatas := make([]string, 0, len(r.Specs))
 
 	for idx, spec := range r.Specs {
@@ -402,7 +425,7 @@ func parseInjectionSpecs(r *dto.SubmitInjectionReq) ([]*dto.InjectionConfig, err
 			return nil, fmt.Errorf("failed to marshal injection spec to display config: %v", err)
 		}
 
-		configs = append(configs, &dto.InjectionConfig{
+		configs = append(configs, InjectionConfig{
 			Index:         idx,
 			FaultType:     spec.Value,
 			FaultDuration: faultDuration,
@@ -419,7 +442,7 @@ func parseInjectionSpecs(r *dto.SubmitInjectionReq) ([]*dto.InjectionConfig, err
 		return nil, err
 	}
 
-	newConfigs := make([]*dto.InjectionConfig, 0)
+	newConfigs := make([]InjectionConfig, 0)
 	for _, idx := range missingIndices {
 		conf := configs[idx]
 		conf.ExecuteTime = time.Now().Add(time.Second * time.Duration(rand.Int()%120))
@@ -456,7 +479,7 @@ func findMissingIndices(confs []string, batch_size int) ([]int, error) {
 	return missingIndices, nil
 }
 
-func createInjectionTask(req *dto.SubmitInjectionReq, config *dto.InjectionConfig, groupID string, spanCtx context.Context) *dto.UnifiedTask {
+func createInjectionTask(req *dto.SubmitInjectionReq, config InjectionConfig, groupID string, spanCtx context.Context) *dto.UnifiedTask {
 	payload := map[string]any{
 		consts.RestartIntarval:      req.Interval,
 		consts.RestartFaultDuration: config.FaultDuration,

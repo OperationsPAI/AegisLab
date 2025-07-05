@@ -54,6 +54,7 @@ func New() *gin.Engine {
 		injections.GET("/conf", handlers.GetInjectionConf)
 		injections.GET("/configs", handlers.ListDisplayConfigs)
 		injections.GET("/mapping", handlers.GetInjectionFieldMapping)
+		injections.GET("key-resource", handlers.GetKeyResourceMap)
 		injections.GET("ns-resources", handlers.GetNsResourceMap)
 		injections.GET("/query", handlers.QueryInjection)
 		injections.POST("", handlers.SubmitFaultInjection)
