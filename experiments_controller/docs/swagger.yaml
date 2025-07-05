@@ -411,14 +411,30 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
-  dto.GenericResponse-dto_NsResourceResp:
+  dto.GenericResponse-dto_KeyResourceResp:
     properties:
       code:
         description: 状态码
         type: integer
       data:
         allOf:
-        - $ref: '#/definitions/dto.NsResourceResp'
+        - $ref: '#/definitions/dto.KeyResourceResp'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_NsResourcesResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.NsResourcesResp'
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -555,14 +571,14 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
-  dto.GenericResponse-handler_Resource:
+  dto.GenericResponse-handler_Resources:
     properties:
       code:
         description: 状态码
         type: integer
       data:
         allOf:
-        - $ref: '#/definitions/handler.Resource'
+        - $ref: '#/definitions/handler.Resources'
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -617,6 +633,10 @@ definitions:
       status:
         type: object
     type: object
+  dto.KeyResourceResp:
+    additionalProperties:
+      type: string
+    type: object
   dto.LabelItem:
     properties:
       key:
@@ -630,9 +650,9 @@ definitions:
     - key
     - value
     type: object
-  dto.NsResourceResp:
+  dto.NsResourcesResp:
     additionalProperties:
-      $ref: '#/definitions/handler.Resource'
+      $ref: '#/definitions/handler.Resources'
     type: object
   dto.PaginationResp-dto_DatasetItem:
     properties:
@@ -899,13 +919,13 @@ definitions:
       target:
         type: string
     type: object
-  handler.Resource:
+  handler.Resources:
     properties:
       app_labels:
         items:
           type: string
         type: array
-      container_app_names:
+      container_names:
         items:
           type: string
         type: array
@@ -1585,6 +1605,19 @@ paths:
       summary: 获取已注入故障配置列表
       tags:
       - injection
+  /api/v1/injections/key-resource:
+    get:
+      description: 获取系统中定义的键值资源映射表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回键值资源映射表
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_KeyResourceResp'
+      summary: 获取键值资源映射
+      tags:
+      - injection
   /api/v1/injections/mapping:
     get:
       description: 获取状态和故障类型的字符串与数字映射关系，用于前端显示和API参数验证
@@ -1616,7 +1649,7 @@ paths:
         "200":
           description: 指定命名空间时返回该命名空间的资源信息
           schema:
-            $ref: '#/definitions/dto.GenericResponse-handler_Resource'
+            $ref: '#/definitions/dto.GenericResponse-handler_Resources'
         "404":
           description: 指定的命名空间不存在
           schema:
