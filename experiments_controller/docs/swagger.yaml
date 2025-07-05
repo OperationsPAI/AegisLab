@@ -411,22 +411,6 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
-  dto.GenericResponse-dto_KeyResourceResp:
-    properties:
-      code:
-        description: 状态码
-        type: integer
-      data:
-        allOf:
-        - $ref: '#/definitions/dto.KeyResourceResp'
-        description: 泛型类型的数据
-      message:
-        description: 响应消息
-        type: string
-      timestamp:
-        description: 响应生成时间
-        type: integer
-    type: object
   dto.GenericResponse-dto_NsResourcesResp:
     properties:
       code:
@@ -628,14 +612,12 @@ definitions:
     type: object
   dto.InjectionFieldMappingResp:
     properties:
+      fault_resource:
+        type: object
       fault_type:
         type: object
       status:
         type: object
-    type: object
-  dto.KeyResourceResp:
-    additionalProperties:
-      type: string
     type: object
   dto.LabelItem:
     properties:
@@ -1603,19 +1585,6 @@ paths:
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
       summary: 获取已注入故障配置列表
-      tags:
-      - injection
-  /api/v1/injections/key-resource:
-    get:
-      description: 获取系统中定义的键值资源映射表
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 成功返回键值资源映射表
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_KeyResourceResp'
-      summary: 获取键值资源映射
       tags:
       - injection
   /api/v1/injections/mapping:

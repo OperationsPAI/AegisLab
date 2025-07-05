@@ -10,7 +10,6 @@ Method | HTTP request | Description
 [**api_v1_injections_conf_get**](InjectionApi.md#api_v1_injections_conf_get) | **GET** /api/v1/injections/conf | 获取故障注入配置
 [**api_v1_injections_configs_get**](InjectionApi.md#api_v1_injections_configs_get) | **GET** /api/v1/injections/configs | 获取已注入故障配置列表
 [**api_v1_injections_get**](InjectionApi.md#api_v1_injections_get) | **GET** /api/v1/injections | 获取故障注入记录列表
-[**api_v1_injections_key_resource_get**](InjectionApi.md#api_v1_injections_key_resource_get) | **GET** /api/v1/injections/key-resource | 获取键值资源映射
 [**api_v1_injections_mapping_get**](InjectionApi.md#api_v1_injections_mapping_get) | **GET** /api/v1/injections/mapping | 获取字段映射关系
 [**api_v1_injections_ns_resources_get**](InjectionApi.md#api_v1_injections_ns_resources_get) | **GET** /api/v1/injections/ns-resources | 获取命名空间资源映射
 [**api_v1_injections_post**](InjectionApi.md#api_v1_injections_post) | **POST** /api/v1/injections | 提交故障注入任务
@@ -475,70 +474,6 @@ No authorization required
 **200** | 成功返回故障注入记录列表 |  -  |
 **400** | 请求参数错误，如参数格式不正确、验证失败等 |  -  |
 **500** | 服务器内部错误 |  -  |
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
-# **api_v1_injections_key_resource_get**
-> DtoGenericResponseDtoKeyResourceResp api_v1_injections_key_resource_get()
-
-获取键值资源映射
-
-获取系统中定义的键值资源映射表
-
-### Example
-
-
-```python
-import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_dto_key_resource_resp import DtoGenericResponseDtoKeyResourceResp
-from rcabench.openapi.rest import ApiException
-from pprint import pprint
-
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
-# See configuration.py for a list of all supported configuration parameters.
-configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
-)
-
-
-# Enter a context with an instance of the API client
-with rcabench.openapi.ApiClient(configuration) as api_client:
-    # Create an instance of the API class
-    api_instance = rcabench.openapi.InjectionApi(api_client)
-
-    try:
-        # 获取键值资源映射
-        api_response = api_instance.api_v1_injections_key_resource_get()
-        print("The response of InjectionApi->api_v1_injections_key_resource_get:\n")
-        pprint(api_response)
-    except Exception as e:
-        print("Exception when calling InjectionApi->api_v1_injections_key_resource_get: %s\n" % e)
-```
-
-
-
-### Parameters
-
-This endpoint does not need any parameter.
-
-### Return type
-
-[**DtoGenericResponseDtoKeyResourceResp**](DtoGenericResponseDtoKeyResourceResp.md)
-
-### Authorization
-
-No authorization required
-
-### HTTP request headers
-
- - **Content-Type**: Not defined
- - **Accept**: application/json
-
-### HTTP response details
-
-| Status code | Description | Response headers |
-|-------------|-------------|------------------|
-**200** | 成功返回键值资源映射表 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

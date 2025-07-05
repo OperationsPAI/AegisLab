@@ -5,6 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**fault_resource** | **object** |  | [optional] 
 **fault_type** | **object** |  | [optional] 
 **status** | **object** |  | [optional] 
 
