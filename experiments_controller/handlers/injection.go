@@ -87,22 +87,18 @@ func GetInjectionFieldMapping(c *gin.Context) {
 		return
 	}
 
-	dto.SuccessResponse(c, dto.InjectionFieldMappingResp{
-		StatusMap:    dto.DatasetStatusMap,
-		FaultTypeMap: chaos.ChaosTypeMap,
-	})
-}
+	faultResourceMap, err := chaos.GetChaosResourceMap()
+	if err != nil {
+		logrus.Errorf("failed to get fault resource map: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get fault resource map")
+		return
+	}
 
-// GetKeyResourceMap
-//
-//	@Summary		获取键值资源映射
-//	@Description	获取系统中定义的键值资源映射表
-//	@Tags			injection
-//	@Produce		json
-//	@Success		200	{object}	dto.GenericResponse[dto.KeyResourceResp]	"成功返回键值资源映射表"
-//	@Router			/api/v1/injections/key-resource [get]
-func GetKeyResourceMap(c *gin.Context) {
-	dto.SuccessResponse(c, dto.KeyResourceResp(chaos.KeyResourceMap))
+	dto.SuccessResponse(c, dto.InjectionFieldMappingResp{
+		StatusMap:        dto.DatasetStatusMap,
+		FaultTypeMap:     chaos.ChaosTypeMap,
+		FaultResourceMap: faultResourceMap,
+	})
 }
 
 // GetNsResourcesMap

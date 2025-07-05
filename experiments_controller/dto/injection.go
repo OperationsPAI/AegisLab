@@ -180,8 +180,9 @@ type KeyResourceResp map[string]string
 type NsResourcesResp map[string]chaos.Resources
 
 type InjectionFieldMappingResp struct {
-	StatusMap    map[int]string             `json:"status" swaggertype:"object"`
-	FaultTypeMap map[chaos.ChaosType]string `json:"fault_type" swaggertype:"object"`
+	StatusMap        map[int]string                 `json:"status" swaggertype:"object"`
+	FaultTypeMap     map[chaos.ChaosType]string     `json:"fault_type" swaggertype:"object"`
+	FaultResourceMap map[string]chaos.ResourceField `json:"fault_resource" swaggertype:"object"`
 }
 
 type SubmitInjectionResp struct {

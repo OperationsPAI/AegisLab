@@ -939,26 +939,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/injections/key-resource": {
-            "get": {
-                "description": "获取系统中定义的键值资源映射表",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "injection"
-                ],
-                "summary": "获取键值资源映射",
-                "responses": {
-                    "200": {
-                        "description": "成功返回键值资源映射表",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_KeyResourceResp"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/injections/mapping": {
             "get": {
                 "description": "获取状态和故障类型的字符串与数字映射关系，用于前端显示和API参数验证",
@@ -1981,31 +1961,6 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_KeyResourceResp": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "状态码",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "泛型类型的数据",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.KeyResourceResp"
-                        }
-                    ]
-                },
-                "message": {
-                    "description": "响应消息",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "响应生成时间",
-                    "type": "integer"
-                }
-            }
-        },
         "dto.GenericResponse-dto_NsResourcesResp": {
             "type": "object",
             "properties": {
@@ -2318,18 +2273,15 @@ const docTemplate = `{
         "dto.InjectionFieldMappingResp": {
             "type": "object",
             "properties": {
+                "fault_resource": {
+                    "type": "object"
+                },
                 "fault_type": {
                     "type": "object"
                 },
                 "status": {
                     "type": "object"
                 }
-            }
-        },
-        "dto.KeyResourceResp": {
-            "type": "object",
-            "additionalProperties": {
-                "type": "string"
             }
         },
         "dto.LabelItem": {

@@ -27,10 +27,11 @@ class DtoInjectionFieldMappingResp(BaseModel):
     """
     DtoInjectionFieldMappingResp
     """ # noqa: E501
+    fault_resource: Optional[Dict[str, Any]] = None
     fault_type: Optional[Dict[str, Any]] = None
     status: Optional[Dict[str, Any]] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["fault_type", "status"]
+    __properties: ClassVar[List[str]] = ["fault_resource", "fault_type", "status"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -90,6 +91,7 @@ class DtoInjectionFieldMappingResp(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "fault_resource": obj.get("fault_resource"),
             "fault_type": obj.get("fault_type"),
             "status": obj.get("status")
         })
