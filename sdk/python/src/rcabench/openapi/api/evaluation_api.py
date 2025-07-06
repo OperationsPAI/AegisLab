@@ -19,8 +19,8 @@ from typing_extensions import Annotated
 
 from pydantic import Field
 from typing_extensions import Annotated
-from rcabench.openapi.models.dto_generic_response_array_dto_raw_data_item import DtoGenericResponseArrayDtoRawDataItem
 from rcabench.openapi.models.dto_generic_response_dto_ground_truth_resp import DtoGenericResponseDtoGroundTruthResp
+from rcabench.openapi.models.dto_generic_response_dto_raw_data_resp import DtoGenericResponseDtoRawDataResp
 from rcabench.openapi.models.dto_ground_truth_req import DtoGroundTruthReq
 from rcabench.openapi.models.dto_raw_data_req import DtoRawDataReq
 
@@ -324,7 +324,7 @@ class EvaluationApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseArrayDtoRawDataItem:
+    ) -> DtoGenericResponseDtoRawDataResp:
         """获取原始评估数据
 
         根据算法和数据集的笛卡尔积获取对应的原始评估数据，包括粒度记录和真实值信息。支持批量查询多个算法在多个数据集上的执行结果
@@ -362,7 +362,7 @@ class EvaluationApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseArrayDtoRawDataItem",
+            '200': "DtoGenericResponseDtoRawDataResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -393,7 +393,7 @@ class EvaluationApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseArrayDtoRawDataItem]:
+    ) -> ApiResponse[DtoGenericResponseDtoRawDataResp]:
         """获取原始评估数据
 
         根据算法和数据集的笛卡尔积获取对应的原始评估数据，包括粒度记录和真实值信息。支持批量查询多个算法在多个数据集上的执行结果
@@ -431,7 +431,7 @@ class EvaluationApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseArrayDtoRawDataItem",
+            '200': "DtoGenericResponseDtoRawDataResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -500,7 +500,7 @@ class EvaluationApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseArrayDtoRawDataItem",
+            '200': "DtoGenericResponseDtoRawDataResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }

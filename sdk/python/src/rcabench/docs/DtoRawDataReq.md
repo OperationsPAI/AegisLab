@@ -5,8 +5,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**algorithms** | **List[str]** |  | 
-**datasets** | **List[str]** |  | 
+**algorithms** | **List[str]** |  | [optional] 
+**datasets** | **List[str]** |  | [optional] 
+**execution_ids** | **List[int]** |  | [optional] 
 
 ## Example
 

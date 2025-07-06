@@ -227,6 +227,7 @@ func ListDisplayConfigsByTraceIDs(traceIDs []string) (map[string]any, error) {
 	return result, nil
 }
 
+// TODO
 func ListExistingDisplayConfigs(configs []string) ([]string, error) {
 	query := database.DB.
 		Model(&database.FaultInjectionSchedule{}).
@@ -241,18 +242,26 @@ func ListExistingDisplayConfigs(configs []string) ([]string, error) {
 	return existingEngineConfigs, nil
 }
 
-func ListEngineConfigsByNames(names []string) ([]string, error) {
-	query := database.DB.
-		Model(&database.FaultInjectionSchedule{}).
-		Select("engine_config").
-		Where("injection_name IN (?)", names)
+func ListEngineConfigsByNames(names []string) (map[string]string, error) {
+	var records []struct {
+		InjectionName string `gorm:"column:injection_name"`
+		EngineConfig  string `gorm:"column:engine_config"`
+	}
 
-	var configs []string
-	if err := query.Pluck("engine_config", &configs).Error; err != nil {
+	if err := database.DB.
+		Model(&database.FaultInjectionSchedule{}).
+		Select("injection_name, engine_config").
+		Where("injection_name IN (?)", names).
+		Find(&records).Error; err != nil {
 		return nil, fmt.Errorf("failed to query engine configs: %v", err)
 	}
 
-	return configs, nil
+	result := make(map[string]string, len(records))
+	for _, record := range records {
+		result[record.InjectionName] = record.EngineConfig
+	}
+
+	return result, nil
 }
 
 func ListDatasetByExecutionIDs(executionIDs []int) ([]dto.DatasetItemWithID, error) {

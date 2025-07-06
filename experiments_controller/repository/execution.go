@@ -141,9 +141,74 @@ func ListExecutionRecordByExecID(executionIDs []int,
 	return results, nil
 }
 
-func ListExecutionRawData(pairs []dto.AlgorithmDatasetPair) ([]dto.RawDataItem, error) {
+func ListExecutionRawDataByIds(ids []int) ([]dto.RawDataItem, error) {
+	if len(ids) == 0 {
+		return nil, fmt.Errorf("no algorithm-dataset pairs provided")
+	}
+
+	var execResults []database.ExecutionResult
+	if err := database.DB.
+		Where("id IN (?) and status = (?)", ids, consts.ExecutionSuccess).
+		Find(&execResults).Error; err != nil {
+		return nil, fmt.Errorf("failed to query execution results: %v", err)
+	}
+
+	execResultMap := make(map[int]database.ExecutionResult, len(execResults))
+	for _, execResult := range execResults {
+		execResultMap[execResult.ID] = execResult
+	}
+
+	datasets := make([]string, 0, len(execResults))
+	for _, execResult := range execResults {
+		datasets = append(datasets, execResult.Dataset)
+	}
+
+	var granularityResults []database.GranularityResult
+	if err := database.DB.
+		Model(&database.GranularityResult{}).
+		Where("execution_id IN (?)", ids).
+		Find(&granularityResults).Error; err != nil {
+		return nil, fmt.Errorf("failed to query granularity results: %v", err)
+	}
+
+	groundtruthMap, err := GetGroundtruthMap(datasets)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ground truth map: %v", err)
+	}
+
+	var items []dto.RawDataItem
+	for _, id := range ids {
+		execResult := execResultMap[id]
+
+		var records []dto.GranularityRecord
+		for _, gran := range granularityResults {
+			if id == gran.ExecutionID {
+				var record dto.GranularityRecord
+				record.Convert(gran)
+				records = append(records, record)
+			}
+		}
+
+		items = append(items, dto.RawDataItem{
+			Algorithm:   execResult.Algorithm,
+			Dataset:     execResult.Dataset,
+			ExecutionID: id,
+			Entries:     records,
+			Groundtruth: groundtruthMap[execResult.Dataset],
+		})
+	}
+
+	return items, nil
+}
+
+func ListExecutionRawDatasByPairs(pairs []dto.AlgorithmDatasetPair) ([]dto.RawDataItem, error) {
 	if len(pairs) == 0 {
 		return nil, fmt.Errorf("no algorithm-dataset pairs provided")
+	}
+
+	datasets := make([]string, 0, len(pairs))
+	for _, pair := range pairs {
+		datasets = append(datasets, pair.Dataset)
 	}
 
 	execIDMap, err := getLatestExecutionMap(pairs)
@@ -168,6 +233,22 @@ func ListExecutionRawData(pairs []dto.AlgorithmDatasetPair) ([]dto.RawDataItem, 
 		return nil, fmt.Errorf("failed to query granularity results: %v", err)
 	}
 
+	granMap := make(map[int][]dto.GranularityRecord, len(execIDs))
+	for _, gran := range granularityResults {
+		if _, exists := granMap[gran.ExecutionID]; !exists {
+			granMap[gran.ExecutionID] = []dto.GranularityRecord{}
+		} else {
+			var record dto.GranularityRecord
+			record.Convert(gran)
+			granMap[gran.ExecutionID] = append(granMap[gran.ExecutionID], record)
+		}
+	}
+
+	groundtruthMap, err := GetGroundtruthMap(datasets)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ground truth map: %v", err)
+	}
+
 	var items []dto.RawDataItem
 	for id, pairStr := range execIDMap {
 		parts := strings.Split(pairStr, "_")
@@ -184,28 +265,12 @@ func ListExecutionRawData(pairs []dto.AlgorithmDatasetPair) ([]dto.RawDataItem, 
 		}
 
 		items = append(items, dto.RawDataItem{
-			Algorithm: algorithm,
-			Dataset:   dataset,
-			Entries:   records,
+			Algorithm:   algorithm,
+			Dataset:     dataset,
+			ExecutionID: id,
+			Entries:     records,
+			Groundtruth: groundtruthMap[dataset],
 		})
-	}
-
-	dataset := make([]string, 0, len(pairs))
-	for _, pair := range pairs {
-		dataset = append(dataset, pair.Dataset)
-	}
-
-	groundtruthMap, err := GetGroundtruthMap(dataset)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get ground truth map: %v", err)
-	}
-
-	for i := range items {
-		if gt, exists := groundtruthMap[items[i].Dataset]; exists {
-			items[i].Groundtruth = gt
-		} else {
-			items[i].Groundtruth = chaos.Groundtruth{}
-		}
 	}
 
 	return items, nil
@@ -282,15 +347,13 @@ func getLatestExecutionMap(pairs []dto.AlgorithmDatasetPair) (map[int]string, er
 }
 
 func GetGroundtruthMap(datasets []string) (map[string]chaos.Groundtruth, error) {
-	engineConfs, err := ListEngineConfigsByNames(datasets)
+	engineConfMap, err := ListEngineConfigsByNames(datasets)
 	if err != nil {
 		return nil, err
 	}
 
-	groundtruthMap := make(map[string]chaos.Groundtruth, len(engineConfs))
-	for idx, engineConf := range engineConfs {
-		dataset := datasets[idx]
-
+	groundtruthMap := make(map[string]chaos.Groundtruth, len(engineConfMap))
+	for dataset, engineConf := range engineConfMap {
 		var node chaos.Node
 		if err := json.Unmarshal([]byte(engineConf), &node); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal chaos-experiment node for dataset %s: %v", dataset, err)
@@ -306,7 +369,7 @@ func GetGroundtruthMap(datasets []string) (map[string]chaos.Groundtruth, error) 
 			return nil, fmt.Errorf("failed to get ground truth for dataset %s: %v", dataset, err)
 		}
 
-		groundtruthMap[datasets[idx]] = groundtruth
+		groundtruthMap[dataset] = groundtruth
 	}
 
 	return groundtruthMap, nil

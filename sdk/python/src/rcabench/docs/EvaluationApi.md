@@ -80,7 +80,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_evaluations_raw_data_post**
-> DtoGenericResponseArrayDtoRawDataItem api_v1_evaluations_raw_data_post(body)
+> DtoGenericResponseDtoRawDataResp api_v1_evaluations_raw_data_post(body)
 
 获取原始评估数据
 
@@ -91,7 +91,7 @@ No authorization required
 
 ```python
 import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_array_dto_raw_data_item import DtoGenericResponseArrayDtoRawDataItem
+from rcabench.openapi.models.dto_generic_response_dto_raw_data_resp import DtoGenericResponseDtoRawDataResp
 from rcabench.openapi.models.dto_raw_data_req import DtoRawDataReq
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
@@ -129,7 +129,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**DtoGenericResponseArrayDtoRawDataItem**](DtoGenericResponseArrayDtoRawDataItem.md)
+[**DtoGenericResponseDtoRawDataResp**](DtoGenericResponseDtoRawDataResp.md)
 
 ### Authorization
 

@@ -18,8 +18,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -27,10 +27,11 @@ class DtoRawDataReq(BaseModel):
     """
     DtoRawDataReq
     """ # noqa: E501
-    algorithms: List[StrictStr]
-    datasets: List[StrictStr]
+    algorithms: Optional[List[StrictStr]] = None
+    datasets: Optional[List[StrictStr]] = None
+    execution_ids: Optional[List[StrictInt]] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["algorithms", "datasets"]
+    __properties: ClassVar[List[str]] = ["algorithms", "datasets", "execution_ids"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -91,7 +92,8 @@ class DtoRawDataReq(BaseModel):
 
         _obj = cls.model_validate({
             "algorithms": obj.get("algorithms"),
-            "datasets": obj.get("datasets")
+            "datasets": obj.get("datasets"),
+            "execution_ids": obj.get("execution_ids")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():
