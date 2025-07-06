@@ -448,6 +448,7 @@ func parseInjectionSpecs(r *dto.SubmitInjectionReq) ([]InjectionConfig, error) {
 	return newConfigs, nil
 }
 
+// TODO 修复container的时候因为pod一定不同，可以重复注入
 func findMissingIndices(confs []string, batch_size int) ([]int, error) {
 	var missingIndices []int
 	existingMap := make(map[string]struct{})

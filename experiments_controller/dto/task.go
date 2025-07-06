@@ -125,6 +125,16 @@ func (t *TaskStreamItem) Convert(task database.Task) {
 	t.TraceID = task.TraceID
 }
 
+type DatasetOptions struct {
+	Dataset string
+}
+
+type ExecutionOptions struct {
+	Algorithm   string
+	Dataset     string
+	ExecutionID int
+}
+
 type StreamEvent struct {
 	TimeStamp int              `json:"timestamp,omitempty"`
 	TaskID    string           `json:"task_id"`
