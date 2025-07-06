@@ -40,16 +40,6 @@ type TaskOptions struct {
 	Type    consts.TaskType
 }
 
-type DatasetOptions struct {
-	Dataset string
-}
-
-type ExecutionOptions struct {
-	Algorithm   string
-	Dataset     string
-	ExecutionID int
-}
-
 type Executor struct {
 }
 
@@ -498,7 +488,7 @@ func parseTaskOptions(labels map[string]string) (*TaskOptions, error) {
 	}, nil
 }
 
-func parseDatasetOptions(labels map[string]string) (*DatasetOptions, error) {
+func parseDatasetOptions(labels map[string]string) (*dto.DatasetOptions, error) {
 	message := "missing or invalid '%s' key in job labels"
 
 	dataset, ok := labels[consts.LabelDataset]
@@ -506,12 +496,12 @@ func parseDatasetOptions(labels map[string]string) (*DatasetOptions, error) {
 		return nil, fmt.Errorf(message, consts.LabelDataset)
 	}
 
-	return &DatasetOptions{
+	return &dto.DatasetOptions{
 		Dataset: dataset,
 	}, nil
 }
 
-func parseExecutionOptions(labels map[string]string) (*ExecutionOptions, error) {
+func parseExecutionOptions(labels map[string]string) (*dto.ExecutionOptions, error) {
 	message := "missing or invalid '%s' key in job labels"
 
 	algorithm, ok := labels[consts.LabelAlgorithm]
@@ -535,7 +525,7 @@ func parseExecutionOptions(labels map[string]string) (*ExecutionOptions, error) 
 		executionID = id
 	}
 
-	return &ExecutionOptions{
+	return &dto.ExecutionOptions{
 		Algorithm:   algorithm,
 		Dataset:     dataset,
 		ExecutionID: executionID,

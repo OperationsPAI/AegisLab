@@ -314,6 +314,18 @@ func (sp *StreamProcessor) ProcessMessageForSSE(msg redis.XMessage) (string, str
 	case consts.EventDatasetResultCollection:
 		sp.detectorTaskID = streamEvent.TaskID
 		sp.hasIssues = true
+	case consts.EventAlgoRunSucceed, consts.EventAlgoRunFailed:
+		payloadStr, ok := streamEvent.Payload.(string)
+		if !ok {
+			return "", "", fmt.Errorf("invalid payload type for task status update event: %T", streamEvent.Payload)
+		}
+
+		var payload dto.ExecutionOptions
+		if err := json.Unmarshal([]byte(payloadStr), &payload); err != nil {
+			return "", "", fmt.Errorf("failed to unmarshal payload: %v", err)
+		}
+
+		sp.algorithms = append(sp.algorithms, payload.Algorithm)
 	}
 
 	// Check if this is a completion event
