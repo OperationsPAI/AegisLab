@@ -18,24 +18,22 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_granularity_record import DtoGranularityRecord
-from rcabench.openapi.models.handler_groundtruth import HandlerGroundtruth
+from rcabench.openapi.models.dto_raw_data_item import DtoRawDataItem
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoRawDataItem(BaseModel):
+class DtoGenericResponseDtoRawDataResp(BaseModel):
     """
-    DtoRawDataItem
+    DtoGenericResponseDtoRawDataResp
     """ # noqa: E501
-    algorithm: Optional[StrictStr] = None
-    dataset: Optional[StrictStr] = None
-    entries: Optional[List[DtoGranularityRecord]] = None
-    execution_id: Optional[StrictInt] = None
-    groundtruth: Optional[HandlerGroundtruth] = None
+    code: Optional[StrictInt] = Field(default=None, description="状态码")
+    data: Optional[List[DtoRawDataItem]] = Field(default=None, description="泛型类型的数据")
+    message: Optional[StrictStr] = Field(default=None, description="响应消息")
+    timestamp: Optional[StrictInt] = Field(default=None, description="响应生成时间")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["algorithm", "dataset", "entries", "execution_id", "groundtruth"]
+    __properties: ClassVar[List[str]] = ["code", "data", "message", "timestamp"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -55,7 +53,7 @@ class DtoRawDataItem(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoRawDataItem from a JSON string"""
+        """Create an instance of DtoGenericResponseDtoRawDataResp from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -78,16 +76,13 @@ class DtoRawDataItem(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of each item in entries (list)
+        # override the default output from pydantic by calling `to_dict()` of each item in data (list)
         _items = []
-        if self.entries:
-            for _item_entries in self.entries:
-                if _item_entries:
-                    _items.append(_item_entries.to_dict())
-            _dict['entries'] = _items
-        # override the default output from pydantic by calling `to_dict()` of groundtruth
-        if self.groundtruth:
-            _dict['groundtruth'] = self.groundtruth.to_dict()
+        if self.data:
+            for _item_data in self.data:
+                if _item_data:
+                    _items.append(_item_data.to_dict())
+            _dict['data'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -97,7 +92,7 @@ class DtoRawDataItem(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoRawDataItem from a dict"""
+        """Create an instance of DtoGenericResponseDtoRawDataResp from a dict"""
         if obj is None:
             return None
 
@@ -105,11 +100,10 @@ class DtoRawDataItem(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "algorithm": obj.get("algorithm"),
-            "dataset": obj.get("dataset"),
-            "entries": [DtoGranularityRecord.from_dict(_item) for _item in obj["entries"]] if obj.get("entries") is not None else None,
-            "execution_id": obj.get("execution_id"),
-            "groundtruth": HandlerGroundtruth.from_dict(obj["groundtruth"]) if obj.get("groundtruth") is not None else None
+            "code": obj.get("code"),
+            "data": [DtoRawDataItem.from_dict(_item) for _item in obj["data"]] if obj.get("data") is not None else None,
+            "message": obj.get("message"),
+            "timestamp": obj.get("timestamp")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

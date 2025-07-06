@@ -266,23 +266,6 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
-  dto.GenericResponse-array_dto_RawDataItem:
-    properties:
-      code:
-        description: 状态码
-        type: integer
-      data:
-        description: 泛型类型的数据
-        items:
-          $ref: '#/definitions/dto.RawDataItem'
-        type: array
-      message:
-        description: 响应消息
-        type: string
-      timestamp:
-        description: 响应生成时间
-        type: integer
-    type: object
   dto.GenericResponse-database_FaultInjectionSchedule:
     properties:
       code:
@@ -484,6 +467,23 @@ definitions:
         allOf:
         - $ref: '#/definitions/dto.QueryDatasetResp'
         description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_RawDataResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        description: 泛型类型的数据
+        items:
+          $ref: '#/definitions/dto.RawDataItem'
+        type: array
       message:
         description: 响应消息
         type: string
@@ -698,6 +698,8 @@ definitions:
         items:
           $ref: '#/definitions/dto.GranularityRecord'
         type: array
+      execution_id:
+        type: integer
       groundtruth:
         $ref: '#/definitions/handler.Groundtruth'
     type: object
@@ -711,9 +713,10 @@ definitions:
         items:
           type: string
         type: array
-    required:
-    - algorithms
-    - datasets
+      execution_ids:
+        items:
+          type: integer
+        type: array
     type: object
   dto.RetryPolicy:
     properties:
@@ -1260,7 +1263,7 @@ paths:
         "200":
           description: 成功返回原始评估数据列表
           schema:
-            $ref: '#/definitions/dto.GenericResponse-array_dto_RawDataItem'
+            $ref: '#/definitions/dto.GenericResponse-dto_RawDataResp'
         "400":
           description: 请求参数错误，如JSON格式不正确、算法或数据集数组为空
           schema:

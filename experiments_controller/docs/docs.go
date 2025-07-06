@@ -491,7 +491,7 @@ const docTemplate = `{
                     "200": {
                         "description": "成功返回原始评估数据列表",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-array_dto_RawDataItem"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_RawDataResp"
                         }
                     },
                     "400": {
@@ -1737,30 +1737,6 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-array_dto_RawDataItem": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "状态码",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "泛型类型的数据",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.RawDataItem"
-                    }
-                },
-                "message": {
-                    "description": "响应消息",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "响应生成时间",
-                    "type": "integer"
-                }
-            }
-        },
         "dto.GenericResponse-database_FaultInjectionSchedule": {
             "type": "object",
             "properties": {
@@ -2075,6 +2051,30 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.QueryDatasetResp"
                         }
                     ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_RawDataResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.RawDataItem"
+                    }
                 },
                 "message": {
                     "description": "响应消息",
@@ -2404,6 +2404,9 @@ const docTemplate = `{
                         "$ref": "#/definitions/dto.GranularityRecord"
                     }
                 },
+                "execution_id": {
+                    "type": "integer"
+                },
                 "groundtruth": {
                     "$ref": "#/definitions/handler.Groundtruth"
                 }
@@ -2411,10 +2414,6 @@ const docTemplate = `{
         },
         "dto.RawDataReq": {
             "type": "object",
-            "required": [
-                "algorithms",
-                "datasets"
-            ],
             "properties": {
                 "algorithms": {
                     "type": "array",
@@ -2426,6 +2425,12 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "string"
+                    }
+                },
+                "execution_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
                     }
                 }
             }

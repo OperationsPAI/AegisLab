@@ -1,6 +1,8 @@
 package dto
 
 import (
+	"fmt"
+
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 )
 
@@ -10,14 +12,15 @@ type GroundTruthReq struct {
 
 type GroundTruthResp map[string]chaos.Groundtruth
 
-type RawDataReq struct {
-	Algorithms []string `json:"algorithms" binding:"required"`
-	Datasets   []string `json:"datasets" binding:"required"`
-}
-
 type AlgorithmDatasetPair struct {
 	Algorithm string
 	Dataset   string
+}
+
+type RawDataReq struct {
+	Algorithms   []string `json:"algorithms" binding:"omitempty"`
+	Datasets     []string `json:"datasets" binding:"omitempty"`
+	ExecutionIDs []int    `json:"execution_ids" binding:"omitempty"`
 }
 
 func (r *RawDataReq) CartesianProduct() []AlgorithmDatasetPair {
@@ -34,30 +37,35 @@ func (r *RawDataReq) CartesianProduct() []AlgorithmDatasetPair {
 	return result
 }
 
+func (req *RawDataReq) HasCartesianMode() bool {
+	return len(req.Algorithms) > 0 && len(req.Datasets) > 0
+}
+
+func (req *RawDataReq) HasExecutionMode() bool {
+	return len(req.ExecutionIDs) > 0
+}
+
+func (req *RawDataReq) Validate() error {
+	if !req.HasCartesianMode() && !req.HasExecutionMode() {
+		return fmt.Errorf("Either (algorithms and datasets) or execution_ids must be provided")
+	}
+
+	if req.HasCartesianMode() && req.HasExecutionMode() {
+		return fmt.Errorf("Cannot provide both (algorithms, datasets) and execution_ids at the same time")
+	}
+
+	return nil
+}
+
 type RawDataItem struct {
 	Algorithm   string              `json:"algorithm"`
 	Dataset     string              `json:"dataset"`
+	ExecutionID int                 `json:"execution_id"`
 	Entries     []GranularityRecord `json:"entries"`
 	Groundtruth chaos.Groundtruth   `json:"groundtruth"`
 }
 
-type EvaluationListReq struct {
-	ExecutionIDs []int    `form:"execution_ids"`
-	Algoritms    []string `form:"algorithms"`
-	Levels       []string `form:"levels"`
-	Metrics      []string `form:"metrics"`
-	Rank         *int     `form:"rank"`
-}
-
-type EvaluationListResp struct {
-	Results []EvaluationItem `json:"results"`
-}
-
-type EvaluationItem struct {
-	Algorithm   string       `json:"algorithm"`
-	Executions  []Execution  `json:"executions"`
-	Conclusions []Conclusion `json:"conclusions"`
-}
+type RawDataResp []RawDataItem
 
 type Execution struct {
 	Dataset            DatasetItem         `json:"dataset"`

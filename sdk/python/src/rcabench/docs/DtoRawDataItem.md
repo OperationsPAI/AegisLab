@@ -8,6 +8,7 @@ Name | Type | Description | Notes
 **algorithm** | **str** |  | [optional] 
 **dataset** | **str** |  | [optional] 
 **entries** | [**List[DtoGranularityRecord]**](DtoGranularityRecord.md) |  | [optional] 
+**execution_id** | **int** |  | [optional] 
 **groundtruth** | [**HandlerGroundtruth**](HandlerGroundtruth.md) |  | [optional] 
 
 ## Example
