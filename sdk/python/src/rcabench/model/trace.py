@@ -26,6 +26,20 @@ class GetTraceEventsReq(BaseModel):
     )
 
 
+class DatasetOptions(BaseModel):
+    """Dataset options model"""
+
+    dataset: str = Field(..., description="Dataset name")
+
+
+class ExecutionOptions(BaseModel):
+    """Execution options model"""
+
+    algorithm: str = Field(..., description="Algorithm name")
+    dataset: str = Field(..., description="Dataset name")
+    execution_id: int = Field(..., description="Execution ID", ge=1)
+
+
 class StreamEvent(BaseModel):
     """
     StreamEvent 事件流数据模型

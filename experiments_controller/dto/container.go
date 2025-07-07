@@ -7,3 +7,8 @@ type FilterContainerOptions struct {
 	Type   consts.ContainerType
 	Names  []string
 }
+
+var ValidContainerTypes = map[consts.ContainerType]struct{}{
+	consts.ContainerTypeAlgorithm: {},
+	consts.ContainerTypeBenchmark: {},
+}

@@ -2,17 +2,18 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
-	con "github.com/LGU-SE-Internal/rcabench/config"
+	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/utils"
-
-	"github.com/docker/cli/cli/config"
+	"github.com/LGU-SE-Internal/rcabench/repository"
+	"github.com/LGU-SE-Internal/rcabench/tracing"
+	con "github.com/docker/cli/cli/config"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/frontend"
 	gateway "github.com/moby/buildkit/frontend/gateway/client"
@@ -22,190 +23,282 @@ import (
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/progress/progressui"
 	"github.com/moby/buildkit/util/progress/progresswriter"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/tonistiigi/fsutil"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 )
 
-type BuildOptions struct {
-	DockerfilePath string
-	ImageName      string
-	Target         string
-	BuildArgs      map[string]string
-	ContextDir     string
+type buildPayload struct {
+	containerType consts.ContainerType
+	name          string
+	image         string
+	tag           string
+	sourcePath    string
+	buildOptions  dto.BuildOptions
 }
 
-func executeBuildImages(ctx context.Context, task *dto.UnifiedTask) error {
-	algoName, ok := task.Payload[consts.BuildAlgorithm].(string)
-	if !ok {
-		return errors.New("failed to get algorithm name")
-	}
-	if algoName == "all" {
-		return buildAlgos(ctx)
-	}
-	wd := con.GetString("workspace")
-	path, ok := task.Payload[consts.BuildAlgorithmPath].(string)
-	if !ok {
-		path := filepath.Join(con.GetString("algo.storage_path"), algoName)
-		return buildAlgo(ctx, path, nil, wd)
-	}
-	return buildAlgo(ctx, path, nil, wd)
-}
-
-func buildAlgos(ctx context.Context) error {
-	wd := con.GetString("workspace")
-	algos, err := utils.GetAllSubDirectories(filepath.Join(wd, "algorithms"))
-	if err != nil {
-		return err
-	}
-
-	var eg errgroup.Group
-	for _, algo := range algos {
-		eg.Go(func() error {
-			return buildAlgo(ctx, algo, nil, wd)
-		})
-	}
-	return eg.Wait()
-}
-
-func buildAlgo(ctx context.Context, algoDir string, args map[string]string, ctxDir string) error {
-	logrus.Infof("building algo %s...", algoDir)
-	algoName := filepath.Base(algoDir)
-	t := time.Now().UnixNano()
-
-	err := buildDockerfileAndPush(ctx, BuildOptions{
-		DockerfilePath: filepath.Join(algoDir, "builder.Dockerfile"),
-		ImageName:      fmt.Sprintf("%s/%s:%d", con.GetString("harbor.repository"), algoName, t),
-		BuildArgs:      args,
-		ContextDir:     ctxDir,
-		Target:         "",
-	})
-
-	return errors.Wrap(err, fmt.Sprintf("Build algo %s failed", algoDir))
-}
-
-func buildDockerfileAndPush(ctx context.Context, options BuildOptions) error {
-	if con.GetString("buildkit.address") == "" {
-		return errors.New("buildkit address is not set")
-	}
-	c, err := client.New(ctx, con.GetString("buildkit.address"))
-	if err != nil {
-		return errors.Wrapf(err, "could not connect to buildkitd at %s", con.GetString("buildkit.address"))
-	}
-	defer c.Close()
-
-	dockerConfig := config.LoadDefaultConfigFile(os.Stderr)
-	attachable := []session.Attachable{
-		authprovider.NewDockerAuthProvider(dockerConfig, nil),
-	}
-	exports := []client.ExportEntry{
-		{
-			Type: client.ExporterImage,
-			Attrs: map[string]string{
-				"name": options.ImageName,
-				"push": "true",
-			},
-		},
-	}
-	frontendAttrs := map[string]string{
-		"filename": filepath.Base(options.DockerfilePath),
-	}
-	if options.Target != "" {
-		frontendAttrs["target"] = options.Target
-	}
-	for k, v := range options.BuildArgs {
-		frontendAttrs[fmt.Sprintf("build-arg:%s", k)] = v
-	}
-
-	ctxLocalMount, err := fsutil.NewFS(options.ContextDir)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create local mount for context")
-	}
-	dockerfileLocalMount, err := fsutil.NewFS(filepath.Dir(options.DockerfilePath))
-	if err != nil {
-		return errors.Wrap(err, "Failed to create local mount for dockerfile")
-	}
-	solveOpt := client.SolveOpt{
-		Exports:       exports,
-		Session:       attachable,
-		Ref:           identity.NewID(),
-		Frontend:      "dockerfile.v0",
-		FrontendAttrs: frontendAttrs,
-		LocalMounts: map[string]fsutil.FS{
-			"context":    ctxLocalMount,
-			"dockerfile": dockerfileLocalMount,
-		},
-	}
-	pw, err := progresswriter.NewPrinter(context.Background(), os.Stderr, string(progressui.AutoMode))
-	if err != nil {
-		return err
-	}
-	mw := progresswriter.NewMultiWriter(pw)
-
-	var writers []progresswriter.Writer
-	for _, at := range attachable {
-		if s, ok := at.(interface {
-			SetLogger(progresswriter.Logger)
-		}); ok {
-			w := mw.WithPrefix("", false)
-			s.SetLogger(func(s *client.SolveStatus) {
-				w.Status() <- s
-			})
-			writers = append(writers, w)
-		}
-	}
-
-	eg, ctx2 := errgroup.WithContext(ctx)
-	eg.Go(func() error {
-		defer func() {
-			for _, w := range writers {
-				close(w.Status())
-			}
-		}()
-		sreq := gateway.SolveRequest{
-			Frontend:    solveOpt.Frontend,
-			FrontendOpt: solveOpt.FrontendAttrs,
-		}
-		sreq.CacheImports = make([]frontend.CacheOptionsEntry, len(solveOpt.CacheImports))
-		for i, e := range solveOpt.CacheImports {
-			sreq.CacheImports[i] = frontend.CacheOptionsEntry{
-				Type:  e.Type,
-				Attrs: e.Attrs,
-			}
-		}
-
-		resp, err := c.Build(ctx2, solveOpt, "buildctl",
-			func(ctx context.Context, c gateway.Client) (*gateway.Result, error) {
-				logrus.Info("begin to solve")
-				res, err := c.Solve(ctx, sreq)
-
-				return res, err
-			},
-			progresswriter.ResetTime(mw.WithPrefix("", false)).Status(),
-		)
-		logrus.Info("Build finished")
+func executeBuildImage(ctx context.Context, task *dto.UnifiedTask) error {
+	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
+		span := trace.SpanFromContext(childCtx)
+		payload, err := parseBuildPayload(task.Payload)
 		if err != nil {
-			bklog.G(ctx).Errorf("Build failed: %v", err)
+			span.RecordError(err)
+			span.AddEvent("failed to parse build payload")
 			return err
 		}
-		for k, v := range resp.ExporterResponse {
-			bklog.G(ctx).Debugf("exporter response: %s=%s", k, v)
+
+		updateTaskStatus(
+			childCtx,
+			task.TraceID,
+			task.TaskID,
+			fmt.Sprintf("building image for task %s", task.TaskID),
+			consts.TaskStatusRunning,
+			task.Type,
+		)
+
+		if err := buildImagendPush(childCtx, *payload); err != nil {
+			return err
 		}
-		return err
 
+		if err := repository.CreateContainer(&database.Container{
+			Type:  string(payload.containerType),
+			Name:  payload.name,
+			Image: payload.image,
+			Tag:   payload.tag,
+		}); err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to create container record")
+			return err
+		}
+
+		repository.PublishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+			TaskID:    task.TaskID,
+			TaskType:  task.Type,
+			EventName: consts.EventImageBuildSucceed,
+			Payload:   payload,
+		})
+
+		updateTaskStatus(
+			childCtx,
+			task.TraceID,
+			task.TaskID,
+			fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
+			consts.TaskStatusCompleted,
+			task.Type,
+		)
+
+		logrus.Info("Image build and push completed successfully")
+		if err := os.RemoveAll(payload.sourcePath); err != nil {
+			logrus.WithField("source_path", payload.sourcePath).Warnf("failed to remove source path after build: %v", err)
+		}
+
+		return nil
 	})
+}
 
-	eg.Go(func() error {
-		<-pw.Done()
-		logrus.Info("Build finished")
-		return pw.Err()
-	})
+func parseBuildPayload(payload map[string]any) (*buildPayload, error) {
+	message := "missing or invalid '%s' key in payload"
 
-	if err := eg.Wait(); err != nil {
-		logrus.WithContext(ctx).WithError(err).Error("Build failed")
-		return errors.Wrap(err, "Failed to build and push image")
+	containerType, ok := payload[consts.BuildContainerType].(string)
+	if !ok || containerType == "" {
+		return nil, fmt.Errorf(message, consts.BuildContainerType)
 	}
 
-	return nil
+	name, ok := payload[consts.BuildName].(string)
+	if !ok || name == "" {
+		return nil, fmt.Errorf(message, consts.BuildName)
+	}
+
+	image, ok := payload[consts.BuildImage].(string)
+	if !ok || image == "" {
+		return nil, fmt.Errorf(message, consts.BuildImage)
+	}
+
+	tag, ok := payload[consts.BuildTag].(string)
+	if !ok || tag == "" {
+		return nil, fmt.Errorf(message, consts.BuildTag)
+	}
+
+	sourcePath, ok := payload[consts.BuildSourcePath].(string)
+	if !ok || sourcePath == "" {
+		return nil, fmt.Errorf(message, consts.BuildSourcePath)
+	}
+
+	var buildOptions dto.BuildOptions
+	if options, exists := payload[consts.BuildBuildOptions].(map[string]any); exists {
+		jsonData, err := json.Marshal(options)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal build options: %v", err)
+		}
+
+		buildOptions = dto.BuildOptions{}
+		if err := json.Unmarshal(jsonData, &buildOptions); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal build options: %v", err)
+		}
+	}
+
+	return &buildPayload{
+		containerType: consts.ContainerType(containerType),
+		name:          name,
+		image:         image,
+		tag:           tag,
+		sourcePath:    sourcePath,
+		buildOptions:  buildOptions,
+	}, nil
+}
+
+func buildImagendPush(ctx context.Context, payload buildPayload) error {
+	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
+		span := trace.SpanFromContext(childCtx)
+
+		address := config.GetString("buildkit.address")
+		if address == "" {
+			err := fmt.Errorf("buildkit address is not configured")
+			span.RecordError(err)
+			span.AddEvent("buildkit address is not configured")
+			return err
+		}
+
+		c, err := client.New(childCtx, address)
+		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to create buildkit client")
+			return err
+		}
+
+		defer c.Close()
+
+		dockerConfig := con.LoadDefaultConfigFile(os.Stderr)
+		attachable := []session.Attachable{
+			authprovider.NewDockerAuthProvider(dockerConfig, nil),
+		}
+
+		fullImage := fmt.Sprintf("%s:%s", payload.image, payload.tag)
+		exports := []client.ExportEntry{
+			{
+				Type: client.ExporterImage,
+				Attrs: map[string]string{
+					"name": fullImage,
+					"push": "true",
+				},
+			},
+		}
+
+		opts := payload.buildOptions
+		frontendAttrs := map[string]string{
+			"filename": filepath.Base(opts.DockerfilePath),
+		}
+		if opts.Target != "" {
+			frontendAttrs["target"] = opts.Target
+		}
+
+		if opts.BuildArgs != nil {
+			for k, v := range opts.BuildArgs {
+				frontendAttrs[fmt.Sprintf("build-arg:%s", k)] = v
+			}
+		}
+
+		ctxLocalMount, err := fsutil.NewFS(filepath.Join(payload.sourcePath, opts.ContextDir))
+		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to create local mount for context")
+			return err
+		}
+
+		dockerfilePath := filepath.Join(payload.sourcePath, opts.DockerfilePath)
+		dockerfileLocalMount, err := fsutil.NewFS(filepath.Dir(dockerfilePath))
+		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to create local mount for dockerfile")
+			return err
+		}
+
+		solveOpt := client.SolveOpt{
+			Exports:       exports,
+			Session:       attachable,
+			Ref:           identity.NewID(),
+			Frontend:      "dockerfile.v0",
+			FrontendAttrs: frontendAttrs,
+			LocalMounts: map[string]fsutil.FS{
+				"context":    ctxLocalMount,
+				"dockerfile": dockerfileLocalMount,
+			},
+		}
+		pw, err := progresswriter.NewPrinter(childCtx, os.Stderr, string(progressui.AutoMode))
+		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to create progress writer")
+			return err
+		}
+
+		mw := progresswriter.NewMultiWriter(pw)
+		var writers []progresswriter.Writer
+		for _, at := range attachable {
+			if s, ok := at.(interface {
+				SetLogger(progresswriter.Logger)
+			}); ok {
+				w := mw.WithPrefix("", false)
+				s.SetLogger(func(s *client.SolveStatus) {
+					w.Status() <- s
+				})
+				writers = append(writers, w)
+			}
+		}
+
+		eg, ctx2 := errgroup.WithContext(childCtx)
+		eg.Go(func() error {
+			defer func() {
+				for _, w := range writers {
+					close(w.Status())
+				}
+			}()
+
+			sreq := gateway.SolveRequest{
+				Frontend:    solveOpt.Frontend,
+				FrontendOpt: solveOpt.FrontendAttrs,
+			}
+			sreq.CacheImports = make([]frontend.CacheOptionsEntry, len(solveOpt.CacheImports))
+			for i, e := range solveOpt.CacheImports {
+				sreq.CacheImports[i] = frontend.CacheOptionsEntry{
+					Type:  e.Type,
+					Attrs: e.Attrs,
+				}
+			}
+
+			resp, err := c.Build(ctx2, solveOpt, "buildctl",
+				func(ctx context.Context, c gateway.Client) (*gateway.Result, error) {
+					logrus.Info("begin to solve")
+					res, err := c.Solve(ctx, sreq)
+
+					return res, err
+				},
+				progresswriter.ResetTime(mw.WithPrefix("", false)).Status(),
+			)
+			logrus.Info("Build finished")
+			if err != nil {
+				bklog.G(ctx).Errorf("build failed: %v", err)
+				return err
+			}
+
+			for k, v := range resp.ExporterResponse {
+				bklog.G(ctx).Debugf("exporter response: %s=%s", k, v)
+			}
+			return err
+		})
+
+		eg.Go(func() error {
+			<-pw.Done()
+			logrus.Info("Build finished")
+			return pw.Err()
+		})
+
+		if err := eg.Wait(); err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to build and push image")
+			return err
+		}
+
+		return nil
+	})
 }

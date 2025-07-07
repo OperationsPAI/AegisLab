@@ -12,6 +12,13 @@ const (
 	ContainerTypeBenchmark ContainerType = "benchmark"
 )
 
+type BuildSourceType string
+
+const (
+	BuildSourceTypeFile   BuildSourceType = "file"
+	BuildSourceTypeGitHub BuildSourceType = "github"
+)
+
 const (
 	DefaultTimeUnit = time.Minute
 )
@@ -58,14 +65,25 @@ const (
 
 // 不同任务类型的 Payload 键
 const (
-	BuildBenchmark     = "benchmark"
-	BuildDataset       = "name"
-	BuildPreDuration   = "pre_duration"
-	BuildStartTime     = "start_time"
-	BuildEndTime       = "end_time"
-	BuildEnvVars       = "env_vars"
-	BuildAlgorithm     = "algorithm"
-	BuildAlgorithmPath = "algorithm_path"
+	BuildBenchmark   = "benchmark"
+	BuildDataset     = "name"
+	BuildPreDuration = "pre_duration"
+	BuildStartTime   = "start_time"
+	BuildEndTime     = "end_time"
+	BuildEnvVars     = "env_vars"
+
+	BuildContainerType = "container_type"
+	BuildName          = "name"
+	BuildImage         = "image"
+	BuildTag           = "tag"
+	BuildSourcePath    = "source_path"
+	BuildBuildOptions  = "build_options"
+
+	BuildOptionContextDir     = "context_dir"
+	BuildOptionDockerfilePath = "dockerfile_path"
+	BuildOptionTarget         = "target"
+	BuildOptionBuildArgs      = "build_args"
+	BuildOptionForceRebuild   = "force_rebuild"
 
 	CollectAlgorithm   = "algorithm"
 	CollectAnnotations = "annotations"
@@ -141,6 +159,8 @@ const (
 	EventDatasetNoConclusionFile EventType = "dataset.no_conclusion_file"
 	EventDatasetBuildSucceed     EventType = "dataset.build.succeed"
 	EventDatasetBuildFailed      EventType = "dataset.build.failed"
+
+	EventImageBuildSucceed EventType = "image.build.succeed"
 
 	EventTaskStatusUpdate EventType = "task.status.update"
 	EventTaskRetryStatus  EventType = "task.retry.status"

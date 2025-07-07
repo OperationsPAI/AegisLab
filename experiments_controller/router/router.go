@@ -28,7 +28,7 @@ func New() *gin.Engine {
 
 	algorithms := r.Group("/algorithms")
 	{
-		algorithms.GET("", handlers.GetAlgorithmList)
+		algorithms.GET("", handlers.ListAlgorithms)
 		algorithms.POST("", handlers.SubmitAlgorithmExecution)
 		algorithms.POST("/build", handlers.SubmitAlgorithmBuilding)
 	}
