@@ -38,7 +38,7 @@ host = "localhost:6379"
 
 [harbor]
 host = "10.10.10.240"
-repository = "10.10.10.240/library"
+project = "library"
 username = "admin"
 password = "Harbor12345"
 

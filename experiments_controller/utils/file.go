@@ -83,7 +83,58 @@ func MatchFile(fileName string, rule ExculdeRule) bool {
 	return fileName == rule.Pattern
 }
 
-// extractZip extracts a zip file to the specified destination directory
+func CopyDir(src, dst string) error {
+	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path: %v", err)
+		}
+
+		dstPath := filepath.Join(dst, relPath)
+
+		if d.IsDir() {
+			info, err := d.Info()
+			if err != nil {
+				return fmt.Errorf("failed to get directory info: %v", err)
+			}
+			return os.MkdirAll(dstPath, info.Mode())
+		} else {
+			return CopyFile(path, dstPath)
+		}
+	})
+}
+
+func CopyFile(src, dst string) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("failed to open source file: %v", err)
+	}
+	defer srcFile.Close()
+
+	srcInfo, err := srcFile.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to stat source file: %v", err)
+	}
+
+	dstFile, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, srcInfo.Mode())
+	if err != nil {
+		return fmt.Errorf("failed to create destination file: %v", err)
+	}
+	defer dstFile.Close()
+
+	_, err = io.Copy(dstFile, srcFile)
+	if err != nil {
+		return fmt.Errorf("failed to copy file content: %v", err)
+	}
+
+	return nil
+}
+
+// ExtractZip 解压zip文件，如果只有一个顶级目录则提升其内容到根目录
 func ExtractZip(zipFile, destDir string) error {
 	r, err := zip.OpenReader(zipFile)
 	if err != nil {
@@ -91,9 +142,37 @@ func ExtractZip(zipFile, destDir string) error {
 	}
 	defer r.Close()
 
+	var topLevelDir string
+	allInSingleDir := true
+
 	for _, f := range r.File {
-		// Check for path traversal vulnerabilities
-		filePath := filepath.Join(destDir, f.Name)
+		parts := strings.Split(f.Name, "/")
+		if len(parts) == 1 && !f.FileInfo().IsDir() {
+			allInSingleDir = false
+			break
+		}
+		if topLevelDir == "" {
+			topLevelDir = parts[0]
+		} else if topLevelDir != parts[0] {
+			allInSingleDir = false
+			break
+		}
+	}
+
+	for _, f := range r.File {
+		var filePath string
+
+		if allInSingleDir && topLevelDir != "" {
+			relativePath := strings.TrimPrefix(f.Name, topLevelDir+"/")
+			if relativePath == "" {
+				continue
+			}
+			filePath = filepath.Join(destDir, relativePath)
+		} else {
+			filePath = filepath.Join(destDir, f.Name)
+		}
+
+		// 安全检查
 		if !strings.HasPrefix(filePath, filepath.Clean(destDir)+string(os.PathSeparator)) {
 			return fmt.Errorf("illegal file path: %s", filePath)
 		}
@@ -103,6 +182,7 @@ func ExtractZip(zipFile, destDir string) error {
 			if err != nil {
 				return err
 			}
+
 			continue
 		}
 
@@ -131,7 +211,7 @@ func ExtractZip(zipFile, destDir string) error {
 	return nil
 }
 
-// extractTarGz extracts a tar.gz file to the specified destination directory
+// ExtractTarGz 解压tar.gz文件，如果只有一个顶级目录则提升其内容到根目录
 func ExtractTarGz(tarGzFile, destDir string) error {
 	file, err := os.Open(tarGzFile)
 	if err != nil {
@@ -147,6 +227,48 @@ func ExtractTarGz(tarGzFile, destDir string) error {
 
 	tr := tar.NewReader(gzr)
 
+	var headers []*tar.Header
+	var topLevelDir string
+	allInSingleDir := true
+
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		headers = append(headers, header)
+
+		parts := strings.Split(header.Name, "/")
+		if len(parts) == 1 && header.Typeflag == tar.TypeReg {
+			allInSingleDir = false
+			break
+		}
+		if topLevelDir == "" {
+			topLevelDir = parts[0]
+		} else if topLevelDir != parts[0] {
+			allInSingleDir = false
+			break
+		}
+	}
+
+	file.Close()
+	file, err = os.Open(tarGzFile)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	gzr, err = gzip.NewReader(file)
+	if err != nil {
+		return err
+	}
+	defer gzr.Close()
+
+	tr = tar.NewReader(gzr)
+
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
@@ -156,8 +278,20 @@ func ExtractTarGz(tarGzFile, destDir string) error {
 			return err
 		}
 
-		// Check for path traversal vulnerabilities
-		filePath := filepath.Join(destDir, header.Name)
+		var filePath string
+
+		if allInSingleDir && topLevelDir != "" {
+			relativePath := strings.TrimPrefix(header.Name, topLevelDir+"/")
+			if relativePath == "" {
+				continue // 跳过顶级目录本身
+			}
+
+			filePath = filepath.Join(destDir, relativePath)
+		} else {
+			filePath = filepath.Join(destDir, header.Name)
+		}
+
+		// 安全检查
 		if !strings.HasPrefix(filePath, filepath.Clean(destDir)+string(os.PathSeparator)) {
 			return fmt.Errorf("illegal file path: %s", filePath)
 		}
@@ -172,16 +306,20 @@ func ExtractTarGz(tarGzFile, destDir string) error {
 			if err := os.MkdirAll(dir, 0755); err != nil {
 				return err
 			}
+
 			outFile, err := os.Create(filePath)
 			if err != nil {
 				return err
 			}
+
 			if _, err := io.Copy(outFile, tr); err != nil {
 				outFile.Close()
 				return err
 			}
+
 			outFile.Close()
 		}
 	}
+
 	return nil
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -38,10 +37,9 @@ type HarborTag struct {
 
 func GetHarborClient() *HarborClient {
 	harborOnce.Do(func() {
-		parts := strings.Split(config.GetString("harbor.repository"), "/")
 		harborClient = &HarborClient{
 			host:     config.GetString("harbor.host"),
-			project:  parts[len(parts)-1],
+			project:  config.GetString("harbor.project"),
 			username: config.GetString("harbor.username"),
 			password: config.GetString("harbor.password"),
 			client: &http.Client{

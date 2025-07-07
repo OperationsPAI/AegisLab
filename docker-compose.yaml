@@ -26,6 +26,24 @@ services:
     network_mode: host
     restart: always
 
+  buildkitd:
+    image: moby/buildkit:buildx-stable-1
+    container_name: buildkitd
+    privileged: true
+    command: |
+      --addr tcp://0.0.0.0:1234
+      --allow-insecure-entitlement security.insecure
+      --allow-insecure-entitlement network.host
+    ports:
+      - "1234:1234"
+    volumes:
+      - buildkit_cache:/var/lib/buildkit
+      - /etc/ssl/certs:/etc/ssl/certs:ro  # 添加 SSL 证书
+    restart: always
+    network_mode: host
+    environment:
+      - BUILDKIT_DEBUG=1
+
   exp:
     build:
       context: ./experiments_controller
@@ -42,11 +60,15 @@ services:
       - ./experiments_controller/config.prod.toml:/etc/rcabench/config.prod.toml
       - ./data:/var/lib/rcabench
       - ./output:/app/output
+      - /var/run/docker.sock:/var/run/docker.sock
     working_dir: /app
     depends_on:
       - redis
       - postgres
+      - jaeger
+      - buildkitd
     network_mode: host
 
 volumes:
   pgdata:
+  buildkit_cache:

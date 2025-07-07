@@ -10,6 +10,29 @@ import (
 	"gorm.io/gorm"
 )
 
+func CreateContainer(container *database.Container) error {
+	var existingContainer database.Container
+
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.
+			Where("type = ? AND name = ? AND image = ? AND tag = ?", container.Type, container.Name, container.Image, container.Tag).
+			First(&existingContainer).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return tx.Create(container).Error
+			}
+
+			return err
+		}
+
+		return tx.Model(&existingContainer).Update("updated_at", tx.NowFunc()).Error
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create or update container: %v", err)
+	}
+
+	return nil
+}
+
 func GetContaineInfo(name string, cType consts.ContainerType) (*database.Container, error) {
 	var record database.Container
 	if err := database.DB.

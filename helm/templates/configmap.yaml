@@ -45,7 +45,7 @@ data:
 
     [harbor]
     host = "{{ .Values.configmap.harbor.host }}"
-    repository = "{{ .Values.configmap.harbor.repository }}"
+    project = "{{ .Values.configmap.harbor.project }}"
     username = "{{ .Values.configmap.harbor.username }}"
     password = "{{ .Values.configmap.harbor.password }}"
 

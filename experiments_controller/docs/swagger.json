@@ -25,7 +25,7 @@
     "paths": {
         "/api/v1/algorithms": {
             "get": {
-                "description": "获取算法列表",
+                "description": "获取系统中所有可用的算法列表，包括算法的镜像信息、标签和更新时间。只返回状态为激活的算法容器",
                 "produces": [
                     "application/json"
                 ],
@@ -35,19 +35,13 @@
                 "summary": "获取算法列表",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "成功返回算法列表",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_AlgorithmListResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListAlgorithmsResp"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "服务器内部错误",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -55,43 +49,43 @@
                 }
             },
             "post": {
-                "description": "执行算法",
+                "description": "批量提交算法执行任务，支持多个算法和数据集的组合执行。系统将为每个执行任务分配唯一的 TraceID 用于跟踪任务状态和结果",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "algorithm"
                 ],
-                "summary": "执行算法",
+                "summary": "提交算法执行任务",
                 "parameters": [
                     {
-                        "description": "请求体",
+                        "description": "算法执行请求列表，包含算法名称、数据集和环境变量",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/dto.AlgorithmExecutionPayload"
+                                "$ref": "#/definitions/dto.ExecutionPayload"
                             }
                         }
                     }
                 ],
                 "responses": {
                     "202": {
-                        "description": "Accepted",
+                        "description": "成功提交算法执行任务，返回任务跟踪信息",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "请求参数错误，如JSON格式不正确、算法名称或数据集名称无效、环境变量名称不支持等",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "服务器内部错误",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -101,7 +95,7 @@
         },
         "/api/v1/algorithms/build": {
             "post": {
-                "description": "通过上传文件或指定算法名称来构建算法镜像",
+                "description": "通过上传文件或指定GitHub仓库来构建算法Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建。系统会自动验证必需文件（Dockerfile）并设置执行权限",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -111,36 +105,127 @@
                 "tags": [
                     "algorithm"
                 ],
-                "summary": "构建算法镜像",
+                "summary": "提交算法构建任务",
                 "parameters": [
                     {
+                        "type": "string",
+                        "description": "算法名称，用于标识算法，将作为镜像构建的标识符",
+                        "name": "algorithm",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）",
+                        "name": "image",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "latest",
+                        "description": "Docker镜像标签，用于版本控制",
+                        "name": "tag",
+                        "in": "formData"
+                    },
+                    {
+                        "enum": [
+                            "file",
+                            "github"
+                        ],
+                        "type": "string",
+                        "default": "file",
+                        "description": "构建源类型，指定算法源码来源",
+                        "name": "source_type",
+                        "in": "formData"
+                    },
+                    {
                         "type": "file",
-                        "description": "算法文件 (zip/tar.gz)",
+                        "description": "算法源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB",
                         "name": "file",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "算法名称",
-                        "name": "algo",
+                        "description": "GitHub访问令牌，用于访问私有仓库，公开仓库可不提供",
+                        "name": "github_token",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "GitHub仓库地址，格式：owner/repo，当source_type为github时必需",
+                        "name": "github_repo",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "default": "main",
+                        "description": "GitHub分支名，指定要构建的分支",
+                        "name": "github_branch",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "GitHub commit哈希值（支持短hash），如果指定commit则忽略branch参数",
+                        "name": "github_commit",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "default": ".",
+                        "description": "仓库内的子目录路径，如果算法源码不在根目录",
+                        "name": "github_path",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "default": ".",
+                        "description": "Docker构建上下文路径，相对于源码根目录",
+                        "name": "context_dir",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "default": "Dockerfile",
+                        "description": "Dockerfile路径，相对于源码根目录",
+                        "name": "dockerfile_path",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Dockerfile构建目标（multi-stage build时使用）",
+                        "name": "target",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "是否强制重新构建镜像，忽略缓存",
+                        "name": "force_rebuild",
                         "in": "formData"
                     }
                 ],
                 "responses": {
                     "202": {
-                        "description": "Accepted",
+                        "description": "成功提交算法构建任务，返回任务跟踪信息",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "请求参数错误：文件格式不支持（仅支持zip、tar.gz）、文件大小超限（5MB）、参数验证失败、GitHub仓库地址无效、force_rebuild值格式错误等",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "资源不存在：构建上下文路径不存在、缺少必需文件（Dockerfile、entrypoint.sh）",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "服务器内部错误",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -1445,28 +1530,20 @@
                 "type": "string"
             }
         },
-        "dto.AlgorithmExecutionPayload": {
+        "dto.AlgorithmItem": {
             "type": "object",
             "properties": {
                 "algorithm": {
                     "type": "string"
                 },
-                "dataset": {
+                "image": {
                     "type": "string"
                 },
-                "env_vars": {
-                    "type": "object"
-                }
-            }
-        },
-        "dto.AlgorithmListResp": {
-            "type": "object",
-            "properties": {
-                "algorithms": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
+                "tag": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -1569,6 +1646,24 @@
                 },
                 "span_name": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.ExecutionPayload": {
+            "type": "object",
+            "required": [
+                "algorithm",
+                "dataset"
+            ],
+            "properties": {
+                "algorithm": {
+                    "type": "string"
+                },
+                "dataset": {
+                    "type": "string"
+                },
+                "env_vars": {
+                    "type": "object"
                 }
             }
         },
@@ -1760,31 +1855,6 @@
                 }
             }
         },
-        "dto.GenericResponse-dto_AlgorithmListResp": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "状态码",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "泛型类型的数据",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.AlgorithmListResp"
-                        }
-                    ]
-                },
-                "message": {
-                    "description": "响应消息",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "响应生成时间",
-                    "type": "integer"
-                }
-            }
-        },
         "dto.GenericResponse-dto_DatasetDeleteResp": {
             "type": "object",
             "properties": {
@@ -1924,6 +1994,30 @@
                             "$ref": "#/definitions/dto.InjectionFieldMappingResp"
                         }
                     ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_ListAlgorithmsResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.AlgorithmItem"
+                    }
                 },
                 "message": {
                     "description": "响应消息",

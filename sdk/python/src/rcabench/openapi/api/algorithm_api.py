@@ -17,11 +17,11 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-from pydantic import Field, StrictBytes, StrictStr
+from pydantic import Field, StrictBool, StrictBytes, StrictStr, field_validator
 from typing import List, Optional, Tuple, Union
 from typing_extensions import Annotated
-from rcabench.openapi.models.dto_algorithm_execution_payload import DtoAlgorithmExecutionPayload
-from rcabench.openapi.models.dto_generic_response_dto_algorithm_list_resp import DtoGenericResponseDtoAlgorithmListResp
+from rcabench.openapi.models.dto_execution_payload import DtoExecutionPayload
+from rcabench.openapi.models.dto_generic_response_dto_list_algorithms_resp import DtoGenericResponseDtoListAlgorithmsResp
 from rcabench.openapi.models.dto_generic_response_dto_submit_resp import DtoGenericResponseDtoSubmitResp
 
 from rcabench.openapi.api_client import ApiClient, RequestSerialized
@@ -45,8 +45,20 @@ class AlgorithmApi:
     @validate_call
     def api_v1_algorithms_build_post(
         self,
-        file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="算法文件 (zip/tar.gz)")] = None,
-        algo: Annotated[Optional[StrictStr], Field(description="算法名称")] = None,
+        algorithm: Annotated[StrictStr, Field(description="算法名称，用于标识算法，将作为镜像构建的标识符")],
+        image: Annotated[StrictStr, Field(description="Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）")],
+        tag: Annotated[Optional[StrictStr], Field(description="Docker镜像标签，用于版本控制")] = None,
+        source_type: Annotated[Optional[StrictStr], Field(description="构建源类型，指定算法源码来源")] = None,
+        file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="算法源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB")] = None,
+        github_token: Annotated[Optional[StrictStr], Field(description="GitHub访问令牌，用于访问私有仓库，公开仓库可不提供")] = None,
+        github_repo: Annotated[Optional[StrictStr], Field(description="GitHub仓库地址，格式：owner/repo，当source_type为github时必需")] = None,
+        github_branch: Annotated[Optional[StrictStr], Field(description="GitHub分支名，指定要构建的分支")] = None,
+        github_commit: Annotated[Optional[StrictStr], Field(description="GitHub commit哈希值（支持短hash），如果指定commit则忽略branch参数")] = None,
+        github_path: Annotated[Optional[StrictStr], Field(description="仓库内的子目录路径，如果算法源码不在根目录")] = None,
+        context_dir: Annotated[Optional[StrictStr], Field(description="Docker构建上下文路径，相对于源码根目录")] = None,
+        dockerfile_path: Annotated[Optional[StrictStr], Field(description="Dockerfile路径，相对于源码根目录")] = None,
+        target: Annotated[Optional[StrictStr], Field(description="Dockerfile构建目标（multi-stage build时使用）")] = None,
+        force_rebuild: Annotated[Optional[StrictBool], Field(description="是否强制重新构建镜像，忽略缓存")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -60,14 +72,38 @@ class AlgorithmApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseDtoSubmitResp:
-        """构建算法镜像
+        """提交算法构建任务
 
-        通过上传文件或指定算法名称来构建算法镜像
+        通过上传文件或指定GitHub仓库来构建算法Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建。系统会自动验证必需文件（Dockerfile）并设置执行权限
 
-        :param file: 算法文件 (zip/tar.gz)
+        :param algorithm: 算法名称，用于标识算法，将作为镜像构建的标识符 (required)
+        :type algorithm: str
+        :param image: Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址） (required)
+        :type image: str
+        :param tag: Docker镜像标签，用于版本控制
+        :type tag: str
+        :param source_type: 构建源类型，指定算法源码来源
+        :type source_type: str
+        :param file: 算法源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB
         :type file: bytearray
-        :param algo: 算法名称
-        :type algo: str
+        :param github_token: GitHub访问令牌，用于访问私有仓库，公开仓库可不提供
+        :type github_token: str
+        :param github_repo: GitHub仓库地址，格式：owner/repo，当source_type为github时必需
+        :type github_repo: str
+        :param github_branch: GitHub分支名，指定要构建的分支
+        :type github_branch: str
+        :param github_commit: GitHub commit哈希值（支持短hash），如果指定commit则忽略branch参数
+        :type github_commit: str
+        :param github_path: 仓库内的子目录路径，如果算法源码不在根目录
+        :type github_path: str
+        :param context_dir: Docker构建上下文路径，相对于源码根目录
+        :type context_dir: str
+        :param dockerfile_path: Dockerfile路径，相对于源码根目录
+        :type dockerfile_path: str
+        :param target: Dockerfile构建目标（multi-stage build时使用）
+        :type target: str
+        :param force_rebuild: 是否强制重新构建镜像，忽略缓存
+        :type force_rebuild: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -91,8 +127,20 @@ class AlgorithmApi:
         """ # noqa: E501
 
         _param = self._api_v1_algorithms_build_post_serialize(
+            algorithm=algorithm,
+            image=image,
+            tag=tag,
+            source_type=source_type,
             file=file,
-            algo=algo,
+            github_token=github_token,
+            github_repo=github_repo,
+            github_branch=github_branch,
+            github_commit=github_commit,
+            github_path=github_path,
+            context_dir=context_dir,
+            dockerfile_path=dockerfile_path,
+            target=target,
+            force_rebuild=force_rebuild,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -102,6 +150,7 @@ class AlgorithmApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '202': "DtoGenericResponseDtoSubmitResp",
             '400': "DtoGenericResponseAny",
+            '404': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -118,8 +167,20 @@ class AlgorithmApi:
     @validate_call
     def api_v1_algorithms_build_post_with_http_info(
         self,
-        file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="算法文件 (zip/tar.gz)")] = None,
-        algo: Annotated[Optional[StrictStr], Field(description="算法名称")] = None,
+        algorithm: Annotated[StrictStr, Field(description="算法名称，用于标识算法，将作为镜像构建的标识符")],
+        image: Annotated[StrictStr, Field(description="Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）")],
+        tag: Annotated[Optional[StrictStr], Field(description="Docker镜像标签，用于版本控制")] = None,
+        source_type: Annotated[Optional[StrictStr], Field(description="构建源类型，指定算法源码来源")] = None,
+        file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="算法源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB")] = None,
+        github_token: Annotated[Optional[StrictStr], Field(description="GitHub访问令牌，用于访问私有仓库，公开仓库可不提供")] = None,
+        github_repo: Annotated[Optional[StrictStr], Field(description="GitHub仓库地址，格式：owner/repo，当source_type为github时必需")] = None,
+        github_branch: Annotated[Optional[StrictStr], Field(description="GitHub分支名，指定要构建的分支")] = None,
+        github_commit: Annotated[Optional[StrictStr], Field(description="GitHub commit哈希值（支持短hash），如果指定commit则忽略branch参数")] = None,
+        github_path: Annotated[Optional[StrictStr], Field(description="仓库内的子目录路径，如果算法源码不在根目录")] = None,
+        context_dir: Annotated[Optional[StrictStr], Field(description="Docker构建上下文路径，相对于源码根目录")] = None,
+        dockerfile_path: Annotated[Optional[StrictStr], Field(description="Dockerfile路径，相对于源码根目录")] = None,
+        target: Annotated[Optional[StrictStr], Field(description="Dockerfile构建目标（multi-stage build时使用）")] = None,
+        force_rebuild: Annotated[Optional[StrictBool], Field(description="是否强制重新构建镜像，忽略缓存")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -133,14 +194,38 @@ class AlgorithmApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseDtoSubmitResp]:
-        """构建算法镜像
+        """提交算法构建任务
 
-        通过上传文件或指定算法名称来构建算法镜像
+        通过上传文件或指定GitHub仓库来构建算法Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建。系统会自动验证必需文件（Dockerfile）并设置执行权限
 
-        :param file: 算法文件 (zip/tar.gz)
+        :param algorithm: 算法名称，用于标识算法，将作为镜像构建的标识符 (required)
+        :type algorithm: str
+        :param image: Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址） (required)
+        :type image: str
+        :param tag: Docker镜像标签，用于版本控制
+        :type tag: str
+        :param source_type: 构建源类型，指定算法源码来源
+        :type source_type: str
+        :param file: 算法源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB
         :type file: bytearray
-        :param algo: 算法名称
-        :type algo: str
+        :param github_token: GitHub访问令牌，用于访问私有仓库，公开仓库可不提供
+        :type github_token: str
+        :param github_repo: GitHub仓库地址，格式：owner/repo，当source_type为github时必需
+        :type github_repo: str
+        :param github_branch: GitHub分支名，指定要构建的分支
+        :type github_branch: str
+        :param github_commit: GitHub commit哈希值（支持短hash），如果指定commit则忽略branch参数
+        :type github_commit: str
+        :param github_path: 仓库内的子目录路径，如果算法源码不在根目录
+        :type github_path: str
+        :param context_dir: Docker构建上下文路径，相对于源码根目录
+        :type context_dir: str
+        :param dockerfile_path: Dockerfile路径，相对于源码根目录
+        :type dockerfile_path: str
+        :param target: Dockerfile构建目标（multi-stage build时使用）
+        :type target: str
+        :param force_rebuild: 是否强制重新构建镜像，忽略缓存
+        :type force_rebuild: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -164,8 +249,20 @@ class AlgorithmApi:
         """ # noqa: E501
 
         _param = self._api_v1_algorithms_build_post_serialize(
+            algorithm=algorithm,
+            image=image,
+            tag=tag,
+            source_type=source_type,
             file=file,
-            algo=algo,
+            github_token=github_token,
+            github_repo=github_repo,
+            github_branch=github_branch,
+            github_commit=github_commit,
+            github_path=github_path,
+            context_dir=context_dir,
+            dockerfile_path=dockerfile_path,
+            target=target,
+            force_rebuild=force_rebuild,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -175,6 +272,7 @@ class AlgorithmApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '202': "DtoGenericResponseDtoSubmitResp",
             '400': "DtoGenericResponseAny",
+            '404': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -191,8 +289,20 @@ class AlgorithmApi:
     @validate_call
     def api_v1_algorithms_build_post_without_preload_content(
         self,
-        file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="算法文件 (zip/tar.gz)")] = None,
-        algo: Annotated[Optional[StrictStr], Field(description="算法名称")] = None,
+        algorithm: Annotated[StrictStr, Field(description="算法名称，用于标识算法，将作为镜像构建的标识符")],
+        image: Annotated[StrictStr, Field(description="Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）")],
+        tag: Annotated[Optional[StrictStr], Field(description="Docker镜像标签，用于版本控制")] = None,
+        source_type: Annotated[Optional[StrictStr], Field(description="构建源类型，指定算法源码来源")] = None,
+        file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="算法源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB")] = None,
+        github_token: Annotated[Optional[StrictStr], Field(description="GitHub访问令牌，用于访问私有仓库，公开仓库可不提供")] = None,
+        github_repo: Annotated[Optional[StrictStr], Field(description="GitHub仓库地址，格式：owner/repo，当source_type为github时必需")] = None,
+        github_branch: Annotated[Optional[StrictStr], Field(description="GitHub分支名，指定要构建的分支")] = None,
+        github_commit: Annotated[Optional[StrictStr], Field(description="GitHub commit哈希值（支持短hash），如果指定commit则忽略branch参数")] = None,
+        github_path: Annotated[Optional[StrictStr], Field(description="仓库内的子目录路径，如果算法源码不在根目录")] = None,
+        context_dir: Annotated[Optional[StrictStr], Field(description="Docker构建上下文路径，相对于源码根目录")] = None,
+        dockerfile_path: Annotated[Optional[StrictStr], Field(description="Dockerfile路径，相对于源码根目录")] = None,
+        target: Annotated[Optional[StrictStr], Field(description="Dockerfile构建目标（multi-stage build时使用）")] = None,
+        force_rebuild: Annotated[Optional[StrictBool], Field(description="是否强制重新构建镜像，忽略缓存")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -206,14 +316,38 @@ class AlgorithmApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """构建算法镜像
+        """提交算法构建任务
 
-        通过上传文件或指定算法名称来构建算法镜像
+        通过上传文件或指定GitHub仓库来构建算法Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建。系统会自动验证必需文件（Dockerfile）并设置执行权限
 
-        :param file: 算法文件 (zip/tar.gz)
+        :param algorithm: 算法名称，用于标识算法，将作为镜像构建的标识符 (required)
+        :type algorithm: str
+        :param image: Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址） (required)
+        :type image: str
+        :param tag: Docker镜像标签，用于版本控制
+        :type tag: str
+        :param source_type: 构建源类型，指定算法源码来源
+        :type source_type: str
+        :param file: 算法源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB
         :type file: bytearray
-        :param algo: 算法名称
-        :type algo: str
+        :param github_token: GitHub访问令牌，用于访问私有仓库，公开仓库可不提供
+        :type github_token: str
+        :param github_repo: GitHub仓库地址，格式：owner/repo，当source_type为github时必需
+        :type github_repo: str
+        :param github_branch: GitHub分支名，指定要构建的分支
+        :type github_branch: str
+        :param github_commit: GitHub commit哈希值（支持短hash），如果指定commit则忽略branch参数
+        :type github_commit: str
+        :param github_path: 仓库内的子目录路径，如果算法源码不在根目录
+        :type github_path: str
+        :param context_dir: Docker构建上下文路径，相对于源码根目录
+        :type context_dir: str
+        :param dockerfile_path: Dockerfile路径，相对于源码根目录
+        :type dockerfile_path: str
+        :param target: Dockerfile构建目标（multi-stage build时使用）
+        :type target: str
+        :param force_rebuild: 是否强制重新构建镜像，忽略缓存
+        :type force_rebuild: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -237,8 +371,20 @@ class AlgorithmApi:
         """ # noqa: E501
 
         _param = self._api_v1_algorithms_build_post_serialize(
+            algorithm=algorithm,
+            image=image,
+            tag=tag,
+            source_type=source_type,
             file=file,
-            algo=algo,
+            github_token=github_token,
+            github_repo=github_repo,
+            github_branch=github_branch,
+            github_commit=github_commit,
+            github_path=github_path,
+            context_dir=context_dir,
+            dockerfile_path=dockerfile_path,
+            target=target,
+            force_rebuild=force_rebuild,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -248,6 +394,7 @@ class AlgorithmApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '202': "DtoGenericResponseDtoSubmitResp",
             '400': "DtoGenericResponseAny",
+            '404': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -259,8 +406,20 @@ class AlgorithmApi:
 
     def _api_v1_algorithms_build_post_serialize(
         self,
+        algorithm,
+        image,
+        tag,
+        source_type,
         file,
-        algo,
+        github_token,
+        github_repo,
+        github_branch,
+        github_commit,
+        github_path,
+        context_dir,
+        dockerfile_path,
+        target,
+        force_rebuild,
         _request_auth,
         _content_type,
         _headers,
@@ -285,10 +444,34 @@ class AlgorithmApi:
         # process the query parameters
         # process the header parameters
         # process the form parameters
+        if algorithm is not None:
+            _form_params.append(('algorithm', algorithm))
+        if image is not None:
+            _form_params.append(('image', image))
+        if tag is not None:
+            _form_params.append(('tag', tag))
+        if source_type is not None:
+            _form_params.append(('source_type', source_type))
         if file is not None:
             _files['file'] = file
-        if algo is not None:
-            _form_params.append(('algo', algo))
+        if github_token is not None:
+            _form_params.append(('github_token', github_token))
+        if github_repo is not None:
+            _form_params.append(('github_repo', github_repo))
+        if github_branch is not None:
+            _form_params.append(('github_branch', github_branch))
+        if github_commit is not None:
+            _form_params.append(('github_commit', github_commit))
+        if github_path is not None:
+            _form_params.append(('github_path', github_path))
+        if context_dir is not None:
+            _form_params.append(('context_dir', context_dir))
+        if dockerfile_path is not None:
+            _form_params.append(('dockerfile_path', dockerfile_path))
+        if target is not None:
+            _form_params.append(('target', target))
+        if force_rebuild is not None:
+            _form_params.append(('force_rebuild', force_rebuild))
         # process the body parameter
 
 
@@ -351,10 +534,10 @@ class AlgorithmApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseDtoAlgorithmListResp:
+    ) -> DtoGenericResponseDtoListAlgorithmsResp:
         """获取算法列表
 
-        获取算法列表
+        获取系统中所有可用的算法列表，包括算法的镜像信息、标签和更新时间。只返回状态为激活的算法容器
 
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -386,8 +569,7 @@ class AlgorithmApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoAlgorithmListResp",
-            '400': "DtoGenericResponseAny",
+            '200': "DtoGenericResponseDtoListAlgorithmsResp",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -416,10 +598,10 @@ class AlgorithmApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseDtoAlgorithmListResp]:
+    ) -> ApiResponse[DtoGenericResponseDtoListAlgorithmsResp]:
         """获取算法列表
 
-        获取算法列表
+        获取系统中所有可用的算法列表，包括算法的镜像信息、标签和更新时间。只返回状态为激活的算法容器
 
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -451,8 +633,7 @@ class AlgorithmApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoAlgorithmListResp",
-            '400': "DtoGenericResponseAny",
+            '200': "DtoGenericResponseDtoListAlgorithmsResp",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -484,7 +665,7 @@ class AlgorithmApi:
     ) -> RESTResponseType:
         """获取算法列表
 
-        获取算法列表
+        获取系统中所有可用的算法列表，包括算法的镜像信息、标签和更新时间。只返回状态为激活的算法容器
 
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -516,8 +697,7 @@ class AlgorithmApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoAlgorithmListResp",
-            '400': "DtoGenericResponseAny",
+            '200': "DtoGenericResponseDtoListAlgorithmsResp",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -590,7 +770,7 @@ class AlgorithmApi:
     @validate_call
     def api_v1_algorithms_post(
         self,
-        body: Annotated[List[DtoAlgorithmExecutionPayload], Field(description="请求体")],
+        body: Annotated[List[DtoExecutionPayload], Field(description="算法执行请求列表，包含算法名称、数据集和环境变量")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -604,12 +784,12 @@ class AlgorithmApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseDtoSubmitResp:
-        """执行算法
+        """提交算法执行任务
 
-        执行算法
+        批量提交算法执行任务，支持多个算法和数据集的组合执行。系统将为每个执行任务分配唯一的 TraceID 用于跟踪任务状态和结果
 
-        :param body: 请求体 (required)
-        :type body: List[DtoAlgorithmExecutionPayload]
+        :param body: 算法执行请求列表，包含算法名称、数据集和环境变量 (required)
+        :type body: List[DtoExecutionPayload]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -659,7 +839,7 @@ class AlgorithmApi:
     @validate_call
     def api_v1_algorithms_post_with_http_info(
         self,
-        body: Annotated[List[DtoAlgorithmExecutionPayload], Field(description="请求体")],
+        body: Annotated[List[DtoExecutionPayload], Field(description="算法执行请求列表，包含算法名称、数据集和环境变量")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -673,12 +853,12 @@ class AlgorithmApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseDtoSubmitResp]:
-        """执行算法
+        """提交算法执行任务
 
-        执行算法
+        批量提交算法执行任务，支持多个算法和数据集的组合执行。系统将为每个执行任务分配唯一的 TraceID 用于跟踪任务状态和结果
 
-        :param body: 请求体 (required)
-        :type body: List[DtoAlgorithmExecutionPayload]
+        :param body: 算法执行请求列表，包含算法名称、数据集和环境变量 (required)
+        :type body: List[DtoExecutionPayload]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -728,7 +908,7 @@ class AlgorithmApi:
     @validate_call
     def api_v1_algorithms_post_without_preload_content(
         self,
-        body: Annotated[List[DtoAlgorithmExecutionPayload], Field(description="请求体")],
+        body: Annotated[List[DtoExecutionPayload], Field(description="算法执行请求列表，包含算法名称、数据集和环境变量")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -742,12 +922,12 @@ class AlgorithmApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """执行算法
+        """提交算法执行任务
 
-        执行算法
+        批量提交算法执行任务，支持多个算法和数据集的组合执行。系统将为每个执行任务分配唯一的 TraceID 用于跟踪任务状态和结果
 
-        :param body: 请求体 (required)
-        :type body: List[DtoAlgorithmExecutionPayload]
+        :param body: 算法执行请求列表，包含算法名称、数据集和环境变量 (required)
+        :type body: List[DtoExecutionPayload]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of

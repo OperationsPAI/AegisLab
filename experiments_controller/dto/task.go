@@ -126,13 +126,13 @@ func (t *TaskStreamItem) Convert(task database.Task) {
 }
 
 type DatasetOptions struct {
-	Dataset string
+	Dataset string `json:"dataset"`
 }
 
 type ExecutionOptions struct {
-	Algorithm   string
-	Dataset     string
-	ExecutionID int
+	Algorithm   string `json:"algorithm"`
+	Dataset     string `json:"dataset"`
+	ExecutionID int    `json:"execution_id"`
 }
 
 type StreamEvent struct {
@@ -146,7 +146,6 @@ type StreamEvent struct {
 	Payload   any              `json:"payload"`
 }
 
-// TODO 检查swagger导出模型
 type InfoPayloadTemplate struct {
 	Status string `json:"status"`
 	Msg    string `json:"msg"`

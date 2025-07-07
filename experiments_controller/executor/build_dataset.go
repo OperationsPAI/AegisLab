@@ -51,7 +51,7 @@ func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
 		}
 
 		jobName := task.TaskID
-		fullImage := fmt.Sprintf("%s/%s:%s", config.GetString("harbor.repository"), container.Image, container.Tag)
+		fullImage := fmt.Sprintf("%s:%s", container.Image, container.Tag)
 		labels := map[string]string{
 			consts.LabelTaskID:   task.TaskID,
 			consts.LabelTraceID:  task.TraceID,
