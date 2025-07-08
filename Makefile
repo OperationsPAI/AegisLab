@@ -30,7 +30,7 @@ help:  ## Display targets with category headers
 ##@ Building
 
 run: ## Build and deploy using skaffold
-	$(MAKE) -C scripts/hack/backup_psql/Makefile backup
+	$(MAKE) -C scripts/hack/backup_psql backup
 	skaffold run --default-repo=$(DEFAULT_REPO)
 
 remote-debug: ## Run application in debug mode with skaffold
@@ -122,3 +122,5 @@ release-dry-run: ## Dry run release process (usage: make release-dry-run VERSION
 		exit 1; \
 	fi
 	./scripts/release.sh $(VERSION) --dry-run
+upload:
+	$(MAKE) -C sdk/python upload
