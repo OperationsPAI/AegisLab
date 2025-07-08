@@ -18,20 +18,22 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from rcabench.openapi.models.dto_pagination_resp_dto_fault_injection_with_issues_resp import DtoPaginationRespDtoFaultInjectionWithIssuesResp
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoTimeRangeQuery(BaseModel):
+class DtoGenericResponseDtoPaginationRespDtoFaultInjectionWithIssuesResp(BaseModel):
     """
-    DtoTimeRangeQuery
+    DtoGenericResponseDtoPaginationRespDtoFaultInjectionWithIssuesResp
     """ # noqa: E501
-    custom_end_time: Optional[StrictStr] = None
-    custom_start_time: Optional[StrictStr] = None
-    lookback: Optional[StrictStr] = None
+    code: Optional[StrictInt] = Field(default=None, description="状态码")
+    data: Optional[DtoPaginationRespDtoFaultInjectionWithIssuesResp] = Field(default=None, description="泛型类型的数据")
+    message: Optional[StrictStr] = Field(default=None, description="响应消息")
+    timestamp: Optional[StrictInt] = Field(default=None, description="响应生成时间")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["custom_end_time", "custom_start_time", "lookback"]
+    __properties: ClassVar[List[str]] = ["code", "data", "message", "timestamp"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -51,7 +53,7 @@ class DtoTimeRangeQuery(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoTimeRangeQuery from a JSON string"""
+        """Create an instance of DtoGenericResponseDtoPaginationRespDtoFaultInjectionWithIssuesResp from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -74,6 +76,9 @@ class DtoTimeRangeQuery(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of data
+        if self.data:
+            _dict['data'] = self.data.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -83,7 +88,7 @@ class DtoTimeRangeQuery(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoTimeRangeQuery from a dict"""
+        """Create an instance of DtoGenericResponseDtoPaginationRespDtoFaultInjectionWithIssuesResp from a dict"""
         if obj is None:
             return None
 
@@ -91,9 +96,10 @@ class DtoTimeRangeQuery(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "custom_end_time": obj.get("custom_end_time"),
-            "custom_start_time": obj.get("custom_start_time"),
-            "lookback": obj.get("lookback")
+            "code": obj.get("code"),
+            "data": DtoPaginationRespDtoFaultInjectionWithIssuesResp.from_dict(obj["data"]) if obj.get("data") is not None else None,
+            "message": obj.get("message"),
+            "timestamp": obj.get("timestamp")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

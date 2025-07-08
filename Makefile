@@ -30,6 +30,7 @@ help:  ## Display targets with category headers
 ##@ Building
 
 run: ## Build and deploy using skaffold
+	$(MAKE) -C scripts/hack/backup_psql/Makefile backup
 	skaffold run --default-repo=$(DEFAULT_REPO)
 
 remote-debug: ## Run application in debug mode with skaffold

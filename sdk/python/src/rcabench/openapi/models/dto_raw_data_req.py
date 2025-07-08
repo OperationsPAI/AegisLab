@@ -20,6 +20,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from rcabench.openapi.models.dto_algorithm_dataset_pair import DtoAlgorithmDatasetPair
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -30,8 +31,9 @@ class DtoRawDataReq(BaseModel):
     algorithms: Optional[List[StrictStr]] = None
     datasets: Optional[List[StrictStr]] = None
     execution_ids: Optional[List[StrictInt]] = None
+    pairs: Optional[List[DtoAlgorithmDatasetPair]] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["algorithms", "datasets", "execution_ids"]
+    __properties: ClassVar[List[str]] = ["algorithms", "datasets", "execution_ids", "pairs"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -74,6 +76,13 @@ class DtoRawDataReq(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in pairs (list)
+        _items = []
+        if self.pairs:
+            for _item_pairs in self.pairs:
+                if _item_pairs:
+                    _items.append(_item_pairs.to_dict())
+            _dict['pairs'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -93,7 +102,8 @@ class DtoRawDataReq(BaseModel):
         _obj = cls.model_validate({
             "algorithms": obj.get("algorithms"),
             "datasets": obj.get("datasets"),
-            "execution_ids": obj.get("execution_ids")
+            "execution_ids": obj.get("execution_ids"),
+            "pairs": [DtoAlgorithmDatasetPair.from_dict(_item) for _item in obj["pairs"]] if obj.get("pairs") is not None else None
         })
         # store additional fields in additional_properties
         for _key in obj.keys():
