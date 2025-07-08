@@ -26,6 +26,14 @@ class GetTraceEventsReq(BaseModel):
     )
 
 
+class AlgorithmItem(BaseModel):
+    """Algorithm item model"""
+
+    name: str = Field(..., description="Algorithm name")
+    image: str = Field(..., description="Algorithm image")
+    tag: str = Field(..., description="Algorithm image tag")
+
+
 class DatasetOptions(BaseModel):
     """Dataset options model"""
 

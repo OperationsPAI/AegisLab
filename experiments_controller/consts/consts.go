@@ -53,7 +53,7 @@ const (
 	TaskTypeRestartService TaskType = "RestartService"
 	TaskTypeRunAlgorithm   TaskType = "RunAlgorithm"
 	TaskTypeFaultInjection TaskType = "FaultInjection"
-	TaskTypeBuildImages    TaskType = "BuildImages"
+	TaskTypeBuildImage     TaskType = "BuildImage"
 	TaskTypeBuildDataset   TaskType = "BuildDataset"
 	TaskTypeCollectResult  TaskType = "CollectResult"
 )

@@ -78,7 +78,11 @@ func executeBuildImage(ctx context.Context, task *dto.UnifiedTask) error {
 			TaskID:    task.TaskID,
 			TaskType:  task.Type,
 			EventName: consts.EventImageBuildSucceed,
-			Payload:   payload,
+			Payload: dto.AlgorithmItem{
+				Name:  payload.name,
+				Image: payload.image,
+				Tag:   payload.tag,
+			},
 		})
 
 		updateTaskStatus(
