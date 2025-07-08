@@ -28,10 +28,11 @@ class DtoSuccessfulExecutionItem(BaseModel):
     DtoSuccessfulExecutionItem
     """ # noqa: E501
     algorithm: Optional[StrictStr] = Field(default=None, description="算法名称")
+    created_at: Optional[StrictStr] = Field(default=None, description="创建时间")
     dataset: Optional[StrictStr] = Field(default=None, description="数据集名称")
     id: Optional[StrictInt] = Field(default=None, description="执行ID")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["algorithm", "dataset", "id"]
+    __properties: ClassVar[List[str]] = ["algorithm", "created_at", "dataset", "id"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -92,6 +93,7 @@ class DtoSuccessfulExecutionItem(BaseModel):
 
         _obj = cls.model_validate({
             "algorithm": obj.get("algorithm"),
+            "created_at": obj.get("created_at"),
             "dataset": obj.get("dataset"),
             "id": obj.get("id")
         })

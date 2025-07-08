@@ -6,6 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **algorithm** | **str** | 算法名称 | [optional] 
+**created_at** | **str** | 创建时间 | [optional] 
 **dataset** | **str** | 数据集名称 | [optional] 
 **id** | **int** | 执行ID | [optional] 
 

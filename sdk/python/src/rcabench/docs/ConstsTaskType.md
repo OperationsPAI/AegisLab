@@ -9,7 +9,7 @@
 
 * `FAULTINJECTION` (value: `'FaultInjection'`)
 
-* `BUILDIMAGES` (value: `'BuildImages'`)
+* `BUILDIMAGE` (value: `'BuildImage'`)
 
 * `BUILDDATASET` (value: `'BuildDataset'`)
 

@@ -30,7 +30,7 @@ class ConstsTaskType(str, Enum):
     RESTARTSERVICE = 'RestartService'
     RUNALGORITHM = 'RunAlgorithm'
     FAULTINJECTION = 'FaultInjection'
-    BUILDIMAGES = 'BuildImages'
+    BUILDIMAGE = 'BuildImage'
     BUILDDATASET = 'BuildDataset'
     COLLECTRESULT = 'CollectResult'
 
