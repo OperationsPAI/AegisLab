@@ -196,6 +196,11 @@ type InjectionFieldMappingResp struct {
 	FaultResourceMap map[string]chaos.ResourceField `json:"fault_resource" swaggertype:"object"`
 }
 
+type QueryInjectionResp struct {
+	database.FaultInjectionSchedule
+	GroundTruth chaos.Groundtruth `json:"ground_truth,omitempty"`
+}
+
 type SubmitInjectionResp struct {
 	SubmitResp
 	DuplicatedCount int `json:"duplicated_count"`
