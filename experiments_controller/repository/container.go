@@ -10,21 +10,24 @@ import (
 )
 
 func CreateContainer(container *database.Container) error {
-	var existingContainer database.Container
-
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.
-			Where("type = ? AND name = ? AND image = ? AND tag = ?", container.Type, container.Name, container.Image, container.Tag).
-			First(&existingContainer).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return tx.Create(container).Error
-			}
+		var existingContainer database.Container
+		result := tx.Where("type = ? AND name = ? AND image = ? AND tag = ?",
+			container.Type, container.Name, container.Image, container.Tag).
+			FirstOrCreate(&existingContainer, container)
 
+		if err := result.Error; err != nil {
 			return err
 		}
 
-		return tx.Model(&existingContainer).Update("updated_at", tx.NowFunc()).Error
+		if result.RowsAffected == 0 {
+			return tx.Model(&existingContainer).Update("updated_at", tx.NowFunc()).Error
+		}
+
+		*container = existingContainer
+		return nil
 	})
+
 	if err != nil {
 		return fmt.Errorf("failed to create or update container: %v", err)
 	}

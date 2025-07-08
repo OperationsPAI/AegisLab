@@ -54,3 +54,23 @@ spec:
       storage: {{ .Values.persistence.jaeger.size }}
 {{- end }}
 
+{{- if .Values.persistence.algorithms.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-algorithms-data
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  accessModes:
+    - {{ .Values.persistence.algorithms.accessMode }}
+  {{- if .Values.persistence.algorithms.storageClass }}
+  storageClassName: {{ .Values.persistence.algorithms.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.algorithms.size }}
+{{- end }}
+
+

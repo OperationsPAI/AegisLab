@@ -83,3 +83,8 @@ persistence:
     accessMode: ReadWriteOnce
     size: 2Gi
     storageClass: ""
+  algorithms:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    storageClass: ""
