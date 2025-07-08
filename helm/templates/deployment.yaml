@@ -185,7 +185,7 @@ spec:
               mountPath: /root/.kube/config
               subPath: config
             - name: data
-              mountPath: /var/lib/rcabench
+              mountPath: "{{ .Values.configmap.jfs.path }}"
             - name: algorithms-data
               mountPath: "{{ .Values.configmap.algo.storage_path }}"
       volumes:
@@ -204,7 +204,7 @@ spec:
             type: Directory
         - name: algorithms-data
           persistentVolumeClaim:
-            claimName: algorithms-data
+            claimName: {{ .Release.Name }}-algorithms-data
 ---
 # exp 应用
 apiVersion: apps/v1
@@ -273,9 +273,9 @@ spec:
               mountPath: /root/.kube/config
               subPath: config
             - name: data
-              mountPath: /var/lib/rcabench
-            # - name: algorithms-data
-            #   mountPath: "{{ .Values.configmap.algo.storage_path }}"
+              mountPath: "{{ .Values.configmap.jfs.path }}"
+            - name: algorithms-data
+              mountPath: "{{ .Values.configmap.algo.storage_path }}"
             - name: docker-config-volume
               mountPath: /root/.docker/config.json
               subPath: config.json
@@ -298,7 +298,7 @@ spec:
             type: Directory
         - name: algorithms-data
           persistentVolumeClaim:
-            claimName: algorithms-data
+            claimName: {{ .Release.Name }}-algorithms-data
         - name: docker-config-volume
           secret:
             secretName: docker-config
@@ -373,7 +373,7 @@ spec:
         #     claimName: nfs-shared-pvc
         - name: algorithms-data
           persistentVolumeClaim:
-            claimName: algorithms-data
+            claimName: {{ .Release.Name }}-algorithms-data
         - name: buildkit-socket
           emptyDir: {}
         - name: buildkit-config
