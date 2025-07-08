@@ -6,6 +6,7 @@ Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**api_v1_evaluations_groundtruth_post**](EvaluationApi.md#api_v1_evaluations_groundtruth_post) | **POST** /api/v1/evaluations/groundtruth | 获取数据集的 ground truth
 [**api_v1_evaluations_raw_data_post**](EvaluationApi.md#api_v1_evaluations_raw_data_post) | **POST** /api/v1/evaluations/raw-data | 获取原始评估数据
+[**api_v1_evaluations_successful_executions_get**](EvaluationApi.md#api_v1_evaluations_successful_executions_get) | **GET** /api/v1/evaluations/successful-executions | 获取成功执行的算法记录
 
 
 # **api_v1_evaluations_groundtruth_post**
@@ -84,7 +85,7 @@ No authorization required
 
 获取原始评估数据
 
-根据算法和数据集的笛卡尔积获取对应的原始评估数据，包括粒度记录和真实值信息。支持批量查询多个算法在多个数据集上的执行结果
+支持三种查询模式：1) 直接传入算法-数据集对数组进行精确查询；2) 传入算法和数据集列表进行笛卡尔积查询；3) 通过执行ID列表查询。三种模式互斥，只能选择其中一种
 
 ### Example
 
@@ -107,7 +108,7 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.EvaluationApi(api_client)
-    body = rcabench.openapi.DtoRawDataReq() # DtoRawDataReq | 原始数据查询请求，包含算法列表和数据集列表
+    body = rcabench.openapi.DtoRawDataReq() # DtoRawDataReq | 原始数据查询请求，支持三种模式：pairs数组、(algorithms+datasets)笛卡尔积、或execution_ids列表
 
     try:
         # 获取原始评估数据
@@ -125,7 +126,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**DtoRawDataReq**](DtoRawDataReq.md)| 原始数据查询请求，包含算法列表和数据集列表 | 
+ **body** | [**DtoRawDataReq**](DtoRawDataReq.md)| 原始数据查询请求，支持三种模式：pairs数组、(algorithms+datasets)笛卡尔积、或execution_ids列表 | 
 
 ### Return type
 
@@ -145,7 +146,72 @@ No authorization required
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 **200** | 成功返回原始评估数据列表 |  -  |
-**400** | 请求参数错误，如JSON格式不正确、算法或数据集数组为空 |  -  |
+**400** | 请求参数错误，如JSON格式不正确、查询模式冲突或参数为空 |  -  |
+**500** | 服务器内部错误 |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **api_v1_evaluations_successful_executions_get**
+> DtoGenericResponseDtoSuccessfulExecutionsResp api_v1_evaluations_successful_executions_get()
+
+获取成功执行的算法记录
+
+获取所有ExecutionResult中status为ExecutionSuccess的记录，返回ID、Algorithm、Dataset三个字段
+
+### Example
+
+
+```python
+import rcabench.openapi
+from rcabench.openapi.models.dto_generic_response_dto_successful_executions_resp import DtoGenericResponseDtoSuccessfulExecutionsResp
+from rcabench.openapi.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = rcabench.openapi.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+
+# Enter a context with an instance of the API client
+with rcabench.openapi.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = rcabench.openapi.EvaluationApi(api_client)
+
+    try:
+        # 获取成功执行的算法记录
+        api_response = api_instance.api_v1_evaluations_successful_executions_get()
+        print("The response of EvaluationApi->api_v1_evaluations_successful_executions_get:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling EvaluationApi->api_v1_evaluations_successful_executions_get: %s\n" % e)
+```
+
+
+
+### Parameters
+
+This endpoint does not need any parameter.
+
+### Return type
+
+[**DtoGenericResponseDtoSuccessfulExecutionsResp**](DtoGenericResponseDtoSuccessfulExecutionsResp.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | 成功返回成功执行的算法记录列表 |  -  |
 **500** | 服务器内部错误 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
