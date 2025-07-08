@@ -70,12 +70,6 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 		return
 	}
 
-	if err := req.Validate(); err != nil {
-		logrus.Error(err)
-		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid execution payload: %v", err))
-		return
-	}
-
 	ctx, ok := c.Get(middleware.SpanContextKey)
 	if !ok {
 		logrus.Error("failed to get span context from gin.Context")
@@ -141,7 +135,7 @@ func SubmitAlgorithmBuilding(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	logrus.Infof("SubmitAlgorithmBuilding, groupID: %s", groupID)
 
-	req := &dto.SubmitBuildingReq{
+	req := &dto.SubmitImageBuildingReq{
 		Algorithm: c.PostForm("algorithm"),
 		Image:     c.PostForm("image"),
 		Tag:       c.DefaultPostForm("tag", "latest"),
@@ -253,7 +247,7 @@ func SubmitAlgorithmBuilding(c *gin.Context) {
 	)
 }
 
-func processFileSource(c *gin.Context, req *dto.SubmitBuildingReq) (int, string, error) {
+func processFileSource(c *gin.Context, req *dto.SubmitImageBuildingReq) (int, string, error) {
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
 		return http.StatusBadRequest, "", fmt.Errorf("failed to get uploaded file: %v", err)
@@ -320,7 +314,7 @@ func processFileSource(c *gin.Context, req *dto.SubmitBuildingReq) (int, string,
 	return 0, targetDir, nil
 }
 
-func processGitHubSource(req *dto.SubmitBuildingReq) (int, string, error) {
+func processGitHubSource(req *dto.SubmitImageBuildingReq) (int, string, error) {
 	github := req.Source.GitHub
 
 	targetDir := filepath.Join(config.GetString("algo.storage_path"), req.Algorithm, fmt.Sprintf("build_%d", time.Now().Unix()))

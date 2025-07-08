@@ -36,9 +36,7 @@ func New() *gin.Engine {
 	datasets := r.Group("/datasets")
 	{
 		datasets.DELETE("", handlers.DeleteDataset)
-		datasets.GET("", handlers.GetDatasetList)
 		datasets.GET("/download", handlers.DownloadDataset)
-		datasets.GET("/query", handlers.QueryDataset)
 		datasets.POST("", handlers.SubmitDatasetBuilding)
 	}
 

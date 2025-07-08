@@ -22,8 +22,6 @@ from typing import List, Optional
 from typing_extensions import Annotated
 from rcabench.openapi.models.dto_dataset_build_payload import DtoDatasetBuildPayload
 from rcabench.openapi.models.dto_generic_response_dto_dataset_delete_resp import DtoGenericResponseDtoDatasetDeleteResp
-from rcabench.openapi.models.dto_generic_response_dto_pagination_resp_dto_dataset_item import DtoGenericResponseDtoPaginationRespDtoDatasetItem
-from rcabench.openapi.models.dto_generic_response_dto_query_dataset_resp import DtoGenericResponseDtoQueryDatasetResp
 from rcabench.openapi.models.dto_generic_response_dto_submit_resp import DtoGenericResponseDtoSubmitResp
 
 from rcabench.openapi.api_client import ApiClient, RequestSerialized
@@ -316,8 +314,8 @@ class DatasetApi:
     @validate_call
     def api_v1_datasets_download_get(
         self,
-        group_ids: Annotated[Optional[List[StrictStr]], Field(description="数据集组ID列表，与names参数二选一")] = None,
-        names: Annotated[Optional[List[StrictStr]], Field(description="数据集名称列表，与group_ids参数二选一")] = None,
+        group_ids: Annotated[Optional[List[StrictStr]], Field(description="任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids")] = None,
+        names: Annotated[Optional[List[StrictStr]], Field(description="数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -333,11 +331,11 @@ class DatasetApi:
     ) -> str:
         """下载数据集打包文件
 
-        将指定路径的多个数据集打包为 ZIP 文件下载（自动排除 result.csv 文件）
+        将指定的多个数据集打包为 ZIP 文件下载，自动排除 result.csv 和检测器结论文件。支持按组ID或数据集名称进行下载，两种方式二选一。下载文件结构：按组ID下载时为 datasets/{groupId}/{datasetName}/...，按名称下载时为 datasets/{datasetName}/...
 
-        :param group_ids: 数据集组ID列表，与names参数二选一
+        :param group_ids: 任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids
         :type group_ids: List[str]
-        :param names: 数据集名称列表，与group_ids参数二选一
+        :param names: 数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一
         :type names: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -390,8 +388,8 @@ class DatasetApi:
     @validate_call
     def api_v1_datasets_download_get_with_http_info(
         self,
-        group_ids: Annotated[Optional[List[StrictStr]], Field(description="数据集组ID列表，与names参数二选一")] = None,
-        names: Annotated[Optional[List[StrictStr]], Field(description="数据集名称列表，与group_ids参数二选一")] = None,
+        group_ids: Annotated[Optional[List[StrictStr]], Field(description="任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids")] = None,
+        names: Annotated[Optional[List[StrictStr]], Field(description="数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -407,11 +405,11 @@ class DatasetApi:
     ) -> ApiResponse[str]:
         """下载数据集打包文件
 
-        将指定路径的多个数据集打包为 ZIP 文件下载（自动排除 result.csv 文件）
+        将指定的多个数据集打包为 ZIP 文件下载，自动排除 result.csv 和检测器结论文件。支持按组ID或数据集名称进行下载，两种方式二选一。下载文件结构：按组ID下载时为 datasets/{groupId}/{datasetName}/...，按名称下载时为 datasets/{datasetName}/...
 
-        :param group_ids: 数据集组ID列表，与names参数二选一
+        :param group_ids: 任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids
         :type group_ids: List[str]
-        :param names: 数据集名称列表，与group_ids参数二选一
+        :param names: 数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一
         :type names: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -464,8 +462,8 @@ class DatasetApi:
     @validate_call
     def api_v1_datasets_download_get_without_preload_content(
         self,
-        group_ids: Annotated[Optional[List[StrictStr]], Field(description="数据集组ID列表，与names参数二选一")] = None,
-        names: Annotated[Optional[List[StrictStr]], Field(description="数据集名称列表，与group_ids参数二选一")] = None,
+        group_ids: Annotated[Optional[List[StrictStr]], Field(description="任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids")] = None,
+        names: Annotated[Optional[List[StrictStr]], Field(description="数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -481,11 +479,11 @@ class DatasetApi:
     ) -> RESTResponseType:
         """下载数据集打包文件
 
-        将指定路径的多个数据集打包为 ZIP 文件下载（自动排除 result.csv 文件）
+        将指定的多个数据集打包为 ZIP 文件下载，自动排除 result.csv 和检测器结论文件。支持按组ID或数据集名称进行下载，两种方式二选一。下载文件结构：按组ID下载时为 datasets/{groupId}/{datasetName}/...，按名称下载时为 datasets/{datasetName}/...
 
-        :param group_ids: 数据集组ID列表，与names参数二选一
+        :param group_ids: 任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids
         :type group_ids: List[str]
-        :param names: 数据集名称列表，与group_ids参数二选一
+        :param names: 数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一
         :type names: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -604,294 +602,9 @@ class DatasetApi:
 
 
     @validate_call
-    def api_v1_datasets_get(
-        self,
-        page_num: Annotated[int, Field(strict=True, ge=1, description="页码（从1开始）")],
-        page_size: Annotated[int, Field(le=20, strict=True, ge=5, description="每页数量")],
-        _request_timeout: Union[
-            None,
-            Annotated[StrictFloat, Field(gt=0)],
-            Tuple[
-                Annotated[StrictFloat, Field(gt=0)],
-                Annotated[StrictFloat, Field(gt=0)]
-            ]
-        ] = None,
-        _request_auth: Optional[Dict[StrictStr, Any]] = None,
-        _content_type: Optional[StrictStr] = None,
-        _headers: Optional[Dict[StrictStr, Any]] = None,
-        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseDtoPaginationRespDtoDatasetItem:
-        """分页查询数据集列表
-
-        获取状态为成功的注入数据集列表（支持分页参数）
-
-        :param page_num: 页码（从1开始） (required)
-        :type page_num: int
-        :param page_size: 每页数量 (required)
-        :type page_size: int
-        :param _request_timeout: timeout setting for this request. If one
-                                 number provided, it will be total request
-                                 timeout. It can also be a pair (tuple) of
-                                 (connection, read) timeouts.
-        :type _request_timeout: int, tuple(int, int), optional
-        :param _request_auth: set to override the auth_settings for an a single
-                              request; this effectively ignores the
-                              authentication in the spec for a single request.
-        :type _request_auth: dict, optional
-        :param _content_type: force content-type for the request.
-        :type _content_type: str, Optional
-        :param _headers: set to override the headers for a single
-                         request; this effectively ignores the headers
-                         in the spec for a single request.
-        :type _headers: dict, optional
-        :param _host_index: set to override the host_index for a single
-                            request; this effectively ignores the host_index
-                            in the spec for a single request.
-        :type _host_index: int, optional
-        :return: Returns the result object.
-        """ # noqa: E501
-
-        _param = self._api_v1_datasets_get_serialize(
-            page_num=page_num,
-            page_size=page_size,
-            _request_auth=_request_auth,
-            _content_type=_content_type,
-            _headers=_headers,
-            _host_index=_host_index
-        )
-
-        _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoPaginationRespDtoDatasetItem",
-            '400': "DtoGenericResponseAny",
-            '500': "DtoGenericResponseAny",
-        }
-        response_data = self.api_client.call_api(
-            *_param,
-            _request_timeout=_request_timeout
-        )
-        response_data.read()
-        return self.api_client.response_deserialize(
-            response_data=response_data,
-            response_types_map=_response_types_map,
-        ).data
-
-
-    @validate_call
-    def api_v1_datasets_get_with_http_info(
-        self,
-        page_num: Annotated[int, Field(strict=True, ge=1, description="页码（从1开始）")],
-        page_size: Annotated[int, Field(le=20, strict=True, ge=5, description="每页数量")],
-        _request_timeout: Union[
-            None,
-            Annotated[StrictFloat, Field(gt=0)],
-            Tuple[
-                Annotated[StrictFloat, Field(gt=0)],
-                Annotated[StrictFloat, Field(gt=0)]
-            ]
-        ] = None,
-        _request_auth: Optional[Dict[StrictStr, Any]] = None,
-        _content_type: Optional[StrictStr] = None,
-        _headers: Optional[Dict[StrictStr, Any]] = None,
-        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseDtoPaginationRespDtoDatasetItem]:
-        """分页查询数据集列表
-
-        获取状态为成功的注入数据集列表（支持分页参数）
-
-        :param page_num: 页码（从1开始） (required)
-        :type page_num: int
-        :param page_size: 每页数量 (required)
-        :type page_size: int
-        :param _request_timeout: timeout setting for this request. If one
-                                 number provided, it will be total request
-                                 timeout. It can also be a pair (tuple) of
-                                 (connection, read) timeouts.
-        :type _request_timeout: int, tuple(int, int), optional
-        :param _request_auth: set to override the auth_settings for an a single
-                              request; this effectively ignores the
-                              authentication in the spec for a single request.
-        :type _request_auth: dict, optional
-        :param _content_type: force content-type for the request.
-        :type _content_type: str, Optional
-        :param _headers: set to override the headers for a single
-                         request; this effectively ignores the headers
-                         in the spec for a single request.
-        :type _headers: dict, optional
-        :param _host_index: set to override the host_index for a single
-                            request; this effectively ignores the host_index
-                            in the spec for a single request.
-        :type _host_index: int, optional
-        :return: Returns the result object.
-        """ # noqa: E501
-
-        _param = self._api_v1_datasets_get_serialize(
-            page_num=page_num,
-            page_size=page_size,
-            _request_auth=_request_auth,
-            _content_type=_content_type,
-            _headers=_headers,
-            _host_index=_host_index
-        )
-
-        _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoPaginationRespDtoDatasetItem",
-            '400': "DtoGenericResponseAny",
-            '500': "DtoGenericResponseAny",
-        }
-        response_data = self.api_client.call_api(
-            *_param,
-            _request_timeout=_request_timeout
-        )
-        response_data.read()
-        return self.api_client.response_deserialize(
-            response_data=response_data,
-            response_types_map=_response_types_map,
-        )
-
-
-    @validate_call
-    def api_v1_datasets_get_without_preload_content(
-        self,
-        page_num: Annotated[int, Field(strict=True, ge=1, description="页码（从1开始）")],
-        page_size: Annotated[int, Field(le=20, strict=True, ge=5, description="每页数量")],
-        _request_timeout: Union[
-            None,
-            Annotated[StrictFloat, Field(gt=0)],
-            Tuple[
-                Annotated[StrictFloat, Field(gt=0)],
-                Annotated[StrictFloat, Field(gt=0)]
-            ]
-        ] = None,
-        _request_auth: Optional[Dict[StrictStr, Any]] = None,
-        _content_type: Optional[StrictStr] = None,
-        _headers: Optional[Dict[StrictStr, Any]] = None,
-        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> RESTResponseType:
-        """分页查询数据集列表
-
-        获取状态为成功的注入数据集列表（支持分页参数）
-
-        :param page_num: 页码（从1开始） (required)
-        :type page_num: int
-        :param page_size: 每页数量 (required)
-        :type page_size: int
-        :param _request_timeout: timeout setting for this request. If one
-                                 number provided, it will be total request
-                                 timeout. It can also be a pair (tuple) of
-                                 (connection, read) timeouts.
-        :type _request_timeout: int, tuple(int, int), optional
-        :param _request_auth: set to override the auth_settings for an a single
-                              request; this effectively ignores the
-                              authentication in the spec for a single request.
-        :type _request_auth: dict, optional
-        :param _content_type: force content-type for the request.
-        :type _content_type: str, Optional
-        :param _headers: set to override the headers for a single
-                         request; this effectively ignores the headers
-                         in the spec for a single request.
-        :type _headers: dict, optional
-        :param _host_index: set to override the host_index for a single
-                            request; this effectively ignores the host_index
-                            in the spec for a single request.
-        :type _host_index: int, optional
-        :return: Returns the result object.
-        """ # noqa: E501
-
-        _param = self._api_v1_datasets_get_serialize(
-            page_num=page_num,
-            page_size=page_size,
-            _request_auth=_request_auth,
-            _content_type=_content_type,
-            _headers=_headers,
-            _host_index=_host_index
-        )
-
-        _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoPaginationRespDtoDatasetItem",
-            '400': "DtoGenericResponseAny",
-            '500': "DtoGenericResponseAny",
-        }
-        response_data = self.api_client.call_api(
-            *_param,
-            _request_timeout=_request_timeout
-        )
-        return response_data.response
-
-
-    def _api_v1_datasets_get_serialize(
-        self,
-        page_num,
-        page_size,
-        _request_auth,
-        _content_type,
-        _headers,
-        _host_index,
-    ) -> RequestSerialized:
-
-        _host = None
-
-        _collection_formats: Dict[str, str] = {
-        }
-
-        _path_params: Dict[str, str] = {}
-        _query_params: List[Tuple[str, str]] = []
-        _header_params: Dict[str, Optional[str]] = _headers or {}
-        _form_params: List[Tuple[str, str]] = []
-        _files: Dict[
-            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
-        ] = {}
-        _body_params: Optional[bytes] = None
-
-        # process the path parameters
-        # process the query parameters
-        if page_num is not None:
-            
-            _query_params.append(('page_num', page_num))
-            
-        if page_size is not None:
-            
-            _query_params.append(('page_size', page_size))
-            
-        # process the header parameters
-        # process the form parameters
-        # process the body parameter
-
-
-        # set the HTTP header `Accept`
-        if 'Accept' not in _header_params:
-            _header_params['Accept'] = self.api_client.select_header_accept(
-                [
-                    'application/json'
-                ]
-            )
-
-
-        # authentication setting
-        _auth_settings: List[str] = [
-        ]
-
-        return self.api_client.param_serialize(
-            method='GET',
-            resource_path='/api/v1/datasets',
-            path_params=_path_params,
-            query_params=_query_params,
-            header_params=_header_params,
-            body=_body_params,
-            post_params=_form_params,
-            files=_files,
-            auth_settings=_auth_settings,
-            collection_formats=_collection_formats,
-            _host=_host,
-            _request_auth=_request_auth
-        )
-
-
-
-
-    @validate_call
     def api_v1_datasets_post(
         self,
-        body: Annotated[List[DtoDatasetBuildPayload], Field(description="请求体")],
+        body: Annotated[List[DtoDatasetBuildPayload], Field(description="数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -907,9 +620,9 @@ class DatasetApi:
     ) -> DtoGenericResponseDtoSubmitResp:
         """批量构建数据集
 
-        批量构建数据集
+        根据指定的时间范围和基准测试容器批量构建数据集。
 
-        :param body: 请求体 (required)
+        :param body: 数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置 (required)
         :type body: List[DtoDatasetBuildPayload]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -960,7 +673,7 @@ class DatasetApi:
     @validate_call
     def api_v1_datasets_post_with_http_info(
         self,
-        body: Annotated[List[DtoDatasetBuildPayload], Field(description="请求体")],
+        body: Annotated[List[DtoDatasetBuildPayload], Field(description="数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -976,9 +689,9 @@ class DatasetApi:
     ) -> ApiResponse[DtoGenericResponseDtoSubmitResp]:
         """批量构建数据集
 
-        批量构建数据集
+        根据指定的时间范围和基准测试容器批量构建数据集。
 
-        :param body: 请求体 (required)
+        :param body: 数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置 (required)
         :type body: List[DtoDatasetBuildPayload]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -1029,7 +742,7 @@ class DatasetApi:
     @validate_call
     def api_v1_datasets_post_without_preload_content(
         self,
-        body: Annotated[List[DtoDatasetBuildPayload], Field(description="请求体")],
+        body: Annotated[List[DtoDatasetBuildPayload], Field(description="数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1045,9 +758,9 @@ class DatasetApi:
     ) -> RESTResponseType:
         """批量构建数据集
 
-        批量构建数据集
+        根据指定的时间范围和基准测试容器批量构建数据集。
 
-        :param body: 请求体 (required)
+        :param body: 数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置 (required)
         :type body: List[DtoDatasetBuildPayload]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -1132,6 +845,19 @@ class DatasetApi:
                 ]
             )
 
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
 
         # authentication setting
         _auth_settings: List[str] = [
@@ -1140,291 +866,6 @@ class DatasetApi:
         return self.api_client.param_serialize(
             method='POST',
             resource_path='/api/v1/datasets',
-            path_params=_path_params,
-            query_params=_query_params,
-            header_params=_header_params,
-            body=_body_params,
-            post_params=_form_params,
-            files=_files,
-            auth_settings=_auth_settings,
-            collection_formats=_collection_formats,
-            _host=_host,
-            _request_auth=_request_auth
-        )
-
-
-
-
-    @validate_call
-    def api_v1_datasets_query_get(
-        self,
-        name: Annotated[StrictStr, Field(description="数据集名称")],
-        sort: Annotated[Optional[StrictStr], Field(description="排序方式")] = None,
-        _request_timeout: Union[
-            None,
-            Annotated[StrictFloat, Field(gt=0)],
-            Tuple[
-                Annotated[StrictFloat, Field(gt=0)],
-                Annotated[StrictFloat, Field(gt=0)]
-            ]
-        ] = None,
-        _request_auth: Optional[Dict[StrictStr, Any]] = None,
-        _content_type: Optional[StrictStr] = None,
-        _headers: Optional[Dict[StrictStr, Any]] = None,
-        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseDtoQueryDatasetResp:
-        """查询单个数据集详情
-
-        根据数据集名称查询单个数据集的详细信息，包括检测器结果和执行记录
-
-        :param name: 数据集名称 (required)
-        :type name: str
-        :param sort: 排序方式
-        :type sort: str
-        :param _request_timeout: timeout setting for this request. If one
-                                 number provided, it will be total request
-                                 timeout. It can also be a pair (tuple) of
-                                 (connection, read) timeouts.
-        :type _request_timeout: int, tuple(int, int), optional
-        :param _request_auth: set to override the auth_settings for an a single
-                              request; this effectively ignores the
-                              authentication in the spec for a single request.
-        :type _request_auth: dict, optional
-        :param _content_type: force content-type for the request.
-        :type _content_type: str, Optional
-        :param _headers: set to override the headers for a single
-                         request; this effectively ignores the headers
-                         in the spec for a single request.
-        :type _headers: dict, optional
-        :param _host_index: set to override the host_index for a single
-                            request; this effectively ignores the host_index
-                            in the spec for a single request.
-        :type _host_index: int, optional
-        :return: Returns the result object.
-        """ # noqa: E501
-
-        _param = self._api_v1_datasets_query_get_serialize(
-            name=name,
-            sort=sort,
-            _request_auth=_request_auth,
-            _content_type=_content_type,
-            _headers=_headers,
-            _host_index=_host_index
-        )
-
-        _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoQueryDatasetResp",
-            '400': "DtoGenericResponseAny",
-            '500': "DtoGenericResponseAny",
-        }
-        response_data = self.api_client.call_api(
-            *_param,
-            _request_timeout=_request_timeout
-        )
-        response_data.read()
-        return self.api_client.response_deserialize(
-            response_data=response_data,
-            response_types_map=_response_types_map,
-        ).data
-
-
-    @validate_call
-    def api_v1_datasets_query_get_with_http_info(
-        self,
-        name: Annotated[StrictStr, Field(description="数据集名称")],
-        sort: Annotated[Optional[StrictStr], Field(description="排序方式")] = None,
-        _request_timeout: Union[
-            None,
-            Annotated[StrictFloat, Field(gt=0)],
-            Tuple[
-                Annotated[StrictFloat, Field(gt=0)],
-                Annotated[StrictFloat, Field(gt=0)]
-            ]
-        ] = None,
-        _request_auth: Optional[Dict[StrictStr, Any]] = None,
-        _content_type: Optional[StrictStr] = None,
-        _headers: Optional[Dict[StrictStr, Any]] = None,
-        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseDtoQueryDatasetResp]:
-        """查询单个数据集详情
-
-        根据数据集名称查询单个数据集的详细信息，包括检测器结果和执行记录
-
-        :param name: 数据集名称 (required)
-        :type name: str
-        :param sort: 排序方式
-        :type sort: str
-        :param _request_timeout: timeout setting for this request. If one
-                                 number provided, it will be total request
-                                 timeout. It can also be a pair (tuple) of
-                                 (connection, read) timeouts.
-        :type _request_timeout: int, tuple(int, int), optional
-        :param _request_auth: set to override the auth_settings for an a single
-                              request; this effectively ignores the
-                              authentication in the spec for a single request.
-        :type _request_auth: dict, optional
-        :param _content_type: force content-type for the request.
-        :type _content_type: str, Optional
-        :param _headers: set to override the headers for a single
-                         request; this effectively ignores the headers
-                         in the spec for a single request.
-        :type _headers: dict, optional
-        :param _host_index: set to override the host_index for a single
-                            request; this effectively ignores the host_index
-                            in the spec for a single request.
-        :type _host_index: int, optional
-        :return: Returns the result object.
-        """ # noqa: E501
-
-        _param = self._api_v1_datasets_query_get_serialize(
-            name=name,
-            sort=sort,
-            _request_auth=_request_auth,
-            _content_type=_content_type,
-            _headers=_headers,
-            _host_index=_host_index
-        )
-
-        _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoQueryDatasetResp",
-            '400': "DtoGenericResponseAny",
-            '500': "DtoGenericResponseAny",
-        }
-        response_data = self.api_client.call_api(
-            *_param,
-            _request_timeout=_request_timeout
-        )
-        response_data.read()
-        return self.api_client.response_deserialize(
-            response_data=response_data,
-            response_types_map=_response_types_map,
-        )
-
-
-    @validate_call
-    def api_v1_datasets_query_get_without_preload_content(
-        self,
-        name: Annotated[StrictStr, Field(description="数据集名称")],
-        sort: Annotated[Optional[StrictStr], Field(description="排序方式")] = None,
-        _request_timeout: Union[
-            None,
-            Annotated[StrictFloat, Field(gt=0)],
-            Tuple[
-                Annotated[StrictFloat, Field(gt=0)],
-                Annotated[StrictFloat, Field(gt=0)]
-            ]
-        ] = None,
-        _request_auth: Optional[Dict[StrictStr, Any]] = None,
-        _content_type: Optional[StrictStr] = None,
-        _headers: Optional[Dict[StrictStr, Any]] = None,
-        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> RESTResponseType:
-        """查询单个数据集详情
-
-        根据数据集名称查询单个数据集的详细信息，包括检测器结果和执行记录
-
-        :param name: 数据集名称 (required)
-        :type name: str
-        :param sort: 排序方式
-        :type sort: str
-        :param _request_timeout: timeout setting for this request. If one
-                                 number provided, it will be total request
-                                 timeout. It can also be a pair (tuple) of
-                                 (connection, read) timeouts.
-        :type _request_timeout: int, tuple(int, int), optional
-        :param _request_auth: set to override the auth_settings for an a single
-                              request; this effectively ignores the
-                              authentication in the spec for a single request.
-        :type _request_auth: dict, optional
-        :param _content_type: force content-type for the request.
-        :type _content_type: str, Optional
-        :param _headers: set to override the headers for a single
-                         request; this effectively ignores the headers
-                         in the spec for a single request.
-        :type _headers: dict, optional
-        :param _host_index: set to override the host_index for a single
-                            request; this effectively ignores the host_index
-                            in the spec for a single request.
-        :type _host_index: int, optional
-        :return: Returns the result object.
-        """ # noqa: E501
-
-        _param = self._api_v1_datasets_query_get_serialize(
-            name=name,
-            sort=sort,
-            _request_auth=_request_auth,
-            _content_type=_content_type,
-            _headers=_headers,
-            _host_index=_host_index
-        )
-
-        _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoQueryDatasetResp",
-            '400': "DtoGenericResponseAny",
-            '500': "DtoGenericResponseAny",
-        }
-        response_data = self.api_client.call_api(
-            *_param,
-            _request_timeout=_request_timeout
-        )
-        return response_data.response
-
-
-    def _api_v1_datasets_query_get_serialize(
-        self,
-        name,
-        sort,
-        _request_auth,
-        _content_type,
-        _headers,
-        _host_index,
-    ) -> RequestSerialized:
-
-        _host = None
-
-        _collection_formats: Dict[str, str] = {
-        }
-
-        _path_params: Dict[str, str] = {}
-        _query_params: List[Tuple[str, str]] = []
-        _header_params: Dict[str, Optional[str]] = _headers or {}
-        _form_params: List[Tuple[str, str]] = []
-        _files: Dict[
-            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
-        ] = {}
-        _body_params: Optional[bytes] = None
-
-        # process the path parameters
-        # process the query parameters
-        if name is not None:
-            
-            _query_params.append(('name', name))
-            
-        if sort is not None:
-            
-            _query_params.append(('sort', sort))
-            
-        # process the header parameters
-        # process the form parameters
-        # process the body parameter
-
-
-        # set the HTTP header `Accept`
-        if 'Accept' not in _header_params:
-            _header_params['Accept'] = self.api_client.select_header_accept(
-                [
-                    'application/json'
-                ]
-            )
-
-
-        # authentication setting
-        _auth_settings: List[str] = [
-        ]
-
-        return self.api_client.param_serialize(
-            method='GET',
-            resource_path='/api/v1/datasets/query',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

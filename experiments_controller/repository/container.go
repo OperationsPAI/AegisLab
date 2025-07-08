@@ -50,7 +50,7 @@ func GetContaineInfo(opts *dto.GetContainerFilterOptions) (*database.Container, 
 	}
 
 	var record database.Container
-	if err := database.DB.
+	if err := query.
 		Order("updated_at DESC").
 		First(&record).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

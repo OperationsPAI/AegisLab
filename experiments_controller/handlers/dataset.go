@@ -46,125 +46,19 @@ func DeleteDataset(c *gin.Context) {
 	dto.SuccessResponse(c, dto.DatasetDeleteResp{SuccessCount: successCount, FailedNames: failedNames})
 }
 
-// QueryDataset
+// DownloadDataset 处理数据集下载请求
 //
-//	@Summary		查询单个数据集详情
-//	@Description	根据数据集名称查询单个数据集的详细信息，包括检测器结果和执行记录
+//	@Summary		下载数据集打包文件
+//	@Description	将指定的多个数据集打包为 ZIP 文件下载，自动排除 result.csv 和检测器结论文件。支持按组ID或数据集名称进行下载，两种方式二选一。下载文件结构：按组ID下载时为 datasets/{groupId}/{datasetName}/...，按名称下载时为 datasets/{datasetName}/...
 //	@Tags			dataset
-//	@Produce		json
-//	@Param			name	query		string	true	"数据集名称"
-//	@Param			sort	query		string	false	"排序方式"
-//	@Success		200		{object}	dto.GenericResponse[dto.QueryDatasetResp]
-//	@Failure		400		{object}	dto.GenericResponse[any]
-//	@Failure		500		{object}	dto.GenericResponse[any]
-//	@Router			/api/v1/datasets/query [get]
-func QueryDataset(c *gin.Context) {
-	var req dto.QueryDatasetReq
-	if err := c.BindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, formatErrorMessage(err, dto.PaginationFieldMap))
-		return
-	}
-
-	sortOrder, err := validateSortOrder(req.Sort)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	item, err := repository.GetDatasetByName(req.Name, consts.DatasetBuildSuccess)
-	if err != nil {
-		logrus.Errorf("failed to get dataset: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get dataset")
-		return
-	}
-
-	logEntry := logrus.WithField("dataset", item.Name)
-
-	detectorRecord, err := repository.GetDetectorRecordByDatasetID(item.ID)
-	if err != nil {
-		logEntry.Errorf("failed to retrieve detector record: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to load detector data")
-		return
-	}
-
-	executionRecords, err := repository.ListExecutionRecordByDatasetID(item.ID, sortOrder)
-	if err != nil {
-		logEntry.Errorf("failed to retrieve execution records: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to load execution data")
-		return
-	}
-
-	if len(executionRecords) == 0 {
-		logEntry.Warn("no execution records found for dataset")
-	}
-
-	dto.SuccessResponse(c, &dto.QueryDatasetResp{
-		DatasetItem:      item.DatasetItem,
-		DetectorResult:   detectorRecord,
-		ExecutionResults: executionRecords,
-	})
-}
-
-// GetDatasetList
-//
-//	@Summary		分页查询数据集列表
-//	@Description	获取状态为成功的注入数据集列表（支持分页参数）
-//	@Tags			dataset
-//	@Produce		json
-//	@Param			page_num	query		int		true	"页码（从1开始）" minimum(1) default(1)
-//	@Param			page_size	query		int		true	"每页数量" minimum(5) maximum(20) default(10)
-//	@Success		200			{object}	dto.GenericResponse[dto.PaginationResp[dto.DatasetItem]] "成功响应"
-//	@Failure		400			{object}	dto.GenericResponse[any] "参数校验失败"
-//	@Failure		500			{object}	dto.GenericResponse[any] "服务器内部错误"
-//	@Router			/api/v1/datasets [get]
-func GetDatasetList(c *gin.Context) {
-	// 获取查询参数并校验是否合法
-	var req dto.DatasetListReq
-	if err := c.BindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, formatErrorMessage(err, dto.PaginationFieldMap))
-		return
-	}
-
-	total, records, err := repository.ListDatasetWithPagination(req.PageNum, req.PageSize)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	items := make([]dto.DatasetItem, 0, len(records))
-	for _, record := range records {
-		var item dto.DatasetItem
-		if err := item.Convert(record); err != nil {
-			logrus.WithField("dataset", record.InjectionName).Error(err)
-			dto.ErrorResponse(c, http.StatusInternalServerError, "invalid injection configuration")
-			return
-		}
-
-		items = append(items, item)
-	}
-
-	totalPages := (total + int64(req.PageSize) - 1) / int64(req.PageSize)
-	dto.SuccessResponse(c, dto.PaginationResp[dto.DatasetItem]{
-		Total:      total,
-		TotalPages: totalPages,
-		Items:      items,
-	})
-}
-
-// DownloadByGroupIDs 处理数据集下载请求
-//
-//		@Summary		下载数据集打包文件
-//		@Description	将指定路径的多个数据集打包为 ZIP 文件下载（自动排除 result.csv 文件）
-//		@Tags			dataset
-//		@Produce		application/zip
-//		@Consumes		application/json
-//	 @Param          group_ids    query       []string    false   "数据集组ID列表，与names参数二选一"
-//	 @Param          names        query       []string    false   "数据集名称列表，与group_ids参数二选一"
-//		@Success		200			{string} 	binary 		"ZIP 文件流"
-//		@Failure		400			{object}	dto.GenericResponse[any] "参数绑定错误"
-//		@Failure		403			{object}	dto.GenericResponse[any] "非法路径访问"
-//		@Failure		500			{object}	dto.GenericResponse[any] "文件打包失败"
-//		@Router			/api/v1/datasets/download [get]
+//	@Produce		application/zip
+//	@Param			group_ids	query		[]string	false	"任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids")
+//	@Param			names		query		[]string	false	"数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一"
+//	@Success		200			{string}	binary		"ZIP 文件流，Content-Disposition 头中包含文件名 datasets.zip"
+//	@Failure		400			{object}	dto.GenericResponse[any]	"请求参数错误：1) 参数绑定失败 2) 两个参数都为空 3) 同时提供两种参数"
+//	@Failure		403			{object}	dto.GenericResponse[any]	"权限错误：请求访问的数据集路径不在系统允许的范围内"
+//	@Failure		500			{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Router			/api/v1/datasets/download [get]
 func DownloadDataset(c *gin.Context) {
 	var req dto.DatasetDownloadReq
 	if err := c.BindQuery(&req); err != nil {
@@ -337,14 +231,14 @@ func downloadByNames(zipWriter *zip.Writer, names []string, excludeRules []utils
 // SubmitDatasetBuilding
 //
 //	@Summary		批量构建数据集
-//	@Description	批量构建数据集
+//	@Description	根据指定的时间范围和基准测试容器批量构建数据集。
 //	@Tags			dataset
+//	@Accept			json
 //	@Produce		json
-//	@Consumes		application/json
-//	@Param			body	body		[]dto.DatasetBuildPayload	true	"请求体"
-//	@Success		202		{object}	dto.GenericResponse[dto.SubmitResp]
-//	@Failure		400		{object}	dto.GenericResponse[any]
-//	@Failure		500		{object}	dto.GenericResponse[any]
+//	@Param			body	body		dto.SubmitDatasetBuildingReq	true	"数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置"
+//	@Success		202		{object}	dto.GenericResponse[dto.SubmitResp]	"成功提交数据集构建任务，返回任务组ID和跟踪信息列表"
+//	@Failure		400		{object}	dto.GenericResponse[any]	"请求参数错误：1) JSON格式不正确 2) 数据集名称为空 3) 时间范围无效 4) 基准测试不存在 5) 环境变量名称不支持"
+//	@Failure		500		{object}	dto.GenericResponse[any]	"服务器内部错误"
 //	@Router			/api/v1/datasets [post]
 func SubmitDatasetBuilding(c *gin.Context) {
 	groupID := c.GetString("groupID")

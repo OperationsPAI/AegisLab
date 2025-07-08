@@ -6,9 +6,7 @@ Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**api_v1_datasets_delete**](DatasetApi.md#api_v1_datasets_delete) | **DELETE** /api/v1/datasets | 删除数据集数据
 [**api_v1_datasets_download_get**](DatasetApi.md#api_v1_datasets_download_get) | **GET** /api/v1/datasets/download | 下载数据集打包文件
-[**api_v1_datasets_get**](DatasetApi.md#api_v1_datasets_get) | **GET** /api/v1/datasets | 分页查询数据集列表
 [**api_v1_datasets_post**](DatasetApi.md#api_v1_datasets_post) | **POST** /api/v1/datasets | 批量构建数据集
-[**api_v1_datasets_query_get**](DatasetApi.md#api_v1_datasets_query_get) | **GET** /api/v1/datasets/query | 查询单个数据集详情
 
 
 # **api_v1_datasets_delete**
@@ -86,7 +84,7 @@ No authorization required
 
 下载数据集打包文件
 
-将指定路径的多个数据集打包为 ZIP 文件下载（自动排除 result.csv 文件）
+将指定的多个数据集打包为 ZIP 文件下载，自动排除 result.csv 和检测器结论文件。支持按组ID或数据集名称进行下载，两种方式二选一。下载文件结构：按组ID下载时为 datasets/{groupId}/{datasetName}/...，按名称下载时为 datasets/{datasetName}/...
 
 ### Example
 
@@ -107,8 +105,8 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.DatasetApi(api_client)
-    group_ids = ['group_ids_example'] # List[str] | 数据集组ID列表，与names参数二选一 (optional)
-    names = ['names_example'] # List[str] | 数据集名称列表，与group_ids参数二选一 (optional)
+    group_ids = ['group_ids_example'] # List[str] | 任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids (optional)
+    names = ['names_example'] # List[str] | 数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一 (optional)
 
     try:
         # 下载数据集打包文件
@@ -126,8 +124,8 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **group_ids** | [**List[str]**](str.md)| 数据集组ID列表，与names参数二选一 | [optional] 
- **names** | [**List[str]**](str.md)| 数据集名称列表，与group_ids参数二选一 | [optional] 
+ **group_ids** | [**List[str]**](str.md)| 任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids | [optional] 
+ **names** | [**List[str]**](str.md)| 数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一 | [optional] 
 
 ### Return type
 
@@ -146,81 +144,9 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | ZIP 文件流 |  -  |
-**400** | 参数绑定错误 |  -  |
-**403** | 非法路径访问 |  -  |
-**500** | 文件打包失败 |  -  |
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
-# **api_v1_datasets_get**
-> DtoGenericResponseDtoPaginationRespDtoDatasetItem api_v1_datasets_get(page_num, page_size)
-
-分页查询数据集列表
-
-获取状态为成功的注入数据集列表（支持分页参数）
-
-### Example
-
-
-```python
-import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_dto_pagination_resp_dto_dataset_item import DtoGenericResponseDtoPaginationRespDtoDatasetItem
-from rcabench.openapi.rest import ApiException
-from pprint import pprint
-
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
-# See configuration.py for a list of all supported configuration parameters.
-configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
-)
-
-
-# Enter a context with an instance of the API client
-with rcabench.openapi.ApiClient(configuration) as api_client:
-    # Create an instance of the API class
-    api_instance = rcabench.openapi.DatasetApi(api_client)
-    page_num = 1 # int | 页码（从1开始） (default to 1)
-    page_size = 10 # int | 每页数量 (default to 10)
-
-    try:
-        # 分页查询数据集列表
-        api_response = api_instance.api_v1_datasets_get(page_num, page_size)
-        print("The response of DatasetApi->api_v1_datasets_get:\n")
-        pprint(api_response)
-    except Exception as e:
-        print("Exception when calling DatasetApi->api_v1_datasets_get: %s\n" % e)
-```
-
-
-
-### Parameters
-
-
-Name | Type | Description  | Notes
-------------- | ------------- | ------------- | -------------
- **page_num** | **int**| 页码（从1开始） | [default to 1]
- **page_size** | **int**| 每页数量 | [default to 10]
-
-### Return type
-
-[**DtoGenericResponseDtoPaginationRespDtoDatasetItem**](DtoGenericResponseDtoPaginationRespDtoDatasetItem.md)
-
-### Authorization
-
-No authorization required
-
-### HTTP request headers
-
- - **Content-Type**: Not defined
- - **Accept**: application/json
-
-### HTTP response details
-
-| Status code | Description | Response headers |
-|-------------|-------------|------------------|
-**200** | 成功响应 |  -  |
-**400** | 参数校验失败 |  -  |
+**200** | ZIP 文件流，Content-Disposition 头中包含文件名 datasets.zip |  -  |
+**400** | 请求参数错误：1) 参数绑定失败 2) 两个参数都为空 3) 同时提供两种参数 |  -  |
+**403** | 权限错误：请求访问的数据集路径不在系统允许的范围内 |  -  |
 **500** | 服务器内部错误 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
@@ -230,7 +156,7 @@ No authorization required
 
 批量构建数据集
 
-批量构建数据集
+根据指定的时间范围和基准测试容器批量构建数据集。
 
 ### Example
 
@@ -253,7 +179,7 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.DatasetApi(api_client)
-    body = [rcabench.openapi.DtoDatasetBuildPayload()] # List[DtoDatasetBuildPayload] | 请求体
+    body = [rcabench.openapi.DtoDatasetBuildPayload()] # List[DtoDatasetBuildPayload] | 数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置
 
     try:
         # 批量构建数据集
@@ -271,7 +197,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**List[DtoDatasetBuildPayload]**](DtoDatasetBuildPayload.md)| 请求体 | 
+ **body** | [**List[DtoDatasetBuildPayload]**](DtoDatasetBuildPayload.md)| 数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置 | 
 
 ### Return type
 
@@ -283,88 +209,16 @@ No authorization required
 
 ### HTTP request headers
 
- - **Content-Type**: Not defined
+ - **Content-Type**: application/json
  - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**202** | Accepted |  -  |
-**400** | Bad Request |  -  |
-**500** | Internal Server Error |  -  |
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
-# **api_v1_datasets_query_get**
-> DtoGenericResponseDtoQueryDatasetResp api_v1_datasets_query_get(name, sort=sort)
-
-查询单个数据集详情
-
-根据数据集名称查询单个数据集的详细信息，包括检测器结果和执行记录
-
-### Example
-
-
-```python
-import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_dto_query_dataset_resp import DtoGenericResponseDtoQueryDatasetResp
-from rcabench.openapi.rest import ApiException
-from pprint import pprint
-
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
-# See configuration.py for a list of all supported configuration parameters.
-configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
-)
-
-
-# Enter a context with an instance of the API client
-with rcabench.openapi.ApiClient(configuration) as api_client:
-    # Create an instance of the API class
-    api_instance = rcabench.openapi.DatasetApi(api_client)
-    name = 'name_example' # str | 数据集名称
-    sort = 'sort_example' # str | 排序方式 (optional)
-
-    try:
-        # 查询单个数据集详情
-        api_response = api_instance.api_v1_datasets_query_get(name, sort=sort)
-        print("The response of DatasetApi->api_v1_datasets_query_get:\n")
-        pprint(api_response)
-    except Exception as e:
-        print("Exception when calling DatasetApi->api_v1_datasets_query_get: %s\n" % e)
-```
-
-
-
-### Parameters
-
-
-Name | Type | Description  | Notes
-------------- | ------------- | ------------- | -------------
- **name** | **str**| 数据集名称 | 
- **sort** | **str**| 排序方式 | [optional] 
-
-### Return type
-
-[**DtoGenericResponseDtoQueryDatasetResp**](DtoGenericResponseDtoQueryDatasetResp.md)
-
-### Authorization
-
-No authorization required
-
-### HTTP request headers
-
- - **Content-Type**: Not defined
- - **Accept**: application/json
-
-### HTTP response details
-
-| Status code | Description | Response headers |
-|-------------|-------------|------------------|
-**200** | OK |  -  |
-**400** | Bad Request |  -  |
-**500** | Internal Server Error |  -  |
+**202** | 成功提交数据集构建任务，返回任务组ID和跟踪信息列表 |  -  |
+**400** | 请求参数错误：1) JSON格式不正确 2) 数据集名称为空 3) 时间范围无效 4) 基准测试不存在 5) 环境变量名称不支持 |  -  |
+**500** | 服务器内部错误 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
