@@ -22,35 +22,7 @@ type ExecutionPayload struct {
 	EnvVars   map[string]string `json:"env_vars" binding:"omitempty" swaggertype:"object"`
 }
 
-var ExecuteEnvVarNameMap = map[string]struct{}{
-	"ALGORITHM": {},
-	"SERVICE":   {},
-	"VENV":      {},
-}
-
-func (p *ExecutionPayload) Validate() error {
-	if len(p.EnvVars) != 0 {
-		for key := range p.EnvVars {
-			if _, exists := ExecuteEnvVarNameMap[key]; !exists {
-				return fmt.Errorf("Invalid environment variable name: %s", key)
-			}
-		}
-	}
-
-	return nil
-}
-
 type SubmitExecutionReq []ExecutionPayload
-
-func (req *SubmitExecutionReq) Validate() error {
-	for _, payload := range *req {
-		if err := payload.Validate(); err != nil {
-			return fmt.Errorf("Invalid execution payload: %v", err)
-		}
-	}
-
-	return nil
-}
 
 type BuildSource struct {
 	Type   consts.BuildSourceType `json:"type" binding:"required"`
@@ -145,7 +117,7 @@ func (opts *BuildOptions) Validate() error {
 	return nil
 }
 
-type SubmitBuildingReq struct {
+type SubmitImageBuildingReq struct {
 	Algorithm    string        `json:"algorithm" binding:"required"`
 	Image        string        `json:"image" binding:"required"`
 	Tag          string        `json:"tag" binding:"omitempty"`
@@ -154,7 +126,7 @@ type SubmitBuildingReq struct {
 	BuildOptions *BuildOptions `json:"build_options" binding:"omitempty"`
 }
 
-func (req *SubmitBuildingReq) Validate() error {
+func (req *SubmitImageBuildingReq) Validate() error {
 	if req.Algorithm == "" {
 		return fmt.Errorf("Algorithm name cannot be empty")
 	}

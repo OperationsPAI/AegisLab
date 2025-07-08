@@ -130,56 +130,6 @@ definitions:
       success_count:
         type: integer
     type: object
-  dto.DatasetItem:
-    properties:
-      end_time:
-        type: string
-      name:
-        type: string
-      param:
-        items:
-          type: object
-        type: array
-      start_time:
-        type: string
-    type: object
-  dto.DetectorRecord:
-    properties:
-      abnormal_avg_duration:
-        example: 0.5
-        type: number
-      abnormal_p90:
-        example: 1.2
-        type: number
-      abnormal_p95:
-        example: 1.5
-        type: number
-      abnormal_p99:
-        example: 2
-        type: number
-      abnormal_succ_rate:
-        example: 0.8
-        type: number
-      issue:
-        type: string
-      normal_avg_duration:
-        example: 0.3
-        type: number
-      normal_p90:
-        example: 0.8
-        type: number
-      normal_p95:
-        example: 1
-        type: number
-      normal_p99:
-        example: 1.3
-        type: number
-      normal_succ_rate:
-        example: 0.95
-        type: number
-      span_name:
-        type: string
-    type: object
   dto.ExecutionPayload:
     properties:
       algorithm:
@@ -191,15 +141,6 @@ definitions:
     required:
     - algorithm
     - dataset
-    type: object
-  dto.ExecutionRecord:
-    properties:
-      algorithm:
-        type: string
-      granularity_records:
-        items:
-          $ref: '#/definitions/dto.GranularityRecord'
-        type: array
     type: object
   dto.FaultInjectionNoIssuesResp:
     properties:
@@ -448,22 +389,6 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
-  dto.GenericResponse-dto_PaginationResp-dto_DatasetItem:
-    properties:
-      code:
-        description: 状态码
-        type: integer
-      data:
-        allOf:
-        - $ref: '#/definitions/dto.PaginationResp-dto_DatasetItem'
-        description: 泛型类型的数据
-      message:
-        description: 响应消息
-        type: string
-      timestamp:
-        description: 响应生成时间
-        type: integer
-    type: object
   dto.GenericResponse-dto_PaginationResp-dto_TaskItem:
     properties:
       code:
@@ -488,22 +413,6 @@ definitions:
       data:
         allOf:
         - $ref: '#/definitions/dto.PaginationResp-dto_UnifiedTask'
-        description: 泛型类型的数据
-      message:
-        description: 响应消息
-        type: string
-      timestamp:
-        description: 响应生成时间
-        type: integer
-    type: object
-  dto.GenericResponse-dto_QueryDatasetResp:
-    properties:
-      code:
-        description: 状态码
-        type: integer
-      data:
-        allOf:
-        - $ref: '#/definitions/dto.QueryDatasetResp'
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -674,17 +583,6 @@ definitions:
     additionalProperties:
       $ref: '#/definitions/handler.Resources'
     type: object
-  dto.PaginationResp-dto_DatasetItem:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/dto.DatasetItem'
-        type: array
-      total:
-        type: integer
-      total_pages:
-        type: integer
-    type: object
   dto.PaginationResp-dto_TaskItem:
     properties:
       items:
@@ -706,25 +604,6 @@ definitions:
         type: integer
       total_pages:
         type: integer
-    type: object
-  dto.QueryDatasetResp:
-    properties:
-      detector_result:
-        $ref: '#/definitions/dto.DetectorRecord'
-      end_time:
-        type: string
-      execution_results:
-        items:
-          $ref: '#/definitions/dto.ExecutionRecord'
-        type: array
-      name:
-        type: string
-      param:
-        items:
-          type: object
-        type: array
-      start_time:
-        type: string
     type: object
   dto.RawDataItem:
     properties:
@@ -1169,46 +1048,12 @@ paths:
       summary: 删除数据集数据
       tags:
       - dataset
-    get:
-      description: 获取状态为成功的注入数据集列表（支持分页参数）
-      parameters:
-      - default: 1
-        description: 页码（从1开始）
-        in: query
-        minimum: 1
-        name: page_num
-        required: true
-        type: integer
-      - default: 10
-        description: 每页数量
-        in: query
-        maximum: 20
-        minimum: 5
-        name: page_size
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 成功响应
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_PaginationResp-dto_DatasetItem'
-        "400":
-          description: 参数校验失败
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: 服务器内部错误
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 分页查询数据集列表
-      tags:
-      - dataset
     post:
-      description: 批量构建数据集
+      consumes:
+      - application/json
+      description: 根据指定的时间范围和基准测试容器批量构建数据集。
       parameters:
-      - description: 请求体
+      - description: 数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置
         in: body
         name: body
         required: true
@@ -1220,15 +1065,15 @@ paths:
       - application/json
       responses:
         "202":
-          description: Accepted
+          description: 成功提交数据集构建任务，返回任务组ID和跟踪信息列表
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_SubmitResp'
         "400":
-          description: Bad Request
+          description: 请求参数错误：1) JSON格式不正确 2) 数据集名称为空 3) 时间范围无效 4) 基准测试不存在 5) 环境变量名称不支持
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: Internal Server Error
+          description: 服务器内部错误
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
       summary: 批量构建数据集
@@ -1236,17 +1081,18 @@ paths:
       - dataset
   /api/v1/datasets/download:
     get:
-      description: 将指定路径的多个数据集打包为 ZIP 文件下载（自动排除 result.csv 文件）
+      description: 将指定的多个数据集打包为 ZIP 文件下载，自动排除 result.csv 和检测器结论文件。支持按组ID或数据集名称进行下载，两种方式二选一。下载文件结构：按组ID下载时为
+        datasets/{groupId}/{datasetName}/...，按名称下载时为 datasets/{datasetName}/...
       parameters:
       - collectionFormat: csv
-        description: 数据集组ID列表，与names参数二选一
+        description: 任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids
         in: query
         items:
           type: string
         name: group_ids
         type: array
       - collectionFormat: csv
-        description: 数据集名称列表，与group_ids参数二选一
+        description: 数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一
         in: query
         items:
           type: string
@@ -1256,53 +1102,22 @@ paths:
       - application/zip
       responses:
         "200":
-          description: ZIP 文件流
+          description: ZIP 文件流，Content-Disposition 头中包含文件名 datasets.zip
           schema:
             type: string
         "400":
-          description: 参数绑定错误
+          description: 请求参数错误：1) 参数绑定失败 2) 两个参数都为空 3) 同时提供两种参数
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "403":
-          description: 非法路径访问
+          description: 权限错误：请求访问的数据集路径不在系统允许的范围内
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 文件打包失败
+          description: 服务器内部错误
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
       summary: 下载数据集打包文件
-      tags:
-      - dataset
-  /api/v1/datasets/query:
-    get:
-      description: 根据数据集名称查询单个数据集的详细信息，包括检测器结果和执行记录
-      parameters:
-      - description: 数据集名称
-        in: query
-        name: name
-        required: true
-        type: string
-      - description: 排序方式
-        in: query
-        name: sort
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_QueryDatasetResp'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 查询单个数据集详情
       tags:
       - dataset
   /api/v1/debug/ns/status:

@@ -79,9 +79,7 @@ func (d *DatasetItemWithID) Convert(record database.FaultInjectionSchedule) erro
 	return nil
 }
 
-type DatasetListReq struct {
-	PaginationQuery
-}
+type SubmitDatasetBuildingReq []DatasetBuildPayload
 
 type DatasetBuildPayload struct {
 	Benchmark   string            `json:"benchmark"`
@@ -98,17 +96,6 @@ type DatasetJoinedResult struct {
 func (d *DatasetJoinedResult) Convert(groupID, name string) {
 	d.GroupID = groupID
 	d.Name = name
-}
-
-type QueryDatasetReq struct {
-	Name string `form:"name" binding:"required,max=64"`
-	Sort string `form:"sort" binding:"oneof=desc asc"`
-}
-
-type QueryDatasetResp struct {
-	DatasetItem
-	DetectorResult   DetectorRecord    `json:"detector_result"`
-	ExecutionResults []ExecutionRecord `json:"execution_results"`
 }
 
 var DatasetStatusMap = map[int]string{

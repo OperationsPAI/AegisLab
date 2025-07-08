@@ -78,7 +78,6 @@ type FaultInjectionSchedule struct {
 	UpdatedAt     time.Time `gorm:"autoUpdateTime" json:"updated_at"`      // 更新时间
 }
 
-// TODO 添加数据的接口
 type Container struct {
 	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`                     // 唯一标识
 	Type      string    `gorm:"index;not null" json:"type"`                             // 镜像类型

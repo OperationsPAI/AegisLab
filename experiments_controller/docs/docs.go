@@ -243,59 +243,11 @@ const docTemplate = `{
             }
         },
         "/api/v1/datasets": {
-            "get": {
-                "description": "获取状态为成功的注入数据集列表（支持分页参数）",
-                "produces": [
+            "post": {
+                "description": "根据指定的时间范围和基准测试容器批量构建数据集。",
+                "consumes": [
                     "application/json"
                 ],
-                "tags": [
-                    "dataset"
-                ],
-                "summary": "分页查询数据集列表",
-                "parameters": [
-                    {
-                        "minimum": 1,
-                        "type": "integer",
-                        "default": 1,
-                        "description": "页码（从1开始）",
-                        "name": "page_num",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "maximum": 20,
-                        "minimum": 5,
-                        "type": "integer",
-                        "default": 10,
-                        "description": "每页数量",
-                        "name": "page_size",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "成功响应",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_PaginationResp-dto_DatasetItem"
-                        }
-                    },
-                    "400": {
-                        "description": "参数校验失败",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "服务器内部错误",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "批量构建数据集",
                 "produces": [
                     "application/json"
                 ],
@@ -305,7 +257,7 @@ const docTemplate = `{
                 "summary": "批量构建数据集",
                 "parameters": [
                     {
-                        "description": "请求体",
+                        "description": "数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -319,19 +271,19 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "202": {
-                        "description": "Accepted",
+                        "description": "成功提交数据集构建任务，返回任务组ID和跟踪信息列表",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "请求参数错误：1) JSON格式不正确 2) 数据集名称为空 3) 时间范围无效 4) 基准测试不存在 5) 环境变量名称不支持",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "服务器内部错误",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -384,7 +336,7 @@ const docTemplate = `{
         },
         "/api/v1/datasets/download": {
             "get": {
-                "description": "将指定路径的多个数据集打包为 ZIP 文件下载（自动排除 result.csv 文件）",
+                "description": "将指定的多个数据集打包为 ZIP 文件下载，自动排除 result.csv 和检测器结论文件。支持按组ID或数据集名称进行下载，两种方式二选一。下载文件结构：按组ID下载时为 datasets/{groupId}/{datasetName}/...，按名称下载时为 datasets/{datasetName}/...",
                 "produces": [
                     "application/zip"
                 ],
@@ -399,7 +351,7 @@ const docTemplate = `{
                             "type": "string"
                         },
                         "collectionFormat": "csv",
-                        "description": "数据集组ID列表，与names参数二选一",
+                        "description": "任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids",
                         "name": "group_ids",
                         "in": "query"
                     },
@@ -409,79 +361,32 @@ const docTemplate = `{
                             "type": "string"
                         },
                         "collectionFormat": "csv",
-                        "description": "数据集名称列表，与group_ids参数二选一",
+                        "description": "数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一",
                         "name": "names",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "ZIP 文件流",
+                        "description": "ZIP 文件流，Content-Disposition 头中包含文件名 datasets.zip",
                         "schema": {
                             "type": "string"
                         }
                     },
                     "400": {
-                        "description": "参数绑定错误",
+                        "description": "请求参数错误：1) 参数绑定失败 2) 两个参数都为空 3) 同时提供两种参数",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "403": {
-                        "description": "非法路径访问",
+                        "description": "权限错误：请求访问的数据集路径不在系统允许的范围内",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "文件打包失败",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/datasets/query": {
-            "get": {
-                "description": "根据数据集名称查询单个数据集的详细信息，包括检测器结果和执行记录",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "dataset"
-                ],
-                "summary": "查询单个数据集详情",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "数据集名称",
-                        "name": "name",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "排序方式",
-                        "name": "sort",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_QueryDatasetResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
+                        "description": "服务器内部错误",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -1628,77 +1533,6 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.DatasetItem": {
-            "type": "object",
-            "properties": {
-                "end_time": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "param": {
-                    "type": "array",
-                    "items": {
-                        "type": "object"
-                    }
-                },
-                "start_time": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.DetectorRecord": {
-            "type": "object",
-            "properties": {
-                "abnormal_avg_duration": {
-                    "type": "number",
-                    "example": 0.5
-                },
-                "abnormal_p90": {
-                    "type": "number",
-                    "example": 1.2
-                },
-                "abnormal_p95": {
-                    "type": "number",
-                    "example": 1.5
-                },
-                "abnormal_p99": {
-                    "type": "number",
-                    "example": 2
-                },
-                "abnormal_succ_rate": {
-                    "type": "number",
-                    "example": 0.8
-                },
-                "issue": {
-                    "type": "string"
-                },
-                "normal_avg_duration": {
-                    "type": "number",
-                    "example": 0.3
-                },
-                "normal_p90": {
-                    "type": "number",
-                    "example": 0.8
-                },
-                "normal_p95": {
-                    "type": "number",
-                    "example": 1
-                },
-                "normal_p99": {
-                    "type": "number",
-                    "example": 1.3
-                },
-                "normal_succ_rate": {
-                    "type": "number",
-                    "example": 0.95
-                },
-                "span_name": {
-                    "type": "string"
-                }
-            }
-        },
         "dto.ExecutionPayload": {
             "type": "object",
             "required": [
@@ -1714,20 +1548,6 @@ const docTemplate = `{
                 },
                 "env_vars": {
                     "type": "object"
-                }
-            }
-        },
-        "dto.ExecutionRecord": {
-            "type": "object",
-            "properties": {
-                "algorithm": {
-                    "type": "string"
-                },
-                "granularity_records": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.GranularityRecord"
-                    }
                 }
             }
         },
@@ -2104,31 +1924,6 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_PaginationResp-dto_DatasetItem": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "状态码",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "泛型类型的数据",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.PaginationResp-dto_DatasetItem"
-                        }
-                    ]
-                },
-                "message": {
-                    "description": "响应消息",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "响应生成时间",
-                    "type": "integer"
-                }
-            }
-        },
         "dto.GenericResponse-dto_PaginationResp-dto_TaskItem": {
             "type": "object",
             "properties": {
@@ -2166,31 +1961,6 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.PaginationResp-dto_UnifiedTask"
-                        }
-                    ]
-                },
-                "message": {
-                    "description": "响应消息",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "响应生成时间",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.GenericResponse-dto_QueryDatasetResp": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "状态码",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "泛型类型的数据",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.QueryDatasetResp"
                         }
                     ]
                 },
@@ -2451,23 +2221,6 @@ const docTemplate = `{
                 "$ref": "#/definitions/handler.Resources"
             }
         },
-        "dto.PaginationResp-dto_DatasetItem": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.DatasetItem"
-                    }
-                },
-                "total": {
-                    "type": "integer"
-                },
-                "total_pages": {
-                    "type": "integer"
-                }
-            }
-        },
         "dto.PaginationResp-dto_TaskItem": {
             "type": "object",
             "properties": {
@@ -2499,35 +2252,6 @@ const docTemplate = `{
                 },
                 "total_pages": {
                     "type": "integer"
-                }
-            }
-        },
-        "dto.QueryDatasetResp": {
-            "type": "object",
-            "properties": {
-                "detector_result": {
-                    "$ref": "#/definitions/dto.DetectorRecord"
-                },
-                "end_time": {
-                    "type": "string"
-                },
-                "execution_results": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.ExecutionRecord"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                },
-                "param": {
-                    "type": "array",
-                    "items": {
-                        "type": "object"
-                    }
-                },
-                "start_time": {
-                    "type": "string"
                 }
             }
         },
