@@ -44,6 +44,7 @@ func New() *gin.Engine {
 	{
 		evaluations.POST("groundtruth", handlers.GetGroundtruth)
 		evaluations.POST("raw-data", handlers.GetEvaluationRawData)
+		evaluations.GET("executions", handlers.GetSuccessfulExecutions)
 	}
 
 	injections := r.Group("/injections")
