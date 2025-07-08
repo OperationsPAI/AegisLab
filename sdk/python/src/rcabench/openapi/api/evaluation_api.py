@@ -17,7 +17,8 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-from pydantic import Field
+from pydantic import Field, StrictInt, StrictStr
+from typing import Optional
 from typing_extensions import Annotated
 from rcabench.openapi.models.dto_generic_response_dto_ground_truth_resp import DtoGenericResponseDtoGroundTruthResp
 from rcabench.openapi.models.dto_generic_response_dto_raw_data_resp import DtoGenericResponseDtoRawDataResp
@@ -46,6 +47,10 @@ class EvaluationApi:
     @validate_call
     def api_v1_evaluations_executions_get(
         self,
+        start_time: Annotated[Optional[StrictStr], Field(description="开始时间，格式：2006-01-02T15:04:05Z07:00")] = None,
+        end_time: Annotated[Optional[StrictStr], Field(description="结束时间，格式：2006-01-02T15:04:05Z07:00")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="数量限制")] = None,
+        offset: Annotated[Optional[StrictInt], Field(description="偏移量，用于分页")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -61,8 +66,16 @@ class EvaluationApi:
     ) -> DtoGenericResponseDtoSuccessfulExecutionsResp:
         """获取成功执行的算法记录
 
-        获取所有ExecutionResult中status为ExecutionSuccess的记录，返回ID、Algorithm、Dataset三个字段
+        获取所有ExecutionResult中status为ExecutionSuccess的记录，支持时间区间筛选和数量筛选
 
+        :param start_time: 开始时间，格式：2006-01-02T15:04:05Z07:00
+        :type start_time: str
+        :param end_time: 结束时间，格式：2006-01-02T15:04:05Z07:00
+        :type end_time: str
+        :param limit: 数量限制
+        :type limit: int
+        :param offset: 偏移量，用于分页
+        :type offset: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -86,6 +99,10 @@ class EvaluationApi:
         """ # noqa: E501
 
         _param = self._api_v1_evaluations_executions_get_serialize(
+            start_time=start_time,
+            end_time=end_time,
+            limit=limit,
+            offset=offset,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -94,6 +111,7 @@ class EvaluationApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "DtoGenericResponseDtoSuccessfulExecutionsResp",
+            '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -110,6 +128,10 @@ class EvaluationApi:
     @validate_call
     def api_v1_evaluations_executions_get_with_http_info(
         self,
+        start_time: Annotated[Optional[StrictStr], Field(description="开始时间，格式：2006-01-02T15:04:05Z07:00")] = None,
+        end_time: Annotated[Optional[StrictStr], Field(description="结束时间，格式：2006-01-02T15:04:05Z07:00")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="数量限制")] = None,
+        offset: Annotated[Optional[StrictInt], Field(description="偏移量，用于分页")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -125,8 +147,16 @@ class EvaluationApi:
     ) -> ApiResponse[DtoGenericResponseDtoSuccessfulExecutionsResp]:
         """获取成功执行的算法记录
 
-        获取所有ExecutionResult中status为ExecutionSuccess的记录，返回ID、Algorithm、Dataset三个字段
+        获取所有ExecutionResult中status为ExecutionSuccess的记录，支持时间区间筛选和数量筛选
 
+        :param start_time: 开始时间，格式：2006-01-02T15:04:05Z07:00
+        :type start_time: str
+        :param end_time: 结束时间，格式：2006-01-02T15:04:05Z07:00
+        :type end_time: str
+        :param limit: 数量限制
+        :type limit: int
+        :param offset: 偏移量，用于分页
+        :type offset: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -150,6 +180,10 @@ class EvaluationApi:
         """ # noqa: E501
 
         _param = self._api_v1_evaluations_executions_get_serialize(
+            start_time=start_time,
+            end_time=end_time,
+            limit=limit,
+            offset=offset,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -158,6 +192,7 @@ class EvaluationApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "DtoGenericResponseDtoSuccessfulExecutionsResp",
+            '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -174,6 +209,10 @@ class EvaluationApi:
     @validate_call
     def api_v1_evaluations_executions_get_without_preload_content(
         self,
+        start_time: Annotated[Optional[StrictStr], Field(description="开始时间，格式：2006-01-02T15:04:05Z07:00")] = None,
+        end_time: Annotated[Optional[StrictStr], Field(description="结束时间，格式：2006-01-02T15:04:05Z07:00")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="数量限制")] = None,
+        offset: Annotated[Optional[StrictInt], Field(description="偏移量，用于分页")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -189,8 +228,16 @@ class EvaluationApi:
     ) -> RESTResponseType:
         """获取成功执行的算法记录
 
-        获取所有ExecutionResult中status为ExecutionSuccess的记录，返回ID、Algorithm、Dataset三个字段
+        获取所有ExecutionResult中status为ExecutionSuccess的记录，支持时间区间筛选和数量筛选
 
+        :param start_time: 开始时间，格式：2006-01-02T15:04:05Z07:00
+        :type start_time: str
+        :param end_time: 结束时间，格式：2006-01-02T15:04:05Z07:00
+        :type end_time: str
+        :param limit: 数量限制
+        :type limit: int
+        :param offset: 偏移量，用于分页
+        :type offset: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -214,6 +261,10 @@ class EvaluationApi:
         """ # noqa: E501
 
         _param = self._api_v1_evaluations_executions_get_serialize(
+            start_time=start_time,
+            end_time=end_time,
+            limit=limit,
+            offset=offset,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -222,6 +273,7 @@ class EvaluationApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "DtoGenericResponseDtoSuccessfulExecutionsResp",
+            '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -233,6 +285,10 @@ class EvaluationApi:
 
     def _api_v1_evaluations_executions_get_serialize(
         self,
+        start_time,
+        end_time,
+        limit,
+        offset,
         _request_auth,
         _content_type,
         _headers,
@@ -255,6 +311,22 @@ class EvaluationApi:
 
         # process the path parameters
         # process the query parameters
+        if start_time is not None:
+            
+            _query_params.append(('start_time', start_time))
+            
+        if end_time is not None:
+            
+            _query_params.append(('end_time', end_time))
+            
+        if limit is not None:
+            
+            _query_params.append(('limit', limit))
+            
+        if offset is not None:
+            
+            _query_params.append(('offset', offset))
+            
         # process the header parameters
         # process the form parameters
         # process the body parameter

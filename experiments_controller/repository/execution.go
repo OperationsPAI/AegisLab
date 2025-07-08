@@ -377,8 +377,31 @@ func GetGroundtruthMap(datasets []string) (map[string]chaos.Groundtruth, error) 
 
 // ListSuccessfulExecutions 获取所有成功执行的算法记录
 func ListSuccessfulExecutions() ([]dto.SuccessfulExecutionItem, error) {
+	return ListSuccessfulExecutionsWithFilter(dto.SuccessfulExecutionsReq{})
+}
+
+// ListSuccessfulExecutionsWithFilter 根据筛选条件获取成功执行的算法记录
+func ListSuccessfulExecutionsWithFilter(req dto.SuccessfulExecutionsReq) ([]dto.SuccessfulExecutionItem, error) {
 	var executions []database.ExecutionResult
-	err := database.DB.Where("status = ?", consts.ExecutionSuccess).Find(&executions).Error
+	query := database.DB.Where("status = ?", consts.ExecutionSuccess)
+
+	if req.StartTime != nil {
+		query = query.Where("created_at >= ?", *req.StartTime)
+	}
+	if req.EndTime != nil {
+		query = query.Where("created_at <= ?", *req.EndTime)
+	}
+
+	query = query.Order("created_at DESC")
+
+	if req.Offset != nil && *req.Offset > 0 {
+		query = query.Offset(*req.Offset)
+	}
+	if req.Limit != nil && *req.Limit > 0 {
+		query = query.Limit(*req.Limit)
+	}
+
+	err := query.Find(&executions).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to query successful executions: %v", err)
 	}
@@ -389,6 +412,7 @@ func ListSuccessfulExecutions() ([]dto.SuccessfulExecutionItem, error) {
 			ID:        exec.ID,
 			Algorithm: exec.Algorithm,
 			Dataset:   exec.Dataset,
+			CreatedAt: exec.CreatedAt,
 		}
 	}
 

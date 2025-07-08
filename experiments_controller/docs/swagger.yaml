@@ -5,7 +5,7 @@ definitions:
     - RestartService
     - RunAlgorithm
     - FaultInjection
-    - BuildImages
+    - BuildImage
     - BuildDataset
     - CollectResult
     type: string
@@ -13,7 +13,7 @@ definitions:
     - TaskTypeRestartService
     - TaskTypeRunAlgorithm
     - TaskTypeFaultInjection
-    - TaskTypeBuildImages
+    - TaskTypeBuildImage
     - TaskTypeBuildDataset
     - TaskTypeCollectResult
   database.Container:
@@ -778,6 +778,9 @@ definitions:
       algorithm:
         description: 算法名称
         type: string
+      created_at:
+        description: 创建时间
+        type: string
       dataset:
         description: 数据集名称
         type: string
@@ -1230,7 +1233,24 @@ paths:
       - debug
   /api/v1/evaluations/executions:
     get:
-      description: 获取所有ExecutionResult中status为ExecutionSuccess的记录，返回ID、Algorithm、Dataset三个字段
+      description: 获取所有ExecutionResult中status为ExecutionSuccess的记录，支持时间区间筛选和数量筛选
+      parameters:
+      - description: 开始时间，格式：2006-01-02T15:04:05Z07:00
+        in: query
+        name: start_time
+        type: string
+      - description: 结束时间，格式：2006-01-02T15:04:05Z07:00
+        in: query
+        name: end_time
+        type: string
+      - description: 数量限制
+        in: query
+        name: limit
+        type: integer
+      - description: 偏移量，用于分页
+        in: query
+        name: offset
+        type: integer
       produces:
       - application/json
       responses:
@@ -1238,6 +1258,10 @@ paths:
           description: 成功返回成功执行的算法记录列表
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_SuccessfulExecutionsResp'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
         "500":
           description: 服务器内部错误
           schema:

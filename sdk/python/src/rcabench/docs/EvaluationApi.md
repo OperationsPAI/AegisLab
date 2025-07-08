@@ -10,11 +10,11 @@ Method | HTTP request | Description
 
 
 # **api_v1_evaluations_executions_get**
-> DtoGenericResponseDtoSuccessfulExecutionsResp api_v1_evaluations_executions_get()
+> DtoGenericResponseDtoSuccessfulExecutionsResp api_v1_evaluations_executions_get(start_time=start_time, end_time=end_time, limit=limit, offset=offset)
 
 获取成功执行的算法记录
 
-获取所有ExecutionResult中status为ExecutionSuccess的记录，返回ID、Algorithm、Dataset三个字段
+获取所有ExecutionResult中status为ExecutionSuccess的记录，支持时间区间筛选和数量筛选
 
 ### Example
 
@@ -36,10 +36,14 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.EvaluationApi(api_client)
+    start_time = 'start_time_example' # str | 开始时间，格式：2006-01-02T15:04:05Z07:00 (optional)
+    end_time = 'end_time_example' # str | 结束时间，格式：2006-01-02T15:04:05Z07:00 (optional)
+    limit = 56 # int | 数量限制 (optional)
+    offset = 56 # int | 偏移量，用于分页 (optional)
 
     try:
         # 获取成功执行的算法记录
-        api_response = api_instance.api_v1_evaluations_executions_get()
+        api_response = api_instance.api_v1_evaluations_executions_get(start_time=start_time, end_time=end_time, limit=limit, offset=offset)
         print("The response of EvaluationApi->api_v1_evaluations_executions_get:\n")
         pprint(api_response)
     except Exception as e:
@@ -50,7 +54,13 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 ### Parameters
 
-This endpoint does not need any parameter.
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **start_time** | **str**| 开始时间，格式：2006-01-02T15:04:05Z07:00 | [optional] 
+ **end_time** | **str**| 结束时间，格式：2006-01-02T15:04:05Z07:00 | [optional] 
+ **limit** | **int**| 数量限制 | [optional] 
+ **offset** | **int**| 偏移量，用于分页 | [optional] 
 
 ### Return type
 
@@ -70,6 +80,7 @@ No authorization required
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 **200** | 成功返回成功执行的算法记录列表 |  -  |
+**400** | 请求参数错误 |  -  |
 **500** | 服务器内部错误 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

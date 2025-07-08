@@ -94,14 +94,26 @@ func GetGroundtruth(c *gin.Context) {
 // GetSuccessfulExecutions 获取所有成功执行的算法记录
 //
 //	@Summary		获取成功执行的算法记录
-//	@Description	获取所有ExecutionResult中status为ExecutionSuccess的记录，返回ID、Algorithm、Dataset三个字段
+//	@Description	获取所有ExecutionResult中status为ExecutionSuccess的记录，支持时间区间筛选和数量筛选
 //	@Tags			evaluation
 //	@Produce		json
-//	@Success		200	{object}	dto.GenericResponse[dto.SuccessfulExecutionsResp]	"成功返回成功执行的算法记录列表"
-//	@Failure		500	{object}	dto.GenericResponse[any]							"服务器内部错误"
+//	@Param			start_time	query	string	false	"开始时间，格式：2006-01-02T15:04:05Z07:00"
+//	@Param			end_time	query	string	false	"结束时间，格式：2006-01-02T15:04:05Z07:00"
+//	@Param			limit		query	int		false	"数量限制"
+//	@Param			offset		query	int		false	"偏移量，用于分页"
+//	@Success		200			{object}	dto.GenericResponse[dto.SuccessfulExecutionsResp]	"成功返回成功执行的算法记录列表"
+//	@Failure		400			{object}	dto.GenericResponse[any]							"请求参数错误"
+//	@Failure		500			{object}	dto.GenericResponse[any]							"服务器内部错误"
 //	@Router			/api/v1/evaluations/executions [get]
 func GetSuccessfulExecutions(c *gin.Context) {
-	executions, err := repository.ListSuccessfulExecutions()
+	var req dto.SuccessfulExecutionsReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		logrus.Errorf("failed to bind query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
+		return
+	}
+
+	executions, err := repository.ListSuccessfulExecutionsWithFilter(req)
 	if err != nil {
 		logrus.Errorf("failed to get successful executions: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get successful executions")

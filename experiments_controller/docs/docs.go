@@ -422,7 +422,7 @@ const docTemplate = `{
         },
         "/api/v1/evaluations/executions": {
             "get": {
-                "description": "获取所有ExecutionResult中status为ExecutionSuccess的记录，返回ID、Algorithm、Dataset三个字段",
+                "description": "获取所有ExecutionResult中status为ExecutionSuccess的记录，支持时间区间筛选和数量筛选",
                 "produces": [
                     "application/json"
                 ],
@@ -430,11 +430,43 @@ const docTemplate = `{
                     "evaluation"
                 ],
                 "summary": "获取成功执行的算法记录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "开始时间，格式：2006-01-02T15:04:05Z07:00",
+                        "name": "start_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "结束时间，格式：2006-01-02T15:04:05Z07:00",
+                        "name": "end_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "数量限制",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "偏移量，用于分页",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "成功返回成功执行的算法记录列表",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_SuccessfulExecutionsResp"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
@@ -1382,7 +1414,7 @@ const docTemplate = `{
                 "RestartService",
                 "RunAlgorithm",
                 "FaultInjection",
-                "BuildImages",
+                "BuildImage",
                 "BuildDataset",
                 "CollectResult"
             ],
@@ -1390,7 +1422,7 @@ const docTemplate = `{
                 "TaskTypeRestartService",
                 "TaskTypeRunAlgorithm",
                 "TaskTypeFaultInjection",
-                "TaskTypeBuildImages",
+                "TaskTypeBuildImage",
                 "TaskTypeBuildDataset",
                 "TaskTypeCollectResult"
             ]
@@ -2532,6 +2564,10 @@ const docTemplate = `{
             "properties": {
                 "algorithm": {
                     "description": "算法名称",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "创建时间",
                     "type": "string"
                 },
                 "dataset": {

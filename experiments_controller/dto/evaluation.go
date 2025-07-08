@@ -2,6 +2,7 @@ package dto
 
 import (
 	"fmt"
+	"time"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 )
@@ -108,12 +109,18 @@ type Conclusion struct {
 
 type EvaluateMetric func([]Execution) ([]Conclusion, error)
 
-// SuccessfulExecutionItem 成功执行的算法记录项
 type SuccessfulExecutionItem struct {
-	ID        int    `json:"id"`        // 执行ID
-	Algorithm string `json:"algorithm"` // 算法名称
-	Dataset   string `json:"dataset"`   // 数据集名称
+	ID        int       `json:"id"`         // 执行ID
+	Algorithm string    `json:"algorithm"`  // 算法名称
+	Dataset   string    `json:"dataset"`    // 数据集名称
+	CreatedAt time.Time `json:"created_at"` // 创建时间
 }
 
-// SuccessfulExecutionsResp 成功执行结果的响应结构
 type SuccessfulExecutionsResp []SuccessfulExecutionItem
+
+type SuccessfulExecutionsReq struct {
+	StartTime *time.Time `json:"start_time" form:"start_time"`
+	EndTime   *time.Time `json:"end_time" form:"end_time"`
+	Limit     *int       `json:"limit" form:"limit"`
+	Offset    *int       `json:"offset" form:"offset"`
+}
