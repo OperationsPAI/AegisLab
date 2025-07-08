@@ -99,7 +99,7 @@ func GetGroundtruth(c *gin.Context) {
 //	@Produce		json
 //	@Success		200	{object}	dto.GenericResponse[dto.SuccessfulExecutionsResp]	"成功返回成功执行的算法记录列表"
 //	@Failure		500	{object}	dto.GenericResponse[any]							"服务器内部错误"
-//	@Router			/api/v1/evaluations/successful-executions [get]
+//	@Router			/api/v1/evaluations/executions [get]
 func GetSuccessfulExecutions(c *gin.Context) {
 	executions, err := repository.ListSuccessfulExecutions()
 	if err != nil {

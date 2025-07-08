@@ -1228,6 +1228,23 @@ paths:
       summary: 获取命名空间锁状态
       tags:
       - debug
+  /api/v1/evaluations/executions:
+    get:
+      description: 获取所有ExecutionResult中status为ExecutionSuccess的记录，返回ID、Algorithm、Dataset三个字段
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回成功执行的算法记录列表
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SuccessfulExecutionsResp'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: 获取成功执行的算法记录
+      tags:
+      - evaluation
   /api/v1/evaluations/groundtruth:
     post:
       description: 根据数据集数组获取对应的 ground truth 数据，用于算法评估的基准数据。支持批量查询多个数据集的真实标签信息
@@ -1282,23 +1299,6 @@ paths:
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
       summary: 获取原始评估数据
-      tags:
-      - evaluation
-  /api/v1/evaluations/successful-executions:
-    get:
-      description: 获取所有ExecutionResult中status为ExecutionSuccess的记录，返回ID、Algorithm、Dataset三个字段
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 成功返回成功执行的算法记录列表
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_SuccessfulExecutionsResp'
-        "500":
-          description: 服务器内部错误
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 获取成功执行的算法记录
       tags:
       - evaluation
   /api/v1/injections:
