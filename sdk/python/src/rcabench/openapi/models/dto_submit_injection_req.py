@@ -21,6 +21,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
+from rcabench.openapi.models.dto_algorithm_item import DtoAlgorithmItem
 from rcabench.openapi.models.dto_label_item import DtoLabelItem
 from rcabench.openapi.models.handler_node import HandlerNode
 from typing import Optional, Set
@@ -30,7 +31,7 @@ class DtoSubmitInjectionReq(BaseModel):
     """
     DtoSubmitInjectionReq
     """ # noqa: E501
-    algorithms: Optional[List[StrictStr]] = None
+    algorithms: Optional[List[DtoAlgorithmItem]] = None
     benchmark: StrictStr
     interval: Annotated[int, Field(strict=True, ge=1)]
     labels: Optional[List[DtoLabelItem]] = None
@@ -80,6 +81,13 @@ class DtoSubmitInjectionReq(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in algorithms (list)
+        _items = []
+        if self.algorithms:
+            for _item_algorithms in self.algorithms:
+                if _item_algorithms:
+                    _items.append(_item_algorithms.to_dict())
+            _dict['algorithms'] = _items
         # override the default output from pydantic by calling `to_dict()` of each item in labels (list)
         _items = []
         if self.labels:
@@ -111,7 +119,7 @@ class DtoSubmitInjectionReq(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "algorithms": obj.get("algorithms"),
+            "algorithms": [DtoAlgorithmItem.from_dict(_item) for _item in obj["algorithms"]] if obj.get("algorithms") is not None else None,
             "benchmark": obj.get("benchmark"),
             "interval": obj.get("interval"),
             "labels": [DtoLabelItem.from_dict(_item) for _item in obj["labels"]] if obj.get("labels") is not None else None,

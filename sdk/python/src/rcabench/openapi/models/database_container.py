@@ -18,21 +18,26 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_algorithm_item import DtoAlgorithmItem
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoExecutionPayload(BaseModel):
+class DatabaseContainer(BaseModel):
     """
-    DtoExecutionPayload
+    DatabaseContainer
     """ # noqa: E501
-    algorithm: DtoAlgorithmItem
-    dataset: StrictStr
-    env_vars: Optional[Dict[str, Any]] = None
+    command: Optional[StrictStr] = Field(default=None, description="启动命令")
+    created_at: Optional[StrictStr] = Field(default=None, description="创建时间")
+    id: Optional[StrictInt] = Field(default=None, description="唯一标识")
+    image: Optional[StrictStr] = Field(default=None, description="镜像名")
+    name: Optional[StrictStr] = Field(default=None, description="名称")
+    status: Optional[StrictBool] = Field(default=None, description="0: 已删除 1: 活跃")
+    tag: Optional[StrictStr] = Field(default=None, description="镜像标签")
+    type: Optional[StrictStr] = Field(default=None, description="镜像类型")
+    updated_at: Optional[StrictStr] = Field(default=None, description="更新时间")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["algorithm", "dataset", "env_vars"]
+    __properties: ClassVar[List[str]] = ["command", "created_at", "id", "image", "name", "status", "tag", "type", "updated_at"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -52,7 +57,7 @@ class DtoExecutionPayload(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoExecutionPayload from a JSON string"""
+        """Create an instance of DatabaseContainer from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -75,9 +80,6 @@ class DtoExecutionPayload(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of algorithm
-        if self.algorithm:
-            _dict['algorithm'] = self.algorithm.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -87,7 +89,7 @@ class DtoExecutionPayload(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoExecutionPayload from a dict"""
+        """Create an instance of DatabaseContainer from a dict"""
         if obj is None:
             return None
 
@@ -95,9 +97,15 @@ class DtoExecutionPayload(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "algorithm": DtoAlgorithmItem.from_dict(obj["algorithm"]) if obj.get("algorithm") is not None else None,
-            "dataset": obj.get("dataset"),
-            "env_vars": obj.get("env_vars")
+            "command": obj.get("command"),
+            "created_at": obj.get("created_at"),
+            "id": obj.get("id"),
+            "image": obj.get("image"),
+            "name": obj.get("name"),
+            "status": obj.get("status"),
+            "tag": obj.get("tag"),
+            "type": obj.get("type"),
+            "updated_at": obj.get("updated_at")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

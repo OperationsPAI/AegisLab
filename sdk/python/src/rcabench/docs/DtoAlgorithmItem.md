@@ -5,10 +5,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**algorithm** | **str** |  | [optional] 
 **image** | **str** |  | [optional] 
+**name** | **str** |  | 
 **tag** | **str** |  | [optional] 
-**updated_at** | **str** |  | [optional] 
 
 ## Example
 

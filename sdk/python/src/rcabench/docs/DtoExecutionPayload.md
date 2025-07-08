@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**algorithm** | **str** |  | 
+**algorithm** | [**DtoAlgorithmItem**](DtoAlgorithmItem.md) |  | 
 **dataset** | **str** |  | 
 **env_vars** | **object** |  | [optional] 
 

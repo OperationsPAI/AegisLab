@@ -34,7 +34,7 @@ import (
 //	@Failure		500	{object}	dto.GenericResponse[any]	"服务器内部错误"
 //	@Router			/api/v1/algorithms [get]
 func ListAlgorithms(c *gin.Context) {
-	containers, err := repository.ListContainers(&dto.FilterContainerOptions{
+	containers, err := repository.ListContainers(&dto.ListContainersFilterOptions{
 		Type:   consts.ContainerTypeAlgorithm,
 		Status: utils.BoolPtr(true),
 	})
@@ -44,14 +44,7 @@ func ListAlgorithms(c *gin.Context) {
 		return
 	}
 
-	var items []dto.AlgorithmItem
-	for _, container := range containers {
-		item := dto.AlgorithmItem{}
-		item.Convert(container)
-		items = append(items, item)
-	}
-
-	dto.SuccessResponse(c, dto.ListAlgorithmsResp(items))
+	dto.SuccessResponse(c, dto.ListAlgorithmsResp(containers))
 }
 
 // SubmitAlgorithmExecution
@@ -127,6 +120,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 //	@Param			algorithm		formData	string	true	"算法名称，用于标识算法，将作为镜像构建的标识符"
 //	@Param			image			formData	string	true	"Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）"
 //	@Param			tag				formData	string	false	"Docker镜像标签，用于版本控制"	default(latest)
+//	@Param			command			formData	string	false	"Docker镜像启动命令，默认为bash /entrypoint.sh"	default(bash /entrypoint.sh)
 //	@Param			source_type		formData	string	false	"构建源类型，指定算法源码来源"	Enums(file,github)	default(file)
 //	@Param			file			formData	file	false	"算法源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB"
 //	@Param			github_token	formData	string	false	"GitHub访问令牌，用于访问私有仓库，公开仓库可不提供"
@@ -151,6 +145,7 @@ func SubmitAlgorithmBuilding(c *gin.Context) {
 		Algorithm: c.PostForm("algorithm"),
 		Image:     c.PostForm("image"),
 		Tag:       c.DefaultPostForm("tag", "latest"),
+		Command:   c.DefaultPostForm("command", "bash /entrypoint.sh"),
 		Source: dto.BuildSource{
 			Type: consts.BuildSourceType(c.DefaultPostForm("source_type", "file")),
 		},
@@ -236,6 +231,7 @@ func SubmitAlgorithmBuilding(c *gin.Context) {
 			consts.BuildName:          req.Algorithm,
 			consts.BuildImage:         req.Image,
 			consts.BuildTag:           req.Tag,
+			consts.BuildCommand:       req.Command,
 			consts.BuildSourcePath:    sourcePath,
 			consts.BuildBuildOptions:  req.BuildOptions,
 		},

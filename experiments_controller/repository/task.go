@@ -280,7 +280,7 @@ type StreamProcessor struct {
 	isCompleted             bool
 	detectorTaskID          string
 	traceID                 string
-	algorithms              []string
+	algorithms              []dto.AlgorithmItem
 	completedAlgorithmTasks map[string]bool
 }
 
@@ -373,14 +373,14 @@ func (sp *StreamProcessor) handleDetectorTaskCompletion() {
 
 	// 如果有问题且未完成，获取算法列表
 	if sp.hasIssues && !sp.isCompleted {
-		algorithms, err := GetCachedAlgorithmsFromRedis(sp.ctx, sp.traceID)
+		algorithmItems, err := GetCachedAlgorithmItemsFromRedis(sp.ctx, sp.traceID)
 		if err != nil {
 			logrus.Errorf("Failed to get cached algorithms for traceID %s: %v", sp.traceID, err)
 			sp.isCompleted = true
 			return
 		}
 
-		sp.algorithms = algorithms
+		sp.algorithms = algorithmItems
 	}
 }
 

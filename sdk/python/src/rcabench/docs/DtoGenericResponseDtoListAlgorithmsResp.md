@@ -6,7 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **code** | **int** | 状态码 | [optional] 
-**data** | [**List[DtoAlgorithmItem]**](DtoAlgorithmItem.md) | 泛型类型的数据 | [optional] 
+**data** | [**List[DatabaseContainer]**](DatabaseContainer.md) | 泛型类型的数据 | [optional] 
 **message** | **str** | 响应消息 | [optional] 
 **timestamp** | **int** | 响应生成时间 | [optional] 
 

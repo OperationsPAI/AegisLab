@@ -117,17 +117,15 @@ type LabelItem struct {
 }
 
 type SubmitInjectionReq struct {
-	Interval    int          `json:"interval" binding:"required,min=1"`
-	PreDuration int          `json:"pre_duration" binding:"required,min=1"`
-	Specs       []chaos.Node `json:"specs" binding:"required"`
-	Benchmark   string       `json:"benchmark" binding:"required"`
-	Algorithms  []string     `json:"algorithms" bindging:"omitempty"`
-	Labels      []LabelItem  `json:"labels" binding:"omitempty"`
+	Interval    int             `json:"interval" binding:"required,min=1"`
+	PreDuration int             `json:"pre_duration" binding:"required,min=1"`
+	Specs       []chaos.Node    `json:"specs" binding:"required"`
+	Benchmark   string          `json:"benchmark" binding:"required"`
+	Algorithms  []AlgorithmItem `json:"algorithms" bindging:"omitempty"`
+	Labels      []LabelItem     `json:"labels" binding:"omitempty"`
 }
 
 func (req *SubmitInjectionReq) Validate() error {
-	req.Algorithms = utils.FilterEmptyStrings(req.Algorithms)
-
 	if req.Labels == nil {
 		req.Labels = make([]LabelItem, 0)
 	}
@@ -145,6 +143,19 @@ func (req *SubmitInjectionReq) Validate() error {
 	} else {
 		if _, exists := config.GetValidBenchmarkMap()[req.Benchmark]; !exists {
 			return fmt.Errorf("Invalid benchmark: %s", req.Benchmark)
+		}
+	}
+
+	if req.Algorithms != nil {
+		for _, algorithm := range req.Algorithms {
+			if algorithm.Name == "" {
+				return fmt.Errorf("Algorithm must not be empty")
+			}
+
+			detector := config.GetString("algo.detector")
+			if algorithm.Name == detector {
+				return fmt.Errorf("Algorithm %s is not allowed for fault injection", detector)
+			}
 		}
 	}
 

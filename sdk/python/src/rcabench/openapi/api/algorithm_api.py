@@ -48,6 +48,7 @@ class AlgorithmApi:
         algorithm: Annotated[StrictStr, Field(description="算法名称，用于标识算法，将作为镜像构建的标识符")],
         image: Annotated[StrictStr, Field(description="Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）")],
         tag: Annotated[Optional[StrictStr], Field(description="Docker镜像标签，用于版本控制")] = None,
+        command: Annotated[Optional[StrictStr], Field(description="Docker镜像启动命令，默认为bash /entrypoint.sh")] = None,
         source_type: Annotated[Optional[StrictStr], Field(description="构建源类型，指定算法源码来源")] = None,
         file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="算法源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB")] = None,
         github_token: Annotated[Optional[StrictStr], Field(description="GitHub访问令牌，用于访问私有仓库，公开仓库可不提供")] = None,
@@ -82,6 +83,8 @@ class AlgorithmApi:
         :type image: str
         :param tag: Docker镜像标签，用于版本控制
         :type tag: str
+        :param command: Docker镜像启动命令，默认为bash /entrypoint.sh
+        :type command: str
         :param source_type: 构建源类型，指定算法源码来源
         :type source_type: str
         :param file: 算法源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB
@@ -130,6 +133,7 @@ class AlgorithmApi:
             algorithm=algorithm,
             image=image,
             tag=tag,
+            command=command,
             source_type=source_type,
             file=file,
             github_token=github_token,
@@ -170,6 +174,7 @@ class AlgorithmApi:
         algorithm: Annotated[StrictStr, Field(description="算法名称，用于标识算法，将作为镜像构建的标识符")],
         image: Annotated[StrictStr, Field(description="Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）")],
         tag: Annotated[Optional[StrictStr], Field(description="Docker镜像标签，用于版本控制")] = None,
+        command: Annotated[Optional[StrictStr], Field(description="Docker镜像启动命令，默认为bash /entrypoint.sh")] = None,
         source_type: Annotated[Optional[StrictStr], Field(description="构建源类型，指定算法源码来源")] = None,
         file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="算法源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB")] = None,
         github_token: Annotated[Optional[StrictStr], Field(description="GitHub访问令牌，用于访问私有仓库，公开仓库可不提供")] = None,
@@ -204,6 +209,8 @@ class AlgorithmApi:
         :type image: str
         :param tag: Docker镜像标签，用于版本控制
         :type tag: str
+        :param command: Docker镜像启动命令，默认为bash /entrypoint.sh
+        :type command: str
         :param source_type: 构建源类型，指定算法源码来源
         :type source_type: str
         :param file: 算法源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB
@@ -252,6 +259,7 @@ class AlgorithmApi:
             algorithm=algorithm,
             image=image,
             tag=tag,
+            command=command,
             source_type=source_type,
             file=file,
             github_token=github_token,
@@ -292,6 +300,7 @@ class AlgorithmApi:
         algorithm: Annotated[StrictStr, Field(description="算法名称，用于标识算法，将作为镜像构建的标识符")],
         image: Annotated[StrictStr, Field(description="Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）")],
         tag: Annotated[Optional[StrictStr], Field(description="Docker镜像标签，用于版本控制")] = None,
+        command: Annotated[Optional[StrictStr], Field(description="Docker镜像启动命令，默认为bash /entrypoint.sh")] = None,
         source_type: Annotated[Optional[StrictStr], Field(description="构建源类型，指定算法源码来源")] = None,
         file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="算法源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB")] = None,
         github_token: Annotated[Optional[StrictStr], Field(description="GitHub访问令牌，用于访问私有仓库，公开仓库可不提供")] = None,
@@ -326,6 +335,8 @@ class AlgorithmApi:
         :type image: str
         :param tag: Docker镜像标签，用于版本控制
         :type tag: str
+        :param command: Docker镜像启动命令，默认为bash /entrypoint.sh
+        :type command: str
         :param source_type: 构建源类型，指定算法源码来源
         :type source_type: str
         :param file: 算法源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB
@@ -374,6 +385,7 @@ class AlgorithmApi:
             algorithm=algorithm,
             image=image,
             tag=tag,
+            command=command,
             source_type=source_type,
             file=file,
             github_token=github_token,
@@ -409,6 +421,7 @@ class AlgorithmApi:
         algorithm,
         image,
         tag,
+        command,
         source_type,
         file,
         github_token,
@@ -450,6 +463,8 @@ class AlgorithmApi:
             _form_params.append(('image', image))
         if tag is not None:
             _form_params.append(('tag', tag))
+        if command is not None:
+            _form_params.append(('command', command))
         if source_type is not None:
             _form_params.append(('source_type', source_type))
         if file is not None:

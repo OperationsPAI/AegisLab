@@ -36,6 +36,7 @@ __all__ = [
     "ApiAttributeError",
     "ApiException",
     "ConstsTaskType",
+    "DatabaseContainer",
     "DatabaseFaultInjectionSchedule",
     "DtoAlgorithmItem",
     "DtoDatasetBuildPayload",
@@ -117,6 +118,7 @@ from rcabench.openapi.exceptions import ApiException as ApiException
 
 # import models into sdk package
 from rcabench.openapi.models.consts_task_type import ConstsTaskType as ConstsTaskType
+from rcabench.openapi.models.database_container import DatabaseContainer as DatabaseContainer
 from rcabench.openapi.models.database_fault_injection_schedule import DatabaseFaultInjectionSchedule as DatabaseFaultInjectionSchedule
 from rcabench.openapi.models.dto_algorithm_item import DtoAlgorithmItem as DtoAlgorithmItem
 from rcabench.openapi.models.dto_dataset_build_payload import DtoDatasetBuildPayload as DtoDatasetBuildPayload
