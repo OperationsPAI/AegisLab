@@ -374,3 +374,23 @@ func GetGroundtruthMap(datasets []string) (map[string]chaos.Groundtruth, error) 
 
 	return groundtruthMap, nil
 }
+
+// ListSuccessfulExecutions 获取所有成功执行的算法记录
+func ListSuccessfulExecutions() ([]dto.SuccessfulExecutionItem, error) {
+	var executions []database.ExecutionResult
+	err := database.DB.Where("status = ?", consts.ExecutionSuccess).Find(&executions).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to query successful executions: %v", err)
+	}
+
+	result := make([]dto.SuccessfulExecutionItem, len(executions))
+	for i, exec := range executions {
+		result[i] = dto.SuccessfulExecutionItem{
+			ID:        exec.ID,
+			Algorithm: exec.Algorithm,
+			Dataset:   exec.Dataset,
+		}
+	}
+
+	return result, nil
+}
