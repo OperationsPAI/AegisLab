@@ -158,7 +158,7 @@ func SubmitAlgorithmBuilding(c *gin.Context) {
 		}
 	}
 
-	forceRebuildStr := c.PostForm("force_rebuild")
+	forceRebuildStr := c.DefaultPostForm("force_rebuild", "false")
 	forceRebuild, err := strconv.ParseBool(forceRebuildStr)
 	if err != nil {
 		logrus.Errorf("invalid force_rebuild value: %v", err)
@@ -219,7 +219,7 @@ func SubmitAlgorithmBuilding(c *gin.Context) {
 	spanCtx := ctx.(context.Context)
 
 	task := &dto.UnifiedTask{
-		Type: consts.TaskTypeBuildImages,
+		Type: consts.TaskTypeBuildImage,
 		Payload: map[string]any{
 			consts.BuildContainerType: consts.ContainerTypeAlgorithm,
 			consts.BuildName:          req.Algorithm,

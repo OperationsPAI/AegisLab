@@ -309,6 +309,8 @@ func (sp *StreamProcessor) ProcessMessageForSSE(msg redis.XMessage) (string, str
 	}
 
 	switch streamEvent.EventName {
+	case consts.EventImageBuildSucceed:
+		sp.isCompleted = true
 	case consts.EventDatasetNoAnomaly, consts.EventDatasetNoConclusionFile:
 		sp.detectorTaskID = streamEvent.TaskID
 	case consts.EventDatasetResultCollection:

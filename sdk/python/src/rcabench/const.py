@@ -35,6 +35,8 @@ class EventType(str, Enum):
     EventTaskRetryStatus = "task.retry.status"
     EventTaskStarted = "task.started"
 
+    EventImageBuildSucceed = "image.build.succeed"
+
     EventNoNamespaceAvailable = "no.namespace.available"
     EventRestartServiceStarted = "restart.service.started"
     EventRestartServiceCompleted = "restart.service.completed"
@@ -51,6 +53,7 @@ class EventType(str, Enum):
 class TaskType(str, Enum):
     DUMMY = ""
     BUILD_DATASET = "BuildDataset"
+    BUILD_IMAGE = "BuildImage"
     COLLECT_RESULT = "CollectResult"
     FAULT_INJECTION = "FaultInjection"
     RESTART_SERVICE = "RestartService"
