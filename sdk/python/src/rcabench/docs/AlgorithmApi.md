@@ -10,7 +10,7 @@ Method | HTTP request | Description
 
 
 # **api_v1_algorithms_build_post**
-> DtoGenericResponseDtoSubmitResp api_v1_algorithms_build_post(algorithm, image, tag=tag, source_type=source_type, file=file, github_token=github_token, github_repo=github_repo, github_branch=github_branch, github_commit=github_commit, github_path=github_path, context_dir=context_dir, dockerfile_path=dockerfile_path, target=target, force_rebuild=force_rebuild)
+> DtoGenericResponseDtoSubmitResp api_v1_algorithms_build_post(algorithm, image, tag=tag, command=command, source_type=source_type, file=file, github_token=github_token, github_repo=github_repo, github_branch=github_branch, github_commit=github_commit, github_path=github_path, context_dir=context_dir, dockerfile_path=dockerfile_path, target=target, force_rebuild=force_rebuild)
 
 提交算法构建任务
 
@@ -39,6 +39,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
     algorithm = 'algorithm_example' # str | 算法名称，用于标识算法，将作为镜像构建的标识符
     image = 'image_example' # str | Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）
     tag = 'latest' # str | Docker镜像标签，用于版本控制 (optional) (default to 'latest')
+    command = 'bash /entrypoint.sh' # str | Docker镜像启动命令，默认为bash /entrypoint.sh (optional) (default to 'bash /entrypoint.sh')
     source_type = file # str | 构建源类型，指定算法源码来源 (optional) (default to file)
     file = None # bytearray | 算法源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB (optional)
     github_token = 'github_token_example' # str | GitHub访问令牌，用于访问私有仓库，公开仓库可不提供 (optional)
@@ -53,7 +54,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
     try:
         # 提交算法构建任务
-        api_response = api_instance.api_v1_algorithms_build_post(algorithm, image, tag=tag, source_type=source_type, file=file, github_token=github_token, github_repo=github_repo, github_branch=github_branch, github_commit=github_commit, github_path=github_path, context_dir=context_dir, dockerfile_path=dockerfile_path, target=target, force_rebuild=force_rebuild)
+        api_response = api_instance.api_v1_algorithms_build_post(algorithm, image, tag=tag, command=command, source_type=source_type, file=file, github_token=github_token, github_repo=github_repo, github_branch=github_branch, github_commit=github_commit, github_path=github_path, context_dir=context_dir, dockerfile_path=dockerfile_path, target=target, force_rebuild=force_rebuild)
         print("The response of AlgorithmApi->api_v1_algorithms_build_post:\n")
         pprint(api_response)
     except Exception as e:
@@ -70,6 +71,7 @@ Name | Type | Description  | Notes
  **algorithm** | **str**| 算法名称，用于标识算法，将作为镜像构建的标识符 | 
  **image** | **str**| Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址） | 
  **tag** | **str**| Docker镜像标签，用于版本控制 | [optional] [default to &#39;latest&#39;]
+ **command** | **str**| Docker镜像启动命令，默认为bash /entrypoint.sh | [optional] [default to &#39;bash /entrypoint.sh&#39;]
  **source_type** | **str**| 构建源类型，指定算法源码来源 | [optional] [default to file]
  **file** | **bytearray**| 算法源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB | [optional] 
  **github_token** | **str**| GitHub访问令牌，用于访问私有仓库，公开仓库可不提供 | [optional] 

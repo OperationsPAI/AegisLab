@@ -212,7 +212,7 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 	case consts.TaskTypeBuildDataset:
 		options, _ := parseDatasetOptions(labels)
 
-		logEntry.WithField("dataset", options.Dataset).Errorf("dataset build failed: %v", errMsg)
+		logEntry.Errorf("dataset build failed: %v", errMsg)
 		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
 			TaskID:    taskOptions.TaskID,
 			TaskType:  consts.TaskTypeBuildDataset,
@@ -234,13 +234,9 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 		}
 
 	case consts.TaskTypeRunAlgorithm:
-		options, _ := parseExecutionOptions(labels)
+		options, _ := parseExecutionOptions(annotations, labels)
 
-		logEntry.WithFields(logrus.Fields{
-			"algorithm": options.Algorithm,
-			"dataset":   options.Dataset,
-		}).Errorf("algorithm execute failed: %v", errMsg) //TODO errMsg为空
-
+		logEntry.Errorf("algorithm execute failed: %v", errMsg) //TODO errMsg为空
 		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
 			TaskID:    taskOptions.TaskID,
 			TaskType:  consts.TaskTypeRunAlgorithm,
@@ -287,9 +283,6 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 	switch taskOptions.Type {
 	case consts.TaskTypeBuildDataset:
 		options, _ := parseDatasetOptions(labels)
-		logEntry = logEntry.WithFields(logrus.Fields{
-			"dataset": options.Dataset,
-		})
 
 		logEntry.Info("dataset build successfully")
 		repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
@@ -317,8 +310,11 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 		task := &dto.UnifiedTask{
 			Type: consts.TaskTypeRunAlgorithm,
 			Payload: map[string]any{
-				consts.ExecuteAlgorithm: config.GetString("algo.detector"),
-				consts.ExecuteDataset:   options.Dataset,
+				// TODO 在injection payload中
+				consts.ExecuteAlgorithm: dto.AlgorithmItem{
+					Name: config.GetString("algo.detector"),
+				},
+				consts.ExecuteDataset: options.Dataset,
 			},
 			Immediate: true,
 			TraceID:   taskOptions.TraceID,
@@ -334,11 +330,7 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 		}
 
 	case consts.TaskTypeRunAlgorithm:
-		options, _ := parseExecutionOptions(labels)
-		logEntry = logEntry.WithFields(logrus.Fields{
-			"algorithm": options.Algorithm,
-			"dataset":   options.Dataset,
-		})
+		options, _ := parseExecutionOptions(annotations, labels)
 
 		logEntry.Info("algorithm execute successfully")
 		repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
@@ -501,12 +493,17 @@ func parseDatasetOptions(labels map[string]string) (*dto.DatasetOptions, error) 
 	}, nil
 }
 
-func parseExecutionOptions(labels map[string]string) (*dto.ExecutionOptions, error) {
+func parseExecutionOptions(annotations, labels map[string]string) (*dto.ExecutionOptions, error) {
 	message := "missing or invalid '%s' key in job labels"
 
-	algorithm, ok := labels[consts.LabelAlgorithm]
-	if !ok || algorithm == "" {
-		return nil, fmt.Errorf(message, consts.LabelAlgorithm)
+	algorithmStr, ok := annotations[consts.AnnotationAlgorithm]
+	if !ok || algorithmStr == "" {
+		return nil, fmt.Errorf("missing or invalid '%s' key in job annotations", consts.AnnotationAlgorithm)
+	}
+
+	var algorithm dto.AlgorithmItem
+	if err := json.Unmarshal([]byte(algorithmStr), &algorithm); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal '%s' to AlgorithmItem: %v", algorithmStr, err)
 	}
 
 	dataset, ok := labels[consts.LabelDataset]

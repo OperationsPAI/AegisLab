@@ -131,6 +131,13 @@ const docTemplate = `{
                         "in": "formData"
                     },
                     {
+                        "type": "string",
+                        "default": "bash /entrypoint.sh",
+                        "description": "Docker镜像启动命令，默认为bash /entrypoint.sh",
+                        "name": "command",
+                        "in": "formData"
+                    },
+                    {
                         "enum": [
                             "file",
                             "github"
@@ -1457,6 +1464,47 @@ const docTemplate = `{
                 "TaskTypeCollectResult"
             ]
         },
+        "database.Container": {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "description": "启动命令",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "创建时间",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "唯一标识",
+                    "type": "integer"
+                },
+                "image": {
+                    "description": "镜像名",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "名称",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "0: 已删除 1: 活跃",
+                    "type": "boolean"
+                },
+                "tag": {
+                    "description": "镜像标签",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "镜像类型",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "description": "更新时间",
+                    "type": "string"
+                }
+            }
+        },
         "database.FaultInjectionSchedule": {
             "type": "object",
             "properties": {
@@ -1534,17 +1582,17 @@ const docTemplate = `{
         },
         "dto.AlgorithmItem": {
             "type": "object",
+            "required": [
+                "name"
+            ],
             "properties": {
-                "algorithm": {
-                    "type": "string"
-                },
                 "image": {
                     "type": "string"
                 },
-                "tag": {
+                "name": {
                     "type": "string"
                 },
-                "updated_at": {
+                "tag": {
                     "type": "string"
                 }
             }
@@ -1659,7 +1707,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "algorithm": {
-                    "type": "string"
+                    "$ref": "#/definitions/dto.AlgorithmItem"
                 },
                 "dataset": {
                     "type": "string"
@@ -2018,7 +2066,7 @@ const docTemplate = `{
                     "description": "泛型类型的数据",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.AlgorithmItem"
+                        "$ref": "#/definitions/database.Container"
                     }
                 },
                 "message": {
@@ -2554,7 +2602,7 @@ const docTemplate = `{
                 "algorithms": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/dto.AlgorithmItem"
                     }
                 },
                 "benchmark": {

@@ -11,13 +11,11 @@ import (
 	"time"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
-	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/executor"
 	"github.com/LGU-SE-Internal/rcabench/middleware"
 	"github.com/LGU-SE-Internal/rcabench/repository"
-	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/codes"
@@ -323,11 +321,6 @@ func SubmitFaultInjection(c *gin.Context) {
 		return
 	}
 
-	if err := validateAlgorithms(req.Algorithms); err != nil {
-		handleError(err, "Invalid algorithm specified", http.StatusBadRequest)
-		return
-	}
-
 	configs, err := parseInjectionSpecs(&req)
 	if err != nil {
 		handleError(err, err.Error(), http.StatusBadRequest)
@@ -360,38 +353,6 @@ func SubmitFaultInjection(c *gin.Context) {
 			Traces:  traces,
 		},
 	})
-}
-
-func validateAlgorithms(algorithms []string) error {
-	validAlgorithms, err := repository.ListContainers(&dto.FilterContainerOptions{
-		Status: utils.BoolPtr(true),
-		Type:   consts.ContainerTypeAlgorithm,
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to list algorithms: %v", err)
-	}
-
-	validAlgorithmMap := make(map[string]struct{}, len(validAlgorithms))
-	for _, algorithm := range validAlgorithms {
-		validAlgorithmMap[algorithm.Name] = struct{}{}
-	}
-
-	for _, algorithm := range algorithms {
-		if algorithm == "" {
-			return fmt.Errorf("Algorithm must not be empty")
-		}
-
-		detector := config.GetString("algo.detector")
-		if algorithm == detector {
-			return fmt.Errorf("Algorithm %s is not allowed for fault injection", detector)
-		}
-
-		if _, exists := validAlgorithmMap[algorithm]; !exists {
-			return fmt.Errorf("Invalid algorithm: %s", algorithm)
-		}
-	}
-
-	return nil
 }
 
 func parseInjectionSpecs(r *dto.SubmitInjectionReq) ([]InjectionConfig, error) {

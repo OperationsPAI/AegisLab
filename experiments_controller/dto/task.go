@@ -130,9 +130,9 @@ type DatasetOptions struct {
 }
 
 type ExecutionOptions struct {
-	Algorithm   string `json:"algorithm"`
-	Dataset     string `json:"dataset"`
-	ExecutionID int    `json:"execution_id"`
+	Algorithm   AlgorithmItem `json:"algorithm"`
+	Dataset     string        `json:"dataset"`
+	ExecutionID int           `json:"execution_id"`
 }
 
 type StreamEvent struct {

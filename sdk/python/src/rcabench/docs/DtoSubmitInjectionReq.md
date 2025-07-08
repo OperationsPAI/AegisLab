@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**algorithms** | **List[str]** |  | [optional] 
+**algorithms** | [**List[DtoAlgorithmItem]**](DtoAlgorithmItem.md) |  | [optional] 
 **benchmark** | **str** |  | 
 **interval** | **int** |  | 
 **labels** | [**List[DtoLabelItem]**](DtoLabelItem.md) |  | [optional] 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/LGU-SE-Internal/rcabench/client"
+	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
@@ -23,8 +24,8 @@ func CheckCachedTraceID(ctx context.Context, traceID string) bool {
 	return exists
 }
 
-func GetCachedAlgorithmsFromRedis(ctx context.Context, traceID string) ([]string, error) {
-	namesJSON, err := client.GetRedisClient().HGet(ctx, InjectAlgorithmsKey, traceID).Result()
+func GetCachedAlgorithmItemsFromRedis(ctx context.Context, traceID string) ([]dto.AlgorithmItem, error) {
+	itemsJSON, err := client.GetRedisClient().HGet(ctx, InjectAlgorithmsKey, traceID).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return nil, fmt.Errorf("no cached algorithms found for trace id %s", traceID)
@@ -32,25 +33,25 @@ func GetCachedAlgorithmsFromRedis(ctx context.Context, traceID string) ([]string
 		return nil, fmt.Errorf("failed to get cached algorithms for trace id %s: %v", traceID, err)
 	}
 
-	var names []string
-	if err := json.Unmarshal([]byte(namesJSON), &names); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal cached algorithms for trace id %s: %v", traceID, err)
+	var items []dto.AlgorithmItem
+	if err := json.Unmarshal([]byte(itemsJSON), &items); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal cached algorithm items for trace id %s: %v", traceID, err)
 	}
 
-	return names, nil
+	return items, nil
 }
 
-func SetAlgorithmsToRedis(ctx context.Context, traceID string, names []string) error {
-	namesJSON, err := json.Marshal(names)
+func SetAlgorithmItemsToRedis(ctx context.Context, traceID string, items []dto.AlgorithmItem) error {
+	itemsJSON, err := json.Marshal(items)
 	if err != nil {
-		return fmt.Errorf("failed to marshal algorithm names to JSON: %v", err)
+		return fmt.Errorf("failed to marshal algorithm items to JSON: %v", err)
 	}
 
 	if _, err := client.GetRedisClient().Pipelined(ctx, func(pipe redis.Pipeliner) error {
-		pipe.HSet(ctx, InjectAlgorithmsKey, traceID, namesJSON)
+		pipe.HSet(ctx, InjectAlgorithmsKey, traceID, itemsJSON)
 		return nil
 	}); err != nil {
-		return fmt.Errorf("failed to cache algorithms for trace id %s: %v", traceID, err)
+		return fmt.Errorf("failed to cache algorithm items for trace id %s: %v", traceID, err)
 	}
 
 	return nil

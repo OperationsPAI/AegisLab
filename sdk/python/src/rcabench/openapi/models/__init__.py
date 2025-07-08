@@ -16,6 +16,7 @@
 
 # import models into model package
 from rcabench.openapi.models.consts_task_type import ConstsTaskType
+from rcabench.openapi.models.database_container import DatabaseContainer
 from rcabench.openapi.models.database_fault_injection_schedule import DatabaseFaultInjectionSchedule
 from rcabench.openapi.models.dto_algorithm_item import DtoAlgorithmItem
 from rcabench.openapi.models.dto_dataset_build_payload import DtoDatasetBuildPayload

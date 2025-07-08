@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/otel/trace"
@@ -43,7 +44,10 @@ func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
 			return err
 		}
 
-		container, err := repository.GetContaineInfo(payload.Benchmark, consts.ContainerTypeBenchmark)
+		container, err := repository.GetContaineInfo(&dto.GetContainerFilterOptions{
+			Type: consts.ContainerTypeBenchmark,
+			Name: payload.Benchmark,
+		})
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to get container info for benchmark")
@@ -60,7 +64,7 @@ func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
 			consts.LabelDataset:  payload.Name,
 		}
 
-		return createDatasetJob(ctx, jobName, fullImage, annotations, labels, payload)
+		return createDatasetJob(ctx, jobName, fullImage, container.Command, annotations, labels, payload)
 	})
 }
 
@@ -151,21 +155,20 @@ func parseTimePtrFromPayload(payload map[string]any, key string) (*time.Time, er
 	})
 }
 
-func createDatasetJob(ctx context.Context, jobName, image string, annotations map[string]string, labels map[string]string, payload *datasetPayload) error {
+func createDatasetJob(ctx context.Context, jobName, image, command string, annotations map[string]string, labels map[string]string, payload *datasetPayload) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
 		restartPolicy := corev1.RestartPolicyNever
 		backoffLimit := int32(2)
 		parallelism := int32(1)
 		completions := int32(1)
 		jobNamespace := config.GetString("k8s.namespace")
-		command := []string{"bash", "/entrypoint.sh"}
 
 		envVars := getDatasetJobEnvVars(payload)
 		return k8s.CreateJob(ctx, k8s.JobConfig{
 			Namespace:     jobNamespace,
 			JobName:       jobName,
 			Image:         image,
-			Command:       command,
+			Command:       strings.Split(command, " "),
 			RestartPolicy: restartPolicy,
 			BackoffLimit:  backoffLimit,
 			Parallelism:   parallelism,

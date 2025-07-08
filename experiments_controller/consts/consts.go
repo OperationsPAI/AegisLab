@@ -76,6 +76,7 @@ const (
 	BuildName          = "name"
 	BuildImage         = "image"
 	BuildTag           = "tag"
+	BuildCommand       = "command"
 	BuildSourcePath    = "source_path"
 	BuildBuildOptions  = "build_options"
 
@@ -86,16 +87,16 @@ const (
 	BuildOptionForceRebuild   = "force_rebuild"
 
 	CollectAlgorithm   = "algorithm"
-	CollectAnnotations = "annotations"
 	CollectDataset     = "dataset"
 	CollectExecutionID = "execution_id"
 
 	EvaluateLabel = "app_name"
 	EvaluateLevel = "level"
 
-	ExecuteAlgorithm = "algorithm"
-	ExecuteDataset   = "dataset"
-	ExecuteEnvVars   = "env_vars"
+	AnnotationAlgorithm = "algorithm"
+	ExecuteAlgorithm    = "algorithm"
+	ExecuteDataset      = "dataset"
+	ExecuteEnvVars      = "env_vars"
 
 	InjectAlgorithms  = "algorithms"
 	InjectBenchmark   = "benchmark"
@@ -205,7 +206,6 @@ const (
 	LabelTraceID     = "trace_id"
 	LabelGroupID     = "group_id"
 	LabelTaskType    = "task_type"
-	LabelAlgorithm   = "algorithm"
 	LabelDataset     = "dataset"
 	LabelExecutionID = "execution_id"
 )

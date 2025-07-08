@@ -16,6 +16,36 @@ definitions:
     - TaskTypeBuildImages
     - TaskTypeBuildDataset
     - TaskTypeCollectResult
+  database.Container:
+    properties:
+      command:
+        description: 启动命令
+        type: string
+      created_at:
+        description: 创建时间
+        type: string
+      id:
+        description: 唯一标识
+        type: integer
+      image:
+        description: 镜像名
+        type: string
+      name:
+        description: 名称
+        type: string
+      status:
+        description: '0: 已删除 1: 活跃'
+        type: boolean
+      tag:
+        description: 镜像标签
+        type: string
+      type:
+        description: 镜像类型
+        type: string
+      updated_at:
+        description: 更新时间
+        type: string
+    type: object
   database.FaultInjectionSchedule:
     properties:
       benchmark:
@@ -71,14 +101,14 @@ definitions:
     type: object
   dto.AlgorithmItem:
     properties:
-      algorithm:
-        type: string
       image:
+        type: string
+      name:
         type: string
       tag:
         type: string
-      updated_at:
-        type: string
+    required:
+    - name
     type: object
   dto.DatasetBuildPayload:
     properties:
@@ -153,7 +183,7 @@ definitions:
   dto.ExecutionPayload:
     properties:
       algorithm:
-        type: string
+        $ref: '#/definitions/dto.AlgorithmItem'
       dataset:
         type: string
       env_vars:
@@ -393,7 +423,7 @@ definitions:
       data:
         description: 泛型类型的数据
         items:
-          $ref: '#/definitions/dto.AlgorithmItem'
+          $ref: '#/definitions/database.Container'
         type: array
       message:
         description: 响应消息
@@ -739,7 +769,7 @@ definitions:
     properties:
       algorithms:
         items:
-          type: string
+          $ref: '#/definitions/dto.AlgorithmItem'
         type: array
       benchmark:
         type: string
@@ -1028,6 +1058,11 @@ paths:
         description: Docker镜像标签，用于版本控制
         in: formData
         name: tag
+        type: string
+      - default: bash /entrypoint.sh
+        description: Docker镜像启动命令，默认为bash /entrypoint.sh
+        in: formData
+        name: command
         type: string
       - default: file
         description: 构建源类型，指定算法源码来源

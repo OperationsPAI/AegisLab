@@ -27,12 +27,11 @@ class DtoAlgorithmItem(BaseModel):
     """
     DtoAlgorithmItem
     """ # noqa: E501
-    algorithm: Optional[StrictStr] = None
     image: Optional[StrictStr] = None
+    name: StrictStr
     tag: Optional[StrictStr] = None
-    updated_at: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["algorithm", "image", "tag", "updated_at"]
+    __properties: ClassVar[List[str]] = ["image", "name", "tag"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -92,10 +91,9 @@ class DtoAlgorithmItem(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "algorithm": obj.get("algorithm"),
             "image": obj.get("image"),
-            "tag": obj.get("tag"),
-            "updated_at": obj.get("updated_at")
+            "name": obj.get("name"),
+            "tag": obj.get("tag")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

@@ -2,8 +2,10 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/LGU-SE-Internal/rcabench/client/k8s"
@@ -12,14 +14,15 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/LGU-SE-Internal/rcabench/tracing"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 )
 
 type executionPayload struct {
-	Algorithm string
-	Dataset   string
-	EnvVars   map[string]string
+	algorithm dto.AlgorithmItem
+	dataset   string
+	envVars   map[string]string
 }
 
 func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
@@ -39,34 +42,40 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			return err
 		}
 
-		record, err := repository.GetDatasetByName(payload.Dataset, consts.DatasetBuildSuccess)
+		record, err := repository.GetDatasetByName(payload.dataset, consts.DatasetBuildSuccess)
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to query database for dataset")
-			return fmt.Errorf("failed to query database for dataset %s: %v", payload.Dataset, err)
+			return fmt.Errorf("failed to query database for dataset %s: %v", payload.dataset, err)
 		}
 
-		algorithm := payload.Algorithm
-		if payload.EnvVars != nil {
-			if algo, ok := payload.EnvVars[consts.ExecuteEnvVarAlgorithm]; ok {
-				algorithm = algo
-			}
-		}
-
-		// TODO 需不需要添加状态
-		container, err := repository.GetContaineInfo(algorithm, consts.ContainerTypeAlgorithm)
+		container, err := repository.GetContaineInfo(&dto.GetContainerFilterOptions{
+			Type:  consts.ContainerTypeAlgorithm,
+			Name:  payload.algorithm.Name,
+			Image: payload.algorithm.Image,
+			Tag:   payload.algorithm.Tag,
+		})
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to get container info for algorithm")
-			return fmt.Errorf("failed to get container info for algorithm %s: %v", algorithm, err)
+			return fmt.Errorf("failed to get container info for algorithm %s: %v", payload.algorithm.Name, err)
 		}
 
-		executionID, err := repository.CreateExecutionResult(task.TaskID, algorithm, record.Name)
+		executionID, err := repository.CreateExecutionResult(task.TaskID, container.Name, record.Name)
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to create execution result")
 			return fmt.Errorf("failed to create execution result: %v", err)
 		}
+
+		itemJson, err := json.Marshal(payload.algorithm)
+		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to marshal algorithm item")
+			return fmt.Errorf("failed to marshal algorithm item: %v", err)
+		}
+
+		annotations[consts.AnnotationAlgorithm] = string(itemJson)
 
 		jobName := task.TaskID
 		fullImage := fmt.Sprintf("%s:%s", container.Image, container.Tag)
@@ -75,12 +84,11 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			consts.LabelTraceID:     task.TraceID,
 			consts.LabelGroupID:     task.GroupID,
 			consts.LabelTaskType:    string(consts.TaskTypeRunAlgorithm),
-			consts.LabelAlgorithm:   algorithm,
-			consts.LabelDataset:     payload.Dataset,
+			consts.LabelDataset:     payload.dataset,
 			consts.LabelExecutionID: strconv.Itoa(executionID),
 		}
 
-		return createAlgoJob(ctx, config.GetString("k8s.namespace"), jobName, fullImage, annotations, labels, payload, record)
+		return createAlgoJob(ctx, config.GetString("k8s.namespace"), jobName, fullImage, container.Command, annotations, labels, payload, record)
 	})
 }
 
@@ -88,9 +96,9 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 	message := "missing or invalid '%s' key in payload"
 
-	algorithm, ok := payload[consts.ExecuteAlgorithm].(string)
-	if !ok || algorithm == "" {
-		return nil, fmt.Errorf(message, consts.ExecuteAlgorithm)
+	algorithm, err := utils.ConvertToType[dto.AlgorithmItem](payload[consts.ExecuteAlgorithm])
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert '%s' to AlgorithmItem: %v", consts.ExecuteAlgorithm, err)
 	}
 
 	dataset, ok := payload[consts.ExecuteDataset].(string)
@@ -98,35 +106,25 @@ func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 		return nil, fmt.Errorf(message, consts.ExecuteDataset)
 	}
 
-	result := executionPayload{
-		Algorithm: algorithm,
-		Dataset:   dataset,
-	}
-	if e, exists := payload[consts.ExecuteEnvVars].(map[string]any); exists {
-		envVars := make(map[string]string, len(e))
-		for key, value := range e {
-			strValue, ok := value.(string)
-			if !ok {
-				return nil, fmt.Errorf(message, consts.ExecuteEnvVars)
-			}
-			envVars[key] = strValue
-		}
-
-		result.EnvVars = envVars
+	envVars, err := utils.ConvertToType[map[string]string](payload[consts.ExecuteEnvVars])
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert '%s' to map[string]string: %v", consts.ExecuteEnvVars, err)
 	}
 
-	return &result, nil
+	return &executionPayload{
+		algorithm: algorithm,
+		dataset:   dataset,
+		envVars:   envVars,
+	}, nil
 }
 
-func createAlgoJob(ctx context.Context, jobNamespace, jobName, image string, annotations map[string]string, labels map[string]string, payload *executionPayload, record *dto.DatasetItemWithID) error {
+func createAlgoJob(ctx context.Context, jobNamespace, jobName, image, command string, annotations map[string]string, labels map[string]string, payload *executionPayload, record *dto.DatasetItemWithID) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
 		restartPolicy := corev1.RestartPolicyNever
 		backoffLimit := int32(2)
 		parallelism := int32(1)
 		completions := int32(1)
-		// TODO command 添加进数据库
-		command := []string{"bash", "/entrypoint.sh"}
 
 		jobEnvVars, err := getAlgoJobEnvVars(payload, record)
 		if err != nil {
@@ -139,7 +137,7 @@ func createAlgoJob(ctx context.Context, jobNamespace, jobName, image string, ann
 			Namespace:     jobNamespace,
 			JobName:       jobName,
 			Image:         image,
-			Command:       command,
+			Command:       strings.Split(command, " "),
 			RestartPolicy: restartPolicy,
 			BackoffLimit:  backoffLimit,
 			Parallelism:   parallelism,
@@ -169,8 +167,8 @@ func getAlgoJobEnvVars(payload *executionPayload, record *dto.DatasetItemWithID)
 		{Name: "ABNORMAL_START", Value: strconv.FormatInt(record.StartTime.Unix(), 10)},
 		{Name: "ABNORMAL_END", Value: strconv.FormatInt(record.EndTime.Unix(), 10)},
 		{Name: "WORKSPACE", Value: "/app"},
-		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.Dataset)},
-		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.Dataset)},
+		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.dataset)},
+		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.dataset)},
 	}
 
 	envNameIndexMap := make(map[string]int, len(jobEnvVars))
@@ -178,8 +176,8 @@ func getAlgoJobEnvVars(payload *executionPayload, record *dto.DatasetItemWithID)
 		envNameIndexMap[jobEnvVar.Name] = index
 	}
 
-	if payload.EnvVars != nil {
-		for name, value := range payload.EnvVars {
+	if payload.envVars != nil {
+		for name, value := range payload.envVars {
 			if index, exists := envNameIndexMap[name]; exists {
 				jobEnvVars[index].Value = value
 			} else {

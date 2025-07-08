@@ -20,7 +20,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_algorithm_item import DtoAlgorithmItem
+from rcabench.openapi.models.database_container import DatabaseContainer
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -29,7 +29,7 @@ class DtoGenericResponseDtoListAlgorithmsResp(BaseModel):
     DtoGenericResponseDtoListAlgorithmsResp
     """ # noqa: E501
     code: Optional[StrictInt] = Field(default=None, description="状态码")
-    data: Optional[List[DtoAlgorithmItem]] = Field(default=None, description="泛型类型的数据")
+    data: Optional[List[DatabaseContainer]] = Field(default=None, description="泛型类型的数据")
     message: Optional[StrictStr] = Field(default=None, description="响应消息")
     timestamp: Optional[StrictInt] = Field(default=None, description="响应生成时间")
     additional_properties: Dict[str, Any] = {}
@@ -101,7 +101,7 @@ class DtoGenericResponseDtoListAlgorithmsResp(BaseModel):
 
         _obj = cls.model_validate({
             "code": obj.get("code"),
-            "data": [DtoAlgorithmItem.from_dict(_item) for _item in obj["data"]] if obj.get("data") is not None else None,
+            "data": [DatabaseContainer.from_dict(_item) for _item in obj["data"]] if obj.get("data") is not None else None,
             "message": obj.get("message"),
             "timestamp": obj.get("timestamp")
         })

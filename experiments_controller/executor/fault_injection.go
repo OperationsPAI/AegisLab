@@ -35,7 +35,7 @@ type nsConfig struct {
 }
 
 type injectionPayload struct {
-	algorithms  []string
+	algorithms  []dto.AlgorithmItem
 	benchmark   string
 	faultType   int
 	namespace   string
@@ -136,11 +136,11 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 		}
 
 		if len(payload.algorithms) != 0 {
-			if err := repository.SetAlgorithmsToRedis(childCtx, task.TraceID, payload.algorithms); err != nil {
+			if err := repository.SetAlgorithmItemsToRedis(childCtx, task.TraceID, payload.algorithms); err != nil {
 				span.RecordError(err)
-				span.AddEvent("failed to cache algorithms to Redis")
-				logrus.Errorf("failed to cache algorithms to Redis: %v", err)
-				return fmt.Errorf("failed to cache algorithms")
+				span.AddEvent("failed to cache algorithm items to Redis")
+				logrus.Errorf("failed to cache algorithms items to Redis: %v", err)
+				return err
 			}
 		}
 
@@ -331,7 +331,7 @@ func parseInjectionPayload(ctx context.Context, payload map[string]any) (*inject
 	return tracing.WithSpanReturnValue(ctx, func(childCtx context.Context) (*injectionPayload, error) {
 		message := "invalid or missing '%s' in task payload"
 
-		algorithms, err := utils.ConvertToType[[]string](payload[consts.InjectAlgorithms])
+		algorithms, err := utils.ConvertToType[[]dto.AlgorithmItem](payload[consts.InjectAlgorithms])
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert '%s' to []string: %v", consts.InjectAlgorithms, err)
 		}

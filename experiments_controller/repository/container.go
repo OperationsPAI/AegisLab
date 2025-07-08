@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"gorm.io/gorm"
@@ -33,14 +32,29 @@ func CreateContainer(container *database.Container) error {
 	return nil
 }
 
-func GetContaineInfo(name string, cType consts.ContainerType) (*database.Container, error) {
+func GetContaineInfo(opts *dto.GetContainerFilterOptions) (*database.Container, error) {
+	query := database.DB.Where("name = ?", opts.Name)
+
+	if opts != nil {
+		if opts.Type != "" {
+			query = query.Where("type = ?", opts.Type)
+		}
+
+		if opts.Image != "" {
+			query = query.Where("image = ?", opts.Image)
+		}
+
+		if opts.Image != "" && opts.Tag != "" {
+			query = query.Where("tag = ?", opts.Tag)
+		}
+	}
+
 	var record database.Container
 	if err := database.DB.
-		Where("name = ? AND type = ? AND status = ?", name, cType, true).
-		Order("created_at DESC").
+		Order("updated_at DESC").
 		First(&record).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("container info '%s' not found", name)
+			return nil, fmt.Errorf("container info '%s' not found", opts.Name)
 		}
 
 		return nil, fmt.Errorf("failed to query container info: %v", err)
@@ -49,7 +63,7 @@ func GetContaineInfo(name string, cType consts.ContainerType) (*database.Contain
 	return &record, nil
 }
 
-func ListContainers(opts *dto.FilterContainerOptions) ([]database.Container, error) {
+func ListContainers(opts *dto.ListContainersFilterOptions) ([]database.Container, error) {
 	query := database.DB.Order("created_at DESC")
 
 	if opts != nil {

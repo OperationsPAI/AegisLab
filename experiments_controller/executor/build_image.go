@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +12,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/LGU-SE-Internal/rcabench/tracing"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 	con "github.com/docker/cli/cli/config"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/frontend"
@@ -34,6 +34,7 @@ type buildPayload struct {
 	name          string
 	image         string
 	tag           string
+	command       string
 	sourcePath    string
 	buildOptions  dto.BuildOptions
 }
@@ -62,10 +63,11 @@ func executeBuildImage(ctx context.Context, task *dto.UnifiedTask) error {
 		}
 
 		if err := repository.CreateContainer(&database.Container{
-			Type:  string(payload.containerType),
-			Name:  payload.name,
-			Image: payload.image,
-			Tag:   payload.tag,
+			Type:    string(payload.containerType),
+			Name:    payload.name,
+			Image:   payload.image,
+			Tag:     payload.tag,
+			Command: payload.command,
 		}); err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to create container record")
@@ -88,11 +90,11 @@ func executeBuildImage(ctx context.Context, task *dto.UnifiedTask) error {
 			task.Type,
 		)
 
-		logrus.Info("Image build and push completed successfully")
 		if err := os.RemoveAll(payload.sourcePath); err != nil {
 			logrus.WithField("source_path", payload.sourcePath).Warnf("failed to remove source path after build: %v", err)
 		}
 
+		logrus.WithField("task_id", task.TaskID).Info("Build image task completed successfully")
 		return nil
 	})
 }
@@ -120,22 +122,19 @@ func parseBuildPayload(payload map[string]any) (*buildPayload, error) {
 		return nil, fmt.Errorf(message, consts.BuildTag)
 	}
 
+	command, ok := payload[consts.BuildCommand].(string)
+	if !ok || command == "" {
+		return nil, fmt.Errorf(message, consts.BuildCommand)
+	}
+
 	sourcePath, ok := payload[consts.BuildSourcePath].(string)
 	if !ok || sourcePath == "" {
 		return nil, fmt.Errorf(message, consts.BuildSourcePath)
 	}
 
-	var buildOptions dto.BuildOptions
-	if options, exists := payload[consts.BuildBuildOptions].(map[string]any); exists {
-		jsonData, err := json.Marshal(options)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal build options: %v", err)
-		}
-
-		buildOptions = dto.BuildOptions{}
-		if err := json.Unmarshal(jsonData, &buildOptions); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal build options: %v", err)
-		}
+	buildOptions, err := utils.ConvertToType[dto.BuildOptions](payload[consts.BuildBuildOptions])
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert '%s' to BuildOptions: %v", consts.BuildBuildOptions, err)
 	}
 
 	return &buildPayload{
@@ -143,6 +142,7 @@ func parseBuildPayload(payload map[string]any) (*buildPayload, error) {
 		name:          name,
 		image:         image,
 		tag:           tag,
+		command:       command,
 		sourcePath:    sourcePath,
 		buildOptions:  buildOptions,
 	}, nil

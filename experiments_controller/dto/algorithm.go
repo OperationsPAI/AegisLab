@@ -3,7 +3,6 @@ package dto
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
@@ -12,35 +11,13 @@ import (
 )
 
 type AlgorithmItem struct {
-	Algorithm string    `json:"algorithm"`
-	Image     string    `json:"image"`
-	Tag       string    `json:"tag"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-func (a *AlgorithmItem) Convert(container database.Container) {
-	a.Algorithm = container.Name
-	a.Image = container.Image
-	a.Tag = container.Tag
-	a.UpdatedAt = container.UpdatedAt
-}
-
-type ListAlgorithmsResp []AlgorithmItem
-
-type SubmitExecutionReq []ExecutionPayload
-
-func (req *SubmitExecutionReq) Validate() error {
-	for _, payload := range *req {
-		if err := payload.Validate(); err != nil {
-			return fmt.Errorf("Invalid execution payload: %v", err)
-		}
-	}
-
-	return nil
+	Name  string `json:"name" binding:"required"`
+	Image string `json:"image" binding:"omitempty"`
+	Tag   string `json:"tag" binding:"omitempty"`
 }
 
 type ExecutionPayload struct {
-	Algorithm string            `json:"algorithm" binding:"required"`
+	Algorithm AlgorithmItem     `json:"algorithm" binding:"required"`
 	Dataset   string            `json:"dataset" binding:"required"`
 	EnvVars   map[string]string `json:"env_vars" binding:"omitempty" swaggertype:"object"`
 }
@@ -57,6 +34,18 @@ func (p *ExecutionPayload) Validate() error {
 			if _, exists := ExecuteEnvVarNameMap[key]; !exists {
 				return fmt.Errorf("Invalid environment variable name: %s", key)
 			}
+		}
+	}
+
+	return nil
+}
+
+type SubmitExecutionReq []ExecutionPayload
+
+func (req *SubmitExecutionReq) Validate() error {
+	for _, payload := range *req {
+		if err := payload.Validate(); err != nil {
+			return fmt.Errorf("Invalid execution payload: %v", err)
 		}
 	}
 
@@ -160,6 +149,7 @@ type SubmitBuildingReq struct {
 	Algorithm    string        `json:"algorithm" binding:"required"`
 	Image        string        `json:"image" binding:"required"`
 	Tag          string        `json:"tag" binding:"omitempty"`
+	Command      string        `json:"command" binding:"omitempty"`
 	Source       BuildSource   `json:"source" binding:"required"`
 	BuildOptions *BuildOptions `json:"build_options" binding:"omitempty"`
 }
@@ -199,6 +189,8 @@ func (req *SubmitBuildingReq) Validate() error {
 
 	return nil
 }
+
+type ListAlgorithmsResp []database.Container
 
 type DetectorRecord struct {
 	SpanName            string   `json:"span_name"`

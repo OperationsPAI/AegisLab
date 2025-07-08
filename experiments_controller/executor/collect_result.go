@@ -20,10 +20,10 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-type CollectionPayload struct {
-	Algorithm   string
-	Dataset     string
-	ExecutionID int
+type collectionPayload struct {
+	algorithm   dto.AlgorithmItem
+	dataset     string
+	executionID int
 }
 
 func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
@@ -36,8 +36,8 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 		}
 
 		path := config.GetString("jfs.path")
-		if collectPayload.Algorithm == "detector" {
-			conclusionCSV := filepath.Join(path, collectPayload.Dataset, consts.DetectorConclusionFile)
+		if collectPayload.algorithm.Name == config.GetString("algo.detector") {
+			conclusionCSV := filepath.Join(path, collectPayload.dataset, consts.DetectorConclusionFile)
 			content, err := os.ReadFile(conclusionCSV)
 			if err != nil {
 				span.AddEvent("failed to read conclusion.csv file")
@@ -45,7 +45,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				return fmt.Errorf("failed to read conclusion.csv file: %v", err)
 			}
 
-			results, err := readDetectorCSV(content, collectPayload.ExecutionID)
+			results, err := readDetectorCSV(content, collectPayload.executionID)
 			if err != nil {
 				repository.PublishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 					TaskID:    task.TaskID,
@@ -102,30 +102,19 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 			)
 
 			if hasIssues && repository.CheckCachedTraceID(childCtx, task.TraceID) {
-				names, err := repository.GetCachedAlgorithmsFromRedis(childCtx, task.TraceID)
+				items, err := repository.GetCachedAlgorithmItemsFromRedis(childCtx, task.TraceID)
 				if err != nil {
 					span.AddEvent("failed to get algorithms from redis")
 					span.RecordError(err)
 					return fmt.Errorf("failed to get algorithms from redis: %v", err)
 				}
 
-				algorithms, err := repository.ListContainers(&dto.FilterContainerOptions{
-					Status: utils.BoolPtr(true),
-					Type:   consts.ContainerTypeAlgorithm,
-					Names:  names,
-				})
-				if err != nil {
-					span.AddEvent("failed to list algorithms by names")
-					span.RecordError(err)
-					return fmt.Errorf("failed to list algorithms by names: %v", err)
-				}
-
-				for _, algorithm := range algorithms {
+				for _, item := range items {
 					childTask := &dto.UnifiedTask{
 						Type: consts.TaskTypeRunAlgorithm,
 						Payload: map[string]any{
-							consts.ExecuteAlgorithm: algorithm.Name,
-							consts.ExecuteDataset:   collectPayload.Dataset,
+							consts.ExecuteAlgorithm: item,
+							consts.ExecuteDataset:   collectPayload.dataset,
 						},
 						Immediate:    true,
 						TraceID:      task.TraceID,
@@ -134,21 +123,16 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 					}
 
 					if _, _, err := SubmitTask(childCtx, childTask); err != nil {
-						span.AddEvent("failed to submit algorithm task")
+						span.AddEvent("failed to submit algorithm execution task")
 						span.RecordError(err)
-						return fmt.Errorf("failed to submit algorithm task: %v", err)
+						return fmt.Errorf("failed to submit algorithm execution task: %v", err)
 					}
-
-					logrus.WithFields(
-						logrus.Fields{
-							"algorithm": algorithm.Name,
-							"dataset":   collectPayload.Dataset,
-						},
-					).Infof("Algorithm task submitted successfully")
 				}
+
+				logrus.Infof("Algorithm executions submitted successfully")
 			}
 		} else {
-			resultCSV := filepath.Join(path, collectPayload.Dataset, "result.csv")
+			resultCSV := filepath.Join(path, collectPayload.dataset, "result.csv")
 			content, err := os.ReadFile(resultCSV)
 			if err != nil {
 				span.AddEvent("failed to read result.csv file")
@@ -156,7 +140,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				return fmt.Errorf("failed to read result.csv file: %v", err)
 			}
 
-			results, err := readCSVContent2Result(content, collectPayload.ExecutionID)
+			results, err := readCSVContent2Result(content, collectPayload.executionID)
 			if err != nil {
 				span.AddEvent("failed to convert result.csv to database struct")
 				span.RecordError(err)
@@ -186,14 +170,15 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 			)
 		}
 
+		logrus.WithField("task_id", task.TaskID).Info("Collect result task completed successfully")
 		return nil
 	})
 }
 
-func parseCollectPayload(payload map[string]any) (*CollectionPayload, error) {
-	algorithm, ok := payload[consts.CollectAlgorithm].(string)
-	if !ok || algorithm == "" {
-		return nil, fmt.Errorf("Missing or invalid '%s' key in payload", consts.CollectAlgorithm)
+func parseCollectPayload(payload map[string]any) (*collectionPayload, error) {
+	algorithm, err := utils.ConvertToType[dto.AlgorithmItem](payload[consts.CollectAlgorithm])
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert '%s' to AlgorithmItem: %v", consts.CollectAlgorithm, err)
 	}
 
 	dataset, ok := payload[consts.CollectDataset].(string)
@@ -207,10 +192,10 @@ func parseCollectPayload(payload map[string]any) (*CollectionPayload, error) {
 	}
 	executionID := int(executionIDFloat)
 
-	return &CollectionPayload{
-		Algorithm:   algorithm,
-		Dataset:     dataset,
-		ExecutionID: executionID,
+	return &collectionPayload{
+		algorithm:   algorithm,
+		dataset:     dataset,
+		executionID: executionID,
 	}, nil
 }
 
