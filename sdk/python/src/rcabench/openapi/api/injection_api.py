@@ -25,10 +25,10 @@ from rcabench.openapi.models.dto_generic_response_any import DtoGenericResponseA
 from rcabench.openapi.models.dto_generic_response_array_database_fault_injection_schedule import DtoGenericResponseArrayDatabaseFaultInjectionSchedule
 from rcabench.openapi.models.dto_generic_response_array_dto_fault_injection_no_issues_resp import DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp
 from rcabench.openapi.models.dto_generic_response_array_dto_fault_injection_with_issues_resp import DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp
-from rcabench.openapi.models.dto_generic_response_database_fault_injection_schedule import DtoGenericResponseDatabaseFaultInjectionSchedule
 from rcabench.openapi.models.dto_generic_response_dto_fault_injection_statistics_resp import DtoGenericResponseDtoFaultInjectionStatisticsResp
 from rcabench.openapi.models.dto_generic_response_dto_inject_cancel_resp import DtoGenericResponseDtoInjectCancelResp
 from rcabench.openapi.models.dto_generic_response_dto_injection_field_mapping_resp import DtoGenericResponseDtoInjectionFieldMappingResp
+from rcabench.openapi.models.dto_generic_response_dto_query_injection_resp import DtoGenericResponseDtoQueryInjectionResp
 from rcabench.openapi.models.dto_generic_response_dto_submit_injection_resp import DtoGenericResponseDtoSubmitInjectionResp
 from rcabench.openapi.models.dto_generic_response_handler_node import DtoGenericResponseHandlerNode
 from rcabench.openapi.models.dto_generic_response_handler_resources import DtoGenericResponseHandlerResources
@@ -2872,7 +2872,7 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseDatabaseFaultInjectionSchedule:
+    ) -> DtoGenericResponseDtoQueryInjectionResp:
         """查询单个故障注入记录
 
         根据名称或任务ID查询故障注入记录详情，两个参数至少提供一个
@@ -2913,7 +2913,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDatabaseFaultInjectionSchedule",
+            '200': "DtoGenericResponseDtoQueryInjectionResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -2945,7 +2945,7 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseDatabaseFaultInjectionSchedule]:
+    ) -> ApiResponse[DtoGenericResponseDtoQueryInjectionResp]:
         """查询单个故障注入记录
 
         根据名称或任务ID查询故障注入记录详情，两个参数至少提供一个
@@ -2986,7 +2986,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDatabaseFaultInjectionSchedule",
+            '200': "DtoGenericResponseDtoQueryInjectionResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -3059,7 +3059,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDatabaseFaultInjectionSchedule",
+            '200': "DtoGenericResponseDtoQueryInjectionResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }

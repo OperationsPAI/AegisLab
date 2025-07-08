@@ -684,7 +684,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_injections_query_get**
-> DtoGenericResponseDatabaseFaultInjectionSchedule api_v1_injections_query_get(name=name, task_id=task_id)
+> DtoGenericResponseDtoQueryInjectionResp api_v1_injections_query_get(name=name, task_id=task_id)
 
 查询单个故障注入记录
 
@@ -695,7 +695,7 @@ No authorization required
 
 ```python
 import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_database_fault_injection_schedule import DtoGenericResponseDatabaseFaultInjectionSchedule
+from rcabench.openapi.models.dto_generic_response_dto_query_injection_resp import DtoGenericResponseDtoQueryInjectionResp
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
@@ -734,7 +734,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**DtoGenericResponseDatabaseFaultInjectionSchedule**](DtoGenericResponseDatabaseFaultInjectionSchedule.md)
+[**DtoGenericResponseDtoQueryInjectionResp**](DtoGenericResponseDtoQueryInjectionResp.md)
 
 ### Authorization
 

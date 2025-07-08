@@ -222,7 +222,7 @@ func ListInjections(c *gin.Context) {
 //	@Produce		json
 //	@Param			name		query		string	false	"故障注入名称"
 //	@Param			task_id		query		string	false	"任务ID"
-//	@Success		200			{object}	dto.GenericResponse[database.FaultInjectionSchedule]	"成功返回故障注入记录详情"
+//	@Success		200			{object}	dto.GenericResponse[dto.QueryInjectionResp]	"成功返回故障注入记录详情"
 //	@Failure		400			{object}	dto.GenericResponse[any]	"请求参数错误，如参数缺失、格式不正确或验证失败等"
 //	@Failure		500			{object}	dto.GenericResponse[any]	"服务器内部错误"
 //	@Router			/api/v1/injections/query [get]
@@ -254,7 +254,17 @@ func QueryInjection(c *gin.Context) {
 		return
 	}
 
-	dto.SuccessResponse(c, item)
+	groundTruthMap, err := repository.GetGroundtruthMap([]string{item.InjectionName})
+	if err != nil {
+		logrus.Errorf("failed to get ground truth map: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get ground truth map")
+		return
+	}
+
+	dto.SuccessResponse(c, dto.QueryInjectionResp{
+		FaultInjectionSchedule: *item,
+		GroundTruth:            groundTruthMap[item.InjectionName],
+	})
 }
 
 type InjectionConfig struct {
