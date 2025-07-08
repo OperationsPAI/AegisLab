@@ -18,6 +18,7 @@
 from rcabench.openapi.models.consts_task_type import ConstsTaskType
 from rcabench.openapi.models.database_container import DatabaseContainer
 from rcabench.openapi.models.database_fault_injection_schedule import DatabaseFaultInjectionSchedule
+from rcabench.openapi.models.dto_algorithm_dataset_pair import DtoAlgorithmDatasetPair
 from rcabench.openapi.models.dto_algorithm_item import DtoAlgorithmItem
 from rcabench.openapi.models.dto_dataset_build_payload import DtoDatasetBuildPayload
 from rcabench.openapi.models.dto_dataset_delete_resp import DtoDatasetDeleteResp
@@ -43,6 +44,7 @@ from rcabench.openapi.models.dto_generic_response_dto_query_injection_resp impor
 from rcabench.openapi.models.dto_generic_response_dto_raw_data_resp import DtoGenericResponseDtoRawDataResp
 from rcabench.openapi.models.dto_generic_response_dto_submit_injection_resp import DtoGenericResponseDtoSubmitInjectionResp
 from rcabench.openapi.models.dto_generic_response_dto_submit_resp import DtoGenericResponseDtoSubmitResp
+from rcabench.openapi.models.dto_generic_response_dto_successful_executions_resp import DtoGenericResponseDtoSuccessfulExecutionsResp
 from rcabench.openapi.models.dto_generic_response_dto_task_detail_resp import DtoGenericResponseDtoTaskDetailResp
 from rcabench.openapi.models.dto_generic_response_handler_node import DtoGenericResponseHandlerNode
 from rcabench.openapi.models.dto_generic_response_handler_resources import DtoGenericResponseHandlerResources
@@ -60,6 +62,7 @@ from rcabench.openapi.models.dto_retry_policy import DtoRetryPolicy
 from rcabench.openapi.models.dto_submit_injection_req import DtoSubmitInjectionReq
 from rcabench.openapi.models.dto_submit_injection_resp import DtoSubmitInjectionResp
 from rcabench.openapi.models.dto_submit_resp import DtoSubmitResp
+from rcabench.openapi.models.dto_successful_execution_item import DtoSuccessfulExecutionItem
 from rcabench.openapi.models.dto_task_detail_resp import DtoTaskDetailResp
 from rcabench.openapi.models.dto_task_item import DtoTaskItem
 from rcabench.openapi.models.dto_trace import DtoTrace

@@ -18,21 +18,19 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoGenericResponseDtoKeyResourceResp(BaseModel):
+class DtoAlgorithmDatasetPair(BaseModel):
     """
-    DtoGenericResponseDtoKeyResourceResp
+    DtoAlgorithmDatasetPair
     """ # noqa: E501
-    code: Optional[StrictInt] = Field(default=None, description="状态码")
-    data: Optional[Dict[str, StrictStr]] = Field(default=None, description="泛型类型的数据")
-    message: Optional[StrictStr] = Field(default=None, description="响应消息")
-    timestamp: Optional[StrictInt] = Field(default=None, description="响应生成时间")
+    algorithm: Optional[StrictStr] = None
+    dataset: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["code", "data", "message", "timestamp"]
+    __properties: ClassVar[List[str]] = ["algorithm", "dataset"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -52,7 +50,7 @@ class DtoGenericResponseDtoKeyResourceResp(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoGenericResponseDtoKeyResourceResp from a JSON string"""
+        """Create an instance of DtoAlgorithmDatasetPair from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -84,7 +82,7 @@ class DtoGenericResponseDtoKeyResourceResp(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoGenericResponseDtoKeyResourceResp from a dict"""
+        """Create an instance of DtoAlgorithmDatasetPair from a dict"""
         if obj is None:
             return None
 
@@ -92,10 +90,8 @@ class DtoGenericResponseDtoKeyResourceResp(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "code": obj.get("code"),
-            "data": obj.get("data"),
-            "message": obj.get("message"),
-            "timestamp": obj.get("timestamp")
+            "algorithm": obj.get("algorithm"),
+            "dataset": obj.get("dataset")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():
