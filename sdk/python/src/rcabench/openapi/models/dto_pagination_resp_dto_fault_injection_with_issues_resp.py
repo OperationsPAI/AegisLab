@@ -20,15 +20,15 @@ import json
 
 from pydantic import BaseModel, ConfigDict, StrictInt
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.database_fault_injection_schedule import DatabaseFaultInjectionSchedule
+from rcabench.openapi.models.dto_fault_injection_with_issues_resp import DtoFaultInjectionWithIssuesResp
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoPaginationRespDatabaseFaultInjectionSchedule(BaseModel):
+class DtoPaginationRespDtoFaultInjectionWithIssuesResp(BaseModel):
     """
-    DtoPaginationRespDatabaseFaultInjectionSchedule
+    DtoPaginationRespDtoFaultInjectionWithIssuesResp
     """ # noqa: E501
-    items: Optional[List[DatabaseFaultInjectionSchedule]] = None
+    items: Optional[List[DtoFaultInjectionWithIssuesResp]] = None
     total: Optional[StrictInt] = None
     total_pages: Optional[StrictInt] = None
     additional_properties: Dict[str, Any] = {}
@@ -52,7 +52,7 @@ class DtoPaginationRespDatabaseFaultInjectionSchedule(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoPaginationRespDatabaseFaultInjectionSchedule from a JSON string"""
+        """Create an instance of DtoPaginationRespDtoFaultInjectionWithIssuesResp from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -91,7 +91,7 @@ class DtoPaginationRespDatabaseFaultInjectionSchedule(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoPaginationRespDatabaseFaultInjectionSchedule from a dict"""
+        """Create an instance of DtoPaginationRespDtoFaultInjectionWithIssuesResp from a dict"""
         if obj is None:
             return None
 
@@ -99,7 +99,7 @@ class DtoPaginationRespDatabaseFaultInjectionSchedule(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "items": [DatabaseFaultInjectionSchedule.from_dict(_item) for _item in obj["items"]] if obj.get("items") is not None else None,
+            "items": [DtoFaultInjectionWithIssuesResp.from_dict(_item) for _item in obj["items"]] if obj.get("items") is not None else None,
             "total": obj.get("total"),
             "total_pages": obj.get("total_pages")
         })

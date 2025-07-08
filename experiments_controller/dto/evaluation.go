@@ -18,9 +18,10 @@ type AlgorithmDatasetPair struct {
 }
 
 type RawDataReq struct {
-	Algorithms   []string `json:"algorithms" binding:"omitempty"`
-	Datasets     []string `json:"datasets" binding:"omitempty"`
-	ExecutionIDs []int    `json:"execution_ids" binding:"omitempty"`
+	Pairs        []AlgorithmDatasetPair `json:"pairs" binding:"omitempty"`
+	Algorithms   []string               `json:"algorithms" binding:"omitempty"`
+	Datasets     []string               `json:"datasets" binding:"omitempty"`
+	ExecutionIDs []int                  `json:"execution_ids" binding:"omitempty"`
 }
 
 func (r *RawDataReq) CartesianProduct() []AlgorithmDatasetPair {
@@ -37,6 +38,10 @@ func (r *RawDataReq) CartesianProduct() []AlgorithmDatasetPair {
 	return result
 }
 
+func (req *RawDataReq) HasPairsMode() bool {
+	return len(req.Pairs) > 0
+}
+
 func (req *RawDataReq) HasCartesianMode() bool {
 	return len(req.Algorithms) > 0 && len(req.Datasets) > 0
 }
@@ -46,12 +51,35 @@ func (req *RawDataReq) HasExecutionMode() bool {
 }
 
 func (req *RawDataReq) Validate() error {
-	if !req.HasCartesianMode() && !req.HasExecutionMode() {
-		return fmt.Errorf("Either (algorithms and datasets) or execution_ids must be provided")
+	modeCount := 0
+	if req.HasPairsMode() {
+		modeCount++
+	}
+	if req.HasCartesianMode() {
+		modeCount++
+	}
+	if req.HasExecutionMode() {
+		modeCount++
 	}
 
-	if req.HasCartesianMode() && req.HasExecutionMode() {
-		return fmt.Errorf("Cannot provide both (algorithms, datasets) and execution_ids at the same time")
+	if modeCount == 0 {
+		return fmt.Errorf("One of the following must be provided: pairs, (algorithms and datasets), or execution_ids")
+	}
+
+	if modeCount > 1 {
+		return fmt.Errorf("Only one query mode can be used at a time: pairs, (algorithms and datasets), or execution_ids")
+	}
+
+	// 验证pairs模式下的数据
+	if req.HasPairsMode() {
+		for i, pair := range req.Pairs {
+			if pair.Algorithm == "" {
+				return fmt.Errorf("Algorithm cannot be empty in pair at index %d", i)
+			}
+			if pair.Dataset == "" {
+				return fmt.Errorf("Dataset cannot be empty in pair at index %d", i)
+			}
+		}
 	}
 
 	return nil
@@ -79,3 +107,13 @@ type Conclusion struct {
 }
 
 type EvaluateMetric func([]Execution) ([]Conclusion, error)
+
+// SuccessfulExecutionItem 成功执行的算法记录项
+type SuccessfulExecutionItem struct {
+	ID        int    `json:"id"`        // 执行ID
+	Algorithm string `json:"algorithm"` // 算法名称
+	Dataset   string `json:"dataset"`   // 数据集名称
+}
+
+// SuccessfulExecutionsResp 成功执行结果的响应结构
+type SuccessfulExecutionsResp []SuccessfulExecutionItem

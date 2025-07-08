@@ -8,6 +8,7 @@ Name | Type | Description | Notes
 **algorithms** | **List[str]** |  | [optional] 
 **datasets** | **List[str]** |  | [optional] 
 **execution_ids** | **List[int]** |  | [optional] 
+**pairs** | [**List[DtoAlgorithmDatasetPair]**](DtoAlgorithmDatasetPair.md) |  | [optional] 
 
 ## Example
 

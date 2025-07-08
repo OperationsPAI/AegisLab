@@ -13,13 +13,13 @@ import (
 // GetEvaluationRawData 获取算法和数据集的原始评估数据
 //
 //	@Summary		获取原始评估数据
-//	@Description	根据算法和数据集的笛卡尔积获取对应的原始评估数据，包括粒度记录和真实值信息。支持批量查询多个算法在多个数据集上的执行结果
+//	@Description	支持三种查询模式：1) 直接传入算法-数据集对数组进行精确查询；2) 传入算法和数据集列表进行笛卡尔积查询；3) 通过执行ID列表查询。三种模式互斥，只能选择其中一种
 //	@Tags			evaluation
 //	@Produce		json
 //	@Consumes		application/json
-//	@Param			body	body		dto.RawDataReq	true	"原始数据查询请求，包含算法列表和数据集列表"
+//	@Param			body	body		dto.RawDataReq	true	"原始数据查询请求，支持三种模式：pairs数组、(algorithms+datasets)笛卡尔积、或execution_ids列表"
 //	@Success		200		{object}	dto.GenericResponse[dto.RawDataResp]	"成功返回原始评估数据列表"
-//	@Failure		400		{object}	dto.GenericResponse[any]				"请求参数错误，如JSON格式不正确、算法或数据集数组为空"
+//	@Failure		400		{object}	dto.GenericResponse[any]				"请求参数错误，如JSON格式不正确、查询模式冲突或参数为空"
 //	@Failure		500		{object}	dto.GenericResponse[any]				"服务器内部错误"
 //	@Router			/api/v1/evaluations/raw-data [post]
 func GetEvaluationRawData(c *gin.Context) {
@@ -38,7 +38,9 @@ func GetEvaluationRawData(c *gin.Context) {
 
 	var items []dto.RawDataItem
 	var err error
-	if req.HasCartesianMode() {
+	if req.HasPairsMode() {
+		items, err = repository.ListExecutionRawDatasByPairs(req.Pairs)
+	} else if req.HasCartesianMode() {
 		items, err = repository.ListExecutionRawDatasByPairs(req.CartesianProduct())
 	} else if req.HasExecutionMode() {
 		items, err = repository.ListExecutionRawDataByIds(req.ExecutionIDs)
@@ -87,4 +89,24 @@ func GetGroundtruth(c *gin.Context) {
 	}
 
 	dto.SuccessResponse(c, dto.GroundTruthResp(res))
+}
+
+// GetSuccessfulExecutions 获取所有成功执行的算法记录
+//
+//	@Summary		获取成功执行的算法记录
+//	@Description	获取所有ExecutionResult中status为ExecutionSuccess的记录，返回ID、Algorithm、Dataset三个字段
+//	@Tags			evaluation
+//	@Produce		json
+//	@Success		200	{object}	dto.GenericResponse[dto.SuccessfulExecutionsResp]	"成功返回成功执行的算法记录列表"
+//	@Failure		500	{object}	dto.GenericResponse[any]							"服务器内部错误"
+//	@Router			/api/v1/evaluations/successful-executions [get]
+func GetSuccessfulExecutions(c *gin.Context) {
+	executions, err := repository.ListSuccessfulExecutions()
+	if err != nil {
+		logrus.Errorf("failed to get successful executions: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get successful executions")
+		return
+	}
+
+	dto.SuccessResponse(c, dto.SuccessfulExecutionsResp(executions))
 }

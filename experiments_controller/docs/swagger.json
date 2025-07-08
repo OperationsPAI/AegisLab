@@ -463,7 +463,7 @@
         },
         "/api/v1/evaluations/raw-data": {
             "post": {
-                "description": "根据算法和数据集的笛卡尔积获取对应的原始评估数据，包括粒度记录和真实值信息。支持批量查询多个算法在多个数据集上的执行结果",
+                "description": "支持三种查询模式：1) 直接传入算法-数据集对数组进行精确查询；2) 传入算法和数据集列表进行笛卡尔积查询；3) 通过执行ID列表查询。三种模式互斥，只能选择其中一种",
                 "produces": [
                     "application/json"
                 ],
@@ -473,7 +473,7 @@
                 "summary": "获取原始评估数据",
                 "parameters": [
                     {
-                        "description": "原始数据查询请求，包含算法列表和数据集列表",
+                        "description": "原始数据查询请求，支持三种模式：pairs数组、(algorithms+datasets)笛卡尔积、或execution_ids列表",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -490,9 +490,35 @@
                         }
                     },
                     "400": {
-                        "description": "请求参数错误，如JSON格式不正确、算法或数据集数组为空",
+                        "description": "请求参数错误，如JSON格式不正确、查询模式冲突或参数为空",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/evaluations/successful-executions": {
+            "get": {
+                "description": "获取所有ExecutionResult中status为ExecutionSuccess的记录，返回ID、Algorithm、Dataset三个字段",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "evaluation"
+                ],
+                "summary": "获取成功执行的算法记录",
+                "responses": {
+                    "200": {
+                        "description": "成功返回成功执行的算法记录列表",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SuccessfulExecutionsResp"
                         }
                     },
                     "500": {
@@ -1483,6 +1509,17 @@
                 "type": "string"
             }
         },
+        "dto.AlgorithmDatasetPair": {
+            "type": "object",
+            "properties": {
+                "algorithm": {
+                    "type": "string"
+                },
+                "dataset": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.AlgorithmItem": {
             "type": "object",
             "required": [
@@ -2046,6 +2083,30 @@
                 }
             }
         },
+        "dto.GenericResponse-dto_SuccessfulExecutionsResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SuccessfulExecutionItem"
+                    }
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GenericResponse-dto_TaskDetailResp": {
             "type": "object",
             "properties": {
@@ -2368,6 +2429,12 @@
                     "items": {
                         "type": "integer"
                     }
+                },
+                "pairs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.AlgorithmDatasetPair"
+                    }
                 }
             }
         },
@@ -2455,6 +2522,23 @@
                     "items": {
                         "$ref": "#/definitions/dto.Trace"
                     }
+                }
+            }
+        },
+        "dto.SuccessfulExecutionItem": {
+            "type": "object",
+            "properties": {
+                "algorithm": {
+                    "description": "算法名称",
+                    "type": "string"
+                },
+                "dataset": {
+                    "description": "数据集名称",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "执行ID",
+                    "type": "integer"
                 }
             }
         },

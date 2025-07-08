@@ -18,25 +18,20 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.handler_pair import HandlerPair
 from typing import Optional, Set
 from typing_extensions import Self
 
-class HandlerResource(BaseModel):
+class DtoSuccessfulExecutionItem(BaseModel):
     """
-    HandlerResource
+    DtoSuccessfulExecutionItem
     """ # noqa: E501
-    app_labels: Optional[List[StrictStr]] = None
-    container_app_names: Optional[List[StrictStr]] = None
-    database_app_names: Optional[List[StrictStr]] = None
-    dns_app_names: Optional[List[StrictStr]] = None
-    http_app_names: Optional[List[StrictStr]] = None
-    jvm_app_names: Optional[List[StrictStr]] = None
-    network_pairs: Optional[List[HandlerPair]] = None
+    algorithm: Optional[StrictStr] = Field(default=None, description="算法名称")
+    dataset: Optional[StrictStr] = Field(default=None, description="数据集名称")
+    id: Optional[StrictInt] = Field(default=None, description="执行ID")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["app_labels", "container_app_names", "database_app_names", "dns_app_names", "http_app_names", "jvm_app_names", "network_pairs"]
+    __properties: ClassVar[List[str]] = ["algorithm", "dataset", "id"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -56,7 +51,7 @@ class HandlerResource(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of HandlerResource from a JSON string"""
+        """Create an instance of DtoSuccessfulExecutionItem from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -79,13 +74,6 @@ class HandlerResource(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of each item in network_pairs (list)
-        _items = []
-        if self.network_pairs:
-            for _item_network_pairs in self.network_pairs:
-                if _item_network_pairs:
-                    _items.append(_item_network_pairs.to_dict())
-            _dict['network_pairs'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -95,7 +83,7 @@ class HandlerResource(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of HandlerResource from a dict"""
+        """Create an instance of DtoSuccessfulExecutionItem from a dict"""
         if obj is None:
             return None
 
@@ -103,13 +91,9 @@ class HandlerResource(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "app_labels": obj.get("app_labels"),
-            "container_app_names": obj.get("container_app_names"),
-            "database_app_names": obj.get("database_app_names"),
-            "dns_app_names": obj.get("dns_app_names"),
-            "http_app_names": obj.get("http_app_names"),
-            "jvm_app_names": obj.get("jvm_app_names"),
-            "network_pairs": [HandlerPair.from_dict(_item) for _item in obj["network_pairs"]] if obj.get("network_pairs") is not None else None
+            "algorithm": obj.get("algorithm"),
+            "dataset": obj.get("dataset"),
+            "id": obj.get("id")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():
