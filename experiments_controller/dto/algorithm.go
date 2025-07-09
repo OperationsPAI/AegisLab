@@ -131,6 +131,10 @@ func (req *SubmitImageBuildingReq) Validate() error {
 		return fmt.Errorf("Algorithm name cannot be empty")
 	}
 
+	if req.Algorithm == config.GetString("algo.detector") {
+		return fmt.Errorf("Algorithm '%s' is reserved and cannot be used for building images", config.GetString("algo.detector"))
+	}
+
 	if req.Image == "" {
 		return fmt.Errorf("Docker image cannot be empty")
 	} else {

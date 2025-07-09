@@ -40,9 +40,6 @@ func ListEvaluationRawData(c *gin.Context) {
 	var err error
 	if req.HasPairsMode() {
 		items, err = repository.ListExecutionRawDatasByPairs(req)
-	} else if req.HasCartesianMode() {
-		req.CartesianProduct()
-		items, err = repository.ListExecutionRawDatasByPairs(req)
 	} else if req.HasExecutionMode() {
 		items, err = repository.ListExecutionRawDataByIds(req)
 	}

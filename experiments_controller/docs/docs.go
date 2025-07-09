@@ -2452,23 +2452,11 @@ const docTemplate = `{
         "dto.RawDataReq": {
             "type": "object",
             "properties": {
-                "algorithms": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
                 "custom_end_time": {
                     "type": "string"
                 },
                 "custom_start_time": {
                     "type": "string"
-                },
-                "datasets": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 },
                 "execution_ids": {
                     "type": "array",

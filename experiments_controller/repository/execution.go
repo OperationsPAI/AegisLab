@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"gorm.io/gorm"
@@ -161,6 +160,12 @@ func ListExecutionRawDataByIds(params dto.RawDataReq) ([]dto.RawDataItem, error)
 		execResultMap[execResult.ID] = execResult
 	}
 
+	for _, id := range params.ExecutionIDs {
+		if _, exists := execResultMap[id]; !exists {
+			return nil, fmt.Errorf("execution ID %d not found in the database", id)
+		}
+	}
+
 	datasets := make([]string, 0, len(execResults))
 	for _, execResult := range execResults {
 		datasets = append(datasets, execResult.Dataset)
@@ -174,22 +179,27 @@ func ListExecutionRawDataByIds(params dto.RawDataReq) ([]dto.RawDataItem, error)
 		return nil, fmt.Errorf("failed to query granularity results: %v", err)
 	}
 
+	granMap := make(map[int][]dto.GranularityRecord, len(execResultMap))
+	for _, gran := range granularityResults {
+		if _, exists := granMap[gran.ExecutionID]; !exists {
+			granMap[gran.ExecutionID] = []dto.GranularityRecord{}
+		} else {
+			var record dto.GranularityRecord
+			record.Convert(gran)
+			granMap[gran.ExecutionID] = append(granMap[gran.ExecutionID], record)
+		}
+	}
+
 	groundtruthMap, err := GetGroundtruthMap(datasets)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ground truth map: %v", err)
 	}
 
 	var items []dto.RawDataItem
-	for _, id := range params.ExecutionIDs {
-		execResult := execResultMap[id]
-
+	for id, execResult := range execResultMap {
 		var records []dto.GranularityRecord
-		for _, gran := range granularityResults {
-			if id == gran.ExecutionID {
-				var record dto.GranularityRecord
-				record.Convert(gran)
-				records = append(records, record)
-			}
+		if granRecords, exists := granMap[execResult.ID]; exists {
+			records = granRecords
 		}
 
 		items = append(items, dto.RawDataItem{
@@ -213,10 +223,6 @@ func ListExecutionRawDatasByPairs(params dto.RawDataReq) ([]dto.RawDataItem, err
 	execIDMap, err := getLatestExecutionMapByPair(params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get latest execution IDs: %v", err)
-	}
-
-	if len(execIDMap) == 0 {
-		return nil, fmt.Errorf("no execution found for the provided pairs")
 	}
 
 	var execIDs []int
@@ -248,28 +254,32 @@ func ListExecutionRawDatasByPairs(params dto.RawDataReq) ([]dto.RawDataItem, err
 		return nil, fmt.Errorf("failed to get ground truth map: %v", err)
 	}
 
-	var items []dto.RawDataItem
-	for id, pairStr := range execIDMap {
-		parts := strings.Split(pairStr, "_")
-		algorithm := parts[0]
-		dataset := parts[1]
+	pairKeyIDMap := make(map[string]int, len(execIDMap))
+	for id, storedPairKey := range execIDMap {
+		pairKeyIDMap[storedPairKey] = id
+	}
 
-		var records []dto.GranularityRecord
-		for _, gran := range granularityResults {
-			if id == gran.ExecutionID {
-				var record dto.GranularityRecord
-				record.Convert(gran)
-				records = append(records, record)
-			}
+	var items []dto.RawDataItem
+	for _, pair := range params.Pairs {
+		item := &dto.RawDataItem{
+			Algorithm:   pair.Algorithm,
+			Dataset:     pair.Dataset,
+			Groundtruth: groundtruthMap[pair.Dataset],
 		}
 
-		items = append(items, dto.RawDataItem{
-			Algorithm:   algorithm,
-			Dataset:     dataset,
-			ExecutionID: id,
-			Entries:     records,
-			Groundtruth: groundtruthMap[dataset],
-		})
+		pairKey := fmt.Sprintf("%s_%s", pair.Algorithm, pair.Dataset)
+		id, exists := pairKeyIDMap[pairKey]
+		if exists {
+			var records []dto.GranularityRecord
+			if granRecords, exists := granMap[id]; exists {
+				records = granRecords
+			}
+
+			item.ExecutionID = id
+			item.Entries = records
+		}
+
+		items = append(items, *item)
 	}
 
 	return items, nil
@@ -329,10 +339,6 @@ func getLatestExecutionMapByPair(params dto.RawDataReq) (map[int]string, error) 
 	var executions []database.ExecutionResult
 	if err := query.Order("algorithm, dataset, created_at DESC").
 		Find(&executions).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("no execution records found for the provided pairs")
-		}
-
 		return nil, fmt.Errorf("failed to batch query executions: %w", err)
 	}
 
