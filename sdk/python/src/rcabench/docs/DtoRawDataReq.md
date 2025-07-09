@@ -6,8 +6,11 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **algorithms** | **List[str]** |  | [optional] 
+**custom_end_time** | **str** |  | [optional] 
+**custom_start_time** | **str** |  | [optional] 
 **datasets** | **List[str]** |  | [optional] 
 **execution_ids** | **List[int]** |  | [optional] 
+**lookback** | **str** |  | [optional] 
 **pairs** | [**List[DtoAlgorithmDatasetPair]**](DtoAlgorithmDatasetPair.md) |  | [optional] 
 
 ## Example

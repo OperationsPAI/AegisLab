@@ -141,15 +141,18 @@ func ListExecutionRecordByExecID(executionIDs []int,
 	return results, nil
 }
 
-func ListExecutionRawDataByIds(ids []int) ([]dto.RawDataItem, error) {
-	if len(ids) == 0 {
-		return nil, fmt.Errorf("no algorithm-dataset pairs provided")
+func ListExecutionRawDataByIds(params dto.RawDataReq) ([]dto.RawDataItem, error) {
+	opts, err := params.TimeRangeQuery.Convert()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert time range query: %v", err)
 	}
 
+	query := database.DB.
+		Where("id IN (?) and status = (?)", params.ExecutionIDs, consts.ExecutionSuccess)
+	query = opts.AddTimeFilter(query, "created_at")
+
 	var execResults []database.ExecutionResult
-	if err := database.DB.
-		Where("id IN (?) and status = (?)", ids, consts.ExecutionSuccess).
-		Find(&execResults).Error; err != nil {
+	if err := query.Find(&execResults).Error; err != nil {
 		return nil, fmt.Errorf("failed to query execution results: %v", err)
 	}
 
@@ -166,7 +169,7 @@ func ListExecutionRawDataByIds(ids []int) ([]dto.RawDataItem, error) {
 	var granularityResults []database.GranularityResult
 	if err := database.DB.
 		Model(&database.GranularityResult{}).
-		Where("execution_id IN (?)", ids).
+		Where("execution_id IN (?)", params.ExecutionIDs).
 		Find(&granularityResults).Error; err != nil {
 		return nil, fmt.Errorf("failed to query granularity results: %v", err)
 	}
@@ -177,7 +180,7 @@ func ListExecutionRawDataByIds(ids []int) ([]dto.RawDataItem, error) {
 	}
 
 	var items []dto.RawDataItem
-	for _, id := range ids {
+	for _, id := range params.ExecutionIDs {
 		execResult := execResultMap[id]
 
 		var records []dto.GranularityRecord
@@ -201,23 +204,19 @@ func ListExecutionRawDataByIds(ids []int) ([]dto.RawDataItem, error) {
 	return items, nil
 }
 
-func ListExecutionRawDatasByPairs(pairs []dto.AlgorithmDatasetPair) ([]dto.RawDataItem, error) {
-	if len(pairs) == 0 {
-		return nil, fmt.Errorf("no algorithm-dataset pairs provided")
-	}
-
-	datasets := make([]string, 0, len(pairs))
-	for _, pair := range pairs {
+func ListExecutionRawDatasByPairs(params dto.RawDataReq) ([]dto.RawDataItem, error) {
+	datasets := make([]string, 0, len(params.Pairs))
+	for _, pair := range params.Pairs {
 		datasets = append(datasets, pair.Dataset)
 	}
 
-	execIDMap, err := getLatestExecutionMap(pairs)
+	execIDMap, err := getLatestExecutionMapByPair(params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get latest execution IDs: %v", err)
 	}
 
 	if len(execIDMap) == 0 {
-		return nil, fmt.Errorf("no execution IDs found for the provided pairs")
+		return nil, fmt.Errorf("no execution found for the provided pairs")
 	}
 
 	var execIDs []int
@@ -304,9 +303,9 @@ func UpdateStatusByExecID(executionID int, status int) error {
 	return nil
 }
 
-func getLatestExecutionMap(pairs []dto.AlgorithmDatasetPair) (map[int]string, error) {
+func getLatestExecutionMapByPair(params dto.RawDataReq) (map[int]string, error) {
 	uniquePairs := make(map[string]dto.AlgorithmDatasetPair)
-	for _, pair := range pairs {
+	for _, pair := range params.Pairs {
 		key := fmt.Sprintf("%s_%s", pair.Algorithm, pair.Dataset)
 		uniquePairs[key] = pair
 	}
@@ -318,11 +317,17 @@ func getLatestExecutionMap(pairs []dto.AlgorithmDatasetPair) (map[int]string, er
 		datasets = append(datasets, pair.Dataset)
 	}
 
+	opts, err := params.TimeRangeQuery.Convert()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert time range query: %v", err)
+	}
+
+	query := database.DB.Model(&database.ExecutionResult{}).
+		Where("algorithm IN (?) AND dataset IN (?) AND status = (?)", algorithms, datasets, consts.ExecutionSuccess)
+	query = opts.AddTimeFilter(query, "created_at")
+
 	var executions []database.ExecutionResult
-	if err := database.DB.
-		Model(&database.ExecutionResult{}).
-		Where("algorithm IN (?) AND dataset IN (?) AND status = (?)", algorithms, datasets, consts.ExecutionSuccess).
-		Order("algorithm, dataset, created_at DESC").
+	if err := query.Order("algorithm, dataset, created_at DESC").
 		Find(&executions).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("no execution records found for the provided pairs")

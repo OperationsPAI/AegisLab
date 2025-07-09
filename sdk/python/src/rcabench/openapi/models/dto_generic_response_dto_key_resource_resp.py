@@ -20,16 +20,15 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_pagination_resp_dto_fault_injection_no_issues_resp import DtoPaginationRespDtoFaultInjectionNoIssuesResp
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoGenericResponseDtoPaginationRespDtoFaultInjectionNoIssuesResp(BaseModel):
+class DtoGenericResponseDtoKeyResourceResp(BaseModel):
     """
-    DtoGenericResponseDtoPaginationRespDtoFaultInjectionNoIssuesResp
+    DtoGenericResponseDtoKeyResourceResp
     """ # noqa: E501
     code: Optional[StrictInt] = Field(default=None, description="状态码")
-    data: Optional[DtoPaginationRespDtoFaultInjectionNoIssuesResp] = Field(default=None, description="泛型类型的数据")
+    data: Optional[Dict[str, StrictStr]] = Field(default=None, description="泛型类型的数据")
     message: Optional[StrictStr] = Field(default=None, description="响应消息")
     timestamp: Optional[StrictInt] = Field(default=None, description="响应生成时间")
     additional_properties: Dict[str, Any] = {}
@@ -53,7 +52,7 @@ class DtoGenericResponseDtoPaginationRespDtoFaultInjectionNoIssuesResp(BaseModel
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoGenericResponseDtoPaginationRespDtoFaultInjectionNoIssuesResp from a JSON string"""
+        """Create an instance of DtoGenericResponseDtoKeyResourceResp from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -76,9 +75,6 @@ class DtoGenericResponseDtoPaginationRespDtoFaultInjectionNoIssuesResp(BaseModel
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of data
-        if self.data:
-            _dict['data'] = self.data.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -88,7 +84,7 @@ class DtoGenericResponseDtoPaginationRespDtoFaultInjectionNoIssuesResp(BaseModel
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoGenericResponseDtoPaginationRespDtoFaultInjectionNoIssuesResp from a dict"""
+        """Create an instance of DtoGenericResponseDtoKeyResourceResp from a dict"""
         if obj is None:
             return None
 
@@ -97,7 +93,7 @@ class DtoGenericResponseDtoPaginationRespDtoFaultInjectionNoIssuesResp(BaseModel
 
         _obj = cls.model_validate({
             "code": obj.get("code"),
-            "data": DtoPaginationRespDtoFaultInjectionNoIssuesResp.from_dict(obj["data"]) if obj.get("data") is not None else None,
+            "data": obj.get("data"),
             "message": obj.get("message"),
             "timestamp": obj.get("timestamp")
         })

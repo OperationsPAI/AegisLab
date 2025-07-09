@@ -29,11 +29,14 @@ class DtoRawDataReq(BaseModel):
     DtoRawDataReq
     """ # noqa: E501
     algorithms: Optional[List[StrictStr]] = None
+    custom_end_time: Optional[StrictStr] = None
+    custom_start_time: Optional[StrictStr] = None
     datasets: Optional[List[StrictStr]] = None
     execution_ids: Optional[List[StrictInt]] = None
+    lookback: Optional[StrictStr] = None
     pairs: Optional[List[DtoAlgorithmDatasetPair]] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["algorithms", "datasets", "execution_ids", "pairs"]
+    __properties: ClassVar[List[str]] = ["algorithms", "custom_end_time", "custom_start_time", "datasets", "execution_ids", "lookback", "pairs"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -101,8 +104,11 @@ class DtoRawDataReq(BaseModel):
 
         _obj = cls.model_validate({
             "algorithms": obj.get("algorithms"),
+            "custom_end_time": obj.get("custom_end_time"),
+            "custom_start_time": obj.get("custom_start_time"),
             "datasets": obj.get("datasets"),
             "execution_ids": obj.get("execution_ids"),
+            "lookback": obj.get("lookback"),
             "pairs": [DtoAlgorithmDatasetPair.from_dict(_item) for _item in obj["pairs"]] if obj.get("pairs") is not None else None
         })
         # store additional fields in additional_properties

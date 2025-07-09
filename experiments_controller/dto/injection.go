@@ -210,20 +210,22 @@ type SubmitInjectionResp struct {
 // FaultInjectionNoIssuesResp 没有问题的故障注入响应
 type FaultInjectionNoIssuesResp struct {
 	DatasetID     int        `json:"dataset_id"`
-	DisplayConfig string     `json:"display_config"`
 	EngineConfig  chaos.Node `json:"engine_config"`
-	PreDuration   int        `json:"pre_duration"`
 	InjectionName string     `json:"injection_name"`
 }
 
 // FaultInjectionWithIssuesResp 有问题的故障注入响应
 type FaultInjectionWithIssuesResp struct {
-	DatasetID     int        `json:"dataset_id"`
-	DisplayConfig string     `json:"display_config"`
-	EngineConfig  chaos.Node `json:"engine_config"`
-	PreDuration   int        `json:"pre_duration"`
-	InjectionName string     `json:"injection_name"`
-	Issues        string     `json:"issues"`
+	DatasetID           int        `json:"dataset_id"`
+	EngineConfig        chaos.Node `json:"engine_config"`
+	InjectionName       string     `json:"injection_name"`
+	Issues              string     `json:"issues"`
+	AbnormalAvgDuration float64    `json:"abnormal_avg_duration"`
+	NormalAvgDuration   float64    `json:"normal_avg_duration"`
+	AbnormalSuccRate    float64    `json:"abnormal_succ_rate"`
+	NormalSuccRate      float64    `json:"normal_succ_rate"`
+	AbnormalP99         float64    `json:"abnormal_p99"`
+	NormalP99           float64    `json:"normal_p99"`
 }
 
 // FaultInjectionStatisticsResp 故障注入统计响应

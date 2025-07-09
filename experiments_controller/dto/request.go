@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strconv"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type ListOptionsQuery struct {
@@ -140,6 +142,11 @@ func (opts *TimeFilterOptions) GetTimeRange() (time.Time, time.Time) {
 	}
 
 	return startTime, endTime
+}
+
+func (opts *TimeFilterOptions) AddTimeFilter(query *gorm.DB, column string) *gorm.DB {
+	startTime, endTime := opts.GetTimeRange()
+	return query.Where(fmt.Sprintf("%s >= ? AND %s <= ?", column, column), startTime, endTime)
 }
 
 // parseLookbackDuration parses a duration string with format like "5m", "2h", "1d"

@@ -153,14 +153,10 @@ definitions:
     properties:
       dataset_id:
         type: integer
-      display_config:
-        type: string
       engine_config:
         $ref: '#/definitions/handler.Node'
       injection_name:
         type: string
-      pre_duration:
-        type: integer
     type: object
   dto.FaultInjectionStatisticsResp:
     properties:
@@ -173,18 +169,26 @@ definitions:
     type: object
   dto.FaultInjectionWithIssuesResp:
     properties:
+      abnormal_avg_duration:
+        type: number
+      abnormal_p99:
+        type: number
+      abnormal_succ_rate:
+        type: number
       dataset_id:
         type: integer
-      display_config:
-        type: string
       engine_config:
         $ref: '#/definitions/handler.Node'
       injection_name:
         type: string
       issues:
         type: string
-      pre_duration:
-        type: integer
+      normal_avg_duration:
+        type: number
+      normal_p99:
+        type: number
+      normal_succ_rate:
+        type: number
     type: object
   dto.GenericResponse-any:
     properties:
@@ -701,6 +705,10 @@ definitions:
         items:
           type: string
         type: array
+      custom_end_time:
+        type: string
+      custom_start_time:
+        type: string
       datasets:
         items:
           type: string
@@ -709,6 +717,8 @@ definitions:
         items:
           type: integer
         type: array
+      lookback:
+        type: string
       pairs:
         items:
           $ref: '#/definitions/dto.AlgorithmDatasetPair'

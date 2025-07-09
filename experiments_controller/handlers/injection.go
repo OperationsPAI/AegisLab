@@ -525,9 +525,7 @@ func GetFaultInjectionNoIssues(c *gin.Context) {
 
 		items = append(items, dto.FaultInjectionNoIssuesResp{
 			DatasetID:     record.DatasetID,
-			DisplayConfig: record.DisplayConfig,
 			EngineConfig:  conf,
-			PreDuration:   record.PreDuration,
 			InjectionName: record.InjectionName,
 		})
 	}
@@ -582,12 +580,16 @@ func GetFaultInjectionWithIssues(c *gin.Context) {
 		}
 
 		items = append(items, dto.FaultInjectionWithIssuesResp{
-			DatasetID:     record.DatasetID,
-			DisplayConfig: record.DisplayConfig,
-			EngineConfig:  conf,
-			PreDuration:   record.PreDuration,
-			InjectionName: record.InjectionName,
-			Issues:        record.Issues,
+			DatasetID:           record.DatasetID,
+			EngineConfig:        conf,
+			InjectionName:       record.InjectionName,
+			Issues:              record.Issues,
+			AbnormalAvgDuration: record.AbnormalAvgDuration,
+			NormalAvgDuration:   record.NormalAvgDuration,
+			AbnormalSuccRate:    record.AbnormalSuccRate,
+			NormalSuccRate:      record.NormalSuccRate,
+			AbnormalP99:         record.AbnormalP99,
+			NormalP99:           record.NormalP99,
 		})
 	}
 
