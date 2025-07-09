@@ -193,5 +193,49 @@ def detector(
             raise typer.Exit(1)
 
 
+@app.command()
+def align_db(
+    db_host: str = typer.Option("10.10.10.220", help="PostgreSQL 数据库主机"),
+    db_user: str = typer.Option("postgres", help="PostgreSQL 用户名"),
+    db_password: str = typer.Option("yourpassword", help="PostgreSQL 密码"),
+    db_name: str = typer.Option("rcabench", help="PostgreSQL 数据库名"),
+    db_port: int = typer.Option(32432, help="PostgreSQL 端口"),
+):
+    with connect_postgresql(
+        db_host, db_user, db_password, db_name, db_port
+    ) as connection:
+        with connection.cursor(row_factory=dict_row) as cursor:
+            cursor.execute("SELECT VERSION() as version")
+            version_info = cursor.fetchone()
+            assert version_info, "未能获取 PostgreSQL版本信息"
+            print(f"📋 PostgreSQL版本: {version_info['version']}")
+
+            query = """
+            SELECT id, injection_name 
+            FROM fault_injection_schedules
+            ORDER BY id DESC
+            """
+            cursor.execute(query)
+            rows = cursor.fetchall()
+
+        print(f"📋 查询结果：找到 {len(rows)} 条记录")
+
+    datasets = [row["injection_name"] for row in rows]
+
+    path = "/mnt/jfs/rcabench_dataset"
+
+    import os
+    import shutil
+
+    if os.path.exists(path):
+        for entry in os.listdir(path):
+            full_path = os.path.join(path, entry)
+            if os.path.isdir(full_path) and entry not in datasets:
+                print(f"🗑️ 删除多余目录: {full_path}")
+                shutil.rmtree(full_path)
+    else:
+        print(f"⚠️ 路径不存在: {path}")
+
+
 if __name__ == "__main__":
     app()
