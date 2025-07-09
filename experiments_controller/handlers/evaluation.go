@@ -22,7 +22,7 @@ import (
 //	@Failure		400		{object}	dto.GenericResponse[any]				"请求参数错误，如JSON格式不正确、查询模式冲突或参数为空"
 //	@Failure		500		{object}	dto.GenericResponse[any]				"服务器内部错误"
 //	@Router			/api/v1/evaluations/raw-data [post]
-func GetEvaluationRawData(c *gin.Context) {
+func ListEvaluationRawData(c *gin.Context) {
 	var req dto.RawDataReq
 	if err := c.BindJSON(&req); err != nil {
 		logrus.Errorf("failed to bind JSON request: %v", err)
@@ -39,11 +39,12 @@ func GetEvaluationRawData(c *gin.Context) {
 	var items []dto.RawDataItem
 	var err error
 	if req.HasPairsMode() {
-		items, err = repository.ListExecutionRawDatasByPairs(req.Pairs)
+		items, err = repository.ListExecutionRawDatasByPairs(req)
 	} else if req.HasCartesianMode() {
-		items, err = repository.ListExecutionRawDatasByPairs(req.CartesianProduct())
+		req.CartesianProduct()
+		items, err = repository.ListExecutionRawDatasByPairs(req)
 	} else if req.HasExecutionMode() {
-		items, err = repository.ListExecutionRawDataByIds(req.ExecutionIDs)
+		items, err = repository.ListExecutionRawDataByIds(req)
 	}
 
 	if err != nil {

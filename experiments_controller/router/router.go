@@ -43,7 +43,7 @@ func New() *gin.Engine {
 	evaluations := r.Group("/evaluations")
 	{
 		evaluations.POST("groundtruth", handlers.GetGroundtruth)
-		evaluations.POST("raw-data", handlers.GetEvaluationRawData)
+		evaluations.POST("raw-data", handlers.ListEvaluationRawData)
 		evaluations.GET("executions", handlers.GetSuccessfulExecutions)
 	}
 

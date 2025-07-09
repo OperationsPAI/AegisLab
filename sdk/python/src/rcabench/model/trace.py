@@ -1,7 +1,7 @@
-from typing import Any, List, Optional
 from ..const import EventType, TaskType
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from uuid import UUID
+import json
 
 
 class GetTraceEventsReq(BaseModel):
@@ -17,7 +17,7 @@ class GetTraceEventsReq(BaseModel):
         json_schema_extra={"example": "0"},
     )
 
-    timeout: Optional[float] = Field(
+    timeout: float | None = Field(
         None,
         description="",
         json_schema_extra={
@@ -38,6 +38,33 @@ class DatasetOptions(BaseModel):
     """Dataset options model"""
 
     dataset: str = Field(..., description="Dataset name")
+
+
+class DetectorRecord(BaseModel):
+    """Detector record model"""
+
+    span_name: str = Field(alias="SpanName", description="Span name")
+    issues: dict[str, any] = Field(default_factory=dict, description="Issues detected")
+    abnormal_avg_duration: float = Field(alias="AbnormalAvgDuration")
+    normal_avg_duration: float = Field(alias="NormalAvgDuration")
+    abnormal_succ_rate: float = Field(alias="AbnormalSuccRate")
+    normal_succ_rate: float = Field(alias="NormalSuccRate")
+    abnormal_p99: float = Field(alias="AbnormalP99")
+    normal_p99: float = Field(alias="NormalP99")
+
+    @field_validator("issues", mode="before")
+    def parse_issues(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except json.JSONDecodeError:
+                return {}
+
+        return v if isinstance(v, dict) else {}
+
+    class Config:
+        extra = "ignore"
+        allow_population_by_field_name = True
 
 
 class ExecutionOptions(BaseModel):
@@ -89,7 +116,7 @@ class StreamEvent(BaseModel):
         json_schema_extra={"example": ["task.start"]},
     )
 
-    payload: Optional[Any] = Field(
+    payload: any | None = Field(
         None,
         description="Additional data associated with the event. Content varies based on event_name",
     )
@@ -116,7 +143,7 @@ class TraceEvents(BaseModel):
         description="ID of the last event in the returned collection, used for pagination and incremental event retrieval. ",
     )
 
-    events: List[StreamEvent] = Field(
+    events: list[StreamEvent] = Field(
         ...,
         description="Ordered list of events associated with a task trace, capturing the complete execution history from start to finish",
     )

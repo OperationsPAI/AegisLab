@@ -1626,17 +1626,11 @@ const docTemplate = `{
                 "dataset_id": {
                     "type": "integer"
                 },
-                "display_config": {
-                    "type": "string"
-                },
                 "engine_config": {
                     "$ref": "#/definitions/handler.Node"
                 },
                 "injection_name": {
                     "type": "string"
-                },
-                "pre_duration": {
-                    "type": "integer"
                 }
             }
         },
@@ -1657,11 +1651,17 @@ const docTemplate = `{
         "dto.FaultInjectionWithIssuesResp": {
             "type": "object",
             "properties": {
+                "abnormal_avg_duration": {
+                    "type": "number"
+                },
+                "abnormal_p99": {
+                    "type": "number"
+                },
+                "abnormal_succ_rate": {
+                    "type": "number"
+                },
                 "dataset_id": {
                     "type": "integer"
-                },
-                "display_config": {
-                    "type": "string"
                 },
                 "engine_config": {
                     "$ref": "#/definitions/handler.Node"
@@ -1672,8 +1672,14 @@ const docTemplate = `{
                 "issues": {
                     "type": "string"
                 },
-                "pre_duration": {
-                    "type": "integer"
+                "normal_avg_duration": {
+                    "type": "number"
+                },
+                "normal_p99": {
+                    "type": "number"
+                },
+                "normal_succ_rate": {
+                    "type": "number"
                 }
             }
         },
@@ -2452,6 +2458,12 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "custom_end_time": {
+                    "type": "string"
+                },
+                "custom_start_time": {
+                    "type": "string"
+                },
                 "datasets": {
                     "type": "array",
                     "items": {
@@ -2463,6 +2475,9 @@ const docTemplate = `{
                     "items": {
                         "type": "integer"
                     }
+                },
+                "lookback": {
+                    "type": "string"
                 },
                 "pairs": {
                     "type": "array",

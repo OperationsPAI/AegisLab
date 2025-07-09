@@ -20,8 +20,8 @@ github.com/DATA-DOG/go-sqlmock v1.5.2 h1:OcvFkGmslmlZibjAjaHm3L//6LiuBgolP7Oputl
 github.com/DATA-DOG/go-sqlmock v1.5.2/go.mod h1:88MAG/4G7SMwSE3CeA0ZKzrT5CiOU3OJ+JlNzwDqpNU=
 github.com/KyleBanks/depth v1.2.1 h1:5h8fQADFrWtarTdtDudMmGsC7GPbOAu6RVB3ffsVFHc=
 github.com/KyleBanks/depth v1.2.1/go.mod h1:jzSb9d0L43HxTQfT+oSA1EEp2q+ne2uh6XgeJcm8brE=
-github.com/LGU-SE-Internal/chaos-experiment v0.0.0-20250705055948-adf0aa48a400 h1:yMMmywIENuJTk8cO7CDVDQSNZgkhJVdpxK8i5ynqhTQ=
-github.com/LGU-SE-Internal/chaos-experiment v0.0.0-20250705055948-adf0aa48a400/go.mod h1:v6QDPZRoiBhS5NKvhqk/e1iLjvle5F9oDfJq4qAhi2M=
+github.com/LGU-SE-Internal/chaos-experiment v0.0.0-20250709013735-4266bdb489be h1:Lt7M04Ftp5K8JWVkIgxe75xRZRK0Io7B7EbrueFjkgA=
+github.com/LGU-SE-Internal/chaos-experiment v0.0.0-20250709013735-4266bdb489be/go.mod h1:v6QDPZRoiBhS5NKvhqk/e1iLjvle5F9oDfJq4qAhi2M=
 github.com/MakeNowJust/heredoc v1.0.0 h1:cXCdzVdstXyiTqTvfqk9SDHpKNjxuom+DOlyEeQ4pzQ=
 github.com/MakeNowJust/heredoc v1.0.0/go.mod h1:mG5amYoWBHf8vpLOuehzbGGw0EHxpZZ6lCpQ4fNJ8LE=
 github.com/Masterminds/goutils v1.1.1 h1:5nUrii3FMTL5diU80unEVvNevw1nH4+ZV4DSLVJLSYI=

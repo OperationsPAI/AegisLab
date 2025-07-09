@@ -18,28 +18,31 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictFloat, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional, Union
-from rcabench.openapi.models.handler_node import HandlerNode
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoFaultInjectionWithIssuesResp(BaseModel):
+class DtoListInjectionsReq(BaseModel):
     """
-    DtoFaultInjectionWithIssuesResp
+    DtoListInjectionsReq
     """ # noqa: E501
-    abnormal_avg_duration: Optional[Union[StrictFloat, StrictInt]] = None
-    abnormal_p99: Optional[Union[StrictFloat, StrictInt]] = None
-    abnormal_succ_rate: Optional[Union[StrictFloat, StrictInt]] = None
-    dataset_id: Optional[StrictInt] = None
-    engine_config: Optional[HandlerNode] = None
-    injection_name: Optional[StrictStr] = None
-    issues: Optional[StrictStr] = None
-    normal_avg_duration: Optional[Union[StrictFloat, StrictInt]] = None
-    normal_p99: Optional[Union[StrictFloat, StrictInt]] = None
-    normal_succ_rate: Optional[Union[StrictFloat, StrictInt]] = None
+    batches: Optional[List[StrictStr]] = None
+    benchmarks: Optional[List[StrictStr]] = None
+    custom_end_time: Optional[StrictStr] = None
+    custom_start_time: Optional[StrictStr] = None
+    envs: Optional[List[StrictStr]] = Field(default=None, description="Label filter parameters (optional)")
+    fault_types: Optional[List[StrictInt]] = None
+    ids: Optional[List[StrictInt]] = None
+    lookback: Optional[StrictStr] = None
+    names: Optional[List[StrictStr]] = Field(default=None, description="Basic filter parameters (optional)")
+    page_num: Annotated[int, Field(strict=True, ge=1)]
+    page_size: StrictInt
+    statuses: Optional[List[StrictInt]] = None
+    task_ids: Optional[List[StrictStr]] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["abnormal_avg_duration", "abnormal_p99", "abnormal_succ_rate", "dataset_id", "engine_config", "injection_name", "issues", "normal_avg_duration", "normal_p99", "normal_succ_rate"]
+    __properties: ClassVar[List[str]] = ["batches", "benchmarks", "custom_end_time", "custom_start_time", "envs", "fault_types", "ids", "lookback", "names", "page_num", "page_size", "statuses", "task_ids"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -59,7 +62,7 @@ class DtoFaultInjectionWithIssuesResp(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoFaultInjectionWithIssuesResp from a JSON string"""
+        """Create an instance of DtoListInjectionsReq from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -82,9 +85,6 @@ class DtoFaultInjectionWithIssuesResp(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of engine_config
-        if self.engine_config:
-            _dict['engine_config'] = self.engine_config.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -94,7 +94,7 @@ class DtoFaultInjectionWithIssuesResp(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoFaultInjectionWithIssuesResp from a dict"""
+        """Create an instance of DtoListInjectionsReq from a dict"""
         if obj is None:
             return None
 
@@ -102,16 +102,19 @@ class DtoFaultInjectionWithIssuesResp(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "abnormal_avg_duration": obj.get("abnormal_avg_duration"),
-            "abnormal_p99": obj.get("abnormal_p99"),
-            "abnormal_succ_rate": obj.get("abnormal_succ_rate"),
-            "dataset_id": obj.get("dataset_id"),
-            "engine_config": HandlerNode.from_dict(obj["engine_config"]) if obj.get("engine_config") is not None else None,
-            "injection_name": obj.get("injection_name"),
-            "issues": obj.get("issues"),
-            "normal_avg_duration": obj.get("normal_avg_duration"),
-            "normal_p99": obj.get("normal_p99"),
-            "normal_succ_rate": obj.get("normal_succ_rate")
+            "batches": obj.get("batches"),
+            "benchmarks": obj.get("benchmarks"),
+            "custom_end_time": obj.get("custom_end_time"),
+            "custom_start_time": obj.get("custom_start_time"),
+            "envs": obj.get("envs"),
+            "fault_types": obj.get("fault_types"),
+            "ids": obj.get("ids"),
+            "lookback": obj.get("lookback"),
+            "names": obj.get("names"),
+            "page_num": obj.get("page_num"),
+            "page_size": obj.get("page_size"),
+            "statuses": obj.get("statuses"),
+            "task_ids": obj.get("task_ids")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

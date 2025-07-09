@@ -27,12 +27,12 @@ class ConstsTaskType(str, Enum):
     """
     allowed enum values
     """
-    RESTARTSERVICE = 'RestartService'
-    RUNALGORITHM = 'RunAlgorithm'
-    FAULTINJECTION = 'FaultInjection'
-    BUILDIMAGE = 'BuildImage'
-    BUILDDATASET = 'BuildDataset'
-    COLLECTRESULT = 'CollectResult'
+    TaskTypeRestartService = 'RestartService'
+    TaskTypeRunAlgorithm = 'RunAlgorithm'
+    TaskTypeFaultInjection = 'FaultInjection'
+    TaskTypeBuildImage = 'BuildImage'
+    TaskTypeBuildDataset = 'BuildDataset'
+    TaskTypeCollectResult = 'CollectResult'
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:

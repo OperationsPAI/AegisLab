@@ -18,28 +18,22 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictFloat, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional, Union
-from rcabench.openapi.models.handler_node import HandlerNode
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
+from rcabench.openapi.models.dto_time_range_query import DtoTimeRangeQuery
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoFaultInjectionWithIssuesResp(BaseModel):
+class DtoGenericResponseArrayDtoTimeRangeQuery(BaseModel):
     """
-    DtoFaultInjectionWithIssuesResp
+    DtoGenericResponseArrayDtoTimeRangeQuery
     """ # noqa: E501
-    abnormal_avg_duration: Optional[Union[StrictFloat, StrictInt]] = None
-    abnormal_p99: Optional[Union[StrictFloat, StrictInt]] = None
-    abnormal_succ_rate: Optional[Union[StrictFloat, StrictInt]] = None
-    dataset_id: Optional[StrictInt] = None
-    engine_config: Optional[HandlerNode] = None
-    injection_name: Optional[StrictStr] = None
-    issues: Optional[StrictStr] = None
-    normal_avg_duration: Optional[Union[StrictFloat, StrictInt]] = None
-    normal_p99: Optional[Union[StrictFloat, StrictInt]] = None
-    normal_succ_rate: Optional[Union[StrictFloat, StrictInt]] = None
+    code: Optional[StrictInt] = Field(default=None, description="状态码")
+    data: Optional[List[DtoTimeRangeQuery]] = Field(default=None, description="泛型类型的数据")
+    message: Optional[StrictStr] = Field(default=None, description="响应消息")
+    timestamp: Optional[StrictInt] = Field(default=None, description="响应生成时间")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["abnormal_avg_duration", "abnormal_p99", "abnormal_succ_rate", "dataset_id", "engine_config", "injection_name", "issues", "normal_avg_duration", "normal_p99", "normal_succ_rate"]
+    __properties: ClassVar[List[str]] = ["code", "data", "message", "timestamp"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -59,7 +53,7 @@ class DtoFaultInjectionWithIssuesResp(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoFaultInjectionWithIssuesResp from a JSON string"""
+        """Create an instance of DtoGenericResponseArrayDtoTimeRangeQuery from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -82,9 +76,13 @@ class DtoFaultInjectionWithIssuesResp(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of engine_config
-        if self.engine_config:
-            _dict['engine_config'] = self.engine_config.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of each item in data (list)
+        _items = []
+        if self.data:
+            for _item_data in self.data:
+                if _item_data:
+                    _items.append(_item_data.to_dict())
+            _dict['data'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -94,7 +92,7 @@ class DtoFaultInjectionWithIssuesResp(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoFaultInjectionWithIssuesResp from a dict"""
+        """Create an instance of DtoGenericResponseArrayDtoTimeRangeQuery from a dict"""
         if obj is None:
             return None
 
@@ -102,16 +100,10 @@ class DtoFaultInjectionWithIssuesResp(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "abnormal_avg_duration": obj.get("abnormal_avg_duration"),
-            "abnormal_p99": obj.get("abnormal_p99"),
-            "abnormal_succ_rate": obj.get("abnormal_succ_rate"),
-            "dataset_id": obj.get("dataset_id"),
-            "engine_config": HandlerNode.from_dict(obj["engine_config"]) if obj.get("engine_config") is not None else None,
-            "injection_name": obj.get("injection_name"),
-            "issues": obj.get("issues"),
-            "normal_avg_duration": obj.get("normal_avg_duration"),
-            "normal_p99": obj.get("normal_p99"),
-            "normal_succ_rate": obj.get("normal_succ_rate")
+            "code": obj.get("code"),
+            "data": [DtoTimeRangeQuery.from_dict(_item) for _item in obj["data"]] if obj.get("data") is not None else None,
+            "message": obj.get("message"),
+            "timestamp": obj.get("timestamp")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

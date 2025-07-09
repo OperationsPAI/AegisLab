@@ -23,12 +23,14 @@ type RawDataReq struct {
 	Algorithms   []string               `json:"algorithms" binding:"omitempty"`
 	Datasets     []string               `json:"datasets" binding:"omitempty"`
 	ExecutionIDs []int                  `json:"execution_ids" binding:"omitempty"`
+
+	TimeRangeQuery
 }
 
-func (r *RawDataReq) CartesianProduct() []AlgorithmDatasetPair {
+func (req *RawDataReq) CartesianProduct() {
 	var result []AlgorithmDatasetPair
-	for _, algorithm := range r.Algorithms {
-		for _, dataset := range r.Datasets {
+	for _, algorithm := range req.Algorithms {
+		for _, dataset := range req.Datasets {
 			result = append(result, AlgorithmDatasetPair{
 				Algorithm: algorithm,
 				Dataset:   dataset,
@@ -36,7 +38,7 @@ func (r *RawDataReq) CartesianProduct() []AlgorithmDatasetPair {
 		}
 	}
 
-	return result
+	req.Pairs = result
 }
 
 func (req *RawDataReq) HasPairsMode() bool {
@@ -83,7 +85,29 @@ func (req *RawDataReq) Validate() error {
 		}
 	}
 
-	return nil
+	if req.HasCartesianMode() {
+		for i, algorithm := range req.Algorithms {
+			if algorithm == "" {
+				return fmt.Errorf("Algorithm cannot be empty in algorithms at index %d", i)
+			}
+		}
+
+		for i, dataset := range req.Datasets {
+			if dataset == "" {
+				return fmt.Errorf("Dataset cannot be empty in datasets at index %d", i)
+			}
+		}
+	}
+
+	if req.HasExecutionMode() {
+		for i, id := range req.ExecutionIDs {
+			if id <= 0 {
+				return fmt.Errorf("Execution ID must be greater than 0 at index %d", i)
+			}
+		}
+	}
+
+	return req.TimeRangeQuery.Validate()
 }
 
 type RawDataItem struct {

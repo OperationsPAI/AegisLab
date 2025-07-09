@@ -333,13 +333,7 @@ func ListInjections(params *dto.ListInjectionsReq) (int64, []database.FaultInjec
 			query = query.Where("fault_type = ?", *params.FaultType)
 		}
 
-		if opts != nil {
-			startTime, endTime := opts.GetTimeRange()
-			if !startTime.IsZero() && !endTime.IsZero() {
-				query = query.Where("created_at >= ? AND created_at <= ?", startTime, endTime)
-			}
-		}
-
+		query = opts.AddTimeFilter(query, "created_at")
 		return query
 	}
 
@@ -413,13 +407,7 @@ func GetAllFaultInjectionNoIssues(params *dto.FaultInjectionNoIssuesReq) (int64,
 			query = query.Where("labels ->> 'batch' = ?", params.Batch)
 		}
 
-		if opts != nil {
-			startTime, endTime := opts.GetTimeRange()
-			if !startTime.IsZero() && !endTime.IsZero() {
-				query = query.Where("created_at >= ? AND created_at <= ?", startTime, endTime)
-			}
-		}
-
+		query = opts.AddTimeFilter(query, "created_at")
 		return query
 	}
 
@@ -449,13 +437,7 @@ func GetAllFaultInjectionWithIssues(params *dto.FaultInjectionWithIssuesReq) ([]
 		subQuery = subQuery.Where("labels ->> 'batch' = ?", params.Batch)
 	}
 
-	if opts != nil {
-		startTime, endTime := opts.GetTimeRange()
-		if !startTime.IsZero() && !endTime.IsZero() {
-			subQuery = subQuery.Where("created_at >= ? AND created_at <= ?", startTime, endTime)
-		}
-	}
-
+	subQuery = opts.AddTimeFilter(subQuery, "created_at")
 	subQuery = subQuery.Group("dataset_id")
 
 	var results []database.FaultInjectionWithIssues
@@ -478,18 +460,14 @@ func GetFLByDatasetName(datasetName string) (*database.FaultInjectionSchedule, e
 }
 
 func GetFaultInjectionStatistics(opts dto.TimeFilterOptions) (map[string]int64, error) {
-	startTime, endTime := opts.GetTimeRange()
 	var noIssuesCount, withIssuesCount int64
+	query := opts.AddTimeFilter(database.DB.Model(&database.FaultInjectionNoIssues{}), "created_at")
 
-	if err := database.DB.Model(&database.FaultInjectionNoIssues{}).
-		Where("created_at >= ? AND created_at <= ?", startTime, endTime).
-		Count(&noIssuesCount).Error; err != nil {
+	if err := query.Count(&noIssuesCount).Error; err != nil {
 		return nil, err
 	}
 
-	if err := database.DB.Model(&database.FaultInjectionWithIssues{}).
-		Where("created_at >= ? AND created_at <= ?", startTime, endTime).
-		Count(&withIssuesCount).Error; err != nil {
+	if err := query.Count(&withIssuesCount).Error; err != nil {
 		return nil, err
 	}
 
