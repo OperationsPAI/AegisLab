@@ -562,7 +562,7 @@ func GetFaultInjectionWithIssues(c *gin.Context) {
 		return
 	}
 
-	records, err := repository.GetAllFaultInjectionWithIssues(&req)
+	_, records, err := repository.GetAllFaultInjectionWithIssues(&req)
 	if err != nil {
 		logrus.Errorf("failed to get fault injection with issues: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get fault injection records")

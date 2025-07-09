@@ -419,35 +419,33 @@ func GetAllFaultInjectionNoIssues(params *dto.FaultInjectionNoIssuesReq) (int64,
 	return genericQueryWithBuilder[database.FaultInjectionNoIssues](genericQueryParams)
 }
 
-func GetAllFaultInjectionWithIssues(params *dto.FaultInjectionWithIssuesReq) ([]database.FaultInjectionWithIssues, error) {
+func GetAllFaultInjectionWithIssues(params *dto.FaultInjectionWithIssuesReq) (int64, []database.FaultInjectionWithIssues, error) {
 	opts, err := params.TimeRangeQuery.Convert()
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert time range query: %v", err)
+		return 0, nil, fmt.Errorf("failed to convert time range query: %v", err)
 	}
 
-	subQuery := database.DB.
-		Model(&database.FaultInjectionWithIssues{}).
-		Select("dataset_id, MAX(created_at) as max_created_at")
+	builder := func(db *gorm.DB) *gorm.DB {
+		query := db
 
-	if params.Env != "" {
-		subQuery = subQuery.Where("labels ->> 'env' = ?", params.Env)
+		if params.Env != "" {
+			query = query.Where("labels ->> 'env' = ?", params.Env)
+		}
+
+		if params.Batch != "" {
+			query = query.Where("labels ->> 'batch' = ?", params.Batch)
+		}
+
+		query = opts.AddTimeFilter(query, "created_at")
+		return query
 	}
 
-	if params.Batch != "" {
-		subQuery = subQuery.Where("labels ->> 'batch' = ?", params.Batch)
+	genericQueryParams := &genericQueryParams{
+		builder:       builder,
+		sortField:     "dataset_id desc",
+		selectColumns: []string{},
 	}
-
-	subQuery = opts.AddTimeFilter(subQuery, "created_at")
-	subQuery = subQuery.Group("dataset_id")
-
-	var results []database.FaultInjectionWithIssues
-	if err := database.DB.
-		Model(&database.FaultInjectionWithIssues{}).
-		Joins("JOIN (?) AS latest ON fault_injection_with_issues.dataset_id = latest.dataset_id AND fault_injection_with_issues.created_at = latest.max_created_at", subQuery).Find(&results).Error; err != nil {
-		return nil, err
-	}
-
-	return results, nil
+	return genericQueryWithBuilder[database.FaultInjectionWithIssues](genericQueryParams)
 }
 
 func GetFLByDatasetName(datasetName string) (*database.FaultInjectionSchedule, error) {

@@ -1,5 +1,6 @@
+from typing import Any
 from ..const import EventType, TaskType
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from uuid import UUID
 import json
 
@@ -43,8 +44,10 @@ class DatasetOptions(BaseModel):
 class DetectorRecord(BaseModel):
     """Detector record model"""
 
+    model_config = ConfigDict(extra="ignore", validate_by_name=True)
+
     span_name: str = Field(alias="SpanName", description="Span name")
-    issues: dict[str, any] = Field(default_factory=dict, description="Issues detected")
+    issues: dict[str, Any] = Field(default_factory=dict, description="Issues detected")
     abnormal_avg_duration: float = Field(alias="AbnormalAvgDuration")
     normal_avg_duration: float = Field(alias="NormalAvgDuration")
     abnormal_succ_rate: float = Field(alias="AbnormalSuccRate")
@@ -61,10 +64,6 @@ class DetectorRecord(BaseModel):
                 return {}
 
         return v if isinstance(v, dict) else {}
-
-    class Config:
-        extra = "ignore"
-        allow_population_by_field_name = True
 
 
 class ExecutionOptions(BaseModel):
@@ -116,7 +115,7 @@ class StreamEvent(BaseModel):
         json_schema_extra={"example": ["task.start"]},
     )
 
-    payload: any | None = Field(
+    payload: Any | None = Field(
         None,
         description="Additional data associated with the event. Content varies based on event_name",
     )
