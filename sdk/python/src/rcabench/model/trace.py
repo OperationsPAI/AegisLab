@@ -1,5 +1,5 @@
 from typing import Any
-from ..const import EventType, TaskType
+from ..const import EventType, TaskStatus, TaskType
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from uuid import UUID
 import json
@@ -46,14 +46,16 @@ class DetectorRecord(BaseModel):
 
     model_config = ConfigDict(extra="ignore", validate_by_name=True)
 
-    span_name: str = Field(alias="SpanName", description="Span name")
-    issues: dict[str, Any] = Field(default_factory=dict, description="Issues detected")
-    abnormal_avg_duration: float = Field(alias="AbnormalAvgDuration")
-    normal_avg_duration: float = Field(alias="NormalAvgDuration")
-    abnormal_succ_rate: float = Field(alias="AbnormalSuccRate")
-    normal_succ_rate: float = Field(alias="NormalSuccRate")
-    abnormal_p99: float = Field(alias="AbnormalP99")
-    normal_p99: float = Field(alias="NormalP99")
+    span_name: str = Field(..., alias="SpanName", description="Span name")
+    issues: dict[str, Any] = Field(
+        ..., default_factory=dict, description="Issues detected"
+    )
+    abnormal_avg_duration: float = Field(..., alias="AbnormalAvgDuration")
+    normal_avg_duration: float = Field(..., alias="NormalAvgDuration")
+    abnormal_succ_rate: float = Field(..., alias="AbnormalSuccRate")
+    normal_succ_rate: float = Field(..., alias="NormalSuccRate")
+    abnormal_p99: float = Field(..., alias="AbnormalP99")
+    normal_p99: float = Field(..., alias="NormalP99")
 
     @field_validator("issues", mode="before")
     def parse_issues(cls, v):
@@ -74,27 +76,39 @@ class ExecutionOptions(BaseModel):
     execution_id: int = Field(..., description="Execution ID", ge=1)
 
 
+class InfoPayload(BaseModel):
+    """Info payload model"""
+
+    model_config = ConfigDict(extra="ignore", validate_by_name=True)
+
+    status: TaskStatus = Field(..., description="Status of the task")
+    message: str = Field(
+        ..., alias="msg", description="Message associated with the task status"
+    )
+
+
 class StreamEvent(BaseModel):
     """
-    StreamEvent 事件流数据模型
+    StreamEvent data model for the event stream.
 
     Attributes:
-        task_id (UUID): 任务的唯一标识符，用于关联特定任务实例
-            例如: "005f94a9-f9a2-4e50-ad89-61e05c1c15a0"
+        task_id (UUID): A unique identifier for the task, used to associate with a specific task instance.
+            Example: "005f94a9-f9a2-4e50-ad89-61e05c1c15a0"
 
-        task_type (TaskType): 任务类型枚举值，指明事件相关的任务类别
-            可选值:
-            - BuildDataset: 构建数据集任务
-            - CollectResult: 收集结果任务
-            - FaultInjection: 故障注入任务
-            - RestartService: 服务重启任务
-            - RunAlgorithm: 运行算法任务
+        task_type (TaskType): An enum value indicating the category of the task associated with the event.
+            Possible values:
+            - BuildDataset: Task for building a dataset.
+            - BuildImage: Task for building a Docker image.
+            - CollectResult: Task for collecting results.
+            - FaultInjection: Task for fault injection.
+            - RestartService: Task for restarting a service.
+            - RunAlgorithm: Task for running an algorithm.
 
-        event_name (EventType): 事件类型枚举值，表示事件的性质或操作类型
+        event_name (EventType): An enum value indicating the nature or type of the operation or status change.
 
-        payload (Any, 可选): 事件相关的附加数据，内容根据事件类型不同而变化
-            - 对于错误事件: 包含错误详情和堆栈信息
-            - 对于完成事件: 可能包含执行结果数据
+        payload (Any, optional): Additional data associated with the event. The content varies depending on the event type.
+            - For error events: Contains error details and stack trace information.
+            - For completion events: May contain execution result data.
     """
 
     task_id: UUID = Field(

@@ -1,9 +1,9 @@
 [project]
 name = "rcabench"
-version = "1.0.44"
+version = "1.0.47"
 description = "RCABench SDK"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
     "requests>=2.32.3",
     "aiohttp>=3.8.0",

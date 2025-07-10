@@ -296,7 +296,6 @@ func (sp *StreamProcessor) IsCompleted() bool {
 	return sp.isCompleted
 }
 
-// TODO 错误处理
 func (sp *StreamProcessor) ProcessMessageForSSE(msg redis.XMessage) (string, string, error) {
 	streamEvent, err := parseEventFromValues(msg.Values)
 	if err != nil {
