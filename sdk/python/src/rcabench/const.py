@@ -10,9 +10,14 @@ class SSEMsgPrefix:
     EVENT = "event"
 
 
-class TaskStatus:
+class TaskStatus(str, Enum):
+    Canceled = "Canceled"
     COMPLETED = "Completed"
     ERROR = "Error"
+    Pending = "Pending"
+    Running = "Running"
+    Rescheduled = "Rescheduled"
+    Scheduled = "Scheduled"
 
 
 class Task:
