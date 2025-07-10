@@ -61,21 +61,21 @@ type Task struct {
 
 // FaultInjectionSchedule 模型
 type FaultInjectionSchedule struct {
-	ID            int       `gorm:"primaryKey;autoIncrement" json:"id"`    // 唯一标识
-	TaskID        string    `gorm:"index" json:"task_id"`                  // 从属什么 taskid
-	FaultType     int       `gorm:"index" json:"fault_type"`               // 故障类型
-	DisplayConfig string    `json:"display_config"`                        // 面向用户的展示配置
-	EngineConfig  string    `json:"engine_config"`                         // 面向系统的运行配置
-	PreDuration   int       `json:"pre_duration"`                          // 正常数据时间
-	StartTime     time.Time `gorm:"default:null" json:"start_time"`        // 预计故障开始时间
-	EndTime       time.Time `gorm:"default:null" json:"end_time"`          // 预计故障结束时间
-	Status        int       `json:"status"`                                // -1: 已删除 0: 初始状态 1: 注入结束且失败 2: 注入结束且成功 3: 收集数据失败 4:收集数据成功
-	Description   string    `json:"description"`                           // 描述（可选字段）
-	Benchmark     string    `json:"benchmark"`                             // 基准数据库
-	InjectionName string    `gorm:"unique,index" json:"injection_name"`    // 在k8s资源里注入的名字
-	Labels        LabelsMap `gorm:"type:jsonb;default:'{}'" json:"labels"` // 用户自定义标签，JSONB格式存储 key-value pairs
-	CreatedAt     time.Time `gorm:"autoCreateTime" json:"created_at"`      // 创建时间
-	UpdatedAt     time.Time `gorm:"autoUpdateTime" json:"updated_at"`      // 更新时间
+	ID            int       `gorm:"primaryKey;autoIncrement" json:"id"`                    // 唯一标识
+	TaskID        string    `gorm:"index" json:"task_id"`                                  // 从属什么 taskid
+	FaultType     int       `gorm:"index" json:"fault_type"`                               // 故障类型
+	DisplayConfig string    `json:"display_config"`                                        // 面向用户的展示配置
+	EngineConfig  string    `json:"engine_config"`                                         // 面向系统的运行配置
+	PreDuration   int       `json:"pre_duration"`                                          // 正常数据时间
+	StartTime     time.Time `gorm:"default:null" json:"start_time"`                        // 预计故障开始时间
+	EndTime       time.Time `gorm:"default:null" json:"end_time"`                          // 预计故障结束时间
+	Status        int       `json:"status"`                                                // -1: 已删除 0: 初始状态 1: 注入结束且失败 2: 注入结束且成功 3: 收集数据失败 4:收集数据成功
+	Description   string    `json:"description"`                                           // 描述（可选字段）
+	Benchmark     string    `json:"benchmark"`                                             // 基准数据库
+	InjectionName string    `gorm:"unique,index" json:"injection_name"`                    // 在k8s资源里注入的名字
+	Labels        LabelsMap `gorm:"type:jsonb;default:'{}';index:,type:gin" json:"labels"` // 用户自定义标签，JSONB格式存储 key-value pairs
+	CreatedAt     time.Time `gorm:"autoCreateTime" json:"created_at"`                      // 创建时间
+	UpdatedAt     time.Time `gorm:"autoUpdateTime" json:"updated_at"`                      // 更新时间
 }
 
 type Container struct {
@@ -134,7 +134,8 @@ type Detector struct {
 type FaultInjectionNoIssues struct {
 	DatasetID     int       `gorm:"column:dataset_id" json:"dataset_id"`
 	EngineConfig  string    `gorm:"column:engine_config" json:"engine_config"`
-	Labels        LabelsMap `gorm:"type:jsonb'" json:"labels"`
+	Env           string    `gorm:"column:env" json:"env"`
+	Batch         string    `gorm:"column:batch" json:"batch"`
 	InjectionName string    `gorm:"column:injection_name" json:"injection_name"`
 	CreatedAt     time.Time `gorm:"column:created_at" json:"created_at"`
 }
@@ -148,7 +149,8 @@ type FaultInjectionWithIssues struct {
 	DatasetID           int       `gorm:"column:dataset_id" json:"dataset_id"`
 	EngineConfig        string    `gorm:"column:engine_config" json:"engine_config"`
 	InjectionName       string    `gorm:"column:injection_name" json:"injection_name"`
-	Labels              LabelsMap `gorm:"type:jsonb'" json:"labels"`
+	Env                 string    `gorm:"column:env" json:"env"`
+	Batch               string    `gorm:"column:batch" json:"batch"`
 	CreatedAt           time.Time `gorm:"column:created_at" json:"created_at"`
 	Issues              string    `gorm:"column:issues" json:"issues"`
 	AbnormalAvgDuration float64   `gorm:"column:abnormal_avg_duration" json:"abnormal_avg_duration"`
@@ -197,41 +199,142 @@ func InitDB() {
 		logrus.Fatalf("Failed to connect to database after %d attempts: %v", maxRetries+1, err)
 	}
 
-	err = DB.AutoMigrate(
+	if err = DB.AutoMigrate(
 		&Task{},
 		&FaultInjectionSchedule{},
 		&Container{},
 		&ExecutionResult{},
 		&GranularityResult{},
 		&Detector{},
-	)
-	if err != nil {
+	); err != nil {
 		logrus.Fatalf("Failed to migrate database: %v", err)
 	}
 
+	createFaultInjectionIndexes()
+	verifyAllIndexes()
+
+	createFaultInjectionViews()
+}
+
+func createFaultInjectionIndexes() {
+	indexQueries := []string{
+		// 1. Create GIN index for JSONB field (supports @> and ->> operations)
+		`CREATE INDEX IF NOT EXISTS idx_fault_injection_schedules_labels_gin 
+         ON fault_injection_schedules USING GIN (labels)`,
+
+		// 2. Create expression indexes for common JSON keys
+		`CREATE INDEX IF NOT EXISTS idx_fault_injection_schedules_env 
+         ON fault_injection_schedules ((labels ->> 'env'))`,
+
+		`CREATE INDEX IF NOT EXISTS idx_fault_injection_schedules_batch 
+         ON fault_injection_schedules ((labels ->> 'batch'))`,
+
+		// 3. Composite expression index for multi-condition JSONB queries
+		`CREATE INDEX IF NOT EXISTS idx_fault_injection_schedules_env_batch 
+         ON fault_injection_schedules ((labels ->> 'env'), (labels ->> 'batch'))`,
+
+		// 4. Composite index with time field (optimized for ListInjections queries)
+		`CREATE INDEX IF NOT EXISTS idx_fault_injection_schedules_query_optimized 
+         ON fault_injection_schedules ((labels ->> 'env'), (labels ->> 'batch'), benchmark, status, fault_type, created_at DESC)`,
+
+		// 5. Dedicated time index for time range queries
+		`CREATE INDEX IF NOT EXISTS idx_fault_injection_schedules_created_at 
+         ON fault_injection_schedules (created_at DESC)`,
+	}
+
+	for _, query := range indexQueries {
+		if err := DB.Exec(query).Error; err != nil {
+			logrus.Warnf("failed to create index: %v", err)
+		} else {
+			logrus.Info("successfully created JSONB index")
+		}
+	}
+}
+
+func verifyAllIndexes() {
+	tables := []string{
+		"fault_injection_schedules",
+	}
+
+	for _, table := range tables {
+		verifyIndexes(table)
+	}
+}
+
+func verifyIndexes(tableName string) {
+	var indexes []struct {
+		IndexName string `gorm:"column:indexname"`
+		TableName string `gorm:"column:tablename"`
+	}
+
+	query := `
+        SELECT indexname, tablename 
+        FROM pg_indexes 
+        WHERE tablename = ? 
+        ORDER BY indexname
+    `
+
+	if err := DB.Raw(query, tableName).Scan(&indexes).Error; err != nil {
+		logrus.Errorf("Failed to verify indexes: %v", err)
+		return
+	}
+
+	logrus.Infof("Found %d indexes on fault_injection_schedules:", len(indexes))
+	for _, idx := range indexes {
+		logrus.Infof("  - %s", idx.IndexName)
+	}
+}
+
+func createFaultInjectionViews() {
+	var err error
+
+	// Drop existing views
 	DB.Migrator().DropView("fault_injection_no_issues")
 	DB.Migrator().DropView("fault_injection_with_issues")
 
+	// Create view for fault injections with no issues
 	noIssuesQuery := DB.Table("fault_injection_schedules fis").
-		Select("DISTINCT fis.id AS dataset_id, fis.engine_config, fis.labels, fis.injection_name, fis.created_at").
+		Select(`DISTINCT 
+			fis.id AS dataset_id, 
+			fis.engine_config, 
+			fis.labels, 
+			fis.labels ->> 'env' AS env,
+			fis.labels ->> 'batch' AS batch,
+			fis.injection_name, 
+			fis.created_at`).
 		Joins(`JOIN (
-        SELECT id, dataset, algorithm,
+        	SELECT id, dataset, algorithm,
                ROW_NUMBER() OVER (PARTITION BY dataset, algorithm ORDER BY created_at DESC, id DESC) as rn
-        FROM execution_results
-    ) er_ranked ON fis.injection_name = er_ranked.dataset AND er_ranked.rn = 1`).
+        	FROM execution_results
+    	) er_ranked ON fis.injection_name = er_ranked.dataset AND er_ranked.rn = 1`).
 		Joins("JOIN detectors d ON er_ranked.id = d.execution_id").
 		Where("d.issues = '{}'")
 	if err = DB.Migrator().CreateView("fault_injection_no_issues", gorm.ViewOption{Query: noIssuesQuery}); err != nil {
 		logrus.Errorf("failed to create fault_injection_no_issues view: %v", err)
 	}
 
+	// Create view for fault injections with issues
 	withIssuesQuery := DB.Table("fault_injection_schedules fis").
-		Select("DISTINCT fis.id AS dataset_id, fis.engine_config, fis.labels, fis.injection_name, fis.created_at, d.issues, d.abnormal_avg_duration, d.normal_avg_duration, d.abnormal_succ_rate, d.normal_succ_rate, d.abnormal_p99, d.normal_p99").
+		Select(`DISTINCT 
+			fis.id AS dataset_id, 
+			fis.engine_config, 
+			fis.labels, 
+			fis.labels ->> 'env' AS env,
+			fis.labels ->> 'batch' AS batch,
+			fis.injection_name, 
+			fis.created_at, 
+			d.issues, 
+			d.abnormal_avg_duration, 
+			d.normal_avg_duration, 
+			d.abnormal_succ_rate, 
+			d.normal_succ_rate, 
+			d.abnormal_p99, 
+			d.normal_p99`).
 		Joins(`JOIN (
-        SELECT id, dataset, algorithm,
-               ROW_NUMBER() OVER (PARTITION BY dataset, algorithm ORDER BY created_at DESC, id DESC) as rn
-        FROM execution_results
-    ) er_ranked ON fis.injection_name = er_ranked.dataset AND er_ranked.rn = 1`).
+        	SELECT id, dataset, algorithm,
+        	    ROW_NUMBER() OVER (PARTITION BY dataset, algorithm ORDER BY created_at DESC, id DESC) as rn
+        	FROM execution_results
+    	) er_ranked ON fis.injection_name = er_ranked.dataset AND er_ranked.rn = 1`).
 		Joins("JOIN detectors d ON er_ranked.id = d.execution_id").
 		Where("d.issues != '{}'")
 	if err = DB.Migrator().CreateView("fault_injection_with_issues", gorm.ViewOption{Query: withIssuesQuery}); err != nil {
