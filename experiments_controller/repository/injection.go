@@ -291,19 +291,6 @@ func ListDatasetByExecutionIDs(executionIDs []int) ([]dto.DatasetItemWithID, err
 	return items, nil
 }
 
-func ListDatasetWithPagination(pageNum, pageSize int) (int64, []database.FaultInjectionSchedule, error) {
-	genericQueryParams := &genericQueryParams{
-		builder: func(db *gorm.DB) *gorm.DB {
-			return db.Where("status = ?", consts.DatasetBuildSuccess)
-		},
-		sortField:     "created_at desc",
-		pageNum:       pageNum,
-		pageSize:      pageSize,
-		selectColumns: []string{"id", "fault_type", "task_id", "injection_name", "display_config", "pre_duration", "start_time", "end_time"},
-	}
-	return genericQueryWithBuilder[database.FaultInjectionSchedule](genericQueryParams)
-}
-
 func ListInjections(params *dto.ListInjectionsReq) (int64, []database.FaultInjectionSchedule, error) {
 	opts, err := params.TimeRangeQuery.Convert()
 	if err != nil {
@@ -313,12 +300,17 @@ func ListInjections(params *dto.ListInjectionsReq) (int64, []database.FaultInjec
 	builder := func(db *gorm.DB) *gorm.DB {
 		query := db
 
+		jsonConditions := make(map[string]string)
 		if params.Env != "" {
-			query = query.Where("labels ->> 'env' = ?", params.Env)
+			jsonConditions["env"] = params.Env
+		}
+		if params.Batch != "" {
+			jsonConditions["batch"] = params.Batch
 		}
 
-		if params.Batch != "" {
-			query = query.Where("labels ->> 'batch' = ?", params.Batch)
+		if len(jsonConditions) > 0 {
+			jsonBytes, _ := json.Marshal(jsonConditions)
+			query = query.Where("labels @> ?", string(jsonBytes))
 		}
 
 		if params.Benchmark != "" {
@@ -429,11 +421,11 @@ func GetAllFaultInjectionWithIssues(params *dto.FaultInjectionWithIssuesReq) (in
 		query := db
 
 		if params.Env != "" {
-			query = query.Where("labels ->> 'env' = ?", params.Env)
+			query = query.Where("env = ?", params.Env)
 		}
 
 		if params.Batch != "" {
-			query = query.Where("labels ->> 'batch' = ?", params.Batch)
+			query = query.Where("batch = ?", params.Batch)
 		}
 
 		query = opts.AddTimeFilter(query, "created_at")
