@@ -2,11 +2,13 @@ import psycopg
 from psycopg.rows import dict_row
 from rcabench.rcabench import RCABenchSDK
 from rcabench.openapi.api_client import ApiClient, Configuration
-from rcabench.openapi import DatasetApi, AlgorithmApi
-from rcabench.openapi.models.dto_dataset_build_payload import DtoDatasetBuildPayload
-from rcabench.openapi.models.dto_algorithm_execution_payload import (
-    DtoAlgorithmExecutionPayload,
+from rcabench.openapi import (
+    DatasetApi,
+    AlgorithmApi,
+    DtoExecutionPayload,
+    DtoAlgorithmItem,
 )
+from rcabench.openapi.models.dto_dataset_build_payload import DtoDatasetBuildPayload
 import time
 import typer
 
@@ -169,8 +171,8 @@ def detector(
                     try:
                         resp = api.api_v1_algorithms_post(
                             body=[
-                                DtoAlgorithmExecutionPayload(
-                                    algorithm=detector_image,
+                                DtoExecutionPayload(
+                                    algorithm=DtoAlgorithmItem(name=detector_image),
                                     dataset=injection_name,
                                 )
                             ]
