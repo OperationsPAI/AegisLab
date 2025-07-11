@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
@@ -29,12 +30,13 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type buildPayload struct {
+type containerPayload struct {
 	containerType consts.ContainerType
 	name          string
 	image         string
 	tag           string
 	command       string
+	envVars       string
 	sourcePath    string
 	buildOptions  dto.BuildOptions
 }
@@ -58,7 +60,7 @@ func executeBuildImage(ctx context.Context, task *dto.UnifiedTask) error {
 			task.Type,
 		)
 
-		if err := buildImagendPush(childCtx, *payload); err != nil {
+		if err := buildImagendPush(childCtx, payload); err != nil {
 			return err
 		}
 
@@ -68,6 +70,7 @@ func executeBuildImage(ctx context.Context, task *dto.UnifiedTask) error {
 			Image:   payload.image,
 			Tag:     payload.tag,
 			Command: payload.command,
+			EnvVars: payload.envVars,
 		}); err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to create container record")
@@ -103,7 +106,7 @@ func executeBuildImage(ctx context.Context, task *dto.UnifiedTask) error {
 	})
 }
 
-func parseBuildPayload(payload map[string]any) (*buildPayload, error) {
+func parseBuildPayload(payload map[string]any) (*containerPayload, error) {
 	message := "missing or invalid '%s' key in payload"
 
 	containerType, ok := payload[consts.BuildContainerType].(string)
@@ -131,6 +134,11 @@ func parseBuildPayload(payload map[string]any) (*buildPayload, error) {
 		return nil, fmt.Errorf(message, consts.BuildCommand)
 	}
 
+	envVarsArray, err := utils.ConvertToType[[]string](payload[consts.BuildImageEnvVars])
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert '%s' to []string: %v)", consts.BuildImageEnvVars, err)
+	}
+
 	sourcePath, ok := payload[consts.BuildSourcePath].(string)
 	if !ok || sourcePath == "" {
 		return nil, fmt.Errorf(message, consts.BuildSourcePath)
@@ -141,18 +149,19 @@ func parseBuildPayload(payload map[string]any) (*buildPayload, error) {
 		return nil, fmt.Errorf("failed to convert '%s' to BuildOptions: %v", consts.BuildBuildOptions, err)
 	}
 
-	return &buildPayload{
+	return &containerPayload{
 		containerType: consts.ContainerType(containerType),
 		name:          name,
 		image:         image,
 		tag:           tag,
 		command:       command,
+		envVars:       strings.Join(envVarsArray, ","),
 		sourcePath:    sourcePath,
 		buildOptions:  buildOptions,
 	}, nil
 }
 
-func buildImagendPush(ctx context.Context, payload buildPayload) error {
+func buildImagendPush(ctx context.Context, payload *containerPayload) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 

@@ -13,18 +13,20 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/client/k8s"
 	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/LGU-SE-Internal/rcabench/tracing"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 )
 
 type datasetPayload struct {
-	Benchmark   string
-	Name        string
-	PreDuration int
-	EnvVars     map[string]string
-	StartTime   time.Time
-	EndTime     time.Time
+	benchmark   string
+	name        string
+	preDuration int
+	envVars     map[string]string
+	startTime   time.Time
+	endTime     time.Time
 }
 
 func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
@@ -47,12 +49,12 @@ func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
 
 		container, err := repository.GetContaineInfo(&dto.GetContainerFilterOptions{
 			Type: consts.ContainerTypeBenchmark,
-			Name: payload.Benchmark,
+			Name: payload.benchmark,
 		})
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to get container info for benchmark")
-			return fmt.Errorf("failed to get container info for benchmark %s: %v", payload.Benchmark, err)
+			return fmt.Errorf("failed to get container info for benchmark %s: %v", payload.benchmark, err)
 		}
 
 		jobName := task.TaskID
@@ -62,10 +64,10 @@ func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
 			consts.LabelTraceID:  task.TraceID,
 			consts.LabelGroupID:  task.GroupID,
 			consts.LabelTaskType: string(consts.TaskTypeBuildDataset),
-			consts.LabelDataset:  payload.Name,
+			consts.LabelDataset:  payload.name,
 		}
 
-		return createDatasetJob(ctx, jobName, fullImage, container.Command, annotations, labels, payload)
+		return createDatasetJob(ctx, jobName, fullImage, annotations, labels, payload, container)
 	})
 }
 
@@ -88,6 +90,11 @@ func parseDatasetPayload(payload map[string]any) (*datasetPayload, error) {
 			return nil, fmt.Errorf(message, consts.BuildPreDuration)
 		}
 		preDuration := int(preDurationFloat)
+
+		envVars, err := utils.ConvertToType[map[string]string](payload[consts.ExecuteEnvVars])
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert '%s' to map[string]string: %v", consts.ExecuteEnvVars, err)
+		}
 
 		_, startTimeExists := payload[consts.BuildStartTime]
 		_, endTimeExists := payload[consts.BuildEndTime]
@@ -116,27 +123,14 @@ func parseDatasetPayload(payload map[string]any) (*datasetPayload, error) {
 			endTime = datasetItem.EndTime
 		}
 
-		result := datasetPayload{
-			Benchmark:   benchmark,
-			Name:        name,
-			PreDuration: preDuration,
-			StartTime:   startTime,
-			EndTime:     endTime,
-		}
-		if e, exists := payload[consts.BuildEnvVars].(map[string]any); exists {
-			envVars := make(map[string]string, len(e))
-			for key, value := range e {
-				strValue, ok := value.(string)
-				if !ok {
-					return nil, fmt.Errorf(message, consts.ExecuteEnvVars)
-				}
-				envVars[key] = strValue
-			}
-
-			result.EnvVars = envVars
-		}
-
-		return &result, nil
+		return &datasetPayload{
+			benchmark:   benchmark,
+			name:        name,
+			preDuration: preDuration,
+			envVars:     envVars,
+			startTime:   startTime,
+			endTime:     endTime,
+		}, nil
 	})
 }
 
@@ -156,32 +150,39 @@ func parseTimePtrFromPayload(payload map[string]any, key string) (*time.Time, er
 	})
 }
 
-func createDatasetJob(ctx context.Context, jobName, image, command string, annotations map[string]string, labels map[string]string, payload *datasetPayload) error {
+func createDatasetJob(ctx context.Context, jobName, image string, annotations map[string]string, labels map[string]string, payload *datasetPayload, container *database.Container) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
+		span := trace.SpanFromContext(ctx)
 		restartPolicy := corev1.RestartPolicyNever
 		backoffLimit := int32(2)
 		parallelism := int32(1)
 		completions := int32(1)
 		jobNamespace := config.GetString("k8s.namespace")
 
-		envVars := getDatasetJobEnvVars(payload)
+		jobEnvVars, err := getDatasetJobEnvVars(payload, container)
+		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to get job environment variables")
+			return err
+		}
+
 		return k8s.CreateJob(ctx, k8s.JobConfig{
 			Namespace:     jobNamespace,
 			JobName:       jobName,
 			Image:         image,
-			Command:       strings.Split(command, " "),
+			Command:       strings.Split(container.Command, " "),
 			RestartPolicy: restartPolicy,
 			BackoffLimit:  backoffLimit,
 			Parallelism:   parallelism,
 			Completions:   completions,
-			EnvVars:       envVars,
+			EnvVars:       jobEnvVars,
 			Annotations:   annotations,
 			Labels:        labels,
 		})
 	})
 }
 
-func getDatasetJobEnvVars(payload *datasetPayload) []corev1.EnvVar {
+func getDatasetJobEnvVars(payload *datasetPayload, container *database.Container) ([]corev1.EnvVar, error) {
 	tz := config.GetString("system.timezone")
 	if tz == "" {
 		tz = "Asia/Shanghai"
@@ -190,13 +191,13 @@ func getDatasetJobEnvVars(payload *datasetPayload) []corev1.EnvVar {
 	jobEnvVars := []corev1.EnvVar{
 		{Name: "ENV_MODE", Value: config.GetString("system.env_mode")},
 		{Name: "TIMEZONE", Value: tz},
-		{Name: "NORMAL_START", Value: strconv.FormatInt(payload.StartTime.Add(-time.Duration(payload.PreDuration)*time.Minute).Unix(), 10)},
-		{Name: "NORMAL_END", Value: strconv.FormatInt(payload.StartTime.Unix(), 10)},
-		{Name: "ABNORMAL_START", Value: strconv.FormatInt(payload.StartTime.Unix(), 10)},
-		{Name: "ABNORMAL_END", Value: strconv.FormatInt(payload.EndTime.Unix(), 10)},
+		{Name: "NORMAL_START", Value: strconv.FormatInt(payload.startTime.Add(-time.Duration(payload.preDuration)*time.Minute).Unix(), 10)},
+		{Name: "NORMAL_END", Value: strconv.FormatInt(payload.startTime.Unix(), 10)},
+		{Name: "ABNORMAL_START", Value: strconv.FormatInt(payload.startTime.Unix(), 10)},
+		{Name: "ABNORMAL_END", Value: strconv.FormatInt(payload.endTime.Unix(), 10)},
 		{Name: "WORKSPACE", Value: "/app"},
-		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.Name)},
-		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.Name)},
+		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.name)},
+		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.name)},
 	}
 
 	envNameIndexMap := make(map[string]int, len(jobEnvVars))
@@ -204,18 +205,31 @@ func getDatasetJobEnvVars(payload *datasetPayload) []corev1.EnvVar {
 		envNameIndexMap[jobEnvVar.Name] = index
 	}
 
-	if payload.EnvVars != nil {
-		for name, value := range payload.EnvVars {
-			if index, ok := envNameIndexMap[name]; ok {
+	if payload.envVars != nil {
+		extraEnvVarMap := make(map[string]struct{}, len(payload.envVars))
+		for name, value := range payload.envVars {
+			if index, exists := envNameIndexMap[name]; exists {
 				jobEnvVars[index].Value = value
 			} else {
 				jobEnvVars = append(jobEnvVars, corev1.EnvVar{
 					Name:  name,
 					Value: value,
 				})
+				extraEnvVarMap[name] = struct{}{}
 			}
+		}
+
+		envVarsArray := strings.Split(container.EnvVars, ",")
+		for _, envVar := range envVarsArray {
+			if _, exists := extraEnvVarMap[envVar]; !exists {
+				return nil, fmt.Errorf("environment variable %s is required but not provided in payload", envVar)
+			}
+		}
+	} else {
+		if len(container.EnvVars) > 0 {
+			return nil, fmt.Errorf("environment variables %s are required but not provided in payload", container.EnvVars)
 		}
 	}
 
-	return jobEnvVars
+	return jobEnvVars, nil
 }

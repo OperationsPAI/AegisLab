@@ -95,9 +95,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/algorithms/build": {
+        "/api/v1/containers": {
             "post": {
-                "description": "通过上传文件或指定GitHub仓库来构建算法Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建。系统会自动验证必需文件（Dockerfile）并设置执行权限",
+                "description": "通过上传文件或指定GitHub仓库来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建。系统会自动验证必需文件（Dockerfile）并设置执行权限",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -105,16 +105,27 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "algorithm"
+                    "container"
                 ],
-                "summary": "提交算法构建任务",
+                "summary": "提交镜像构建任务",
                 "parameters": [
                     {
+                        "enum": [
+                            "algorithm",
+                            "benchmark"
+                        ],
                         "type": "string",
-                        "description": "算法名称，用于标识算法，将作为镜像构建的标识符",
-                        "name": "algorithm",
+                        "default": "algorithm",
+                        "description": "容器类型，指定容器的用途",
+                        "name": "type",
                         "in": "formData",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段",
+                        "name": "name",
+                        "in": "formData"
                     },
                     {
                         "type": "string",
@@ -138,19 +149,29 @@ const docTemplate = `{
                         "in": "formData"
                     },
                     {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "环境变量名称列表，支持多个环境变量",
+                        "name": "env_vars",
+                        "in": "formData"
+                    },
+                    {
                         "enum": [
                             "file",
                             "github"
                         ],
                         "type": "string",
                         "default": "file",
-                        "description": "构建源类型，指定算法源码来源",
+                        "description": "构建源类型，指定源码来源",
                         "name": "source_type",
                         "in": "formData"
                     },
                     {
                         "type": "file",
-                        "description": "算法源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB",
+                        "description": "源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB",
                         "name": "file",
                         "in": "formData"
                     },
@@ -182,7 +203,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "default": ".",
-                        "description": "仓库内的子目录路径，如果算法源码不在根目录",
+                        "description": "仓库内的子目录路径，如果源码不在根目录",
                         "name": "github_path",
                         "in": "formData"
                     },
@@ -216,7 +237,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "202": {
-                        "description": "成功提交算法构建任务，返回任务跟踪信息",
+                        "description": "成功提交容器构建任务，返回任务跟踪信息",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
                         }
@@ -1436,6 +1457,10 @@ const docTemplate = `{
                 },
                 "created_at": {
                     "description": "创建时间",
+                    "type": "string"
+                },
+                "env_vars": {
+                    "description": "环境变量名称列表",
                     "type": "string"
                 },
                 "id": {

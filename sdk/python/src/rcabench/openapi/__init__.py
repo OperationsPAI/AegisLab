@@ -20,6 +20,7 @@ __version__ = "1.0.0"
 # Define package exports
 __all__ = [
     "AlgorithmApi",
+    "ContainerApi",
     "DatasetApi",
     "DebugApi",
     "EvaluationApi",
@@ -95,6 +96,7 @@ __all__ = [
 
 # import apis into sdk package
 from rcabench.openapi.api.algorithm_api import AlgorithmApi as AlgorithmApi
+from rcabench.openapi.api.container_api import ContainerApi as ContainerApi
 from rcabench.openapi.api.dataset_api import DatasetApi as DatasetApi
 from rcabench.openapi.api.debug_api import DebugApi as DebugApi
 from rcabench.openapi.api.evaluation_api import EvaluationApi as EvaluationApi

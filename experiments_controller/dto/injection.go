@@ -234,8 +234,3 @@ type FaultInjectionStatisticsResp struct {
 	WithIssuesCount int64 `json:"with_issues_count"`
 	TotalCount      int64 `json:"total_count"`
 }
-
-type FaultInjectionInjectionResp struct {
-	database.FaultInjectionSchedule
-	GroundTruth chaos.Groundtruth `json:"ground_truth,omitempty"`
-}

@@ -61,7 +61,8 @@ configmap:
     path: "/var/lib/rcabench"
   algo:
     detector: "detector"
-    storage_path: "/app/algorithms"
+  container:
+    storage_path: "/app/containers"
   debugging:
     enable: false
   buildkit:
@@ -83,7 +84,7 @@ persistence:
     accessMode: ReadWriteOnce
     size: 2Gi
     storageClass: ""
-  algorithms:
+  containers:
     enabled: true
     accessMode: ReadWriteOnce
     size: 1Gi

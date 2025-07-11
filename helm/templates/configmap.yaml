@@ -57,7 +57,9 @@ data:
 
     [algo]
     detector = "{{ .Values.configmap.algo.detector }}"
-    storage_path = "{{ .Values.configmap.algo.storage_path }}"
+
+    [container]
+    storage_path = "{{ .Values.configmap.container.storage_path }}"
 
     [debugging]
     enable = {{ .Values.configmap.debugging.enable }}

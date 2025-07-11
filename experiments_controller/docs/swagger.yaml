@@ -24,6 +24,9 @@ definitions:
       created_at:
         description: 创建时间
         type: string
+      env_vars:
+        description: 环境变量名称列表
+        type: string
       id:
         description: 唯一标识
         type: integer
@@ -1013,16 +1016,24 @@ paths:
       summary: 提交算法执行任务
       tags:
       - algorithm
-  /api/v1/algorithms/build:
+  /api/v1/containers:
     post:
       consumes:
       - multipart/form-data
-      description: 通过上传文件或指定GitHub仓库来构建算法Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建。系统会自动验证必需文件（Dockerfile）并设置执行权限
+      description: 通过上传文件或指定GitHub仓库来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建。系统会自动验证必需文件（Dockerfile）并设置执行权限
       parameters:
-      - description: 算法名称，用于标识算法，将作为镜像构建的标识符
+      - default: algorithm
+        description: 容器类型，指定容器的用途
+        enum:
+        - algorithm
+        - benchmark
         in: formData
-        name: algorithm
+        name: type
         required: true
+        type: string
+      - description: 容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段
+        in: formData
+        name: name
         type: string
       - description: Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）
         in: formData
@@ -1039,15 +1050,22 @@ paths:
         in: formData
         name: command
         type: string
+      - collectionFormat: csv
+        description: 环境变量名称列表，支持多个环境变量
+        in: formData
+        items:
+          type: string
+        name: env_vars
+        type: array
       - default: file
-        description: 构建源类型，指定算法源码来源
+        description: 构建源类型，指定源码来源
         enum:
         - file
         - github
         in: formData
         name: source_type
         type: string
-      - description: 算法源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB
+      - description: 源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB
         in: formData
         name: file
         type: file
@@ -1069,7 +1087,7 @@ paths:
         name: github_commit
         type: string
       - default: .
-        description: 仓库内的子目录路径，如果算法源码不在根目录
+        description: 仓库内的子目录路径，如果源码不在根目录
         in: formData
         name: github_path
         type: string
@@ -1096,7 +1114,7 @@ paths:
       - application/json
       responses:
         "202":
-          description: 成功提交算法构建任务，返回任务跟踪信息
+          description: 成功提交容器构建任务，返回任务跟踪信息
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_SubmitResp'
         "400":
@@ -1111,9 +1129,9 @@ paths:
           description: 服务器内部错误
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 提交算法构建任务
+      summary: 提交镜像构建任务
       tags:
-      - algorithm
+      - container
   /api/v1/datasets:
     delete:
       description: 删除数据集数据

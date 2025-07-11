@@ -7,6 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **command** | **str** | 启动命令 | [optional] 
 **created_at** | **str** | 创建时间 | [optional] 
+**env_vars** | **str** | 环境变量名称列表 | [optional] 
 **id** | **int** | 唯一标识 | [optional] 
 **image** | **str** | 镜像名 | [optional] 
 **name** | **str** | 名称 | [optional] 

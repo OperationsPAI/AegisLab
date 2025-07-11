@@ -50,7 +50,9 @@ path = "/mnt/jfs/rcabench_dataset"
 
 [algo]
 detector = "detector"
-storage_path = "/home/nn/workspace/rcabench/algorithms"
+
+[container]
+storage_path = "/home/nn/workspace/rcabench/containers"
 
 [buildkit]
 address = "tcp://localhost:1234"

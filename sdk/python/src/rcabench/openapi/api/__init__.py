@@ -2,6 +2,7 @@
 
 # import apis into api package
 from rcabench.openapi.api.algorithm_api import AlgorithmApi
+from rcabench.openapi.api.container_api import ContainerApi
 from rcabench.openapi.api.dataset_api import DatasetApi
 from rcabench.openapi.api.debug_api import DebugApi
 from rcabench.openapi.api.evaluation_api import EvaluationApi
