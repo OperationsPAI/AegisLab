@@ -77,6 +77,7 @@ const (
 	BuildImage         = "image"
 	BuildTag           = "tag"
 	BuildCommand       = "command"
+	BuildImageEnvVars  = "env_vars"
 	BuildSourcePath    = "source_path"
 	BuildBuildOptions  = "build_options"
 
@@ -116,10 +117,6 @@ const (
 // 环境变量名称
 const (
 	BuildEnvVarNamespace = "NAMESPACE"
-	BuildEnvVarService   = "SERVICE"
-
-	ExecuteEnvVarAlgorithm = "ALGORITHM"
-	ExecuteEnvVarService   = "SERVICE"
 )
 
 const (

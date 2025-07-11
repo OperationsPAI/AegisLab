@@ -11,6 +11,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/client/k8s"
 	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/LGU-SE-Internal/rcabench/tracing"
@@ -88,7 +89,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			consts.LabelExecutionID: strconv.Itoa(executionID),
 		}
 
-		return createAlgoJob(ctx, config.GetString("k8s.namespace"), jobName, fullImage, container.Command, annotations, labels, payload, record)
+		return createAlgoJob(ctx, config.GetString("k8s.namespace"), jobName, fullImage, annotations, labels, payload, container, record)
 	})
 }
 
@@ -118,7 +119,7 @@ func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 	}, nil
 }
 
-func createAlgoJob(ctx context.Context, jobNamespace, jobName, image, command string, annotations map[string]string, labels map[string]string, payload *executionPayload, record *dto.DatasetItemWithID) error {
+func createAlgoJob(ctx context.Context, jobNamespace, jobName, image string, annotations map[string]string, labels map[string]string, payload *executionPayload, container *database.Container, record *dto.DatasetItemWithID) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
 		restartPolicy := corev1.RestartPolicyNever
@@ -126,7 +127,7 @@ func createAlgoJob(ctx context.Context, jobNamespace, jobName, image, command st
 		parallelism := int32(1)
 		completions := int32(1)
 
-		jobEnvVars, err := getAlgoJobEnvVars(payload, record)
+		jobEnvVars, err := getAlgoJobEnvVars(payload, container, record)
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to get job environment variables")
@@ -137,7 +138,7 @@ func createAlgoJob(ctx context.Context, jobNamespace, jobName, image, command st
 			Namespace:     jobNamespace,
 			JobName:       jobName,
 			Image:         image,
-			Command:       strings.Split(command, " "),
+			Command:       strings.Split(container.Command, " "),
 			RestartPolicy: restartPolicy,
 			BackoffLimit:  backoffLimit,
 			Parallelism:   parallelism,
@@ -149,7 +150,7 @@ func createAlgoJob(ctx context.Context, jobNamespace, jobName, image, command st
 	})
 }
 
-func getAlgoJobEnvVars(payload *executionPayload, record *dto.DatasetItemWithID) ([]corev1.EnvVar, error) {
+func getAlgoJobEnvVars(payload *executionPayload, container *database.Container, record *dto.DatasetItemWithID) ([]corev1.EnvVar, error) {
 	tz := config.GetString("system.timezone")
 	if tz == "" {
 		tz = "Asia/Shanghai"
@@ -177,6 +178,7 @@ func getAlgoJobEnvVars(payload *executionPayload, record *dto.DatasetItemWithID)
 	}
 
 	if payload.envVars != nil {
+		extraEnvVarMap := make(map[string]struct{}, len(payload.envVars))
 		for name, value := range payload.envVars {
 			if index, exists := envNameIndexMap[name]; exists {
 				jobEnvVars[index].Value = value
@@ -185,7 +187,19 @@ func getAlgoJobEnvVars(payload *executionPayload, record *dto.DatasetItemWithID)
 					Name:  name,
 					Value: value,
 				})
+				extraEnvVarMap[name] = struct{}{}
 			}
+		}
+
+		envVarsArray := strings.Split(container.EnvVars, ",")
+		for _, envVar := range envVarsArray {
+			if _, exists := extraEnvVarMap[envVar]; !exists {
+				return nil, fmt.Errorf("environment variable %s is required but not provided in payload", envVar)
+			}
+		}
+	} else {
+		if len(container.EnvVars) > 0 {
+			return nil, fmt.Errorf("environment variables %s are required but not provided in payload", container.EnvVars)
 		}
 	}
 

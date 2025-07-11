@@ -30,7 +30,11 @@ func New() *gin.Engine {
 	{
 		algorithms.GET("", handlers.ListAlgorithms)
 		algorithms.POST("", handlers.SubmitAlgorithmExecution)
-		algorithms.POST("/build", handlers.SubmitAlgorithmBuilding)
+	}
+
+	containers := r.Group("/containers")
+	{
+		containers.POST("", handlers.SubmitContainerBuilding)
 	}
 
 	datasets := r.Group("/datasets")

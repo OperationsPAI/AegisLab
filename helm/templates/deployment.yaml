@@ -186,8 +186,8 @@ spec:
               subPath: config
             - name: data
               mountPath: "{{ .Values.configmap.jfs.path }}"
-            - name: algorithms-data
-              mountPath: "{{ .Values.configmap.algo.storage_path }}"
+            - name: containers-data
+              mountPath: "{{ .Values.configmap.container.storage_path }}"
       volumes:
         - name: config
           configMap:
@@ -202,9 +202,9 @@ spec:
           hostPath:
             path: /mnt/jfs/rcabench_dataset
             type: Directory
-        - name: algorithms-data
+        - name: containers-data
           persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-algorithms-data
+            claimName: {{ .Release.Name }}-containers-data
 ---
 # exp 应用
 apiVersion: apps/v1
@@ -274,8 +274,8 @@ spec:
               subPath: config
             - name: data
               mountPath: "{{ .Values.configmap.jfs.path }}"
-            - name: algorithms-data
-              mountPath: "{{ .Values.configmap.algo.storage_path }}"
+            - name: containers-data
+              mountPath: "{{ .Values.configmap.container.storage_path }}"
             - name: docker-config-volume
               mountPath: /root/.docker/config.json
               subPath: config.json
@@ -296,9 +296,9 @@ spec:
           hostPath:
             path: /mnt/jfs/rcabench_dataset
             type: Directory
-        - name: algorithms-data
+        - name: containers-data
           persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-algorithms-data
+            claimName: {{ .Release.Name }}-containers-data
         - name: docker-config-volume
           secret:
             secretName: docker-config
@@ -348,8 +348,8 @@ spec:
               subPath: config
             # - name: data
             #   mountPath: /var/lib/rcabench
-            - name: algorithms-data
-              mountPath: "{{ .Values.configmap.algo.storage_path }}"
+            - name: containers-data
+              mountPath: "{{ .Values.configmap.container.storage_path }}"
             - name: buildkit-socket
               mountPath: /run/buildkit
             - name: buildkit-config
@@ -371,9 +371,9 @@ spec:
         # - name: data
         #   persistentVolumeClaim:
         #     claimName: nfs-shared-pvc
-        - name: algorithms-data
+        - name: containers-data
           persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-algorithms-data
+            claimName: {{ .Release.Name }}-containers-data
         - name: buildkit-socket
           emptyDir: {}
         - name: buildkit-config

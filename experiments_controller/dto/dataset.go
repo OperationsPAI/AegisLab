@@ -115,8 +115,3 @@ var DatasetStatusReverseMap = map[string]int{
 	"build_failed":   consts.DatasetBuildFailed,
 	"deleted":        consts.DatasetDeleted,
 }
-
-var BuildEnvVarNameMap = map[string]struct{}{
-	"NAMESPACE": {},
-	"SERVICE":   {},
-}
