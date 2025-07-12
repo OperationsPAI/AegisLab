@@ -39,6 +39,10 @@ func CreateJob(ctx context.Context, jobConfig JobConfig) error {
 				MountPath: "/data",
 			},
 			{
+				Name:      "experiment-storage",
+				MountPath: "/experiment_storage",
+			},
+			{
 				Name:      "kube-config",
 				MountPath: "/root/.kube/config",
 				SubPath:   "config",
@@ -50,6 +54,18 @@ func CreateJob(ctx context.Context, jobConfig JobConfig) error {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: "/mnt/jfs/rcabench_dataset",
+						Type: func() *corev1.HostPathType {
+							hostPathType := corev1.HostPathDirectory
+							return &hostPathType
+						}(),
+					},
+				},
+			},
+			{
+				Name: "experiment-storage",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/mnt/jfs/experiment_storage",
 						Type: func() *corev1.HostPathType {
 							hostPathType := corev1.HostPathDirectory
 							return &hostPathType
