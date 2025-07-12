@@ -29,7 +29,7 @@ class DtoDatasetBuildPayload(BaseModel):
     """ # noqa: E501
     benchmark: Optional[StrictStr] = None
     env_vars: Optional[Dict[str, Any]] = None
-    name: Optional[StrictStr] = None
+    name: StrictStr
     pre_duration: Optional[StrictInt] = None
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["benchmark", "env_vars", "name", "pre_duration"]

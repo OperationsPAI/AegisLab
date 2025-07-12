@@ -86,48 +86,6 @@ func getMissingNames(requested []string, existing []string) []string {
 	return missing
 }
 
-func GetDatasetBuildPayloads(payloads []dto.DatasetBuildPayload) ([]dto.DatasetBuildPayload, error) {
-	if len(payloads) == 0 {
-		return nil, fmt.Errorf("empty payloads")
-	}
-
-	names := make([]string, 0, len(payloads))
-	payloadNameMap := make(map[string]*dto.DatasetBuildPayload, len(payloads))
-	for i := range payloads {
-		names = append(names, payloads[i].Name)
-		payloadNameMap[payloads[i].Name] = &payloads[i]
-	}
-
-	var records []struct {
-		InjectionName string `gorm:"column:injection_name"`
-		PreDuration   int    `gorm:"column:pre_duration"`
-		Benchmark     string `gorm:"column:benchmark"`
-	}
-
-	if err := database.DB.
-		Model(&database.FaultInjectionSchedule{}).
-		Select("injection_name, pre_duration, benchmark").
-		Where("injection_name IN ?", names).
-		Find(&records).Error; err != nil {
-		return nil, fmt.Errorf("failed to query injection schedules: %v", err)
-	}
-
-	if len(records) == 0 {
-		return nil, fmt.Errorf("no records found for the given names")
-	}
-
-	result := make([]dto.DatasetBuildPayload, 0, len(records))
-	for _, record := range records {
-		if payload, ok := payloadNameMap[record.InjectionName]; ok {
-			payload.PreDuration = record.PreDuration
-			payload.Benchmark = record.Benchmark
-			result = append(result, *payload)
-		}
-	}
-
-	return result, nil
-}
-
 func GetDatasetWithGroupIDs(groupIDs []string) ([]dto.DatasetJoinedResult, error) {
 	var results []struct {
 		GroupID string `gorm:"column:group_id"`

@@ -79,16 +79,16 @@ type FaultInjectionSchedule struct {
 }
 
 type Container struct {
-	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`                     // 唯一标识
-	Type      string    `gorm:"index;not null" json:"type"`                             // 镜像类型
-	Name      string    `gorm:"index;not null" json:"name"`                             // 名称
-	Image     string    `gorm:"not null" json:"image"`                                  // 镜像名
-	Tag       string    `gorm:"not null;default:'latest'" json:"tag"`                   // 镜像标签
-	Command   string    `gorm:"type:text;default:'bash /entrypoint.sh'" json:"command"` // 启动命令
-	EnvVars   string    `gorm:"default:''" json:"env_vars"`                             // 环境变量名称列表
-	Status    bool      `gorm:"default:true" json:"status"`                             // 0: 已删除 1: 活跃
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`                       // 创建时间
-	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`                       // 更新时间
+	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`                                    // 唯一标识
+	Type      string    `gorm:"index;not null;uniqueIndex:idx_container_unique" json:"type"`           // 镜像类型
+	Name      string    `gorm:"index;not null;uniqueIndex:idx_container_unique" json:"name"`           // 名称
+	Image     string    `gorm:"not null;uniqueIndex:idx_container_unique" json:"image"`                // 镜像名
+	Tag       string    `gorm:"not null;default:'latest';uniqueIndex:idx_container_unique" json:"tag"` // 镜像标签
+	Command   string    `gorm:"type:text;default:'bash /entrypoint.sh'" json:"command"`                // 启动命令
+	EnvVars   string    `gorm:"default:''" json:"env_vars"`                                            // 环境变量名称列表
+	Status    bool      `gorm:"default:true" json:"status"`                                            // 0: 已删除 1: 活跃
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`                                      // 创建时间
+	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                      // 更新时间
 }
 
 type ExecutionResult struct {

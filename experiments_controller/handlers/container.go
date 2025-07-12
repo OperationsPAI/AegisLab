@@ -60,7 +60,7 @@ func SubmitContainerBuilding(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	logrus.Infof("SubmitContainerBuilding, groupID: %s", groupID)
 
-	req := &dto.SubmitContainerReq{
+	req := &dto.SubmitContainerBuildingReq{
 		ContainerType: consts.ContainerType(c.DefaultPostForm("type", string(consts.ContainerTypeAlgorithm))),
 		Name:          c.PostForm("name"),
 		Image:         c.PostForm("image"),
@@ -181,7 +181,7 @@ func SubmitContainerBuilding(c *gin.Context) {
 	)
 }
 
-func processFileSource(c *gin.Context, req *dto.SubmitContainerReq) (int, string, error) {
+func processFileSource(c *gin.Context, req *dto.SubmitContainerBuildingReq) (int, string, error) {
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
 		return http.StatusBadRequest, "", fmt.Errorf("failed to get uploaded file: %v", err)
@@ -248,7 +248,7 @@ func processFileSource(c *gin.Context, req *dto.SubmitContainerReq) (int, string
 	return 0, targetDir, nil
 }
 
-func processGitHubSource(req *dto.SubmitContainerReq) (int, string, error) {
+func processGitHubSource(req *dto.SubmitContainerBuildingReq) (int, string, error) {
 	github := req.Source.GitHub
 
 	targetDir := filepath.Join(config.GetString("container.storage_path"), string(req.ContainerType), req.Name, fmt.Sprintf("build_%d", time.Now().Unix()))

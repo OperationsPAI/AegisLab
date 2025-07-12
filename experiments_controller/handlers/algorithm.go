@@ -60,14 +60,20 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 		return
 	}
 
+	if err := req.Validate(); err != nil {
+		logrus.Error(err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid execution payload")
+		return
+	}
+
 	ctx, ok := c.Get(middleware.SpanContextKey)
 	if !ok {
 		logrus.Error("failed to get span context from gin.Context")
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get span context")
 		return
 	}
-	spanCtx := ctx.(context.Context)
 
+	spanCtx := ctx.(context.Context)
 	traces := make([]dto.Trace, 0, len(req))
 	for idx, payload := range req {
 		task := &dto.UnifiedTask{
