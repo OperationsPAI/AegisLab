@@ -1,5 +1,6 @@
 from typing import Any
 from ..const import EventType, TaskStatus, TaskType
+from ..openapi import DtoAlgorithmItem
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from uuid import UUID
 import json
@@ -71,7 +72,7 @@ class DetectorRecord(BaseModel):
 class ExecutionOptions(BaseModel):
     """Execution options model"""
 
-    algorithm: str = Field(..., description="Algorithm name")
+    algorithm: DtoAlgorithmItem = Field(..., description="Algorithm name")
     dataset: str = Field(..., description="Dataset name")
     execution_id: int = Field(..., description="Execution ID", ge=1)
 
