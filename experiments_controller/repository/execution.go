@@ -181,11 +181,12 @@ func ListExecutionRawDataByIds(params dto.RawDataReq) ([]dto.RawDataItem, error)
 
 	granMap := make(map[int][]dto.GranularityRecord, len(execResultMap))
 	for _, gran := range granularityResults {
+		var record dto.GranularityRecord
+		record.Convert(gran)
+
 		if _, exists := granMap[gran.ExecutionID]; !exists {
-			granMap[gran.ExecutionID] = []dto.GranularityRecord{}
+			granMap[gran.ExecutionID] = []dto.GranularityRecord{record}
 		} else {
-			var record dto.GranularityRecord
-			record.Convert(gran)
 			granMap[gran.ExecutionID] = append(granMap[gran.ExecutionID], record)
 		}
 	}
@@ -197,18 +198,15 @@ func ListExecutionRawDataByIds(params dto.RawDataReq) ([]dto.RawDataItem, error)
 
 	var items []dto.RawDataItem
 	for id, execResult := range execResultMap {
-		var records []dto.GranularityRecord
 		if granRecords, exists := granMap[execResult.ID]; exists {
-			records = granRecords
+			items = append(items, dto.RawDataItem{
+				Algorithm:   execResult.Algorithm,
+				Dataset:     execResult.Dataset,
+				ExecutionID: id,
+				Entries:     granRecords,
+				Groundtruth: groundtruthMap[execResult.Dataset],
+			})
 		}
-
-		items = append(items, dto.RawDataItem{
-			Algorithm:   execResult.Algorithm,
-			Dataset:     execResult.Dataset,
-			ExecutionID: id,
-			Entries:     records,
-			Groundtruth: groundtruthMap[execResult.Dataset],
-		})
 	}
 
 	return items, nil
@@ -240,11 +238,12 @@ func ListExecutionRawDatasByPairs(params dto.RawDataReq) ([]dto.RawDataItem, err
 
 	granMap := make(map[int][]dto.GranularityRecord, len(execIDs))
 	for _, gran := range granularityResults {
+		var record dto.GranularityRecord
+		record.Convert(gran)
+
 		if _, exists := granMap[gran.ExecutionID]; !exists {
-			granMap[gran.ExecutionID] = []dto.GranularityRecord{}
+			granMap[gran.ExecutionID] = []dto.GranularityRecord{record}
 		} else {
-			var record dto.GranularityRecord
-			record.Convert(gran)
 			granMap[gran.ExecutionID] = append(granMap[gran.ExecutionID], record)
 		}
 	}
@@ -270,13 +269,10 @@ func ListExecutionRawDatasByPairs(params dto.RawDataReq) ([]dto.RawDataItem, err
 		pairKey := fmt.Sprintf("%s_%s", pair.Algorithm, pair.Dataset)
 		id, exists := pairKeyIDMap[pairKey]
 		if exists {
-			var records []dto.GranularityRecord
 			if granRecords, exists := granMap[id]; exists {
-				records = granRecords
+				item.ExecutionID = id
+				item.Entries = granRecords
 			}
-
-			item.ExecutionID = id
-			item.Entries = records
 		}
 
 		items = append(items, *item)
