@@ -130,6 +130,8 @@ definitions:
         type: string
       pre_duration:
         type: integer
+    required:
+    - name
     type: object
   dto.DatasetDeleteResp:
     properties:

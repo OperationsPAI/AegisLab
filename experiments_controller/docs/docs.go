@@ -1598,6 +1598,9 @@ const docTemplate = `{
         },
         "dto.DatasetBuildPayload": {
             "type": "object",
+            "required": [
+                "name"
+            ],
             "properties": {
                 "benchmark": {
                     "type": "string"

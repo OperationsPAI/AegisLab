@@ -97,6 +97,27 @@ func IsValidGitHubToken(token string) error {
 	return nil
 }
 
+func IsValidEnvVar(envVar string) error {
+	if envVar == "" {
+		return fmt.Errorf("environment variable cannot be empty")
+	}
+
+	if len(envVar) > 128 {
+		return fmt.Errorf("environment variable name too long (max 128 characters)")
+	}
+
+	envVarPattern := `^[A-Z_][A-Z0-9_]*$`
+	matched, err := regexp.MatchString(envVarPattern, envVar)
+	if err != nil {
+		return fmt.Errorf("pattern match error: %v", err)
+	}
+	if !matched {
+		return fmt.Errorf("environment variable must contain only uppercase letters, numbers, and underscores, and start with a letter or underscore")
+	}
+
+	return nil
+}
+
 func IsValidUUID(s string) bool {
 	_, err := uuid.Parse(s)
 	return err == nil

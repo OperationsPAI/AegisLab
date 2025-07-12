@@ -124,7 +124,7 @@ func (opts *BuildOptions) Validate() error {
 	return nil
 }
 
-type SubmitContainerReq struct {
+type SubmitContainerBuildingReq struct {
 	ContainerType consts.ContainerType `json:"type" binding:"required,oneof=algorithm benchmark"`
 	Name          string               `json:"name" binding:"required"`
 	Image         string               `json:"image" binding:"required"`
@@ -135,7 +135,7 @@ type SubmitContainerReq struct {
 	BuildOptions  *BuildOptions        `json:"build_options" binding:"omitempty"`
 }
 
-func (req *SubmitContainerReq) Validate() error {
+func (req *SubmitContainerBuildingReq) Validate() error {
 	if req.ContainerType != "" {
 		if _, exists := ValidContainerTypes[req.ContainerType]; !exists {
 			return fmt.Errorf("Invalid container type: %s", req.ContainerType)
@@ -162,6 +162,14 @@ func (req *SubmitContainerReq) Validate() error {
 		}
 	}
 
+	if req.EnvVars != nil {
+		for i, envVar := range req.EnvVars {
+			if err := utils.IsValidEnvVar(envVar); err != nil {
+				return fmt.Errorf("Invalid environment variable %s at index %d: %v", envVar, i, err)
+			}
+		}
+	}
+
 	if err := req.Source.Validate(); err != nil {
 		return fmt.Errorf("Invalid build source: %v", err)
 	}
@@ -173,7 +181,7 @@ func (req *SubmitContainerReq) Validate() error {
 	return nil
 }
 
-func (req *SubmitContainerReq) ValidateInfoContent(sourcePath string) (int, error) {
+func (req *SubmitContainerBuildingReq) ValidateInfoContent(sourcePath string) (int, error) {
 	if req.Name == "" {
 		content, err := getInfoFileContent(sourcePath)
 		if err != nil {

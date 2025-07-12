@@ -8,6 +8,7 @@ import (
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 )
 
 type DatasetDeleteReq struct {
@@ -79,13 +80,45 @@ func (d *DatasetItemWithID) Convert(record database.FaultInjectionSchedule) erro
 	return nil
 }
 
+type DatasetBuildPayload struct {
+	Benchmark   string            `json:"benchmark" binding:"omitempty"`
+	Name        string            `json:"name" binding:"required"`
+	PreDuration *int              `json:"pre_duration" binding:"omitempty"`
+	EnvVars     map[string]string `json:"env_vars" binding:"omitempty" swaggertype:"object"`
+}
+
+func (p *DatasetBuildPayload) Validate() error {
+	if p.Benchmark == "" {
+		p.Benchmark = "clickhouse"
+	}
+
+	if p.PreDuration != nil && *p.PreDuration <= 0 {
+		return fmt.Errorf("pre_duration must be greater than 0")
+	}
+
+	for key := range p.EnvVars {
+		if err := utils.IsValidEnvVar(key); err != nil {
+			return fmt.Errorf("invalid environment variable key %s: %v", key, err)
+		}
+	}
+
+	return nil
+}
+
 type SubmitDatasetBuildingReq []DatasetBuildPayload
 
-type DatasetBuildPayload struct {
-	Benchmark   string            `json:"benchmark"`
-	Name        string            `json:"name"`
-	PreDuration int               `json:"pre_duration"`
-	EnvVars     map[string]string `json:"env_vars" swaggertype:"object"`
+func (req *SubmitDatasetBuildingReq) Validate() error {
+	if len(*req) == 0 {
+		return fmt.Errorf("at least one dataset build payload is required")
+	}
+
+	for _, payload := range *req {
+		if err := payload.Validate(); err != nil {
+			return fmt.Errorf("invalid dataset build payload: %v", err)
+		}
+	}
+
+	return nil
 }
 
 type DatasetJoinedResult struct {

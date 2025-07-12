@@ -219,15 +219,18 @@ func getDatasetJobEnvVars(payload *datasetPayload, container *database.Container
 			}
 		}
 
-		envVarsArray := strings.Split(container.EnvVars, ",")
-		for _, envVar := range envVarsArray {
-			if _, exists := extraEnvVarMap[envVar]; !exists {
-				return nil, fmt.Errorf("environment variable %s is required but not provided in payload", envVar)
+		// Check if all required environment variables are provided
+		if container.EnvVars != "" {
+			envVarsArray := strings.Split(container.EnvVars, ",")
+			for _, envVar := range envVarsArray {
+				if _, exists := extraEnvVarMap[envVar]; !exists {
+					return nil, fmt.Errorf("environment variable %s is required but not provided in dataset build payload", envVar)
+				}
 			}
 		}
 	} else {
-		if len(container.EnvVars) > 0 {
-			return nil, fmt.Errorf("environment variables %s are required but not provided in payload", container.EnvVars)
+		if container.EnvVars != "" {
+			return nil, fmt.Errorf("environment variables %s are required but not provided in dataset build payload", container.EnvVars)
 		}
 	}
 

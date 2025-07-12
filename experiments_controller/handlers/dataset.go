@@ -244,20 +244,20 @@ func SubmitDatasetBuilding(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	logrus.Infof("SubmitDatasetBuilding, groupID: %s", groupID)
 
-	var payloads []dto.DatasetBuildPayload
-	if err := c.BindJSON(&payloads); err != nil {
+	var req dto.SubmitDatasetBuildingReq
+	if err := c.BindJSON(&req); err != nil {
+		logrus.Error(err)
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid JSON payload")
 		return
 	}
 
-	payloads, err := repository.GetDatasetBuildPayloads(payloads)
-	if err != nil {
-		message := "failed to get dataset build payloads"
-		logrus.Errorf("%s: %v", message, err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, message)
+	if err := req.Validate(); err != nil {
+		logrus.Error(err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid dataset building payload")
 		return
 	}
 
+	// 优化span输出
 	ctx, ok := c.Get(middleware.SpanContextKey)
 	if !ok {
 		logrus.Error("failed to get span context from gin.Context")
@@ -266,8 +266,8 @@ func SubmitDatasetBuilding(c *gin.Context) {
 	}
 
 	spanCtx := ctx.(context.Context)
-	traces := make([]dto.Trace, 0, len(payloads))
-	for idx, payload := range payloads {
+	traces := make([]dto.Trace, 0, len(req))
+	for idx, payload := range req {
 		task := &dto.UnifiedTask{
 			Type:      consts.TaskTypeBuildDataset,
 			Payload:   utils.StructToMap(payload),
@@ -276,11 +276,10 @@ func SubmitDatasetBuilding(c *gin.Context) {
 		}
 		task.SetGroupCtx(spanCtx)
 
-		taskID, traceID, err := executor.SubmitTask(context.Background(), task)
+		taskID, traceID, err := executor.SubmitTask(spanCtx, task)
 		if err != nil {
-			message := "failed to submit task"
-			logrus.Error(message)
-			dto.ErrorResponse(c, http.StatusInternalServerError, message)
+			logrus.Errorf("failed to submit dataset building task: %v", err)
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to submit dataset building task")
 			return
 		}
 
@@ -290,7 +289,4 @@ func SubmitDatasetBuilding(c *gin.Context) {
 	dto.JSONResponse(c, http.StatusAccepted, "Dataset building submitted successfully",
 		dto.SubmitResp{GroupID: groupID, Traces: traces},
 	)
-}
-
-func UploadDataset(c *gin.Context) {
 }

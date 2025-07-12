@@ -1,7 +1,10 @@
 package dto
 
 import (
+	"fmt"
+
 	"github.com/LGU-SE-Internal/rcabench/database"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 )
 
 type AlgorithmItem struct {
@@ -16,7 +19,31 @@ type ExecutionPayload struct {
 	EnvVars   map[string]string `json:"env_vars" binding:"omitempty" swaggertype:"object"`
 }
 
+func (p *ExecutionPayload) Validate() error {
+	for key := range p.EnvVars {
+		if err := utils.IsValidEnvVar(key); err != nil {
+			return fmt.Errorf("invalid environment variable key %s: %v", key, err)
+		}
+	}
+
+	return nil
+}
+
 type SubmitExecutionReq []ExecutionPayload
+
+func (req *SubmitExecutionReq) Validate() error {
+	if len(*req) == 0 {
+		return fmt.Errorf("at least one execution payload is required")
+	}
+
+	for _, payload := range *req {
+		if err := payload.Validate(); err != nil {
+			return fmt.Errorf("invalid execution payload: %v", err)
+		}
+	}
+
+	return nil
+}
 
 type ListAlgorithmsResp []database.Container
 

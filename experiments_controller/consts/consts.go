@@ -20,7 +20,8 @@ const (
 )
 
 const (
-	DefaultTimeUnit = time.Minute
+	DefaultBenchmark = "clickhouse"
+	DefaultTimeUnit  = time.Minute
 )
 
 const (
