@@ -34,7 +34,7 @@ const (
 //	@Tags			container
 //	@Accept			multipart/form-data
 //	@Produce		json
-//	@Param			type			formData	string		true	"容器类型，指定容器的用途"	Enums(algorithm, benchmark)	default(algorithm)
+//	@Param			type			formData	string		false	"容器类型，指定容器的用途"	Enums(algorithm, benchmark)	default(algorithm)
 //	@Param			name			formData	string		false	"容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段"
 //	@Param			image			formData	string		true	"Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）"
 //	@Param			tag				formData	string		false	"Docker镜像标签，用于版本控制"	default(latest)
