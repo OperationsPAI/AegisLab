@@ -18,10 +18,11 @@ type Statistics struct {
 	MinDuration float64 `json:"min_duration"`
 	MaxDuration float64 `json:"max_duration"`
 
-	EndCountMap        map[consts.TaskType]map[string]int     `json:"end_count_map"`
-	TraceStatusTimeMap map[string]map[consts.TaskType]float64 `json:"trace_status_time_map"`
-	TraceCompletedList []string                               `json:"trace_completed_list"`
-	TraceErrors        any                                    `json:"trace_errors"`
+	EndCountMap          map[consts.TaskType]map[string]int     `json:"end_count_map"`
+	TraceStatusTimeMap   map[string]map[consts.TaskType]float64 `json:"trace_status_time_map"`
+	TraceCompletedList   []string                               `json:"trace_completed_list"`
+	FaultInjectionTraces []string                               `json:"fault_injection_traces"`
+	TraceErrors          any                                    `json:"trace_errors"`
 }
 
 type traceResult struct {
@@ -36,9 +37,10 @@ func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Sta
 	}
 
 	stats := &Statistics{
-		MinDuration:        math.MaxFloat64,
-		EndCountMap:        make(map[consts.TaskType]map[string]int),
-		TraceStatusTimeMap: make(map[string]map[consts.TaskType]float64),
+		MinDuration:          math.MaxFloat64,
+		EndCountMap:          make(map[consts.TaskType]map[string]int),
+		TraceStatusTimeMap:   make(map[string]map[consts.TaskType]float64),
+		FaultInjectionTraces: make([]string, 0),
 	}
 
 	totalDuration := 0.0
@@ -61,6 +63,11 @@ func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Sta
 		if stat.Finished {
 			stats.EndCountMap[stat.CurrentTaskType]["completed"]++
 			stats.TraceCompletedList = append(stats.TraceCompletedList, result.traceID)
+
+			// 检查是否以故障注入事件结束
+			if stat.LastEndEvent == consts.EventFaultInjectionCompleted {
+				stats.FaultInjectionTraces = append(stats.FaultInjectionTraces, result.traceID)
+			}
 		} else {
 			if stat.IntermediateFailed {
 				stats.EndCountMap[stat.CurrentTaskType]["failed"]++
@@ -83,13 +90,14 @@ func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Sta
 			stats.MaxDuration = math.Max(stats.MaxDuration, stat.TotalDuration)
 		}
 	}
-
-	// 计算平均值
 	if validTracesNum > 0 {
 		stats.AvgDuration = totalDuration / float64(validTracesNum)
 	} else {
 		stats.MinDuration = 0
 	}
+
+	// 将错误信息赋值给 TraceErrors 字段
+	stats.TraceErrors = traceErrorMap
 
 	return stats, nil
 }
