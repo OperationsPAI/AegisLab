@@ -3,6 +3,7 @@ package dto
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/LGU-SE-Internal/rcabench/consts"
@@ -179,17 +180,43 @@ func (s *StreamEvent) ToSSE() (string, error) {
 }
 
 type ListTasksReq struct {
-	// Filter parameters
-	TaskID    string `form:"task_id"`
+	TaskID  string `form:"task_id"`
+	TraceID string `form:"trace_id"`
+	GroupID string `form:"group_id"`
+
 	TaskType  string `form:"task_type"`
 	Status    string `form:"status"`
-	TraceID   string `form:"trace_id"`
-	GroupID   string `form:"group_id"`
 	Immediate *bool  `form:"immediate"`
 
+	ListOptionsQuery
 	TimeRangeQuery
-
-	PaginationQuery
-
-	SortField string `form:"sort_field"` // Format: "field_name asc/desc"
 }
+
+func (req *ListTasksReq) Validate() error {
+	idFieldsUsed := 0
+	if req.TaskID != "" {
+		idFieldsUsed++
+	}
+	if req.TraceID != "" {
+		idFieldsUsed++
+	}
+	if req.GroupID != "" {
+		idFieldsUsed++
+	}
+
+	if idFieldsUsed > 1 {
+		return fmt.Errorf("Only one of task_id, trace_id, or group_id can be specified")
+	}
+
+	if err := req.ListOptionsQuery.Validate(); err != nil {
+		return err
+	}
+
+	if err := req.TimeRangeQuery.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type ListTasksResp []database.Task

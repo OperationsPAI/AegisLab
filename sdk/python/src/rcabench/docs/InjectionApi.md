@@ -390,7 +390,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_injections_get**
-> DtoGenericResponseArrayDatabaseFaultInjectionSchedule api_v1_injections_get(env=env, batch=batch, benchmark=benchmark, status=status, fault_type=fault_type, sort=sort, limit=limit, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
+> DtoGenericResponseDtoListInjectionsResp api_v1_injections_get(env=env, batch=batch, benchmark=benchmark, status=status, fault_type=fault_type, sort_field=sort_field, sort_order=sort_order, limit=limit, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
 
 获取故障注入记录列表
 
@@ -401,7 +401,7 @@ No authorization required
 
 ```python
 import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_array_database_fault_injection_schedule import DtoGenericResponseArrayDatabaseFaultInjectionSchedule
+from rcabench.openapi.models.dto_generic_response_dto_list_injections_resp import DtoGenericResponseDtoListInjectionsResp
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
@@ -421,7 +421,8 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
     benchmark = 'benchmark_example' # str | 基准测试类型过滤 (optional)
     status = 0 # int | 状态过滤，具体值参考字段映射接口(/mapping) (optional) (default to 0)
     fault_type = 0 # int | 故障类型过滤，具体值参考字段映射接口(/mapping) (optional) (default to 0)
-    sort = desc # str | 排序方式，默认desc。按created_at字段排序 (optional) (default to desc)
+    sort_field = 'created_at' # str | 排序字段，默认created_at (optional) (default to 'created_at')
+    sort_order = desc # str | 排序方式，默认desc (optional) (default to desc)
     limit = 56 # int | 结果数量限制，用于控制返回记录数量 (optional)
     lookback = 'lookback_example' # str | 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置 (optional)
     custom_start_time = '2013-10-20T19:20:30+01:00' # datetime | 自定义开始时间，RFC3339格式，当lookback=custom时必需 (optional)
@@ -429,7 +430,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
     try:
         # 获取故障注入记录列表
-        api_response = api_instance.api_v1_injections_get(env=env, batch=batch, benchmark=benchmark, status=status, fault_type=fault_type, sort=sort, limit=limit, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
+        api_response = api_instance.api_v1_injections_get(env=env, batch=batch, benchmark=benchmark, status=status, fault_type=fault_type, sort_field=sort_field, sort_order=sort_order, limit=limit, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
         print("The response of InjectionApi->api_v1_injections_get:\n")
         pprint(api_response)
     except Exception as e:
@@ -448,7 +449,8 @@ Name | Type | Description  | Notes
  **benchmark** | **str**| 基准测试类型过滤 | [optional] 
  **status** | **int**| 状态过滤，具体值参考字段映射接口(/mapping) | [optional] [default to 0]
  **fault_type** | **int**| 故障类型过滤，具体值参考字段映射接口(/mapping) | [optional] [default to 0]
- **sort** | **str**| 排序方式，默认desc。按created_at字段排序 | [optional] [default to desc]
+ **sort_field** | **str**| 排序字段，默认created_at | [optional] [default to &#39;created_at&#39;]
+ **sort_order** | **str**| 排序方式，默认desc | [optional] [default to desc]
  **limit** | **int**| 结果数量限制，用于控制返回记录数量 | [optional] 
  **lookback** | **str**| 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置 | [optional] 
  **custom_start_time** | **datetime**| 自定义开始时间，RFC3339格式，当lookback&#x3D;custom时必需 | [optional] 
@@ -456,7 +458,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**DtoGenericResponseArrayDatabaseFaultInjectionSchedule**](DtoGenericResponseArrayDatabaseFaultInjectionSchedule.md)
+[**DtoGenericResponseDtoListInjectionsResp**](DtoGenericResponseDtoListInjectionsResp.md)
 
 ### Authorization
 

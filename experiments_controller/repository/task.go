@@ -481,12 +481,10 @@ func ListTasks(params *dto.ListTasksReq) (int64, []database.Task, error) {
 		return query
 	}
 
-	// TODO sort
 	genericQueryParams := &genericQueryParams{
 		builder:   builder,
-		sortField: "created_at asc",
-		pageNum:   params.PageNum,
-		pageSize:  params.PageSize,
+		sortField: fmt.Sprintf("%s %s", params.SortField, params.SortOrder),
+		limit:     params.Limit,
 	}
 	return genericQueryWithBuilder[database.Task](genericQueryParams)
 }

@@ -102,6 +102,29 @@ definitions:
     additionalProperties:
       type: string
     type: object
+  database.Task:
+    properties:
+      created_at:
+        type: string
+      cron_expr:
+        type: string
+      execute_time:
+        type: integer
+      group_id:
+        type: string
+      id:
+        type: string
+      immediate:
+        type: boolean
+      payload:
+        type: string
+      status:
+        type: string
+      trace_id:
+        type: string
+      type:
+        type: string
+    type: object
   dto.AlgorithmDatasetPair:
     properties:
       algorithm:
@@ -202,23 +225,6 @@ definitions:
         type: integer
       data:
         description: 泛型类型的数据
-      message:
-        description: 响应消息
-        type: string
-      timestamp:
-        description: 响应生成时间
-        type: integer
-    type: object
-  dto.GenericResponse-array_database_FaultInjectionSchedule:
-    properties:
-      code:
-        description: 状态码
-        type: integer
-      data:
-        description: 泛型类型的数据
-        items:
-          $ref: '#/definitions/database.FaultInjectionSchedule'
-        type: array
       message:
         description: 响应消息
         type: string
@@ -373,6 +379,40 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
+  dto.GenericResponse-dto_ListInjectionsResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        description: 泛型类型的数据
+        items:
+          $ref: '#/definitions/database.FaultInjectionSchedule'
+        type: array
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_ListTasksResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        description: 泛型类型的数据
+        items:
+          $ref: '#/definitions/database.Task'
+        type: array
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
   dto.GenericResponse-dto_NsResourcesResp:
     properties:
       code:
@@ -381,22 +421,6 @@ definitions:
       data:
         allOf:
         - $ref: '#/definitions/dto.NsResourcesResp'
-        description: 泛型类型的数据
-      message:
-        description: 响应消息
-        type: string
-      timestamp:
-        description: 响应生成时间
-        type: integer
-    type: object
-  dto.GenericResponse-dto_PaginationResp-dto_TaskItem:
-    properties:
-      code:
-        description: 状态码
-        type: integer
-      data:
-        allOf:
-        - $ref: '#/definitions/dto.PaginationResp-dto_TaskItem'
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -615,17 +639,6 @@ definitions:
   dto.NsResourcesResp:
     additionalProperties:
       $ref: '#/definitions/handler.Resources'
-    type: object
-  dto.PaginationResp-dto_TaskItem:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/dto.TaskItem'
-        type: array
-      total:
-        type: integer
-      total_pages:
-        type: integer
     type: object
   dto.PaginationResp-dto_UnifiedTask:
     properties:
@@ -1374,13 +1387,18 @@ paths:
         in: query
         name: fault_type
         type: integer
+      - default: created_at
+        description: 排序字段，默认created_at
+        in: query
+        name: sort_field
+        type: string
       - default: desc
-        description: 排序方式，默认desc。按created_at字段排序
+        description: 排序方式，默认desc
         enum:
         - asc
         - desc
         in: query
-        name: sort
+        name: sort_order
         type: string
       - description: 结果数量限制，用于控制返回记录数量
         in: query
@@ -1407,7 +1425,7 @@ paths:
         "200":
           description: 成功返回故障注入记录列表
           schema:
-            $ref: '#/definitions/dto.GenericResponse-array_database_FaultInjectionSchedule'
+            $ref: '#/definitions/dto.GenericResponse-dto_ListInjectionsResp'
         "400":
           description: 请求参数错误，如参数格式不正确、验证失败等
           schema:
@@ -1734,6 +1752,99 @@ paths:
       summary: 查询单个故障注入记录
       tags:
       - injection
+  /api/v1/tasks:
+    get:
+      description: 根据多种条件分页获取任务列表。支持按任务ID、跟踪ID、组ID进行精确查询，或按任务类型、状态等进行过滤查询
+      parameters:
+      - description: 任务ID - 精确匹配特定任务 (与trace_id、group_id互斥)
+        in: query
+        name: task_id
+        type: string
+      - description: 跟踪ID - 查找属于同一跟踪的所有任务 (与task_id、group_id互斥)
+        in: query
+        name: trace_id
+        type: string
+      - description: 组ID - 查找属于同一组的所有任务 (与task_id、trace_id互斥)
+        in: query
+        name: group_id
+        type: string
+      - description: 任务类型过滤
+        enum:
+        - RestartService
+        - FaultInjection
+        - BuildDataset
+        - RunAlgorithm
+        - CollectResult
+        - BuildImage
+        in: query
+        name: task_type
+        type: string
+      - description: 任务状态过滤
+        enum:
+        - Pending
+        - Running
+        - Completed
+        - Error
+        - Cancelled
+        - Scheduled
+        - Rescheduled
+        in: query
+        name: status
+        type: string
+      - description: 是否立即执行 - true:立即执行任务, false:延时执行任务
+        in: query
+        name: immediate
+        type: boolean
+      - default: created_at
+        description: 排序字段，默认created_at
+        in: query
+        name: sort_field
+        type: string
+      - default: desc
+        description: 排序方式，默认desc
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      - description: 结果数量限制，用于控制返回记录数量
+        in: query
+        minimum: 1
+        name: limit
+        type: integer
+      - description: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+        in: query
+        name: lookback
+        type: string
+      - description: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        format: date-time
+        in: query
+        name: custom_start_time
+        type: string
+      - description: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        format: date-time
+        in: query
+        name: custom_end_time
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回故障注入记录列表
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_ListTasksResp'
+        "400":
+          description: 请求参数错误，如参数格式不正确、验证失败等
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: 获取任务列表
+      tags:
+      - task
   /api/v1/tasks/{task_id}:
     get:
       description: 根据任务ID获取任务详细信息,包括任务基本信息和执行日志
@@ -1763,42 +1874,6 @@ paths:
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
       summary: 获取任务详情
-      tags:
-      - task
-  /api/v1/tasks/list:
-    get:
-      description: 分页获取任务列表
-      parameters:
-      - default: 1
-        description: 页码
-        in: query
-        name: page_num
-        type: integer
-      - default: 10
-        description: 每页大小
-        in: query
-        name: page_size
-        type: integer
-      - description: 排序字段
-        in: query
-        name: sort_field
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_PaginationResp-dto_TaskItem'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 获取任务列表
       tags:
       - task
   /api/v1/tasks/queue:
