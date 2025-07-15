@@ -134,18 +134,41 @@ func createAlgoJob(ctx context.Context, jobNamespace, jobName, image string, ann
 			return err
 		}
 
+		envVarMap := make(map[string]string, len(jobEnvVars))
+		for _, envVar := range jobEnvVars {
+			envVarMap[envVar.Name] = envVar.Value
+		}
+
+		outputPath := envVarMap["OUTPUT_PATH"]
+		labels["timestamp"] = envVarMap["TIMESTAMP"]
+
+		initContainers := []corev1.Container{
+			{
+				Name:    "create-output-dir",
+				Image:   "busybox:1.35",
+				Command: []string{"sh", "-c"},
+				Args: []string{
+					fmt.Sprintf(`
+                        mkdir -p "%s"
+                        chmod 755 "%s"
+                    `, outputPath, outputPath),
+				},
+			},
+		}
+
 		return k8s.CreateJob(ctx, k8s.JobConfig{
-			Namespace:     jobNamespace,
-			JobName:       jobName,
-			Image:         image,
-			Command:       strings.Split(container.Command, " "),
-			RestartPolicy: restartPolicy,
-			BackoffLimit:  backoffLimit,
-			Parallelism:   parallelism,
-			Completions:   completions,
-			Annotations:   annotations,
-			Labels:        labels,
-			EnvVars:       jobEnvVars,
+			Namespace:      jobNamespace,
+			JobName:        jobName,
+			Image:          image,
+			Command:        strings.Split(container.Command, " "),
+			RestartPolicy:  restartPolicy,
+			BackoffLimit:   backoffLimit,
+			Parallelism:    parallelism,
+			Completions:    completions,
+			Annotations:    annotations,
+			Labels:         labels,
+			EnvVars:        jobEnvVars,
+			InitContainers: initContainers,
 		})
 	})
 }
@@ -161,15 +184,20 @@ func getAlgoJobEnvVars(payload *executionPayload, container *database.Container,
 		return nil, fmt.Errorf("failed to get the preduration")
 	}
 
+	now := time.Now()
+	timestamp := now.Format("20060102_150405")
+	outputPath := fmt.Sprintf("/data/%s/%s/%s", payload.dataset, container.Name, timestamp)
+
 	jobEnvVars := []corev1.EnvVar{
 		{Name: "TIMEZONE", Value: tz},
+		{Name: "TIMESTAMP", Value: timestamp},
 		{Name: "NORMAL_START", Value: strconv.FormatInt(record.StartTime.Add(-time.Duration(preDuration)*time.Minute).Unix(), 10)},
 		{Name: "NORMAL_END", Value: strconv.FormatInt(record.StartTime.Unix(), 10)},
 		{Name: "ABNORMAL_START", Value: strconv.FormatInt(record.StartTime.Unix(), 10)},
 		{Name: "ABNORMAL_END", Value: strconv.FormatInt(record.EndTime.Unix(), 10)},
 		{Name: "WORKSPACE", Value: "/app"},
 		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.dataset)},
-		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.dataset)},
+		{Name: "OUTPUT_PATH", Value: outputPath},
 	}
 
 	envNameIndexMap := make(map[string]int, len(jobEnvVars))

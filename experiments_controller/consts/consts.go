@@ -91,6 +91,7 @@ const (
 	CollectAlgorithm   = "algorithm"
 	CollectDataset     = "dataset"
 	CollectExecutionID = "execution_id"
+	CollectTimestamp   = "timestamp"
 
 	EvaluateLabel = "app_name"
 	EvaluateLevel = "level"
@@ -206,6 +207,7 @@ const (
 	LabelTaskType    = "task_type"
 	LabelDataset     = "dataset"
 	LabelExecutionID = "execution_id"
+	LabelTimestamp   = "timestamp"
 )
 
 // sse 事件类型

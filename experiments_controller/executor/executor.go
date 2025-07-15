@@ -361,6 +361,7 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 				consts.CollectAlgorithm:   options.Algorithm,
 				consts.CollectDataset:     options.Dataset,
 				consts.CollectExecutionID: options.ExecutionID,
+				consts.CollectTimestamp:   options.Timestamp,
 			},
 			Immediate: true,
 			TraceID:   taskOptions.TraceID,
@@ -522,9 +523,15 @@ func parseExecutionOptions(annotations, labels map[string]string) (*dto.Executio
 		executionID = id
 	}
 
+	timestamp, ok := labels[consts.LabelTimestamp]
+	if !ok || timestamp == "" {
+		return nil, fmt.Errorf(message, consts.LabelTimestamp)
+	}
+
 	return &dto.ExecutionOptions{
 		Algorithm:   algorithm,
 		Dataset:     dataset,
 		ExecutionID: executionID,
+		Timestamp:   timestamp,
 	}, nil
 }

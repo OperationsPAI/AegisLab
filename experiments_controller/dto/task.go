@@ -133,6 +133,7 @@ type ExecutionOptions struct {
 	Algorithm   AlgorithmItem `json:"algorithm"`
 	Dataset     string        `json:"dataset"`
 	ExecutionID int           `json:"execution_id"`
+	Timestamp   string        `json:"timestamp"`
 }
 
 type StreamEvent struct {

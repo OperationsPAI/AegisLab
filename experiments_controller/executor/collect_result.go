@@ -24,6 +24,7 @@ type collectionPayload struct {
 	algorithm   dto.AlgorithmItem
 	dataset     string
 	executionID int
+	timestamp   string
 }
 
 func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
@@ -132,7 +133,8 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				logrus.Infof("Algorithm executions submitted successfully")
 			}
 		} else {
-			resultCSV := filepath.Join(path, collectPayload.dataset, "result.csv")
+			algorithmPath := filepath.Join(path, collectPayload.dataset, collectPayload.algorithm.Name, collectPayload.timestamp)
+			resultCSV := filepath.Join(algorithmPath, consts.ExecutionResultFile)
 			content, err := os.ReadFile(resultCSV)
 			if err != nil {
 				span.AddEvent("failed to read result.csv file")
@@ -192,10 +194,16 @@ func parseCollectPayload(payload map[string]any) (*collectionPayload, error) {
 	}
 	executionID := int(executionIDFloat)
 
+	timestamp, ok := payload[consts.CollectTimestamp].(string)
+	if !ok || timestamp == "" {
+		return nil, fmt.Errorf("Missing or invalid '%s' key in payload", consts.CollectTimestamp)
+	}
+
 	return &collectionPayload{
 		algorithm:   algorithm,
 		dataset:     dataset,
 		executionID: executionID,
+		timestamp:   timestamp,
 	}, nil
 }
 
