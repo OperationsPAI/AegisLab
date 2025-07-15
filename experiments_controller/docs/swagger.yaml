@@ -1031,7 +1031,6 @@ paths:
         - benchmark
         in: formData
         name: type
-        required: true
         type: string
       - description: 容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段
         in: formData
@@ -1836,7 +1835,7 @@ paths:
       - task
   /api/v1/traces/analyze:
     get:
-      description: 使用多种筛选条件分析链路数据
+      description: 使用多种筛选条件分析链路数据，返回包括故障注入结束链路在内的统计信息
       parameters:
       - description: 子任务类型筛选
         in: query
@@ -1858,7 +1857,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: 返回统计信息，包含fault_injection_traces字段显示以FaultInjection事件结束的trace_id列表
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "400":

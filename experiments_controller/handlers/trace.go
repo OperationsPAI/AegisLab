@@ -48,27 +48,48 @@ func GetTraceStream(c *gin.Context) {
 		return
 	}
 
-	processor := repository.NewStreamProcessor(ctx, traceReq.TraceID)
+	_, tasks, err := repository.ListTasks(&dto.ListTasksReq{
+		TraceID: traceReq.TraceID,
+	})
+	if err != nil {
+		logrus.Errorf("failed to fetch tasks: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch tasks")
+		return
+	}
+
+	headTask := tasks[0]
+	var algorithms []dto.AlgorithmItem
+	if consts.TaskType(headTask.Type) == consts.TaskTypeRestartService {
+		if repository.CheckCachedField(ctx, consts.InjectionAlgorithmsKey, headTask.GroupID) {
+			algorithms, err = repository.GetCachedAlgorithmItemsFromRedis(ctx, consts.InjectionAlgorithmsKey, headTask.GroupID)
+			if err != nil {
+				logEntry.Errorf("failed to get algorithms from Redis: %v", err)
+				dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get algorithms")
+				return
+			}
+		}
+	}
+
+	processor := repository.NewStreamProcessor(algorithms)
 
 	logEntry.Infof("Reading historical events from Stream")
 	historicalMessages, err := repository.ReadStreamEvents(ctx, streamKey, lastID, 100, 0)
 	if err != nil && err != redis.Nil {
-		logEntry.Errorf("failed to read historical events: %v", err)
+		logEntry.Errorf("failed to read historical events from redis: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to read event history")
 		return
 	}
 
 	if len(historicalMessages) > 0 {
-		processor.Reset()
 		lastID, err = sendSSEMessages(c, processor, historicalMessages)
 		if err != nil {
-			logEntry.Error(err)
+			logEntry.Errorf("failed to read stream events: %v", err)
+			dto.ErrorResponse(c, http.StatusInternalServerError, "failed to read stream events")
 			return
 		}
 	}
 
 	logEntry.Infof("Switching to real-time event monitoring from ID: %s", lastID)
-	processor.Reset()
 	for {
 		select {
 		case <-c.Done():
@@ -84,7 +105,8 @@ func GetTraceStream(c *gin.Context) {
 				}
 
 				logEntry.Errorf("Error reading stream: %v", err)
-				continue
+				dto.ErrorResponse(c, http.StatusInternalServerError, "failed to read stream events")
+				return
 			}
 
 			if err == redis.Nil {

@@ -12,6 +12,8 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ListAlgorithms
@@ -53,19 +55,6 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	logrus.Infof("SubmitAlgorithmExecution called, groupID: %s", groupID)
 
-	var req dto.SubmitExecutionReq
-	if err := c.BindJSON(&req); err != nil {
-		logrus.Error(err)
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid JSON payload")
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		logrus.Error(err)
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid execution payload")
-		return
-	}
-
 	ctx, ok := c.Get(middleware.SpanContextKey)
 	if !ok {
 		logrus.Error("failed to get span context from gin.Context")
@@ -74,6 +63,23 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 	}
 
 	spanCtx := ctx.(context.Context)
+	span := trace.SpanFromContext(spanCtx)
+
+	var req dto.SubmitExecutionReq
+	if err := c.BindJSON(&req); err != nil {
+		logrus.Error(err)
+		span.SetStatus(codes.Error, "panic in SubmitFaultInjection")
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid JSON payload")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		logrus.Error(err)
+		span.SetStatus(codes.Error, "panic in SubmitFaultInjection")
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid execution payload")
+		return
+	}
+
 	traces := make([]dto.Trace, 0, len(req))
 	for idx, payload := range req {
 		task := &dto.UnifiedTask{
@@ -87,6 +93,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 		taskID, traceID, err := executor.SubmitTask(spanCtx, task)
 		if err != nil {
 			logrus.Errorf("failed to submit algorithm execution task: %v", err)
+			span.SetStatus(codes.Error, "panic in SubmitFaultInjection")
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to submit algorithm execution task")
 			return
 		}

@@ -118,8 +118,7 @@ const docTemplate = `{
                         "default": "algorithm",
                         "description": "容器类型，指定容器的用途",
                         "name": "type",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
                     },
                     {
                         "type": "string",
@@ -1319,7 +1318,7 @@ const docTemplate = `{
         },
         "/api/v1/traces/analyze": {
             "get": {
-                "description": "使用多种筛选条件分析链路数据",
+                "description": "使用多种筛选条件分析链路数据，返回包括故障注入结束链路在内的统计信息",
                 "produces": [
                     "application/json"
                 ],
@@ -1355,7 +1354,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "返回统计信息，包含fault_injection_traces字段显示以FaultInjection事件结束的trace_id列表",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }

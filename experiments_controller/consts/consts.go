@@ -127,6 +127,10 @@ const (
 	HarborTimeUnit = time.Second
 )
 
+const (
+	InjectionAlgorithmsKey = "injection:algorithms"
+)
+
 // Redis stream 频道和字段
 const (
 	StreamLogKey = "trace:%s:log"
@@ -139,11 +143,6 @@ const (
 	RdbEventName     = "name"
 	RdbEventPayload  = "payload"
 	RdbEventFn       = "function_name"
-
-	RdbPayloadErr            = "error"
-	RdbPayloadDataset        = "dataset"
-	RdbPayloadExecutionID    = "execution_id"
-	RdbPayloadDetectorResult = "detector_result"
 )
 
 type EventType string

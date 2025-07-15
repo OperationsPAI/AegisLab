@@ -63,7 +63,7 @@ class TraceApi:
     ) -> DtoGenericResponseAny:
         """分析链路数据
 
-        使用多种筛选条件分析链路数据
+        使用多种筛选条件分析链路数据，返回包括故障注入结束链路在内的统计信息
 
         :param first_task_type: 子任务类型筛选
         :type first_task_type: str
@@ -144,7 +144,7 @@ class TraceApi:
     ) -> ApiResponse[DtoGenericResponseAny]:
         """分析链路数据
 
-        使用多种筛选条件分析链路数据
+        使用多种筛选条件分析链路数据，返回包括故障注入结束链路在内的统计信息
 
         :param first_task_type: 子任务类型筛选
         :type first_task_type: str
@@ -225,7 +225,7 @@ class TraceApi:
     ) -> RESTResponseType:
         """分析链路数据
 
-        使用多种筛选条件分析链路数据
+        使用多种筛选条件分析链路数据，返回包括故障注入结束链路在内的统计信息
 
         :param first_task_type: 子任务类型筛选
         :type first_task_type: str

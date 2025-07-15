@@ -453,12 +453,40 @@ def pg_backup(
         raise typer.Exit(code=1)
 
 
-def _get_latest_backup_file(database: str = DEFAULT_PG_DB) -> Path | None:
+def _get_latest_backup_file() -> Path | None:
     """
-    Get the latest backup file based on timestamp
+    Get the latest backup file based on timestamp (must have actual content)
     """
-    backups = sorted(BACKUP_DIR.glob(f"{database}_pg_backup_*"), key=os.path.getmtime)
-    return backups[-1] if backups else None
+    # 获取所有匹配的备份文件和目录
+    backups = []
+    for backup_path in BACKUP_DIR.glob(f"{DEFAULT_PG_DB}_pg_backup_*"):
+        try:
+            total_size = backup_path.stat().st_size
+
+            # 只包含有内容的备份（大于 1KB，避免空文件或损坏文件）
+            if total_size > 1024:
+                backups.append((backup_path, total_size, os.path.getmtime(backup_path)))
+
+        except (OSError, IOError) as e:
+            # 跳过无法访问的文件
+            typer.echo(f"⚠️  Warning: Cannot access backup file {backup_path}: {e}")
+            continue
+
+    if not backups:
+        return None
+
+    # 按修改时间排序，返回最新的
+    latest_backup = sorted(backups, key=lambda x: x[2])[-1]
+
+    backup_path, size, mtime = latest_backup
+    size_mb = size / (1024 * 1024)
+    timestamp = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
+
+    typer.echo(f"📁 Found latest backup: {backup_path.name}")
+    typer.echo(f"   Size: {size_mb:.2f} MB")
+    typer.echo(f"   Created: {timestamp}")
+
+    return backup_path
 
 
 @app.command()
@@ -488,11 +516,17 @@ def pg_restore(
     Restore database with the latest backup using pg_restore official tool (recommended)
     """
     backup_path = Path(backup_file)
+    if backup_path is None:
+        typer.secho(
+            "❌ No backup file found, please run pg-backup first", fg=typer.colors.RED
+        )
+        raise typer.Exit(code=1)
+
     if not backup_path.exists():
         typer.secho(
             f"❌ Backup file does not exist: {backup_path}", fg=typer.colors.RED
         )
-        raise typer.Exit()
+        raise typer.Exit(code=1)
 
     # Detect backup format
     if backup_path.is_dir():

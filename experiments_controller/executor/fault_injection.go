@@ -24,18 +24,16 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-const NSConfigPort = "port"
-const NSConfigRepoName = "repo_name"
-const NSConfigRepoURL = "repo_url"
-
 type nsConfig struct {
-	port     string
-	repoName string
-	repoURL  string
+	Port      string `json:"port"`
+	ChartName string `json:"chart_name"`
+	ImageName string `json:"image_name"`
+	ImageTag  string `json:"image_tag"`
+	RepoName  string `json:"repo_name"`
+	RepoURL   string `json:"repo_url"`
 }
 
 type injectionPayload struct {
-	algorithms  []dto.AlgorithmItem
 	benchmark   string
 	faultType   int
 	namespace   string
@@ -135,20 +133,10 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			return fmt.Errorf("failed to write to database")
 		}
 
-		if len(payload.algorithms) != 0 {
-			if err := repository.SetAlgorithmItemsToRedis(childCtx, task.TraceID, payload.algorithms); err != nil {
-				span.RecordError(err)
-				span.AddEvent("failed to cache algorithm items to Redis")
-				logrus.Errorf("failed to cache algorithms items to Redis: %v", err)
-				return err
-			}
-		}
-
 		return nil
 	})
 }
 
-// TODO task状态修改
 func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(ctx)
@@ -163,7 +151,6 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 
 		monitor := k8s.GetMonitor()
 
-		// TODO 修改interval改为预热时间
 		t := time.Now()
 		deltaTime := time.Duration(payload.interval) * consts.DefaultTimeUnit
 		namespace := monitor.GetNamespaceToRestart(t.Add(deltaTime), task.TraceID)
@@ -297,7 +284,7 @@ func installTS(ctx context.Context, namespace, nsPrefix string, namespaceIdx int
 			return fmt.Errorf("namespace %s not found in config map", nsPrefix)
 		}
 
-		nsConfig, err := parseNamspaceConfig(childCtx, payload)
+		nsConfig, err := utils.ConvertToType[nsConfig](payload)
 		if err != nil {
 			return err
 		}
@@ -308,7 +295,7 @@ func installTS(ctx context.Context, namespace, nsPrefix string, namespaceIdx int
 		}
 
 		// Add Train Ticket repository
-		if err := helmClient.AddRepo(nsConfig.repoName, nsConfig.repoURL); err != nil {
+		if err := helmClient.AddRepo(nsConfig.RepoName, nsConfig.RepoURL); err != nil {
 			return fmt.Errorf("error adding repository: %v", err)
 		}
 
@@ -317,8 +304,17 @@ func installTS(ctx context.Context, namespace, nsPrefix string, namespaceIdx int
 			return fmt.Errorf("error updating repositories: %v", err)
 		}
 
-		port := fmt.Sprintf(nsConfig.port, namespaceIdx)
-		if err := helmClient.InstallTrainTicket(ctx, namespace, port, 500*time.Second, 300*time.Second); err != nil {
+		port := fmt.Sprintf(nsConfig.Port, namespaceIdx)
+		chartName := fmt.Sprintf("%s/%s", nsConfig.RepoName, nsConfig.ChartName)
+		if err := helmClient.InstallTrainTicket(ctx,
+			namespace,
+			chartName,
+			nsConfig.ImageName,
+			nsConfig.ImageTag,
+			port,
+			500*time.Second,
+			300*time.Second,
+		); err != nil {
 			return fmt.Errorf("error installing Train Ticket: %v", err)
 		}
 
@@ -330,11 +326,6 @@ func installTS(ctx context.Context, namespace, nsPrefix string, namespaceIdx int
 func parseInjectionPayload(ctx context.Context, payload map[string]any) (*injectionPayload, error) {
 	return tracing.WithSpanReturnValue(ctx, func(childCtx context.Context) (*injectionPayload, error) {
 		message := "invalid or missing '%s' in task payload"
-
-		algorithms, err := utils.ConvertToType[[]dto.AlgorithmItem](payload[consts.InjectAlgorithms])
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert '%s' to []string: %v", consts.InjectAlgorithms, err)
-		}
 
 		benchmark, ok := payload[consts.InjectBenchmark].(string)
 		if !ok {
@@ -379,7 +370,6 @@ func parseInjectionPayload(ctx context.Context, payload map[string]any) (*inject
 		}
 
 		return &injectionPayload{
-			algorithms:  algorithms,
 			benchmark:   benchmark,
 			faultType:   faultType,
 			namespace:   namespace,
@@ -388,33 +378,6 @@ func parseInjectionPayload(ctx context.Context, payload map[string]any) (*inject
 			conf:        conf,
 			node:        node,
 			labels:      labels,
-		}, nil
-	})
-}
-
-func parseNamspaceConfig(ctx context.Context, payload map[string]any) (*nsConfig, error) {
-	return tracing.WithSpanReturnValue(ctx, func(childCtx context.Context) (*nsConfig, error) {
-		message := "invalid or missing '%s' in namespace config"
-
-		port, ok := payload[NSConfigPort].(string)
-		if !ok || port == "" {
-			return nil, fmt.Errorf(message, NSConfigPort)
-		}
-
-		repoName, ok := payload[NSConfigRepoName].(string)
-		if !ok || repoName == "" {
-			return nil, fmt.Errorf(message, NSConfigRepoName)
-		}
-
-		repoURL, ok := payload[NSConfigRepoURL].(string)
-		if !ok || repoURL == "" {
-			return nil, fmt.Errorf(message, NSConfigRepoURL)
-		}
-
-		return &nsConfig{
-			port:     port,
-			repoName: repoName,
-			repoURL:  repoURL,
 		}, nil
 	})
 }

@@ -8,7 +8,7 @@ Method | HTTP request | Description
 
 
 # **api_v1_containers_post**
-> DtoGenericResponseDtoSubmitResp api_v1_containers_post(type, image, name=name, tag=tag, command=command, env_vars=env_vars, source_type=source_type, file=file, github_token=github_token, github_repo=github_repo, github_branch=github_branch, github_commit=github_commit, github_path=github_path, context_dir=context_dir, dockerfile_path=dockerfile_path, target=target, force_rebuild=force_rebuild)
+> DtoGenericResponseDtoSubmitResp api_v1_containers_post(image, type=type, name=name, tag=tag, command=command, env_vars=env_vars, source_type=source_type, file=file, github_token=github_token, github_repo=github_repo, github_branch=github_branch, github_commit=github_commit, github_path=github_path, context_dir=context_dir, dockerfile_path=dockerfile_path, target=target, force_rebuild=force_rebuild)
 
 提交镜像构建任务
 
@@ -34,8 +34,8 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.ContainerApi(api_client)
-    type = algorithm # str | 容器类型，指定容器的用途 (default to algorithm)
     image = 'image_example' # str | Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）
+    type = algorithm # str | 容器类型，指定容器的用途 (optional) (default to algorithm)
     name = 'name_example' # str | 容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段 (optional)
     tag = 'latest' # str | Docker镜像标签，用于版本控制 (optional) (default to 'latest')
     command = 'bash /entrypoint.sh' # str | Docker镜像启动命令，默认为bash /entrypoint.sh (optional) (default to 'bash /entrypoint.sh')
@@ -54,7 +54,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
     try:
         # 提交镜像构建任务
-        api_response = api_instance.api_v1_containers_post(type, image, name=name, tag=tag, command=command, env_vars=env_vars, source_type=source_type, file=file, github_token=github_token, github_repo=github_repo, github_branch=github_branch, github_commit=github_commit, github_path=github_path, context_dir=context_dir, dockerfile_path=dockerfile_path, target=target, force_rebuild=force_rebuild)
+        api_response = api_instance.api_v1_containers_post(image, type=type, name=name, tag=tag, command=command, env_vars=env_vars, source_type=source_type, file=file, github_token=github_token, github_repo=github_repo, github_branch=github_branch, github_commit=github_commit, github_path=github_path, context_dir=context_dir, dockerfile_path=dockerfile_path, target=target, force_rebuild=force_rebuild)
         print("The response of ContainerApi->api_v1_containers_post:\n")
         pprint(api_response)
     except Exception as e:
@@ -68,8 +68,8 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **type** | **str**| 容器类型，指定容器的用途 | [default to algorithm]
  **image** | **str**| Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址） | 
+ **type** | **str**| 容器类型，指定容器的用途 | [optional] [default to algorithm]
  **name** | **str**| 容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段 | [optional] 
  **tag** | **str**| Docker镜像标签，用于版本控制 | [optional] [default to &#39;latest&#39;]
  **command** | **str**| Docker镜像启动命令，默认为bash /entrypoint.sh | [optional] [default to &#39;bash /entrypoint.sh&#39;]

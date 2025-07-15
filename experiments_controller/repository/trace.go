@@ -27,7 +27,6 @@ type TraceStatistic struct {
 	TotalDuration float64
 	StatusTimeMap map[consts.TaskType]float64
 
-	// Payload any 移除 payload，语义不明确，引起误导，且有重复赋值。
 	RestartDuration  float64
 	RestartWaitTimes int
 	InjectDuration   float64

@@ -39,8 +39,11 @@ configmap:
     benchmark: ["clickhouse"]
     namespace_config:
       ts:
-        count: 6
+        count: 1
         port: "31%03d"
+        chart_name: "trainticket"
+        image_name: "ts-train-service"
+        image_tag: "fed4eed6"
         repo_name: "train-ticket"
         repo_url: "https://lgu-se-internal.github.io/train-ticket"
     target_label_key: "app"
