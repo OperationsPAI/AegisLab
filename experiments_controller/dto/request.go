@@ -10,13 +10,18 @@ import (
 )
 
 type ListOptionsQuery struct {
-	Sort  string `form:"sort" binding:"omitempty,oneof=asc desc"` // 只允许按照 created_at 排序
-	Limit int    `form:"limit" binding:"omitempty"`
+	SortField string `form:"sort_field" bindging:"omitempty"`
+	SortOrder string `form:"sort_order" binding:"omitempty,oneof=asc desc"`
+	Limit     int    `form:"limit" binding:"omitempty"`
 }
 
 func (req *ListOptionsQuery) setDefaults() {
-	if req.Sort == "" {
-		req.Sort = "desc"
+	if req.SortOrder == "" {
+		req.SortOrder = "desc"
+	}
+
+	if req.SortField == "" {
+		req.SortField = "created_at"
 	}
 }
 

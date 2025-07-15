@@ -17,10 +17,11 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-from pydantic import Field, StrictInt, StrictStr
+from datetime import datetime
+from pydantic import Field, StrictBool, StrictInt, StrictStr, field_validator
 from typing import Optional
 from typing_extensions import Annotated
-from rcabench.openapi.models.dto_generic_response_dto_pagination_resp_dto_task_item import DtoGenericResponseDtoPaginationRespDtoTaskItem
+from rcabench.openapi.models.dto_generic_response_dto_list_tasks_resp import DtoGenericResponseDtoListTasksResp
 from rcabench.openapi.models.dto_generic_response_dto_pagination_resp_dto_unified_task import DtoGenericResponseDtoPaginationRespDtoUnifiedTask
 from rcabench.openapi.models.dto_generic_response_dto_task_detail_resp import DtoGenericResponseDtoTaskDetailResp
 
@@ -43,11 +44,20 @@ class TaskApi:
 
 
     @validate_call
-    def api_v1_tasks_list_get(
+    def api_v1_tasks_get(
         self,
-        page_num: Annotated[Optional[StrictInt], Field(description="页码")] = None,
-        page_size: Annotated[Optional[StrictInt], Field(description="每页大小")] = None,
-        sort_field: Annotated[Optional[StrictStr], Field(description="排序字段")] = None,
+        task_id: Annotated[Optional[StrictStr], Field(description="任务ID - 精确匹配特定任务 (与trace_id、group_id互斥)")] = None,
+        trace_id: Annotated[Optional[StrictStr], Field(description="跟踪ID - 查找属于同一跟踪的所有任务 (与task_id、group_id互斥)")] = None,
+        group_id: Annotated[Optional[StrictStr], Field(description="组ID - 查找属于同一组的所有任务 (与task_id、trace_id互斥)")] = None,
+        task_type: Annotated[Optional[StrictStr], Field(description="任务类型过滤")] = None,
+        status: Annotated[Optional[StrictStr], Field(description="任务状态过滤")] = None,
+        immediate: Annotated[Optional[StrictBool], Field(description="是否立即执行 - true:立即执行任务, false:延时执行任务")] = None,
+        sort_field: Annotated[Optional[StrictStr], Field(description="排序字段，默认created_at")] = None,
+        sort_order: Annotated[Optional[StrictStr], Field(description="排序方式，默认desc")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="结果数量限制，用于控制返回记录数量")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -60,17 +70,35 @@ class TaskApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseDtoPaginationRespDtoTaskItem:
+    ) -> DtoGenericResponseDtoListTasksResp:
         """获取任务列表
 
-        分页获取任务列表
+        根据多种条件分页获取任务列表。支持按任务ID、跟踪ID、组ID进行精确查询，或按任务类型、状态等进行过滤查询
 
-        :param page_num: 页码
-        :type page_num: int
-        :param page_size: 每页大小
-        :type page_size: int
-        :param sort_field: 排序字段
+        :param task_id: 任务ID - 精确匹配特定任务 (与trace_id、group_id互斥)
+        :type task_id: str
+        :param trace_id: 跟踪ID - 查找属于同一跟踪的所有任务 (与task_id、group_id互斥)
+        :type trace_id: str
+        :param group_id: 组ID - 查找属于同一组的所有任务 (与task_id、trace_id互斥)
+        :type group_id: str
+        :param task_type: 任务类型过滤
+        :type task_type: str
+        :param status: 任务状态过滤
+        :type status: str
+        :param immediate: 是否立即执行 - true:立即执行任务, false:延时执行任务
+        :type immediate: bool
+        :param sort_field: 排序字段，默认created_at
         :type sort_field: str
+        :param sort_order: 排序方式，默认desc
+        :type sort_order: str
+        :param limit: 结果数量限制，用于控制返回记录数量
+        :type limit: int
+        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+        :type lookback: str
+        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :type custom_start_time: datetime
+        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -93,10 +121,19 @@ class TaskApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_tasks_list_get_serialize(
-            page_num=page_num,
-            page_size=page_size,
+        _param = self._api_v1_tasks_get_serialize(
+            task_id=task_id,
+            trace_id=trace_id,
+            group_id=group_id,
+            task_type=task_type,
+            status=status,
+            immediate=immediate,
             sort_field=sort_field,
+            sort_order=sort_order,
+            limit=limit,
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -104,7 +141,7 @@ class TaskApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoPaginationRespDtoTaskItem",
+            '200': "DtoGenericResponseDtoListTasksResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -120,11 +157,20 @@ class TaskApi:
 
 
     @validate_call
-    def api_v1_tasks_list_get_with_http_info(
+    def api_v1_tasks_get_with_http_info(
         self,
-        page_num: Annotated[Optional[StrictInt], Field(description="页码")] = None,
-        page_size: Annotated[Optional[StrictInt], Field(description="每页大小")] = None,
-        sort_field: Annotated[Optional[StrictStr], Field(description="排序字段")] = None,
+        task_id: Annotated[Optional[StrictStr], Field(description="任务ID - 精确匹配特定任务 (与trace_id、group_id互斥)")] = None,
+        trace_id: Annotated[Optional[StrictStr], Field(description="跟踪ID - 查找属于同一跟踪的所有任务 (与task_id、group_id互斥)")] = None,
+        group_id: Annotated[Optional[StrictStr], Field(description="组ID - 查找属于同一组的所有任务 (与task_id、trace_id互斥)")] = None,
+        task_type: Annotated[Optional[StrictStr], Field(description="任务类型过滤")] = None,
+        status: Annotated[Optional[StrictStr], Field(description="任务状态过滤")] = None,
+        immediate: Annotated[Optional[StrictBool], Field(description="是否立即执行 - true:立即执行任务, false:延时执行任务")] = None,
+        sort_field: Annotated[Optional[StrictStr], Field(description="排序字段，默认created_at")] = None,
+        sort_order: Annotated[Optional[StrictStr], Field(description="排序方式，默认desc")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="结果数量限制，用于控制返回记录数量")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -137,17 +183,35 @@ class TaskApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseDtoPaginationRespDtoTaskItem]:
+    ) -> ApiResponse[DtoGenericResponseDtoListTasksResp]:
         """获取任务列表
 
-        分页获取任务列表
+        根据多种条件分页获取任务列表。支持按任务ID、跟踪ID、组ID进行精确查询，或按任务类型、状态等进行过滤查询
 
-        :param page_num: 页码
-        :type page_num: int
-        :param page_size: 每页大小
-        :type page_size: int
-        :param sort_field: 排序字段
+        :param task_id: 任务ID - 精确匹配特定任务 (与trace_id、group_id互斥)
+        :type task_id: str
+        :param trace_id: 跟踪ID - 查找属于同一跟踪的所有任务 (与task_id、group_id互斥)
+        :type trace_id: str
+        :param group_id: 组ID - 查找属于同一组的所有任务 (与task_id、trace_id互斥)
+        :type group_id: str
+        :param task_type: 任务类型过滤
+        :type task_type: str
+        :param status: 任务状态过滤
+        :type status: str
+        :param immediate: 是否立即执行 - true:立即执行任务, false:延时执行任务
+        :type immediate: bool
+        :param sort_field: 排序字段，默认created_at
         :type sort_field: str
+        :param sort_order: 排序方式，默认desc
+        :type sort_order: str
+        :param limit: 结果数量限制，用于控制返回记录数量
+        :type limit: int
+        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+        :type lookback: str
+        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :type custom_start_time: datetime
+        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -170,10 +234,19 @@ class TaskApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_tasks_list_get_serialize(
-            page_num=page_num,
-            page_size=page_size,
+        _param = self._api_v1_tasks_get_serialize(
+            task_id=task_id,
+            trace_id=trace_id,
+            group_id=group_id,
+            task_type=task_type,
+            status=status,
+            immediate=immediate,
             sort_field=sort_field,
+            sort_order=sort_order,
+            limit=limit,
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -181,7 +254,7 @@ class TaskApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoPaginationRespDtoTaskItem",
+            '200': "DtoGenericResponseDtoListTasksResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -197,11 +270,20 @@ class TaskApi:
 
 
     @validate_call
-    def api_v1_tasks_list_get_without_preload_content(
+    def api_v1_tasks_get_without_preload_content(
         self,
-        page_num: Annotated[Optional[StrictInt], Field(description="页码")] = None,
-        page_size: Annotated[Optional[StrictInt], Field(description="每页大小")] = None,
-        sort_field: Annotated[Optional[StrictStr], Field(description="排序字段")] = None,
+        task_id: Annotated[Optional[StrictStr], Field(description="任务ID - 精确匹配特定任务 (与trace_id、group_id互斥)")] = None,
+        trace_id: Annotated[Optional[StrictStr], Field(description="跟踪ID - 查找属于同一跟踪的所有任务 (与task_id、group_id互斥)")] = None,
+        group_id: Annotated[Optional[StrictStr], Field(description="组ID - 查找属于同一组的所有任务 (与task_id、trace_id互斥)")] = None,
+        task_type: Annotated[Optional[StrictStr], Field(description="任务类型过滤")] = None,
+        status: Annotated[Optional[StrictStr], Field(description="任务状态过滤")] = None,
+        immediate: Annotated[Optional[StrictBool], Field(description="是否立即执行 - true:立即执行任务, false:延时执行任务")] = None,
+        sort_field: Annotated[Optional[StrictStr], Field(description="排序字段，默认created_at")] = None,
+        sort_order: Annotated[Optional[StrictStr], Field(description="排序方式，默认desc")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="结果数量限制，用于控制返回记录数量")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -217,14 +299,32 @@ class TaskApi:
     ) -> RESTResponseType:
         """获取任务列表
 
-        分页获取任务列表
+        根据多种条件分页获取任务列表。支持按任务ID、跟踪ID、组ID进行精确查询，或按任务类型、状态等进行过滤查询
 
-        :param page_num: 页码
-        :type page_num: int
-        :param page_size: 每页大小
-        :type page_size: int
-        :param sort_field: 排序字段
+        :param task_id: 任务ID - 精确匹配特定任务 (与trace_id、group_id互斥)
+        :type task_id: str
+        :param trace_id: 跟踪ID - 查找属于同一跟踪的所有任务 (与task_id、group_id互斥)
+        :type trace_id: str
+        :param group_id: 组ID - 查找属于同一组的所有任务 (与task_id、trace_id互斥)
+        :type group_id: str
+        :param task_type: 任务类型过滤
+        :type task_type: str
+        :param status: 任务状态过滤
+        :type status: str
+        :param immediate: 是否立即执行 - true:立即执行任务, false:延时执行任务
+        :type immediate: bool
+        :param sort_field: 排序字段，默认created_at
         :type sort_field: str
+        :param sort_order: 排序方式，默认desc
+        :type sort_order: str
+        :param limit: 结果数量限制，用于控制返回记录数量
+        :type limit: int
+        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+        :type lookback: str
+        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :type custom_start_time: datetime
+        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -247,10 +347,19 @@ class TaskApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_tasks_list_get_serialize(
-            page_num=page_num,
-            page_size=page_size,
+        _param = self._api_v1_tasks_get_serialize(
+            task_id=task_id,
+            trace_id=trace_id,
+            group_id=group_id,
+            task_type=task_type,
+            status=status,
+            immediate=immediate,
             sort_field=sort_field,
+            sort_order=sort_order,
+            limit=limit,
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -258,7 +367,7 @@ class TaskApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoPaginationRespDtoTaskItem",
+            '200': "DtoGenericResponseDtoListTasksResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -269,11 +378,20 @@ class TaskApi:
         return response_data.response
 
 
-    def _api_v1_tasks_list_get_serialize(
+    def _api_v1_tasks_get_serialize(
         self,
-        page_num,
-        page_size,
+        task_id,
+        trace_id,
+        group_id,
+        task_type,
+        status,
+        immediate,
         sort_field,
+        sort_order,
+        limit,
+        lookback,
+        custom_start_time,
+        custom_end_time,
         _request_auth,
         _content_type,
         _headers,
@@ -296,17 +414,71 @@ class TaskApi:
 
         # process the path parameters
         # process the query parameters
-        if page_num is not None:
+        if task_id is not None:
             
-            _query_params.append(('page_num', page_num))
+            _query_params.append(('task_id', task_id))
             
-        if page_size is not None:
+        if trace_id is not None:
             
-            _query_params.append(('page_size', page_size))
+            _query_params.append(('trace_id', trace_id))
+            
+        if group_id is not None:
+            
+            _query_params.append(('group_id', group_id))
+            
+        if task_type is not None:
+            
+            _query_params.append(('task_type', task_type))
+            
+        if status is not None:
+            
+            _query_params.append(('status', status))
+            
+        if immediate is not None:
+            
+            _query_params.append(('immediate', immediate))
             
         if sort_field is not None:
             
             _query_params.append(('sort_field', sort_field))
+            
+        if sort_order is not None:
+            
+            _query_params.append(('sort_order', sort_order))
+            
+        if limit is not None:
+            
+            _query_params.append(('limit', limit))
+            
+        if lookback is not None:
+            
+            _query_params.append(('lookback', lookback))
+            
+        if custom_start_time is not None:
+            if isinstance(custom_start_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_start_time',
+                        custom_start_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_start_time', custom_start_time))
+            
+        if custom_end_time is not None:
+            if isinstance(custom_end_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_end_time',
+                        custom_end_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_end_time', custom_end_time))
             
         # process the header parameters
         # process the form parameters
@@ -328,7 +500,7 @@ class TaskApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/v1/tasks/list',
+            resource_path='/api/v1/tasks',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

@@ -177,20 +177,21 @@ func ListDisplayConfigs(c *gin.Context) {
 //	@Description	支持排序、过滤的故障注入记录查询接口。返回数据库原始记录列表，不进行数据转换。
 //	@Tags			injection
 //	@Produce		json
-//	@Param			env					query	string	false	"环境标签过滤"
-//	@Param			batch				query	string	false	"批次标签过滤"
-//	@Param			benchmark			query	string	false	"基准测试类型过滤"	Enums(clickhouse)
-//	@Param			status				query	int		false	"状态过滤，具体值参考字段映射接口(/mapping)"	default(0)
-//	@Param			fault_type			query	int		false	"故障类型过滤，具体值参考字段映射接口(/mapping)"	default(0)
-//	@Param			sort				query	string	false	"排序方式，默认desc。按created_at字段排序"	Enums(asc, desc)	default(desc)
-//	@Param			limit				query	int		false	"结果数量限制，用于控制返回记录数量"	minimum(1)
-//	@Param			lookback			query	string	false	"时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置"
-//	@Param			custom_start_time	query	string	false	"自定义开始时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
-//	@Param			custom_end_time		query	string	false	"自定义结束时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
-//	@Success		200					{object}	dto.GenericResponse[[]database.FaultInjectionSchedule]	"成功返回故障注入记录列表"
-//	@Failure		400			{object}	dto.GenericResponse[any]	"请求参数错误，如参数格式不正确、验证失败等"
-//	@Failure		500			{object}	dto.GenericResponse[any]	"服务器内部错误"
-//	@Router			/api/v1/injections [get]
+//	@Param			env					query		string	false	"环境标签过滤"
+//	@Param			batch				query		string	false	"批次标签过滤"
+//	@Param			benchmark			query		string	false	"基准测试类型过滤"	Enums(clickhouse)
+//	@Param			status				query		int		false	"状态过滤，具体值参考字段映射接口(/mapping)"	default(0)
+//	@Param			fault_type			query		int		false	"故障类型过滤，具体值参考字段映射接口(/mapping)"	default(0)
+//	@Param			sort_field			query		string	false	"排序字段，默认created_at" default(created_at)
+//	@Param			sort_order			query		string	false	"排序方式，默认desc"	Enums(asc, desc)	default(desc)
+//	@Param			limit				query		int		false	"结果数量限制，用于控制返回记录数量"	minimum(1)
+//	@Param			lookback			query		string	false	"时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置"
+//	@Param			custom_start_time	query		string	false	"自定义开始时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
+//	@Param			custom_end_time		query		string	false	"自定义结束时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
+//	@Success		200					{object}	dto.GenericResponse[dto.ListInjectionsResp]	"成功返回故障注入记录列表"
+//	@Failure		400					{object}	dto.GenericResponse[any]	"请求参数错误，如参数格式不正确、验证失败等"
+//	@Failure		500					{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Router			/api/v1/injections	[get]
 func ListInjections(c *gin.Context) {
 	var req dto.ListInjectionsReq
 	if err := c.BindQuery(&req); err != nil {
@@ -205,13 +206,13 @@ func ListInjections(c *gin.Context) {
 		return
 	}
 
-	_, records, err := repository.ListInjections(&req)
+	_, injections, err := repository.ListInjections(&req)
 	if err != nil {
 		dto.ErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	dto.SuccessResponse(c, records)
+	dto.SuccessResponse(c, dto.ListInjectionsResp(injections))
 }
 
 // QueryInjection

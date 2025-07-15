@@ -39,6 +39,7 @@ __all__ = [
     "ConstsTaskType",
     "DatabaseContainer",
     "DatabaseFaultInjectionSchedule",
+    "DatabaseTask",
     "DtoAlgorithmDatasetPair",
     "DtoAlgorithmItem",
     "DtoDatasetBuildPayload",
@@ -48,7 +49,6 @@ __all__ = [
     "DtoFaultInjectionStatisticsResp",
     "DtoFaultInjectionWithIssuesResp",
     "DtoGenericResponseAny",
-    "DtoGenericResponseArrayDatabaseFaultInjectionSchedule",
     "DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp",
     "DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp",
     "DtoGenericResponseDtoDatasetDeleteResp",
@@ -58,8 +58,9 @@ __all__ = [
     "DtoGenericResponseDtoInjectCancelResp",
     "DtoGenericResponseDtoInjectionFieldMappingResp",
     "DtoGenericResponseDtoListAlgorithmsResp",
+    "DtoGenericResponseDtoListInjectionsResp",
+    "DtoGenericResponseDtoListTasksResp",
     "DtoGenericResponseDtoNsResourcesResp",
-    "DtoGenericResponseDtoPaginationRespDtoTaskItem",
     "DtoGenericResponseDtoPaginationRespDtoUnifiedTask",
     "DtoGenericResponseDtoQueryInjectionResp",
     "DtoGenericResponseDtoRawDataResp",
@@ -74,7 +75,6 @@ __all__ = [
     "DtoGroundTruthReq",
     "DtoInjectionFieldMappingResp",
     "DtoLabelItem",
-    "DtoPaginationRespDtoTaskItem",
     "DtoPaginationRespDtoUnifiedTask",
     "DtoQueryInjectionResp",
     "DtoRawDataItem",
@@ -119,6 +119,7 @@ from rcabench.openapi.exceptions import ApiException as ApiException
 from rcabench.openapi.models.consts_task_type import ConstsTaskType as ConstsTaskType
 from rcabench.openapi.models.database_container import DatabaseContainer as DatabaseContainer
 from rcabench.openapi.models.database_fault_injection_schedule import DatabaseFaultInjectionSchedule as DatabaseFaultInjectionSchedule
+from rcabench.openapi.models.database_task import DatabaseTask as DatabaseTask
 from rcabench.openapi.models.dto_algorithm_dataset_pair import DtoAlgorithmDatasetPair as DtoAlgorithmDatasetPair
 from rcabench.openapi.models.dto_algorithm_item import DtoAlgorithmItem as DtoAlgorithmItem
 from rcabench.openapi.models.dto_dataset_build_payload import DtoDatasetBuildPayload as DtoDatasetBuildPayload
@@ -128,7 +129,6 @@ from rcabench.openapi.models.dto_fault_injection_no_issues_resp import DtoFaultI
 from rcabench.openapi.models.dto_fault_injection_statistics_resp import DtoFaultInjectionStatisticsResp as DtoFaultInjectionStatisticsResp
 from rcabench.openapi.models.dto_fault_injection_with_issues_resp import DtoFaultInjectionWithIssuesResp as DtoFaultInjectionWithIssuesResp
 from rcabench.openapi.models.dto_generic_response_any import DtoGenericResponseAny as DtoGenericResponseAny
-from rcabench.openapi.models.dto_generic_response_array_database_fault_injection_schedule import DtoGenericResponseArrayDatabaseFaultInjectionSchedule as DtoGenericResponseArrayDatabaseFaultInjectionSchedule
 from rcabench.openapi.models.dto_generic_response_array_dto_fault_injection_no_issues_resp import DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp as DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp
 from rcabench.openapi.models.dto_generic_response_array_dto_fault_injection_with_issues_resp import DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp as DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp
 from rcabench.openapi.models.dto_generic_response_dto_dataset_delete_resp import DtoGenericResponseDtoDatasetDeleteResp as DtoGenericResponseDtoDatasetDeleteResp
@@ -138,8 +138,9 @@ from rcabench.openapi.models.dto_generic_response_dto_ground_truth_resp import D
 from rcabench.openapi.models.dto_generic_response_dto_inject_cancel_resp import DtoGenericResponseDtoInjectCancelResp as DtoGenericResponseDtoInjectCancelResp
 from rcabench.openapi.models.dto_generic_response_dto_injection_field_mapping_resp import DtoGenericResponseDtoInjectionFieldMappingResp as DtoGenericResponseDtoInjectionFieldMappingResp
 from rcabench.openapi.models.dto_generic_response_dto_list_algorithms_resp import DtoGenericResponseDtoListAlgorithmsResp as DtoGenericResponseDtoListAlgorithmsResp
+from rcabench.openapi.models.dto_generic_response_dto_list_injections_resp import DtoGenericResponseDtoListInjectionsResp as DtoGenericResponseDtoListInjectionsResp
+from rcabench.openapi.models.dto_generic_response_dto_list_tasks_resp import DtoGenericResponseDtoListTasksResp as DtoGenericResponseDtoListTasksResp
 from rcabench.openapi.models.dto_generic_response_dto_ns_resources_resp import DtoGenericResponseDtoNsResourcesResp as DtoGenericResponseDtoNsResourcesResp
-from rcabench.openapi.models.dto_generic_response_dto_pagination_resp_dto_task_item import DtoGenericResponseDtoPaginationRespDtoTaskItem as DtoGenericResponseDtoPaginationRespDtoTaskItem
 from rcabench.openapi.models.dto_generic_response_dto_pagination_resp_dto_unified_task import DtoGenericResponseDtoPaginationRespDtoUnifiedTask as DtoGenericResponseDtoPaginationRespDtoUnifiedTask
 from rcabench.openapi.models.dto_generic_response_dto_query_injection_resp import DtoGenericResponseDtoQueryInjectionResp as DtoGenericResponseDtoQueryInjectionResp
 from rcabench.openapi.models.dto_generic_response_dto_raw_data_resp import DtoGenericResponseDtoRawDataResp as DtoGenericResponseDtoRawDataResp
@@ -154,7 +155,6 @@ from rcabench.openapi.models.dto_granularity_record import DtoGranularityRecord 
 from rcabench.openapi.models.dto_ground_truth_req import DtoGroundTruthReq as DtoGroundTruthReq
 from rcabench.openapi.models.dto_injection_field_mapping_resp import DtoInjectionFieldMappingResp as DtoInjectionFieldMappingResp
 from rcabench.openapi.models.dto_label_item import DtoLabelItem as DtoLabelItem
-from rcabench.openapi.models.dto_pagination_resp_dto_task_item import DtoPaginationRespDtoTaskItem as DtoPaginationRespDtoTaskItem
 from rcabench.openapi.models.dto_pagination_resp_dto_unified_task import DtoPaginationRespDtoUnifiedTask as DtoPaginationRespDtoUnifiedTask
 from rcabench.openapi.models.dto_query_injection_resp import DtoQueryInjectionResp as DtoQueryInjectionResp
 from rcabench.openapi.models.dto_raw_data_item import DtoRawDataItem as DtoRawDataItem

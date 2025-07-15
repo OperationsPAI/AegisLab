@@ -172,46 +172,44 @@ func GetQueuedTasks(c *gin.Context) {
 // ListTasks
 //
 //	@Summary		获取任务列表
-//	@Description	分页获取任务列表
+//	@Description	根据多种条件分页获取任务列表。支持按任务ID、跟踪ID、组ID进行精确查询，或按任务类型、状态等进行过滤查询
 //	@Tags			task
 //	@Produce		json
-//	@Param			page_num		query		int		false	"页码"		default(1)
-//	@Param			page_size		query		int		false	"每页大小"	default(10)
-//	@Param			sort_field		query		string	false	"排序字段"
-//	@Success		200	{object}	dto.GenericResponse[dto.PaginationResp[dto.TaskItem]]
-//	@Failure		400	{object}	dto.GenericResponse[any]
-//	@Failure		500	{object}	dto.GenericResponse[any]
-//	@Router			/api/v1/tasks/list [get]
+//	@Param			task_id				query		string	false	"任务ID - 精确匹配特定任务 (与trace_id、group_id互斥)"
+//	@Param			trace_id			query		string	false	"跟踪ID - 查找属于同一跟踪的所有任务 (与task_id、group_id互斥)"
+//	@Param			group_id			query		string	false	"组ID - 查找属于同一组的所有任务 (与task_id、trace_id互斥)"
+//	@Param			task_type			query		string	false	"任务类型过滤"	Enums(RestartService, FaultInjection, BuildDataset, RunAlgorithm, CollectResult, BuildImage)
+//	@Param			status				query		string	false	"任务状态过滤"	Enums(Pending, Running, Completed, Error, Cancelled, Scheduled, Rescheduled)
+//	@Param			immediate			query		bool	false	"是否立即执行 - true:立即执行任务, false:延时执行任务"
+//	@Param			sort_field			query		string	false	"排序字段，默认created_at" default(created_at)
+//	@Param			sort_order			query		string	false	"排序方式，默认desc"	Enums(asc, desc)	default(desc)
+//	@Param			limit				query		int		false	"结果数量限制，用于控制返回记录数量"	minimum(1)
+//	@Param			lookback			query		string	false	"时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置"
+//	@Param			custom_start_time	query		string	false	"自定义开始时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
+//	@Param			custom_end_time		query		string	false	"自定义结束时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
+//	@Success		200					{object}	dto.GenericResponse[dto.ListTasksResp]	"成功返回故障注入记录列表"
+//	@Failure		400					{object}	dto.GenericResponse[any]	"请求参数错误，如参数格式不正确、验证失败等"
+//	@Failure		500					{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Router			/api/v1/tasks	[get]
 func ListTasks(c *gin.Context) {
-	// TODO 修改swagger注释，增加sort_field参数
 	var req dto.ListTasksReq
 	if err := c.BindQuery(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
 		return
 	}
 
-	total, tasks, err := repository.ListTasks(&req)
+	if err := req.Validate(); err != nil {
+		logrus.Errorf("invalid query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	_, tasks, err := repository.ListTasks(&req)
 	if err != nil {
 		logrus.Errorf("failed to fetch tasks: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch tasks")
 		return
 	}
 
-	taskItems := make([]dto.TaskItem, 0, len(tasks))
-	for _, task := range tasks {
-		var item dto.TaskItem
-		if err := item.Convert(task); err != nil {
-			logrus.Warnf("failed to convert task: %v", err)
-			continue
-		}
-
-		taskItems = append(taskItems, item)
-	}
-
-	totalPages := (total + int64(req.PageSize) - 1) / int64(req.PageSize)
-	dto.SuccessResponse(c, dto.PaginationResp[dto.TaskItem]{
-		Total:      total,
-		TotalPages: totalPages,
-		Items:      taskItems,
-	})
+	dto.SuccessResponse(c, dto.ListTasksResp(tasks))
 }

@@ -196,6 +196,8 @@ type InjectionFieldMappingResp struct {
 	FaultResourceMap map[string]chaos.ResourceField `json:"fault_resource" swaggertype:"object"`
 }
 
+type ListInjectionsResp []database.FaultInjectionSchedule
+
 type QueryInjectionResp struct {
 	database.FaultInjectionSchedule
 	GroundTruth chaos.Groundtruth `json:"ground_truth,omitempty"`

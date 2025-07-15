@@ -22,12 +22,12 @@ from pydantic import Field, StrictInt, StrictStr, field_validator
 from typing import List, Optional
 from typing_extensions import Annotated
 from rcabench.openapi.models.dto_generic_response_any import DtoGenericResponseAny
-from rcabench.openapi.models.dto_generic_response_array_database_fault_injection_schedule import DtoGenericResponseArrayDatabaseFaultInjectionSchedule
 from rcabench.openapi.models.dto_generic_response_array_dto_fault_injection_no_issues_resp import DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp
 from rcabench.openapi.models.dto_generic_response_array_dto_fault_injection_with_issues_resp import DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp
 from rcabench.openapi.models.dto_generic_response_dto_fault_injection_statistics_resp import DtoGenericResponseDtoFaultInjectionStatisticsResp
 from rcabench.openapi.models.dto_generic_response_dto_inject_cancel_resp import DtoGenericResponseDtoInjectCancelResp
 from rcabench.openapi.models.dto_generic_response_dto_injection_field_mapping_resp import DtoGenericResponseDtoInjectionFieldMappingResp
+from rcabench.openapi.models.dto_generic_response_dto_list_injections_resp import DtoGenericResponseDtoListInjectionsResp
 from rcabench.openapi.models.dto_generic_response_dto_query_injection_resp import DtoGenericResponseDtoQueryInjectionResp
 from rcabench.openapi.models.dto_generic_response_dto_submit_injection_resp import DtoGenericResponseDtoSubmitInjectionResp
 from rcabench.openapi.models.dto_generic_response_handler_node import DtoGenericResponseHandlerNode
@@ -1642,7 +1642,8 @@ class InjectionApi:
         benchmark: Annotated[Optional[StrictStr], Field(description="基准测试类型过滤")] = None,
         status: Annotated[Optional[StrictInt], Field(description="状态过滤，具体值参考字段映射接口(/mapping)")] = None,
         fault_type: Annotated[Optional[StrictInt], Field(description="故障类型过滤，具体值参考字段映射接口(/mapping)")] = None,
-        sort: Annotated[Optional[StrictStr], Field(description="排序方式，默认desc。按created_at字段排序")] = None,
+        sort_field: Annotated[Optional[StrictStr], Field(description="排序字段，默认created_at")] = None,
+        sort_order: Annotated[Optional[StrictStr], Field(description="排序方式，默认desc")] = None,
         limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="结果数量限制，用于控制返回记录数量")] = None,
         lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
         custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
@@ -1659,7 +1660,7 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseArrayDatabaseFaultInjectionSchedule:
+    ) -> DtoGenericResponseDtoListInjectionsResp:
         """获取故障注入记录列表
 
         支持排序、过滤的故障注入记录查询接口。返回数据库原始记录列表，不进行数据转换。
@@ -1674,8 +1675,10 @@ class InjectionApi:
         :type status: int
         :param fault_type: 故障类型过滤，具体值参考字段映射接口(/mapping)
         :type fault_type: int
-        :param sort: 排序方式，默认desc。按created_at字段排序
-        :type sort: str
+        :param sort_field: 排序字段，默认created_at
+        :type sort_field: str
+        :param sort_order: 排序方式，默认desc
+        :type sort_order: str
         :param limit: 结果数量限制，用于控制返回记录数量
         :type limit: int
         :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
@@ -1712,7 +1715,8 @@ class InjectionApi:
             benchmark=benchmark,
             status=status,
             fault_type=fault_type,
-            sort=sort,
+            sort_field=sort_field,
+            sort_order=sort_order,
             limit=limit,
             lookback=lookback,
             custom_start_time=custom_start_time,
@@ -1724,7 +1728,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseArrayDatabaseFaultInjectionSchedule",
+            '200': "DtoGenericResponseDtoListInjectionsResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -1747,7 +1751,8 @@ class InjectionApi:
         benchmark: Annotated[Optional[StrictStr], Field(description="基准测试类型过滤")] = None,
         status: Annotated[Optional[StrictInt], Field(description="状态过滤，具体值参考字段映射接口(/mapping)")] = None,
         fault_type: Annotated[Optional[StrictInt], Field(description="故障类型过滤，具体值参考字段映射接口(/mapping)")] = None,
-        sort: Annotated[Optional[StrictStr], Field(description="排序方式，默认desc。按created_at字段排序")] = None,
+        sort_field: Annotated[Optional[StrictStr], Field(description="排序字段，默认created_at")] = None,
+        sort_order: Annotated[Optional[StrictStr], Field(description="排序方式，默认desc")] = None,
         limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="结果数量限制，用于控制返回记录数量")] = None,
         lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
         custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
@@ -1764,7 +1769,7 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseArrayDatabaseFaultInjectionSchedule]:
+    ) -> ApiResponse[DtoGenericResponseDtoListInjectionsResp]:
         """获取故障注入记录列表
 
         支持排序、过滤的故障注入记录查询接口。返回数据库原始记录列表，不进行数据转换。
@@ -1779,8 +1784,10 @@ class InjectionApi:
         :type status: int
         :param fault_type: 故障类型过滤，具体值参考字段映射接口(/mapping)
         :type fault_type: int
-        :param sort: 排序方式，默认desc。按created_at字段排序
-        :type sort: str
+        :param sort_field: 排序字段，默认created_at
+        :type sort_field: str
+        :param sort_order: 排序方式，默认desc
+        :type sort_order: str
         :param limit: 结果数量限制，用于控制返回记录数量
         :type limit: int
         :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
@@ -1817,7 +1824,8 @@ class InjectionApi:
             benchmark=benchmark,
             status=status,
             fault_type=fault_type,
-            sort=sort,
+            sort_field=sort_field,
+            sort_order=sort_order,
             limit=limit,
             lookback=lookback,
             custom_start_time=custom_start_time,
@@ -1829,7 +1837,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseArrayDatabaseFaultInjectionSchedule",
+            '200': "DtoGenericResponseDtoListInjectionsResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -1852,7 +1860,8 @@ class InjectionApi:
         benchmark: Annotated[Optional[StrictStr], Field(description="基准测试类型过滤")] = None,
         status: Annotated[Optional[StrictInt], Field(description="状态过滤，具体值参考字段映射接口(/mapping)")] = None,
         fault_type: Annotated[Optional[StrictInt], Field(description="故障类型过滤，具体值参考字段映射接口(/mapping)")] = None,
-        sort: Annotated[Optional[StrictStr], Field(description="排序方式，默认desc。按created_at字段排序")] = None,
+        sort_field: Annotated[Optional[StrictStr], Field(description="排序字段，默认created_at")] = None,
+        sort_order: Annotated[Optional[StrictStr], Field(description="排序方式，默认desc")] = None,
         limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="结果数量限制，用于控制返回记录数量")] = None,
         lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
         custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
@@ -1884,8 +1893,10 @@ class InjectionApi:
         :type status: int
         :param fault_type: 故障类型过滤，具体值参考字段映射接口(/mapping)
         :type fault_type: int
-        :param sort: 排序方式，默认desc。按created_at字段排序
-        :type sort: str
+        :param sort_field: 排序字段，默认created_at
+        :type sort_field: str
+        :param sort_order: 排序方式，默认desc
+        :type sort_order: str
         :param limit: 结果数量限制，用于控制返回记录数量
         :type limit: int
         :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
@@ -1922,7 +1933,8 @@ class InjectionApi:
             benchmark=benchmark,
             status=status,
             fault_type=fault_type,
-            sort=sort,
+            sort_field=sort_field,
+            sort_order=sort_order,
             limit=limit,
             lookback=lookback,
             custom_start_time=custom_start_time,
@@ -1934,7 +1946,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseArrayDatabaseFaultInjectionSchedule",
+            '200': "DtoGenericResponseDtoListInjectionsResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -1952,7 +1964,8 @@ class InjectionApi:
         benchmark,
         status,
         fault_type,
-        sort,
+        sort_field,
+        sort_order,
         limit,
         lookback,
         custom_start_time,
@@ -1999,9 +2012,13 @@ class InjectionApi:
             
             _query_params.append(('fault_type', fault_type))
             
-        if sort is not None:
+        if sort_field is not None:
             
-            _query_params.append(('sort', sort))
+            _query_params.append(('sort_field', sort_field))
+            
+        if sort_order is not None:
+            
+            _query_params.append(('sort_order', sort_order))
             
         if limit is not None:
             

@@ -289,7 +289,7 @@ func ListInjections(params *dto.ListInjectionsReq) (int64, []database.FaultInjec
 
 	genericQueryParams := &genericQueryParams{
 		builder:   builder,
-		sortField: fmt.Sprintf("created_at %s", params.Sort),
+		sortField: fmt.Sprintf("%s %s", params.SortField, params.SortOrder),
 		limit:     params.Limit,
 	}
 	return genericQueryWithBuilder[database.FaultInjectionSchedule](genericQueryParams)

@@ -631,14 +631,21 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "default": "created_at",
+                        "description": "排序字段，默认created_at",
+                        "name": "sort_field",
+                        "in": "query"
+                    },
+                    {
                         "enum": [
                             "asc",
                             "desc"
                         ],
                         "type": "string",
                         "default": "desc",
-                        "description": "排序方式，默认desc。按created_at字段排序",
-                        "name": "sort",
+                        "description": "排序方式，默认desc",
+                        "name": "sort_order",
                         "in": "query"
                     },
                     {
@@ -673,7 +680,7 @@ const docTemplate = `{
                     "200": {
                         "description": "成功返回故障注入记录列表",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-array_database_FaultInjectionSchedule"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListInjectionsResp"
                         }
                     },
                     "400": {
@@ -1167,9 +1174,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/tasks/list": {
+        "/api/v1/tasks": {
             "get": {
-                "description": "分页获取任务列表",
+                "description": "根据多种条件分页获取任务列表。支持按任务ID、跟踪ID、组ID进行精确查询，或按任务类型、状态等进行过滤查询",
                 "produces": [
                     "application/json"
                 ],
@@ -1179,41 +1186,119 @@ const docTemplate = `{
                 "summary": "获取任务列表",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "页码",
-                        "name": "page_num",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 10,
-                        "description": "每页大小",
-                        "name": "page_size",
+                        "type": "string",
+                        "description": "任务ID - 精确匹配特定任务 (与trace_id、group_id互斥)",
+                        "name": "task_id",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "排序字段",
+                        "description": "跟踪ID - 查找属于同一跟踪的所有任务 (与task_id、group_id互斥)",
+                        "name": "trace_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "组ID - 查找属于同一组的所有任务 (与task_id、trace_id互斥)",
+                        "name": "group_id",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "RestartService",
+                            "FaultInjection",
+                            "BuildDataset",
+                            "RunAlgorithm",
+                            "CollectResult",
+                            "BuildImage"
+                        ],
+                        "type": "string",
+                        "description": "任务类型过滤",
+                        "name": "task_type",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "Pending",
+                            "Running",
+                            "Completed",
+                            "Error",
+                            "Cancelled",
+                            "Scheduled",
+                            "Rescheduled"
+                        ],
+                        "type": "string",
+                        "description": "任务状态过滤",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "是否立即执行 - true:立即执行任务, false:延时执行任务",
+                        "name": "immediate",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "created_at",
+                        "description": "排序字段，默认created_at",
                         "name": "sort_field",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "default": "desc",
+                        "description": "排序方式，默认desc",
+                        "name": "sort_order",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "结果数量限制，用于控制返回记录数量",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置",
+                        "name": "lookback",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "自定义开始时间，RFC3339格式，当lookback=custom时必需",
+                        "name": "custom_start_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "自定义结束时间，RFC3339格式，当lookback=custom时必需",
+                        "name": "custom_end_time",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "成功返回故障注入记录列表",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_PaginationResp-dto_TaskItem"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListTasksResp"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "请求参数错误，如参数格式不正确、验证失败等",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "服务器内部错误",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -1567,6 +1652,41 @@ const docTemplate = `{
                 "type": "string"
             }
         },
+        "database.Task": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "cron_expr": {
+                    "type": "string"
+                },
+                "execute_time": {
+                    "type": "integer"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "immediate": {
+                    "type": "boolean"
+                },
+                "payload": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "trace_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.AlgorithmDatasetPair": {
             "type": "object",
             "properties": {
@@ -1719,30 +1839,6 @@ const docTemplate = `{
                 },
                 "data": {
                     "description": "泛型类型的数据"
-                },
-                "message": {
-                    "description": "响应消息",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "响应生成时间",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.GenericResponse-array_database_FaultInjectionSchedule": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "状态码",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "泛型类型的数据",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/database.FaultInjectionSchedule"
-                    }
                 },
                 "message": {
                     "description": "响应消息",
@@ -1976,6 +2072,54 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GenericResponse-dto_ListInjectionsResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/database.FaultInjectionSchedule"
+                    }
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_ListTasksResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/database.Task"
+                    }
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GenericResponse-dto_NsResourcesResp": {
             "type": "object",
             "properties": {
@@ -1988,31 +2132,6 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.NsResourcesResp"
-                        }
-                    ]
-                },
-                "message": {
-                    "description": "响应消息",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "响应生成时间",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.GenericResponse-dto_PaginationResp-dto_TaskItem": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "状态码",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "泛型类型的数据",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.PaginationResp-dto_TaskItem"
                         }
                     ]
                 },
@@ -2345,23 +2464,6 @@ const docTemplate = `{
             "type": "object",
             "additionalProperties": {
                 "$ref": "#/definitions/handler.Resources"
-            }
-        },
-        "dto.PaginationResp-dto_TaskItem": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.TaskItem"
-                    }
-                },
-                "total": {
-                    "type": "integer"
-                },
-                "total_pages": {
-                    "type": "integer"
-                }
             }
         },
         "dto.PaginationResp-dto_UnifiedTask": {
