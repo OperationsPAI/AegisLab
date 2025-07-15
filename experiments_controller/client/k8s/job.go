@@ -16,17 +16,18 @@ import (
 )
 
 type JobConfig struct {
-	Namespace     string
-	JobName       string
-	Image         string
-	Command       []string
-	RestartPolicy corev1.RestartPolicy
-	BackoffLimit  int32
-	Parallelism   int32
-	Completions   int32
-	Annotations   map[string]string
-	Labels        map[string]string // 用于自定义标签
-	EnvVars       []corev1.EnvVar
+	Namespace      string
+	JobName        string
+	Image          string
+	Command        []string
+	RestartPolicy  corev1.RestartPolicy
+	BackoffLimit   int32
+	Parallelism    int32
+	Completions    int32
+	Annotations    map[string]string
+	Labels         map[string]string // 用于自定义标签
+	EnvVars        []corev1.EnvVar
+	InitContainers []corev1.Container
 }
 
 func CreateJob(ctx context.Context, jobConfig JobConfig) error {
@@ -90,6 +91,13 @@ func CreateJob(ctx context.Context, jobConfig JobConfig) error {
 		}
 
 		jobConfig.Labels["job-name"] = jobConfig.JobName
+		if jobConfig.InitContainers != nil {
+			for i := range jobConfig.InitContainers {
+				if jobConfig.InitContainers[i].VolumeMounts == nil {
+					jobConfig.InitContainers[i].VolumeMounts = append(jobConfig.InitContainers[i].VolumeMounts, volumeMounts...)
+				}
+			}
+		}
 
 		job := &batchv1.Job{
 			ObjectMeta: metav1.ObjectMeta{
@@ -106,7 +114,8 @@ func CreateJob(ctx context.Context, jobConfig JobConfig) error {
 						Labels: jobConfig.Labels,
 					},
 					Spec: corev1.PodSpec{
-						RestartPolicy: jobConfig.RestartPolicy,
+						RestartPolicy:  jobConfig.RestartPolicy,
+						InitContainers: jobConfig.InitContainers,
 						Containers: []corev1.Container{
 							{
 								Name:            jobConfig.JobName,
