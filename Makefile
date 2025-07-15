@@ -30,11 +30,48 @@ help:  ## Display targets with category headers
 ##@ Building
 
 run: ## Build and deploy using skaffold
-	$(MAKE) -C scripts/hack/backup_psql backup
+	@echo "🔄 Starting deployment process..."
+	@if $(MAKE) check-postgres 2>/dev/null; then \
+		echo "📄 Backing up existing database..."; \
+		$(MAKE) -C scripts/hack/backup_psql backup; \
+	else \
+		echo "⚠️  PostgreSQL not running, skipping backup"; \
+	fi
 	skaffold run --default-repo=$(DEFAULT_REPO)
+	@echo "⏳ Waiting for deployment to stabilize..."
+	$(MAKE) wait-for-deployment
 
-remote-debug: ## Run application in debug mode with skaffold
-	skaffold debug --default-repo=$(DEFAULT_REPO)
+wait-for-deployment: ## Wait for deployment to be ready
+	@echo "⏳ Waiting for deployments to be ready..."
+	kubectl wait --for=condition=available --timeout=300s deployment --all -n $(NS)
+	@echo "✅ All deployments are ready"
+
+##@ Database
+
+check-postgres: ## Check if PostgreSQL is running
+	@echo "🔍 Checking PostgreSQL status..."
+	@if kubectl get pods -n $(NS) -l app=rcabench-postgres --field-selector=status.phase=Running | grep -q rcabench-postgres; then \
+		echo "✅ PostgreSQL is running"; \
+	else \
+		echo "❌ PostgreSQL is not running in namespace $(NS)"; \
+		echo "Available pods:"; \
+		kubectl get pods -n $(NS) -l app=rcabench-postgres || echo "No PostgreSQL pods found"; \
+		exit 1; \
+	fi
+
+db-reset: ## Reset PostgreSQL database (WARNING: This will delete all data)
+	@echo "🗑️  Resetting PostgreSQL database in namespace $(NS)..."
+	helm uninstall rcabench -n $(NS) || true
+	@echo "Waiting for pods to terminate..."
+	sleep 5
+	kubectl delete pvc rcabench-postgres-data -n $(NS) || true
+	@echo "Waiting for PVCs to be deleted..."
+	sleep 20
+	@echo "✅ Database reset complete. Redeploying..."
+	$(MAKE) run
+	@echo "🚀 Application redeployed successfully."
+	$(MAKE) -C scripts/hack/backup_psql restore-remote
+
 
 ##@ Development
 

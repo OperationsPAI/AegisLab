@@ -27,8 +27,8 @@ type executionPayload struct {
 }
 
 func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
-	return tracing.WithSpan(ctx, func(ctx context.Context) error {
-		span := trace.SpanFromContext(ctx)
+	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
+		span := trace.SpanFromContext(childCtx)
 		payload, err := parseExecutionPayload(task.Payload)
 		if err != nil {
 			span.RecordError(err)
@@ -36,7 +36,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			return err
 		}
 
-		annotations, err := getAnnotations(ctx, task)
+		annotations, err := getAnnotations(childCtx, task)
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to get annotations")
@@ -89,7 +89,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			consts.LabelExecutionID: strconv.Itoa(executionID),
 		}
 
-		return createAlgoJob(ctx, config.GetString("k8s.namespace"), jobName, fullImage, annotations, labels, payload, container, record)
+		return createAlgoJob(childCtx, config.GetString("k8s.namespace"), jobName, fullImage, annotations, labels, payload, container, record)
 	})
 }
 
@@ -186,7 +186,11 @@ func getAlgoJobEnvVars(payload *executionPayload, container *database.Container,
 
 	now := time.Now()
 	timestamp := now.Format("20060102_150405")
-	outputPath := fmt.Sprintf("/data/%s/%s/%s", payload.dataset, container.Name, timestamp)
+
+	outputPath := fmt.Sprintf("/data/%s", payload.dataset)
+	if container.Name != config.GetString("algo.detector") {
+		outputPath = fmt.Sprintf("/data/%s/%s/%s", payload.dataset, container.Name, timestamp)
+	}
 
 	jobEnvVars := []corev1.EnvVar{
 		{Name: "TIMEZONE", Value: tz},

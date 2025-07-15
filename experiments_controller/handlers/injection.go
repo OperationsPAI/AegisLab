@@ -355,6 +355,15 @@ func SubmitFaultInjection(c *gin.Context) {
 	duplicatedCount := len(req.Specs) - len(configs)
 	logrus.Infof("Duplicated %d configurations, original count: %d", len(req.Specs)-len(configs), len(req.Specs))
 
+	if len(req.Algorithms) != 0 {
+		if err := repository.SetAlgorithmItemsToRedis(spanCtx, consts.InjectionAlgorithmsKey, groupID, req.Algorithms); err != nil {
+			logrus.Errorf("failed to cache algorithms items to Redis: %v", err)
+			span.SetStatus(codes.Error, "panic in SubmitFaultInjection")
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to cache algorithm items to Redis")
+			return
+		}
+	}
+
 	dto.JSONResponse(c, http.StatusAccepted, "Fault injections submitted successfully", dto.SubmitInjectionResp{
 		DuplicatedCount: duplicatedCount,
 		OriginalCount:   len(req.Specs),

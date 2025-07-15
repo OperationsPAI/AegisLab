@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/LGU-SE-Internal/rcabench/client"
+	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
@@ -275,20 +276,25 @@ func ReadStreamEvents(ctx context.Context, stream string, lastID string, count i
 }
 
 type StreamProcessor struct {
-	ctx                     context.Context
-	hasIssues               bool
-	isCompleted             bool
-	detectorTaskID          string
-	traceID                 string
-	algorithms              []dto.AlgorithmItem
-	completedAlgorithmTasks map[string]bool
+	hasIssues      bool
+	isCompleted    bool
+	detectorTaskID string
+	algorithms     map[string]struct{}
+	finishedCount  int
 }
 
-func NewStreamProcessor(ctx context.Context, traceID string) *StreamProcessor {
+func NewStreamProcessor(algorithmItems []dto.AlgorithmItem) *StreamProcessor {
+	algorithms := make(map[string]struct{}, len(algorithmItems))
+	for _, item := range algorithmItems {
+		algorithms[item.Name] = struct{}{}
+	}
+
 	return &StreamProcessor{
-		ctx:                     ctx,
-		traceID:                 traceID,
-		completedAlgorithmTasks: make(map[string]bool),
+		hasIssues:      false,
+		isCompleted:    false,
+		detectorTaskID: "",
+		algorithms:     algorithms,
+		finishedCount:  0,
 	}
 }
 
@@ -310,11 +316,15 @@ func (sp *StreamProcessor) ProcessMessageForSSE(msg redis.XMessage) (string, str
 	switch streamEvent.EventName {
 	case consts.EventImageBuildSucceed:
 		sp.isCompleted = true
+
 	case consts.EventDatasetNoAnomaly, consts.EventDatasetNoConclusionFile:
 		sp.detectorTaskID = streamEvent.TaskID
+		sp.hasIssues = false
+
 	case consts.EventDatasetResultCollection:
 		sp.detectorTaskID = streamEvent.TaskID
 		sp.hasIssues = true
+
 	case consts.EventAlgoRunSucceed, consts.EventAlgoRunFailed:
 		payloadStr, ok := streamEvent.Payload.(string)
 		if !ok {
@@ -326,11 +336,17 @@ func (sp *StreamProcessor) ProcessMessageForSSE(msg redis.XMessage) (string, str
 			return "", "", fmt.Errorf("failed to unmarshal payload: %v", err)
 		}
 
-		sp.algorithms = append(sp.algorithms, payload.Algorithm)
-	}
+		if payload.Algorithm.Name != config.GetString("algo.detector") {
+			if len(sp.algorithms) != 0 {
+				if _, exists := sp.algorithms[payload.Algorithm.Name]; exists {
+					sp.finishedCount++
+				}
+			} else {
+				sp.finishedCount++
+			}
+		}
 
-	// Check if this is a completion event
-	if streamEvent.EventName == consts.EventTaskStatusUpdate {
+	case consts.EventTaskStatusUpdate:
 		payloadStr, ok := streamEvent.Payload.(string)
 		if !ok {
 			return "", "", fmt.Errorf("invalid payload type for task status update event: %T", streamEvent.Payload)
@@ -346,51 +362,16 @@ func (sp *StreamProcessor) ProcessMessageForSSE(msg redis.XMessage) (string, str
 			sp.isCompleted = true
 		case consts.TaskStatusCompleted:
 			if streamEvent.TaskType == consts.TaskTypeCollectResult {
-				if streamEvent.TaskID == sp.detectorTaskID {
-					sp.handleDetectorTaskCompletion()
+				if sp.detectorTaskID != "" && streamEvent.TaskID == sp.detectorTaskID {
+					sp.isCompleted = !sp.hasIssues || len(sp.algorithms) == 0
 				} else {
-					sp.handleAlgorithmTaskCompletion(streamEvent.TaskID)
+					sp.isCompleted = len(sp.algorithms) == 0 || sp.finishedCount == len(sp.algorithms)
 				}
 			}
 		}
 	}
 
 	return msg.ID, sseMessage, nil
-}
-
-func (sp *StreamProcessor) Reset() {
-	sp.hasIssues = false
-	sp.isCompleted = false
-	sp.detectorTaskID = ""
-	sp.algorithms = nil
-	for k := range sp.completedAlgorithmTasks {
-		delete(sp.completedAlgorithmTasks, k)
-	}
-}
-
-func (sp *StreamProcessor) handleDetectorTaskCompletion() {
-	// 完成条件：没有问题 OR (有问题但没有缓存算法)
-	sp.isCompleted = !sp.hasIssues || !CheckCachedTraceID(sp.ctx, sp.traceID)
-
-	// 如果有问题且未完成，获取算法列表
-	if sp.hasIssues && !sp.isCompleted {
-		algorithmItems, err := GetCachedAlgorithmItemsFromRedis(sp.ctx, sp.traceID)
-		if err != nil {
-			logrus.Errorf("Failed to get cached algorithms for traceID %s: %v", sp.traceID, err)
-			sp.isCompleted = true
-			return
-		}
-
-		sp.algorithms = algorithmItems
-	}
-}
-
-func (sp *StreamProcessor) handleAlgorithmTaskCompletion(taskID string) {
-	// 检查算法列表是否已初始化且任务未重复计数
-	if len(sp.algorithms) > 0 && !sp.completedAlgorithmTasks[taskID] {
-		sp.completedAlgorithmTasks[taskID] = true
-		sp.isCompleted = len(sp.completedAlgorithmTasks) >= len(sp.algorithms)
-	}
 }
 
 // ParseEventFromValues 从 Redis Stream 消息解析事件
@@ -463,7 +444,12 @@ func parseEventFromValues(values map[string]any) (*dto.StreamEvent, error) {
 	return event, nil
 }
 
-func ListTasks(params dto.ListTasksReq, opts dto.TimeFilterOptions, sortField string) (int64, []database.Task, error) {
+func ListTasks(params *dto.ListTasksReq) (int64, []database.Task, error) {
+	opts, err := params.TimeRangeQuery.Convert()
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to convert time range query: %v", err)
+	}
+
 	builder := func(db *gorm.DB) *gorm.DB {
 		query := db
 
@@ -491,18 +477,14 @@ func ListTasks(params dto.ListTasksReq, opts dto.TimeFilterOptions, sortField st
 			query = query.Where("group_id = ?", params.GroupID)
 		}
 
-		startTime, endTime := opts.GetTimeRange()
-		if !startTime.IsZero() && !endTime.IsZero() {
-			query = query.Where("created_at >= ? AND created_at <= ?", startTime, endTime)
-		}
-
+		query = opts.AddTimeFilter(query, "created_at")
 		return query
 	}
 
 	// TODO sort
 	genericQueryParams := &genericQueryParams{
 		builder:   builder,
-		sortField: "created_at desc",
+		sortField: "created_at asc",
 		pageNum:   params.PageNum,
 		pageSize:  params.PageSize,
 	}

@@ -190,14 +190,7 @@ func ListTasks(c *gin.Context) {
 		return
 	}
 
-	opts, err := req.TimeRangeQuery.Convert()
-	if err != nil {
-		logrus.Errorf("failed to convert time range query: %v", err)
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
-		return
-	}
-
-	total, tasks, err := repository.ListTasks(req, *opts, req.SortField)
+	total, tasks, err := repository.ListTasks(&req)
 	if err != nil {
 		logrus.Errorf("failed to fetch tasks: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch tasks")

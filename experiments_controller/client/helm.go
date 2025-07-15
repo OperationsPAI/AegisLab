@@ -295,7 +295,7 @@ func (c *HelmClient) InstallRelease(ctx context.Context, releaseName, chartName 
 	})
 }
 
-func (c *HelmClient) InstallTrainTicket(ctx context.Context, releaseName, nodePort string, installTimeout, unInstallTimeout time.Duration) error {
+func (c *HelmClient) InstallTrainTicket(ctx context.Context, releaseName, chartName, imageName, imageTag, nodePort string, installTimeout, unInstallTimeout time.Duration) error {
 	installed, err := c.IsReleaseInstalled(releaseName)
 	if err != nil {
 		return err
@@ -311,12 +311,6 @@ func (c *HelmClient) InstallTrainTicket(ctx context.Context, releaseName, nodePo
 		logrus.Infof("No existing %s release found", releaseName)
 	}
 
-	imageName := "ts-train-service"
-	imageTag, err := GetHarborClient().GetLatestTag(imageName)
-	if err != nil {
-		return fmt.Errorf("failed to get lataest tag of %s: %v", imageName, err)
-	}
-
 	values := map[string]any{
 		"global": map[string]any{
 			"image": map[string]any{
@@ -330,5 +324,5 @@ func (c *HelmClient) InstallTrainTicket(ctx context.Context, releaseName, nodePo
 		},
 	}
 
-	return c.InstallRelease(ctx, releaseName, "train-ticket/trainticket", values, installTimeout)
+	return c.InstallRelease(ctx, releaseName, chartName, values, installTimeout)
 }

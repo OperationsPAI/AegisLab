@@ -13,7 +13,7 @@ Method | HTTP request | Description
 
 分析链路数据
 
-使用多种筛选条件分析链路数据
+使用多种筛选条件分析链路数据，返回包括故障注入结束链路在内的统计信息
 
 ### Example
 
@@ -78,7 +78,7 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | OK |  -  |
+**200** | 返回统计信息，包含fault_injection_traces字段显示以FaultInjection事件结束的trace_id列表 |  -  |
 **400** | Bad Request |  -  |
 **500** | Internal Server Error |  -  |
 
