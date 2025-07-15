@@ -22,6 +22,7 @@ type TraceStatistic struct {
 	DetectAnomaly      bool
 
 	CurrentTaskType consts.TaskType
+	LastEndEvent    consts.EventType // 添加最后一个结束事件类型
 
 	TotalDuration float64
 	StatusTimeMap map[consts.TaskType]float64
@@ -119,9 +120,13 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 		case consts.EventFaultInjectionCompleted:
 			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(taskStartTime).Seconds()
 			stat.InjectDuration = eventTime.Sub(stageStartTime).Seconds()
+			stat.Finished = true
+			stat.LastEndEvent = consts.EventFaultInjectionCompleted
+			endTime = eventTime
 
 		case consts.EventFaultInjectionFailed:
 			stat.IntermediateFailed = true
+			stat.LastEndEvent = consts.EventFaultInjectionFailed
 			endTime = eventTime
 
 		// 数据集构建相关事件
@@ -137,15 +142,18 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(taskStartTime).Seconds()
 			stat.Finished = true
 			stat.DetectAnomaly = false
+			stat.LastEndEvent = consts.EventDatasetNoAnomaly
 			endTime = eventTime
 		case consts.EventDatasetResultCollection:
 			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(taskStartTime).Seconds()
 			stat.Finished = true
 			stat.DetectAnomaly = true
+			stat.LastEndEvent = consts.EventDatasetResultCollection
 			endTime = eventTime
 		case consts.EventDatasetNoConclusionFile:
 			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(taskStartTime).Seconds()
 			stat.IntermediateFailed = true
+			stat.LastEndEvent = consts.EventDatasetNoConclusionFile
 			endTime = eventTime
 		case consts.EventTaskStatusUpdate:
 			if payload, ok := event.Payload.(string); ok {
