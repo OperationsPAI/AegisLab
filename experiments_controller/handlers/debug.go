@@ -7,6 +7,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/client/k8s"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 func GetAllVars(c *gin.Context) {
@@ -57,6 +58,7 @@ func GetNSLock(c *gin.Context) {
 	cli := k8s.GetMonitor()
 	items, err := cli.InspectLock()
 	if err != nil {
+		logrus.Error("failed to inspect namespace locks:", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to inspect lock")
 		return
 	}

@@ -32,6 +32,7 @@ type UnifiedTask struct {
 	ReStartNum   int                    `json:"restart_num"`                  // Number of restarts for the task
 	RetryPolicy  RetryPolicy            `json:"retry_policy"`                 // Policy for retrying failed tasks
 	Payload      map[string]any         `json:"payload" swaggertype:"object"` // Task-specific data
+	Status       string                 `json:"status"`                       // Status of the task
 	TraceID      string                 `json:"trace_id,omitempty"`           // ID for tracing related tasks
 	GroupID      string                 `json:"group_id,omitempty"`           // ID for grouping tasks
 	TraceCarrier propagation.MapCarrier `json:"trace_carrier,omitempty"`      // Carrier for trace context

@@ -159,7 +159,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 			deltaTime = time.Duration(math.Min(math.Pow(2, float64(task.ReStartNum)), 5.0)*randomFactor) * consts.DefaultTimeUnit
 			executeTime := time.Now().Add(deltaTime)
 
-			tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStautsRescheduled))
+			tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStatusPending))
 			logrus.WithFields(logrus.Fields{
 				"task_id":  task.TaskID,
 				"trace_id": task.TraceID,
@@ -183,11 +183,13 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 			)
 
 			if _, _, err := SubmitTask(childCtx, &dto.UnifiedTask{
+				TaskID:       task.TaskID,
 				Type:         consts.TaskTypeRestartService,
 				Immediate:    false,
 				ExecuteTime:  executeTime.Unix(),
 				ReStartNum:   task.ReStartNum + 1,
 				Payload:      task.Payload,
+				Status:       consts.TaskStautsRescheduled,
 				TraceID:      task.TraceID,
 				GroupID:      task.GroupID,
 				TraceCarrier: task.TraceCarrier,
@@ -211,6 +213,15 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 			span.AddEvent("failed to read namespace index")
 			return fmt.Errorf("failed to read namespace index: %v", err)
 		}
+
+		updateTaskStatus(
+			ctx,
+			task.TraceID,
+			task.TaskID,
+			fmt.Sprintf("Restarting service in namespace %s", namespace),
+			consts.TaskStatusRunning,
+			consts.TaskTypeRestartService,
+		)
 
 		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 			TaskID:    task.TaskID,
@@ -250,7 +261,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 			consts.TaskTypeRestartService,
 		)
 
-		tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStatusScheduled))
+		tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStatusCompleted))
 
 		injectTask := &dto.UnifiedTask{
 			Type:         consts.TaskTypeFaultInjection,
@@ -276,7 +287,7 @@ func installTS(ctx context.Context, namespace, nsPrefix string, namespaceIdx int
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		nsConfigMap, err := config.GetNsConfigMap()
 		if err != nil {
-			return fmt.Errorf("error getting namespace config map: %v", err)
+			return fmt.Errorf("failed to get namespace config map: %v", err)
 		}
 
 		payload, exists := nsConfigMap[nsPrefix]
@@ -291,17 +302,25 @@ func installTS(ctx context.Context, namespace, nsPrefix string, namespaceIdx int
 
 		helmClient, err := client.NewHelmClient(namespace)
 		if err != nil {
-			return fmt.Errorf("error creating Helm client: %v", err)
+			return fmt.Errorf("failed to create Helm client: %v", err)
 		}
 
 		// Add Train Ticket repository
 		if err := helmClient.AddRepo(nsConfig.RepoName, nsConfig.RepoURL); err != nil {
-			return fmt.Errorf("error adding repository: %v", err)
+			return fmt.Errorf("failed to add repository: %v", err)
 		}
 
 		// Update repositories
 		if err := helmClient.UpdateRepo(); err != nil {
-			return fmt.Errorf("error updating repositories: %v", err)
+			return fmt.Errorf("failed to update repositories: %v", err)
+		}
+
+		container, err := repository.GetContaineInfo(&dto.GetContainerFilterOptions{
+			Type: consts.ContainerTypeNamespace,
+			Name: nsPrefix,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to get container info: %v", err)
 		}
 
 		port := fmt.Sprintf(nsConfig.Port, namespaceIdx)
@@ -309,13 +328,13 @@ func installTS(ctx context.Context, namespace, nsPrefix string, namespaceIdx int
 		if err := helmClient.InstallTrainTicket(ctx,
 			namespace,
 			chartName,
-			nsConfig.ImageName,
-			nsConfig.ImageTag,
+			container.Image,
+			container.Tag,
 			port,
 			500*time.Second,
 			300*time.Second,
 		); err != nil {
-			return fmt.Errorf("error installing Train Ticket: %v", err)
+			return fmt.Errorf("failed to install Train Ticket: %v", err)
 		}
 
 		logrus.Infof("Train Ticket installed successfully in namespace %s", namespace)

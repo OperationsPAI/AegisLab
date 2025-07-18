@@ -90,8 +90,13 @@ func SubmitTask(ctx context.Context, task *dto.UnifiedTask) (string, string, err
 	if task.TaskID == "" {
 		task.TaskID = uuid.NewString()
 	}
+
 	if task.TraceID == "" {
 		task.TraceID = uuid.NewString()
+	}
+
+	if task.Status == "" {
+		task.Status = consts.TaskStatusPending
 	}
 
 	jsonPayload, err := json.Marshal(task.Payload)
@@ -99,20 +104,22 @@ func SubmitTask(ctx context.Context, task *dto.UnifiedTask) (string, string, err
 		return "", "", err
 	}
 
-	t := database.Task{
-		ID:          task.TaskID,
-		Type:        string(task.Type),
-		Payload:     string(jsonPayload),
-		Immediate:   task.Immediate,
-		ExecuteTime: task.ExecuteTime,
-		CronExpr:    task.CronExpr,
-		Status:      consts.TaskStatusPending,
-		TraceID:     task.TraceID,
-		GroupID:     task.GroupID,
-	}
-	if err := database.DB.Create(&t).Error; err != nil {
-		logrus.Errorf("failed to save task to database, err: %v", err)
-		return "", "", err
+	if task.Status != consts.TaskStautsRescheduled {
+		t := database.Task{
+			ID:          task.TaskID,
+			Type:        string(task.Type),
+			Payload:     string(jsonPayload),
+			Immediate:   task.Immediate,
+			ExecuteTime: task.ExecuteTime,
+			CronExpr:    task.CronExpr,
+			Status:      task.Status,
+			TraceID:     task.TraceID,
+			GroupID:     task.GroupID,
+		}
+		if err := database.DB.Create(&t).Error; err != nil {
+			logrus.Errorf("failed to save task to database, err: %v", err)
+			return "", "", err
+		}
 	}
 
 	taskData, err := marshalTask(task)
@@ -123,10 +130,12 @@ func SubmitTask(ctx context.Context, task *dto.UnifiedTask) (string, string, err
 	if task.Immediate {
 		err = repository.SubmitImmediateTask(ctx, taskData, task.TaskID)
 	} else {
-		executeTime, err := calculateExecuteTime(task)
+		var executeTime int64
+		executeTime, err = calculateExecuteTime(task)
 		if err != nil {
 			return "", "", err
 		}
+
 		err = repository.SubmitDelayedTask(ctx, taskData, task.TaskID, executeTime)
 	}
 
