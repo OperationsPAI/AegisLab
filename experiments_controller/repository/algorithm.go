@@ -28,6 +28,7 @@ func GetCachedAlgorithmItemsFromRedis(ctx context.Context, key, field string) ([
 		if errors.Is(err, redis.Nil) {
 			return nil, fmt.Errorf("no cached algorithms found for field %s", field)
 		}
+
 		return nil, fmt.Errorf("failed to get cached algorithms for field %s: %v", field, err)
 	}
 

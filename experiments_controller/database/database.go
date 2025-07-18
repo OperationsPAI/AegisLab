@@ -57,6 +57,7 @@ type Task struct {
 	TraceID     string    `json:"trace_id"`
 	GroupID     string    `json:"group_id"`
 	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 // FaultInjectionSchedule 模型
@@ -246,8 +247,6 @@ func createFaultInjectionIndexes() {
 	for _, query := range indexQueries {
 		if err := DB.Exec(query).Error; err != nil {
 			logrus.Warnf("failed to create index: %v", err)
-		} else {
-			logrus.Info("successfully created JSONB index")
 		}
 	}
 }

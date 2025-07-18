@@ -48,9 +48,17 @@ func GetTraceStream(c *gin.Context) {
 		return
 	}
 
-	_, tasks, err := repository.ListTasks(&dto.ListTasksReq{
+	listReq := &dto.ListTasksReq{
 		TraceID: traceReq.TraceID,
-	})
+	}
+
+	if err := listReq.Validate(); err != nil {
+		logEntry.Errorf("Invalid request: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid request: %v", err))
+		return
+	}
+
+	_, tasks, err := repository.ListTasks(listReq)
 	if err != nil {
 		logrus.Errorf("failed to fetch tasks: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch tasks")

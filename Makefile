@@ -62,15 +62,26 @@ check-postgres: ## Check if PostgreSQL is running
 db-reset: ## Reset PostgreSQL database (WARNING: This will delete all data)
 	@echo "🗑️  Resetting PostgreSQL database in namespace $(NS)..."
 	helm uninstall rcabench -n $(NS) || true
-	@echo "Waiting for pods to terminate..."
-	sleep 5
+	@echo "⏳ Waiting for pods to terminate..."
+	@while kubectl get pods -n $(NS) -l app=rcabench-postgres 2>/dev/null | grep -q .; do \
+		echo "  Still waiting for pods to terminate..."; \
+		sleep 2; \
+	done
+	@echo "✅ All pods terminated"
+
 	kubectl delete pvc rcabench-postgres-data -n $(NS) || true
-	@echo "Waiting for PVCs to be deleted..."
-	sleep 20
+	@echo "⏳ Waiting for PVCs to be deleted..."
+	@while kubectl get pvc -n $(NS) | grep -q rcabench-postgres-data; do \
+		echo "  Still waiting for PVC deletion..."; \
+		sleep 2; \
+	done
+	@echo "✅ PVC deleted successfully"
+
 	@echo "✅ Database reset complete. Redeploying..."
 	$(MAKE) run
 	@echo "🚀 Application redeployed successfully."
 	$(MAKE) -C scripts/hack/backup_psql restore-remote
+	@echo "📦 Restored database from backup."
 
 
 ##@ Development

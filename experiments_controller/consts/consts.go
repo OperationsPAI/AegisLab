@@ -10,6 +10,7 @@ type ContainerType string
 const (
 	ContainerTypeAlgorithm ContainerType = "algorithm"
 	ContainerTypeBenchmark ContainerType = "benchmark"
+	ContainerTypeNamespace ContainerType = "namespace"
 )
 
 type BuildSourceType string
@@ -47,7 +48,6 @@ const (
 	TaskStatusPending     string = "Pending"
 	TaskStatusRunning     string = "Running"
 	TaskStautsRescheduled string = "Rescheduled"
-	TaskStatusScheduled   string = "Scheduled"
 )
 
 const (

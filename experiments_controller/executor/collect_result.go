@@ -102,8 +102,8 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				task.Type,
 			)
 
-			if hasIssues && repository.CheckCachedField(childCtx, consts.InjectionAlgorithmsKey, task.TraceID) {
-				items, err := repository.GetCachedAlgorithmItemsFromRedis(childCtx, consts.InjectionAlgorithmsKey, task.TraceID)
+			if hasIssues && repository.CheckCachedField(childCtx, consts.InjectionAlgorithmsKey, task.GroupID) {
+				items, err := repository.GetCachedAlgorithmItemsFromRedis(childCtx, consts.InjectionAlgorithmsKey, task.GroupID)
 				if err != nil {
 					span.AddEvent("failed to get algorithms from redis")
 					span.RecordError(err)

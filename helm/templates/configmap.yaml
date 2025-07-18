@@ -24,8 +24,6 @@ data:
     count = {{ $value.count }}
     port = "{{ $value.port }}"
     chart_name = "{{ $value.chart_name }}"
-    image_name = "{{ $value.image_name }}"
-    image_tag = "{{ $value.image_tag }}"
     repo_name = "{{ $value.repo_name }}"
     repo_url = "{{ $value.repo_url }}"
     {{- end }}
