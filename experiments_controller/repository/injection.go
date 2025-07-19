@@ -407,21 +407,50 @@ func GetFLByDatasetName(datasetName string) (*database.FaultInjectionSchedule, e
 	return &record, nil
 }
 
-func GetFaultInjectionStatistics(opts dto.TimeFilterOptions) (map[string]int64, error) {
-	var noIssuesCount, withIssuesCount int64
-	query := opts.AddTimeFilter(database.DB.Model(&database.FaultInjectionNoIssues{}), "created_at")
+func GetInjectionStats(req *dto.TimeRangeQuery) (map[string]int64, error) {
+	opts, err := req.Convert()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert time range query: %v", err)
+	}
 
-	if err := query.Count(&noIssuesCount).Error; err != nil {
+	startTime, endTime := opts.GetTimeRange()
+
+	var args []any
+	args = append(args, startTime)
+	args = append(args, endTime)
+
+	timeCondition := "WHERE created_at >= ? AND created_at <= ?"
+	sql := fmt.Sprintf(`
+        SELECT 
+            'no_issues' as type,
+            COUNT(*) as record_count,
+            COUNT(DISTINCT injection_name) as name_count
+        FROM fault_injection_no_issues %s
+        UNION ALL
+        SELECT 
+            'with_issues' as type,
+            COUNT(*) as record_count,
+            COUNT(DISTINCT injection_name) as name_count
+        FROM fault_injection_with_issues %s
+    `, timeCondition, timeCondition)
+
+	var results []struct {
+		Type        string `gorm:"column:type"`
+		RecordCount int64  `gorm:"column:record_count"`
+		NameCount   int64  `gorm:"column:name_count"`
+	}
+
+	allArgs := append(args, args...)
+	if err := database.DB.Raw(sql, allArgs...).Scan(&results).Error; err != nil {
 		return nil, err
 	}
 
-	if err := query.Count(&withIssuesCount).Error; err != nil {
-		return nil, err
+	stats := make(map[string]int64)
+	for _, result := range results {
+		prefix := result.Type
+		stats[prefix+"_records"] = result.RecordCount
+		stats[prefix+"_injections"] = result.NameCount
 	}
 
-	return map[string]int64{
-		"no_issues":   noIssuesCount,
-		"with_issues": withIssuesCount,
-		"total":       noIssuesCount + withIssuesCount,
-	}, nil
+	return stats, nil
 }

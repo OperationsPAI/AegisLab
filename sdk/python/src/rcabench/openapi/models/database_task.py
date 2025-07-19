@@ -37,8 +37,9 @@ class DatabaseTask(BaseModel):
     status: Optional[StrictStr] = None
     trace_id: Optional[StrictStr] = None
     type: Optional[StrictStr] = None
+    updated_at: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["created_at", "cron_expr", "execute_time", "group_id", "id", "immediate", "payload", "status", "trace_id", "type"]
+    __properties: ClassVar[List[str]] = ["created_at", "cron_expr", "execute_time", "group_id", "id", "immediate", "payload", "status", "trace_id", "type", "updated_at"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -107,7 +108,8 @@ class DatabaseTask(BaseModel):
             "payload": obj.get("payload"),
             "status": obj.get("status"),
             "trace_id": obj.get("trace_id"),
-            "type": obj.get("type")
+            "type": obj.get("type"),
+            "updated_at": obj.get("updated_at")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

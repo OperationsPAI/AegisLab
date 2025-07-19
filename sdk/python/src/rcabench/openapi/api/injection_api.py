@@ -24,9 +24,9 @@ from typing_extensions import Annotated
 from rcabench.openapi.models.dto_generic_response_any import DtoGenericResponseAny
 from rcabench.openapi.models.dto_generic_response_array_dto_fault_injection_no_issues_resp import DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp
 from rcabench.openapi.models.dto_generic_response_array_dto_fault_injection_with_issues_resp import DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp
-from rcabench.openapi.models.dto_generic_response_dto_fault_injection_statistics_resp import DtoGenericResponseDtoFaultInjectionStatisticsResp
 from rcabench.openapi.models.dto_generic_response_dto_inject_cancel_resp import DtoGenericResponseDtoInjectCancelResp
 from rcabench.openapi.models.dto_generic_response_dto_injection_field_mapping_resp import DtoGenericResponseDtoInjectionFieldMappingResp
+from rcabench.openapi.models.dto_generic_response_dto_injection_stats_resp import DtoGenericResponseDtoInjectionStatsResp
 from rcabench.openapi.models.dto_generic_response_dto_list_injections_resp import DtoGenericResponseDtoListInjectionsResp
 from rcabench.openapi.models.dto_generic_response_dto_query_injection_resp import DtoGenericResponseDtoQueryInjectionResp
 from rcabench.openapi.models.dto_generic_response_dto_submit_injection_resp import DtoGenericResponseDtoSubmitInjectionResp
@@ -407,7 +407,7 @@ class InjectionApi:
 
 
     @validate_call
-    def api_v1_injections_analysis_statistics_get(
+    def api_v1_injections_analysis_stats_get(
         self,
         lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
         custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
@@ -424,7 +424,7 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseDtoFaultInjectionStatisticsResp:
+    ) -> DtoGenericResponseDtoInjectionStatsResp:
         """获取故障注入统计信息
 
         获取故障注入记录的统计信息，包括有问题、没有问题和总记录数量
@@ -457,7 +457,7 @@ class InjectionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_injections_analysis_statistics_get_serialize(
+        _param = self._api_v1_injections_analysis_stats_get_serialize(
             lookback=lookback,
             custom_start_time=custom_start_time,
             custom_end_time=custom_end_time,
@@ -468,7 +468,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoFaultInjectionStatisticsResp",
+            '200': "DtoGenericResponseDtoInjectionStatsResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -484,7 +484,7 @@ class InjectionApi:
 
 
     @validate_call
-    def api_v1_injections_analysis_statistics_get_with_http_info(
+    def api_v1_injections_analysis_stats_get_with_http_info(
         self,
         lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
         custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
@@ -501,7 +501,7 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseDtoFaultInjectionStatisticsResp]:
+    ) -> ApiResponse[DtoGenericResponseDtoInjectionStatsResp]:
         """获取故障注入统计信息
 
         获取故障注入记录的统计信息，包括有问题、没有问题和总记录数量
@@ -534,7 +534,7 @@ class InjectionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_injections_analysis_statistics_get_serialize(
+        _param = self._api_v1_injections_analysis_stats_get_serialize(
             lookback=lookback,
             custom_start_time=custom_start_time,
             custom_end_time=custom_end_time,
@@ -545,7 +545,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoFaultInjectionStatisticsResp",
+            '200': "DtoGenericResponseDtoInjectionStatsResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -561,7 +561,7 @@ class InjectionApi:
 
 
     @validate_call
-    def api_v1_injections_analysis_statistics_get_without_preload_content(
+    def api_v1_injections_analysis_stats_get_without_preload_content(
         self,
         lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
         custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
@@ -611,7 +611,7 @@ class InjectionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_injections_analysis_statistics_get_serialize(
+        _param = self._api_v1_injections_analysis_stats_get_serialize(
             lookback=lookback,
             custom_start_time=custom_start_time,
             custom_end_time=custom_end_time,
@@ -622,7 +622,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoFaultInjectionStatisticsResp",
+            '200': "DtoGenericResponseDtoInjectionStatsResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -633,7 +633,7 @@ class InjectionApi:
         return response_data.response
 
 
-    def _api_v1_injections_analysis_statistics_get_serialize(
+    def _api_v1_injections_analysis_stats_get_serialize(
         self,
         lookback,
         custom_start_time,
@@ -710,7 +710,7 @@ class InjectionApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/v1/injections/analysis/statistics',
+            resource_path='/api/v1/injections/analysis/stats',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

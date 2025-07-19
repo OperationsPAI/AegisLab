@@ -16,6 +16,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/executor"
 	"github.com/LGU-SE-Internal/rcabench/middleware"
 	"github.com/LGU-SE-Internal/rcabench/repository"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/codes"
@@ -606,7 +607,7 @@ func GetFaultInjectionWithIssues(c *gin.Context) {
 	dto.SuccessResponse(c, items)
 }
 
-// GetFaultInjectionStatistics
+// GetInjectionStats
 //
 //	@Summary		获取故障注入统计信息
 //	@Description	获取故障注入记录的统计信息，包括有问题、没有问题和总记录数量
@@ -615,11 +616,11 @@ func GetFaultInjectionWithIssues(c *gin.Context) {
 //	@Param			lookback			query	string	false	"时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置"
 //	@Param			custom_start_time	query	string	false	"自定义开始时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
 //	@Param			custom_end_time		query	string	false	"自定义结束时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
-//	@Success		200					{object}	dto.GenericResponse[dto.FaultInjectionStatisticsResp]	"成功返回故障注入统计信息"
+//	@Success		200					{object}	dto.GenericResponse[dto.InjectionStatsResp]	"成功返回故障注入统计信息"
 //	@Failure		400					{object}	dto.GenericResponse[any]	"请求参数错误，如时间格式不正确或参数验证失败等"
 //	@Failure		500					{object}	dto.GenericResponse[any]	"服务器内部错误"
-//	@Router			/api/v1/injections/analysis/statistics [get]
-func GetFaultInjectionStatistics(c *gin.Context) {
+//	@Router			/api/v1/injections/analysis/stats [get]
+func GetInjectionStats(c *gin.Context) {
 	var req dto.TimeRangeQuery
 	if err := c.BindQuery(&req); err != nil {
 		logrus.Errorf("failed to bind query parameters: %v", err)
@@ -633,23 +634,19 @@ func GetFaultInjectionStatistics(c *gin.Context) {
 		return
 	}
 
-	opts, err := req.Convert()
+	stats, err := repository.GetInjectionStats(&req)
 	if err != nil {
-		logrus.Errorf("failed to convert request: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to convert request")
+		logrus.Errorf("failed to get injection stats: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get injection stats")
 		return
 	}
 
-	stats, err := repository.GetFaultInjectionStatistics(*opts)
+	resp, err := utils.ConvertToType[dto.InjectionStatsResp](stats)
 	if err != nil {
-		logrus.Errorf("failed to get injection statistics: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get injection statistics")
+		logrus.Errorf("failed to convert to type: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to convert to resp type")
 		return
 	}
 
-	dto.SuccessResponse(c, dto.FaultInjectionStatisticsResp{
-		NoIssuesCount:   stats["no_issues"],
-		WithIssuesCount: stats["with_issues"],
-		TotalCount:      stats["total"],
-	})
+	dto.SuccessResponse(c, resp)
 }

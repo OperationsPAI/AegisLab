@@ -18,32 +18,22 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.consts_task_type import ConstsTaskType
-from rcabench.openapi.models.dto_retry_policy import DtoRetryPolicy
+from rcabench.openapi.models.dto_injection_stats_resp import DtoInjectionStatsResp
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoUnifiedTask(BaseModel):
+class DtoGenericResponseDtoInjectionStatsResp(BaseModel):
     """
-    DtoUnifiedTask
+    DtoGenericResponseDtoInjectionStatsResp
     """ # noqa: E501
-    cron_expr: Optional[StrictStr] = Field(default=None, description="Cron expression for recurring tasks")
-    execute_time: Optional[StrictInt] = Field(default=None, description="Unix timestamp for delayed execution")
-    group_carrier: Optional[Dict[str, StrictStr]] = Field(default=None, description="Carrier for group context")
-    group_id: Optional[StrictStr] = Field(default=None, description="ID for grouping tasks")
-    immediate: Optional[StrictBool] = Field(default=None, description="Whether to execute immediately")
-    payload: Optional[Dict[str, Any]] = Field(default=None, description="Task-specific data")
-    restart_num: Optional[StrictInt] = Field(default=None, description="Number of restarts for the task")
-    retry_policy: Optional[DtoRetryPolicy] = Field(default=None, description="Policy for retrying failed tasks")
-    status: Optional[StrictStr] = Field(default=None, description="Status of the task")
-    task_id: Optional[StrictStr] = Field(default=None, description="Unique identifier for the task")
-    trace_carrier: Optional[Dict[str, StrictStr]] = Field(default=None, description="Carrier for trace context")
-    trace_id: Optional[StrictStr] = Field(default=None, description="ID for tracing related tasks")
-    type: Optional[ConstsTaskType] = Field(default=None, description="Task type (determines how it's processed)")
+    code: Optional[StrictInt] = Field(default=None, description="状态码")
+    data: Optional[DtoInjectionStatsResp] = Field(default=None, description="泛型类型的数据")
+    message: Optional[StrictStr] = Field(default=None, description="响应消息")
+    timestamp: Optional[StrictInt] = Field(default=None, description="响应生成时间")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["cron_expr", "execute_time", "group_carrier", "group_id", "immediate", "payload", "restart_num", "retry_policy", "status", "task_id", "trace_carrier", "trace_id", "type"]
+    __properties: ClassVar[List[str]] = ["code", "data", "message", "timestamp"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -63,7 +53,7 @@ class DtoUnifiedTask(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoUnifiedTask from a JSON string"""
+        """Create an instance of DtoGenericResponseDtoInjectionStatsResp from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -86,9 +76,9 @@ class DtoUnifiedTask(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of retry_policy
-        if self.retry_policy:
-            _dict['retry_policy'] = self.retry_policy.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of data
+        if self.data:
+            _dict['data'] = self.data.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -98,7 +88,7 @@ class DtoUnifiedTask(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoUnifiedTask from a dict"""
+        """Create an instance of DtoGenericResponseDtoInjectionStatsResp from a dict"""
         if obj is None:
             return None
 
@@ -106,19 +96,10 @@ class DtoUnifiedTask(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "cron_expr": obj.get("cron_expr"),
-            "execute_time": obj.get("execute_time"),
-            "group_carrier": obj.get("group_carrier"),
-            "group_id": obj.get("group_id"),
-            "immediate": obj.get("immediate"),
-            "payload": obj.get("payload"),
-            "restart_num": obj.get("restart_num"),
-            "retry_policy": DtoRetryPolicy.from_dict(obj["retry_policy"]) if obj.get("retry_policy") is not None else None,
-            "status": obj.get("status"),
-            "task_id": obj.get("task_id"),
-            "trace_carrier": obj.get("trace_carrier"),
-            "trace_id": obj.get("trace_id"),
-            "type": obj.get("type")
+            "code": obj.get("code"),
+            "data": DtoInjectionStatsResp.from_dict(obj["data"]) if obj.get("data") is not None else None,
+            "message": obj.get("message"),
+            "timestamp": obj.get("timestamp")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

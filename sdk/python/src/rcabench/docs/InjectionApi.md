@@ -5,7 +5,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**api_v1_injections_analysis_no_issues_get**](InjectionApi.md#api_v1_injections_analysis_no_issues_get) | **GET** /api/v1/injections/analysis/no-issues | 查询没有问题的故障注入记录
-[**api_v1_injections_analysis_statistics_get**](InjectionApi.md#api_v1_injections_analysis_statistics_get) | **GET** /api/v1/injections/analysis/statistics | 获取故障注入统计信息
+[**api_v1_injections_analysis_stats_get**](InjectionApi.md#api_v1_injections_analysis_stats_get) | **GET** /api/v1/injections/analysis/stats | 获取故障注入统计信息
 [**api_v1_injections_analysis_with_issues_get**](InjectionApi.md#api_v1_injections_analysis_with_issues_get) | **GET** /api/v1/injections/analysis/with-issues | 查询有问题的故障注入记录
 [**api_v1_injections_conf_get**](InjectionApi.md#api_v1_injections_conf_get) | **GET** /api/v1/injections/conf | 获取故障注入配置
 [**api_v1_injections_configs_get**](InjectionApi.md#api_v1_injections_configs_get) | **GET** /api/v1/injections/configs | 获取已注入故障配置列表
@@ -95,8 +95,8 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **api_v1_injections_analysis_statistics_get**
-> DtoGenericResponseDtoFaultInjectionStatisticsResp api_v1_injections_analysis_statistics_get(lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
+# **api_v1_injections_analysis_stats_get**
+> DtoGenericResponseDtoInjectionStatsResp api_v1_injections_analysis_stats_get(lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
 
 获取故障注入统计信息
 
@@ -107,7 +107,7 @@ No authorization required
 
 ```python
 import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_dto_fault_injection_statistics_resp import DtoGenericResponseDtoFaultInjectionStatisticsResp
+from rcabench.openapi.models.dto_generic_response_dto_injection_stats_resp import DtoGenericResponseDtoInjectionStatsResp
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
@@ -128,11 +128,11 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
     try:
         # 获取故障注入统计信息
-        api_response = api_instance.api_v1_injections_analysis_statistics_get(lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
-        print("The response of InjectionApi->api_v1_injections_analysis_statistics_get:\n")
+        api_response = api_instance.api_v1_injections_analysis_stats_get(lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
+        print("The response of InjectionApi->api_v1_injections_analysis_stats_get:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling InjectionApi->api_v1_injections_analysis_statistics_get: %s\n" % e)
+        print("Exception when calling InjectionApi->api_v1_injections_analysis_stats_get: %s\n" % e)
 ```
 
 
@@ -148,7 +148,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**DtoGenericResponseDtoFaultInjectionStatisticsResp**](DtoGenericResponseDtoFaultInjectionStatisticsResp.md)
+[**DtoGenericResponseDtoInjectionStatsResp**](DtoGenericResponseDtoInjectionStatsResp.md)
 
 ### Authorization
 

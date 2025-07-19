@@ -124,6 +124,8 @@ definitions:
         type: string
       type:
         type: string
+      updated_at:
+        type: string
     type: object
   dto.AlgorithmDatasetPair:
     properties:
@@ -185,15 +187,6 @@ definitions:
         $ref: '#/definitions/handler.Node'
       injection_name:
         type: string
-    type: object
-  dto.FaultInjectionStatisticsResp:
-    properties:
-      no_issues_count:
-        type: integer
-      total_count:
-        type: integer
-      with_issues_count:
-        type: integer
     type: object
   dto.FaultInjectionWithIssuesResp:
     properties:
@@ -282,22 +275,6 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
-  dto.GenericResponse-dto_FaultInjectionStatisticsResp:
-    properties:
-      code:
-        description: 状态码
-        type: integer
-      data:
-        allOf:
-        - $ref: '#/definitions/dto.FaultInjectionStatisticsResp'
-        description: 泛型类型的数据
-      message:
-        description: 响应消息
-        type: string
-      timestamp:
-        description: 响应生成时间
-        type: integer
-    type: object
   dto.GenericResponse-dto_GetCompletedMapResp:
     properties:
       code:
@@ -354,6 +331,22 @@ definitions:
       data:
         allOf:
         - $ref: '#/definitions/dto.InjectionFieldMappingResp'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_InjectionStatsResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.InjectionStatsResp'
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -623,6 +616,17 @@ definitions:
       status:
         type: object
     type: object
+  dto.InjectionStatsResp:
+    properties:
+      no_issues_injections:
+        type: integer
+      no_issues_records:
+        type: integer
+      with_issues_injections:
+        type: integer
+      with_issues_records:
+        type: integer
+    type: object
   dto.LabelItem:
     properties:
       key:
@@ -869,6 +873,9 @@ definitions:
         allOf:
         - $ref: '#/definitions/dto.RetryPolicy'
         description: Policy for retrying failed tasks
+      status:
+        description: Status of the task
+        type: string
       task_id:
         description: Unique identifier for the task
         type: string
@@ -1535,7 +1542,7 @@ paths:
       summary: 查询没有问题的故障注入记录
       tags:
       - injection
-  /api/v1/injections/analysis/statistics:
+  /api/v1/injections/analysis/stats:
     get:
       description: 获取故障注入记录的统计信息，包括有问题、没有问题和总记录数量
       parameters:
@@ -1559,7 +1566,7 @@ paths:
         "200":
           description: 成功返回故障注入统计信息
           schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_FaultInjectionStatisticsResp'
+            $ref: '#/definitions/dto.GenericResponse-dto_InjectionStatsResp'
         "400":
           description: 请求参数错误，如时间格式不正确或参数验证失败等
           schema:

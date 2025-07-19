@@ -230,9 +230,10 @@ type FaultInjectionWithIssuesResp struct {
 	NormalP99           float64    `json:"normal_p99"`
 }
 
-// FaultInjectionStatisticsResp 故障注入统计响应
-type FaultInjectionStatisticsResp struct {
-	NoIssuesCount   int64 `json:"no_issues_count"`
-	WithIssuesCount int64 `json:"with_issues_count"`
-	TotalCount      int64 `json:"total_count"`
+// InjectionStatsResp 故障注入统计响应
+type InjectionStatsResp struct {
+	NoIssuesRecords      int64 `json:"no_issues_records"`
+	WithIssuesRecords    int64 `json:"with_issues_records"`
+	NoIssuesInjections   int64 `json:"no_issues_injections"`
+	WithIssuesInjections int64 `json:"with_issues_injections"`
 }
