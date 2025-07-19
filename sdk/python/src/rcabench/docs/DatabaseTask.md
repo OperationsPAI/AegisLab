@@ -15,6 +15,7 @@ Name | Type | Description | Notes
 **status** | **str** |  | [optional] 
 **trace_id** | **str** |  | [optional] 
 **type** | **str** |  | [optional] 
+**updated_at** | **str** |  | [optional] 
 
 ## Example
 

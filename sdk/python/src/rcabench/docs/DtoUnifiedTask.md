@@ -13,6 +13,7 @@ Name | Type | Description | Notes
 **payload** | **object** | Task-specific data | [optional] 
 **restart_num** | **int** | Number of restarts for the task | [optional] 
 **retry_policy** | [**DtoRetryPolicy**](DtoRetryPolicy.md) | Policy for retrying failed tasks | [optional] 
+**status** | **str** | Status of the task | [optional] 
 **task_id** | **str** | Unique identifier for the task | [optional] 
 **trace_carrier** | **Dict[str, str]** | Carrier for trace context | [optional] 
 **trace_id** | **str** | ID for tracing related tasks | [optional] 

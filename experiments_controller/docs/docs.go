@@ -805,7 +805,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/injections/analysis/statistics": {
+        "/api/v1/injections/analysis/stats": {
             "get": {
                 "description": "获取故障注入记录的统计信息，包括有问题、没有问题和总记录数量",
                 "produces": [
@@ -841,7 +841,7 @@ const docTemplate = `{
                     "200": {
                         "description": "成功返回故障注入统计信息",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_FaultInjectionStatisticsResp"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionStatsResp"
                         }
                     },
                     "400": {
@@ -1684,6 +1684,9 @@ const docTemplate = `{
                 },
                 "type": {
                     "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -1778,20 +1781,6 @@ const docTemplate = `{
                 },
                 "injection_name": {
                     "type": "string"
-                }
-            }
-        },
-        "dto.FaultInjectionStatisticsResp": {
-            "type": "object",
-            "properties": {
-                "no_issues_count": {
-                    "type": "integer"
-                },
-                "total_count": {
-                    "type": "integer"
-                },
-                "with_issues_count": {
-                    "type": "integer"
                 }
             }
         },
@@ -1923,31 +1912,6 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_FaultInjectionStatisticsResp": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "状态码",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "泛型类型的数据",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.FaultInjectionStatisticsResp"
-                        }
-                    ]
-                },
-                "message": {
-                    "description": "响应消息",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "响应生成时间",
-                    "type": "integer"
-                }
-            }
-        },
         "dto.GenericResponse-dto_GetCompletedMapResp": {
             "type": "object",
             "properties": {
@@ -2035,6 +1999,31 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.InjectionFieldMappingResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_InjectionStatsResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.InjectionStatsResp"
                         }
                     ]
                 },
@@ -2441,6 +2430,23 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.InjectionStatsResp": {
+            "type": "object",
+            "properties": {
+                "no_issues_injections": {
+                    "type": "integer"
+                },
+                "no_issues_records": {
+                    "type": "integer"
+                },
+                "with_issues_injections": {
+                    "type": "integer"
+                },
+                "with_issues_records": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.LabelItem": {
             "type": "object",
             "required": [
@@ -2805,6 +2811,10 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.RetryPolicy"
                         }
                     ]
+                },
+                "status": {
+                    "description": "Status of the task",
+                    "type": "string"
                 },
                 "task_id": {
                     "description": "Unique identifier for the task",

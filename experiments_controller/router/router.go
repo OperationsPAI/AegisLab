@@ -65,7 +65,7 @@ func New() *gin.Engine {
 		{
 			analysis.GET("/no-issues", handlers.GetFaultInjectionNoIssues)
 			analysis.GET("/with-issues", handlers.GetFaultInjectionWithIssues)
-			analysis.GET("/statistics", handlers.GetFaultInjectionStatistics)
+			analysis.GET("/stats", handlers.GetInjectionStats)
 		}
 
 		tasks := injections.Group("/:task_id")
