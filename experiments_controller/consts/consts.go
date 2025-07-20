@@ -145,6 +145,14 @@ const (
 	RdbEventFn       = "function_name"
 )
 
+const (
+	RestartServiceRateLimitKey = "rate_limit:restart_service"
+	RestartServiceTokenBucket  = "token_bucket:restart_service"
+	MaxConcurrentRestarts      = 2
+	TokenWaitTimeout           = 10
+	DelayRetryMinutes          = 5
+)
+
 type EventType string
 
 const (
