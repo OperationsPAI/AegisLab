@@ -20,6 +20,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/LGU-SE-Internal/rcabench/tracing"
 	"github.com/LGU-SE-Internal/rcabench/utils"
+	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -48,6 +49,175 @@ type restartPayload struct {
 	interval      int
 	faultDuration int
 	injectPayload map[string]any
+}
+
+type RestartServiceRateLimiter struct {
+	redisClient *redis.Client
+	maxTokens   int
+	waitTimeout time.Duration
+}
+
+func NewRestartServiceRateLimiter() *RestartServiceRateLimiter {
+	return &RestartServiceRateLimiter{
+		redisClient: client.GetRedisClient(),
+		maxTokens:   consts.MaxConcurrentRestarts,
+		waitTimeout: time.Duration(consts.TokenWaitTimeout) * time.Second,
+	}
+}
+
+func (r *RestartServiceRateLimiter) AcquireToken(ctx context.Context, taskID, traceID string) (bool, error) {
+	span := trace.SpanFromContext(ctx)
+
+	script := redis.NewScript(`
+		local bucket_key = KEYS[1]
+		local max_tokens = tonumber(ARGV[1])
+		local task_id = ARGV[2]
+		local trace_id = ARGV[3]
+		local expire_time = tonumber(ARGV[4])
+		
+		-- 获取当前令牌数量
+		local current_tokens = redis.call('SCARD', bucket_key)
+		
+		if current_tokens < max_tokens then
+			-- 有可用令牌，添加任务ID到集合中
+			redis.call('SADD', bucket_key, task_id)
+			redis.call('EXPIRE', bucket_key, expire_time)
+			return 1
+		else
+			return 0
+		end
+	`)
+
+	// 令牌过期时间设置为10分钟，防止死锁
+	expireTime := 10 * 60
+
+	result, err := script.Run(ctx, r.redisClient, []string{consts.RestartServiceTokenBucket},
+		r.maxTokens, taskID, traceID, expireTime).Result()
+	if err != nil {
+		span.RecordError(err)
+		return false, fmt.Errorf("failed to acquire token: %v", err)
+	}
+
+	acquired := result.(int64) == 1
+	if acquired {
+		span.AddEvent("token acquired successfully")
+		logrus.WithFields(logrus.Fields{
+			"task_id":  taskID,
+			"trace_id": traceID,
+		}).Info("Successfully acquired restart service token")
+	}
+
+	return acquired, nil
+}
+
+// ReleaseToken 释放令牌
+func (r *RestartServiceRateLimiter) ReleaseToken(ctx context.Context, taskID, traceID string) error {
+	span := trace.SpanFromContext(ctx)
+
+	// 从集合中移除任务ID
+	result, err := r.redisClient.SRem(ctx, consts.RestartServiceTokenBucket, taskID).Result()
+	if err != nil {
+		span.RecordError(err)
+		return fmt.Errorf("failed to release token: %v", err)
+	}
+
+	if result > 0 {
+		span.AddEvent("token released successfully")
+		logrus.WithFields(logrus.Fields{
+			"task_id":  taskID,
+			"trace_id": traceID,
+		}).Info("Successfully released restart service token")
+	}
+
+	return nil
+}
+
+// WaitForToken 等待获取令牌，如果超时则返回 false
+func (r *RestartServiceRateLimiter) WaitForToken(ctx context.Context, taskID, traceID string) (bool, error) {
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("waiting for token")
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, r.waitTimeout)
+	defer cancel()
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeoutCtx.Done():
+			span.AddEvent("token wait timeout")
+			logrus.WithFields(logrus.Fields{
+				"task_id":  taskID,
+				"trace_id": traceID,
+				"timeout":  r.waitTimeout,
+			}).Warn("Token wait timeout")
+			return false, nil
+		case <-ticker.C:
+			acquired, err := r.AcquireToken(ctx, taskID, traceID)
+			if err != nil {
+				return false, err
+			}
+			if acquired {
+				return true, nil
+			}
+		}
+	}
+}
+
+func rescheduleTask(ctx context.Context, task *dto.UnifiedTask, reason string) error {
+	span := trace.SpanFromContext(ctx)
+
+	var executeTime time.Time
+
+	randomFactor := 0.3 + rand.Float64()*0.7 // Random factor between 0.3 and 1.0
+	deltaTime := time.Duration(math.Min(math.Pow(2, float64(task.ReStartNum)), 5.0)*randomFactor) * consts.DefaultTimeUnit
+	executeTime = time.Now().Add(deltaTime)
+
+	eventPayload := executeTime.String()
+
+	span.AddEvent(fmt.Sprintf("rescheduling task: %s", reason))
+	logrus.WithFields(logrus.Fields{
+		"task_id":  task.TaskID,
+		"trace_id": task.TraceID,
+	}).Warnf("%s: %s", reason, executeTime)
+
+	tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStatusPending))
+
+	repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+		TaskID:    task.TaskID,
+		TaskType:  consts.TaskTypeRestartService,
+		EventName: consts.EventNoNamespaceAvailable,
+		Payload:   eventPayload,
+	})
+
+	updateTaskStatus(
+		ctx,
+		task.TraceID,
+		task.TaskID,
+		reason,
+		consts.TaskStautsRescheduled,
+		consts.TaskTypeRestartService,
+	)
+
+	if _, _, err := SubmitTask(ctx, &dto.UnifiedTask{
+		TaskID:       task.TaskID,
+		Type:         consts.TaskTypeRestartService,
+		Immediate:    false,
+		ExecuteTime:  executeTime.Unix(),
+		ReStartNum:   task.ReStartNum + 1,
+		Payload:      task.Payload,
+		Status:       consts.TaskStautsRescheduled,
+		TraceID:      task.TraceID,
+		GroupID:      task.GroupID,
+		TraceCarrier: task.TraceCarrier,
+	}); err != nil {
+		span.RecordError(err)
+		span.AddEvent("failed to submit rescheduled task")
+		return fmt.Errorf("failed to submit rescheduled restart task: %v", err)
+	}
+
+	return nil
 }
 
 // 执行故障注入任务
@@ -142,6 +312,50 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 		span := trace.SpanFromContext(ctx)
 		span.AddEvent(fmt.Sprintf("Starting retry attempt %d", task.ReStartNum+1))
 
+		rateLimiter := NewRestartServiceRateLimiter()
+
+		acquired, err := rateLimiter.AcquireToken(childCtx, task.TaskID, task.TraceID)
+		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to acquire rate limit token")
+			return fmt.Errorf("failed to acquire rate limit token: %v", err)
+		}
+
+		if !acquired {
+			span.AddEvent("no token available, waiting")
+			logrus.WithFields(logrus.Fields{
+				"task_id":  task.TaskID,
+				"trace_id": task.TraceID,
+			}).Info("No restart service token available, waiting...")
+
+			acquired, err = rateLimiter.WaitForToken(childCtx, task.TaskID, task.TraceID)
+			if err != nil {
+				span.RecordError(err)
+				span.AddEvent("failed to wait for token")
+				return fmt.Errorf("failed to wait for token: %v", err)
+			}
+
+			if !acquired {
+				if err := rescheduleTask(childCtx, task, "rate limited, retrying later"); err != nil {
+					return err
+				}
+				return nil
+			}
+		}
+
+		var tokenAcquired = true
+		defer func() {
+			if tokenAcquired {
+				if releaseErr := rateLimiter.ReleaseToken(ctx, task.TaskID, task.TraceID); releaseErr != nil {
+					logrus.WithFields(logrus.Fields{
+						"task_id":  task.TaskID,
+						"trace_id": task.TraceID,
+						"error":    releaseErr,
+					}).Error("Failed to release restart service token")
+				}
+			}
+		}()
+
 		payload, err := parseRestartPayload(childCtx, task.Payload)
 		if err != nil {
 			span.RecordError(err)
@@ -155,48 +369,18 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 		deltaTime := time.Duration(payload.interval) * consts.DefaultTimeUnit
 		namespace := monitor.GetNamespaceToRestart(t.Add(deltaTime), task.TraceID)
 		if namespace == "" {
-			randomFactor := 0.3 + rand.Float64()*0.7 // Random factor between 0.3 and 1.0
-			deltaTime = time.Duration(math.Min(math.Pow(2, float64(task.ReStartNum)), 5.0)*randomFactor) * consts.DefaultTimeUnit
-			executeTime := time.Now().Add(deltaTime)
+			// 没有获取到 namespace 锁，立即释放限流令牌
+			if releaseErr := rateLimiter.ReleaseToken(ctx, task.TaskID, task.TraceID); releaseErr != nil {
+				logrus.WithFields(logrus.Fields{
+					"task_id":  task.TaskID,
+					"trace_id": task.TraceID,
+					"error":    releaseErr,
+				}).Error("Failed to release restart service token after namespace lock failure")
+			}
+			tokenAcquired = false // 标记令牌已释放，避免 defer 中重复释放
 
-			tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStatusPending))
-			logrus.WithFields(logrus.Fields{
-				"task_id":  task.TaskID,
-				"trace_id": task.TraceID,
-			}).Warnf("Failed to acquire lock for namespace, retrying at in %v", executeTime.String())
-			span.AddEvent("failed to acquire lock for namespace, retrying")
-
-			repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
-				TaskID:    task.TaskID,
-				TaskType:  consts.TaskTypeRestartService,
-				EventName: consts.EventNoNamespaceAvailable,
-				Payload:   executeTime.String(),
-			})
-
-			updateTaskStatus(
-				ctx,
-				task.TraceID,
-				task.TaskID,
-				"failed to acquire lock for namespace, retrying",
-				consts.TaskStautsRescheduled,
-				consts.TaskTypeRestartService,
-			)
-
-			if _, _, err := SubmitTask(childCtx, &dto.UnifiedTask{
-				TaskID:       task.TaskID,
-				Type:         consts.TaskTypeRestartService,
-				Immediate:    false,
-				ExecuteTime:  executeTime.Unix(),
-				ReStartNum:   task.ReStartNum + 1,
-				Payload:      task.Payload,
-				Status:       consts.TaskStautsRescheduled,
-				TraceID:      task.TraceID,
-				GroupID:      task.GroupID,
-				TraceCarrier: task.TraceCarrier,
-			}); err != nil {
-				span.RecordError(err)
-				span.AddEvent("failed to submit restart task")
-				return fmt.Errorf("failed to submit restart task: %v", err)
+			if err := rescheduleTask(childCtx, task, "failed to acquire lock for namespace, retrying"); err != nil {
+				return err
 			}
 
 			return nil
@@ -331,8 +515,8 @@ func installTS(ctx context.Context, namespace, nsPrefix string, namespaceIdx int
 			container.Image,
 			container.Tag,
 			port,
-			500*time.Second,
-			300*time.Second,
+			600*time.Second,
+			360*time.Second,
 		); err != nil {
 			return fmt.Errorf("failed to install Train Ticket: %v", err)
 		}
