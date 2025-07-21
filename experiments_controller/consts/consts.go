@@ -18,6 +18,7 @@ type BuildSourceType string
 const (
 	BuildSourceTypeFile   BuildSourceType = "file"
 	BuildSourceTypeGitHub BuildSourceType = "github"
+	BuildSourceTypeHarbor BuildSourceType = "harbor"
 )
 
 const (
@@ -122,7 +123,6 @@ const (
 )
 
 const (
-	HarborURL      = "http://%s/api/v2.0/projects/%s/repositories/%s/artifacts?page_size=100"
 	HarborTimeout  = 30
 	HarborTimeUnit = time.Second
 )
@@ -151,6 +151,14 @@ const (
 	MaxConcurrentRestarts      = 2
 	TokenWaitTimeout           = 10
 	DelayRetryMinutes          = 5
+
+	// Build container rate limiting
+	BuildContainerTokenBucket = "token_bucket:build_container"
+	MaxConcurrentBuilds       = 3
+
+	// Algorithm execution rate limiting
+	AlgoExecutionTokenBucket   = "token_bucket:algo_execution"
+	MaxConcurrentAlgoExecution = 5
 )
 
 type EventType string
@@ -173,6 +181,7 @@ const (
 	EventTaskRetryStatus  EventType = "task.retry.status"
 	EventTaskStarted      EventType = "task.started"
 
+	EventNoTokenAvailable        EventType = "no.token.available"
 	EventNoNamespaceAvailable    EventType = "no.namespace.available"
 	EventRestartServiceStarted   EventType = "restart.service.started"
 	EventRestartServiceCompleted EventType = "restart.service.completed"

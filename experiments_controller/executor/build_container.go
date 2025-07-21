@@ -3,9 +3,11 @@ package executor
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
@@ -15,7 +17,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/tracing"
 	"github.com/LGU-SE-Internal/rcabench/utils"
 	con "github.com/docker/cli/cli/config"
-	"github.com/moby/buildkit/client"
+	buildkitclient "github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/frontend"
 	gateway "github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/identity"
@@ -41,9 +43,114 @@ type containerPayload struct {
 	buildOptions  dto.BuildOptions
 }
 
+func rescheduleBuildTask(ctx context.Context, task *dto.UnifiedTask, reason string) error {
+	span := trace.SpanFromContext(ctx)
+
+	var executeTime time.Time
+
+	// 实现随机 1 到 5 分钟的延迟
+	minDelayMinutes := 1
+	maxDelayMinutes := 5
+	randomDelayMinutes := minDelayMinutes + rand.Intn(maxDelayMinutes-minDelayMinutes+1)
+	executeTime = time.Now().Add(time.Duration(randomDelayMinutes) * time.Minute)
+
+	eventPayload := executeTime.String()
+
+	span.AddEvent(fmt.Sprintf("rescheduling build task: %s", reason))
+	logrus.WithFields(logrus.Fields{
+		"task_id":     task.TaskID,
+		"trace_id":    task.TraceID,
+		"delay_mins":  randomDelayMinutes,
+		"retry_count": task.ReStartNum + 1,
+	}).Warnf("%s: scheduled for %s", reason, executeTime.Format("2006-01-02 15:04:05"))
+
+	tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStatusPending))
+
+	repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+		TaskID:    task.TaskID,
+		TaskType:  consts.TaskTypeBuildImage,
+		EventName: consts.EventNoTokenAvailable,
+		Payload:   eventPayload,
+	})
+
+	updateTaskStatus(
+		ctx,
+		task.TraceID,
+		task.TaskID,
+		reason,
+		consts.TaskStautsRescheduled,
+		consts.TaskTypeBuildImage,
+	)
+
+	if _, _, err := SubmitTask(ctx, &dto.UnifiedTask{
+		TaskID:       task.TaskID,
+		Type:         consts.TaskTypeBuildImage,
+		Immediate:    false,
+		ExecuteTime:  executeTime.Unix(),
+		ReStartNum:   task.ReStartNum + 1,
+		Payload:      task.Payload,
+		Status:       consts.TaskStautsRescheduled,
+		TraceID:      task.TraceID,
+		GroupID:      task.GroupID,
+		TraceCarrier: task.TraceCarrier,
+	}); err != nil {
+		span.RecordError(err)
+		span.AddEvent("failed to submit rescheduled task")
+		return fmt.Errorf("failed to submit rescheduled build task: %v", err)
+	}
+
+	return nil
+}
+
 func executeBuildImage(ctx context.Context, task *dto.UnifiedTask) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
+		span.AddEvent(fmt.Sprintf("Starting build attempt %d", task.ReStartNum+1))
+
+		rateLimiter := utils.NewBuildContainerRateLimiter()
+
+		acquired, err := rateLimiter.AcquireToken(childCtx, task.TaskID, task.TraceID)
+		if err != nil {
+			span.RecordError(err)
+			span.AddEvent("failed to acquire rate limit token")
+			return fmt.Errorf("failed to acquire rate limit token: %v", err)
+		}
+
+		if !acquired {
+			span.AddEvent("no token available, waiting")
+			logrus.WithFields(logrus.Fields{
+				"task_id":  task.TaskID,
+				"trace_id": task.TraceID,
+			}).Info("No build container token available, waiting...")
+
+			acquired, err = rateLimiter.WaitForToken(childCtx, task.TaskID, task.TraceID)
+			if err != nil {
+				span.RecordError(err)
+				span.AddEvent("failed to wait for token")
+				return fmt.Errorf("failed to wait for token: %v", err)
+			}
+
+			if !acquired {
+				if err := rescheduleBuildTask(childCtx, task, "failed to acquire build token within timeout, retrying later"); err != nil {
+					return err
+				}
+				return nil
+			}
+		}
+
+		var tokenAcquired = true
+		defer func() {
+			if tokenAcquired {
+				if releaseErr := rateLimiter.ReleaseToken(ctx, task.TaskID, task.TraceID); releaseErr != nil {
+					logrus.WithFields(logrus.Fields{
+						"task_id":  task.TaskID,
+						"trace_id": task.TraceID,
+						"error":    releaseErr,
+					}).Error("Failed to release build container token")
+				}
+			}
+		}()
+
 		payload, err := parseBuildPayload(task.Payload)
 		if err != nil {
 			span.RecordError(err)
@@ -173,7 +280,7 @@ func buildImagendPush(ctx context.Context, payload *containerPayload) error {
 			return err
 		}
 
-		c, err := client.New(childCtx, address)
+		c, err := buildkitclient.New(childCtx, address)
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to create buildkit client")
@@ -188,9 +295,9 @@ func buildImagendPush(ctx context.Context, payload *containerPayload) error {
 		}
 
 		fullImage := fmt.Sprintf("%s:%s", payload.image, payload.tag)
-		exports := []client.ExportEntry{
+		exports := []buildkitclient.ExportEntry{
 			{
-				Type: client.ExporterImage,
+				Type: buildkitclient.ExporterImage,
 				Attrs: map[string]string{
 					"name": fullImage,
 					"push": "true",
@@ -227,7 +334,7 @@ func buildImagendPush(ctx context.Context, payload *containerPayload) error {
 			return err
 		}
 
-		solveOpt := client.SolveOpt{
+		solveOpt := buildkitclient.SolveOpt{
 			Exports:       exports,
 			Session:       attachable,
 			Ref:           identity.NewID(),
@@ -252,7 +359,7 @@ func buildImagendPush(ctx context.Context, payload *containerPayload) error {
 				SetLogger(progresswriter.Logger)
 			}); ok {
 				w := mw.WithPrefix("", false)
-				s.SetLogger(func(s *client.SolveStatus) {
+				s.SetLogger(func(s *buildkitclient.SolveStatus) {
 					w.Status() <- s
 				})
 				writers = append(writers, w)

@@ -13,11 +13,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LGU-SE-Internal/rcabench/client"
 	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
+	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/executor"
 	"github.com/LGU-SE-Internal/rcabench/middleware"
+	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -30,17 +33,17 @@ const (
 // SubmitContainerBuilding
 //
 //	@Summary		提交镜像构建任务
-//	@Description	通过上传文件或指定GitHub仓库来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建。系统会自动验证必需文件（Dockerfile）并设置执行权限
+//	@Description	通过上传文件、指定GitHub仓库或Harbor镜像来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建，或从Harbor直接获取已存在的镜像并更新数据库。系统会自动验证必需文件（Dockerfile）并设置执行权限
 //	@Tags			container
 //	@Accept			multipart/form-data
 //	@Produce		json
 //	@Param			type			formData	string		false	"容器类型，指定容器的用途"	Enums(algorithm, benchmark)	default(algorithm)
 //	@Param			name			formData	string		false	"容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段"
-//	@Param			image			formData	string		true	"Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）"
-//	@Param			tag				formData	string		false	"Docker镜像标签，用于版本控制"	default(latest)
+//	@Param			image			formData	string		true	"Docker镜像名称。当source_type为harbor时，指定Harbor中已存在的镜像名称；其他情况下支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）"
+//	@Param			tag				formData	string		false	"Docker镜像标签。当source_type为harbor时，指定Harbor中已存在的镜像标签；其他情况下用于版本控制"	default(latest)
 //	@Param			command			formData	string		false	"Docker镜像启动命令，默认为bash /entrypoint.sh"	default(bash /entrypoint.sh)
 //	@Param			env_vars		formData	[]string	false	"环境变量名称列表，支持多个环境变量"
-//	@Param			source_type		formData	string		false	"构建源类型，指定源码来源"	Enums(file,github)	default(file)
+//	@Param			source_type		formData	string		false	"构建源类型，指定源码来源"	Enums(file,github,harbor)	default(file)
 //	@Param			file			formData	file		false	"源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB"
 //	@Param			github_token	formData	string		false	"GitHub访问令牌，用于访问私有仓库，公开仓库可不提供"
 //	@Param			github_repo		formData	string		false	"GitHub仓库地址，格式：owner/repo，当source_type为github时必需"
@@ -52,8 +55,8 @@ const (
 //	@Param			target			formData	string		false	"Dockerfile构建目标（multi-stage build时使用）"
 //	@Param			force_rebuild	formData	bool		false	"是否强制重新构建镜像，忽略缓存"	default(false)
 //	@Success		202				{object}	dto.GenericResponse[dto.SubmitResp]	"成功提交容器构建任务，返回任务跟踪信息"
-//	@Failure		400				{object}	dto.GenericResponse[any]	"请求参数错误：文件格式不支持（仅支持zip、tar.gz）、文件大小超限（5MB）、参数验证失败、GitHub仓库地址无效、force_rebuild值格式错误等"
-//	@Failure		404				{object}	dto.GenericResponse[any]	"资源不存在：构建上下文路径不存在、缺少必需文件（Dockerfile、entrypoint.sh）"
+//	@Failure		400				{object}	dto.GenericResponse[any]	"请求参数错误：文件格式不支持（仅支持zip、tar.gz）、文件大小超限（5MB）、参数验证失败、GitHub仓库地址无效、Harbor镜像参数无效、force_rebuild值格式错误等"
+//	@Failure		404				{object}	dto.GenericResponse[any]	"资源不存在：构建上下文路径不存在、缺少必需文件（Dockerfile、entrypoint.sh）、Harbor中镜像不存在"
 //	@Failure		500				{object}	dto.GenericResponse[any]	"服务器内部错误"
 //	@Router			/api/v1/containers [post]
 func SubmitContainerBuilding(c *gin.Context) {
@@ -82,6 +85,11 @@ func SubmitContainerBuilding(c *gin.Context) {
 			Branch:     c.DefaultPostForm("github_branch", "main"),
 			Commit:     c.PostForm("github_commit"),
 			Path:       c.DefaultPostForm("github_path", "."),
+		}
+	case consts.BuildSourceTypeHarbor:
+		req.Source.Harbor = &dto.HarborSource{
+			Image: req.Image,
+			Tag:   req.Tag,
 		}
 	}
 
@@ -123,24 +131,34 @@ func SubmitContainerBuilding(c *gin.Context) {
 			dto.ErrorResponse(c, code, err.Error())
 			return
 		}
+	case consts.BuildSourceTypeHarbor:
+		code, err = processHarborSource(req)
+		if err != nil {
+			logrus.Errorf("failed to process harbor source: %v", err)
+			dto.ErrorResponse(c, code, err.Error())
+			return
+		}
+		sourcePath = ""
 	default:
 		dto.ErrorResponse(c, http.StatusBadRequest, "Unsupported source type")
 		return
 	}
 
-	if code, err := req.ValidateInfoContent(sourcePath); err != nil {
-		logrus.Errorf("info content validation failed: %v", err)
-		dto.ErrorResponse(c, code, err.Error())
-		return
-	}
+	if req.Source.Type != consts.BuildSourceTypeHarbor {
+		if code, err := req.ValidateInfoContent(sourcePath); err != nil {
+			logrus.Errorf("info content validation failed: %v", err)
+			dto.ErrorResponse(c, code, err.Error())
+			return
+		}
 
-	if err := validateRequiredFiles(sourcePath,
-		req.BuildOptions.ContextDir,
-		req.BuildOptions.DockerfilePath,
-	); err != nil {
-		logrus.Errorf("source validation failed: %v", err)
-		dto.ErrorResponse(c, http.StatusNotFound, err.Error())
-		return
+		if err := validateRequiredFiles(sourcePath,
+			req.BuildOptions.ContextDir,
+			req.BuildOptions.DockerfilePath,
+		); err != nil {
+			logrus.Errorf("source validation failed: %v", err)
+			dto.ErrorResponse(c, http.StatusNotFound, err.Error())
+			return
+		}
 	}
 
 	ctx, ok := c.Get(middleware.SpanContextKey)
@@ -150,6 +168,21 @@ func SubmitContainerBuilding(c *gin.Context) {
 		return
 	}
 	spanCtx := ctx.(context.Context)
+
+	if req.Source.Type == consts.BuildSourceTypeHarbor {
+		taskID, traceID, err := processHarborDirectUpdate(spanCtx, req, groupID)
+		if err != nil {
+			logrus.Errorf("failed to process harbor direct update: %v", err)
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to process harbor direct update")
+			return
+		}
+
+		dto.JSONResponse(c, http.StatusOK,
+			"Container information updated successfully from Harbor",
+			dto.SubmitResp{Traces: []dto.Trace{{TraceID: traceID, HeadTaskID: taskID, Index: 0}}},
+		)
+		return
+	}
 
 	task := &dto.UnifiedTask{
 		Type: consts.TaskTypeBuildImage,
@@ -321,4 +354,50 @@ func validateRequiredFiles(sourcePath, ContextDir string, DockerfilePath string)
 	}
 
 	return nil
+}
+
+func processHarborSource(req *dto.SubmitContainerBuildingReq) (int, error) {
+	harbor := req.Source.Harbor
+
+	// 解析镜像名称，从完整的镜像路径中提取末尾的镜像名称
+	// 例如: 10.10.10.240/library/rca-algo-random -> rca-algo-random
+	imageName := harbor.Image
+	if strings.Contains(imageName, "/") {
+		parts := strings.Split(imageName, "/")
+		imageName = parts[len(parts)-1]
+	}
+
+	harborClient := client.GetHarborClient()
+	exists, err := harborClient.CheckImageExists(imageName, harbor.Tag)
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to check harbor image: %v", err)
+	}
+
+	if !exists {
+		return http.StatusNotFound, fmt.Errorf("image %s:%s not found in harbor", imageName, harbor.Tag)
+	}
+
+	return http.StatusOK, nil
+}
+
+func processHarborDirectUpdate(ctx context.Context, req *dto.SubmitContainerBuildingReq, groupID string) (string, string, error) {
+	taskID := fmt.Sprintf("harbor-%d", time.Now().UnixNano())
+	traceID := fmt.Sprintf("trace-%d", time.Now().UnixNano())
+
+	container := &database.Container{
+		Type:    string(req.ContainerType),
+		Name:    req.Name,
+		Image:   req.Source.Harbor.Image,
+		Tag:     req.Source.Harbor.Tag,
+		Command: req.Command,
+		EnvVars: strings.Join(req.EnvVars, ","),
+		Status:  true,
+	}
+
+	if err := repository.CreateContainer(container); err != nil {
+		return "", "", fmt.Errorf("failed to create container record: %v", err)
+	}
+
+	logrus.Infof("Harbor container %s:%s updated successfully in database", req.Source.Harbor.Image, req.Source.Harbor.Tag)
+	return taskID, traceID, nil
 }
