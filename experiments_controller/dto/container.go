@@ -35,11 +35,16 @@ type BuildSource struct {
 	Type   consts.BuildSourceType `json:"type" binding:"required"`
 	File   *FileSource            `json:"file" binding:"omitempty"`
 	GitHub *GitHubSource          `json:"github" binding:"omitempty"`
+	Harbor *HarborSource          `json:"harbor" binding:"omitempty"`
 }
 
 func (s *BuildSource) Validate() error {
 	if s.Type == consts.BuildSourceTypeGitHub {
 		return s.GitHub.Validate()
+	}
+
+	if s.Type == consts.BuildSourceTypeHarbor {
+		return s.Harbor.Validate()
 	}
 
 	return nil
@@ -89,6 +94,26 @@ func (s *GitHubSource) Validate() error {
 	// 验证 path 格式
 	if err := utils.IsValidGitHubPath(s.Path); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// HarborSource Harbor源配置
+type HarborSource struct {
+	Image string `json:"image" binding:"required"`
+	Tag   string `json:"tag" binding:"omitempty"`
+}
+
+func (s *HarborSource) Validate() error {
+	if s.Image == "" {
+		return fmt.Errorf("image name cannot be empty")
+	}
+
+	if s.Tag != "" {
+		if err := utils.IsValidDockerTag(s.Tag); err != nil {
+			return fmt.Errorf("invalid Docker tag: %s, %v", s.Tag, err)
+		}
 	}
 
 	return nil

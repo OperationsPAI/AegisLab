@@ -66,7 +66,13 @@ data:
     enable = {{ .Values.configmap.debugging.enable }}
 
     [buildkit]
-    address = "tcp://{{ .Release.Name }}-buildkit:1234"    
+    address = "tcp://{{ .Release.Name }}-buildkit:1234"
+
+    [rate_limiting]
+    max_concurrent_builds = {{ .Values.configmap.rate_limiting.max_concurrent_builds }}
+    max_concurrent_restarts = {{ .Values.configmap.rate_limiting.max_concurrent_restarts }}
+    max_concurrent_algo_execution = {{ .Values.configmap.rate_limiting.max_concurrent_algo_execution }}
+    token_wait_timeout = {{ .Values.configmap.rate_limiting.token_wait_timeout }}    
 ---
 apiVersion: v1
 kind: ConfigMap

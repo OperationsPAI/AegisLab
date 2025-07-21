@@ -103,7 +103,7 @@ func main() {
 			database.InitDB()
 			client.InitTraceProvider()
 			engine := router.New()
-			port := viper.GetString("port") // 从 Viper 获取最终端口
+			port := viper.GetString("port")
 			err := engine.Run(":" + port)
 			if err != nil {
 				panic(err)

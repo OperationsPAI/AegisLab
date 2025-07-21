@@ -20,7 +20,6 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/LGU-SE-Internal/rcabench/tracing"
 	"github.com/LGU-SE-Internal/rcabench/utils"
-	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -49,120 +48,6 @@ type restartPayload struct {
 	interval      int
 	faultDuration int
 	injectPayload map[string]any
-}
-
-type RestartServiceRateLimiter struct {
-	redisClient *redis.Client
-	maxTokens   int
-	waitTimeout time.Duration
-}
-
-func NewRestartServiceRateLimiter() *RestartServiceRateLimiter {
-	return &RestartServiceRateLimiter{
-		redisClient: client.GetRedisClient(),
-		maxTokens:   consts.MaxConcurrentRestarts,
-		waitTimeout: time.Duration(consts.TokenWaitTimeout) * time.Second,
-	}
-}
-
-func (r *RestartServiceRateLimiter) AcquireToken(ctx context.Context, taskID, traceID string) (bool, error) {
-	span := trace.SpanFromContext(ctx)
-
-	script := redis.NewScript(`
-		local bucket_key = KEYS[1]
-		local max_tokens = tonumber(ARGV[1])
-		local task_id = ARGV[2]
-		local trace_id = ARGV[3]
-		local expire_time = tonumber(ARGV[4])
-		
-		-- 获取当前令牌数量
-		local current_tokens = redis.call('SCARD', bucket_key)
-		
-		if current_tokens < max_tokens then
-			-- 有可用令牌，添加任务ID到集合中
-			redis.call('SADD', bucket_key, task_id)
-			redis.call('EXPIRE', bucket_key, expire_time)
-			return 1
-		else
-			return 0
-		end
-	`)
-
-	// 令牌过期时间设置为10分钟，防止死锁
-	expireTime := 10 * 60
-
-	result, err := script.Run(ctx, r.redisClient, []string{consts.RestartServiceTokenBucket},
-		r.maxTokens, taskID, traceID, expireTime).Result()
-	if err != nil {
-		span.RecordError(err)
-		return false, fmt.Errorf("failed to acquire token: %v", err)
-	}
-
-	acquired := result.(int64) == 1
-	if acquired {
-		span.AddEvent("token acquired successfully")
-		logrus.WithFields(logrus.Fields{
-			"task_id":  taskID,
-			"trace_id": traceID,
-		}).Info("Successfully acquired restart service token")
-	}
-
-	return acquired, nil
-}
-
-// ReleaseToken 释放令牌
-func (r *RestartServiceRateLimiter) ReleaseToken(ctx context.Context, taskID, traceID string) error {
-	span := trace.SpanFromContext(ctx)
-
-	// 从集合中移除任务ID
-	result, err := r.redisClient.SRem(ctx, consts.RestartServiceTokenBucket, taskID).Result()
-	if err != nil {
-		span.RecordError(err)
-		return fmt.Errorf("failed to release token: %v", err)
-	}
-
-	if result > 0 {
-		span.AddEvent("token released successfully")
-		logrus.WithFields(logrus.Fields{
-			"task_id":  taskID,
-			"trace_id": traceID,
-		}).Info("Successfully released restart service token")
-	}
-
-	return nil
-}
-
-// WaitForToken 等待获取令牌，如果超时则返回 false
-func (r *RestartServiceRateLimiter) WaitForToken(ctx context.Context, taskID, traceID string) (bool, error) {
-	span := trace.SpanFromContext(ctx)
-	span.AddEvent("waiting for token")
-
-	timeoutCtx, cancel := context.WithTimeout(ctx, r.waitTimeout)
-	defer cancel()
-
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-timeoutCtx.Done():
-			span.AddEvent("token wait timeout")
-			logrus.WithFields(logrus.Fields{
-				"task_id":  taskID,
-				"trace_id": traceID,
-				"timeout":  r.waitTimeout,
-			}).Warn("Token wait timeout")
-			return false, nil
-		case <-ticker.C:
-			acquired, err := r.AcquireToken(ctx, taskID, traceID)
-			if err != nil {
-				return false, err
-			}
-			if acquired {
-				return true, nil
-			}
-		}
-	}
 }
 
 func rescheduleTask(ctx context.Context, task *dto.UnifiedTask, reason string) error {
@@ -312,7 +197,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 		span := trace.SpanFromContext(ctx)
 		span.AddEvent(fmt.Sprintf("Starting retry attempt %d", task.ReStartNum+1))
 
-		rateLimiter := NewRestartServiceRateLimiter()
+		rateLimiter := utils.NewRestartServiceRateLimiter()
 
 		acquired, err := rateLimiter.AcquireToken(childCtx, task.TaskID, task.TraceID)
 		if err != nil {

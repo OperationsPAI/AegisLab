@@ -57,3 +57,9 @@ storage_path = "/home/nn/workspace/rcabench/containers"
 
 [buildkit]
 address = "tcp://localhost:1234"
+
+[rate_limiting]
+max_concurrent_builds = 3
+max_concurrent_restarts = 2
+max_concurrent_algo_execution = 5
+token_wait_timeout = 10
