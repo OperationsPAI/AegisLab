@@ -76,7 +76,6 @@ func (r *TokenBucketRateLimiter) AcquireToken(ctx context.Context, taskID, trace
 		end
 	`)
 
-	// 令牌过期时间设置为10分钟，防止死锁
 	expireTime := 10 * 60
 
 	result, err := script.Run(ctx, r.redisClient, []string{r.bucketKey},
