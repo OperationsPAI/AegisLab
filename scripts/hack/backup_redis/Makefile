@@ -1,6 +1,7 @@
 # 声明所有非文件目标
-.PHONY: help backup restore-loacl restore-remote
+.PHONY: help restore-loacl
 
+# 默认目标
 .DEFAULT_GOAL := help
 
 help:  ## Display targets with category headers
@@ -16,14 +17,6 @@ help:  ## Display targets with category headers
 		printf "  \033[36m%-20s\033[0m \033[90m%s\033[0m\n", $$1, $$2; \
 	}' $(MAKEFILE_LIST)
 
-##@ Backup
-backup:
-	uv run python cli.py pg-backup
-
 ##@ Restore
-restore-local: ## Restore local PostgreSQL database from backup
-	$(MAKE) backup
-	uv run python cli.py pg-restore --clean --host 127.0.0.1 --port 5432
-
-restore-remote: ## Restore remote PostgreSQL database from backup
-	uv run python cli.py pg-restore --clean
+restore-local: ## Restore local Redis from remote
+	uv run python cli.py restore-batch --file_path keys.txt
