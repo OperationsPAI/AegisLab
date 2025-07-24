@@ -90,7 +90,7 @@ local-debug: ## Start local debug environment (databases + controller)
 	docker compose down && \
 	docker compose up redis postgres jaeger buildkitd -d && \
 	kubectl delete jobs --all -n $(NS) && \
-	cd $(CONTROLLER_DIR) && go run main.go producer --port 8082
+	cd $(CONTROLLER_DIR) && go run main.go both --port 8082
 
 import: ## Import the latest version of chaos-experiment library
 	cd $(CONTROLLER_DIR) && \
