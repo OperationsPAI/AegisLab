@@ -18,20 +18,21 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, StrictInt
 from typing import Any, ClassVar, Dict, List, Optional
+from rcabench.openapi.models.dto_fault_injection_with_issues_resp import DtoFaultInjectionWithIssuesResp
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoTimeRangeQuery(BaseModel):
+class DtoPaginationRespDtoFaultInjectionWithIssuesResp(BaseModel):
     """
-    DtoTimeRangeQuery
+    DtoPaginationRespDtoFaultInjectionWithIssuesResp
     """ # noqa: E501
-    custom_end_time: Optional[StrictStr] = None
-    custom_start_time: Optional[StrictStr] = None
-    lookback: Optional[StrictStr] = None
+    items: Optional[List[DtoFaultInjectionWithIssuesResp]] = None
+    total: Optional[StrictInt] = None
+    total_pages: Optional[StrictInt] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["custom_end_time", "custom_start_time", "lookback"]
+    __properties: ClassVar[List[str]] = ["items", "total", "total_pages"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -51,7 +52,7 @@ class DtoTimeRangeQuery(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoTimeRangeQuery from a JSON string"""
+        """Create an instance of DtoPaginationRespDtoFaultInjectionWithIssuesResp from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -74,6 +75,13 @@ class DtoTimeRangeQuery(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in items (list)
+        _items = []
+        if self.items:
+            for _item_items in self.items:
+                if _item_items:
+                    _items.append(_item_items.to_dict())
+            _dict['items'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -83,7 +91,7 @@ class DtoTimeRangeQuery(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoTimeRangeQuery from a dict"""
+        """Create an instance of DtoPaginationRespDtoFaultInjectionWithIssuesResp from a dict"""
         if obj is None:
             return None
 
@@ -91,9 +99,9 @@ class DtoTimeRangeQuery(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "custom_end_time": obj.get("custom_end_time"),
-            "custom_start_time": obj.get("custom_start_time"),
-            "lookback": obj.get("lookback")
+            "items": [DtoFaultInjectionWithIssuesResp.from_dict(_item) for _item in obj["items"]] if obj.get("items") is not None else None,
+            "total": obj.get("total"),
+            "total_pages": obj.get("total_pages")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():
