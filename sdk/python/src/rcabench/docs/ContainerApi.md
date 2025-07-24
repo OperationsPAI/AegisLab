@@ -12,7 +12,7 @@ Method | HTTP request | Description
 
 提交镜像构建任务
 
-通过上传文件或指定GitHub仓库来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建。系统会自动验证必需文件（Dockerfile）并设置执行权限
+通过上传文件、指定GitHub仓库或Harbor镜像来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建，或从Harbor直接获取已存在的镜像并更新数据库。系统会自动验证必需文件（Dockerfile）并设置执行权限
 
 ### Example
 
@@ -34,10 +34,10 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.ContainerApi(api_client)
-    image = 'image_example' # str | Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）
+    image = 'image_example' # str | Docker镜像名称。当source_type为harbor时，指定Harbor中已存在的镜像名称；其他情况下支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）
     type = algorithm # str | 容器类型，指定容器的用途 (optional) (default to algorithm)
     name = 'name_example' # str | 容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段 (optional)
-    tag = 'latest' # str | Docker镜像标签，用于版本控制 (optional) (default to 'latest')
+    tag = 'latest' # str | Docker镜像标签。当source_type为harbor时，指定Harbor中已存在的镜像标签；其他情况下用于版本控制 (optional) (default to 'latest')
     command = 'bash /entrypoint.sh' # str | Docker镜像启动命令，默认为bash /entrypoint.sh (optional) (default to 'bash /entrypoint.sh')
     env_vars = ['env_vars_example'] # List[str] | 环境变量名称列表，支持多个环境变量 (optional)
     source_type = file # str | 构建源类型，指定源码来源 (optional) (default to file)
@@ -68,10 +68,10 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **image** | **str**| Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址） | 
+ **image** | **str**| Docker镜像名称。当source_type为harbor时，指定Harbor中已存在的镜像名称；其他情况下支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址） | 
  **type** | **str**| 容器类型，指定容器的用途 | [optional] [default to algorithm]
  **name** | **str**| 容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段 | [optional] 
- **tag** | **str**| Docker镜像标签，用于版本控制 | [optional] [default to &#39;latest&#39;]
+ **tag** | **str**| Docker镜像标签。当source_type为harbor时，指定Harbor中已存在的镜像标签；其他情况下用于版本控制 | [optional] [default to &#39;latest&#39;]
  **command** | **str**| Docker镜像启动命令，默认为bash /entrypoint.sh | [optional] [default to &#39;bash /entrypoint.sh&#39;]
  **env_vars** | [**List[str]**](str.md)| 环境变量名称列表，支持多个环境变量 | [optional] 
  **source_type** | **str**| 构建源类型，指定源码来源 | [optional] [default to file]
@@ -104,8 +104,8 @@ No authorization required
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 **202** | 成功提交容器构建任务，返回任务跟踪信息 |  -  |
-**400** | 请求参数错误：文件格式不支持（仅支持zip、tar.gz）、文件大小超限（5MB）、参数验证失败、GitHub仓库地址无效、force_rebuild值格式错误等 |  -  |
-**404** | 资源不存在：构建上下文路径不存在、缺少必需文件（Dockerfile、entrypoint.sh） |  -  |
+**400** | 请求参数错误：文件格式不支持（仅支持zip、tar.gz）、文件大小超限（5MB）、参数验证失败、GitHub仓库地址无效、Harbor镜像参数无效、force_rebuild值格式错误等 |  -  |
+**404** | 资源不存在：构建上下文路径不存在、缺少必需文件（Dockerfile、entrypoint.sh）、Harbor中镜像不存在 |  -  |
 **500** | 服务器内部错误 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

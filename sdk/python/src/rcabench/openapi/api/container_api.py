@@ -43,10 +43,10 @@ class ContainerApi:
     @validate_call
     def api_v1_containers_post(
         self,
-        image: Annotated[StrictStr, Field(description="Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）")],
+        image: Annotated[StrictStr, Field(description="Docker镜像名称。当source_type为harbor时，指定Harbor中已存在的镜像名称；其他情况下支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）")],
         type: Annotated[Optional[StrictStr], Field(description="容器类型，指定容器的用途")] = None,
         name: Annotated[Optional[StrictStr], Field(description="容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段")] = None,
-        tag: Annotated[Optional[StrictStr], Field(description="Docker镜像标签，用于版本控制")] = None,
+        tag: Annotated[Optional[StrictStr], Field(description="Docker镜像标签。当source_type为harbor时，指定Harbor中已存在的镜像标签；其他情况下用于版本控制")] = None,
         command: Annotated[Optional[StrictStr], Field(description="Docker镜像启动命令，默认为bash /entrypoint.sh")] = None,
         env_vars: Annotated[Optional[List[StrictStr]], Field(description="环境变量名称列表，支持多个环境变量")] = None,
         source_type: Annotated[Optional[StrictStr], Field(description="构建源类型，指定源码来源")] = None,
@@ -75,15 +75,15 @@ class ContainerApi:
     ) -> DtoGenericResponseDtoSubmitResp:
         """提交镜像构建任务
 
-        通过上传文件或指定GitHub仓库来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建。系统会自动验证必需文件（Dockerfile）并设置执行权限
+        通过上传文件、指定GitHub仓库或Harbor镜像来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建，或从Harbor直接获取已存在的镜像并更新数据库。系统会自动验证必需文件（Dockerfile）并设置执行权限
 
-        :param image: Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址） (required)
+        :param image: Docker镜像名称。当source_type为harbor时，指定Harbor中已存在的镜像名称；其他情况下支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址） (required)
         :type image: str
         :param type: 容器类型，指定容器的用途
         :type type: str
         :param name: 容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段
         :type name: str
-        :param tag: Docker镜像标签，用于版本控制
+        :param tag: Docker镜像标签。当source_type为harbor时，指定Harbor中已存在的镜像标签；其他情况下用于版本控制
         :type tag: str
         :param command: Docker镜像启动命令，默认为bash /entrypoint.sh
         :type command: str
@@ -177,10 +177,10 @@ class ContainerApi:
     @validate_call
     def api_v1_containers_post_with_http_info(
         self,
-        image: Annotated[StrictStr, Field(description="Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）")],
+        image: Annotated[StrictStr, Field(description="Docker镜像名称。当source_type为harbor时，指定Harbor中已存在的镜像名称；其他情况下支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）")],
         type: Annotated[Optional[StrictStr], Field(description="容器类型，指定容器的用途")] = None,
         name: Annotated[Optional[StrictStr], Field(description="容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段")] = None,
-        tag: Annotated[Optional[StrictStr], Field(description="Docker镜像标签，用于版本控制")] = None,
+        tag: Annotated[Optional[StrictStr], Field(description="Docker镜像标签。当source_type为harbor时，指定Harbor中已存在的镜像标签；其他情况下用于版本控制")] = None,
         command: Annotated[Optional[StrictStr], Field(description="Docker镜像启动命令，默认为bash /entrypoint.sh")] = None,
         env_vars: Annotated[Optional[List[StrictStr]], Field(description="环境变量名称列表，支持多个环境变量")] = None,
         source_type: Annotated[Optional[StrictStr], Field(description="构建源类型，指定源码来源")] = None,
@@ -209,15 +209,15 @@ class ContainerApi:
     ) -> ApiResponse[DtoGenericResponseDtoSubmitResp]:
         """提交镜像构建任务
 
-        通过上传文件或指定GitHub仓库来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建。系统会自动验证必需文件（Dockerfile）并设置执行权限
+        通过上传文件、指定GitHub仓库或Harbor镜像来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建，或从Harbor直接获取已存在的镜像并更新数据库。系统会自动验证必需文件（Dockerfile）并设置执行权限
 
-        :param image: Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址） (required)
+        :param image: Docker镜像名称。当source_type为harbor时，指定Harbor中已存在的镜像名称；其他情况下支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址） (required)
         :type image: str
         :param type: 容器类型，指定容器的用途
         :type type: str
         :param name: 容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段
         :type name: str
-        :param tag: Docker镜像标签，用于版本控制
+        :param tag: Docker镜像标签。当source_type为harbor时，指定Harbor中已存在的镜像标签；其他情况下用于版本控制
         :type tag: str
         :param command: Docker镜像启动命令，默认为bash /entrypoint.sh
         :type command: str
@@ -311,10 +311,10 @@ class ContainerApi:
     @validate_call
     def api_v1_containers_post_without_preload_content(
         self,
-        image: Annotated[StrictStr, Field(description="Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）")],
+        image: Annotated[StrictStr, Field(description="Docker镜像名称。当source_type为harbor时，指定Harbor中已存在的镜像名称；其他情况下支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）")],
         type: Annotated[Optional[StrictStr], Field(description="容器类型，指定容器的用途")] = None,
         name: Annotated[Optional[StrictStr], Field(description="容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段")] = None,
-        tag: Annotated[Optional[StrictStr], Field(description="Docker镜像标签，用于版本控制")] = None,
+        tag: Annotated[Optional[StrictStr], Field(description="Docker镜像标签。当source_type为harbor时，指定Harbor中已存在的镜像标签；其他情况下用于版本控制")] = None,
         command: Annotated[Optional[StrictStr], Field(description="Docker镜像启动命令，默认为bash /entrypoint.sh")] = None,
         env_vars: Annotated[Optional[List[StrictStr]], Field(description="环境变量名称列表，支持多个环境变量")] = None,
         source_type: Annotated[Optional[StrictStr], Field(description="构建源类型，指定源码来源")] = None,
@@ -343,15 +343,15 @@ class ContainerApi:
     ) -> RESTResponseType:
         """提交镜像构建任务
 
-        通过上传文件或指定GitHub仓库来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建。系统会自动验证必需文件（Dockerfile）并设置执行权限
+        通过上传文件、指定GitHub仓库或Harbor镜像来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建，或从Harbor直接获取已存在的镜像并更新数据库。系统会自动验证必需文件（Dockerfile）并设置执行权限
 
-        :param image: Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址） (required)
+        :param image: Docker镜像名称。当source_type为harbor时，指定Harbor中已存在的镜像名称；其他情况下支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址） (required)
         :type image: str
         :param type: 容器类型，指定容器的用途
         :type type: str
         :param name: 容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段
         :type name: str
-        :param tag: Docker镜像标签，用于版本控制
+        :param tag: Docker镜像标签。当source_type为harbor时，指定Harbor中已存在的镜像标签；其他情况下用于版本控制
         :type tag: str
         :param command: Docker镜像启动命令，默认为bash /entrypoint.sh
         :type command: str

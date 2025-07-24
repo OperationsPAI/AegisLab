@@ -171,3 +171,4 @@ __debug*
 .deploy
 sdk/python-gen
 temp
+ts

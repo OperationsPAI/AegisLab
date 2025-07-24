@@ -97,7 +97,7 @@ const docTemplate = `{
         },
         "/api/v1/containers": {
             "post": {
-                "description": "通过上传文件或指定GitHub仓库来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建。系统会自动验证必需文件（Dockerfile）并设置执行权限",
+                "description": "通过上传文件、指定GitHub仓库或Harbor镜像来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建，或从Harbor直接获取已存在的镜像并更新数据库。系统会自动验证必需文件（Dockerfile）并设置执行权限",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -128,7 +128,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Docker镜像名称。支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）",
+                        "description": "Docker镜像名称。当source_type为harbor时，指定Harbor中已存在的镜像名称；其他情况下支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）",
                         "name": "image",
                         "in": "formData",
                         "required": true
@@ -136,7 +136,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "default": "latest",
-                        "description": "Docker镜像标签，用于版本控制",
+                        "description": "Docker镜像标签。当source_type为harbor时，指定Harbor中已存在的镜像标签；其他情况下用于版本控制",
                         "name": "tag",
                         "in": "formData"
                     },
@@ -160,7 +160,8 @@ const docTemplate = `{
                     {
                         "enum": [
                             "file",
-                            "github"
+                            "github",
+                            "harbor"
                         ],
                         "type": "string",
                         "default": "file",
@@ -242,13 +243,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "请求参数错误：文件格式不支持（仅支持zip、tar.gz）、文件大小超限（5MB）、参数验证失败、GitHub仓库地址无效、force_rebuild值格式错误等",
+                        "description": "请求参数错误：文件格式不支持（仅支持zip、tar.gz）、文件大小超限（5MB）、参数验证失败、GitHub仓库地址无效、Harbor镜像参数无效、force_rebuild值格式错误等",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "404": {
-                        "description": "资源不存在：构建上下文路径不存在、缺少必需文件（Dockerfile、entrypoint.sh）",
+                        "description": "资源不存在：构建上下文路径不存在、缺少必需文件（Dockerfile、entrypoint.sh）、Harbor中镜像不存在",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
