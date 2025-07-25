@@ -17,7 +17,6 @@
 # import models into model package
 from rcabench.openapi.models.consts_task_type import ConstsTaskType
 from rcabench.openapi.models.database_container import DatabaseContainer
-from rcabench.openapi.models.database_fault_injection_schedule import DatabaseFaultInjectionSchedule
 from rcabench.openapi.models.database_task import DatabaseTask
 from rcabench.openapi.models.dto_algorithm_dataset_pair import DtoAlgorithmDatasetPair
 from rcabench.openapi.models.dto_algorithm_item import DtoAlgorithmItem
@@ -52,8 +51,10 @@ from rcabench.openapi.models.dto_get_completed_map_resp import DtoGetCompletedMa
 from rcabench.openapi.models.dto_granularity_record import DtoGranularityRecord
 from rcabench.openapi.models.dto_ground_truth_req import DtoGroundTruthReq
 from rcabench.openapi.models.dto_injection_field_mapping_resp import DtoInjectionFieldMappingResp
+from rcabench.openapi.models.dto_injection_item import DtoInjectionItem
 from rcabench.openapi.models.dto_injection_stats_resp import DtoInjectionStatsResp
 from rcabench.openapi.models.dto_label_item import DtoLabelItem
+from rcabench.openapi.models.dto_list_injections_resp import DtoListInjectionsResp
 from rcabench.openapi.models.dto_pagination_resp_dto_unified_task import DtoPaginationRespDtoUnifiedTask
 from rcabench.openapi.models.dto_query_injection_resp import DtoQueryInjectionResp
 from rcabench.openapi.models.dto_raw_data_item import DtoRawDataItem

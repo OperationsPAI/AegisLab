@@ -390,7 +390,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_injections_get**
-> DtoGenericResponseDtoListInjectionsResp api_v1_injections_get(env=env, batch=batch, benchmark=benchmark, status=status, fault_type=fault_type, sort_field=sort_field, sort_order=sort_order, limit=limit, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
+> DtoGenericResponseDtoListInjectionsResp api_v1_injections_get(project_name=project_name, env=env, batch=batch, tag=tag, benchmark=benchmark, status=status, fault_type=fault_type, sort_field=sort_field, sort_order=sort_order, limit=limit, page_num=page_num, page_size=page_size, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
 
 获取故障注入记录列表
 
@@ -416,21 +416,25 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.InjectionApi(api_client)
-    env = 'env_example' # str | 环境标签过滤 (optional)
+    project_name = 'project_name_example' # str | 项目名称过滤 (optional)
+    env = prod # str | 环境标签过滤 (optional) (default to prod)
     batch = 'batch_example' # str | 批次标签过滤 (optional)
-    benchmark = 'benchmark_example' # str | 基准测试类型过滤 (optional)
+    tag = train # str | 分类标签过滤 (optional) (default to train)
+    benchmark = clickhouse # str | 基准测试类型过滤 (optional) (default to clickhouse)
     status = 0 # int | 状态过滤，具体值参考字段映射接口(/mapping) (optional) (default to 0)
     fault_type = 0 # int | 故障类型过滤，具体值参考字段映射接口(/mapping) (optional) (default to 0)
     sort_field = 'created_at' # str | 排序字段，默认created_at (optional) (default to 'created_at')
     sort_order = desc # str | 排序方式，默认desc (optional) (default to desc)
-    limit = 56 # int | 结果数量限制，用于控制返回记录数量 (optional)
+    limit = 0 # int | 结果数量限制，用于控制返回记录数量 (optional) (default to 0)
+    page_num = 0 # int | 分页查询，页码 (optional) (default to 0)
+    page_size = 0 # int | 分页查询，每页数量 (optional) (default to 0)
     lookback = 'lookback_example' # str | 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置 (optional)
     custom_start_time = '2013-10-20T19:20:30+01:00' # datetime | 自定义开始时间，RFC3339格式，当lookback=custom时必需 (optional)
     custom_end_time = '2013-10-20T19:20:30+01:00' # datetime | 自定义结束时间，RFC3339格式，当lookback=custom时必需 (optional)
 
     try:
         # 获取故障注入记录列表
-        api_response = api_instance.api_v1_injections_get(env=env, batch=batch, benchmark=benchmark, status=status, fault_type=fault_type, sort_field=sort_field, sort_order=sort_order, limit=limit, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
+        api_response = api_instance.api_v1_injections_get(project_name=project_name, env=env, batch=batch, tag=tag, benchmark=benchmark, status=status, fault_type=fault_type, sort_field=sort_field, sort_order=sort_order, limit=limit, page_num=page_num, page_size=page_size, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
         print("The response of InjectionApi->api_v1_injections_get:\n")
         pprint(api_response)
     except Exception as e:
@@ -444,14 +448,18 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **env** | **str**| 环境标签过滤 | [optional] 
+ **project_name** | **str**| 项目名称过滤 | [optional] 
+ **env** | **str**| 环境标签过滤 | [optional] [default to prod]
  **batch** | **str**| 批次标签过滤 | [optional] 
- **benchmark** | **str**| 基准测试类型过滤 | [optional] 
+ **tag** | **str**| 分类标签过滤 | [optional] [default to train]
+ **benchmark** | **str**| 基准测试类型过滤 | [optional] [default to clickhouse]
  **status** | **int**| 状态过滤，具体值参考字段映射接口(/mapping) | [optional] [default to 0]
  **fault_type** | **int**| 故障类型过滤，具体值参考字段映射接口(/mapping) | [optional] [default to 0]
  **sort_field** | **str**| 排序字段，默认created_at | [optional] [default to &#39;created_at&#39;]
  **sort_order** | **str**| 排序方式，默认desc | [optional] [default to desc]
- **limit** | **int**| 结果数量限制，用于控制返回记录数量 | [optional] 
+ **limit** | **int**| 结果数量限制，用于控制返回记录数量 | [optional] [default to 0]
+ **page_num** | **int**| 分页查询，页码 | [optional] [default to 0]
+ **page_size** | **int**| 分页查询，每页数量 | [optional] [default to 0]
  **lookback** | **str**| 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置 | [optional] 
  **custom_start_time** | **datetime**| 自定义开始时间，RFC3339格式，当lookback&#x3D;custom时必需 | [optional] 
  **custom_end_time** | **datetime**| 自定义结束时间，RFC3339格式，当lookback&#x3D;custom时必需 | [optional] 

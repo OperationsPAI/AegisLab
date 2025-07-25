@@ -35,8 +35,8 @@ class DtoLabelItem(BaseModel):
     @field_validator('key')
     def key_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['env', 'batch']):
-            raise ValueError("must be one of enum values ('env', 'batch')")
+        if value not in set(['env', 'batch', 'tag']):
+            raise ValueError("must be one of enum values ('env', 'batch', 'tag')")
         return value
 
     model_config = ConfigDict(

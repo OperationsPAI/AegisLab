@@ -137,10 +137,10 @@ func GetDatasetByName(name string, status ...int) (*dto.DatasetItemWithID, error
 }
 
 func GetInjection(column, param string) (*database.FaultInjectionSchedule, error) {
-	query := database.DB.Where(fmt.Sprintf("%s = ?", column), param)
-
 	var record database.FaultInjectionSchedule
-	if err := query.First(&record).Error; err != nil {
+	if err := database.DB.
+		Where(fmt.Sprintf("%s = ?", column), param).
+		First(&record).Error; err != nil {
 		return nil, err
 	}
 
@@ -249,7 +249,7 @@ func ListDatasetByExecutionIDs(executionIDs []int) ([]dto.DatasetItemWithID, err
 	return items, nil
 }
 
-func ListInjections(params *dto.ListInjectionsReq) (int64, []database.FaultInjectionSchedule, error) {
+func ListInjections(params *dto.ListInjectionsReq) (int64, []database.FaultInjectionProject, error) {
 	opts, err := params.TimeRangeQuery.Convert()
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to convert time range query: %v", err)
@@ -258,17 +258,20 @@ func ListInjections(params *dto.ListInjectionsReq) (int64, []database.FaultInjec
 	builder := func(db *gorm.DB) *gorm.DB {
 		query := db
 
-		jsonConditions := make(map[string]string)
-		if params.Env != "" {
-			jsonConditions["env"] = params.Env
-		}
-		if params.Batch != "" {
-			jsonConditions["batch"] = params.Batch
+		if params.ProjectName != "" {
+			query = query.Where("project_name = ?", params.ProjectName)
 		}
 
-		if len(jsonConditions) > 0 {
-			jsonBytes, _ := json.Marshal(jsonConditions)
-			query = query.Where("labels @> ?", string(jsonBytes))
+		if params.Env != "" {
+			query = query.Where("env = ?", params.Env)
+		}
+
+		if params.Batch != "" {
+			query = query.Where("batch = ?", params.Batch)
+		}
+
+		if params.Tag != "" {
+			query = query.Where("tag=?", params.Tag)
 		}
 
 		if params.Benchmark != "" {
@@ -291,8 +294,10 @@ func ListInjections(params *dto.ListInjectionsReq) (int64, []database.FaultInjec
 		builder:   builder,
 		sortField: fmt.Sprintf("%s %s", params.SortField, params.SortOrder),
 		limit:     params.Limit,
+		pageNum:   params.PageNum,
+		pageSize:  params.PageSize,
 	}
-	return genericQueryWithBuilder[database.FaultInjectionSchedule](genericQueryParams)
+	return genericQueryWithBuilder[database.FaultInjectionProject](genericQueryParams)
 }
 
 func UpdateStatusByDataset(name string, status int) error {
@@ -301,7 +306,7 @@ func UpdateStatusByDataset(name string, status int) error {
 	})
 }
 
-func UpdateTimeByDataset(name string, startTime, endTime time.Time) error {
+func UpdateTimeByInjectionName(name string, startTime, endTime time.Time) error {
 	return updateRecord(name, map[string]any{
 		"start_time": startTime,
 		"end_time":   endTime,

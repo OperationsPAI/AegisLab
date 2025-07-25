@@ -12,6 +12,7 @@ Name | Type | Description | Notes
 **id** | **str** |  | [optional] 
 **immediate** | **bool** |  | [optional] 
 **payload** | **str** |  | [optional] 
+**project_id** | **int** |  | [optional] 
 **status** | **str** |  | [optional] 
 **trace_id** | **str** |  | [optional] 
 **type** | **str** |  | [optional] 

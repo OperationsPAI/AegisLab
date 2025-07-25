@@ -598,6 +598,17 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
+                        "description": "项目名称过滤",
+                        "name": "project_name",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "dev",
+                            "prod"
+                        ],
+                        "type": "string",
+                        "default": "prod",
                         "description": "环境标签过滤",
                         "name": "env",
                         "in": "query"
@@ -610,9 +621,21 @@ const docTemplate = `{
                     },
                     {
                         "enum": [
+                            "train",
+                            "test"
+                        ],
+                        "type": "string",
+                        "default": "train",
+                        "description": "分类标签过滤",
+                        "name": "tag",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
                             "clickhouse"
                         ],
                         "type": "string",
+                        "default": "clickhouse",
                         "description": "基准测试类型过滤",
                         "name": "benchmark",
                         "in": "query"
@@ -650,10 +673,27 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "minimum": 1,
+                        "minimum": 0,
                         "type": "integer",
+                        "default": 0,
                         "description": "结果数量限制，用于控制返回记录数量",
                         "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "default": 0,
+                        "description": "分页查询，页码",
+                        "name": "page_num",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "default": 0,
+                        "description": "分页查询，每页数量",
+                        "name": "page_size",
                         "in": "query"
                     },
                     {
@@ -1578,75 +1618,6 @@ const docTemplate = `{
                 }
             }
         },
-        "database.FaultInjectionSchedule": {
-            "type": "object",
-            "properties": {
-                "benchmark": {
-                    "description": "基准数据库",
-                    "type": "string"
-                },
-                "created_at": {
-                    "description": "创建时间",
-                    "type": "string"
-                },
-                "description": {
-                    "description": "描述（可选字段）",
-                    "type": "string"
-                },
-                "display_config": {
-                    "description": "面向用户的展示配置",
-                    "type": "string"
-                },
-                "end_time": {
-                    "description": "预计故障结束时间",
-                    "type": "string"
-                },
-                "engine_config": {
-                    "description": "面向系统的运行配置",
-                    "type": "string"
-                },
-                "fault_type": {
-                    "description": "故障类型",
-                    "type": "integer"
-                },
-                "id": {
-                    "description": "唯一标识",
-                    "type": "integer"
-                },
-                "injection_name": {
-                    "description": "在k8s资源里注入的名字",
-                    "type": "string"
-                },
-                "labels": {
-                    "description": "用户自定义标签，JSONB格式存储 key-value pairs",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/database.LabelsMap"
-                        }
-                    ]
-                },
-                "pre_duration": {
-                    "description": "正常数据时间",
-                    "type": "integer"
-                },
-                "start_time": {
-                    "description": "预计故障开始时间",
-                    "type": "string"
-                },
-                "status": {
-                    "description": "-1: 已删除 0: 初始状态 1: 注入结束且失败 2: 注入结束且成功 3: 收集数据失败 4:收集数据成功",
-                    "type": "integer"
-                },
-                "task_id": {
-                    "description": "从属什么 taskid",
-                    "type": "string"
-                },
-                "updated_at": {
-                    "description": "更新时间",
-                    "type": "string"
-                }
-            }
-        },
         "database.LabelsMap": {
             "type": "object",
             "additionalProperties": {
@@ -1676,6 +1647,9 @@ const docTemplate = `{
                 },
                 "payload": {
                     "type": "string"
+                },
+                "project_id": {
+                    "type": "integer"
                 },
                 "status": {
                     "type": "string"
@@ -2071,10 +2045,11 @@ const docTemplate = `{
                 },
                 "data": {
                     "description": "泛型类型的数据",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/database.FaultInjectionSchedule"
-                    }
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ListInjectionsResp"
+                        }
+                    ]
                 },
                 "message": {
                     "description": "响应消息",
@@ -2431,6 +2406,53 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.InjectionItem": {
+            "type": "object",
+            "properties": {
+                "batch": {
+                    "type": "string"
+                },
+                "benchmark": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "display_config": {
+                    "type": "string"
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "engine_config": {
+                    "type": "string"
+                },
+                "env": {
+                    "type": "string"
+                },
+                "fault_type": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "injection_name": {
+                    "type": "string"
+                },
+                "pre_duration": {
+                    "type": "integer"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "tag": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.InjectionStatsResp": {
             "type": "object",
             "properties": {
@@ -2459,11 +2481,26 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "env",
-                        "batch"
+                        "batch",
+                        "tag"
                     ]
                 },
                 "value": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.ListInjectionsResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.InjectionItem"
+                    }
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -2630,6 +2667,7 @@ const docTemplate = `{
                 "benchmark",
                 "interval",
                 "pre_duration",
+                "project_name",
                 "specs"
             ],
             "properties": {
@@ -2655,6 +2693,9 @@ const docTemplate = `{
                 "pre_duration": {
                     "type": "integer",
                     "minimum": 1
+                },
+                "project_name": {
+                    "type": "string"
                 },
                 "specs": {
                     "type": "array",
@@ -2800,6 +2841,9 @@ const docTemplate = `{
                 "payload": {
                     "description": "Task-specific data",
                     "type": "object"
+                },
+                "project_id": {
+                    "type": "integer"
                 },
                 "restart_num": {
                     "description": "Number of restarts for the task",

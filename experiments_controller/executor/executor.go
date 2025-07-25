@@ -25,19 +25,22 @@ type Carriers struct {
 	TraceCarrier propagation.MapCarrier
 }
 
+type TaskIdentifiers struct {
+	TaskID    string `json:"task_id"`
+	TraceID   string `json:"trace_id"`
+	GroupID   string `json:"group_id"`
+	ProjectID int    `json:"project_id"`
+}
+
 type CRDLabels struct {
-	TaskID      string
-	TraceID     string
-	GroupID     string
+	TaskIdentifiers
 	Benchmark   string
 	PreDuration int
 }
 
 type TaskOptions struct {
-	TaskID  string
-	TraceID string
-	GroupID string
-	Type    consts.TaskType
+	TaskIdentifiers
+	Type consts.TaskType
 }
 
 type Executor struct {
@@ -88,72 +91,61 @@ func (e *Executor) HandleCRDFailed(name string, annotations map[string]string, l
 func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, annotations map[string]string, labels map[string]string) {
 	parsedAnnotations, _ := parseAnnotations(annotations)
 	parsedLabels, _ := parseCRDLabels(labels)
-	ctx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.TaskCarrier)
+	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.TaskCarrier)
+	traceCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.TraceCarrier)
+	taskSpan := trace.SpanFromContext(taskCtx)
 
-	if err := repository.UpdateTimeByDataset(name, startTime, endTime); err != nil {
-		logrus.WithFields(logrus.Fields{
-			"task_id":  parsedLabels.TaskID,
-			"trace_id": parsedLabels.TraceID,
-		}).Error(err)
+	logEntry := logrus.WithFields(logrus.Fields{
+		"task_id":  parsedLabels.TaskID,
+		"trace_id": parsedLabels.TraceID,
+	})
 
-		updateTaskStatus(
-			ctx,
-			parsedLabels.TraceID,
-			parsedLabels.TaskID,
-			"update execution times failed",
-			consts.TaskStatusError,
-			consts.TaskTypeFaultInjection,
-		)
-
-		return
-	}
+	logEntry.Info("fault inject successfully")
+	repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, parsedLabels.TraceID), dto.StreamEvent{
+		TaskID:    parsedLabels.TaskID,
+		TaskType:  consts.TaskTypeFaultInjection,
+		EventName: consts.EventFaultInjectionCompleted,
+	}, repository.WithCallerLevel(4))
 
 	updateTaskStatus(
-		ctx,
+		taskCtx,
 		parsedLabels.TraceID,
 		parsedLabels.TaskID,
-		"injection completed",
+		fmt.Sprintf(consts.TaskMsgCompleted, parsedLabels.TaskID),
 		consts.TaskStatusCompleted,
 		consts.TaskTypeFaultInjection,
 	)
 
-	envVars := map[string]string{
-		consts.BuildEnvVarNamespace: namespace,
-	}
-	datasetPayload := map[string]any{
-		consts.BuildBenchmark:   parsedLabels.Benchmark,
-		consts.BuildDataset:     name,
-		consts.BuildPreDuration: parsedLabels.PreDuration,
-		consts.BuildEnvVars:     envVars,
-		consts.BuildStartTime:   startTime,
-		consts.BuildEndTime:     endTime,
+	if err := repository.UpdateTimeByInjectionName(name, startTime, endTime); err != nil {
+		logEntry.Errorf("update injection execution times failed: %v", err)
+		taskSpan.AddEvent("update injection execution times failed")
+		return
 	}
 
-	repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, parsedLabels.TraceID), dto.StreamEvent{
-		TaskID:    parsedLabels.TaskID,
-		TaskType:  consts.TaskTypeFaultInjection,
-		EventName: consts.EventFaultInjectionCompleted,
-	})
+	task := &dto.UnifiedTask{
+		Type: consts.TaskTypeBuildDataset,
+		Payload: map[string]any{
+			consts.BuildBenchmark:   parsedLabels.Benchmark,
+			consts.BuildDataset:     name,
+			consts.BuildPreDuration: parsedLabels.PreDuration,
+			consts.BuildEnvVars: map[string]string{
+				consts.BuildEnvVarNamespace: namespace,
+			},
+			consts.BuildStartTime: startTime,
+			consts.BuildEndTime:   endTime,
+		},
+		Immediate: true,
+		TraceID:   parsedLabels.TraceID,
+		GroupID:   parsedLabels.GroupID,
+		ProjectID: parsedLabels.ProjectID,
+	}
+	task.SetTraceCtx(traceCtx)
 
-	taskID, traceID, err := SubmitTask(ctx, &dto.UnifiedTask{
-		Type:         consts.TaskTypeBuildDataset,
-		Payload:      datasetPayload,
-		Immediate:    true,
-		TraceID:      parsedLabels.TraceID,
-		GroupID:      parsedLabels.GroupID,
-		TraceCarrier: parsedAnnotations.TraceCarrier,
-	})
-
+	_, _, err := SubmitTask(taskCtx, task)
 	if err != nil {
-		if taskID == "" && traceID == "" {
-			logrus.Error(err)
-			return
-		}
-
-		logrus.WithFields(logrus.Fields{
-			"task_id":  taskID,
-			"trace_id": traceID,
-		}).Error(err)
+		logEntry.Errorf("submit dataset building task failed: %v", err)
+		taskSpan.AddEvent("submit dataset building task failed")
+		taskSpan.RecordError(err)
 	}
 }
 
@@ -319,11 +311,11 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 			Immediate: true,
 			TraceID:   taskOptions.TraceID,
 			GroupID:   taskOptions.GroupID,
+			ProjectID: taskOptions.ProjectID,
 		}
 		task.SetTraceCtx(traceCtx)
 
-		_, _, err := SubmitTask(traceCtx, task)
-		if err != nil {
+		if _, _, err := SubmitTask(taskCtx, task); err != nil {
 			logEntry.Errorf("submit algorithm execution task failed: %v", err)
 			taskSpan.AddEvent("submit algorithm execution task failed")
 			taskSpan.RecordError(err)
@@ -369,8 +361,7 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 		}
 		task.SetTraceCtx(traceCtx)
 
-		_, _, err := SubmitTask(taskCtx, task)
-		if err != nil {
+		if _, _, err := SubmitTask(taskCtx, task); err != nil {
 			logEntry.Errorf("submit result collection task failed: %v", err)
 			taskSpan.AddEvent("submit result collection task failed")
 			taskSpan.RecordError(err)
@@ -407,52 +398,7 @@ func parseAnnotations(annotations map[string]string) (*Carriers, error) {
 	}, nil
 }
 
-func parseCRDLabels(labels map[string]string) (*CRDLabels, error) {
-	message := "missing or invalid '%s' key in k8s labels"
-
-	taskID, ok := labels[consts.CRDTaskID]
-	if !ok || taskID == "" {
-		return nil, fmt.Errorf(message, consts.CRDTaskID)
-	}
-
-	traceID, ok := labels[consts.CRDTraceID]
-	if !ok || traceID == "" {
-		return nil, fmt.Errorf(message, consts.CRDTraceID)
-	}
-
-	groupID, ok := labels[consts.CRDGroupID]
-	if !ok || groupID == "" {
-		return nil, fmt.Errorf(message, consts.CRDGroupID)
-	}
-
-	benchmark, ok := labels[consts.CRDBenchmark]
-	if !ok || benchmark == "" {
-		return nil, fmt.Errorf(message, consts.CRDBenchmark)
-	}
-
-	var preDuration int
-	preDurationStr, ok := labels[consts.CRDPreDuration]
-	if ok && preDurationStr != "" {
-		duration, err := strconv.Atoi(preDurationStr)
-		if err != nil {
-			return nil, fmt.Errorf(message, consts.CRDPreDuration)
-		}
-
-		preDuration = duration
-	}
-
-	return &CRDLabels{
-		TaskID:      taskID,
-		TraceID:     traceID,
-		GroupID:     groupID,
-		Benchmark:   benchmark,
-		PreDuration: preDuration,
-	}, nil
-}
-
-func parseTaskOptions(labels map[string]string) (*TaskOptions, error) {
-	message := "missing or invalid '%s' key in job labels"
-
+func parseTaskIdentifiers(message string, labels map[string]string) (*TaskIdentifiers, error) {
 	taskID, ok := labels[consts.LabelTaskID]
 	if !ok || taskID == "" {
 		return nil, fmt.Errorf(message, consts.LabelTaskID)
@@ -468,16 +414,72 @@ func parseTaskOptions(labels map[string]string) (*TaskOptions, error) {
 		return nil, fmt.Errorf(message, consts.LabelGroupID)
 	}
 
+	var projectID int
+	projectIDStr, ok := labels[consts.LabelProjectID]
+	if ok && projectIDStr != "" {
+		id, err := strconv.Atoi(projectIDStr)
+		if err != nil {
+			return nil, fmt.Errorf(message, consts.LabelProjectID)
+		}
+
+		projectID = id
+	}
+
+	return &TaskIdentifiers{
+		TaskID:    taskID,
+		TraceID:   traceID,
+		GroupID:   groupID,
+		ProjectID: projectID,
+	}, nil
+}
+
+func parseCRDLabels(labels map[string]string) (*CRDLabels, error) {
+	message := "missing or invalid '%s' key in k8s CRD labels"
+
+	identifiers, err := parseTaskIdentifiers(message, labels)
+	if err != nil {
+		return nil, err
+	}
+
+	benchmark, ok := labels[consts.LabelBenchmark]
+	if !ok || benchmark == "" {
+		return nil, fmt.Errorf(message, consts.LabelBenchmark)
+	}
+
+	var preDuration int
+	preDurationStr, ok := labels[consts.LabelPreDuration]
+	if ok && preDurationStr != "" {
+		duration, err := strconv.Atoi(preDurationStr)
+		if err != nil {
+			return nil, fmt.Errorf(message, consts.LabelPreDuration)
+		}
+
+		preDuration = duration
+	}
+
+	return &CRDLabels{
+		TaskIdentifiers: *identifiers,
+		Benchmark:       benchmark,
+		PreDuration:     preDuration,
+	}, nil
+}
+
+func parseTaskOptions(labels map[string]string) (*TaskOptions, error) {
+	message := "missing or invalid '%s' key in k8s job labels"
+
+	identifiers, err := parseTaskIdentifiers(message, labels)
+	if err != nil {
+		return nil, err
+	}
+
 	taskType, ok := labels[consts.LabelTaskType]
 	if !ok || taskType == "" {
 		return nil, fmt.Errorf(message, consts.LabelTaskType)
 	}
 
 	return &TaskOptions{
-		TaskID:  taskID,
-		TraceID: traceID,
-		GroupID: groupID,
-		Type:    consts.TaskType(taskType),
+		TaskIdentifiers: *identifiers,
+		Type:            consts.TaskType(taskType),
 	}, nil
 }
 

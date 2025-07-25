@@ -11,6 +11,7 @@ Name | Type | Description | Notes
 **group_id** | **str** | ID for grouping tasks | [optional] 
 **immediate** | **bool** | Whether to execute immediately | [optional] 
 **payload** | **object** | Task-specific data | [optional] 
+**project_id** | **int** |  | [optional] 
 **restart_num** | **int** | Number of restarts for the task | [optional] 
 **retry_policy** | [**DtoRetryPolicy**](DtoRetryPolicy.md) | Policy for retrying failed tasks | [optional] 
 **status** | **str** | Status of the task | [optional] 

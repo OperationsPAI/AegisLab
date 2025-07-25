@@ -206,20 +206,18 @@ const (
 	GroupCarrier = "group_carrier"
 )
 
-// K8s CRD Label 字段
+// K8s Label 字段
 const (
-	CRDTaskID      = "task_id"
-	CRDTraceID     = "trace_id"
-	CRDGroupID     = "group_id"
-	CRDBenchmark   = "benchmark"
-	CRDPreDuration = "pre_duration"
-)
+	LabelTaskID    = "task_id"
+	LabelTraceID   = "trace_id"
+	LabelGroupID   = "group_id"
+	LabelProjectID = "project_id"
 
-// K8s Job Label 字段
-const (
-	LabelTaskID      = "task_id"
-	LabelTraceID     = "trace_id"
-	LabelGroupID     = "group_id"
+	// CRD Label 字段
+	LabelBenchmark   = "benchmark"
+	LabelPreDuration = "pre_duration"
+
+	// Job Label 字段
 	LabelTaskType    = "task_type"
 	LabelDataset     = "dataset"
 	LabelExecutionID = "execution_id"

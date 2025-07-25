@@ -10,7 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// GetEvaluationRawData 获取算法和数据集的原始评估数据
+// ListEvaluationRawData 获取算法和数据集的原始评估数据
 //
 //	@Summary		获取原始评估数据
 //	@Description	支持三种查询模式：1) 直接传入算法-数据集对数组进行精确查询；2) 传入算法和数据集列表进行笛卡尔积查询；3) 通过执行ID列表查询。三种模式互斥，只能选择其中一种

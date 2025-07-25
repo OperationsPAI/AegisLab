@@ -20,7 +20,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.database_fault_injection_schedule import DatabaseFaultInjectionSchedule
+from rcabench.openapi.models.dto_list_injections_resp import DtoListInjectionsResp
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -29,7 +29,7 @@ class DtoGenericResponseDtoListInjectionsResp(BaseModel):
     DtoGenericResponseDtoListInjectionsResp
     """ # noqa: E501
     code: Optional[StrictInt] = Field(default=None, description="状态码")
-    data: Optional[List[DatabaseFaultInjectionSchedule]] = Field(default=None, description="泛型类型的数据")
+    data: Optional[DtoListInjectionsResp] = Field(default=None, description="泛型类型的数据")
     message: Optional[StrictStr] = Field(default=None, description="响应消息")
     timestamp: Optional[StrictInt] = Field(default=None, description="响应生成时间")
     additional_properties: Dict[str, Any] = {}
@@ -76,13 +76,9 @@ class DtoGenericResponseDtoListInjectionsResp(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of each item in data (list)
-        _items = []
+        # override the default output from pydantic by calling `to_dict()` of data
         if self.data:
-            for _item_data in self.data:
-                if _item_data:
-                    _items.append(_item_data.to_dict())
-            _dict['data'] = _items
+            _dict['data'] = self.data.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -101,7 +97,7 @@ class DtoGenericResponseDtoListInjectionsResp(BaseModel):
 
         _obj = cls.model_validate({
             "code": obj.get("code"),
-            "data": [DatabaseFaultInjectionSchedule.from_dict(_item) for _item in obj["data"]] if obj.get("data") is not None else None,
+            "data": DtoListInjectionsResp.from_dict(obj["data"]) if obj.get("data") is not None else None,
             "message": obj.get("message"),
             "timestamp": obj.get("timestamp")
         })

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -22,23 +21,21 @@ type genericQueryParams struct {
 func genericQueryWithBuilder[T any](params *genericQueryParams) (total int64, records []T, err error) {
 	var model T
 
-	baseQuery := database.DB.Model(&model)
-	query := params.builder(baseQuery)
+	query := params.builder(database.DB.Model(&model))
 
 	if params.sortField != "" {
 		query = query.Scopes(database.Sort(params.sortField))
 	}
 
-	if params.limit > 0 {
-		query = query.Limit(params.limit)
-	}
-
 	if params.pageNum > 0 && params.pageSize > 0 {
-		if err = query.Count(&total).Error; err != nil {
-			return 0, nil, fmt.Errorf("count error: %v", err)
+		countQuery := params.builder(database.DB.Model(&model))
+		if err = countQuery.Limit(-1).Offset(-1).Count(&total).Error; err != nil {
+			return 0, nil, fmt.Errorf("Count error: %v", err)
 		}
 
 		query = query.Scopes(database.Paginate(params.pageNum, params.pageSize))
+	} else if params.limit > 0 {
+		query = query.Limit(params.limit)
 	}
 
 	if len(params.selectColumns) > 0 {
@@ -46,8 +43,7 @@ func genericQueryWithBuilder[T any](params *genericQueryParams) (total int64, re
 	}
 
 	if err = query.Find(&records).Error; err != nil {
-		logrus.Errorf("failed to find records: %v", err)
-		return total, nil, fmt.Errorf("failed to find records")
+		return total, nil, fmt.Errorf("Failed to find records :%v", err)
 	}
 
 	return total, records, nil

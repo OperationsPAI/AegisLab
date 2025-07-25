@@ -38,7 +38,6 @@ __all__ = [
     "ApiException",
     "ConstsTaskType",
     "DatabaseContainer",
-    "DatabaseFaultInjectionSchedule",
     "DatabaseTask",
     "DtoAlgorithmDatasetPair",
     "DtoAlgorithmItem",
@@ -73,8 +72,10 @@ __all__ = [
     "DtoGranularityRecord",
     "DtoGroundTruthReq",
     "DtoInjectionFieldMappingResp",
+    "DtoInjectionItem",
     "DtoInjectionStatsResp",
     "DtoLabelItem",
+    "DtoListInjectionsResp",
     "DtoPaginationRespDtoUnifiedTask",
     "DtoQueryInjectionResp",
     "DtoRawDataItem",
@@ -118,7 +119,6 @@ from rcabench.openapi.exceptions import ApiException as ApiException
 # import models into sdk package
 from rcabench.openapi.models.consts_task_type import ConstsTaskType as ConstsTaskType
 from rcabench.openapi.models.database_container import DatabaseContainer as DatabaseContainer
-from rcabench.openapi.models.database_fault_injection_schedule import DatabaseFaultInjectionSchedule as DatabaseFaultInjectionSchedule
 from rcabench.openapi.models.database_task import DatabaseTask as DatabaseTask
 from rcabench.openapi.models.dto_algorithm_dataset_pair import DtoAlgorithmDatasetPair as DtoAlgorithmDatasetPair
 from rcabench.openapi.models.dto_algorithm_item import DtoAlgorithmItem as DtoAlgorithmItem
@@ -153,8 +153,10 @@ from rcabench.openapi.models.dto_get_completed_map_resp import DtoGetCompletedMa
 from rcabench.openapi.models.dto_granularity_record import DtoGranularityRecord as DtoGranularityRecord
 from rcabench.openapi.models.dto_ground_truth_req import DtoGroundTruthReq as DtoGroundTruthReq
 from rcabench.openapi.models.dto_injection_field_mapping_resp import DtoInjectionFieldMappingResp as DtoInjectionFieldMappingResp
+from rcabench.openapi.models.dto_injection_item import DtoInjectionItem as DtoInjectionItem
 from rcabench.openapi.models.dto_injection_stats_resp import DtoInjectionStatsResp as DtoInjectionStatsResp
 from rcabench.openapi.models.dto_label_item import DtoLabelItem as DtoLabelItem
+from rcabench.openapi.models.dto_list_injections_resp import DtoListInjectionsResp as DtoListInjectionsResp
 from rcabench.openapi.models.dto_pagination_resp_dto_unified_task import DtoPaginationRespDtoUnifiedTask as DtoPaginationRespDtoUnifiedTask
 from rcabench.openapi.models.dto_query_injection_resp import DtoQueryInjectionResp as DtoQueryInjectionResp
 from rcabench.openapi.models.dto_raw_data_item import DtoRawDataItem as DtoRawDataItem

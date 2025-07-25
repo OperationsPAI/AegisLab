@@ -266,7 +266,7 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 				"namespace": u.GetNamespace(),
 				"name":      u.GetName(),
 			}).Info("Chaos experiment deleted successfully")
-			traceId := u.GetLabels()[consts.CRDTraceID]
+			traceId := u.GetLabels()[consts.LabelTraceID]
 			GetMonitor().ReleaseLock(u.GetNamespace(), traceId)
 		},
 	}

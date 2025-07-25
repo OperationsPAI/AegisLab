@@ -115,6 +115,7 @@ func SubmitTask(ctx context.Context, task *dto.UnifiedTask) (string, string, err
 			Status:      task.Status,
 			TraceID:     task.TraceID,
 			GroupID:     task.GroupID,
+			ProjectID:   task.ProjectID,
 		}
 		if err := database.DB.Create(&t).Error; err != nil {
 			logrus.Errorf("failed to save task to database, err: %v", err)
