@@ -1637,14 +1637,18 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_get(
         self,
+        project_name: Annotated[Optional[StrictStr], Field(description="项目名称过滤")] = None,
         env: Annotated[Optional[StrictStr], Field(description="环境标签过滤")] = None,
         batch: Annotated[Optional[StrictStr], Field(description="批次标签过滤")] = None,
+        tag: Annotated[Optional[StrictStr], Field(description="分类标签过滤")] = None,
         benchmark: Annotated[Optional[StrictStr], Field(description="基准测试类型过滤")] = None,
         status: Annotated[Optional[StrictInt], Field(description="状态过滤，具体值参考字段映射接口(/mapping)")] = None,
         fault_type: Annotated[Optional[StrictInt], Field(description="故障类型过滤，具体值参考字段映射接口(/mapping)")] = None,
         sort_field: Annotated[Optional[StrictStr], Field(description="排序字段，默认created_at")] = None,
         sort_order: Annotated[Optional[StrictStr], Field(description="排序方式，默认desc")] = None,
-        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="结果数量限制，用于控制返回记录数量")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="结果数量限制，用于控制返回记录数量")] = None,
+        page_num: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="分页查询，页码")] = None,
+        page_size: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="分页查询，每页数量")] = None,
         lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
         custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
         custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
@@ -1665,10 +1669,14 @@ class InjectionApi:
 
         支持排序、过滤的故障注入记录查询接口。返回数据库原始记录列表，不进行数据转换。
 
+        :param project_name: 项目名称过滤
+        :type project_name: str
         :param env: 环境标签过滤
         :type env: str
         :param batch: 批次标签过滤
         :type batch: str
+        :param tag: 分类标签过滤
+        :type tag: str
         :param benchmark: 基准测试类型过滤
         :type benchmark: str
         :param status: 状态过滤，具体值参考字段映射接口(/mapping)
@@ -1681,6 +1689,10 @@ class InjectionApi:
         :type sort_order: str
         :param limit: 结果数量限制，用于控制返回记录数量
         :type limit: int
+        :param page_num: 分页查询，页码
+        :type page_num: int
+        :param page_size: 分页查询，每页数量
+        :type page_size: int
         :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         :type lookback: str
         :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
@@ -1710,14 +1722,18 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_get_serialize(
+            project_name=project_name,
             env=env,
             batch=batch,
+            tag=tag,
             benchmark=benchmark,
             status=status,
             fault_type=fault_type,
             sort_field=sort_field,
             sort_order=sort_order,
             limit=limit,
+            page_num=page_num,
+            page_size=page_size,
             lookback=lookback,
             custom_start_time=custom_start_time,
             custom_end_time=custom_end_time,
@@ -1746,14 +1762,18 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_get_with_http_info(
         self,
+        project_name: Annotated[Optional[StrictStr], Field(description="项目名称过滤")] = None,
         env: Annotated[Optional[StrictStr], Field(description="环境标签过滤")] = None,
         batch: Annotated[Optional[StrictStr], Field(description="批次标签过滤")] = None,
+        tag: Annotated[Optional[StrictStr], Field(description="分类标签过滤")] = None,
         benchmark: Annotated[Optional[StrictStr], Field(description="基准测试类型过滤")] = None,
         status: Annotated[Optional[StrictInt], Field(description="状态过滤，具体值参考字段映射接口(/mapping)")] = None,
         fault_type: Annotated[Optional[StrictInt], Field(description="故障类型过滤，具体值参考字段映射接口(/mapping)")] = None,
         sort_field: Annotated[Optional[StrictStr], Field(description="排序字段，默认created_at")] = None,
         sort_order: Annotated[Optional[StrictStr], Field(description="排序方式，默认desc")] = None,
-        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="结果数量限制，用于控制返回记录数量")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="结果数量限制，用于控制返回记录数量")] = None,
+        page_num: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="分页查询，页码")] = None,
+        page_size: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="分页查询，每页数量")] = None,
         lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
         custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
         custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
@@ -1774,10 +1794,14 @@ class InjectionApi:
 
         支持排序、过滤的故障注入记录查询接口。返回数据库原始记录列表，不进行数据转换。
 
+        :param project_name: 项目名称过滤
+        :type project_name: str
         :param env: 环境标签过滤
         :type env: str
         :param batch: 批次标签过滤
         :type batch: str
+        :param tag: 分类标签过滤
+        :type tag: str
         :param benchmark: 基准测试类型过滤
         :type benchmark: str
         :param status: 状态过滤，具体值参考字段映射接口(/mapping)
@@ -1790,6 +1814,10 @@ class InjectionApi:
         :type sort_order: str
         :param limit: 结果数量限制，用于控制返回记录数量
         :type limit: int
+        :param page_num: 分页查询，页码
+        :type page_num: int
+        :param page_size: 分页查询，每页数量
+        :type page_size: int
         :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         :type lookback: str
         :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
@@ -1819,14 +1847,18 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_get_serialize(
+            project_name=project_name,
             env=env,
             batch=batch,
+            tag=tag,
             benchmark=benchmark,
             status=status,
             fault_type=fault_type,
             sort_field=sort_field,
             sort_order=sort_order,
             limit=limit,
+            page_num=page_num,
+            page_size=page_size,
             lookback=lookback,
             custom_start_time=custom_start_time,
             custom_end_time=custom_end_time,
@@ -1855,14 +1887,18 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_get_without_preload_content(
         self,
+        project_name: Annotated[Optional[StrictStr], Field(description="项目名称过滤")] = None,
         env: Annotated[Optional[StrictStr], Field(description="环境标签过滤")] = None,
         batch: Annotated[Optional[StrictStr], Field(description="批次标签过滤")] = None,
+        tag: Annotated[Optional[StrictStr], Field(description="分类标签过滤")] = None,
         benchmark: Annotated[Optional[StrictStr], Field(description="基准测试类型过滤")] = None,
         status: Annotated[Optional[StrictInt], Field(description="状态过滤，具体值参考字段映射接口(/mapping)")] = None,
         fault_type: Annotated[Optional[StrictInt], Field(description="故障类型过滤，具体值参考字段映射接口(/mapping)")] = None,
         sort_field: Annotated[Optional[StrictStr], Field(description="排序字段，默认created_at")] = None,
         sort_order: Annotated[Optional[StrictStr], Field(description="排序方式，默认desc")] = None,
-        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="结果数量限制，用于控制返回记录数量")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="结果数量限制，用于控制返回记录数量")] = None,
+        page_num: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="分页查询，页码")] = None,
+        page_size: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="分页查询，每页数量")] = None,
         lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
         custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
         custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
@@ -1883,10 +1919,14 @@ class InjectionApi:
 
         支持排序、过滤的故障注入记录查询接口。返回数据库原始记录列表，不进行数据转换。
 
+        :param project_name: 项目名称过滤
+        :type project_name: str
         :param env: 环境标签过滤
         :type env: str
         :param batch: 批次标签过滤
         :type batch: str
+        :param tag: 分类标签过滤
+        :type tag: str
         :param benchmark: 基准测试类型过滤
         :type benchmark: str
         :param status: 状态过滤，具体值参考字段映射接口(/mapping)
@@ -1899,6 +1939,10 @@ class InjectionApi:
         :type sort_order: str
         :param limit: 结果数量限制，用于控制返回记录数量
         :type limit: int
+        :param page_num: 分页查询，页码
+        :type page_num: int
+        :param page_size: 分页查询，每页数量
+        :type page_size: int
         :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         :type lookback: str
         :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
@@ -1928,14 +1972,18 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_get_serialize(
+            project_name=project_name,
             env=env,
             batch=batch,
+            tag=tag,
             benchmark=benchmark,
             status=status,
             fault_type=fault_type,
             sort_field=sort_field,
             sort_order=sort_order,
             limit=limit,
+            page_num=page_num,
+            page_size=page_size,
             lookback=lookback,
             custom_start_time=custom_start_time,
             custom_end_time=custom_end_time,
@@ -1959,14 +2007,18 @@ class InjectionApi:
 
     def _api_v1_injections_get_serialize(
         self,
+        project_name,
         env,
         batch,
+        tag,
         benchmark,
         status,
         fault_type,
         sort_field,
         sort_order,
         limit,
+        page_num,
+        page_size,
         lookback,
         custom_start_time,
         custom_end_time,
@@ -1992,6 +2044,10 @@ class InjectionApi:
 
         # process the path parameters
         # process the query parameters
+        if project_name is not None:
+            
+            _query_params.append(('project_name', project_name))
+            
         if env is not None:
             
             _query_params.append(('env', env))
@@ -1999,6 +2055,10 @@ class InjectionApi:
         if batch is not None:
             
             _query_params.append(('batch', batch))
+            
+        if tag is not None:
+            
+            _query_params.append(('tag', tag))
             
         if benchmark is not None:
             
@@ -2023,6 +2083,14 @@ class InjectionApi:
         if limit is not None:
             
             _query_params.append(('limit', limit))
+            
+        if page_num is not None:
+            
+            _query_params.append(('page_num', page_num))
+            
+        if page_size is not None:
+            
+            _query_params.append(('page_size', page_size))
             
         if lookback is not None:
             

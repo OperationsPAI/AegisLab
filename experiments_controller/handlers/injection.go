@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"net/http"
 	"runtime/debug"
-	"strconv"
 	"time"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
@@ -18,6 +17,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/copier"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -178,14 +178,18 @@ func ListDisplayConfigs(c *gin.Context) {
 //	@Description	支持排序、过滤的故障注入记录查询接口。返回数据库原始记录列表，不进行数据转换。
 //	@Tags			injection
 //	@Produce		json
-//	@Param			env					query		string	false	"环境标签过滤"
+//	@Param			project_name		query		string	false	"项目名称过滤"
+//	@Param			env					query		string	false	"环境标签过滤"	Enums(dev, prod)	default(prod)
 //	@Param			batch				query		string	false	"批次标签过滤"
-//	@Param			benchmark			query		string	false	"基准测试类型过滤"	Enums(clickhouse)
+//	@Param			tag					query		string	false	"分类标签过滤"	Enums(train, test)	default(train)
+//	@Param			benchmark			query		string	false	"基准测试类型过滤"	Enums(clickhouse)	default(clickhouse)
 //	@Param			status				query		int		false	"状态过滤，具体值参考字段映射接口(/mapping)"	default(0)
 //	@Param			fault_type			query		int		false	"故障类型过滤，具体值参考字段映射接口(/mapping)"	default(0)
 //	@Param			sort_field			query		string	false	"排序字段，默认created_at" default(created_at)
 //	@Param			sort_order			query		string	false	"排序方式，默认desc"	Enums(asc, desc)	default(desc)
-//	@Param			limit				query		int		false	"结果数量限制，用于控制返回记录数量"	minimum(1)
+//	@Param			limit				query		int		false	"结果数量限制，用于控制返回记录数量"	minimum(0)	default(0)
+//	@Param			page_num			query		int		false	"分页查询，页码"	minimum(0)	default(0)
+//	@Param			page_size			query		int		false	"分页查询，每页数量"	minimum(0)	default(0)
 //	@Param			lookback			query		string	false	"时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置"
 //	@Param			custom_start_time	query		string	false	"自定义开始时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
 //	@Param			custom_end_time		query		string	false	"自定义结束时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
@@ -207,13 +211,28 @@ func ListInjections(c *gin.Context) {
 		return
 	}
 
-	_, injections, err := repository.ListInjections(&req)
+	total, injections, err := repository.ListInjections(&req)
 	if err != nil {
+		logrus.Errorf("failed to list injections: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	dto.SuccessResponse(c, dto.ListInjectionsResp(injections))
+	var items []dto.InjectionItem
+	if err := copier.Copy(&items, &injections); err != nil {
+		logrus.Errorf("failed to copy injection records: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to copy injection records")
+		return
+	}
+
+	if total == 0 {
+		total = int64(len(items))
+	}
+
+	dto.SuccessResponse(c, dto.ListInjectionsResp{
+		Total: total,
+		Items: items,
+	})
 }
 
 // QueryInjection
@@ -269,17 +288,6 @@ func QueryInjection(c *gin.Context) {
 	})
 }
 
-type InjectionConfig struct {
-	Index         int
-	FaultType     int
-	FaultDuration int
-	DisplayData   string
-	Conf          *chaos.InjectionConf
-	Node          *chaos.Node
-	ExecuteTime   time.Time
-	Labels        []dto.LabelItem
-}
-
 // SubmitFaultInjection
 //
 //	@Summary		提交故障注入任务
@@ -333,15 +341,54 @@ func SubmitFaultInjection(c *gin.Context) {
 		return
 	}
 
-	configs, err := parseInjectionSpecs(&req)
+	configs, err := req.ParseInjectionSpecs()
 	if err != nil {
 		handleError(err, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	traces := make([]dto.Trace, 0, len(configs))
-	for _, config := range configs {
-		task := createInjectionTask(&req, config, groupID, spanCtx)
+	newConfigs, err := removeDuplicated(configs)
+	if err != nil {
+		logrus.Errorf("failed to remove duplicated configs: %v", err)
+		span.SetStatus(codes.Error, "panic in SubmitFaultInjection")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to remove duplicated configs")
+		return
+	}
+
+	project, err := repository.GetProject("name", req.ProjectName)
+	if err != nil {
+		logrus.Errorf("failed to get project by name %s: %v", req.ProjectName, err)
+		span.SetStatus(codes.Error, "panic in SubmitFaultInjection")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get project by name")
+		return
+	}
+
+	traces := make([]dto.Trace, 0, len(newConfigs))
+	for _, config := range newConfigs {
+		payload := map[string]any{
+			consts.RestartIntarval:      req.Interval,
+			consts.RestartFaultDuration: config.FaultDuration,
+			consts.RestartInjectPayload: map[string]any{
+				consts.InjectAlgorithms:  req.Algorithms,
+				consts.InjectBenchmark:   req.Benchmark,
+				consts.InjectFaultType:   config.FaultType,
+				consts.InjectPreDuration: req.PreDuration,
+				consts.InjectDisplayData: config.DisplayData,
+				consts.InjectConf:        config.Conf,
+				consts.InjectNode:        config.Node,
+				consts.InjectLabels:      config.Labels,
+			},
+		}
+
+		task := &dto.UnifiedTask{
+			Type:        consts.TaskTypeRestartService,
+			Payload:     payload,
+			Immediate:   false,
+			ExecuteTime: config.ExecuteTime.Unix(),
+			GroupID:     groupID,
+			ProjectID:   project.ID,
+		}
+		task.SetGroupCtx(spanCtx)
 
 		taskID, traceID, err := executor.SubmitTask(spanCtx, task)
 		if err != nil {
@@ -354,8 +401,8 @@ func SubmitFaultInjection(c *gin.Context) {
 
 	span.SetStatus(codes.Ok, fmt.Sprintf("Successfully submitted %d fault injections with groupID: %s", len(traces), groupID))
 
-	duplicatedCount := len(req.Specs) - len(configs)
-	logrus.Infof("Duplicated %d configurations, original count: %d", len(req.Specs)-len(configs), len(req.Specs))
+	duplicatedCount := len(req.Specs) - len(newConfigs)
+	logrus.Infof("Duplicated %d configurations, original count: %d", duplicatedCount, len(req.Specs))
 
 	if len(req.Algorithms) != 0 {
 		if err := repository.SetAlgorithmItemsToRedis(spanCtx, consts.InjectionAlgorithmsKey, groupID, req.Algorithms); err != nil {
@@ -376,51 +423,15 @@ func SubmitFaultInjection(c *gin.Context) {
 	})
 }
 
-func parseInjectionSpecs(r *dto.SubmitInjectionReq) ([]InjectionConfig, error) {
-	configs := make([]InjectionConfig, 0, len(r.Specs))
-	displayDatas := make([]string, 0, len(r.Specs))
-
-	for idx, spec := range r.Specs {
-		childNode, exists := spec.Children[strconv.Itoa(spec.Value)]
-		if !exists {
-			return nil, fmt.Errorf("failed to find key %d in the children", spec.Value)
-		}
-
-		faultDuration := childNode.Children[consts.DurationNodeKey].Value
-
-		conf, err := chaos.NodeToStruct[chaos.InjectionConf](&spec)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert node to injecton conf: %v", err)
-		}
-
-		displayConfig, err := conf.GetDisplayConfig()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get display config: %v", err)
-		}
-
-		displayData, err := json.Marshal(displayConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal injection spec to display config: %v", err)
-		}
-
-		configs = append(configs, InjectionConfig{
-			Index:         idx,
-			FaultType:     spec.Value,
-			FaultDuration: faultDuration,
-			DisplayData:   string(displayData),
-			Conf:          conf,
-			Node:          &spec,
-			Labels:        r.Labels,
-		})
-		displayDatas = append(displayDatas, string(displayData))
-	}
+func removeDuplicated(configs []dto.InjectionConfig) ([]dto.InjectionConfig, error) {
+	displayDatas := make([]string, 0, len(configs))
 
 	missingIndices, err := findMissingIndices(displayDatas, 10)
 	if err != nil {
 		return nil, err
 	}
 
-	newConfigs := make([]InjectionConfig, 0)
+	newConfigs := make([]dto.InjectionConfig, 0)
 	for _, idx := range missingIndices {
 		conf := configs[idx]
 		conf.ExecuteTime = time.Now().Add(time.Second * time.Duration(rand.Int()%120))
@@ -456,34 +467,6 @@ func findMissingIndices(confs []string, batch_size int) ([]int, error) {
 	}
 
 	return missingIndices, nil
-}
-
-func createInjectionTask(req *dto.SubmitInjectionReq, config InjectionConfig, groupID string, spanCtx context.Context) *dto.UnifiedTask {
-	payload := map[string]any{
-		consts.RestartIntarval:      req.Interval,
-		consts.RestartFaultDuration: config.FaultDuration,
-		consts.RestartInjectPayload: map[string]any{
-			consts.InjectAlgorithms:  req.Algorithms,
-			consts.InjectBenchmark:   req.Benchmark,
-			consts.InjectFaultType:   config.FaultType,
-			consts.InjectPreDuration: req.PreDuration,
-			consts.InjectDisplayData: config.DisplayData,
-			consts.InjectConf:        config.Conf,
-			consts.InjectNode:        config.Node,
-			consts.InjectLabels:      config.Labels,
-		},
-	}
-
-	task := &dto.UnifiedTask{
-		Type:        consts.TaskTypeRestartService,
-		Payload:     payload,
-		Immediate:   false,
-		ExecuteTime: config.ExecuteTime.Unix(),
-		GroupID:     groupID,
-	}
-	task.SetGroupCtx(spanCtx)
-
-	return task
 }
 
 // analysis

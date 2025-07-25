@@ -32,6 +32,11 @@ func New() *gin.Engine {
 		algorithms.POST("", handlers.SubmitAlgorithmExecution)
 	}
 
+	analyzer := r.Group("/analyzer")
+	{
+		analyzer.GET("/traces", handlers.AnalyzeTraces)
+	}
+
 	containers := r.Group("/containers")
 	{
 		containers.POST("", handlers.SubmitContainerBuilding)
@@ -87,7 +92,6 @@ func New() *gin.Engine {
 
 	traces := r.Group("/traces")
 	{
-		traces.GET("/analyze", handlers.AnalyzeTrace)
 		traces.GET("/completed", handlers.GetCompletedMap)
 
 		tracesWithID := traces.Group("/:trace_id")

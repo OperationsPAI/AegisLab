@@ -34,12 +34,13 @@ class DatabaseTask(BaseModel):
     id: Optional[StrictStr] = None
     immediate: Optional[StrictBool] = None
     payload: Optional[StrictStr] = None
+    project_id: Optional[StrictInt] = None
     status: Optional[StrictStr] = None
     trace_id: Optional[StrictStr] = None
     type: Optional[StrictStr] = None
     updated_at: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["created_at", "cron_expr", "execute_time", "group_id", "id", "immediate", "payload", "status", "trace_id", "type", "updated_at"]
+    __properties: ClassVar[List[str]] = ["created_at", "cron_expr", "execute_time", "group_id", "id", "immediate", "payload", "project_id", "status", "trace_id", "type", "updated_at"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -106,6 +107,7 @@ class DatabaseTask(BaseModel):
             "id": obj.get("id"),
             "immediate": obj.get("immediate"),
             "payload": obj.get("payload"),
+            "project_id": obj.get("project_id"),
             "status": obj.get("status"),
             "trace_id": obj.get("trace_id"),
             "type": obj.get("type"),

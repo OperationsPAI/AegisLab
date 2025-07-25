@@ -10,6 +10,7 @@ Name | Type | Description | Notes
 **interval** | **int** |  | 
 **labels** | [**List[DtoLabelItem]**](DtoLabelItem.md) |  | [optional] 
 **pre_duration** | **int** |  | 
+**project_name** | **str** |  | 
 **specs** | [**List[HandlerNode]**](HandlerNode.md) |  | 
 
 ## Example

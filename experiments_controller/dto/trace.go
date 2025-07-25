@@ -1,8 +1,6 @@
 package dto
 
 import (
-	"fmt"
-
 	"github.com/LGU-SE-Internal/rcabench/consts"
 )
 
@@ -29,12 +27,6 @@ var ValidTaskEventMap = map[consts.TaskType][]consts.EventType{
 		consts.EventRestartServiceCompleted,
 		consts.EventRestartServiceFailed,
 	},
-}
-
-var ValidTaskTypes = map[consts.TaskType]struct{}{
-	consts.TaskTypeBuildDataset:   {},
-	consts.TaskTypeRestartService: {},
-	consts.TaskTypeRunAlgorithm:   {},
 }
 
 type TraceReq struct {
@@ -70,33 +62,6 @@ func (req *GetCompletedMapReq) Convert() (*TraceAnalyzeFilterOptions, error) {
 	}
 
 	return &TraceAnalyzeFilterOptions{
-		TimeFilterOptions: *opts,
-	}, nil
-}
-
-type TraceAnalyzeReq struct {
-	FirstTaskType string `form:"first_task_type" binding:"omitempty"`
-	TimeRangeQuery
-}
-
-func (req *TraceAnalyzeReq) Validate() error {
-	if req.FirstTaskType != "" {
-		if _, exists := ValidTaskTypes[consts.TaskType(req.FirstTaskType)]; !exists {
-			return fmt.Errorf("Invalid event name: %s", req.FirstTaskType)
-		}
-	}
-
-	return req.TimeRangeQuery.Validate()
-}
-
-func (req *TraceAnalyzeReq) Convert() (*TraceAnalyzeFilterOptions, error) {
-	opts, err := req.TimeRangeQuery.Convert()
-	if err != nil {
-		return nil, err
-	}
-
-	return &TraceAnalyzeFilterOptions{
-		FirstTaskType:     consts.TaskType(req.FirstTaskType),
 		TimeFilterOptions: *opts,
 	}, nil
 }

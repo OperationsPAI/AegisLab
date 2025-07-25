@@ -35,6 +35,7 @@ class DtoUnifiedTask(BaseModel):
     group_id: Optional[StrictStr] = Field(default=None, description="ID for grouping tasks")
     immediate: Optional[StrictBool] = Field(default=None, description="Whether to execute immediately")
     payload: Optional[Dict[str, Any]] = Field(default=None, description="Task-specific data")
+    project_id: Optional[StrictInt] = None
     restart_num: Optional[StrictInt] = Field(default=None, description="Number of restarts for the task")
     retry_policy: Optional[DtoRetryPolicy] = Field(default=None, description="Policy for retrying failed tasks")
     status: Optional[StrictStr] = Field(default=None, description="Status of the task")
@@ -43,7 +44,7 @@ class DtoUnifiedTask(BaseModel):
     trace_id: Optional[StrictStr] = Field(default=None, description="ID for tracing related tasks")
     type: Optional[ConstsTaskType] = Field(default=None, description="Task type (determines how it's processed)")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["cron_expr", "execute_time", "group_carrier", "group_id", "immediate", "payload", "restart_num", "retry_policy", "status", "task_id", "trace_carrier", "trace_id", "type"]
+    __properties: ClassVar[List[str]] = ["cron_expr", "execute_time", "group_carrier", "group_id", "immediate", "payload", "project_id", "restart_num", "retry_policy", "status", "task_id", "trace_carrier", "trace_id", "type"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -112,6 +113,7 @@ class DtoUnifiedTask(BaseModel):
             "group_id": obj.get("group_id"),
             "immediate": obj.get("immediate"),
             "payload": obj.get("payload"),
+            "project_id": obj.get("project_id"),
             "restart_num": obj.get("restart_num"),
             "retry_policy": DtoRetryPolicy.from_dict(obj["retry_policy"]) if obj.get("retry_policy") is not None else None,
             "status": obj.get("status"),

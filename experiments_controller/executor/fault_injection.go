@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"math/rand/v2"
+	"math/rand"
 	"regexp"
 	"strconv"
 	"time"
@@ -50,61 +50,6 @@ type restartPayload struct {
 	injectPayload map[string]any
 }
 
-func rescheduleTask(ctx context.Context, task *dto.UnifiedTask, reason string) error {
-	span := trace.SpanFromContext(ctx)
-
-	var executeTime time.Time
-
-	randomFactor := 0.3 + rand.Float64()*0.7 // Random factor between 0.3 and 1.0
-	deltaTime := time.Duration(math.Min(math.Pow(2, float64(task.ReStartNum)), 5.0)*randomFactor) * consts.DefaultTimeUnit
-	executeTime = time.Now().Add(deltaTime)
-
-	eventPayload := executeTime.String()
-
-	span.AddEvent(fmt.Sprintf("rescheduling task: %s", reason))
-	logrus.WithFields(logrus.Fields{
-		"task_id":  task.TaskID,
-		"trace_id": task.TraceID,
-	}).Warnf("%s: %s", reason, executeTime)
-
-	tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStatusPending))
-
-	repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
-		TaskID:    task.TaskID,
-		TaskType:  consts.TaskTypeRestartService,
-		EventName: consts.EventNoNamespaceAvailable,
-		Payload:   eventPayload,
-	})
-
-	updateTaskStatus(
-		ctx,
-		task.TraceID,
-		task.TaskID,
-		reason,
-		consts.TaskStautsRescheduled,
-		consts.TaskTypeRestartService,
-	)
-
-	if _, _, err := SubmitTask(ctx, &dto.UnifiedTask{
-		TaskID:       task.TaskID,
-		Type:         consts.TaskTypeRestartService,
-		Immediate:    false,
-		ExecuteTime:  executeTime.Unix(),
-		ReStartNum:   task.ReStartNum + 1,
-		Payload:      task.Payload,
-		Status:       consts.TaskStautsRescheduled,
-		TraceID:      task.TraceID,
-		GroupID:      task.GroupID,
-		TraceCarrier: task.TraceCarrier,
-	}); err != nil {
-		span.RecordError(err)
-		span.AddEvent("failed to submit rescheduled task")
-		return fmt.Errorf("failed to submit rescheduled restart task: %v", err)
-	}
-
-	return nil
-}
-
 // 执行故障注入任务
 func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
@@ -138,11 +83,12 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			payload.namespace,
 			annotations,
 			map[string]string{
-				consts.CRDTaskID:      task.TaskID,
-				consts.CRDTraceID:     task.TraceID,
-				consts.CRDGroupID:     task.GroupID,
-				consts.CRDBenchmark:   payload.benchmark,
-				consts.CRDPreDuration: strconv.Itoa(payload.preDuration),
+				consts.LabelTaskID:      task.TaskID,
+				consts.LabelTraceID:     task.TraceID,
+				consts.LabelGroupID:     task.GroupID,
+				consts.LabelProjectID:   strconv.Itoa(task.ProjectID),
+				consts.LabelBenchmark:   payload.benchmark,
+				consts.LabelPreDuration: strconv.Itoa(payload.preDuration),
 			})
 		if err != nil {
 			monitor.ReleaseLock(payload.namespace, task.TraceID)
@@ -339,6 +285,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 			ExecuteTime:  injectTime.Unix(),
 			TraceID:      task.TraceID,
 			GroupID:      task.GroupID,
+			ProjectID:    task.ProjectID,
 			TraceCarrier: task.TraceCarrier,
 		}
 		if _, _, err := SubmitTask(childCtx, injectTask); err != nil {
@@ -350,6 +297,62 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 
 		return nil
 	})
+}
+
+func rescheduleTask(ctx context.Context, task *dto.UnifiedTask, reason string) error {
+	span := trace.SpanFromContext(ctx)
+
+	var executeTime time.Time
+
+	randomFactor := 0.3 + rand.Float64()*0.7 // Random factor between 0.3 and 1.0
+	deltaTime := time.Duration(math.Min(math.Pow(2, float64(task.ReStartNum)), 5.0)*randomFactor) * consts.DefaultTimeUnit
+	executeTime = time.Now().Add(deltaTime)
+
+	eventPayload := executeTime.String()
+
+	span.AddEvent(fmt.Sprintf("rescheduling task: %s", reason))
+	logrus.WithFields(logrus.Fields{
+		"task_id":  task.TaskID,
+		"trace_id": task.TraceID,
+	}).Warnf("%s: %s", reason, executeTime)
+
+	tracing.SetSpanAttribute(ctx, consts.TaskStatusKey, string(consts.TaskStatusPending))
+
+	repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+		TaskID:    task.TaskID,
+		TaskType:  consts.TaskTypeRestartService,
+		EventName: consts.EventNoNamespaceAvailable,
+		Payload:   eventPayload,
+	})
+
+	updateTaskStatus(
+		ctx,
+		task.TraceID,
+		task.TaskID,
+		reason,
+		consts.TaskStautsRescheduled,
+		consts.TaskTypeRestartService,
+	)
+
+	if _, _, err := SubmitTask(ctx, &dto.UnifiedTask{
+		TaskID:       task.TaskID,
+		Type:         consts.TaskTypeRestartService,
+		Immediate:    false,
+		ExecuteTime:  executeTime.Unix(),
+		ReStartNum:   task.ReStartNum + 1,
+		Payload:      task.Payload,
+		Status:       consts.TaskStautsRescheduled,
+		TraceID:      task.TraceID,
+		GroupID:      task.GroupID,
+		ProjectID:    task.ProjectID,
+		TraceCarrier: task.TraceCarrier,
+	}); err != nil {
+		span.RecordError(err)
+		span.AddEvent("failed to submit rescheduled task")
+		return fmt.Errorf("failed to submit rescheduled restart task: %v", err)
+	}
+
+	return nil
 }
 
 func installTS(ctx context.Context, namespace, nsPrefix string, namespaceIdx int) error {

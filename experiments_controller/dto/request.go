@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -35,26 +36,46 @@ func (req *ListOptionsQuery) Validate() error {
 	return nil
 }
 
+var ValidPageSizeMap = map[int]struct{}{
+	10: {},
+	20: {},
+	50: {},
+}
+
+func getValidPageSizes() string {
+	sizes := make([]string, 0, len(ValidPageSizeMap))
+	for size := range ValidPageSizeMap {
+		sizes = append(sizes, fmt.Sprintf("%d", size))
+	}
+
+	return strings.Join(sizes, ", ")
+}
+
 type PaginationQuery struct {
 	PageNum  int `form:"page_num" binding:"omitempty"`
-	PageSize int `form:"page_size" binding:"omitempty,oneof=10 20 50"`
+	PageSize int `form:"page_size" binding:"omitempty"`
 }
 
 func (req *PaginationQuery) Validate() error {
-	if req.PageNum <= 0 {
-		return fmt.Errorf("Page number must be a positive integer")
+	if req.PageNum < 0 {
+		return fmt.Errorf("Page number must be a non-negative integer")
 	}
 
-	if req.PageSize <= 0 {
-		return fmt.Errorf("Page size must be a positive integer")
+	if req.PageSize < 0 {
+		return fmt.Errorf("Page size must be a non-negative integer")
+	}
+
+	if (req.PageNum == 0) != (req.PageSize == 0) {
+		return fmt.Errorf("Both page_num and page_size must be provided together or both be 0")
+	}
+
+	if req.PageSize > 0 {
+		if _, exists := ValidPageSizeMap[req.PageSize]; !exists {
+			return fmt.Errorf("Invalid page size: %d (supported: %s)", req.PageSize, getValidPageSizes())
+		}
 	}
 
 	return nil
-}
-
-var PaginationFieldMap = map[string]string{
-	"PageNum":  "page_num",
-	"PageSize": "page_size",
 }
 
 type TimeRangeQuery struct {

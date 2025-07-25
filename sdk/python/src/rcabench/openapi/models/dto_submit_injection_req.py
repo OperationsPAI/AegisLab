@@ -36,9 +36,10 @@ class DtoSubmitInjectionReq(BaseModel):
     interval: Annotated[int, Field(strict=True, ge=1)]
     labels: Optional[List[DtoLabelItem]] = None
     pre_duration: Annotated[int, Field(strict=True, ge=1)]
+    project_name: StrictStr
     specs: List[HandlerNode]
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["algorithms", "benchmark", "interval", "labels", "pre_duration", "specs"]
+    __properties: ClassVar[List[str]] = ["algorithms", "benchmark", "interval", "labels", "pre_duration", "project_name", "specs"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -124,6 +125,7 @@ class DtoSubmitInjectionReq(BaseModel):
             "interval": obj.get("interval"),
             "labels": [DtoLabelItem.from_dict(_item) for _item in obj["labels"]] if obj.get("labels") is not None else None,
             "pre_duration": obj.get("pre_duration"),
+            "project_name": obj.get("project_name"),
             "specs": [HandlerNode.from_dict(_item) for _item in obj["specs"]] if obj.get("specs") is not None else None
         })
         # store additional fields in additional_properties
