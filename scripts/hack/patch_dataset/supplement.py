@@ -11,6 +11,11 @@ from rcabench.openapi import (
 from rcabench.openapi.models.dto_dataset_build_payload import DtoDatasetBuildPayload
 import time
 import typer
+import os
+import shutil
+import json
+import uuid
+from datetime import datetime
 
 app = typer.Typer()
 
@@ -35,7 +40,7 @@ def dataset(
     db_password: str = typer.Option("yourpassword", help="PostgreSQL 密码"),
     db_name: str = typer.Option("rcabench", help="PostgreSQL 数据库名"),
     db_port: int = typer.Option(32432, help="PostgreSQL 端口"),
-    sleep_time: int = typer.Option(20, help="每次提交后的等待时间（秒）"),
+    sleep_time: int = typer.Option(30, help="每次提交后的等待时间（秒）"),
 ):
     configuration: Configuration = Configuration(host=base_url)
 
@@ -58,8 +63,7 @@ def dataset(
                     query = """
                     SELECT id, injection_name
                     FROM fault_injection_schedules
-                    WHERE created_at > '2025-06-14 00:00:00' 
-                    AND status = 4
+                    WHERE status = 3
                     ORDER BY id DESC
                     """
 
@@ -203,6 +207,21 @@ def align_db(
     db_name: str = typer.Option("rcabench", help="PostgreSQL 数据库名"),
     db_port: int = typer.Option(32432, help="PostgreSQL 端口"),
 ):
+    path = "/mnt/jfs/rcabench_dataset"
+
+    # 获取本地目录列表
+    local_datasets = []
+    if os.path.exists(path):
+        local_datasets = [
+            entry
+            for entry in os.listdir(path)
+            if os.path.isdir(os.path.join(path, entry))
+        ]
+        print(f"📁 本地找到 {len(local_datasets)} 个数据集目录")
+    else:
+        print(f"⚠️ 路径不存在: {path}")
+        return
+
     with connect_postgresql(
         db_host, db_user, db_password, db_name, db_port
     ) as connection:
@@ -220,23 +239,89 @@ def align_db(
             cursor.execute(query)
             rows = cursor.fetchall()
 
-        print(f"📋 查询结果：找到 {len(rows)} 条记录")
+            print(f"📋 数据库查询结果：找到 {len(rows)} 条记录")
 
-    datasets = [row["injection_name"] for row in rows]
+            # 检查数据库中的记录是否在本地存在，如果不存在则删除
+            deleted_count = 0
+            database_datasets = []
+            for row in rows:
+                injection_id = row["id"]
+                injection_name = row["injection_name"]
+                database_datasets.append(injection_name)
 
-    path = "/mnt/jfs/rcabench_dataset"
+                if injection_name not in local_datasets:
+                    try:
+                        delete_query = """
+                        DELETE FROM fault_injection_schedules 
+                        WHERE id = %s
+                        """
+                        cursor.execute(delete_query, (injection_id,))
+                        print(
+                            f"🗑️ 删除数据库记录: ID={injection_id}, Name={injection_name}"
+                        )
+                        deleted_count += 1
+                    except Exception as e:
+                        print(f"❌ 删除记录失败 ID={injection_id}: {e}")
 
-    import os
-    import shutil
+            connection.commit()
+            print(f"✅ 总共删除了 {deleted_count} 条数据库记录")
 
-    if os.path.exists(path):
-        for entry in os.listdir(path):
-            full_path = os.path.join(path, entry)
-            if os.path.isdir(full_path) and entry not in datasets:
-                print(f"🗑️ 删除多余目录: {full_path}")
-                shutil.rmtree(full_path)
-    else:
-        print(f"⚠️ 路径不存在: {path}")
+            # 检查本地数据集是否在数据库中存在，如果不存在则从injection.json添加记录
+            added_count = 0
+            for local_dataset in local_datasets:
+                if local_dataset not in database_datasets:
+                    injection_json_path = os.path.join(
+                        path, local_dataset, "injection.json"
+                    )
+                    if os.path.exists(injection_json_path):
+                        try:
+                            with open(injection_json_path, "r", encoding="utf-8") as f:
+                                injection_data = json.load(f)
+
+                            # 生成新的task_id
+                            new_task_id = str(uuid.uuid4())
+
+                            # 构建插入语句
+                            insert_query = """
+                            INSERT INTO fault_injection_schedules (
+                                task_id, fault_type, display_config, engine_config, 
+                                pre_duration, start_time, end_time, status, 
+                                description, benchmark, injection_name, labels,
+                                created_at, updated_at
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            """
+
+                            # 准备数据
+                            values = (
+                                new_task_id,
+                                injection_data.get("fault_type"),
+                                injection_data.get("display_config"),
+                                injection_data.get("engine_config"),
+                                injection_data.get("pre_duration"),
+                                injection_data.get("start_time"),
+                                injection_data.get("end_time"),
+                                injection_data.get("status"),
+                                injection_data.get("description"),
+                                injection_data.get("benchmark"),
+                                injection_data.get("injection_name"),
+                                json.dumps(injection_data.get("labels", {})),
+                                injection_data.get("created_at"),
+                                injection_data.get("updated_at"),
+                            )
+
+                            cursor.execute(insert_query, values)
+                            print(
+                                f"➕ 添加数据库记录: Name={local_dataset}, TaskID={new_task_id}"
+                            )
+                            added_count += 1
+
+                        except Exception as e:
+                            print(f"❌ 添加记录失败 {local_dataset}: {e}")
+                    else:
+                        print(f"⚠️ 缺少injection.json文件: {injection_json_path}")
+
+            connection.commit()
+            print(f"✅ 总共添加了 {added_count} 条数据库记录")
 
 
 if __name__ == "__main__":
