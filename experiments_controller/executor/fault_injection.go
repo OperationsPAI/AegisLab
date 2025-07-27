@@ -120,11 +120,6 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			Description:   fmt.Sprintf("Fault for task %s", task.TaskID),
 			Benchmark:     payload.benchmark,
 			InjectionName: name,
-			Labels:        make(database.LabelsMap),
-		}
-
-		for _, label := range payload.labels {
-			faultRecord.Labels[label.Key] = label.Value
 		}
 
 		if err = database.DB.Create(&faultRecord).Error; err != nil {

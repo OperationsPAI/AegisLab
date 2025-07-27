@@ -57,6 +57,21 @@ func InitDB() {
 		&ExecutionResult{},
 		&GranularityResult{},
 		&Detector{},
+		&Dataset{},
+		&Label{},
+		&DatasetFaultInjection{},
+		&DatasetLabel{},
+		&FaultInjectionLabel{},
+		&ContainerLabel{},
+		&ProjectLabel{},
+		&User{},
+		&Role{},
+		&Permission{},
+		&Resource{},
+		&UserProject{},
+		&UserRole{},
+		&RolePermission{},
+		&UserPermission{},
 	); err != nil {
 		logrus.Fatalf("Failed to migrate database: %v", err)
 	}
@@ -70,36 +85,8 @@ func InitDB() {
 }
 
 func createFaultInjectionIndexes() {
-	indexQueries := []string{
-		// 1. Create GIN index for JSONB field (supports @> and ->> operations)
-		`CREATE INDEX IF NOT EXISTS idx_fault_injection_schedules_labels_gin 
-         ON fault_injection_schedules USING GIN (labels)`,
-
-		// 2. Create expression indexes for common JSON keys
-		`CREATE INDEX IF NOT EXISTS idx_fault_injection_schedules_env 
-         ON fault_injection_schedules ((labels ->> 'env'))`,
-
-		`CREATE INDEX IF NOT EXISTS idx_fault_injection_schedules_batch 
-         ON fault_injection_schedules ((labels ->> 'batch'))`,
-
-		// 3. Composite expression index for multi-condition JSONB queries
-		`CREATE INDEX IF NOT EXISTS idx_fault_injection_schedules_env_batch 
-         ON fault_injection_schedules ((labels ->> 'env'), (labels ->> 'batch'))`,
-
-		// 4. Composite index with time field (optimized for ListInjections queries)
-		`CREATE INDEX IF NOT EXISTS idx_fault_injection_schedules_query_optimized 
-         ON fault_injection_schedules ((labels ->> 'env'), (labels ->> 'batch'), benchmark, status, fault_type, created_at DESC)`,
-
-		// 5. Dedicated time index for time range queries
-		`CREATE INDEX IF NOT EXISTS idx_fault_injection_schedules_created_at 
-         ON fault_injection_schedules (created_at DESC)`,
-	}
-
-	for _, query := range indexQueries {
-		if err := DB.Exec(query).Error; err != nil {
-			logrus.Warnf("failed to create index: %v", err)
-		}
-	}
+	// 注意：原有的 JSONB labels 索引已移除，因为现在使用统一的 Label 表和关系表
+	// 如果需要为新的标签系统创建特殊索引，可以在这里添加
 }
 
 func verifyAllIndexes() {
