@@ -3,9 +3,25 @@ package database
 import (
 	"time"
 
+	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
+
+type ExecutionResultProject struct {
+	ID          int
+	Algorithm   string `gorm:"column:algorithm"`
+	Image       string
+	Tag         string
+	Dataset     string `gorm:"column:dataset"`
+	Status      int
+	CreatedAt   time.Time
+	ProjectName string `gorm:"column:project_name"`
+}
+
+func (ExecutionResultProject) TableName() string {
+	return "execution_result_project"
+}
 
 type FaultInjectionProject struct {
 	ID            int
@@ -66,13 +82,93 @@ func (FaultInjectionWithIssues) TableName() string {
 	return "fault_injection_with_issues"
 }
 
+func addDetectorJoins(query *gorm.DB) *gorm.DB {
+	return query.
+		Joins(`JOIN (
+			SELECT er.id, er.algorithm_id, er.dataset_id,
+				ROW_NUMBER() OVER (PARTITION BY er.algorithm_id, er.dataset_id ORDER BY er.created_at DESC, er.id DESC) as rn
+			FROM execution_results er
+			JOIN containers c ON c.id = er.algorithm_id AND c.name = ?
+			WHERE er.status = 2
+		) er_ranked ON fis.id = er_ranked.dataset_id AND er_ranked.rn = 1`, config.GetString("algo.detector")).
+		Joins("JOIN detectors d ON er_ranked.id = d.execution_id")
+}
+
+func createDetectorViews() {
+	var err error
+
+	DB.Migrator().DropView("fault_injection_no_issues")
+	DB.Migrator().DropView("fault_injection_with_issues")
+
+	// Create view for fault injections with no issues
+	noIssuesQuery := addDetectorJoins(DB.Table("fault_injection_schedules fis").
+		Select(`DISTINCT 
+		fis.id AS dataset_id, 
+		fis.engine_config, 
+		fis.labels ->> 'env' AS env,
+		fis.labels ->> 'batch' AS batch,
+		fis.labels ->> 'tag' AS tag,
+		fis.injection_name, 
+		fis.created_at`),
+	).Where("d.issues = '{}' OR d.issues IS NULL")
+	if err = DB.Migrator().CreateView("fault_injection_no_issues", gorm.ViewOption{Query: noIssuesQuery}); err != nil {
+		logrus.Errorf("failed to create fault_injection_no_issues view: %v", err)
+	}
+
+	// Create view for fault injections with issues
+	withIssuesQuery := addDetectorJoins(DB.Table("fault_injection_schedules fis").
+		Select(`DISTINCT 
+		fis.id AS dataset_id, 
+		fis.engine_config, 
+		fis.labels ->> 'env' AS env,
+		fis.labels ->> 'batch' AS batch,
+		fis.labels ->> 'tag' AS tag,
+		fis.injection_name, 
+		fis.created_at, 
+		d.issues, 
+		d.abnormal_avg_duration, 
+		d.normal_avg_duration, 
+		d.abnormal_succ_rate, 
+		d.normal_succ_rate, 
+		d.abnormal_p99, 
+		d.normal_p99`),
+	).Where("d.issues != '{}' AND d.issues IS NOT NULL")
+	if err = DB.Migrator().CreateView("fault_injection_with_issues", gorm.ViewOption{Query: withIssuesQuery}); err != nil {
+		logrus.Errorf("failed to create fault_injection_with_issues view: %v", err)
+	}
+}
+
+func createExecutionResultViews() {
+	var err error
+
+	DB.Migrator().DropView("exeuction_result_project")
+
+	projectQuery := DB.Table("execution_results er").
+		Select(`
+		er.id,
+		er.status,
+		er.created_at,
+		c.name AS algorithm,
+		c.image,
+		c.tag,
+		fis.injection_name AS dataset,
+		p.name AS project_name`).
+		Joins("JOIN containers c ON c.id = er.algorithm_id").
+		Joins("JOIN fault_injection_schedules fis ON fis.id = er.dataset_id").
+		Joins(`JOIN (
+        	SELECT id AS task_id, project_id
+        	FROM tasks
+    	) t ON er.task_id = t.task_id`).
+		Joins("JOIN projects p ON p.id = t.project_id")
+	if err = DB.Migrator().CreateView("exeuction_result_project", gorm.ViewOption{Query: projectQuery}); err != nil {
+		logrus.Errorf("failed to create exeuction_result_project view: %v", err)
+	}
+}
+
 func createFaultInjectionViews() {
 	var err error
 
-	// Drop existing views
 	DB.Migrator().DropView("fault_injection_project")
-	DB.Migrator().DropView("fault_injection_no_issues")
-	DB.Migrator().DropView("fault_injection_with_issues")
 
 	projectQuery := DB.Table("fault_injection_schedules fis").
 		Select(`
@@ -98,54 +194,5 @@ func createFaultInjectionViews() {
 		Joins("JOIN projects p ON p.id = t.project_id")
 	if err = DB.Migrator().CreateView("fault_injection_project", gorm.ViewOption{Query: projectQuery}); err != nil {
 		logrus.Errorf("failed to create fault_injection_project view: %v", err)
-	}
-
-	// Create view for fault injections with no issues
-	noIssuesQuery := DB.Table("fault_injection_schedules fis").
-		Select(`DISTINCT 
-			fis.id AS dataset_id, 
-			fis.engine_config, 
-			fis.labels ->> 'env' AS env,
-			fis.labels ->> 'batch' AS batch,
-			fis.labels ->> 'tag' AS tag,
-			fis.injection_name, 
-			fis.created_at`).
-		Joins(`JOIN (
-        	SELECT id, dataset, algorithm,
-               ROW_NUMBER() OVER (PARTITION BY dataset, algorithm ORDER BY created_at DESC, id DESC) as rn
-        	FROM execution_results
-    	) er_ranked ON fis.injection_name = er_ranked.dataset AND er_ranked.rn = 1`).
-		Joins("JOIN detectors d ON er_ranked.id = d.execution_id").
-		Where("d.issues = '{}' OR d.issues IS NULL")
-	if err = DB.Migrator().CreateView("fault_injection_no_issues", gorm.ViewOption{Query: noIssuesQuery}); err != nil {
-		logrus.Errorf("failed to create fault_injection_no_issues view: %v", err)
-	}
-
-	// Create view for fault injections with issues
-	withIssuesQuery := DB.Table("fault_injection_schedules fis").
-		Select(`DISTINCT 
-			fis.id AS dataset_id, 
-			fis.engine_config, 
-			fis.labels ->> 'env' AS env,
-			fis.labels ->> 'batch' AS batch,
-			fis.labels ->> 'tag' AS tag,
-			fis.injection_name, 
-			fis.created_at, 
-			d.issues, 
-			d.abnormal_avg_duration, 
-			d.normal_avg_duration, 
-			d.abnormal_succ_rate, 
-			d.normal_succ_rate, 
-			d.abnormal_p99, 
-			d.normal_p99`).
-		Joins(`JOIN (
-        	SELECT id, dataset, algorithm,
-        	    ROW_NUMBER() OVER (PARTITION BY dataset, algorithm ORDER BY created_at DESC, id DESC) as rn
-        	FROM execution_results
-    	) er_ranked ON fis.injection_name = er_ranked.dataset AND er_ranked.rn = 1`).
-		Joins("JOIN detectors d ON er_ranked.id = d.execution_id").
-		Where("d.issues != '{}' AND d.issues IS NOT NULL")
-	if err = DB.Migrator().CreateView("fault_injection_with_issues", gorm.ViewOption{Query: withIssuesQuery}); err != nil {
-		logrus.Errorf("failed to create fault_injection_with_issues view: %v", err)
 	}
 }

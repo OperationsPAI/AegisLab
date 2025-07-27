@@ -64,7 +64,9 @@ func InitDB() {
 	createFaultInjectionIndexes()
 	verifyAllIndexes()
 
+	createExecutionResultViews()
 	createFaultInjectionViews()
+	createDetectorViews()
 }
 
 func createFaultInjectionIndexes() {

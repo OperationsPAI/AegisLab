@@ -13,131 +13,18 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/dto"
 )
 
-func CreateExecutionResult(taskID, algorithm, dataset string) (int, error) {
+func CreateExecutionResult(taskID string, algorithmID, datasetID int) (int, error) {
 	executionResult := database.ExecutionResult{
-		TaskID:    taskID,
-		Algorithm: algorithm,
-		Dataset:   dataset,
-		Status:    consts.ExecutionInitial,
+		TaskID:      taskID,
+		AlgorithmID: algorithmID,
+		DatasetID:   datasetID,
+		Status:      consts.ExecutionInitial,
 	}
 	if err := database.DB.Create(&executionResult).Error; err != nil {
 		return 0, err
 	}
 
 	return executionResult.ID, nil
-}
-
-func ListExecutionRecordByDatasetID(datasetID int, sortOrder string) ([]dto.ExecutionRecord, error) {
-	query := database.DB.
-		Model(&database.ExecutionResult{}).
-		Where("dataset = ? and algorithm != 'detector'", datasetID).
-		Order(sortOrder)
-
-	var executions []database.ExecutionResult
-	if err := query.Find(&executions).Error; err != nil {
-		return nil, fmt.Errorf("failed to get executions: %v", err)
-	}
-
-	var execIDs []int
-	for _, e := range executions {
-		execIDs = append(execIDs, e.ID)
-	}
-
-	if len(execIDs) == 0 {
-		return []dto.ExecutionRecord{}, nil
-	}
-
-	granularities, err := listGranularityWithFilters(execIDs, []string{}, 5)
-	if err != nil {
-		return nil, err
-	}
-
-	resultMap := make(map[int]*dto.ExecutionRecord)
-	for _, exec := range executions {
-		resultMap[exec.ID] = &dto.ExecutionRecord{
-			Algorithm:          exec.Algorithm,
-			GranularityRecords: []dto.GranularityRecord{},
-		}
-	}
-
-	for _, gran := range granularities {
-		if result, exists := resultMap[gran.ExecutionID]; exists {
-			var record dto.GranularityRecord
-			record.Convert(gran)
-			result.GranularityRecords = append(result.GranularityRecords, record)
-		}
-	}
-
-	results := make([]dto.ExecutionRecord, 0)
-	for _, exec := range executions {
-		results = append(results, *resultMap[exec.ID])
-	}
-
-	return results, nil
-}
-
-func ListExecutionRecordByExecID(executionIDs []int,
-	algorithms,
-	levels []string,
-	rank int,
-) ([]dto.ExecutionRecordWithDatasetID, error) {
-	query := database.DB.
-		Model(&database.ExecutionResult{}).
-		Select("id, algorithm, dataset")
-
-	if len(executionIDs) > 0 {
-		query = query.Where("id IN (?)", executionIDs)
-	}
-
-	if len(algorithms) > 0 {
-		query = query.Where("algorithm IN (?)", algorithms)
-	}
-
-	var executions []database.ExecutionResult
-	if err := query.Find(&executions).Error; err != nil {
-		return nil, err
-	}
-
-	var execIDs []int
-	for _, e := range executions {
-		execIDs = append(execIDs, e.ID)
-	}
-
-	if len(execIDs) == 0 {
-		return nil, fmt.Errorf("failed to get executions")
-	}
-
-	granularities, err := listGranularityWithFilters(execIDs, levels, rank)
-	if err != nil {
-		return nil, err
-	}
-
-	resultMap := make(map[int]*dto.ExecutionRecordWithDatasetID)
-	for _, exec := range executions {
-		resultMap[exec.ID] = &dto.ExecutionRecordWithDatasetID{
-			// TODO 修改
-			DatasetID: 0,
-			ExecutionRecord: dto.ExecutionRecord{
-				Algorithm:          exec.Algorithm,
-				GranularityRecords: []dto.GranularityRecord{},
-			},
-		}
-	}
-
-	for _, gran := range granularities {
-		if result, exists := resultMap[gran.ExecutionID]; exists {
-			var record dto.GranularityRecord
-			record.Convert(gran)
-			result.GranularityRecords = append(result.GranularityRecords, record)
-		}
-	}
-
-	results := make([]dto.ExecutionRecordWithDatasetID, 0)
-	for _, exec := range executions {
-		results = append(results, *resultMap[exec.ID])
-	}
-
-	return results, nil
 }
 
 func ListExecutionRawDataByIds(params dto.RawDataReq) ([]dto.RawDataItem, error) {
@@ -150,12 +37,12 @@ func ListExecutionRawDataByIds(params dto.RawDataReq) ([]dto.RawDataItem, error)
 		Where("id IN (?) and status = (?)", params.ExecutionIDs, consts.ExecutionSuccess)
 	query = opts.AddTimeFilter(query, "created_at")
 
-	var execResults []database.ExecutionResult
+	var execResults []database.ExecutionResultProject
 	if err := query.Find(&execResults).Error; err != nil {
 		return nil, fmt.Errorf("failed to query execution results: %v", err)
 	}
 
-	execResultMap := make(map[int]database.ExecutionResult, len(execResults))
+	execResultMap := make(map[int]database.ExecutionResultProject, len(execResults))
 	for _, execResult := range execResults {
 		execResultMap[execResult.ID] = execResult
 	}
@@ -328,11 +215,11 @@ func getLatestExecutionMapByPair(params dto.RawDataReq) (map[int]string, error) 
 		return nil, fmt.Errorf("failed to convert time range query: %v", err)
 	}
 
-	query := database.DB.Model(&database.ExecutionResult{}).
+	query := database.DB.Model(&database.ExecutionResultProject{}).
 		Where("algorithm IN (?) AND dataset IN (?) AND status = (?)", algorithms, datasets, consts.ExecutionSuccess)
 	query = opts.AddTimeFilter(query, "created_at")
 
-	var executions []database.ExecutionResult
+	var executions []database.ExecutionResultProject
 	if err := query.Order("algorithm, dataset, created_at DESC").
 		Find(&executions).Error; err != nil {
 		return nil, fmt.Errorf("failed to batch query executions: %w", err)
@@ -389,7 +276,7 @@ func ListSuccessfulExecutions() ([]dto.SuccessfulExecutionItem, error) {
 
 // ListSuccessfulExecutionsWithFilter 根据筛选条件获取成功执行的算法记录
 func ListSuccessfulExecutionsWithFilter(req dto.SuccessfulExecutionsReq) ([]dto.SuccessfulExecutionItem, error) {
-	var executions []database.ExecutionResult
+	var executions []database.ExecutionResultProject
 	query := database.DB.Where("status = ?", consts.ExecutionSuccess)
 
 	if req.StartTime != nil {
