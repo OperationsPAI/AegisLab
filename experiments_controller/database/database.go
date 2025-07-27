@@ -76,49 +76,7 @@ func InitDB() {
 		logrus.Fatalf("Failed to migrate database: %v", err)
 	}
 
-	createFaultInjectionIndexes()
-	verifyAllIndexes()
-
 	createExecutionResultViews()
 	createFaultInjectionViews()
 	createDetectorViews()
-}
-
-func createFaultInjectionIndexes() {
-	// 注意：原有的 JSONB labels 索引已移除，因为现在使用统一的 Label 表和关系表
-	// 如果需要为新的标签系统创建特殊索引，可以在这里添加
-}
-
-func verifyAllIndexes() {
-	tables := []string{
-		"fault_injection_schedules",
-	}
-
-	for _, table := range tables {
-		verifyIndexes(table)
-	}
-}
-
-func verifyIndexes(tableName string) {
-	var indexes []struct {
-		IndexName string `gorm:"column:indexname"`
-		TableName string `gorm:"column:tablename"`
-	}
-
-	query := `
-        SELECT indexname, tablename 
-        FROM pg_indexes 
-        WHERE tablename = ? 
-        ORDER BY indexname
-    `
-
-	if err := DB.Raw(query, tableName).Scan(&indexes).Error; err != nil {
-		logrus.Errorf("Failed to verify indexes: %v", err)
-		return
-	}
-
-	logrus.Infof("Found %d indexes on fault_injection_schedules:", len(indexes))
-	for _, idx := range indexes {
-		logrus.Infof("  - %s", idx.IndexName)
-	}
 }

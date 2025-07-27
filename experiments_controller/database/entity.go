@@ -1,39 +1,8 @@
 package database
 
 import (
-	"database/sql/driver"
-	"encoding/json"
-	"fmt"
 	"time"
 )
-
-type LabelsMap map[string]string
-
-func (l LabelsMap) Value() (driver.Value, error) {
-	if l == nil {
-		return "{}", nil
-	}
-	return json.Marshal(l)
-}
-
-func (l *LabelsMap) Scan(value any) error {
-	if value == nil {
-		*l = make(LabelsMap)
-		return nil
-	}
-
-	var bytes []byte
-	switch v := value.(type) {
-	case []byte:
-		bytes = v
-	case string:
-		bytes = []byte(v)
-	default:
-		return fmt.Errorf("cannot scan %T into LabelsMap", value)
-	}
-
-	return json.Unmarshal(bytes, l)
-}
 
 type Project struct {
 	ID          int       `gorm:"primaryKey" json:"id"`
