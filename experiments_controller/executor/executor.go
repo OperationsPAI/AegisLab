@@ -12,6 +12,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/repository"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -228,6 +229,21 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 	case consts.TaskTypeRunAlgorithm:
 		options, _ := parseExecutionOptions(annotations, labels)
 
+		// Release algorithm execution token
+		rateLimiter := utils.NewAlgoExecutionRateLimiter()
+		if releaseErr := rateLimiter.ReleaseToken(ctx, taskOptions.TaskID, taskOptions.TraceID); releaseErr != nil {
+			logrus.WithFields(logrus.Fields{
+				"task_id":  taskOptions.TaskID,
+				"trace_id": taskOptions.TraceID,
+				"error":    releaseErr,
+			}).Error("Failed to release algorithm execution token on job failure")
+		} else {
+			logrus.WithFields(logrus.Fields{
+				"task_id":  taskOptions.TaskID,
+				"trace_id": taskOptions.TraceID,
+			}).Info("Successfully released algorithm execution token on job failure")
+		}
+
 		logEntry.Errorf("algorithm execute failed: %v", errMsg) //TODO errMsg为空
 		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
 			TaskID:    taskOptions.TaskID,
@@ -323,6 +339,21 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 
 	case consts.TaskTypeRunAlgorithm:
 		options, _ := parseExecutionOptions(annotations, labels)
+
+		// Release algorithm execution token
+		rateLimiter := utils.NewAlgoExecutionRateLimiter()
+		if releaseErr := rateLimiter.ReleaseToken(taskCtx, taskOptions.TaskID, taskOptions.TraceID); releaseErr != nil {
+			logrus.WithFields(logrus.Fields{
+				"task_id":  taskOptions.TaskID,
+				"trace_id": taskOptions.TraceID,
+				"error":    releaseErr,
+			}).Error("Failed to release algorithm execution token on job success")
+		} else {
+			logrus.WithFields(logrus.Fields{
+				"task_id":  taskOptions.TaskID,
+				"trace_id": taskOptions.TraceID,
+			}).Info("Successfully released algorithm execution token on job success")
+		}
 
 		logEntry.Info("algorithm execute successfully")
 		repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
