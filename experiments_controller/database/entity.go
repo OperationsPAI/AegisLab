@@ -93,13 +93,13 @@ type Container struct {
 }
 
 type ExecutionResult struct {
-	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"` // 唯一标识
-	TaskID    string    `gorm:"index" json:"task_id"`               // 从属什么 taskid
-	Algorithm string    `gorm:"index" json:"algorithm"`             // 使用的算法
-	Dataset   string    `gorm:"index" json:"dataset"`               // 数据集标识
-	Status    int       `gorm:"default:0" json:"status"`            // -1: 已删除 0: 初始状态 1: 执行算法成功 2: 执行算法失败
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`   // 创建时间
-	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`   // 更新时间
+	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"` // 唯一标识
+	TaskID      string    `gorm:"index" json:"task_id"`               // 从属什么 taskid
+	AlgorithmID int       `gorm:"index" json:"container_id"`          // 使用的算法
+	DatasetID   int       `gorm:"index" json:"dataset_id"`            // 数据集标识
+	Status      int       `gorm:"default:0" json:"status"`            // -1: 已删除 0: 初始状态 1: 执行算法成功 2: 执行算法失败
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`   // 创建时间
+	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`   // 更新时间
 }
 
 type GranularityResult struct {
