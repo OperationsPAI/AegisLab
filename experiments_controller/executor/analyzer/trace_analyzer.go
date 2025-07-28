@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"runtime"
 	"sync"
@@ -12,31 +13,23 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Statistics struct {
-	Total       int     `json:"total"`
-	AvgDuration float64 `json:"avg_duration"`
-	MinDuration float64 `json:"min_duration"`
-	MaxDuration float64 `json:"max_duration"`
-
-	EndCountMap          map[consts.TaskType]map[string]int     `json:"end_count_map"`
-	TraceStatusTimeMap   map[string]map[consts.TaskType]float64 `json:"trace_status_time_map"`
-	TraceCompletedList   []string                               `json:"trace_completed_list"`
-	FaultInjectionTraces []string                               `json:"fault_injection_traces"`
-	TraceErrors          any                                    `json:"trace_errors"`
-}
-
 type traceResult struct {
 	traceID string
 	events  []*dto.StreamEvent
 }
 
-func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Statistics, error) {
-	resultChan, err := getTraceResults(ctx, opts)
+func AnalyzeTraces(ctx context.Context, req *dto.AnalyzeTracesReq) (*dto.TraceStats, error) {
+	opts, err := req.TimeRangeQuery.Convert()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert time range query: %v", err)
+	}
+
+	resultChan, err := getTraceResults(ctx, consts.TaskType(req.FirstTaskType), opts)
 	if err != nil {
 		return nil, err
 	}
 
-	stats := &Statistics{
+	stats := &dto.TraceStats{
 		MinDuration:          math.MaxFloat64,
 		EndCountMap:          make(map[consts.TaskType]map[string]int),
 		TraceStatusTimeMap:   make(map[string]map[consts.TaskType]float64),
@@ -102,8 +95,13 @@ func AnalyzeTrace(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (*Sta
 	return stats, nil
 }
 
-func GetCompletedMap(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (map[consts.EventType]any, error) {
-	results, err := getTraceResults(ctx, opts)
+func GetCompletedMap(ctx context.Context, req *dto.GetCompletedMapReq) (map[consts.EventType]any, error) {
+	opts, err := req.TimeRangeQuery.Convert()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert time range query: %v", err)
+	}
+
+	results, err := getTraceResults(ctx, consts.TaskType(""), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -131,11 +129,10 @@ func GetCompletedMap(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (m
 	}, nil
 }
 
-func getTraceResults(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (chan traceResult, error) {
-	traceIDs, err := repository.GetAllTraceIDsFromRedis(ctx, opts)
+func getTraceResults(ctx context.Context, firstTaskType consts.TaskType, opts *dto.TimeFilterOptions) (chan traceResult, error) {
+	traceIDs, err := repository.GetAllTraceIDsFromRedis(ctx)
 	if err != nil {
-		logrus.WithError(err).Error("failed to get group to trace IDs map")
-		return nil, err
+		return nil, fmt.Errorf("failed to get group to trace IDs map: %v", err)
 	}
 
 	startTime, endTime := opts.GetTimeRange()
@@ -153,7 +150,7 @@ func getTraceResults(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) (c
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 
-			events, err := repository.GetTraceEvents(ctx, traceID, opts.FirstTaskType, startTime, endTime)
+			events, err := repository.GetTraceEvents(ctx, traceID, firstTaskType, startTime, endTime)
 			if err != nil {
 				logrus.WithField("trace_id", traceID).Errorf("%s, failed to get trace events: %v", traceID, err)
 				return

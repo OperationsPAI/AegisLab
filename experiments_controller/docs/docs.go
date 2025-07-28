@@ -95,6 +95,178 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/analyzers/injections": {
+            "get": {
+                "description": "使用多种筛选条件分析故障注入数据，返回包括效率、多样性、种子之间的距离等统计信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analyzer"
+                ],
+                "summary": "分析故障注入数据",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "项目名称过滤",
+                        "name": "project_name",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "dev",
+                            "prod"
+                        ],
+                        "type": "string",
+                        "default": "prod",
+                        "description": "环境标签过滤",
+                        "name": "env",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "批次标签过滤",
+                        "name": "batch",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "train",
+                            "test"
+                        ],
+                        "type": "string",
+                        "default": "train",
+                        "description": "分类标签过滤",
+                        "name": "tag",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "clickhouse"
+                        ],
+                        "type": "string",
+                        "default": "clickhouse",
+                        "description": "基准测试类型过滤",
+                        "name": "benchmark",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "状态过滤，具体值参考字段映射接口(/mapping)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "故障类型过滤，具体值参考字段映射接口(/mapping)",
+                        "name": "fault_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置",
+                        "name": "lookback",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "自定义开始时间，RFC3339格式，当lookback=custom时必需",
+                        "name": "custom_start_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "自定义结束时间，RFC3339格式，当lookback=custom时必需",
+                        "name": "custom_end_time",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "返回故障注入分析统计信息",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_AnalyzeInjectionsResp"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误，如参数格式不正确、验证失败等",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analyzers/traces": {
+            "get": {
+                "description": "使用多种筛选条件分析链路数据，返回包括故障注入结束链路在内的统计信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "trace"
+                ],
+                "summary": "分析链路数据",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "首任务类型筛选",
+                        "name": "first_task_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置",
+                        "name": "lookback",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "自定义开始时间，RFC3339格式，当lookback=custom时必需",
+                        "name": "custom_start_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "自定义结束时间，RFC3339格式，当lookback=custom时必需",
+                        "name": "custom_end_time",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "返回链路分析统计信息",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_TraceStats"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误，如参数格式不正确、验证失败等",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/containers": {
             "post": {
                 "description": "通过上传文件、指定GitHub仓库或Harbor镜像来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建，或从Harbor直接获取已存在的镜像并更新数据库。系统会自动验证必需文件（Dockerfile）并设置执行权限",
@@ -1442,64 +1614,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/traces/analyze": {
-            "get": {
-                "description": "使用多种筛选条件分析链路数据，返回包括故障注入结束链路在内的统计信息",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "trace"
-                ],
-                "summary": "分析链路数据",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "子任务类型筛选",
-                        "name": "first_task_type",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "相对时间查询，如 1h, 24h, 7d或者是custom",
-                        "name": "lookback",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "当lookback=custom时必需，自定义开始时间(RFC3339格式)",
-                        "name": "custom_start_time",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "当lookback=custom时必需，自定义结束时间(RFC3339格式)",
-                        "name": "custom_end_time",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "返回统计信息，包含fault_injection_traces字段显示以FaultInjection事件结束的trace_id列表",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/traces/completed": {
             "get": {
                 "description": "根据指定的时间范围获取完成状态的链路",
@@ -1693,6 +1807,31 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.AnalyzeInjectionsResp": {
+            "type": "object",
+            "properties": {
+                "efficiency": {
+                    "type": "string"
+                },
+                "stats": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/dto.InjectionStats"
+                    }
+                }
+            }
+        },
+        "dto.AttributeCoverageItem": {
+            "type": "object",
+            "properties": {
+                "coverage": {
+                    "type": "number"
+                },
+                "num": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.DatasetBuildPayload": {
             "type": "object",
             "required": [
@@ -1851,6 +1990,31 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/dto.FaultInjectionWithIssuesResp"
                     }
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_AnalyzeInjectionsResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.AnalyzeInjectionsResp"
+                        }
+                    ]
                 },
                 "message": {
                     "description": "响应消息",
@@ -2283,6 +2447,31 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GenericResponse-dto_TraceStats": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.TraceStats"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GenericResponse-handler_Node": {
             "type": "object",
             "properties": {
@@ -2392,6 +2581,44 @@ const docTemplate = `{
         "dto.InjectCancelResp": {
             "type": "object"
         },
+        "dto.InjectionDiversity": {
+            "type": "object",
+            "properties": {
+                "attribute_coverages": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/definitions/dto.AttributeCoverageItem"
+                        }
+                    }
+                },
+                "fault_distribution": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "fault_service_coverages": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/dto.ServiceCoverageItem"
+                    }
+                },
+                "pair_distribution": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.PairStats"
+                    }
+                },
+                "service_distribution": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
         "dto.InjectionFieldMappingResp": {
             "type": "object",
             "properties": {
@@ -2450,6 +2677,14 @@ const docTemplate = `{
                 },
                 "tag": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.InjectionStats": {
+            "type": "object",
+            "properties": {
+                "diversity": {
+                    "$ref": "#/definitions/dto.InjectionDiversity"
                 }
             }
         },
@@ -2523,6 +2758,20 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.PairStats": {
+            "type": "object",
+            "properties": {
+                "inDegree": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "outDegree": {
                     "type": "integer"
                 }
             }
@@ -2657,6 +2906,23 @@ const docTemplate = `{
                 },
                 "max_attempts": {
                     "description": "Maximum number of retry attempts",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.ServiceCoverageItem": {
+            "type": "object",
+            "properties": {
+                "coverage": {
+                    "type": "number"
+                },
+                "notCovered": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "num": {
                     "type": "integer"
                 }
             }
@@ -2808,6 +3074,54 @@ const docTemplate = `{
                 },
                 "trace_id": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.TraceStats": {
+            "type": "object",
+            "properties": {
+                "avg_duration": {
+                    "type": "number"
+                },
+                "end_count_map": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "fault_injection_traces": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "max_duration": {
+                    "type": "number"
+                },
+                "min_duration": {
+                    "type": "number"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "trace_completed_list": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "trace_errors": {},
+                "trace_status_time_map": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "number"
+                        }
+                    }
                 }
             }
         },

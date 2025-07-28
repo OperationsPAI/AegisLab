@@ -6,7 +6,8 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "pyproject-toml>=0.1.0",
- "redis>=6.2.0",
- "rich>=14.0.0",
- "typer>=0.16.0",
+    "rcabench>=1.0.51",
+    "redis>=6.2.0",
+    "rich>=14.0.0",
+    "typer>=0.16.0",
 ]

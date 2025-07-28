@@ -185,13 +185,7 @@ func GetCompletedMap(c *gin.Context) {
 		return
 	}
 
-	filterOptions, err := req.Convert()
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid filter options: %v", err))
-		return
-	}
-
-	result, err := analyzer.GetCompletedMap(c.Request.Context(), *filterOptions)
+	result, err := analyzer.GetCompletedMap(c.Request.Context(), &req)
 	if err != nil {
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to analyze trace")
 		return

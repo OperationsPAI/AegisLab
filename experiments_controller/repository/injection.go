@@ -290,9 +290,14 @@ func ListInjections(params *dto.ListInjectionsReq) (int64, []database.FaultInjec
 		return query
 	}
 
+	sortField := ""
+	if params.SortField != "" && params.SortOrder != "" {
+		sortField = fmt.Sprintf("%s %s", params.SortField, params.SortOrder)
+	}
+
 	genericQueryParams := &genericQueryParams{
 		builder:   builder,
-		sortField: fmt.Sprintf("%s %s", params.SortField, params.SortOrder),
+		sortField: sortField,
 		limit:     params.Limit,
 		pageNum:   params.PageNum,
 		pageSize:  params.PageSize,

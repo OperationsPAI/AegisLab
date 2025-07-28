@@ -60,6 +60,13 @@ check-postgres: ## Check if PostgreSQL is running
 	fi
 
 db-reset: ## Reset PostgreSQL database (WARNING: This will delete all data)
+	@if $(MAKE) check-postgres 2>/dev/null; then \
+		echo "📄 Backing up existing database..."; \
+		$(MAKE) -C scripts/hack/backup_psql backup; \
+	else \
+		echo "⚠️  PostgreSQL not running, skipping backup"; \
+	fi
+
 	@echo "🗑️  Resetting PostgreSQL database in namespace $(NS)..."
 	helm uninstall rcabench -n $(NS) || true
 	@echo "⏳ Waiting for pods to terminate..."
@@ -94,7 +101,7 @@ local-debug: ## Start local debug environment (databases + controller)
 
 import: ## Import the latest version of chaos-experiment library
 	cd $(CONTROLLER_DIR) && \
-	go get github.com/LGU-SE-Internal/chaos-experiment@injectionv2 && \
+	go get -u github.com/LGU-SE-Internal/chaos-experiment@injectionv2 && \
 	go mod tidy
 
 
