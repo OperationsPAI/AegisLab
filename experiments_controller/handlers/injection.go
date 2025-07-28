@@ -424,7 +424,11 @@ func SubmitFaultInjection(c *gin.Context) {
 }
 
 func removeDuplicated(configs []dto.InjectionConfig) ([]dto.InjectionConfig, error) {
-	displayDatas := make([]string, 0, len(configs))
+
+	displayDatas := []string{}
+	for _, config := range configs {
+		displayDatas = append(displayDatas, config.DisplayData)
+	}
 
 	missingIndices, err := findMissingIndices(displayDatas, 10)
 	if err != nil {
