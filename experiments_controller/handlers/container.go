@@ -27,6 +27,7 @@ import (
 )
 
 const (
+	Command     = "bash /entrypoint.sh"
 	MaxFileSize = 5 * 1024 * 1024 // 5MB
 )
 
@@ -69,7 +70,7 @@ func SubmitContainerBuilding(c *gin.Context) {
 		Name:          c.PostForm("name"),
 		Image:         c.PostForm("image"),
 		Tag:           c.DefaultPostForm("tag", "latest"),
-		Command:       c.DefaultPostForm("command", "bash /entrypoint.sh"),
+		Command:       c.DefaultPostForm("command", Command),
 		EnvVars:       c.PostFormArray("env_vars"),
 		Source: dto.BuildSource{
 			Type: consts.BuildSourceType(c.DefaultPostForm("source_type", "file")),
