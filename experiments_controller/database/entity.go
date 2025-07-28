@@ -130,7 +130,6 @@ type Dataset struct {
 	Version     string `gorm:"not null;default:'v1.0';index:idx_dataset_name_version,unique" json:"version"` // 数据集版本
 	Description string `gorm:"type:text" json:"description"`                                                 // 数据集描述
 	Type        string `gorm:"index" json:"type"`                                                            // 数据集类型 (e.g., "microservice", "database", "network")
-	Size        int64  `gorm:"default:0" json:"size"`                                                        // 数据集大小（字节）
 	FileCount   int    `gorm:"default:0" json:"file_count"`                                                  // 文件数量
 	DataSource  string `gorm:"type:text" json:"data_source"`                                                 // 数据来源描述
 	Format      string `gorm:"default:'json'" json:"format"`                                                 // 数据格式 (json, csv, parquet等)
@@ -166,10 +165,6 @@ type DatasetFaultInjection struct {
 	ID               int       `gorm:"primaryKey;autoIncrement" json:"id"`                                       // 唯一标识
 	DatasetID        int       `gorm:"not null;index:idx_dataset_fault_unique,unique" json:"dataset_id"`         // 数据集ID
 	FaultInjectionID int       `gorm:"not null;index:idx_dataset_fault_unique,unique" json:"fault_injection_id"` // 故障注入ID
-	RelationType     string    `gorm:"default:'training';index" json:"relation_type"`                            // 关系类型 (training, testing, validation等)
-	IsGroundTruth    bool      `gorm:"default:false;index" json:"is_ground_truth"`                               // 是否为真实标签数据
-	AnnotationStatus string    `gorm:"default:'pending';index" json:"annotation_status"`                         // 标注状态 (pending, completed, verified)
-	ConfidenceScore  float64   `gorm:"type:decimal(5,4);default:0" json:"confidence_score"`                      // 置信度分数
 	CreatedAt        time.Time `gorm:"autoCreateTime" json:"created_at"`                                         // 创建时间
 	UpdatedAt        time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                         // 更新时间
 

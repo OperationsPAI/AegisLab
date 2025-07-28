@@ -295,9 +295,22 @@ func SetupV2Routes(router *gin.Engine) {
 		algorithms.POST("/search", v2handlers.SearchAlgorithms)
 	}
 
-	// 其他业务实体 API 组 (供将来扩展)
+	// 其他业务实体 API 组
 	injections := v2.Group("/injections") // 故障注入管理 - FaultInjectionSchedule 实体
-	datasets := v2.Group("/datasets")     // 数据集管理 - Dataset 实体
+
+	// 数据集管理 - Dataset 实体
+	datasets := v2.Group("/datasets", middleware.JWTAuth())
+	{
+		datasets.GET("", v2handlers.ListDatasets)
+		datasets.GET("/:id", v2handlers.GetDataset)
+		datasets.POST("/search", v2handlers.SearchDatasets)
+		datasets.POST("", v2handlers.CreateDataset)
+		datasets.PUT("/:id", v2handlers.UpdateDataset)
+		datasets.PATCH("/:id/injections", v2handlers.ManageDatasetInjections)
+		datasets.PATCH("/:id/labels", v2handlers.ManageDatasetLabels)
+		datasets.DELETE("/:id", v2handlers.DeleteDataset)
+	}
+
 	executions := v2.Group("/executions") // 执行结果管理 - ExecutionResult 实体
 	labels := v2.Group("/labels")         // 标签管理 - Label 实体
 	projects := v2.Group("/projects")     // 项目管理 - Project 实体
@@ -310,7 +323,6 @@ func SetupV2Routes(router *gin.Engine) {
 
 	// 暂时使用空赋值避免编译错误，后续逐步实现具体路由
 	_ = injections
-	_ = datasets
 	_ = executions
 	_ = labels
 	_ = projects
