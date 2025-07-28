@@ -273,6 +273,10 @@ func SetupV2Routes(router *gin.Engine) {
 	// 容器管理 - Container 实体
 	containers := v2.Group("/containers", middleware.JWTAuth())
 	{
+		// Create operation - permission checked in handler
+		// POST /api/v2/containers - Create a new container
+		containers.POST("", v2handlers.CreateContainer)
+
 		// Read operations - permission checked in handler
 		// GET /api/v2/containers?page=1&size=20&type=algorithm&status=true
 		containers.GET("", v2handlers.ListContainers)
