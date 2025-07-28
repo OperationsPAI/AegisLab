@@ -14,11 +14,11 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/dto"
 )
 
-func CreateExecutionResult(taskID string, algorithmID, datasetID int) (int, error) {
+func CreateExecutionResult(taskID string, algorithmID, datapackID int) (int, error) {
 	executionResult := database.ExecutionResult{
 		TaskID:      taskID,
 		AlgorithmID: algorithmID,
-		DatasetID:   datasetID,
+		DatapackID:  datapackID,
 		Status:      consts.ExecutionInitial,
 	}
 	if err := database.DB.Create(&executionResult).Error; err != nil {
