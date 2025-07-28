@@ -62,14 +62,14 @@ type Container struct {
 	Tag       string    `gorm:"not null;default:'latest';uniqueIndex:idx_container_unique" json:"tag"` // 镜像标签
 	Command   string    `gorm:"type:text;default:'bash /entrypoint.sh'" json:"command"`                // 启动命令
 	EnvVars   string    `gorm:"default:''" json:"env_vars"`                                            // 环境变量名称列表
-	ProjectID int       `gorm:"not null;index:idx_container_project" json:"project_id"`                // 容器必须属于某个项目
+	UserID    int       `gorm:"not null;index:idx_container_user" json:"user_id"`                      // 容器必须属于某个用户
 	IsPublic  bool      `gorm:"default:false;index:idx_container_visibility" json:"is_public"`         // 是否公开可见
 	Status    bool      `gorm:"default:true" json:"status"`                                            // 0: 已删除 1: 活跃
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`                                      // 创建时间
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                      // 更新时间
 
 	// 外键关联
-	Project *Project `gorm:"foreignKey:ProjectID" json:"project,omitempty"`
+	User *User `gorm:"foreignKey:UserID" json:"user,omitempty"`
 }
 
 type ExecutionResult struct {
