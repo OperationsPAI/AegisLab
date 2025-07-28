@@ -18,11 +18,10 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
 from pydantic import Field
-from typing import List
 from typing_extensions import Annotated
-from rcabench.openapi.models.dto_execution_payload import DtoExecutionPayload
 from rcabench.openapi.models.dto_generic_response_dto_list_algorithms_resp import DtoGenericResponseDtoListAlgorithmsResp
 from rcabench.openapi.models.dto_generic_response_dto_submit_resp import DtoGenericResponseDtoSubmitResp
+from rcabench.openapi.models.dto_submit_execution_req import DtoSubmitExecutionReq
 
 from rcabench.openapi.api_client import ApiClient, RequestSerialized
 from rcabench.openapi.api_response import ApiResponse
@@ -293,7 +292,7 @@ class AlgorithmApi:
     @validate_call
     def api_v1_algorithms_post(
         self,
-        body: Annotated[List[DtoExecutionPayload], Field(description="算法执行请求列表，包含算法名称、数据集和环境变量")],
+        body: Annotated[DtoSubmitExecutionReq, Field(description="算法执行请求列表，包含算法名称、数据集和环境变量")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -312,7 +311,7 @@ class AlgorithmApi:
         批量提交算法执行任务，支持多个算法和数据集的组合执行。系统将为每个执行任务分配唯一的 TraceID 用于跟踪任务状态和结果
 
         :param body: 算法执行请求列表，包含算法名称、数据集和环境变量 (required)
-        :type body: List[DtoExecutionPayload]
+        :type body: DtoSubmitExecutionReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -362,7 +361,7 @@ class AlgorithmApi:
     @validate_call
     def api_v1_algorithms_post_with_http_info(
         self,
-        body: Annotated[List[DtoExecutionPayload], Field(description="算法执行请求列表，包含算法名称、数据集和环境变量")],
+        body: Annotated[DtoSubmitExecutionReq, Field(description="算法执行请求列表，包含算法名称、数据集和环境变量")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -381,7 +380,7 @@ class AlgorithmApi:
         批量提交算法执行任务，支持多个算法和数据集的组合执行。系统将为每个执行任务分配唯一的 TraceID 用于跟踪任务状态和结果
 
         :param body: 算法执行请求列表，包含算法名称、数据集和环境变量 (required)
-        :type body: List[DtoExecutionPayload]
+        :type body: DtoSubmitExecutionReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -431,7 +430,7 @@ class AlgorithmApi:
     @validate_call
     def api_v1_algorithms_post_without_preload_content(
         self,
-        body: Annotated[List[DtoExecutionPayload], Field(description="算法执行请求列表，包含算法名称、数据集和环境变量")],
+        body: Annotated[DtoSubmitExecutionReq, Field(description="算法执行请求列表，包含算法名称、数据集和环境变量")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -450,7 +449,7 @@ class AlgorithmApi:
         批量提交算法执行任务，支持多个算法和数据集的组合执行。系统将为每个执行任务分配唯一的 TraceID 用于跟踪任务状态和结果
 
         :param body: 算法执行请求列表，包含算法名称、数据集和环境变量 (required)
-        :type body: List[DtoExecutionPayload]
+        :type body: DtoSubmitExecutionReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -505,7 +504,6 @@ class AlgorithmApi:
         _host = None
 
         _collection_formats: Dict[str, str] = {
-            'body': '',
         }
 
         _path_params: Dict[str, str] = {}

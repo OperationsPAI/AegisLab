@@ -39,13 +39,6 @@ definitions:
       name:
         description: 名称
         type: string
-      project:
-        allOf:
-        - $ref: '#/definitions/database.Project'
-        description: 外键关联
-      project_id:
-        description: 容器必须属于某个项目
-        type: integer
       status:
         description: '0: 已删除 1: 活跃'
         type: boolean
@@ -58,6 +51,13 @@ definitions:
       updated_at:
         description: 更新时间
         type: string
+      user:
+        allOf:
+        - $ref: '#/definitions/database.User'
+        description: 外键关联
+      user_id:
+        description: 容器必须属于某个用户
+        type: integer
     type: object
   database.FaultInjectionSchedule:
     properties:
@@ -196,6 +196,42 @@ definitions:
         description: 添加复合索引
         type: string
       updated_at:
+        type: string
+    type: object
+  database.User:
+    properties:
+      avatar:
+        description: 头像URL
+        type: string
+      created_at:
+        description: 创建时间
+        type: string
+      email:
+        description: 邮箱（唯一）
+        type: string
+      full_name:
+        description: 全名
+        type: string
+      id:
+        description: 唯一标识
+        type: integer
+      is_active:
+        description: 是否激活
+        type: boolean
+      last_login_at:
+        description: 最后登录时间
+        type: string
+      phone:
+        description: 电话号码
+        type: string
+      status:
+        description: 0:禁用 1:启用 -1:删除
+        type: integer
+      updated_at:
+        description: 更新时间
+        type: string
+      username:
+        description: 用户名（唯一）
         type: string
     type: object
   dto.AdvancedSearchRequest:
@@ -3113,6 +3149,30 @@ definitions:
     - direction
     - field
     type: object
+  dto.SubmitDatasetBuildingReq:
+    properties:
+      payloads:
+        items:
+          $ref: '#/definitions/dto.DatasetBuildPayload'
+        type: array
+      project_name:
+        type: string
+    required:
+    - payloads
+    - project_name
+    type: object
+  dto.SubmitExecutionReq:
+    properties:
+      payloads:
+        items:
+          $ref: '#/definitions/dto.ExecutionPayload'
+        type: array
+      project_name:
+        type: string
+    required:
+    - payloads
+    - project_name
+    type: object
   dto.SubmitInjectionReq:
     properties:
       algorithms:
@@ -3870,9 +3930,7 @@ paths:
         name: body
         required: true
         schema:
-          items:
-            $ref: '#/definitions/dto.ExecutionPayload'
-          type: array
+          $ref: '#/definitions/dto.SubmitExecutionReq'
       produces:
       - application/json
       responses:
@@ -4165,9 +4223,7 @@ paths:
         name: body
         required: true
         schema:
-          items:
-            $ref: '#/definitions/dto.DatasetBuildPayload'
-          type: array
+          $ref: '#/definitions/dto.SubmitDatasetBuildingReq'
       produces:
       - application/json
       responses:
