@@ -105,11 +105,14 @@ func createDetectorViews() {
 		Select(`DISTINCT 
 		fis.id AS dataset_id, 
 		fis.engine_config, 
-		fis.labels ->> 'env' AS env,
-		fis.labels ->> 'batch' AS batch,
-		fis.labels ->> 'tag' AS tag,
+		MAX(CASE WHEN l.key = 'env' THEN l.value END) AS env,
+		MAX(CASE WHEN l.key = 'batch' THEN l.value END) AS batch,
+		MAX(CASE WHEN l.key = 'tag' THEN l.value END) AS tag,
 		fis.injection_name, 
-		fis.created_at`),
+		fis.created_at`).
+		Joins("LEFT JOIN fault_injection_labels fil ON fis.id = fil.fault_injection_id").
+		Joins("LEFT JOIN labels l ON fil.label_id = l.id").
+		Group("fis.id, fis.engine_config, fis.injection_name, fis.created_at"),
 	).Where("d.issues = '{}' OR d.issues IS NULL")
 	if err = DB.Migrator().CreateView("fault_injection_no_issues", gorm.ViewOption{Query: noIssuesQuery}); err != nil {
 		logrus.Errorf("failed to create fault_injection_no_issues view: %v", err)
@@ -120,9 +123,9 @@ func createDetectorViews() {
 		Select(`DISTINCT 
 		fis.id AS dataset_id, 
 		fis.engine_config, 
-		fis.labels ->> 'env' AS env,
-		fis.labels ->> 'batch' AS batch,
-		fis.labels ->> 'tag' AS tag,
+		MAX(CASE WHEN l.key = 'env' THEN l.value END) AS env,
+		MAX(CASE WHEN l.key = 'batch' THEN l.value END) AS batch,
+		MAX(CASE WHEN l.key = 'tag' THEN l.value END) AS tag,
 		fis.injection_name, 
 		fis.created_at, 
 		d.issues, 
@@ -131,7 +134,10 @@ func createDetectorViews() {
 		d.abnormal_succ_rate, 
 		d.normal_succ_rate, 
 		d.abnormal_p99, 
-		d.normal_p99`),
+		d.normal_p99`).
+		Joins("LEFT JOIN fault_injection_labels fil ON fis.id = fil.fault_injection_id").
+		Joins("LEFT JOIN labels l ON fil.label_id = l.id").
+		Group("fis.id, fis.engine_config, fis.injection_name, fis.created_at, d.issues, d.abnormal_avg_duration, d.normal_avg_duration, d.abnormal_succ_rate, d.normal_succ_rate, d.abnormal_p99, d.normal_p99"),
 	).Where("d.issues != '{}' AND d.issues IS NOT NULL")
 	if err = DB.Migrator().CreateView("fault_injection_with_issues", gorm.ViewOption{Query: withIssuesQuery}); err != nil {
 		logrus.Errorf("failed to create fault_injection_with_issues view: %v", err)
@@ -141,7 +147,7 @@ func createDetectorViews() {
 func createExecutionResultViews() {
 	var err error
 
-	DB.Migrator().DropView("exeuction_result_project")
+	DB.Migrator().DropView("execution_result_project")
 
 	projectQuery := DB.Table("execution_results er").
 		Select(`
@@ -160,8 +166,8 @@ func createExecutionResultViews() {
         	FROM tasks
     	) t ON er.task_id = t.task_id`).
 		Joins("JOIN projects p ON p.id = t.project_id")
-	if err = DB.Migrator().CreateView("exeuction_result_project", gorm.ViewOption{Query: projectQuery}); err != nil {
-		logrus.Errorf("failed to create exeuction_result_project view: %v", err)
+	if err = DB.Migrator().CreateView("execution_result_project", gorm.ViewOption{Query: projectQuery}); err != nil {
+		logrus.Errorf("failed to create execution_result_project view: %v", err)
 	}
 }
 
@@ -181,17 +187,20 @@ func createFaultInjectionViews() {
 			fis.end_time,
 			fis.status,
 			fis.benchmark, 
-			fis.labels ->> 'env' AS env,
-			fis.labels ->> 'batch' AS batch,
-			fis.labels ->> 'tag' AS tag,
+			MAX(CASE WHEN l.key = 'env' THEN l.value END) AS env,
+			MAX(CASE WHEN l.key = 'batch' THEN l.value END) AS batch,
+			MAX(CASE WHEN l.key = 'tag' THEN l.value END) AS tag,
 			fis.injection_name, 
 			fis.created_at,
 			p.name AS project_name`).
+		Joins("LEFT JOIN fault_injection_labels fil ON fis.id = fil.fault_injection_id").
+		Joins("LEFT JOIN labels l ON fil.label_id = l.id").
 		Joins(`JOIN (
         	SELECT id AS task_id, project_id
         	FROM tasks
     	) t ON fis.task_id = t.task_id`).
-		Joins("JOIN projects p ON p.id = t.project_id")
+		Joins("JOIN projects p ON p.id = t.project_id").
+		Group("fis.id, fis.fault_type, fis.display_config, fis.engine_config, fis.pre_duration, fis.start_time, fis.end_time, fis.status, fis.benchmark, fis.injection_name, fis.created_at, p.name")
 	if err = DB.Migrator().CreateView("fault_injection_project", gorm.ViewOption{Query: projectQuery}); err != nil {
 		logrus.Errorf("failed to create fault_injection_project view: %v", err)
 	}
