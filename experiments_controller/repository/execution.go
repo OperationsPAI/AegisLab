@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"gorm.io/gorm"
@@ -311,4 +312,108 @@ func ListSuccessfulExecutionsWithFilter(req dto.SuccessfulExecutionsReq) ([]dto.
 	}
 
 	return result, nil
+}
+
+// GetExecutionStatistics returns statistics about executions
+func GetExecutionStatistics() (map[string]int64, error) {
+	stats := make(map[string]int64)
+
+	// Total executions
+	var total int64
+	if err := database.DB.Model(&database.ExecutionResult{}).Count(&total).Error; err != nil {
+		return nil, fmt.Errorf("failed to count total executions: %v", err)
+	}
+	stats["total"] = total
+
+	// Executions by status
+	type StatusCount struct {
+		Status string `json:"status"`
+		Count  int64  `json:"count"`
+	}
+
+	var statusCounts []StatusCount
+	err := database.DB.Model(&database.ExecutionResult{}).
+		Select("status, COUNT(*) as count").
+		Group("status").
+		Find(&statusCounts).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to count executions by status: %v", err)
+	}
+
+	// Set status counts
+	for _, sc := range statusCounts {
+		switch sc.Status {
+		case "pending":
+			stats["pending"] = sc.Count
+		case "running":
+			stats["running"] = sc.Count
+		case "completed":
+			stats["completed"] = sc.Count
+		case "failed":
+			stats["failed"] = sc.Count
+		case "cancelled":
+			stats["cancelled"] = sc.Count
+		default:
+			stats[sc.Status] = sc.Count
+		}
+	}
+
+	// Initialize missing statuses with 0
+	statuses := []string{"pending", "running", "completed", "failed", "cancelled"}
+	for _, status := range statuses {
+		if _, exists := stats[status]; !exists {
+			stats[status] = 0
+		}
+	}
+
+	return stats, nil
+}
+
+// GetExecutionCountByAlgorithm returns count of executions grouped by algorithm
+func GetExecutionCountByAlgorithm() (map[string]int64, error) {
+	type AlgorithmCount struct {
+		Algorithm string `json:"algorithm"`
+		Count     int64  `json:"count"`
+	}
+
+	var results []AlgorithmCount
+	err := database.DB.Model(&database.ExecutionResult{}).
+		Select("algorithm, COUNT(*) as count").
+		Group("algorithm").
+		Find(&results).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to count executions by algorithm: %v", err)
+	}
+
+	algorithmCounts := make(map[string]int64)
+	for _, result := range results {
+		algorithmCounts[result.Algorithm] = result.Count
+	}
+
+	return algorithmCounts, nil
+}
+
+// GetRecentExecutionActivity returns execution activity for the last N days
+func GetRecentExecutionActivity(days int) (map[string]int64, error) {
+	stats := make(map[string]int64)
+
+	// Last N days activity
+	startDate := time.Now().AddDate(0, 0, -days)
+	var recentCount int64
+	if err := database.DB.Model(&database.ExecutionResult{}).Where("created_at >= ?", startDate).Count(&recentCount).Error; err != nil {
+		return nil, fmt.Errorf("failed to count recent executions: %v", err)
+	}
+	stats[fmt.Sprintf("last_%d_days", days)] = recentCount
+
+	// Today's executions
+	today := time.Now().Truncate(24 * time.Hour)
+	var todayCount int64
+	if err := database.DB.Model(&database.ExecutionResult{}).Where("created_at >= ?", today).Count(&todayCount).Error; err != nil {
+		return nil, fmt.Errorf("failed to count today's executions: %v", err)
+	}
+	stats["today"] = todayCount
+
+	return stats, nil
 }

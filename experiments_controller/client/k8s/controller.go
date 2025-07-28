@@ -336,7 +336,6 @@ func (c *Controller) genPodEventHandlerFuncs(ctx context.Context) cache.Resource
 					return
 				}
 
-				// TODO
 				for _, reason := range podReasons {
 					if checkPodReason(newPod, reason) {
 						job, err := GetJob(ctx, newPod.Namespace, jobOwnerRef.Name)
