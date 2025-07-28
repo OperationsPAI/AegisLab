@@ -8,13 +8,13 @@ import (
 	"gorm.io/gorm"
 )
 
-// PermissionChecker 权限检查器结构体
+// PermissionChecker struct for permission checking
 type PermissionChecker struct {
 	UserID    int
 	ProjectID *int
 }
 
-// NewPermissionChecker 创建权限检查器
+// NewPermissionChecker creates a new PermissionChecker
 func NewPermissionChecker(userID int, projectID *int) *PermissionChecker {
 	return &PermissionChecker{
 		UserID:    userID,
@@ -22,32 +22,32 @@ func NewPermissionChecker(userID int, projectID *int) *PermissionChecker {
 	}
 }
 
-// HasPermissionTyped 检查是否有特定权限（使用ActionName和ResourceName类型）
+// HasPermissionTyped checks if the user has a specific permission (using ActionName and ResourceName types)
 func (pc *PermissionChecker) HasPermissionTyped(action consts.ActionName, resource consts.ResourceName) (bool, error) {
 	return CheckUserPermission(pc.UserID, action.String(), resource.String(), pc.ProjectID)
 }
 
-// CanReadResource 检查是否有读取权限（使用ResourceName类型）
+// CanReadResource checks if the user has read permission (using ResourceName type)
 func (pc *PermissionChecker) CanReadResource(resource consts.ResourceName) (bool, error) {
 	return pc.HasPermissionTyped(consts.ActionRead, resource)
 }
 
-// CanWriteResource 检查是否有写入权限（使用ResourceName类型）
+// CanWriteResource checks if the user has write permission (using ResourceName type)
 func (pc *PermissionChecker) CanWriteResource(resource consts.ResourceName) (bool, error) {
 	return pc.HasPermissionTyped(consts.ActionWrite, resource)
 }
 
-// CanDeleteResource 检查是否有删除权限（使用ResourceName类型）
+// CanDeleteResource checks if the user has delete permission (using ResourceName type)
 func (pc *PermissionChecker) CanDeleteResource(resource consts.ResourceName) (bool, error) {
 	return pc.HasPermissionTyped(consts.ActionDelete, resource)
 }
 
-// CanExecuteResource 检查是否有执行权限（使用ResourceName类型）
+// CanExecuteResource checks if the user has execute permission (using ResourceName type)
 func (pc *PermissionChecker) CanExecuteResource(resource consts.ResourceName) (bool, error) {
 	return pc.HasPermissionTyped(consts.ActionExecute, resource)
 }
 
-// IsAdmin 检查是否是管理员
+// IsAdmin checks if the user is an admin
 func (pc *PermissionChecker) IsAdmin() (bool, error) {
 	roles, err := GetUserRoles(pc.UserID)
 	if err != nil {
@@ -63,7 +63,7 @@ func (pc *PermissionChecker) IsAdmin() (bool, error) {
 	return false, nil
 }
 
-// IsProjectAdmin 检查是否是项目管理员
+// IsProjectAdmin checks if the user is a project admin
 func (pc *PermissionChecker) IsProjectAdmin() (bool, error) {
 	if pc.ProjectID == nil {
 		return false, nil
@@ -83,19 +83,19 @@ func (pc *PermissionChecker) IsProjectAdmin() (bool, error) {
 	return false, nil
 }
 
-// AuthResult 权限检查结果
+// AuthResult represents the result of a permission check
 type AuthResult struct {
 	Allowed bool
 	Reason  string
 }
 
-// CheckMultiplePermissions 批量检查权限
+// CheckMultiplePermissions checks multiple permissions in batch
 func (pc *PermissionChecker) CheckMultiplePermissions(permissions map[string]string) (map[string]AuthResult, error) {
 	results := make(map[string]AuthResult)
 
 	for key, permission := range permissions {
-		// permission 格式: "action:resource"
-		// 例如: "read:dataset", "write:project"
+		// permission format: "action:resource"
+		// e.g.: "read:dataset", "write:project"
 		parts := splitPermission(permission)
 		if len(parts) != 2 {
 			results[key] = AuthResult{Allowed: false, Reason: "invalid permission format"}
@@ -118,19 +118,19 @@ func (pc *PermissionChecker) CheckMultiplePermissions(permissions map[string]str
 	return results, nil
 }
 
-// InitializeSystemData 初始化系统数据（角色、权限、资源）
+// InitializeSystemData initializes system data (roles, permissions, resources)
 func InitializeSystemData() error {
 	return database.DB.Transaction(func(tx *gorm.DB) error {
 		// 创建系统资源
 		systemResources := []database.Resource{
-			{Name: consts.ResourceProject.String(), DisplayName: "项目", Type: "table", Category: "core", IsSystem: true, Status: 1},
-			{Name: consts.ResourceDataset.String(), DisplayName: "数据集", Type: "table", Category: "core", IsSystem: true, Status: 1},
-			{Name: consts.ResourceFaultInjection.String(), DisplayName: "故障注入", Type: "table", Category: "core", IsSystem: true, Status: 1},
-			{Name: consts.ResourceContainer.String(), DisplayName: "容器", Type: "table", Category: "core", IsSystem: true, Status: 1},
-			{Name: consts.ResourceTask.String(), DisplayName: "任务", Type: "table", Category: "core", IsSystem: true, Status: 1},
-			{Name: consts.ResourceUser.String(), DisplayName: "用户", Type: "table", Category: "admin", IsSystem: true, Status: 1},
-			{Name: consts.ResourceRole.String(), DisplayName: "角色", Type: "table", Category: "admin", IsSystem: true, Status: 1},
-			{Name: consts.ResourcePermission.String(), DisplayName: "权限", Type: "table", Category: "admin", IsSystem: true, Status: 1},
+			{Name: consts.ResourceProject.String(), DisplayName: "Project", Type: "table", Category: "core", IsSystem: true, Status: 1},
+			{Name: consts.ResourceDataset.String(), DisplayName: "Dataset", Type: "table", Category: "core", IsSystem: true, Status: 1},
+			{Name: consts.ResourceFaultInjection.String(), DisplayName: "Fault Injection", Type: "table", Category: "core", IsSystem: true, Status: 1},
+			{Name: consts.ResourceContainer.String(), DisplayName: "Container", Type: "table", Category: "core", IsSystem: true, Status: 1},
+			{Name: consts.ResourceTask.String(), DisplayName: "Task", Type: "table", Category: "core", IsSystem: true, Status: 1},
+			{Name: consts.ResourceUser.String(), DisplayName: "User", Type: "table", Category: "admin", IsSystem: true, Status: 1},
+			{Name: consts.ResourceRole.String(), DisplayName: "Role", Type: "table", Category: "admin", IsSystem: true, Status: 1},
+			{Name: consts.ResourcePermission.String(), DisplayName: "Permission", Type: "table", Category: "admin", IsSystem: true, Status: 1},
 		}
 
 		for _, resource := range systemResources {
@@ -167,11 +167,11 @@ func InitializeSystemData() error {
 
 		// 创建系统角色
 		systemRoles := []database.Role{
-			{Name: "super_admin", DisplayName: "超级管理员", Type: "system", IsSystem: true, Status: 1},
-			{Name: "admin", DisplayName: "管理员", Type: "system", IsSystem: true, Status: 1},
-			{Name: "project_admin", DisplayName: "项目管理员", Type: "system", IsSystem: true, Status: 1},
-			{Name: "developer", DisplayName: "开发者", Type: "system", IsSystem: true, Status: 1},
-			{Name: "viewer", DisplayName: "查看者", Type: "system", IsSystem: true, Status: 1},
+			{Name: "super_admin", DisplayName: "Super Admin", Type: "system", IsSystem: true, Status: 1},
+			{Name: "admin", DisplayName: "Admin", Type: "system", IsSystem: true, Status: 1},
+			{Name: "project_admin", DisplayName: "Project Admin", Type: "system", IsSystem: true, Status: 1},
+			{Name: "developer", DisplayName: "Developer", Type: "system", IsSystem: true, Status: 1},
+			{Name: "viewer", DisplayName: "Viewer", Type: "system", IsSystem: true, Status: 1},
 		}
 
 		for _, role := range systemRoles {
@@ -195,60 +195,60 @@ func InitializeSystemData() error {
 	})
 }
 
-// assignSystemRolePermissions 为系统角色分配权限
+// assignSystemRolePermissions assigns permissions to system roles
 func assignSystemRolePermissions(tx *gorm.DB) error {
-	// super_admin: 所有权限
-	if err := assignAllPermissionsToRole(tx, "super_admin"); err != nil {
+	// super_admin: all permissions
+	if err := assignAllPermissionsToRole(tx, consts.RoleSuperAdmin); err != nil {
 		return err
 	}
 
-	// admin: 除了用户管理的其他权限
+	// admin: all except user management
 	adminPermissions := []string{
-		"read_project", "write_project", "delete_project", "manage_project",
-		"read_dataset", "write_dataset", "delete_dataset", "manage_dataset",
-		"read_fault_injection", "write_fault_injection", "delete_fault_injection", "execute_fault_injection",
-		"read_container", "write_container", "delete_container", "manage_container",
-		"read_task", "write_task", "delete_task", "execute_task",
-		"read_role", "read_permission",
+		string(consts.PermissionReadProject), string(consts.PermissionWriteProject), string(consts.PermissionDeleteProject), string(consts.PermissionManageProject),
+		string(consts.PermissionReadDataset), string(consts.PermissionWriteDataset), string(consts.PermissionDeleteDataset), string(consts.PermissionManageDataset),
+		string(consts.PermissionReadFaultInjection), string(consts.PermissionWriteFaultInjection), string(consts.PermissionDeleteFaultInjection), string(consts.PermissionExecuteFaultInjection),
+		string(consts.PermissionReadContainer), string(consts.PermissionWriteContainer), string(consts.PermissionDeleteContainer), string(consts.PermissionManageContainer),
+		string(consts.PermissionReadTask), string(consts.PermissionWriteTask), string(consts.PermissionDeleteTask), string(consts.PermissionExecuteTask),
+		string(consts.PermissionReadRole), string(consts.PermissionReadPermission),
 	}
-	if err := assignPermissionsToRole(tx, "admin", adminPermissions); err != nil {
+	if err := assignPermissionsToRole(tx, consts.RoleAdmin, adminPermissions); err != nil {
 		return err
 	}
 
-	// project_admin: 项目相关权限
+	// project_admin: project-related permissions
 	projectAdminPermissions := []string{
-		"read_project", "write_project", "manage_project",
-		"read_dataset", "write_dataset", "delete_dataset",
-		"read_fault_injection", "write_fault_injection", "delete_fault_injection", "execute_fault_injection",
-		"read_container", "write_container",
-		"read_task", "write_task", "execute_task",
+		string(consts.PermissionReadProject), string(consts.PermissionWriteProject), string(consts.PermissionManageProject),
+		string(consts.PermissionReadDataset), string(consts.PermissionWriteDataset), string(consts.PermissionDeleteDataset),
+		string(consts.PermissionReadFaultInjection), string(consts.PermissionWriteFaultInjection), string(consts.PermissionDeleteFaultInjection), string(consts.PermissionExecuteFaultInjection),
+		string(consts.PermissionReadContainer), string(consts.PermissionWriteContainer),
+		string(consts.PermissionReadTask), string(consts.PermissionWriteTask), string(consts.PermissionExecuteTask),
 	}
-	if err := assignPermissionsToRole(tx, "project_admin", projectAdminPermissions); err != nil {
+	if err := assignPermissionsToRole(tx, consts.RoleProjectAdmin, projectAdminPermissions); err != nil {
 		return err
 	}
 
-	// developer: 开发者权限
+	// developer: developer permissions
 	developerPermissions := []string{
-		"read_project", "read_dataset", "write_dataset",
-		"read_fault_injection", "write_fault_injection", "execute_fault_injection",
-		"read_container", "read_task", "write_task", "execute_task",
+		string(consts.PermissionReadProject), string(consts.PermissionReadDataset), string(consts.PermissionWriteDataset),
+		string(consts.PermissionReadFaultInjection), string(consts.PermissionWriteFaultInjection), string(consts.PermissionExecuteFaultInjection),
+		string(consts.PermissionReadContainer), string(consts.PermissionReadTask), string(consts.PermissionWriteTask), string(consts.PermissionExecuteTask),
 	}
-	if err := assignPermissionsToRole(tx, "developer", developerPermissions); err != nil {
+	if err := assignPermissionsToRole(tx, consts.RoleDeveloper, developerPermissions); err != nil {
 		return err
 	}
 
-	// viewer: 只读权限
+	// viewer: read-only permissions
 	viewerPermissions := []string{
-		"read_project", "read_dataset", "read_fault_injection", "read_container", "read_task",
+		string(consts.PermissionReadProject), string(consts.PermissionReadDataset), string(consts.PermissionReadFaultInjection), string(consts.PermissionReadContainer), string(consts.PermissionReadTask),
 	}
-	if err := assignPermissionsToRole(tx, "viewer", viewerPermissions); err != nil {
+	if err := assignPermissionsToRole(tx, consts.RoleViewer, viewerPermissions); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// 辅助函数
+// Helper functions
 func splitPermission(permission string) []string {
 	for i, char := range permission {
 		if char == ':' {
@@ -261,23 +261,24 @@ func splitPermission(permission string) []string {
 func actionDisplayName(action string) string {
 	switch action {
 	case "read":
-		return "查看"
+		return "View"
 	case "write":
-		return "编辑"
+		return "Edit"
 	case "delete":
-		return "删除"
+		return "Delete"
 	case "execute":
-		return "执行"
+		return "Execute"
 	case "manage":
-		return "管理"
+		return "Manage"
 	default:
 		return action
 	}
 }
 
-func assignAllPermissionsToRole(tx *gorm.DB, roleName string) error {
+// assignAllPermissionsToRole assigns all permissions to a role
+func assignAllPermissionsToRole(tx *gorm.DB, roleName consts.RoleName) error {
 	var role database.Role
-	if err := tx.Where("name = ?", roleName).First(&role).Error; err != nil {
+	if err := tx.Where("name = ?", string(roleName)).First(&role).Error; err != nil {
 		return err
 	}
 
@@ -299,16 +300,17 @@ func assignAllPermissionsToRole(tx *gorm.DB, roleName string) error {
 	return nil
 }
 
-func assignPermissionsToRole(tx *gorm.DB, roleName string, permissionNames []string) error {
+// assignPermissionsToRole assigns specific permissions to a role
+func assignPermissionsToRole(tx *gorm.DB, roleName consts.RoleName, permissionNames []string) error {
 	var role database.Role
-	if err := tx.Where("name = ?", roleName).First(&role).Error; err != nil {
+	if err := tx.Where("name = ?", string(roleName)).First(&role).Error; err != nil {
 		return err
 	}
 
 	for _, permName := range permissionNames {
 		var permission database.Permission
 		if err := tx.Where("name = ?", permName).First(&permission).Error; err != nil {
-			continue // 忽略不存在的权限
+			continue // skip non-existent permissions
 		}
 
 		rolePermission := database.RolePermission{
@@ -323,15 +325,15 @@ func assignPermissionsToRole(tx *gorm.DB, roleName string, permissionNames []str
 	return nil
 }
 
-// initializeAdminUserAndProjects 初始化超级管理员用户和默认项目
+// initializeAdminUserAndProjects initializes the super admin user and default projects
 func initializeAdminUserAndProjects(tx *gorm.DB) error {
-	// 1. 创建超级管理员用户
+	// 1. Create super admin user
 	adminUser := database.User{
 		Username: "admin",
 		Email:    "admin@rcabench.local",
-		// 密码: admin123，使用项目标准的SHA256+盐值加密
+		// password: admin123, encrypted with project standard SHA256+salt
 		Password: "60c873a916c7659b9798e17015e9130c0cb9c9f4f7f7c022222c0b869243fd6b:98a126542e7a0e2bf0322965b28885e8eb628c605f3cd0228b74e3d36e5edeee",
-		FullName: "系统管理员",
+		FullName: "System Admin",
 		Status:   1,
 		IsActive: true,
 	}
@@ -341,7 +343,7 @@ func initializeAdminUserAndProjects(tx *gorm.DB) error {
 		return fmt.Errorf("failed to create admin user: %v", err)
 	}
 
-	// 2. 为超级管理员分配超级管理员角色
+	// 2. Assign super admin role to the super admin user
 	var superAdminRole database.Role
 	if err := tx.Where("name = ?", "super_admin").First(&superAdminRole).Error; err != nil {
 		return fmt.Errorf("failed to find super_admin role: %v", err)
@@ -355,16 +357,11 @@ func initializeAdminUserAndProjects(tx *gorm.DB) error {
 		return fmt.Errorf("failed to assign super_admin role to admin user: %v", err)
 	}
 
-	// 3. 创建默认项目
+	// 3. Create default projects
 	defaultProjects := []database.Project{
 		{
-			Name:        "Default Project",
-			Description: "系统默认项目，用于初始化和测试",
-			Status:      1,
-		},
-		{
-			Name:        "Demo Project",
-			Description: "演示项目，用于展示系统功能",
+			Name:        "pair_diagnosis",
+			Description: "pair_diagnosis",
 			Status:      1,
 		},
 	}
@@ -375,7 +372,7 @@ func initializeAdminUserAndProjects(tx *gorm.DB) error {
 			return fmt.Errorf("failed to create project %s: %v", project.Name, err)
 		}
 
-		// 将超级管理员加入项目
+		// Add super admin to the project
 		userProject := database.UserProject{
 			UserID:    existingUser.ID,
 			ProjectID: existingProject.ID,

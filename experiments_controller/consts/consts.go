@@ -310,3 +310,49 @@ const (
 	// TaskStatusKey is the key for the task status attribute.
 	TaskStatusKey = "task.task_status"
 )
+
+// PermissionName type for permission constants
+type PermissionName string
+
+// Permission constants for system permissions
+const (
+	PermissionReadProject   PermissionName = "read_project"   // Read project
+	PermissionWriteProject  PermissionName = "write_project"  // Write project
+	PermissionDeleteProject PermissionName = "delete_project" // Delete project
+	PermissionManageProject PermissionName = "manage_project" // Manage project
+
+	PermissionReadDataset   PermissionName = "read_dataset"   // Read dataset
+	PermissionWriteDataset  PermissionName = "write_dataset"  // Write dataset
+	PermissionDeleteDataset PermissionName = "delete_dataset" // Delete dataset
+	PermissionManageDataset PermissionName = "manage_dataset" // Manage dataset
+
+	PermissionReadFaultInjection    PermissionName = "read_fault_injection"    // Read fault injection
+	PermissionWriteFaultInjection   PermissionName = "write_fault_injection"   // Write fault injection
+	PermissionDeleteFaultInjection  PermissionName = "delete_fault_injection"  // Delete fault injection
+	PermissionExecuteFaultInjection PermissionName = "execute_fault_injection" // Execute fault injection
+
+	PermissionReadContainer   PermissionName = "read_container"   // Read container
+	PermissionWriteContainer  PermissionName = "write_container"  // Write container
+	PermissionDeleteContainer PermissionName = "delete_container" // Delete container
+	PermissionManageContainer PermissionName = "manage_container" // Manage container
+
+	PermissionReadTask    PermissionName = "read_task"    // Read task
+	PermissionWriteTask   PermissionName = "write_task"   // Write task
+	PermissionDeleteTask  PermissionName = "delete_task"  // Delete task
+	PermissionExecuteTask PermissionName = "execute_task" // Execute task
+
+	PermissionReadRole       PermissionName = "read_role"       // Read role
+	PermissionReadPermission PermissionName = "read_permission" // Read permission
+)
+
+// RoleName type for role constants
+type RoleName string
+
+// Role constants for system roles
+const (
+	RoleSuperAdmin   RoleName = "super_admin"   // Super Admin
+	RoleAdmin        RoleName = "admin"         // Admin
+	RoleProjectAdmin RoleName = "project_admin" // Project Admin
+	RoleDeveloper    RoleName = "developer"     // Developer
+	RoleViewer       RoleName = "viewer"        // Viewer
+)
