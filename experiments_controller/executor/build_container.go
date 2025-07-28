@@ -92,6 +92,7 @@ func rescheduleBuildTask(ctx context.Context, task *dto.UnifiedTask, reason stri
 		Status:       consts.TaskStautsRescheduled,
 		TraceID:      task.TraceID,
 		GroupID:      task.GroupID,
+		ProjectID:    task.ProjectID,
 		TraceCarrier: task.TraceCarrier,
 	}); err != nil {
 		span.RecordError(err)

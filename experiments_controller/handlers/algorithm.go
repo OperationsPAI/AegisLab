@@ -68,32 +68,41 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 	var req dto.SubmitExecutionReq
 	if err := c.BindJSON(&req); err != nil {
 		logrus.Error(err)
-		span.SetStatus(codes.Error, "panic in SubmitFaultInjection")
+		span.SetStatus(codes.Error, "panic in SubmitAlgorithmExecution")
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid JSON payload")
 		return
 	}
 
 	if err := req.Validate(); err != nil {
 		logrus.Error(err)
-		span.SetStatus(codes.Error, "panic in SubmitFaultInjection")
+		span.SetStatus(codes.Error, "panic in SubmitAlgorithmExecution")
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid execution payload")
 		return
 	}
 
-	traces := make([]dto.Trace, 0, len(req))
-	for idx, payload := range req {
+	project, err := repository.GetProject("name", req.ProjectName)
+	if err != nil {
+		logrus.Errorf("failed to get project by name %s: %v", req.ProjectName, err)
+		span.SetStatus(codes.Error, "panic in SubmitAlgorithmExecution")
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid project name")
+		return
+	}
+
+	traces := make([]dto.Trace, 0, len(req.Payloads))
+	for idx, payload := range req.Payloads {
 		task := &dto.UnifiedTask{
 			Type:      consts.TaskTypeRunAlgorithm,
 			Payload:   utils.StructToMap(payload),
 			Immediate: true,
 			GroupID:   groupID,
+			ProjectID: project.ID,
 		}
 		task.SetGroupCtx(spanCtx)
 
 		taskID, traceID, err := executor.SubmitTask(spanCtx, task)
 		if err != nil {
 			logrus.Errorf("failed to submit algorithm execution task: %v", err)
-			span.SetStatus(codes.Error, "panic in SubmitFaultInjection")
+			span.SetStatus(codes.Error, "panic in SubmitAlgorithmExecution")
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to submit algorithm execution task")
 			return
 		}

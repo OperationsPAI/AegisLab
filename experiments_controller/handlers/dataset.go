@@ -265,14 +265,22 @@ func SubmitDatasetBuilding(c *gin.Context) {
 		return
 	}
 
+	project, err := repository.GetProject("name", req.ProjectName)
+	if err != nil {
+		logrus.Errorf("failed to get project by name %s: %v", req.ProjectName, err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid project name")
+		return
+	}
+
 	spanCtx := ctx.(context.Context)
-	traces := make([]dto.Trace, 0, len(req))
-	for idx, payload := range req {
+	traces := make([]dto.Trace, 0, len(req.Payloads))
+	for idx, payload := range req.Payloads {
 		task := &dto.UnifiedTask{
 			Type:      consts.TaskTypeBuildDataset,
 			Payload:   utils.StructToMap(payload),
 			Immediate: true,
 			GroupID:   groupID,
+			ProjectID: project.ID,
 		}
 		task.SetGroupCtx(spanCtx)
 

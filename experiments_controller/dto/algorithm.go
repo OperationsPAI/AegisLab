@@ -29,19 +29,23 @@ func (p *ExecutionPayload) Validate() error {
 	return nil
 }
 
-type SubmitExecutionReq []ExecutionPayload
+type SubmitExecutionReq struct {
+	ProjectName string             `json:"project_name" binding:"required"`
+	Payloads    []ExecutionPayload `json:"payloads" binding:"required,dive,required"`
+}
 
 func (req *SubmitExecutionReq) Validate() error {
-	if len(*req) == 0 {
+	if req.ProjectName == "" {
+		return fmt.Errorf("project_name is required")
+	}
+	if len(req.Payloads) == 0 {
 		return fmt.Errorf("at least one execution payload is required")
 	}
-
-	for _, payload := range *req {
+	for _, payload := range req.Payloads {
 		if err := payload.Validate(); err != nil {
 			return fmt.Errorf("invalid execution payload: %v", err)
 		}
 	}
-
 	return nil
 }
 
