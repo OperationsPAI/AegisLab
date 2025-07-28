@@ -464,3 +464,50 @@ func GetInjectionStats(req *dto.TimeRangeQuery) (map[string]int64, error) {
 
 	return stats, nil
 }
+
+// GetInjectionDetailedStats 获取故障注入详细状态统计
+func GetInjectionDetailedStats() (map[string]int64, error) {
+	stats := make(map[string]int64)
+
+	// Total injections (exclude deleted)
+	var total int64
+	if err := database.DB.Model(&database.FaultInjectionSchedule{}).
+		Where("status != -1").Count(&total).Error; err != nil {
+		return nil, fmt.Errorf("failed to count total injections: %v", err)
+	}
+	stats["total"] = total
+
+	// Running injections (status = 1)
+	var running int64
+	if err := database.DB.Model(&database.FaultInjectionSchedule{}).
+		Where("status = 1").Count(&running).Error; err != nil {
+		return nil, fmt.Errorf("failed to count running injections: %v", err)
+	}
+	stats["running"] = running
+
+	// Completed injections (status = 2)
+	var completed int64
+	if err := database.DB.Model(&database.FaultInjectionSchedule{}).
+		Where("status = 2").Count(&completed).Error; err != nil {
+		return nil, fmt.Errorf("failed to count completed injections: %v", err)
+	}
+	stats["completed"] = completed
+
+	// Failed injections (status = 3)
+	var failed int64
+	if err := database.DB.Model(&database.FaultInjectionSchedule{}).
+		Where("status = 3").Count(&failed).Error; err != nil {
+		return nil, fmt.Errorf("failed to count failed injections: %v", err)
+	}
+	stats["failed"] = failed
+
+	// Scheduled injections (status = 0)
+	var scheduled int64
+	if err := database.DB.Model(&database.FaultInjectionSchedule{}).
+		Where("status = 0").Count(&scheduled).Error; err != nil {
+		return nil, fmt.Errorf("failed to count scheduled injections: %v", err)
+	}
+	stats["scheduled"] = scheduled
+
+	return stats, nil
+}

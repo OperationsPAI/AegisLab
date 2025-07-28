@@ -57,81 +57,26 @@ func InitDB() {
 		&ExecutionResult{},
 		&GranularityResult{},
 		&Detector{},
+		&Dataset{},
+		&Label{},
+		&DatasetFaultInjection{},
+		&DatasetLabel{},
+		&FaultInjectionLabel{},
+		&ContainerLabel{},
+		&ProjectLabel{},
+		&User{},
+		&Role{},
+		&Permission{},
+		&Resource{},
+		&UserProject{},
+		&UserRole{},
+		&RolePermission{},
+		&UserPermission{},
 	); err != nil {
 		logrus.Fatalf("Failed to migrate database: %v", err)
 	}
 
-	createFaultInjectionIndexes()
-	verifyAllIndexes()
-
 	createExecutionResultViews()
 	createFaultInjectionViews()
 	createDetectorViews()
-}
-
-func createFaultInjectionIndexes() {
-	indexQueries := []string{
-		// 1. Create GIN index for JSONB field (supports @> and ->> operations)
-		`CREATE INDEX IF NOT EXISTS idx_fault_injection_schedules_labels_gin 
-         ON fault_injection_schedules USING GIN (labels)`,
-
-		// 2. Create expression indexes for common JSON keys
-		`CREATE INDEX IF NOT EXISTS idx_fault_injection_schedules_env 
-         ON fault_injection_schedules ((labels ->> 'env'))`,
-
-		`CREATE INDEX IF NOT EXISTS idx_fault_injection_schedules_batch 
-         ON fault_injection_schedules ((labels ->> 'batch'))`,
-
-		// 3. Composite expression index for multi-condition JSONB queries
-		`CREATE INDEX IF NOT EXISTS idx_fault_injection_schedules_env_batch 
-         ON fault_injection_schedules ((labels ->> 'env'), (labels ->> 'batch'))`,
-
-		// 4. Composite index with time field (optimized for ListInjections queries)
-		`CREATE INDEX IF NOT EXISTS idx_fault_injection_schedules_query_optimized 
-         ON fault_injection_schedules ((labels ->> 'env'), (labels ->> 'batch'), benchmark, status, fault_type, created_at DESC)`,
-
-		// 5. Dedicated time index for time range queries
-		`CREATE INDEX IF NOT EXISTS idx_fault_injection_schedules_created_at 
-         ON fault_injection_schedules (created_at DESC)`,
-	}
-
-	for _, query := range indexQueries {
-		if err := DB.Exec(query).Error; err != nil {
-			logrus.Warnf("failed to create index: %v", err)
-		}
-	}
-}
-
-func verifyAllIndexes() {
-	tables := []string{
-		"fault_injection_schedules",
-	}
-
-	for _, table := range tables {
-		verifyIndexes(table)
-	}
-}
-
-func verifyIndexes(tableName string) {
-	var indexes []struct {
-		IndexName string `gorm:"column:indexname"`
-		TableName string `gorm:"column:tablename"`
-	}
-
-	query := `
-        SELECT indexname, tablename 
-        FROM pg_indexes 
-        WHERE tablename = ? 
-        ORDER BY indexname
-    `
-
-	if err := DB.Raw(query, tableName).Scan(&indexes).Error; err != nil {
-		logrus.Errorf("Failed to verify indexes: %v", err)
-		return
-	}
-
-	logrus.Infof("Found %d indexes on fault_injection_schedules:", len(indexes))
-	for _, idx := range indexes {
-		logrus.Infof("  - %s", idx.IndexName)
-	}
 }

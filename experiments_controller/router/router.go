@@ -3,8 +3,6 @@ package router
 import (
 	"github.com/LGU-SE-Internal/rcabench/middleware"
 
-	"github.com/LGU-SE-Internal/rcabench/handlers"
-
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -13,94 +11,26 @@ import (
 
 func New() *gin.Engine {
 	router := gin.Default()
+
+	// CORS 配置
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = true
-	router.Use(middleware.Logging(), middleware.GroupID(), middleware.SSEPath(), cors.New(config), middleware.TracerMiddleware())
-	r := router.Group("/api/v1")
 
-	debug := r.Group("/debug")
-	{
-		debug.GET("/var", handlers.GetVar)
-		debug.GET("/vars", handlers.GetAllVars)
-		debug.POST("/var", handlers.SetVar)
-		debug.GET("/ns/status", handlers.GetNSLock)
-	}
+	// 中间件设置
+	router.Use(
+		middleware.Logging(),
+		middleware.GroupID(),
+		middleware.SSEPath(),
+		cors.New(config),
+		middleware.TracerMiddleware(),
+	)
 
-	algorithms := r.Group("/algorithms")
-	{
-		algorithms.GET("", handlers.ListAlgorithms)
-		algorithms.POST("", handlers.SubmitAlgorithmExecution)
-	}
+	// 设置 API 路由
+	SetupV1Routes(router)
+	SetupV2Routes(router)
 
-	analyzers := r.Group("/analyzers")
-	{
-		analyzers.GET("/injections", handlers.AnalyzeInjections)
-		analyzers.GET("/traces", handlers.AnalyzeTraces)
-	}
-
-	containers := r.Group("/containers")
-	{
-		containers.POST("", handlers.SubmitContainerBuilding)
-	}
-
-	datasets := r.Group("/datasets")
-	{
-		datasets.DELETE("", handlers.DeleteDataset)
-		datasets.GET("/download", handlers.DownloadDataset)
-		datasets.POST("", handlers.SubmitDatasetBuilding)
-	}
-
-	evaluations := r.Group("/evaluations")
-	{
-		evaluations.POST("groundtruth", handlers.GetGroundtruth)
-		evaluations.POST("raw-data", handlers.ListEvaluationRawData)
-		evaluations.GET("executions", handlers.GetSuccessfulExecutions)
-	}
-
-	injections := r.Group("/injections")
-	{
-		injections.GET("", handlers.ListInjections)
-		injections.GET("/conf", handlers.GetInjectionConf)
-		injections.GET("/configs", handlers.ListDisplayConfigs)
-		injections.GET("/mapping", handlers.GetInjectionFieldMapping)
-		injections.GET("ns-resources", handlers.GetNsResourceMap)
-		injections.GET("/query", handlers.QueryInjection)
-		injections.POST("", handlers.SubmitFaultInjection)
-
-		analysis := injections.Group("/analysis")
-		{
-			analysis.GET("/no-issues", handlers.GetFaultInjectionNoIssues)
-			analysis.GET("/with-issues", handlers.GetFaultInjectionWithIssues)
-			analysis.GET("/stats", handlers.GetInjectionStats)
-		}
-
-		tasks := injections.Group("/:task_id")
-		{
-			tasks.PUT("/cancel", handlers.CancelInjection)
-		}
-	}
-
-	tasks := r.Group("/tasks")
-	{
-		tasks.GET("", handlers.ListTasks)
-		tasks.GET("/queue", handlers.GetQueuedTasks)
-
-		tasksWithID := tasks.Group("/:task_id")
-		{
-			tasksWithID.GET("", handlers.GetTaskDetail)
-		}
-	}
-
-	traces := r.Group("/traces")
-	{
-		traces.GET("/completed", handlers.GetCompletedMap)
-
-		tracesWithID := traces.Group("/:trace_id")
-		{
-			tracesWithID.GET("/stream", handlers.GetTraceStream)
-		}
-	}
-
+	// Swagger 文档
 	router.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
 	return router
 }

@@ -1,6 +1,12 @@
 # flake8: noqa
 
 # import apis into api package
+from rcabench.openapi.api.authentication_api import AuthenticationApi
+from rcabench.openapi.api.permissions_api import PermissionsApi
+from rcabench.openapi.api.relations_api import RelationsApi
+from rcabench.openapi.api.roles_api import RolesApi
+from rcabench.openapi.api.system_api import SystemApi
+from rcabench.openapi.api.users_api import UsersApi
 from rcabench.openapi.api.algorithm_api import AlgorithmApi
 from rcabench.openapi.api.analyzer_api import AnalyzerApi
 from rcabench.openapi.api.container_api import ContainerApi

@@ -49,19 +49,18 @@ definitions:
         description: 更新时间
         type: string
     type: object
-  database.LabelsMap:
-    additionalProperties:
-      type: string
-    type: object
   database.Task:
     properties:
       created_at:
+        description: 添加时间索引
         type: string
       cron_expr:
         type: string
       execute_time:
+        description: 添加执行时间索引
         type: integer
       group_id:
+        description: 添加组ID索引
         type: string
       id:
         type: string
@@ -70,12 +69,16 @@ definitions:
       payload:
         type: string
       project_id:
+        description: 复合索引
         type: integer
       status:
+        description: 添加多个复合索引
         type: string
       trace_id:
+        description: 添加追踪ID索引
         type: string
       type:
+        description: 添加复合索引
         type: string
       updated_at:
         type: string
@@ -98,6 +101,7 @@ definitions:
     required:
     - name
     type: object
+<<<<<<< HEAD
   dto.AnalyzeInjectionsResp:
     properties:
       efficiency:
@@ -114,6 +118,233 @@ definitions:
       num:
         type: integer
     type: object
+=======
+  dto.AssignPermissionToRoleRequest:
+    type: object
+  dto.AssignRolePermissionRequest:
+    type: object
+  dto.AssignUserPermissionRequest:
+    properties:
+      expires_at:
+        example: "2024-12-31T23:59:59Z"
+        type: string
+      grant_type:
+        enum:
+        - grant
+        - deny
+        example: grant
+        type: string
+      permission_id:
+        example: 1
+        type: integer
+      project_id:
+        example: 1
+        type: integer
+      user_id:
+        example: 1
+        type: integer
+    required:
+    - grant_type
+    - permission_id
+    - user_id
+    type: object
+  dto.AssignUserRoleRequest:
+    properties:
+      role_id:
+        example: 2
+        type: integer
+      user_id:
+        example: 1
+        type: integer
+    required:
+    - role_id
+    - user_id
+    type: object
+  dto.AssignUserToProjectRequest:
+    properties:
+      project_id:
+        example: 1
+        type: integer
+      role_id:
+        example: 2
+        type: integer
+    required:
+    - project_id
+    - role_id
+    type: object
+  dto.AuditLogListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.AuditLogResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationInfo'
+    type: object
+  dto.AuditLogRequest:
+    properties:
+      action:
+        example: CREATE_USER
+        type: string
+      details:
+        example: '{"username":"newuser"}'
+        type: string
+      resource:
+        example: users
+        type: string
+      resource_id:
+        example: 123
+        type: integer
+    required:
+    - action
+    - resource
+    type: object
+  dto.AuditLogResponse:
+    properties:
+      action:
+        example: CREATE_USER
+        type: string
+      details:
+        example: '{"username":"newuser"}'
+        type: string
+      error:
+        type: string
+      id:
+        example: 1
+        type: integer
+      ip_address:
+        example: 192.168.1.100
+        type: string
+      resource:
+        example: users
+        type: string
+      resource_id:
+        example: "123"
+        type: string
+      success:
+        example: true
+        type: boolean
+      timestamp:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+      user_agent:
+        example: Mozilla/5.0...
+        type: string
+      user_id:
+        example: 1
+        type: integer
+      username:
+        example: admin
+        type: string
+    type: object
+  dto.BatchRelationRequest:
+    properties:
+      operations:
+        items:
+          $ref: '#/definitions/dto.RelationOperation'
+        minItems: 1
+        type: array
+    required:
+    - operations
+    type: object
+  dto.ChangePasswordRequest:
+    properties:
+      new_password:
+        example: newpassword123
+        minLength: 8
+        type: string
+      old_password:
+        example: oldpassword123
+        type: string
+    required:
+    - new_password
+    - old_password
+    type: object
+  dto.ContainerStatistics:
+    properties:
+      active:
+        example: 20
+        type: integer
+      deleted:
+        example: 5
+        type: integer
+      total:
+        example: 25
+        type: integer
+    type: object
+  dto.CreatePermissionRequest:
+    properties:
+      action:
+        example: read
+        type: string
+      description:
+        example: Permission to read dataset information
+        type: string
+      display_name:
+        example: Read Datasets
+        type: string
+      name:
+        example: read_datasets
+        type: string
+      resource_id:
+        example: 1
+        type: integer
+    required:
+    - action
+    - display_name
+    - name
+    - resource_id
+    type: object
+  dto.CreateRoleRequest:
+    properties:
+      description:
+        example: Role for data analysis operations
+        type: string
+      display_name:
+        example: Data Analyst
+        type: string
+      name:
+        example: data_analyst
+        type: string
+      type:
+        enum:
+        - system
+        - custom
+        example: custom
+        type: string
+    required:
+    - display_name
+    - name
+    - type
+    type: object
+  dto.CreateUserRequest:
+    properties:
+      avatar:
+        example: https://example.com/avatar.jpg
+        type: string
+      email:
+        example: user@example.com
+        type: string
+      full_name:
+        example: John Doe
+        type: string
+      password:
+        example: password123
+        minLength: 8
+        type: string
+      phone:
+        example: "+1234567890"
+        type: string
+      username:
+        example: newuser
+        type: string
+    required:
+    - email
+    - full_name
+    - password
+    - username
+    type: object
+>>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
   dto.DatasetBuildPayload:
     properties:
       benchmark:
@@ -136,6 +367,28 @@ definitions:
       success_count:
         type: integer
     type: object
+  dto.DatasetStatistics:
+    properties:
+      private:
+        example: 70
+        type: integer
+      public:
+        example: 30
+        type: integer
+      total:
+        example: 100
+        type: integer
+      total_size:
+        example: 1073741824
+        type: integer
+    type: object
+  dto.DateRange:
+    properties:
+      from:
+        type: string
+      to:
+        type: string
+    type: object
   dto.ExecutionPayload:
     properties:
       algorithm:
@@ -147,6 +400,18 @@ definitions:
     required:
     - algorithm
     - dataset
+    type: object
+  dto.ExecutionStatistics:
+    properties:
+      failed:
+        example: 50
+        type: integer
+      successful:
+        example: 750
+        type: integer
+      total:
+        example: 800
+        type: integer
     type: object
   dto.FaultInjectionNoIssuesResp:
     properties:
@@ -180,6 +445,65 @@ definitions:
       normal_succ_rate:
         type: number
     type: object
+  dto.FilterOperator:
+    enum:
+    - eq
+    - ne
+    - gt
+    - gte
+    - lt
+    - lte
+    - like
+    - starts
+    - ends
+    - nlike
+    - in
+    - nin
+    - "null"
+    - nnull
+    - deq
+    - dafter
+    - dbefore
+    - dbetween
+    type: string
+    x-enum-comments:
+      OpDateAfter: DATE(field) > DATE(value)
+      OpDateBefore: DATE(field) < DATE(value)
+      OpDateBetween: DATE(field) BETWEEN date1 AND date2
+      OpDateEqual: DATE(field) = DATE(value)
+      OpEndsWith: LIKE %value
+      OpEqual: ==
+      OpGreater: '>'
+      OpGreaterEq: '>='
+      OpIn: IN (value1, value2, ...)
+      OpIsNotNull: IS NOT NULL
+      OpIsNull: IS NULL
+      OpLess: <
+      OpLessEq: <=
+      OpLike: LIKE %value%
+      OpNotEqual: '!='
+      OpNotIn: NOT IN (value1, value2, ...)
+      OpNotLike: NOT LIKE %value%
+      OpStartsWith: LIKE value%
+    x-enum-varnames:
+    - OpEqual
+    - OpNotEqual
+    - OpGreater
+    - OpGreaterEq
+    - OpLess
+    - OpLessEq
+    - OpLike
+    - OpStartsWith
+    - OpEndsWith
+    - OpNotLike
+    - OpIn
+    - OpNotIn
+    - OpIsNull
+    - OpIsNotNull
+    - OpDateEqual
+    - OpDateAfter
+    - OpDateBefore
+    - OpDateBetween
   dto.GenericResponse-any:
     properties:
       code:
@@ -228,14 +552,89 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
+<<<<<<< HEAD
   dto.GenericResponse-dto_AnalyzeInjectionsResp:
+=======
+  dto.GenericResponse-array_dto_PermissionResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        description: 泛型类型的数据
+        items:
+          $ref: '#/definitions/dto.PermissionResponse'
+        type: array
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-array_dto_RoleResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        description: 泛型类型的数据
+        items:
+          $ref: '#/definitions/dto.RoleResponse'
+        type: array
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-array_dto_UserResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        description: 泛型类型的数据
+        items:
+          $ref: '#/definitions/dto.UserResponse'
+        type: array
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_AuditLogListResponse:
+>>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
     properties:
       code:
         description: 状态码
         type: integer
       data:
         allOf:
+<<<<<<< HEAD
         - $ref: '#/definitions/dto.AnalyzeInjectionsResp'
+=======
+        - $ref: '#/definitions/dto.AuditLogListResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_AuditLogResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.AuditLogResponse'
+>>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -284,6 +683,22 @@ definitions:
       data:
         allOf:
         - $ref: '#/definitions/dto.GroundTruthResp'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_HealthCheckResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.HealthCheckResponse'
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -390,6 +805,38 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
+  dto.GenericResponse-dto_LoginResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.LoginResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_MonitoringMetricsResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.MonitoringMetricsResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
   dto.GenericResponse-dto_NsResourcesResp:
     properties:
       code:
@@ -414,6 +861,38 @@ definitions:
       data:
         allOf:
         - $ref: '#/definitions/dto.PaginationResp-dto_UnifiedTask'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_PermissionListResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.PermissionListResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_PermissionResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.PermissionResponse'
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -448,6 +927,118 @@ definitions:
         items:
           $ref: '#/definitions/dto.RawDataItem'
         type: array
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_RelationListResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.RelationListResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_RelationStatisticsResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.RelationStatisticsResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_RoleListResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.RoleListResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_RoleResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.RoleResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_SearchResponse-dto_PermissionResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.SearchResponse-dto_PermissionResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_SearchResponse-dto_RoleResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.SearchResponse-dto_RoleResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_SearchResponse-dto_UserResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.SearchResponse-dto_UserResponse'
+        description: 泛型类型的数据
       message:
         description: 响应消息
         type: string
@@ -504,6 +1095,38 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
+  dto.GenericResponse-dto_SystemInfo:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.SystemInfo'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_SystemStatisticsResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.SystemStatisticsResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
   dto.GenericResponse-dto_TaskDetailResp:
     properties:
       code:
@@ -520,14 +1143,70 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
+<<<<<<< HEAD
   dto.GenericResponse-dto_TraceStats:
+=======
+  dto.GenericResponse-dto_TokenRefreshResponse:
+>>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
     properties:
       code:
         description: 状态码
         type: integer
       data:
         allOf:
+<<<<<<< HEAD
         - $ref: '#/definitions/dto.TraceStats'
+=======
+        - $ref: '#/definitions/dto.TokenRefreshResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_UserInfo:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.UserInfo'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_UserListResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.UserListResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_UserResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.UserResponse'
+>>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -605,6 +1284,25 @@ definitions:
     additionalProperties:
       $ref: '#/definitions/handler.Groundtruth'
     type: object
+  dto.HealthCheckResponse:
+    properties:
+      services:
+        additionalProperties:
+          $ref: '#/definitions/dto.ServiceInfo'
+        type: object
+      status:
+        example: healthy
+        type: string
+      timestamp:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+      uptime:
+        example: 72h30m15s
+        type: string
+      version:
+        example: 1.0.0
+        type: string
+    type: object
   dto.InjectCancelResp:
     type: object
   dto.InjectionDiversity:
@@ -672,10 +1370,30 @@ definitions:
       tag:
         type: string
     type: object
+<<<<<<< HEAD
   dto.InjectionStats:
     properties:
       diversity:
         $ref: '#/definitions/dto.InjectionDiversity'
+=======
+  dto.InjectionStatistics:
+    properties:
+      completed:
+        example: 480
+        type: integer
+      failed:
+        example: 5
+        type: integer
+      running:
+        example: 5
+        type: integer
+      scheduled:
+        example: 10
+        type: integer
+      total:
+        example: 500
+        type: integer
+>>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
     type: object
   dto.InjectionStatsResp:
     properties:
@@ -711,9 +1429,105 @@ definitions:
       total:
         type: integer
     type: object
+  dto.LoginRequest:
+    properties:
+      password:
+        example: password123
+        type: string
+      username:
+        example: admin
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  dto.LoginResponse:
+    properties:
+      expires_at:
+        example: "2024-12-31T23:59:59Z"
+        type: string
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+      user:
+        $ref: '#/definitions/dto.UserInfo'
+    type: object
+  dto.LogoutRequest:
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    required:
+    - token
+    type: object
+  dto.MetricValue:
+    properties:
+      timestamp:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+      unit:
+        example: percent
+        type: string
+      value:
+        example: 42.5
+        type: number
+    type: object
+  dto.MonitoringMetricsResponse:
+    properties:
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      metrics:
+        additionalProperties:
+          $ref: '#/definitions/dto.MetricValue'
+        type: object
+      timestamp:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+    type: object
+  dto.MonitoringQueryRequest:
+    properties:
+      end_time:
+        example: "2024-01-01T23:59:59Z"
+        type: string
+      query:
+        example: cpu_usage
+        type: string
+      start_time:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      step:
+        example: 1m
+        type: string
+    required:
+    - query
+    type: object
   dto.NsResourcesResp:
     additionalProperties:
       $ref: '#/definitions/handler.Resources'
+    type: object
+  dto.NumberRange:
+    properties:
+      max:
+        type: number
+      min:
+        type: number
+    type: object
+  dto.PaginationInfo:
+    properties:
+      page:
+        example: 1
+        type: integer
+      size:
+        example: 20
+        type: integer
+      total:
+        example: 100
+        type: integer
+      total_pages:
+        example: 5
+        type: integer
     type: object
   dto.PaginationResp-dto_UnifiedTask:
     properties:
@@ -726,6 +1540,7 @@ definitions:
       total_pages:
         type: integer
     type: object
+<<<<<<< HEAD
   dto.PairStats:
     properties:
       inDegree:
@@ -733,15 +1548,165 @@ definitions:
       name:
         type: string
       outDegree:
+=======
+  dto.PermissionListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.PermissionResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationInfo'
+    type: object
+  dto.PermissionResponse:
+    properties:
+      action:
+        example: read
+        type: string
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      description:
+        example: Permission to read dataset information
+        type: string
+      display_name:
+        example: Read Datasets
+        type: string
+      id:
+        example: 1
+        type: integer
+      is_system:
+        example: false
+        type: boolean
+      name:
+        example: read_datasets
+        type: string
+      resource:
+        $ref: '#/definitions/dto.ResourceResponse'
+      resource_id:
+        example: 1
+        type: integer
+      roles:
+        description: Roles that have this permission
+        items:
+          $ref: '#/definitions/dto.RoleResponse'
+        type: array
+      status:
+        example: 1
+        type: integer
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+    type: object
+  dto.PermissionSearchRequest:
+    properties:
+      actions:
+        description: 操作筛选
+        items:
+          type: string
+        type: array
+      created_at:
+        allOf:
+        - $ref: '#/definitions/dto.DateRange'
+        description: Common filters shortcuts
+      description_pattern:
+        description: 描述模糊匹配
+        type: string
+      display_name_pattern:
+        description: 显示名模糊匹配
+        type: string
+      exclude_fields:
+        items:
+          type: string
+        type: array
+      filters:
+        description: Filters
+        items:
+          $ref: '#/definitions/dto.SearchFilter'
+        type: array
+      include:
+        description: Include related entities
+        items:
+          type: string
+        type: array
+      include_fields:
+        description: Include/Exclude fields
+        items:
+          type: string
+        type: array
+      is_active:
+        type: boolean
+      is_system:
+        description: 是否系统权限
+        type: boolean
+      keyword:
+        description: Search keyword (for general text search)
+        type: string
+      name_pattern:
+        description: Permission-specific filter shortcuts
+        type: string
+      page:
+        description: Pagination
+        minimum: 1
+        type: integer
+      project_id:
+        type: integer
+      resource_ids:
+        description: 资源ID筛选
+        items:
+          type: integer
+        type: array
+      resource_names:
+        description: 资源名称筛选
+        items:
+          type: string
+        type: array
+      role_ids:
+        description: 拥有此权限的角色ID
+        items:
+          type: integer
+        type: array
+      size:
+        maximum: 1000
+        minimum: 1
+        type: integer
+      sort:
+        description: Sort
+        items:
+          $ref: '#/definitions/dto.SortOption'
+        type: array
+      status:
+        items:
+          type: integer
+        type: array
+      updated_at:
+        $ref: '#/definitions/dto.DateRange'
+      user_id:
+        type: integer
+    type: object
+  dto.ProjectStatistics:
+    properties:
+      active:
+        example: 45
+        type: integer
+      inactive:
+        example: 5
+        type: integer
+      new_today:
+        example: 2
+        type: integer
+      total:
+        example: 50
+>>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
         type: integer
     type: object
   dto.QueryInjectionResp:
     properties:
       benchmark:
-        description: 基准数据库
+        description: 基准数据库，添加索引
         type: string
       created_at:
-        description: 创建时间
+        description: 创建时间，添加时间索引
         type: string
       description:
         description: 描述（可选字段）
@@ -750,13 +1715,13 @@ definitions:
         description: 面向用户的展示配置
         type: string
       end_time:
-        description: 预计故障结束时间
+        description: 预计故障结束时间，添加时间索引
         type: string
       engine_config:
         description: 面向系统的运行配置
         type: string
       fault_type:
-        description: 故障类型
+        description: 故障类型，添加复合索引
         type: integer
       ground_truth:
         $ref: '#/definitions/handler.Groundtruth'
@@ -766,21 +1731,21 @@ definitions:
       injection_name:
         description: 在k8s资源里注入的名字
         type: string
-      labels:
-        allOf:
-        - $ref: '#/definitions/database.LabelsMap'
-        description: 用户自定义标签，JSONB格式存储 key-value pairs
       pre_duration:
         description: 正常数据时间
         type: integer
       start_time:
-        description: 预计故障开始时间
+        description: 预计故障开始时间，添加时间索引
         type: string
       status:
-        description: '-1: 已删除 0: 初始状态 1: 注入结束且失败 2: 注入结束且成功 3: 收集数据失败 4:收集数据成功'
+        description: 状态，添加复合索引
         type: integer
+      task:
+        allOf:
+        - $ref: '#/definitions/database.Task'
+        description: 外键关联
       task_id:
-        description: 从属什么 taskid
+        description: 从属什么 taskid，添加复合索引
         type: string
       updated_at:
         description: 更新时间
@@ -818,6 +1783,169 @@ definitions:
           $ref: '#/definitions/dto.AlgorithmDatasetPair'
         type: array
     type: object
+  dto.RegisterRequest:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      full_name:
+        example: John Doe
+        type: string
+      password:
+        example: password123
+        minLength: 8
+        type: string
+      phone:
+        example: "+1234567890"
+        type: string
+      username:
+        example: newuser
+        type: string
+    required:
+    - email
+    - full_name
+    - password
+    - username
+    type: object
+  dto.RelationEntity:
+    properties:
+      id:
+        example: 1
+        type: integer
+      name:
+        example: admin
+        type: string
+      type:
+        example: user
+        type: string
+    type: object
+  dto.RelationListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.RelationResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationInfo'
+    type: object
+  dto.RelationOperation:
+    properties:
+      action:
+        enum:
+        - assign
+        - remove
+        example: assign
+        type: string
+      source_id:
+        example: 1
+        type: integer
+      target_id:
+        example: 2
+        type: integer
+      type:
+        example: user_role
+        type: string
+    required:
+    - action
+    - source_id
+    - target_id
+    - type
+    type: object
+  dto.RelationResponse:
+    properties:
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      id:
+        example: 1
+        type: integer
+      source:
+        $ref: '#/definitions/dto.RelationEntity'
+      target:
+        $ref: '#/definitions/dto.RelationEntity'
+      type:
+        example: user_role
+        type: string
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+    type: object
+  dto.RelationStatisticsResponse:
+    properties:
+      container_labels:
+        example: 150
+        type: integer
+      dataset_labels:
+        example: 200
+        type: integer
+      fault_injection_labels:
+        example: 120
+        type: integer
+      project_labels:
+        example: 80
+        type: integer
+      role_permissions:
+        example: 100
+        type: integer
+      user_permissions:
+        example: 25
+        type: integer
+      user_projects:
+        example: 75
+        type: integer
+      user_roles:
+        example: 50
+        type: integer
+    type: object
+  dto.RemovePermissionFromRoleRequest:
+    type: object
+  dto.RemoveRolePermissionRequest:
+    type: object
+  dto.RemoveUserPermissionRequest:
+    properties:
+      permission_id:
+        example: 1
+        type: integer
+      project_id:
+        example: 1
+        type: integer
+      user_id:
+        example: 1
+        type: integer
+    required:
+    - permission_id
+    - user_id
+    type: object
+  dto.RemoveUserRoleRequest:
+    properties:
+      role_id:
+        example: 2
+        type: integer
+      user_id:
+        example: 1
+        type: integer
+    required:
+    - role_id
+    - user_id
+    type: object
+  dto.ResourceResponse:
+    properties:
+      category:
+        example: data
+        type: string
+      display_name:
+        example: Datasets
+        type: string
+      id:
+        example: 1
+        type: integer
+      name:
+        example: datasets
+        type: string
+      type:
+        example: table
+        type: string
+    type: object
   dto.RetryPolicy:
     properties:
       backoff_sec:
@@ -827,6 +1955,7 @@ definitions:
         description: Maximum number of retry attempts
         type: integer
     type: object
+<<<<<<< HEAD
   dto.ServiceCoverageItem:
     properties:
       coverage:
@@ -838,6 +1967,240 @@ definitions:
       num:
         type: integer
     type: object
+=======
+  dto.RoleListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.RoleResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationInfo'
+    type: object
+  dto.RoleResponse:
+    properties:
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      description:
+        example: Role for data analysis operations
+        type: string
+      display_name:
+        example: Data Analyst
+        type: string
+      id:
+        example: 1
+        type: integer
+      is_system:
+        example: false
+        type: boolean
+      name:
+        example: data_analyst
+        type: string
+      permissions:
+        items:
+          $ref: '#/definitions/dto.PermissionResponse'
+        type: array
+      status:
+        example: 1
+        type: integer
+      type:
+        example: custom
+        type: string
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      user_count:
+        example: 5
+        type: integer
+    type: object
+  dto.RoleSearchRequest:
+    properties:
+      created_at:
+        allOf:
+        - $ref: '#/definitions/dto.DateRange'
+        description: Common filters shortcuts
+      description_pattern:
+        description: 描述模糊匹配
+        type: string
+      display_name_pattern:
+        description: 显示名模糊匹配
+        type: string
+      exclude_fields:
+        items:
+          type: string
+        type: array
+      filters:
+        description: Filters
+        items:
+          $ref: '#/definitions/dto.SearchFilter'
+        type: array
+      include:
+        description: Include related entities
+        items:
+          type: string
+        type: array
+      include_fields:
+        description: Include/Exclude fields
+        items:
+          type: string
+        type: array
+      is_active:
+        type: boolean
+      is_system:
+        description: 是否系统角色
+        type: boolean
+      keyword:
+        description: Search keyword (for general text search)
+        type: string
+      name_pattern:
+        description: Role-specific filter shortcuts
+        type: string
+      page:
+        description: Pagination
+        minimum: 1
+        type: integer
+      permission_ids:
+        description: 权限ID筛选
+        items:
+          type: integer
+        type: array
+      project_id:
+        type: integer
+      size:
+        maximum: 1000
+        minimum: 1
+        type: integer
+      sort:
+        description: Sort
+        items:
+          $ref: '#/definitions/dto.SortOption'
+        type: array
+      status:
+        items:
+          type: integer
+        type: array
+      types:
+        description: 角色类型筛选
+        items:
+          type: string
+        type: array
+      updated_at:
+        $ref: '#/definitions/dto.DateRange'
+      user_count:
+        allOf:
+        - $ref: '#/definitions/dto.NumberRange'
+        description: 用户数量范围
+      user_id:
+        type: integer
+    type: object
+  dto.SearchFilter:
+    properties:
+      field:
+        description: 字段名
+        type: string
+      operator:
+        allOf:
+        - $ref: '#/definitions/dto.FilterOperator'
+        description: 操作符
+      value:
+        description: 值
+      values:
+        description: 多值（用于IN操作等）
+        items: {}
+        type: array
+    required:
+    - field
+    - operator
+    type: object
+  dto.SearchResponse-dto_PermissionResponse:
+    properties:
+      applied_filters:
+        items:
+          $ref: '#/definitions/dto.SearchFilter'
+        type: array
+      applied_sort:
+        items:
+          $ref: '#/definitions/dto.SortOption'
+        type: array
+      items:
+        items:
+          $ref: '#/definitions/dto.PermissionResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationInfo'
+    type: object
+  dto.SearchResponse-dto_RoleResponse:
+    properties:
+      applied_filters:
+        items:
+          $ref: '#/definitions/dto.SearchFilter'
+        type: array
+      applied_sort:
+        items:
+          $ref: '#/definitions/dto.SortOption'
+        type: array
+      items:
+        items:
+          $ref: '#/definitions/dto.RoleResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationInfo'
+    type: object
+  dto.SearchResponse-dto_UserResponse:
+    properties:
+      applied_filters:
+        items:
+          $ref: '#/definitions/dto.SearchFilter'
+        type: array
+      applied_sort:
+        items:
+          $ref: '#/definitions/dto.SortOption'
+        type: array
+      items:
+        items:
+          $ref: '#/definitions/dto.UserResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationInfo'
+    type: object
+  dto.ServiceInfo:
+    properties:
+      details: {}
+      error:
+        type: string
+      last_checked:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+      response_time:
+        example: 15ms
+        type: string
+      status:
+        example: healthy
+        type: string
+    type: object
+  dto.SortDirection:
+    enum:
+    - asc
+    - desc
+    type: string
+    x-enum-varnames:
+    - SortASC
+    - SortDESC
+  dto.SortOption:
+    properties:
+      direction:
+        allOf:
+        - $ref: '#/definitions/dto.SortDirection'
+        description: 排序方向
+      field:
+        description: 排序字段
+        type: string
+    required:
+    - direction
+    - field
+    type: object
+>>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
   dto.SubmitInjectionReq:
     properties:
       algorithms:
@@ -906,6 +2269,41 @@ definitions:
         description: 执行ID
         type: integer
     type: object
+  dto.SystemInfo:
+    properties:
+      cpu_usage:
+        example: 25.5
+        type: number
+      disk_usage:
+        example: 45.8
+        type: number
+      load_average:
+        example: 1.2, 1.5, 1.8
+        type: string
+      memory_usage:
+        example: 60.2
+        type: number
+    type: object
+  dto.SystemStatisticsResponse:
+    properties:
+      containers:
+        $ref: '#/definitions/dto.ContainerStatistics'
+      datasets:
+        $ref: '#/definitions/dto.DatasetStatistics'
+      executions:
+        $ref: '#/definitions/dto.ExecutionStatistics'
+      generated_at:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+      injections:
+        $ref: '#/definitions/dto.InjectionStatistics'
+      projects:
+        $ref: '#/definitions/dto.ProjectStatistics'
+      tasks:
+        $ref: '#/definitions/dto.TaskStatistics'
+      users:
+        $ref: '#/definitions/dto.UserStatistics'
+    type: object
   dto.TaskDetailResp:
     properties:
       logs:
@@ -928,6 +2326,41 @@ definitions:
       trace_id:
         type: string
       type:
+        type: string
+    type: object
+  dto.TaskStatistics:
+    properties:
+      completed:
+        example: 900
+        type: integer
+      failed:
+        example: 30
+        type: integer
+      pending:
+        example: 50
+        type: integer
+      running:
+        example: 20
+        type: integer
+      total:
+        example: 1000
+        type: integer
+    type: object
+  dto.TokenRefreshRequest:
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    required:
+    - token
+    type: object
+  dto.TokenRefreshResponse:
+    properties:
+      expires_at:
+        example: "2024-12-31T23:59:59Z"
+        type: string
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         type: string
     type: object
   dto.Trace:
@@ -1018,6 +2451,264 @@ definitions:
         allOf:
         - $ref: '#/definitions/consts.TaskType'
         description: Task type (determines how it's processed)
+    type: object
+  dto.UpdatePermissionRequest:
+    properties:
+      action:
+        example: read
+        type: string
+      description:
+        example: Updated permission description
+        type: string
+      display_name:
+        example: Read All Datasets
+        type: string
+      resource_id:
+        example: 2
+        type: integer
+      status:
+        example: 1
+        type: integer
+    type: object
+  dto.UpdateRoleRequest:
+    properties:
+      description:
+        example: Updated role description
+        type: string
+      display_name:
+        example: Senior Data Analyst
+        type: string
+      status:
+        example: 1
+        type: integer
+    type: object
+  dto.UpdateUserRequest:
+    properties:
+      avatar:
+        example: https://example.com/new-avatar.jpg
+        type: string
+      email:
+        example: newemail@example.com
+        type: string
+      full_name:
+        example: Jane Doe
+        type: string
+      is_active:
+        example: true
+        type: boolean
+      phone:
+        example: "+0987654321"
+        type: string
+      status:
+        example: 1
+        type: integer
+    type: object
+  dto.UserInfo:
+    properties:
+      avatar:
+        example: https://example.com/avatar.jpg
+        type: string
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      email:
+        example: admin@example.com
+        type: string
+      full_name:
+        example: Administrator
+        type: string
+      id:
+        example: 1
+        type: integer
+      is_active:
+        example: true
+        type: boolean
+      phone:
+        example: "+1234567890"
+        type: string
+      status:
+        example: 1
+        type: integer
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      username:
+        example: admin
+        type: string
+    type: object
+  dto.UserListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.UserResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationInfo'
+    type: object
+  dto.UserProjectResponse:
+    properties:
+      joined_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      project_id:
+        example: 1
+        type: integer
+      project_name:
+        example: Project Alpha
+        type: string
+      role:
+        $ref: '#/definitions/dto.RoleResponse'
+      status:
+        example: 1
+        type: integer
+    type: object
+  dto.UserResponse:
+    properties:
+      avatar:
+        example: https://example.com/avatar.jpg
+        type: string
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      email:
+        example: admin@example.com
+        type: string
+      full_name:
+        example: Administrator
+        type: string
+      global_roles:
+        items:
+          $ref: '#/definitions/dto.RoleResponse'
+        type: array
+      id:
+        example: 1
+        type: integer
+      is_active:
+        example: true
+        type: boolean
+      last_login_at:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+      permissions:
+        items:
+          $ref: '#/definitions/dto.PermissionResponse'
+        type: array
+      phone:
+        example: "+1234567890"
+        type: string
+      project_roles:
+        items:
+          $ref: '#/definitions/dto.UserProjectResponse'
+        type: array
+      status:
+        example: 1
+        type: integer
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      username:
+        example: admin
+        type: string
+    type: object
+  dto.UserSearchRequest:
+    properties:
+      created_at:
+        allOf:
+        - $ref: '#/definitions/dto.DateRange'
+        description: Common filters shortcuts
+      departments:
+        description: 部门筛选
+        items:
+          type: string
+        type: array
+      email_pattern:
+        description: 邮箱模糊匹配
+        type: string
+      exclude_fields:
+        items:
+          type: string
+        type: array
+      filters:
+        description: Filters
+        items:
+          $ref: '#/definitions/dto.SearchFilter'
+        type: array
+      fullname_pattern:
+        description: 全名模糊匹配
+        type: string
+      include:
+        description: Include related entities
+        items:
+          type: string
+        type: array
+      include_fields:
+        description: Include/Exclude fields
+        items:
+          type: string
+        type: array
+      is_active:
+        type: boolean
+      keyword:
+        description: Search keyword (for general text search)
+        type: string
+      last_login_range:
+        allOf:
+        - $ref: '#/definitions/dto.DateRange'
+        description: 最后登录时间范围
+      page:
+        description: Pagination
+        minimum: 1
+        type: integer
+      project_id:
+        type: integer
+      project_ids:
+        description: 项目ID筛选
+        items:
+          type: integer
+        type: array
+      role_ids:
+        description: 角色ID筛选
+        items:
+          type: integer
+        type: array
+      size:
+        maximum: 1000
+        minimum: 1
+        type: integer
+      sort:
+        description: Sort
+        items:
+          $ref: '#/definitions/dto.SortOption'
+        type: array
+      status:
+        items:
+          type: integer
+        type: array
+      updated_at:
+        $ref: '#/definitions/dto.DateRange'
+      user_id:
+        type: integer
+      username_pattern:
+        description: User-specific filter shortcuts
+        type: string
+    type: object
+  dto.UserStatistics:
+    properties:
+      active:
+        example: 120
+        type: integer
+      inactive:
+        example: 30
+        type: integer
+      new_this_week:
+        example: 20
+        type: integer
+      new_today:
+        example: 5
+        type: integer
+      total:
+        example: 150
+        type: integer
     type: object
   handler.Groundtruth:
     properties:
@@ -2226,6 +3917,1639 @@ paths:
       summary: 获取完成状态的链路
       tags:
       - trace
+  /api/v2/audit:
+    get:
+      description: Get paginated list of audit logs with optional filtering
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: size
+        type: integer
+      - description: Filter by user ID
+        in: query
+        name: user_id
+        type: integer
+      - description: Filter by action
+        in: query
+        name: action
+        type: string
+      - description: Filter by resource
+        in: query
+        name: resource
+        type: string
+      - description: Filter by success status
+        in: query
+        name: success
+        type: boolean
+      - description: Filter from date (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Filter to date (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Audit logs retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_AuditLogListResponse'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: List audit logs
+      tags:
+      - System
+    post:
+      consumes:
+      - application/json
+      description: Create a new audit log entry
+      parameters:
+      - description: Audit log data
+        in: body
+        name: audit_log
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AuditLogRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Audit log created successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_AuditLogResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Create audit log
+      tags:
+      - System
+  /api/v2/audit/{id}:
+    get:
+      description: Get a specific audit log entry by ID
+      parameters:
+      - description: Audit log ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Audit log retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_AuditLogResponse'
+        "400":
+          description: Invalid ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Audit log not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: Get audit log by ID
+      tags:
+      - System
+  /api/v2/auth/change-password:
+    post:
+      consumes:
+      - application/json
+      description: Change password for authenticated user
+      parameters:
+      - description: Password change request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Password changed successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Unauthorized or invalid old password
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Change user password
+      tags:
+      - Authentication
+  /api/v2/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with username and password
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_LoginResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: User login
+      tags:
+      - Authentication
+  /api/v2/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Logout user and invalidate token
+      parameters:
+      - description: Logout request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LogoutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logout successful
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: User logout
+      tags:
+      - Authentication
+  /api/v2/auth/profile:
+    get:
+      description: Get profile information for authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_UserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get current user profile
+      tags:
+      - Authentication
+  /api/v2/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Refresh an existing JWT token
+      parameters:
+      - description: Token refresh request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.TokenRefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Token refreshed successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_TokenRefreshResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Invalid token
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: Refresh JWT token
+      tags:
+      - Authentication
+  /api/v2/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user account
+      parameters:
+      - description: Registration details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Registration successful
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_UserInfo'
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "409":
+          description: User already exists
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: User registration
+      tags:
+      - Authentication
+  /api/v2/health:
+    get:
+      description: Get system health status and service information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Health check successful
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_HealthCheckResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: System health check
+      tags:
+      - System
+  /api/v2/monitor/info:
+    get:
+      description: Get basic system information and status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: System info retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SystemInfo'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: Get system information
+      tags:
+      - System
+  /api/v2/monitor/metrics:
+    post:
+      consumes:
+      - application/json
+      description: Query monitoring metrics for system performance
+      parameters:
+      - description: Metrics query request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.MonitoringQueryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Metrics retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_MonitoringMetricsResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: Get monitoring metrics
+      tags:
+      - System
+  /api/v2/permissions:
+    get:
+      description: Get paginated list of permissions with optional filtering
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: size
+        type: integer
+      - description: Filter by action
+        in: query
+        name: action
+        type: string
+      - description: Filter by resource ID
+        in: query
+        name: resource_id
+        type: integer
+      - description: Filter by status
+        in: query
+        name: status
+        type: integer
+      - description: Filter by system permission
+        in: query
+        name: is_system
+        type: boolean
+      - description: Filter by permission name
+        in: query
+        name: name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Permissions retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_PermissionListResponse'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: List permissions
+      tags:
+      - Permissions
+    post:
+      consumes:
+      - application/json
+      description: Create a new permission with specified resource and action
+      parameters:
+      - description: Permission creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreatePermissionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Permission created successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_PermissionResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "409":
+          description: Permission already exists
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Create a new permission
+      tags:
+      - Permissions
+  /api/v2/permissions/{id}:
+    delete:
+      description: Delete a permission (soft delete by setting status to -1)
+      parameters:
+      - description: Permission ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Permission deleted successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid permission ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Cannot delete system permission
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Permission not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Delete permission
+      tags:
+      - Permissions
+    get:
+      description: Get detailed information about a specific permission
+      parameters:
+      - description: Permission ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Permission retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_PermissionResponse'
+        "400":
+          description: Invalid permission ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Permission not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get permission by ID
+      tags:
+      - Permissions
+    put:
+      consumes:
+      - application/json
+      description: Update permission information (partial update supported)
+      parameters:
+      - description: Permission ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Permission update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdatePermissionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Permission updated successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_PermissionResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Permission not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Update permission
+      tags:
+      - Permissions
+  /api/v2/permissions/{id}/roles:
+    get:
+      description: Get list of roles that have been assigned a specific permission
+      parameters:
+      - description: Permission ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Roles retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-array_dto_RoleResponse'
+        "400":
+          description: Invalid permission ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Permission not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get permission roles
+      tags:
+      - Permissions
+  /api/v2/permissions/resource/{resource_id}:
+    get:
+      description: Get list of permissions associated with a specific resource
+      parameters:
+      - description: Resource ID
+        in: path
+        name: resource_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Permissions retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-array_dto_PermissionResponse'
+        "400":
+          description: Invalid resource ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get permissions by resource
+      tags:
+      - Permissions
+  /api/v2/permissions/search:
+    post:
+      consumes:
+      - application/json
+      description: Search permissions with complex filtering and sorting
+      parameters:
+      - description: Permission search request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.PermissionSearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Permissions retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SearchResponse-dto_PermissionResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Search permissions
+      tags:
+      - Permissions
+  /api/v2/relations:
+    get:
+      description: Get paginated list of relationships with optional filtering
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: size
+        type: integer
+      - description: Relationship type
+        in: query
+        name: type
+        type: string
+      - description: Source entity type
+        in: query
+        name: source_type
+        type: string
+      - description: Target entity type
+        in: query
+        name: target_type
+        type: string
+      - description: Source entity ID
+        in: query
+        name: source_id
+        type: integer
+      - description: Target entity ID
+        in: query
+        name: target_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Relations retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_RelationListResponse'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: List relationships
+      tags:
+      - Relations
+  /api/v2/relations/batch:
+    post:
+      consumes:
+      - application/json
+      description: Perform multiple relationship operations in a single request
+      parameters:
+      - description: Batch relation operations request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.BatchRelationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Batch operations completed successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Batch relationship operations
+      tags:
+      - Relations
+  /api/v2/relations/role-permissions:
+    delete:
+      consumes:
+      - application/json
+      description: Remove multiple permissions from a role
+      parameters:
+      - description: Role permission removal request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RemoveRolePermissionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Permissions removed successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Remove permissions from role
+      tags:
+      - Relations
+    post:
+      consumes:
+      - application/json
+      description: Assign multiple permissions to a role
+      parameters:
+      - description: Role permission assignment request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AssignRolePermissionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Permissions assigned successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Role or permission not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Assign permissions to role
+      tags:
+      - Relations
+  /api/v2/relations/statistics:
+    get:
+      description: Get statistics about all relationship types in the system
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Statistics retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_RelationStatisticsResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get relationship statistics
+      tags:
+      - Relations
+  /api/v2/relations/user-permissions:
+    delete:
+      consumes:
+      - application/json
+      description: Remove a permission directly from a user
+      parameters:
+      - description: User permission removal request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RemoveUserPermissionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Permission removed successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Remove permission from user
+      tags:
+      - Relations
+    post:
+      consumes:
+      - application/json
+      description: Assign a permission directly to a user (with optional project scope)
+      parameters:
+      - description: User permission assignment request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AssignUserPermissionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Permission assigned successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: User or permission not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Assign permission to user
+      tags:
+      - Relations
+  /api/v2/relations/user-roles:
+    delete:
+      consumes:
+      - application/json
+      description: Remove a role from a user (global role removal)
+      parameters:
+      - description: User role removal request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RemoveUserRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role removed successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: User or role not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Remove role from user
+      tags:
+      - Relations
+    post:
+      consumes:
+      - application/json
+      description: Assign a role to a user (global role assignment)
+      parameters:
+      - description: User role assignment request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AssignUserRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role assigned successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: User or role not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Assign role to user
+      tags:
+      - Relations
+  /api/v2/roles:
+    get:
+      description: Get paginated list of roles with optional filtering
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: size
+        type: integer
+      - description: Filter by role type
+        in: query
+        name: type
+        type: string
+      - description: Filter by status
+        in: query
+        name: status
+        type: integer
+      - description: Filter by system role
+        in: query
+        name: is_system
+        type: boolean
+      - description: Filter by role name
+        in: query
+        name: name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Roles retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_RoleListResponse'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: List roles
+      tags:
+      - Roles
+    post:
+      consumes:
+      - application/json
+      description: Create a new role with specified permissions
+      parameters:
+      - description: Role creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Role created successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_RoleResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "409":
+          description: Role already exists
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Create a new role
+      tags:
+      - Roles
+  /api/v2/roles/{id}:
+    delete:
+      description: Delete a role (soft delete by setting status to -1)
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role deleted successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid role ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Cannot delete system role
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Role not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Delete role
+      tags:
+      - Roles
+    get:
+      description: Get detailed information about a specific role
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_RoleResponse'
+        "400":
+          description: Invalid role ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Role not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get role by ID
+      tags:
+      - Roles
+    put:
+      consumes:
+      - application/json
+      description: Update role information (partial update supported)
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Role update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role updated successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_RoleResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Role not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Update role
+      tags:
+      - Roles
+  /api/v2/roles/{id}/permissions:
+    delete:
+      consumes:
+      - application/json
+      description: Remove multiple permissions from a role
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Permission removal request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RemovePermissionFromRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Permissions removed successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Role not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Remove permissions from role
+      tags:
+      - Roles
+    post:
+      consumes:
+      - application/json
+      description: Assign multiple permissions to a role
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Permission assignment request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AssignPermissionToRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Permissions assigned successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Role not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Assign permissions to role
+      tags:
+      - Roles
+  /api/v2/roles/{id}/users:
+    get:
+      description: Get list of users assigned to a specific role
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Users retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-array_dto_UserResponse'
+        "400":
+          description: Invalid role ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Role not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get role users
+      tags:
+      - Roles
+  /api/v2/roles/search:
+    post:
+      consumes:
+      - application/json
+      description: Search roles with complex filtering and sorting
+      parameters:
+      - description: Role search request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RoleSearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Roles retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SearchResponse-dto_RoleResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Search roles
+      tags:
+      - Roles
+  /api/v2/statistics:
+    get:
+      description: Get comprehensive system statistics and metrics
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Statistics retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SystemStatisticsResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: Get system statistics
+      tags:
+      - System
+  /api/v2/users:
+    get:
+      description: Get paginated list of users with optional filtering
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: size
+        type: integer
+      - description: Filter by status
+        in: query
+        name: status
+        type: integer
+      - description: Filter by active status
+        in: query
+        name: is_active
+        type: boolean
+      - description: Filter by username
+        in: query
+        name: username
+        type: string
+      - description: Filter by email
+        in: query
+        name: email
+        type: string
+      - description: Filter by full name
+        in: query
+        name: full_name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Users retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_UserListResponse'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: List users
+      tags:
+      - Users
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account with specified details
+      parameters:
+      - description: User creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User created successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_UserResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "409":
+          description: User already exists
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Create a new user
+      tags:
+      - Users
+  /api/v2/users/{id}:
+    delete:
+      description: Delete a user (soft delete by setting status to -1)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User deleted successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid user ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Delete user
+      tags:
+      - Users
+    get:
+      description: Get detailed information about a specific user
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_UserResponse'
+        "400":
+          description: Invalid user ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get user by ID
+      tags:
+      - Users
+    put:
+      consumes:
+      - application/json
+      description: Update user information (partial update supported)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: User update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User updated successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_UserResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Update user
+      tags:
+      - Users
+  /api/v2/users/{id}/projects:
+    post:
+      consumes:
+      - application/json
+      description: Assign a user to a project with a specific role
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Project assignment request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AssignUserToProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User assigned to project successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Assign user to project
+      tags:
+      - Users
+  /api/v2/users/{id}/projects/{project_id}:
+    delete:
+      description: Remove a user from a project
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User removed from project successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Remove user from project
+      tags:
+      - Users
+  /api/v2/users/search:
+    post:
+      consumes:
+      - application/json
+      description: Search users with complex filtering and sorting
+      parameters:
+      - description: User search request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UserSearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Users retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SearchResponse-dto_UserResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Search users
+      tags:
+      - Users
 produces:
 - application/json
 schemes:

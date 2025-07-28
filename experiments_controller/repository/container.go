@@ -90,3 +90,64 @@ func ListContainers(opts *dto.ListContainersFilterOptions) ([]database.Container
 
 	return containers, nil
 }
+
+// GetContainerStatistics returns statistics about containers
+func GetContainerStatistics() (map[string]int64, error) {
+	stats := make(map[string]int64)
+
+	// Total containers
+	var total int64
+	if err := database.DB.Model(&database.Container{}).Count(&total).Error; err != nil {
+		return nil, fmt.Errorf("failed to count total containers: %v", err)
+	}
+	stats["total"] = total
+
+	// Active containers
+	var active int64
+	if err := database.DB.Model(&database.Container{}).Where("status = 1").Count(&active).Error; err != nil {
+		return nil, fmt.Errorf("failed to count active containers: %v", err)
+	}
+	stats["active"] = active
+
+	// Disabled containers
+	var disabled int64
+	if err := database.DB.Model(&database.Container{}).Where("status = 0").Count(&disabled).Error; err != nil {
+		return nil, fmt.Errorf("failed to count disabled containers: %v", err)
+	}
+	stats["disabled"] = disabled
+
+	// Deleted containers
+	var deleted int64
+	if err := database.DB.Model(&database.Container{}).Where("status = -1").Count(&deleted).Error; err != nil {
+		return nil, fmt.Errorf("failed to count deleted containers: %v", err)
+	}
+	stats["deleted"] = deleted
+
+	return stats, nil
+}
+
+// GetContainerCountByType returns count of containers grouped by type
+func GetContainerCountByType() (map[string]int64, error) {
+	type TypeCount struct {
+		Type  string `json:"type"`
+		Count int64  `json:"count"`
+	}
+
+	var results []TypeCount
+	err := database.DB.Model(&database.Container{}).
+		Select("type, COUNT(*) as count").
+		Where("status != -1").
+		Group("type").
+		Find(&results).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to count containers by type: %v", err)
+	}
+
+	typeCounts := make(map[string]int64)
+	for _, result := range results {
+		typeCounts[result.Type] = result.Count
+	}
+
+	return typeCounts, nil
+}
