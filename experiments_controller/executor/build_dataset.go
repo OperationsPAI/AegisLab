@@ -59,11 +59,12 @@ func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
 		jobName := task.TaskID
 		fullImage := fmt.Sprintf("%s:%s", container.Image, container.Tag)
 		labels := map[string]string{
-			consts.LabelTaskID:   task.TaskID,
-			consts.LabelTraceID:  task.TraceID,
-			consts.LabelGroupID:  task.GroupID,
-			consts.LabelTaskType: string(consts.TaskTypeBuildDataset),
-			consts.LabelDataset:  payload.name,
+			consts.LabelTaskID:    task.TaskID,
+			consts.LabelTraceID:   task.TraceID,
+			consts.LabelGroupID:   task.GroupID,
+			consts.LabelProjectID: strconv.Itoa(task.ProjectID),
+			consts.LabelTaskType:  string(consts.TaskTypeBuildDataset),
+			consts.LabelDataset:   payload.name,
 		}
 
 		return createDatasetJob(ctx, jobName, fullImage, annotations, labels, payload, container)

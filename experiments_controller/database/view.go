@@ -85,12 +85,12 @@ func (FaultInjectionWithIssues) TableName() string {
 func addDetectorJoins(query *gorm.DB) *gorm.DB {
 	return query.
 		Joins(`JOIN (
-			SELECT er.id, er.algorithm_id, er.dataset_id,
-				ROW_NUMBER() OVER (PARTITION BY er.algorithm_id, er.dataset_id ORDER BY er.created_at DESC, er.id DESC) as rn
+			SELECT er.id, er.algorithm_id, er.datapack_id,
+				ROW_NUMBER() OVER (PARTITION BY er.algorithm_id, er.datapack_id ORDER BY er.created_at DESC, er.id DESC) as rn
 			FROM execution_results er
 			JOIN containers c ON c.id = er.algorithm_id AND c.name = ?
 			WHERE er.status = 2
-		) er_ranked ON fis.id = er_ranked.dataset_id AND er_ranked.rn = 1`, config.GetString("algo.detector")).
+		) er_ranked ON fis.id = er_ranked.datapack_id AND er_ranked.rn = 1`, config.GetString("algo.detector")).
 		Joins("JOIN detectors d ON er_ranked.id = d.execution_id")
 }
 
