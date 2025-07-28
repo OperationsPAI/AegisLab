@@ -120,14 +120,14 @@ type ContainerResponse struct {
 	Tag       string    `json:"tag"`
 	Command   string    `json:"command"`
 	EnvVars   string    `json:"env_vars"`
-	ProjectID int       `json:"project_id"`
+	UserID    int       `json:"user_id"`
 	IsPublic  bool      `json:"is_public"`
 	Status    bool      `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 
 	// Related entities (only included when specifically requested)
-	Project *ProjectResponse `json:"project,omitempty"`
+	User *UserResponse `json:"user,omitempty"`
 }
 
 // ProjectResponse represents project response for v2 API

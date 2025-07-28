@@ -1,14 +1,28 @@
 package v2
 
 import (
+	"context"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 
+	"github.com/LGU-SE-Internal/rcabench/client"
+	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
+	"github.com/LGU-SE-Internal/rcabench/executor"
+	"github.com/LGU-SE-Internal/rcabench/middleware"
 	"github.com/LGU-SE-Internal/rcabench/repository"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 // SearchContainers handles complex container search with advanced filtering
@@ -77,6 +91,8 @@ func SearchContainers(c *gin.Context) {
 			Tag:       container.Tag,
 			Command:   container.Command,
 			EnvVars:   container.EnvVars,
+			UserID:    container.UserID,
+			IsPublic:  container.IsPublic,
 			Status:    container.Status,
 			CreatedAt: container.CreatedAt,
 			UpdatedAt: container.UpdatedAt,
@@ -194,6 +210,8 @@ func ListContainers(c *gin.Context) {
 			Tag:       container.Tag,
 			Command:   container.Command,
 			EnvVars:   container.EnvVars,
+			UserID:    container.UserID,
+			IsPublic:  container.IsPublic,
 			Status:    container.Status,
 			CreatedAt: container.CreatedAt,
 			UpdatedAt: container.UpdatedAt,
@@ -272,10 +290,374 @@ func GetContainer(c *gin.Context) {
 		Tag:       container.Tag,
 		Command:   container.Command,
 		EnvVars:   container.EnvVars,
+		UserID:    container.UserID,
+		IsPublic:  container.IsPublic,
 		Status:    container.Status,
 		CreatedAt: container.CreatedAt,
 		UpdatedAt: container.UpdatedAt,
 	}
 
 	dto.SuccessResponse(c, response)
+}
+
+// CreateContainer handles container creation for v2 API
+//
+//	@Summary Create container
+//	@Description Create a new container with build configuration. Containers are associated with the authenticated user.
+//	@Tags Containers
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.CreateContainerRequest true "Container creation request"
+//	@Success 202 {object} dto.GenericResponse[dto.SubmitResp] "Container creation task submitted successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/containers [post]
+func CreateContainer(c *gin.Context) {
+	// Check authentication
+	userID, exists := c.Get("user_id")
+	if !exists {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	// Check permission
+	checker := repository.NewPermissionChecker(userID.(int), nil)
+	canCreate, err := checker.CanWriteResource(consts.ResourceContainer)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
+		return
+	}
+
+	if !canCreate {
+		dto.ErrorResponse(c, http.StatusForbidden, "No permission to create containers")
+		return
+	}
+
+	var req dto.CreateContainerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	// Validate request
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
+	}
+
+	// Check if container with same name, type, image, tag already exists for this user
+	var existingContainer database.Container
+	result := database.DB.Where("name = ? AND type = ? AND image = ? AND tag = ? AND user_id = ? AND status = true",
+		req.Name, req.ContainerType, req.Image, req.Tag, userID).First(&existingContainer)
+
+	if result.Error == nil {
+		dto.ErrorResponse(c, http.StatusConflict, "Container with same name, type, image and tag already exists")
+		return
+	}
+
+	// Handle different source types
+	var code int
+	var sourcePath string
+	switch req.Source.Type {
+	case consts.BuildSourceTypeFile:
+		code, sourcePath, err = processFileSourceV2(c, &req)
+		if err != nil {
+			dto.ErrorResponse(c, code, err.Error())
+			return
+		}
+	case consts.BuildSourceTypeGitHub:
+		code, sourcePath, err = processGitHubSourceV2(&req)
+		if err != nil {
+			dto.ErrorResponse(c, code, err.Error())
+			return
+		}
+	case consts.BuildSourceTypeHarbor:
+		code, err = processHarborSourceV2(&req, userID.(int))
+		if err != nil {
+			dto.ErrorResponse(c, code, err.Error())
+			return
+		}
+		sourcePath = ""
+	default:
+		dto.ErrorResponse(c, http.StatusBadRequest, "Unsupported source type")
+		return
+	}
+
+	// For non-Harbor sources, validate info content and required files
+	if req.Source.Type != consts.BuildSourceTypeHarbor {
+		if code, err := req.ValidateInfoContent(sourcePath); err != nil {
+			dto.ErrorResponse(c, code, err.Error())
+			return
+		}
+
+		if err := validateRequiredFilesV2(sourcePath, req.BuildOptions); err != nil {
+			dto.ErrorResponse(c, http.StatusNotFound, err.Error())
+			return
+		}
+	}
+
+	// Get span context for tracing
+	ctx, ok := c.Get(middleware.SpanContextKey)
+	if !ok {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get span context")
+		return
+	}
+	spanCtx := ctx.(context.Context)
+
+	// Handle Harbor direct update
+	if req.Source.Type == consts.BuildSourceTypeHarbor {
+		taskID, traceID, err := processHarborDirectUpdateV2(spanCtx, &req, userID.(int))
+		if err != nil {
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to process harbor direct update")
+			return
+		}
+
+		dto.JSONResponse(c, http.StatusOK,
+			"Container information updated successfully from Harbor",
+			dto.SubmitResp{Traces: []dto.Trace{{TraceID: traceID, HeadTaskID: taskID, Index: 0}}},
+		)
+		return
+	}
+
+	// Submit build task
+	task := &dto.UnifiedTask{
+		Type: consts.TaskTypeBuildImage,
+		Payload: map[string]any{
+			consts.BuildContainerType: req.ContainerType,
+			consts.BuildName:          req.Name,
+			consts.BuildImage:         req.Image,
+			consts.BuildTag:           req.Tag,
+			consts.BuildCommand:       req.Command,
+			consts.BuildImageEnvVars:  req.EnvVars,
+			consts.BuildSourcePath:    sourcePath,
+			consts.BuildBuildOptions:  req.BuildOptions,
+		},
+		Immediate: true,
+		ProjectID: 0, // No project association for user containers
+	}
+	task.SetGroupCtx(spanCtx)
+
+	taskID, traceID, err := executor.SubmitTask(spanCtx, task)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to submit container building task")
+		return
+	}
+
+	dto.JSONResponse(c, http.StatusAccepted,
+		"Container building task submitted successfully",
+		dto.SubmitResp{Traces: []dto.Trace{{TraceID: traceID, HeadTaskID: taskID, Index: 0}}},
+	)
+}
+
+// Helper functions for v2 container creation
+
+func processFileSourceV2(c *gin.Context, req *dto.CreateContainerRequest) (int, string, error) {
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		return http.StatusBadRequest, "", fmt.Errorf("failed to get uploaded file: %v", err)
+	}
+	defer file.Close()
+
+	const maxSize = 5 * 1024 * 1024 // 5MB
+	if header.Size > maxSize {
+		return http.StatusBadRequest, "", fmt.Errorf("file size exceeds %dMB limit", maxSize/(1024*1024))
+	}
+
+	req.Source.File = &dto.FileSource{
+		Filename: header.Filename,
+		Size:     header.Size,
+	}
+
+	fileName := header.Filename
+	fileExt := strings.ToLower(filepath.Ext(fileName))
+
+	isZip := fileExt == ".zip"
+	isTarGz := (fileExt == ".gz" && strings.HasSuffix(strings.ToLower(fileName), ".tar.gz")) ||
+		(fileExt == ".tgz")
+
+	if !isZip && !isTarGz {
+		return http.StatusBadRequest, "", fmt.Errorf("only zip and tar.gz files are allowed")
+	}
+
+	tempDir, err := os.MkdirTemp("", "container-upload-*")
+	if err != nil {
+		return http.StatusInternalServerError, "", fmt.Errorf("failed to create temporary directory: %v", err)
+	}
+
+	filePath := filepath.Join(tempDir, header.Filename)
+	out, err := os.Create(filePath)
+	if err != nil {
+		return http.StatusInternalServerError, "", fmt.Errorf("failed to create file: %v", err)
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, file); err != nil {
+		return http.StatusInternalServerError, "", fmt.Errorf("failed to save file: %v", err)
+	}
+
+	targetDir := filepath.Join(config.GetString("container.storage_path"), string(req.ContainerType), req.Name, fmt.Sprintf("build_%d", time.Now().Unix()))
+	if err = os.MkdirAll(targetDir, 0755); err != nil {
+		return http.StatusInternalServerError, "", fmt.Errorf("failed to create target directory: %v", err)
+	}
+
+	var extractErr error
+	if isZip {
+		extractErr = utils.ExtractZip(filePath, targetDir)
+	} else if isTarGz {
+		extractErr = utils.ExtractTarGz(filePath, targetDir)
+	}
+
+	if extractErr != nil {
+		return http.StatusInternalServerError, "", fmt.Errorf("failed to extract file: %v", extractErr)
+	}
+
+	if err := os.RemoveAll(tempDir); err != nil {
+		// Log warning but don't fail the request
+		logrus.WithField("temp_dir", tempDir).Warnf("failed to remove temporary directory %s: %v", tempDir, err)
+	}
+
+	return 0, targetDir, nil
+}
+
+func processGitHubSourceV2(req *dto.CreateContainerRequest) (int, string, error) {
+	github := req.Source.GitHub
+
+	targetDir := filepath.Join(config.GetString("container.storage_path"), string(req.ContainerType), req.Name, fmt.Sprintf("build_%d", time.Now().Unix()))
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		return http.StatusInternalServerError, "", fmt.Errorf("failed to create target directory: %v", err)
+	}
+
+	var gitCmd []string
+	repoURL := fmt.Sprintf("https://github.com/%s.git", github.Repository)
+
+	if github.Token != "" {
+		repoURL = fmt.Sprintf("https://%s@github.com/%s.git", github.Token, github.Repository)
+	}
+
+	gitCmd = []string{"git", "clone"}
+	if github.Commit != "" {
+		gitCmd = append(gitCmd, repoURL, targetDir)
+	} else {
+		gitCmd = append(gitCmd, "--branch", github.Branch, "--single-branch", repoURL, targetDir)
+	}
+
+	if github.Commit != "" {
+		cmd := exec.Command(gitCmd[0], gitCmd[1:]...)
+		if err := cmd.Run(); err != nil {
+			return http.StatusInternalServerError, "", fmt.Errorf("failed to clone repository: %v", err)
+		}
+
+		// Checkout specific commit
+		cmd = exec.Command("git", "-C", targetDir, "checkout", github.Commit)
+		if err := cmd.Run(); err != nil {
+			return http.StatusBadRequest, "", fmt.Errorf("failed to checkout commit %s: %v", github.Commit, err)
+		}
+	} else {
+		cmd := exec.Command(gitCmd[0], gitCmd[1:]...)
+		if err := cmd.Run(); err != nil {
+			return http.StatusInternalServerError, "", fmt.Errorf("failed to clone repository: %v", err)
+		}
+	}
+
+	// If a specific path is provided, copy only that subdirectory
+	if github.Path != "" && github.Path != "." {
+		sourcePath := filepath.Join(targetDir, github.Path)
+		if _, err := os.Stat(sourcePath); os.IsNotExist(err) {
+			return http.StatusNotFound, "", fmt.Errorf("specified path '%s' does not exist in repository", github.Path)
+		}
+
+		newTargetDir := filepath.Join(config.GetString("container.storage_path"), string(req.ContainerType), req.Name, fmt.Sprintf("build_final_%d", time.Now().Unix()))
+		if err := utils.CopyDir(sourcePath, newTargetDir); err != nil {
+			return http.StatusInternalServerError, "", fmt.Errorf("failed to copy subdirectory: %v", err)
+		}
+
+		// Clean up the full clone
+		if err := os.RemoveAll(targetDir); err != nil {
+			logrus.WithField("target_dir", targetDir).Warnf("failed to remove temporary directory: %v", err)
+		}
+
+		targetDir = newTargetDir
+	}
+
+	return 0, targetDir, nil
+}
+
+func processHarborSourceV2(req *dto.CreateContainerRequest, userID int) (int, error) {
+	harbor := req.Source.Harbor
+
+	// Extract image name from full image path
+	imageName := harbor.Image
+	if strings.Contains(imageName, "/") {
+		parts := strings.Split(imageName, "/")
+		imageName = parts[len(parts)-1]
+	}
+
+	harborClient := client.GetHarborClient()
+	exists, err := harborClient.CheckImageExists(imageName, harbor.Tag)
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to check harbor image: %v", err)
+	}
+
+	if !exists {
+		return http.StatusNotFound, fmt.Errorf("image %s:%s not found in harbor", imageName, harbor.Tag)
+	}
+
+	return http.StatusOK, nil
+}
+
+func validateRequiredFilesV2(sourcePath string, buildOptions *dto.BuildOptions) error {
+	contextDir := "."
+	dockerfilePath := "Dockerfile"
+
+	if buildOptions != nil {
+		if buildOptions.ContextDir != "" {
+			contextDir = buildOptions.ContextDir
+		}
+		if buildOptions.DockerfilePath != "" {
+			dockerfilePath = buildOptions.DockerfilePath
+		}
+	}
+
+	buildContextPath := filepath.Join(sourcePath, contextDir)
+	if _, err := os.Stat(buildContextPath); os.IsNotExist(err) {
+		return fmt.Errorf("build context path '%s' does not exist", contextDir)
+	}
+
+	buildDockerfilePath := filepath.Join(sourcePath, dockerfilePath)
+	if _, err := os.Stat(buildDockerfilePath); os.IsNotExist(err) {
+		return fmt.Errorf("Dockerfile '%s' does not exist", dockerfilePath)
+	}
+
+	return nil
+}
+
+func processHarborDirectUpdateV2(ctx context.Context, req *dto.CreateContainerRequest, userID int) (string, string, error) {
+	taskID := fmt.Sprintf("harbor-%d", time.Now().UnixNano())
+	traceID := fmt.Sprintf("trace-%d", time.Now().UnixNano())
+
+	// Convert environment variables array to string
+	envVarsStr := ""
+	if len(req.EnvVars) > 0 {
+		envVarsStr = strings.Join(req.EnvVars, ",")
+	}
+
+	container := &database.Container{
+		Type:     string(req.ContainerType),
+		Name:     req.Name,
+		Image:    req.Source.Harbor.Image,
+		Tag:      req.Source.Harbor.Tag,
+		Command:  req.Command,
+		EnvVars:  envVarsStr,
+		UserID:   userID,
+		IsPublic: req.IsPublic,
+		Status:   true,
+	}
+
+	if err := database.DB.Create(container).Error; err != nil {
+		return "", "", fmt.Errorf("failed to create container record: %v", err)
+	}
+
+	return taskID, traceID, nil
 }

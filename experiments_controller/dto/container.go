@@ -256,3 +256,95 @@ var ValidContainerTypes = map[consts.ContainerType]struct{}{
 	consts.ContainerTypeAlgorithm: {},
 	consts.ContainerTypeBenchmark: {},
 }
+
+// CreateContainerRequest represents the v2 API request for creating a container
+// Containers are associated with users, not projects
+type CreateContainerRequest struct {
+	ContainerType consts.ContainerType `json:"type" binding:"required,oneof=algorithm benchmark"`
+	Name          string               `json:"name" binding:"required"`
+	Image         string               `json:"image" binding:"required"`
+	Tag           string               `json:"tag" binding:"omitempty"`
+	Command       string               `json:"command" binding:"omitempty"`
+	EnvVars       []string             `json:"env_vars" binding:"omitempty" swaggertype:"array"`
+	IsPublic      bool                 `json:"is_public" binding:"omitempty"`
+	Source        BuildSource          `json:"source" binding:"required"`
+	BuildOptions  *BuildOptions        `json:"build_options" binding:"omitempty"`
+}
+
+func (req *CreateContainerRequest) Validate() error {
+	if req.ContainerType != "" {
+		if _, exists := ValidContainerTypes[req.ContainerType]; !exists {
+			return fmt.Errorf("Invalid container type: %s", req.ContainerType)
+		}
+	}
+
+	if req.Image == "" {
+		return fmt.Errorf("Docker image cannot be empty")
+	} else {
+		if len(req.Image) > 255 {
+			return fmt.Errorf("image name %s too long (max 255 characters)", req.Image)
+		}
+
+		// Auto-complete image name with Harbor host and project if needed
+		if !strings.Contains(req.Image, "/") {
+			req.Image = fmt.Sprintf("%s/%s/%s", config.GetString("harbor.host"), config.GetString("harbor.project"), req.Image)
+		} else if !strings.Contains(req.Image, ".") {
+			req.Image = fmt.Sprintf("%s/%s", config.GetString("harbor.host"), req.Image)
+		}
+	}
+
+	if req.Tag != "" {
+		if err := utils.IsValidDockerTag(req.Tag); err != nil {
+			return fmt.Errorf("Invalid Docker tag: %s, %v", req.Tag, err)
+		}
+	}
+
+	if req.EnvVars != nil {
+		for i, envVar := range req.EnvVars {
+			if err := utils.IsValidEnvVar(envVar); err != nil {
+				return fmt.Errorf("Invalid environment variable %s at index %d: %v", envVar, i, err)
+			}
+		}
+	}
+
+	if err := req.Source.Validate(); err != nil {
+		return fmt.Errorf("Invalid build source: %v", err)
+	}
+
+	if req.BuildOptions != nil {
+		if err := req.BuildOptions.Validate(); err != nil {
+			return fmt.Errorf("Invalid build options: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// ValidateInfoContent validates the info.toml content in the source path
+func (req *CreateContainerRequest) ValidateInfoContent(sourcePath string) (int, error) {
+	infoFilePath := filepath.Join(sourcePath, InfoFileName)
+
+	if _, err := os.Stat(infoFilePath); os.IsNotExist(err) {
+		return http.StatusNotFound, fmt.Errorf("Required %s file not found in source", InfoFileName)
+	}
+
+	config, err := getInfoFileContent(sourcePath)
+	if err != nil {
+		return http.StatusBadRequest, err
+	}
+
+	// If name is not provided in request, get it from info.toml
+	if req.Name == "" {
+		if nameValue, exists := config[InfoNameField]; exists {
+			if nameStr, ok := nameValue.(string); ok && nameStr != "" {
+				req.Name = nameStr
+			} else {
+				return http.StatusBadRequest, fmt.Errorf("Invalid or empty 'name' field in %s", InfoFileName)
+			}
+		} else {
+			return http.StatusBadRequest, fmt.Errorf("Missing 'name' field in %s and not provided in request", InfoFileName)
+		}
+	}
+
+	return http.StatusOK, nil
+}
