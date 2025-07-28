@@ -251,14 +251,56 @@ func SetupV2Routes(router *gin.Engine) {
 
 	resources := v2.Group("/resources") // 资源管理 - Resource 实体
 
-	// 核心业务实体 API 组 (暂时保留为空，供将来扩展)
-	containers := v2.Group("/containers") // 容器管理 - Container 实体
+	// 核心业务实体 API 组
+
+	// 任务管理 - Task 实体
+	tasks := v2.Group("/tasks", middleware.JWTAuth())
+	{
+		// Read operations - permission checked in handler
+		// GET /api/v2/tasks?page=1&size=20&task_type=RestartService&status=Completed
+		tasks.GET("", v2handlers.ListTasks)
+
+		// GET /api/v2/tasks/{id}?include=logs - permission checked in handler
+		tasks.GET("/:id", v2handlers.GetTask)
+
+		// POST /api/v2/tasks/search - Advanced search with complex filters - permission checked in handler
+		tasks.POST("/search", v2handlers.SearchTasks)
+
+		// POST /api/v2/tasks/queue - Get tasks in ready/delayed queues (admin only for system-wide view)
+		tasks.POST("/queue", middleware.RequireSystemRead, v2handlers.GetQueuedTasks)
+	}
+
+	// 容器管理 - Container 实体
+	containers := v2.Group("/containers", middleware.JWTAuth())
+	{
+		// Read operations - permission checked in handler
+		// GET /api/v2/containers?page=1&size=20&type=algorithm&status=true
+		containers.GET("", v2handlers.ListContainers)
+
+		// GET /api/v2/containers/{id} - permission checked in handler
+		containers.GET("/:id", v2handlers.GetContainer)
+
+		// POST /api/v2/containers/search - Advanced search with complex filters - permission checked in handler
+		containers.POST("/search", v2handlers.SearchContainers)
+	}
+
+	// 算法管理 - Algorithms (算法是容器的一个特殊类型)
+	algorithms := v2.Group("/algorithms", middleware.JWTAuth())
+	{
+		// Read operations - permission checked in handler
+		// GET /api/v2/algorithms?page=1&size=10 - Only active algorithms with type=algorithm
+		algorithms.GET("", v2handlers.ListAlgorithms)
+
+		// POST /api/v2/algorithms/search - Advanced search for algorithms (containers with type=algorithm) - permission checked in handler
+		algorithms.POST("/search", v2handlers.SearchAlgorithms)
+	}
+
+	// 其他业务实体 API 组 (供将来扩展)
 	injections := v2.Group("/injections") // 故障注入管理 - FaultInjectionSchedule 实体
 	datasets := v2.Group("/datasets")     // 数据集管理 - Dataset 实体
 	executions := v2.Group("/executions") // 执行结果管理 - ExecutionResult 实体
 	labels := v2.Group("/labels")         // 标签管理 - Label 实体
 	projects := v2.Group("/projects")     // 项目管理 - Project 实体
-	tasks := v2.Group("/tasks")           // 任务管理 - Task 实体
 
 	// 分析检测相关 API 组 (供将来扩展)
 	detectors := v2.Group("/detectors")     // 检测器管理 - Detector 实体
@@ -267,13 +309,11 @@ func SetupV2Routes(router *gin.Engine) {
 	analyzer := v2.Group("/analyzer")       // 分析器相关
 
 	// 暂时使用空赋值避免编译错误，后续逐步实现具体路由
-	_ = containers
 	_ = injections
 	_ = datasets
 	_ = executions
 	_ = labels
 	_ = projects
-	_ = tasks
 	_ = resources
 	_ = detectors
 	_ = granularity

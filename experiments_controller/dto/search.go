@@ -260,3 +260,116 @@ func (asr *AdvancedSearchRequest) ConvertAdvancedToSearch() *SearchRequest {
 
 	return sr
 }
+
+// TaskSearchRequest represents task search request
+type TaskSearchRequest struct {
+	AdvancedSearchRequest
+
+	// Task-specific filters
+	TaskID    *string `json:"task_id,omitempty"`
+	TraceID   *string `json:"trace_id,omitempty"`
+	GroupID   *string `json:"group_id,omitempty"`
+	TaskType  *string `json:"task_type,omitempty"`
+	Status    *string `json:"status,omitempty"`
+	Immediate *bool   `json:"immediate,omitempty"`
+}
+
+// ConvertToSearchRequest converts TaskSearchRequest to SearchRequest
+func (tsr *TaskSearchRequest) ConvertToSearchRequest() *SearchRequest {
+	sr := tsr.AdvancedSearchRequest.ConvertAdvancedToSearch()
+
+	// Add task-specific filters
+	if tsr.TaskID != nil {
+		sr.AddFilter("id", OpEqual, *tsr.TaskID)
+	}
+	if tsr.TraceID != nil {
+		sr.AddFilter("trace_id", OpEqual, *tsr.TraceID)
+	}
+	if tsr.GroupID != nil {
+		sr.AddFilter("group_id", OpEqual, *tsr.GroupID)
+	}
+	if tsr.TaskType != nil {
+		sr.AddFilter("type", OpEqual, *tsr.TaskType)
+	}
+	if tsr.Status != nil {
+		sr.AddFilter("status", OpEqual, *tsr.Status)
+	}
+	if tsr.Immediate != nil {
+		sr.AddFilter("immediate", OpEqual, *tsr.Immediate)
+	}
+
+	return sr
+}
+
+// AlgorithmSearchRequest represents algorithm search request
+type AlgorithmSearchRequest struct {
+	AdvancedSearchRequest
+
+	// Algorithm-specific filters
+	Name  *string `json:"name,omitempty"`
+	Image *string `json:"image,omitempty"`
+	Tag   *string `json:"tag,omitempty"`
+	Type  *string `json:"type,omitempty"`
+}
+
+// ConvertToSearchRequest converts AlgorithmSearchRequest to SearchRequest
+func (asr *AlgorithmSearchRequest) ConvertToSearchRequest() *SearchRequest {
+	sr := asr.AdvancedSearchRequest.ConvertAdvancedToSearch()
+
+	// Add algorithm-specific filters
+	if asr.Name != nil {
+		sr.AddFilter("name", OpLike, *asr.Name)
+	}
+	if asr.Image != nil {
+		sr.AddFilter("image", OpLike, *asr.Image)
+	}
+	if asr.Tag != nil {
+		sr.AddFilter("tag", OpEqual, *asr.Tag)
+	}
+	if asr.Type != nil {
+		sr.AddFilter("type", OpEqual, *asr.Type)
+	}
+
+	// Default to only active algorithms
+	if !sr.HasFilter("status") {
+		sr.AddFilter("status", OpEqual, true)
+	}
+
+	return sr
+}
+
+// ContainerSearchRequest represents container search request
+type ContainerSearchRequest struct {
+	AdvancedSearchRequest
+
+	// Container-specific filters
+	Name    *string `json:"name,omitempty"`
+	Image   *string `json:"image,omitempty"`
+	Tag     *string `json:"tag,omitempty"`
+	Type    *string `json:"type,omitempty"`
+	Command *string `json:"command,omitempty"`
+}
+
+// ConvertToSearchRequest converts ContainerSearchRequest to SearchRequest
+func (csr *ContainerSearchRequest) ConvertToSearchRequest() *SearchRequest {
+	sr := csr.AdvancedSearchRequest.ConvertAdvancedToSearch()
+
+	// Add container-specific filters
+	if csr.Name != nil {
+		sr.AddFilter("name", OpLike, *csr.Name)
+	}
+	if csr.Image != nil {
+		sr.AddFilter("image", OpLike, *csr.Image)
+	}
+	if csr.Tag != nil {
+		sr.AddFilter("tag", OpEqual, *csr.Tag)
+	}
+	if csr.Type != nil {
+		sr.AddFilter("type", OpEqual, *csr.Type)
+	}
+	if csr.Command != nil {
+		sr.AddFilter("command", OpLike, *csr.Command)
+	}
+
+	return sr
+}
