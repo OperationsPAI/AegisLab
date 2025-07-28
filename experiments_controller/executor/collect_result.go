@@ -120,6 +120,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 						Immediate:    true,
 						TraceID:      task.TraceID,
 						GroupID:      task.GroupID,
+						ProjectID:    task.ProjectID,
 						TraceCarrier: task.TraceCarrier,
 					}
 

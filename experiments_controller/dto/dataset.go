@@ -105,19 +105,23 @@ func (p *DatasetBuildPayload) Validate() error {
 	return nil
 }
 
-type SubmitDatasetBuildingReq []DatasetBuildPayload
+type SubmitDatasetBuildingReq struct {
+	ProjectName string                `json:"project_name" binding:"required"`
+	Payloads    []DatasetBuildPayload `json:"payloads" binding:"required,dive,required"`
+}
 
 func (req *SubmitDatasetBuildingReq) Validate() error {
-	if len(*req) == 0 {
+	if req.ProjectName == "" {
+		return fmt.Errorf("project_name is required")
+	}
+	if len(req.Payloads) == 0 {
 		return fmt.Errorf("at least one dataset build payload is required")
 	}
-
-	for _, payload := range *req {
+	for _, payload := range req.Payloads {
 		if err := payload.Validate(); err != nil {
 			return fmt.Errorf("invalid dataset build payload: %v", err)
 		}
 	}
-
 	return nil
 }
 

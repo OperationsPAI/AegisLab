@@ -77,6 +77,7 @@ func rescheduleAlgoExecutionTask(ctx context.Context, task *dto.UnifiedTask, rea
 		Status:       consts.TaskStautsRescheduled,
 		TraceID:      task.TraceID,
 		GroupID:      task.GroupID,
+		ProjectID:    task.ProjectID,
 		TraceCarrier: task.TraceCarrier,
 	}); err != nil {
 		span.RecordError(err)

@@ -389,6 +389,7 @@ func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[
 			Immediate: true,
 			TraceID:   taskOptions.TraceID,
 			GroupID:   taskOptions.GroupID,
+			ProjectID: taskOptions.ProjectID,
 		}
 		task.SetTraceCtx(traceCtx)
 
