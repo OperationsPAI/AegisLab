@@ -101,7 +101,6 @@ definitions:
     required:
     - name
     type: object
-<<<<<<< HEAD
   dto.AnalyzeInjectionsResp:
     properties:
       efficiency:
@@ -111,14 +110,6 @@ definitions:
           $ref: '#/definitions/dto.InjectionStats'
         type: object
     type: object
-  dto.AttributeCoverageItem:
-    properties:
-      coverage:
-        type: number
-      num:
-        type: integer
-    type: object
-=======
   dto.AssignPermissionToRoleRequest:
     type: object
   dto.AssignRolePermissionRequest:
@@ -171,6 +162,13 @@ definitions:
     required:
     - project_id
     - role_id
+    type: object
+  dto.AttributeCoverageItem:
+    properties:
+      coverage:
+        type: number
+      num:
+        type: integer
     type: object
   dto.AuditLogListResponse:
     properties:
@@ -344,7 +342,6 @@ definitions:
     - password
     - username
     type: object
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
   dto.DatasetBuildPayload:
     properties:
       benchmark:
@@ -552,9 +549,6 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
-<<<<<<< HEAD
-  dto.GenericResponse-dto_AnalyzeInjectionsResp:
-=======
   dto.GenericResponse-array_dto_PermissionResponse:
     properties:
       code:
@@ -606,17 +600,29 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
-  dto.GenericResponse-dto_AuditLogListResponse:
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
+  dto.GenericResponse-dto_AnalyzeInjectionsResp:
     properties:
       code:
         description: 状态码
         type: integer
       data:
         allOf:
-<<<<<<< HEAD
         - $ref: '#/definitions/dto.AnalyzeInjectionsResp'
-=======
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_AuditLogListResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
         - $ref: '#/definitions/dto.AuditLogListResponse'
         description: 泛型类型的数据
       message:
@@ -634,7 +640,6 @@ definitions:
       data:
         allOf:
         - $ref: '#/definitions/dto.AuditLogResponse'
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -1143,21 +1148,30 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
-<<<<<<< HEAD
-  dto.GenericResponse-dto_TraceStats:
-=======
   dto.GenericResponse-dto_TokenRefreshResponse:
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
     properties:
       code:
         description: 状态码
         type: integer
       data:
         allOf:
-<<<<<<< HEAD
-        - $ref: '#/definitions/dto.TraceStats'
-=======
         - $ref: '#/definitions/dto.TokenRefreshResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_TraceStats:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.TraceStats'
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -1206,7 +1220,6 @@ definitions:
       data:
         allOf:
         - $ref: '#/definitions/dto.UserResponse'
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -1370,12 +1383,6 @@ definitions:
       tag:
         type: string
     type: object
-<<<<<<< HEAD
-  dto.InjectionStats:
-    properties:
-      diversity:
-        $ref: '#/definitions/dto.InjectionDiversity'
-=======
   dto.InjectionStatistics:
     properties:
       completed:
@@ -1393,7 +1400,11 @@ definitions:
       total:
         example: 500
         type: integer
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
+    type: object
+  dto.InjectionStats:
+    properties:
+      diversity:
+        $ref: '#/definitions/dto.InjectionDiversity'
     type: object
   dto.InjectionStatsResp:
     properties:
@@ -1540,7 +1551,6 @@ definitions:
       total_pages:
         type: integer
     type: object
-<<<<<<< HEAD
   dto.PairStats:
     properties:
       inDegree:
@@ -1548,7 +1558,8 @@ definitions:
       name:
         type: string
       outDegree:
-=======
+        type: integer
+    type: object
   dto.PermissionListResponse:
     properties:
       items:
@@ -1697,7 +1708,6 @@ definitions:
         type: integer
       total:
         example: 50
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
         type: integer
     type: object
   dto.QueryInjectionResp:
@@ -1955,19 +1965,6 @@ definitions:
         description: Maximum number of retry attempts
         type: integer
     type: object
-<<<<<<< HEAD
-  dto.ServiceCoverageItem:
-    properties:
-      coverage:
-        type: number
-      notCovered:
-        items:
-          type: string
-        type: array
-      num:
-        type: integer
-    type: object
-=======
   dto.RoleListResponse:
     properties:
       items:
@@ -2164,6 +2161,17 @@ definitions:
       pagination:
         $ref: '#/definitions/dto.PaginationInfo'
     type: object
+  dto.ServiceCoverageItem:
+    properties:
+      coverage:
+        type: number
+      notCovered:
+        items:
+          type: string
+        type: array
+      num:
+        type: integer
+    type: object
   dto.ServiceInfo:
     properties:
       details: {}
@@ -2200,7 +2208,6 @@ definitions:
     - direction
     - field
     type: object
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
   dto.SubmitInjectionReq:
     properties:
       algorithms:
