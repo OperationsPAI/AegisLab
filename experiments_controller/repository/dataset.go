@@ -210,3 +210,76 @@ func SearchDatasetsByLabels(labelKeys []string, labelValues []string) ([]databas
 
 	return datasets, nil
 }
+
+// GetDatasetStatistics returns statistics about datasets
+func GetDatasetStatistics() (map[string]int64, error) {
+	stats := make(map[string]int64)
+
+	// Total datasets
+	var total int64
+	if err := database.DB.Model(&database.Dataset{}).Count(&total).Error; err != nil {
+		return nil, fmt.Errorf("failed to count total datasets: %v", err)
+	}
+	stats["total"] = total
+
+	// Active datasets
+	var active int64
+	if err := database.DB.Model(&database.Dataset{}).Where("status = 1").Count(&active).Error; err != nil {
+		return nil, fmt.Errorf("failed to count active datasets: %v", err)
+	}
+	stats["active"] = active
+
+	// Disabled datasets
+	var disabled int64
+	if err := database.DB.Model(&database.Dataset{}).Where("status = 0").Count(&disabled).Error; err != nil {
+		return nil, fmt.Errorf("failed to count disabled datasets: %v", err)
+	}
+	stats["disabled"] = disabled
+
+	// Deleted datasets
+	var deleted int64
+	if err := database.DB.Model(&database.Dataset{}).Where("status = -1").Count(&deleted).Error; err != nil {
+		return nil, fmt.Errorf("failed to count deleted datasets: %v", err)
+	}
+	stats["deleted"] = deleted
+
+	return stats, nil
+}
+
+// GetDatasetCountByType returns count of datasets grouped by type
+func GetDatasetCountByType() (map[string]int64, error) {
+	type TypeCount struct {
+		Type  string `json:"type"`
+		Count int64  `json:"count"`
+	}
+
+	var results []TypeCount
+	err := database.DB.Model(&database.Dataset{}).
+		Select("type, COUNT(*) as count").
+		Where("status != -1").
+		Group("type").
+		Find(&results).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to count datasets by type: %v", err)
+	}
+
+	typeCounts := make(map[string]int64)
+	for _, result := range results {
+		typeCounts[result.Type] = result.Count
+	}
+
+	return typeCounts, nil
+}
+
+// GetDatasetTotalSize 获取数据集总存储大小
+func GetDatasetTotalSize() (int64, error) {
+	var totalSize int64
+	if err := database.DB.Model(&database.Dataset{}).
+		Where("status != -1").
+		Select("COALESCE(SUM(size), 0)").
+		Scan(&totalSize).Error; err != nil {
+		return 0, fmt.Errorf("failed to calculate dataset total size: %v", err)
+	}
+	return totalSize, nil
+}

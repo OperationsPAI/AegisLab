@@ -18,7 +18,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
@@ -27,17 +27,17 @@ class DatabaseTask(BaseModel):
     """
     DatabaseTask
     """ # noqa: E501
-    created_at: Optional[StrictStr] = None
+    created_at: Optional[StrictStr] = Field(default=None, description="添加时间索引")
     cron_expr: Optional[StrictStr] = None
-    execute_time: Optional[StrictInt] = None
-    group_id: Optional[StrictStr] = None
+    execute_time: Optional[StrictInt] = Field(default=None, description="添加执行时间索引")
+    group_id: Optional[StrictStr] = Field(default=None, description="添加组ID索引")
     id: Optional[StrictStr] = None
     immediate: Optional[StrictBool] = None
     payload: Optional[StrictStr] = None
-    project_id: Optional[StrictInt] = None
-    status: Optional[StrictStr] = None
-    trace_id: Optional[StrictStr] = None
-    type: Optional[StrictStr] = None
+    project_id: Optional[StrictInt] = Field(default=None, description="复合索引")
+    status: Optional[StrictStr] = Field(default=None, description="添加多个复合索引")
+    trace_id: Optional[StrictStr] = Field(default=None, description="添加追踪ID索引")
+    type: Optional[StrictStr] = Field(default=None, description="添加复合索引")
     updated_at: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["created_at", "cron_expr", "execute_time", "group_id", "id", "immediate", "payload", "project_id", "status", "trace_id", "type", "updated_at"]

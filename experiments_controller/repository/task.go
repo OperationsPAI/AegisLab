@@ -488,3 +488,80 @@ func ListTasks(params *dto.ListTasksReq) (int64, []database.Task, error) {
 	}
 	return genericQueryWithBuilder[database.Task](genericQueryParams)
 }
+
+// GetTaskStatistics returns statistics about tasks
+func GetTaskStatistics() (map[string]int64, error) {
+	stats := make(map[string]int64)
+
+	// Total tasks
+	var total int64
+	if err := database.DB.Model(&database.Task{}).Count(&total).Error; err != nil {
+		return nil, fmt.Errorf("failed to count total tasks: %v", err)
+	}
+	stats["total"] = total
+
+	// Tasks by status
+	type StatusCount struct {
+		Status string `json:"status"`
+		Count  int64  `json:"count"`
+	}
+
+	var statusCounts []StatusCount
+	err := database.DB.Model(&database.Task{}).
+		Select("status, COUNT(*) as count").
+		Group("status").
+		Find(&statusCounts).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to count tasks by status: %v", err)
+	}
+
+	for _, sc := range statusCounts {
+		stats[sc.Status] = sc.Count
+	}
+
+	// Tasks by type
+	type TypeCount struct {
+		Type  string `json:"type"`
+		Count int64  `json:"count"`
+	}
+
+	var typeCounts []TypeCount
+	err = database.DB.Model(&database.Task{}).
+		Select("type, COUNT(*) as count").
+		Group("type").
+		Find(&typeCounts).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to count tasks by type: %v", err)
+	}
+
+	for _, tc := range typeCounts {
+		stats[tc.Type+"_tasks"] = tc.Count
+	}
+
+	return stats, nil
+}
+
+// GetRecentTaskActivity returns task activity for the last N days
+func GetRecentTaskActivity(days int) (map[string]int64, error) {
+	stats := make(map[string]int64)
+
+	// Last N days activity
+	startDate := time.Now().AddDate(0, 0, -days)
+	var recentCount int64
+	if err := database.DB.Model(&database.Task{}).Where("created_at >= ?", startDate).Count(&recentCount).Error; err != nil {
+		return nil, fmt.Errorf("failed to count recent tasks: %v", err)
+	}
+	stats[fmt.Sprintf("last_%d_days", days)] = recentCount
+
+	// Today's tasks
+	today := time.Now().Truncate(24 * time.Hour)
+	var todayCount int64
+	if err := database.DB.Model(&database.Task{}).Where("created_at >= ?", today).Count(&todayCount).Error; err != nil {
+		return nil, fmt.Errorf("failed to count today's tasks: %v", err)
+	}
+	stats["today"] = todayCount
+
+	return stats, nil
+}

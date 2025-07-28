@@ -31,6 +31,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/database"
 	_ "github.com/LGU-SE-Internal/rcabench/docs"
 	"github.com/LGU-SE-Internal/rcabench/executor"
+	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/LGU-SE-Internal/rcabench/router"
 	nested "github.com/antonfisher/nested-logrus-formatter"
 	"github.com/go-logr/stdr"
@@ -101,6 +102,15 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			logrus.Println("Running as producer")
 			database.InitDB()
+
+			// 初始化系统数据（角色、权限、用户、项目）
+			if err := repository.InitializeSystemData(); err != nil {
+				logrus.Errorf("Failed to initialize system data: %v", err)
+				logrus.Warn("System will continue running without initial system data")
+			} else {
+				logrus.Info("System data initialized successfully")
+			}
+
 			client.InitTraceProvider()
 			engine := router.New()
 			port := viper.GetString("port")
@@ -119,6 +129,15 @@ func main() {
 			logrus.Println("Running as consumer")
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
 			database.InitDB()
+
+			// 初始化系统数据（角色、权限、用户、项目）
+			if err := repository.InitializeSystemData(); err != nil {
+				logrus.Errorf("Failed to initialize system data: %v", err)
+				logrus.Warn("System will continue running without initial system data")
+			} else {
+				logrus.Info("System data initialized successfully")
+			}
+
 			client.InitTraceProvider()
 			go k8s.Init(ctx, executor.Exec)
 			go executor.StartScheduler(ctx)
@@ -135,6 +154,15 @@ func main() {
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
 			engine := router.New()
 			database.InitDB()
+
+			// 初始化系统数据（角色、权限、用户、项目）
+			if err := repository.InitializeSystemData(); err != nil {
+				logrus.Errorf("Failed to initialize system data: %v", err)
+				logrus.Warn("System will continue running without initial system data")
+			} else {
+				logrus.Info("System data initialized successfully")
+			}
+
 			client.InitTraceProvider()
 			go k8s.Init(ctx, executor.Exec)
 			go executor.ConsumeTasks()
