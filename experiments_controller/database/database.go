@@ -76,6 +76,11 @@ func InitDB() {
 		logrus.Fatalf("Failed to migrate database: %v", err)
 	}
 
+	// 修复 execution_results 表的外键约束
+	if err := FixExecutionResultForeignKey(); err != nil {
+		logrus.Warnf("修复外键约束时出现警告: %v", err)
+	}
+
 	createExecutionResultViews()
 	createFaultInjectionViews()
 	createDetectorViews()
