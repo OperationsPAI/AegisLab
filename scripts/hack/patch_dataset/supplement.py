@@ -159,7 +159,7 @@ def detector(
                     WHERE id NOT IN (
                         SELECT DISTINCT fis.id
                         FROM fault_injection_schedules fis 
-                        JOIN execution_results er ON fis.id = er.dataset_id
+                        JOIN execution_results er ON fis.id = er.datapack_id
                         JOIN detectors d ON er.id = d.execution_id
                     ) AND status = 4
                     ORDER BY id DESC

@@ -196,6 +196,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			consts.LabelTaskID:      task.TaskID,
 			consts.LabelTraceID:     task.TraceID,
 			consts.LabelGroupID:     task.GroupID,
+			consts.LabelProjectID:   strconv.Itoa(task.ProjectID),
 			consts.LabelTaskType:    string(consts.TaskTypeRunAlgorithm),
 			consts.LabelDataset:     payload.dataset,
 			consts.LabelExecutionID: strconv.Itoa(executionID),
