@@ -11,18 +11,18 @@ import (
 )
 
 // CreateRole handles role creation
-// @Summary Create a new role
-// @Description Create a new role with specified permissions
-// @Tags Roles
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body dto.CreateRoleRequest true "Role creation request"
-// @Success 201 {object} dto.GenericResponse[dto.RoleResponse] "Role created successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 409 {object} dto.GenericResponse[any] "Role already exists"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/roles [post]
+//	@Summary Create a new role
+//	@Description Create a new role with specified permissions
+//	@Tags Roles
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.CreateRoleRequest true "Role creation request"
+//	@Success 201 {object} dto.GenericResponse[dto.RoleResponse] "Role created successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 409 {object} dto.GenericResponse[any] "Role already exists"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/roles [post]
 func CreateRole(c *gin.Context) {
 	var req dto.CreateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -57,17 +57,17 @@ func CreateRole(c *gin.Context) {
 }
 
 // GetRole handles getting a single role by ID
-// @Summary Get role by ID
-// @Description Get detailed information about a specific role
-// @Tags Roles
-// @Produce json
-// @Security BearerAuth
-// @Param id path int true "Role ID"
-// @Success 200 {object} dto.GenericResponse[dto.RoleResponse] "Role retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid role ID"
-// @Failure 404 {object} dto.GenericResponse[any] "Role not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/roles/{id} [get]
+//	@Summary Get role by ID
+//	@Description Get detailed information about a specific role
+//	@Tags Roles
+//	@Produce json
+//	@Security BearerAuth
+//	@Param id path int true "Role ID"
+//	@Success 200 {object} dto.GenericResponse[dto.RoleResponse] "Role retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid role ID"
+//	@Failure 404 {object} dto.GenericResponse[any] "Role not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/roles/{id} [get]
 func GetRole(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -102,21 +102,21 @@ func GetRole(c *gin.Context) {
 }
 
 // ListRoles handles listing roles with pagination and filtering
-// @Summary List roles
-// @Description Get paginated list of roles with optional filtering
-// @Tags Roles
-// @Produce json
-// @Security BearerAuth
-// @Param page query int false "Page number" default(1)
-// @Param size query int false "Page size" default(20)
-// @Param type query string false "Filter by role type"
-// @Param status query int false "Filter by status"
-// @Param is_system query bool false "Filter by system role"
-// @Param name query string false "Filter by role name"
-// @Success 200 {object} dto.GenericResponse[dto.RoleListResponse] "Roles retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request parameters"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/roles [get]
+//	@Summary List roles
+//	@Description Get paginated list of roles with optional filtering
+//	@Tags Roles
+//	@Produce json
+//	@Security BearerAuth
+//	@Param page query int false "Page number" default(1)
+//	@Param size query int false "Page size" default(20)
+//	@Param type query string false "Filter by role type"
+//	@Param status query int false "Filter by status"
+//	@Param is_system query bool false "Filter by system role"
+//	@Param name query string false "Filter by role name"
+//	@Success 200 {object} dto.GenericResponse[dto.RoleListResponse] "Roles retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request parameters"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/roles [get]
 func ListRoles(c *gin.Context) {
 	var req dto.RoleListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -167,19 +167,19 @@ func ListRoles(c *gin.Context) {
 }
 
 // UpdateRole handles role updates
-// @Summary Update role
-// @Description Update role information (partial update supported)
-// @Tags Roles
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path int true "Role ID"
-// @Param request body dto.UpdateRoleRequest true "Role update request"
-// @Success 200 {object} dto.GenericResponse[dto.RoleResponse] "Role updated successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 404 {object} dto.GenericResponse[any] "Role not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/roles/{id} [put]
+//	@Summary Update role
+//	@Description Update role information (partial update supported)
+//	@Tags Roles
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param id path int true "Role ID"
+//	@Param request body dto.UpdateRoleRequest true "Role update request"
+//	@Success 200 {object} dto.GenericResponse[dto.RoleResponse] "Role updated successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 404 {object} dto.GenericResponse[any] "Role not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/roles/{id} [put]
 func UpdateRole(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -229,18 +229,18 @@ func UpdateRole(c *gin.Context) {
 }
 
 // DeleteRole handles role deletion
-// @Summary Delete role
-// @Description Delete a role (soft delete by setting status to -1)
-// @Tags Roles
-// @Produce json
-// @Security BearerAuth
-// @Param id path int true "Role ID"
-// @Success 200 {object} dto.GenericResponse[any] "Role deleted successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid role ID"
-// @Failure 404 {object} dto.GenericResponse[any] "Role not found"
-// @Failure 403 {object} dto.GenericResponse[any] "Cannot delete system role"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/roles/{id} [delete]
+//	@Summary Delete role
+//	@Description Delete a role (soft delete by setting status to -1)
+//	@Tags Roles
+//	@Produce json
+//	@Security BearerAuth
+//	@Param id path int true "Role ID"
+//	@Success 200 {object} dto.GenericResponse[any] "Role deleted successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid role ID"
+//	@Failure 404 {object} dto.GenericResponse[any] "Role not found"
+//	@Failure 403 {object} dto.GenericResponse[any] "Cannot delete system role"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/roles/{id} [delete]
 func DeleteRole(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -270,17 +270,17 @@ func DeleteRole(c *gin.Context) {
 }
 
 // SearchRoles handles complex role search
-// @Summary Search roles
-// @Description Search roles with complex filtering and sorting
-// @Tags Roles
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body dto.RoleSearchRequest true "Role search request"
-// @Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.RoleResponse]] "Roles retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/roles/search [post]
+//	@Summary Search roles
+//	@Description Search roles with complex filtering and sorting
+//	@Tags Roles
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.RoleSearchRequest true "Role search request"
+//	@Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.RoleResponse]] "Roles retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/roles/search [post]
 func SearchRoles(c *gin.Context) {
 	var req dto.RoleSearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -350,19 +350,19 @@ func SearchRoles(c *gin.Context) {
 }
 
 // AssignPermissionsToRole handles permission assignment to role
-// @Summary Assign permissions to role
-// @Description Assign multiple permissions to a role
-// @Tags Roles
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path int true "Role ID"
-// @Param request body dto.AssignPermissionToRoleRequest true "Permission assignment request"
-// @Success 200 {object} dto.GenericResponse[any] "Permissions assigned successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 404 {object} dto.GenericResponse[any] "Role not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/roles/{id}/permissions [post]
+//	@Summary Assign permissions to role
+//	@Description Assign multiple permissions to a role
+//	@Tags Roles
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param id path int true "Role ID"
+//	@Param request body dto.AssignPermissionToRoleRequest true "Permission assignment request"
+//	@Success 200 {object} dto.GenericResponse[any] "Permissions assigned successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 404 {object} dto.GenericResponse[any] "Role not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/roles/{id}/permissions [post]
 func AssignPermissionsToRole(c *gin.Context) {
 	idStr := c.Param("id")
 	roleID, err := strconv.Atoi(idStr)
@@ -395,19 +395,19 @@ func AssignPermissionsToRole(c *gin.Context) {
 }
 
 // RemovePermissionsFromRole handles permission removal from role
-// @Summary Remove permissions from role
-// @Description Remove multiple permissions from a role
-// @Tags Roles
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path int true "Role ID"
-// @Param request body dto.RemovePermissionFromRoleRequest true "Permission removal request"
-// @Success 200 {object} dto.GenericResponse[any] "Permissions removed successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 404 {object} dto.GenericResponse[any] "Role not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/roles/{id}/permissions [delete]
+//	@Summary Remove permissions from role
+//	@Description Remove multiple permissions from a role
+//	@Tags Roles
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param id path int true "Role ID"
+//	@Param request body dto.RemovePermissionFromRoleRequest true "Permission removal request"
+//	@Success 200 {object} dto.GenericResponse[any] "Permissions removed successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 404 {object} dto.GenericResponse[any] "Role not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/roles/{id}/permissions [delete]
 func RemovePermissionsFromRole(c *gin.Context) {
 	idStr := c.Param("id")
 	roleID, err := strconv.Atoi(idStr)
@@ -434,17 +434,17 @@ func RemovePermissionsFromRole(c *gin.Context) {
 }
 
 // GetRoleUsers handles getting users assigned to a role
-// @Summary Get role users
-// @Description Get list of users assigned to a specific role
-// @Tags Roles
-// @Produce json
-// @Security BearerAuth
-// @Param id path int true "Role ID"
-// @Success 200 {object} dto.GenericResponse[[]dto.UserResponse] "Users retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid role ID"
-// @Failure 404 {object} dto.GenericResponse[any] "Role not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/roles/{id}/users [get]
+//	@Summary Get role users
+//	@Description Get list of users assigned to a specific role
+//	@Tags Roles
+//	@Produce json
+//	@Security BearerAuth
+//	@Param id path int true "Role ID"
+//	@Success 200 {object} dto.GenericResponse[[]dto.UserResponse] "Users retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid role ID"
+//	@Failure 404 {object} dto.GenericResponse[any] "Role not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/roles/{id}/users [get]
 func GetRoleUsers(c *gin.Context) {
 	idStr := c.Param("id")
 	roleID, err := strconv.Atoi(idStr)

@@ -33,9 +33,19 @@ definitions:
       image:
         description: 镜像名
         type: string
+      is_public:
+        description: 是否公开可见
+        type: boolean
       name:
         description: 名称
         type: string
+      project:
+        allOf:
+        - $ref: '#/definitions/database.Project'
+        description: 外键关联
+      project_id:
+        description: 容器必须属于某个项目
+        type: integer
       status:
         description: '0: 已删除 1: 活跃'
         type: boolean
@@ -47,6 +57,25 @@ definitions:
         type: string
       updated_at:
         description: 更新时间
+        type: string
+    type: object
+  database.Project:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      is_public:
+        description: 是否公开可见
+        type: boolean
+      name:
+        type: string
+      status:
+        description: 0:禁用 1:启用 -1:删除
+        type: integer
+      updated_at:
         type: string
     type: object
   database.Task:
@@ -68,8 +97,12 @@ definitions:
         type: boolean
       payload:
         type: string
+      project:
+        allOf:
+        - $ref: '#/definitions/database.Project'
+        description: 外键关联
       project_id:
-        description: 复合索引
+        description: 任务必须属于某个项目
         type: integer
       status:
         description: 添加多个复合索引
@@ -82,6 +115,60 @@ definitions:
         type: string
       updated_at:
         type: string
+    type: object
+  dto.AdvancedSearchRequest:
+    properties:
+      created_at:
+        allOf:
+        - $ref: '#/definitions/dto.DateRange'
+        description: Common filters shortcuts
+      exclude_fields:
+        items:
+          type: string
+        type: array
+      filters:
+        description: Filters
+        items:
+          $ref: '#/definitions/dto.SearchFilter'
+        type: array
+      include:
+        description: Include related entities
+        items:
+          type: string
+        type: array
+      include_fields:
+        description: Include/Exclude fields
+        items:
+          type: string
+        type: array
+      is_active:
+        type: boolean
+      keyword:
+        description: Search keyword (for general text search)
+        type: string
+      page:
+        description: Pagination
+        minimum: 1
+        type: integer
+      project_id:
+        type: integer
+      size:
+        maximum: 1000
+        minimum: 1
+        type: integer
+      sort:
+        description: Sort
+        items:
+          $ref: '#/definitions/dto.SortOption'
+        type: array
+      status:
+        items:
+          type: integer
+        type: array
+      updated_at:
+        $ref: '#/definitions/dto.DateRange'
+      user_id:
+        type: integer
     type: object
   dto.AlgorithmDatasetPair:
     properties:
@@ -100,6 +187,100 @@ definitions:
         type: string
     required:
     - name
+    type: object
+  dto.AlgorithmResponse:
+    properties:
+      command:
+        type: string
+      created_at:
+        type: string
+      env_vars:
+        type: string
+      id:
+        type: integer
+      image:
+        type: string
+      is_public:
+        type: boolean
+      name:
+        type: string
+      project:
+        allOf:
+        - $ref: '#/definitions/dto.ProjectResponse'
+        description: Related entities (only included when specifically requested)
+      project_id:
+        type: integer
+      status:
+        type: boolean
+      tag:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.AlgorithmSearchRequest:
+    properties:
+      created_at:
+        allOf:
+        - $ref: '#/definitions/dto.DateRange'
+        description: Common filters shortcuts
+      exclude_fields:
+        items:
+          type: string
+        type: array
+      filters:
+        description: Filters
+        items:
+          $ref: '#/definitions/dto.SearchFilter'
+        type: array
+      image:
+        type: string
+      include:
+        description: Include related entities
+        items:
+          type: string
+        type: array
+      include_fields:
+        description: Include/Exclude fields
+        items:
+          type: string
+        type: array
+      is_active:
+        type: boolean
+      keyword:
+        description: Search keyword (for general text search)
+        type: string
+      name:
+        description: Algorithm-specific filters
+        type: string
+      page:
+        description: Pagination
+        minimum: 1
+        type: integer
+      project_id:
+        type: integer
+      size:
+        maximum: 1000
+        minimum: 1
+        type: integer
+      sort:
+        description: Sort
+        items:
+          $ref: '#/definitions/dto.SortOption'
+        type: array
+      status:
+        items:
+          type: integer
+        type: array
+      tag:
+        type: string
+      type:
+        type: string
+      updated_at:
+        $ref: '#/definitions/dto.DateRange'
+      user_id:
+        type: integer
     type: object
   dto.AnalyzeInjectionsResp:
     properties:
@@ -257,6 +438,102 @@ definitions:
     required:
     - new_password
     - old_password
+    type: object
+  dto.ContainerResponse:
+    properties:
+      command:
+        type: string
+      created_at:
+        type: string
+      env_vars:
+        type: string
+      id:
+        type: integer
+      image:
+        type: string
+      is_public:
+        type: boolean
+      name:
+        type: string
+      project:
+        allOf:
+        - $ref: '#/definitions/dto.ProjectResponse'
+        description: Related entities (only included when specifically requested)
+      project_id:
+        type: integer
+      status:
+        type: boolean
+      tag:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.ContainerSearchRequest:
+    properties:
+      command:
+        type: string
+      created_at:
+        allOf:
+        - $ref: '#/definitions/dto.DateRange'
+        description: Common filters shortcuts
+      exclude_fields:
+        items:
+          type: string
+        type: array
+      filters:
+        description: Filters
+        items:
+          $ref: '#/definitions/dto.SearchFilter'
+        type: array
+      image:
+        type: string
+      include:
+        description: Include related entities
+        items:
+          type: string
+        type: array
+      include_fields:
+        description: Include/Exclude fields
+        items:
+          type: string
+        type: array
+      is_active:
+        type: boolean
+      keyword:
+        description: Search keyword (for general text search)
+        type: string
+      name:
+        description: Container-specific filters
+        type: string
+      page:
+        description: Pagination
+        minimum: 1
+        type: integer
+      project_id:
+        type: integer
+      size:
+        maximum: 1000
+        minimum: 1
+        type: integer
+      sort:
+        description: Sort
+        items:
+          $ref: '#/definitions/dto.SortOption'
+        type: array
+      status:
+        items:
+          type: integer
+        type: array
+      tag:
+        type: string
+      type:
+        type: string
+      updated_at:
+        $ref: '#/definitions/dto.DateRange'
+      user_id:
+        type: integer
     type: object
   dto.ContainerStatistics:
     properties:
@@ -648,6 +925,22 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
+  dto.GenericResponse-dto_ContainerResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.ContainerResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
   dto.GenericResponse-dto_DatasetDeleteResp:
     properties:
       code:
@@ -1003,6 +1296,38 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
+  dto.GenericResponse-dto_SearchResponse-dto_AlgorithmResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.SearchResponse-dto_AlgorithmResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_SearchResponse-dto_ContainerResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.SearchResponse-dto_ContainerResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
   dto.GenericResponse-dto_SearchResponse-dto_PermissionResponse:
     properties:
       code:
@@ -1027,6 +1352,22 @@ definitions:
       data:
         allOf:
         - $ref: '#/definitions/dto.SearchResponse-dto_RoleResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_SearchResponse-dto_TaskResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.SearchResponse-dto_TaskResponse'
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -1140,6 +1481,22 @@ definitions:
       data:
         allOf:
         - $ref: '#/definitions/dto.TaskDetailResp'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_TaskDetailResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.TaskDetailResponse'
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -1695,6 +2052,28 @@ definitions:
       user_id:
         type: integer
     type: object
+  dto.ProjectResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      is_public:
+        type: boolean
+      members:
+        description: Related entities (only included when specifically requested)
+        items:
+          $ref: '#/definitions/dto.UserProjectResponse'
+        type: array
+      name:
+        type: string
+      status:
+        type: integer
+      updated_at:
+        type: string
+    type: object
   dto.ProjectStatistics:
     properties:
       active:
@@ -2110,6 +2489,40 @@ definitions:
     - field
     - operator
     type: object
+  dto.SearchResponse-dto_AlgorithmResponse:
+    properties:
+      applied_filters:
+        items:
+          $ref: '#/definitions/dto.SearchFilter'
+        type: array
+      applied_sort:
+        items:
+          $ref: '#/definitions/dto.SortOption'
+        type: array
+      items:
+        items:
+          $ref: '#/definitions/dto.AlgorithmResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationInfo'
+    type: object
+  dto.SearchResponse-dto_ContainerResponse:
+    properties:
+      applied_filters:
+        items:
+          $ref: '#/definitions/dto.SearchFilter'
+        type: array
+      applied_sort:
+        items:
+          $ref: '#/definitions/dto.SortOption'
+        type: array
+      items:
+        items:
+          $ref: '#/definitions/dto.ContainerResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationInfo'
+    type: object
   dto.SearchResponse-dto_PermissionResponse:
     properties:
       applied_filters:
@@ -2140,6 +2553,23 @@ definitions:
       items:
         items:
           $ref: '#/definitions/dto.RoleResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationInfo'
+    type: object
+  dto.SearchResponse-dto_TaskResponse:
+    properties:
+      applied_filters:
+        items:
+          $ref: '#/definitions/dto.SearchFilter'
+        type: array
+      applied_sort:
+        items:
+          $ref: '#/definitions/dto.SortOption'
+        type: array
+      items:
+        items:
+          $ref: '#/definitions/dto.TaskResponse'
         type: array
       pagination:
         $ref: '#/definitions/dto.PaginationInfo'
@@ -2320,6 +2750,35 @@ definitions:
       task:
         $ref: '#/definitions/dto.TaskItem'
     type: object
+  dto.TaskDetailResponse:
+    properties:
+      created_at:
+        type: string
+      group_id:
+        type: string
+      id:
+        type: string
+      immediate:
+        type: boolean
+      logs:
+        items:
+          type: string
+        type: array
+      project:
+        allOf:
+        - $ref: '#/definitions/dto.ProjectResponse'
+        description: Related entities (only included when specifically requested)
+      project_id:
+        type: integer
+      status:
+        type: string
+      trace_id:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
   dto.TaskItem:
     properties:
       created_at:
@@ -2334,6 +2793,99 @@ definitions:
         type: string
       type:
         type: string
+    type: object
+  dto.TaskResponse:
+    properties:
+      created_at:
+        type: string
+      group_id:
+        type: string
+      id:
+        type: string
+      immediate:
+        type: boolean
+      logs:
+        description: Only included when specifically requested
+        items:
+          type: string
+        type: array
+      project:
+        allOf:
+        - $ref: '#/definitions/dto.ProjectResponse'
+        description: Related entities (only included when specifically requested)
+      project_id:
+        type: integer
+      status:
+        type: string
+      trace_id:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.TaskSearchRequest:
+    properties:
+      created_at:
+        allOf:
+        - $ref: '#/definitions/dto.DateRange'
+        description: Common filters shortcuts
+      exclude_fields:
+        items:
+          type: string
+        type: array
+      filters:
+        description: Filters
+        items:
+          $ref: '#/definitions/dto.SearchFilter'
+        type: array
+      group_id:
+        type: string
+      immediate:
+        type: boolean
+      include:
+        description: Include related entities
+        items:
+          type: string
+        type: array
+      include_fields:
+        description: Include/Exclude fields
+        items:
+          type: string
+        type: array
+      is_active:
+        type: boolean
+      keyword:
+        description: Search keyword (for general text search)
+        type: string
+      page:
+        description: Pagination
+        minimum: 1
+        type: integer
+      project_id:
+        type: integer
+      size:
+        maximum: 1000
+        minimum: 1
+        type: integer
+      sort:
+        description: Sort
+        items:
+          $ref: '#/definitions/dto.SortOption'
+        type: array
+      status:
+        type: string
+      task_id:
+        description: Task-specific filters
+        type: string
+      task_type:
+        type: string
+      trace_id:
+        type: string
+      updated_at:
+        $ref: '#/definitions/dto.DateRange'
+      user_id:
+        type: integer
     type: object
   dto.TaskStatistics:
     properties:
@@ -3924,6 +4476,81 @@ paths:
       summary: 获取完成状态的链路
       tags:
       - trace
+  /api/v2/algorithms:
+    get:
+      description: Get a simple list of all active algorithms without complex filtering
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Algorithms retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SearchResponse-dto_AlgorithmResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: List algorithms
+      tags:
+      - Algorithms
+  /api/v2/algorithms/search:
+    post:
+      consumes:
+      - application/json
+      description: Search algorithms with complex filtering, sorting and pagination.
+        Algorithms are containers with type 'algorithm'
+      parameters:
+      - description: Algorithm search request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AlgorithmSearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Algorithms retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SearchResponse-dto_AlgorithmResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Search algorithms
+      tags:
+      - Algorithms
   /api/v2/audit:
     get:
       description: Get paginated list of audit logs with optional filtering
@@ -4233,6 +4860,127 @@ paths:
       summary: User registration
       tags:
       - Authentication
+  /api/v2/containers:
+    get:
+      description: Get a simple list of containers with basic filtering
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: size
+        type: integer
+      - description: Container type filter
+        enum:
+        - algorithm
+        - benchmark
+        in: query
+        name: type
+        type: string
+      - description: Container status filter
+        in: query
+        name: status
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Containers retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SearchResponse-dto_ContainerResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: List containers
+      tags:
+      - Containers
+  /api/v2/containers/{id}:
+    get:
+      description: Get detailed information about a specific container
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Container retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_ContainerResponse'
+        "400":
+          description: Invalid container ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Container not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get container by ID
+      tags:
+      - Containers
+  /api/v2/containers/search:
+    post:
+      description: Search containers with complex filtering, sorting and pagination.
+        Supports all container types (algorithm, benchmark, etc.)
+      parameters:
+      - description: Container search request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ContainerSearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Containers retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SearchResponse-dto_ContainerResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Search containers
+      tags:
+      - Containers
   /api/v2/health:
     get:
       description: Get system health status and service information
@@ -5256,6 +6004,195 @@ paths:
       summary: Get system statistics
       tags:
       - System
+  /api/v2/tasks:
+    get:
+      description: Get a simple list of tasks with basic filtering via query parameters
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: size
+        type: integer
+      - description: Filter by task ID
+        in: query
+        name: task_id
+        type: string
+      - description: Filter by trace ID
+        in: query
+        name: trace_id
+        type: string
+      - description: Filter by group ID
+        in: query
+        name: group_id
+        type: string
+      - description: Filter by task type
+        enum:
+        - RestartService
+        - FaultInjection
+        - BuildDataset
+        - RunAlgorithm
+        - CollectResult
+        - BuildImage
+        in: query
+        name: task_type
+        type: string
+      - description: Filter by status
+        enum:
+        - Pending
+        - Running
+        - Completed
+        - Error
+        - Cancelled
+        - Scheduled
+        - Rescheduled
+        in: query
+        name: status
+        type: string
+      - description: Filter by immediate execution
+        in: query
+        name: immediate
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tasks retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SearchResponse-dto_TaskResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: List tasks
+      tags:
+      - Tasks
+  /api/v2/tasks/{id}:
+    get:
+      description: Get detailed information about a specific task including logs
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - collectionFormat: multi
+        description: Include additional data (logs)
+        in: query
+        items:
+          type: string
+        name: include
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Task retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_TaskDetailResponse'
+        "400":
+          description: Invalid task ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Task not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get task by ID
+      tags:
+      - Tasks
+  /api/v2/tasks/queue:
+    post:
+      consumes:
+      - application/json
+      description: Get tasks in queue (ready and delayed) with pagination and filtering
+      parameters:
+      - description: Search request with pagination
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AdvancedSearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Queued tasks retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SearchResponse-dto_TaskResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get queued tasks
+      tags:
+      - Tasks
+  /api/v2/tasks/search:
+    post:
+      consumes:
+      - application/json
+      description: Search tasks with complex filtering, sorting and pagination
+      parameters:
+      - description: Task search request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.TaskSearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tasks retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SearchResponse-dto_TaskResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Search tasks
+      tags:
+      - Tasks
   /api/v2/users:
     get:
       description: Get paginated list of users with optional filtering

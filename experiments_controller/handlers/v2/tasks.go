@@ -20,36 +20,36 @@ import (
 )
 
 // GetTask handles getting a single task by ID
-// @Summary Get task by ID
-// @Description Get detailed information about a specific task including logs
-// @Tags Tasks
-// @Produce json
-// @Security BearerAuth
-// @Param id path string true "Task ID"
-// @Param include query []string false "Include additional data (logs)" collectionFormat(multi)
-// @Success 200 {object} dto.GenericResponse[dto.TaskDetailResponse] "Task retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid task ID"
-// @Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-// @Failure 404 {object} dto.GenericResponse[any] "Task not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/tasks/{id} [get]
+//	@Summary Get task by ID
+//	@Description Get detailed information about a specific task including logs
+//	@Tags Tasks
+//	@Produce json
+//	@Security BearerAuth
+//	@Param id path string true "Task ID"
+//	@Param include query []string false "Include additional data (logs)" collectionFormat(multi)
+//	@Success 200 {object} dto.GenericResponse[dto.TaskDetailResponse] "Task retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid task ID"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 404 {object} dto.GenericResponse[any] "Task not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/tasks/{id} [get]
 func GetTask(c *gin.Context) {
 	// Check permission first
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "用户未认证")
+		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	checker := repository.NewPermissionChecker(userID.(int), nil)
 	canRead, err := checker.CanReadResource(consts.ResourceTask)
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "权限检查失败: "+err.Error())
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
 		return
 	}
 
 	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "没有读取任务的权限")
+		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read tasks")
 		return
 	}
 
@@ -61,11 +61,11 @@ func GetTask(c *gin.Context) {
 	taskItem, err := repository.FindTaskItemByID(taskID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			message := "任务未找到"
+			message := "Task not found"
 			logEntry.Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusNotFound, message)
 		} else {
-			message := "获取任务失败"
+			message := "Failed to get task"
 			logEntry.Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		}
@@ -88,7 +88,7 @@ func GetTask(c *gin.Context) {
 		logKey := fmt.Sprintf("task:%s:logs", taskItem.ID)
 		logs, err := client.GetRedisClient().LRange(c.Request.Context(), logKey, 0, -1).Result()
 		if err != nil && !errors.Is(err, redis.Nil) {
-			logrus.Errorf("获取任务日志失败: %v", err)
+			logrus.Errorf("Failed to get task logs: %v", err)
 		} else if err == nil {
 			response.Logs = logs
 		}
@@ -98,41 +98,41 @@ func GetTask(c *gin.Context) {
 }
 
 // ListTasks handles simple task listing
-// @Summary List tasks
-// @Description Get a simple list of tasks with basic filtering via query parameters
-// @Tags Tasks
-// @Produce json
-// @Security BearerAuth
-// @Param page query int false "Page number" default(1)
-// @Param size query int false "Page size" default(20)
-// @Param task_id query string false "Filter by task ID"
-// @Param trace_id query string false "Filter by trace ID"
-// @Param group_id query string false "Filter by group ID"
-// @Param task_type query string false "Filter by task type" Enums(RestartService,FaultInjection,BuildDataset,RunAlgorithm,CollectResult,BuildImage)
-// @Param status query string false "Filter by status" Enums(Pending,Running,Completed,Error,Cancelled,Scheduled,Rescheduled)
-// @Param immediate query bool false "Filter by immediate execution"
-// @Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.TaskResponse]] "Tasks retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/tasks [get]
+//	@Summary List tasks
+//	@Description Get a simple list of tasks with basic filtering via query parameters
+//	@Tags Tasks
+//	@Produce json
+//	@Security BearerAuth
+//	@Param page query int false "Page number" default(1)
+//	@Param size query int false "Page size" default(20)
+//	@Param task_id query string false "Filter by task ID"
+//	@Param trace_id query string false "Filter by trace ID"
+//	@Param group_id query string false "Filter by group ID"
+//	@Param task_type query string false "Filter by task type" Enums(RestartService,FaultInjection,BuildDataset,RunAlgorithm,CollectResult,BuildImage)
+//	@Param status query string false "Filter by status" Enums(Pending,Running,Completed,Error,Cancelled,Scheduled,Rescheduled)
+//	@Param immediate query bool false "Filter by immediate execution"
+//	@Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.TaskResponse]] "Tasks retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/tasks [get]
 func ListTasks(c *gin.Context) {
 	// Check permission first
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "用户未认证")
+		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	checker := repository.NewPermissionChecker(userID.(int), nil)
 	canRead, err := checker.CanReadResource(consts.ResourceTask)
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "权限检查失败: "+err.Error())
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
 		return
 	}
 
 	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "没有读取任务的权限")
+		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read tasks")
 		return
 	}
 
@@ -188,14 +188,14 @@ func ListTasks(c *gin.Context) {
 
 	// Validate search request
 	if err := searchReq.ValidateSearchRequest(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "搜索参数无效: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid search parameters: "+err.Error())
 		return
 	}
 
 	// Execute search using query builder
 	searchResult, err := repository.ExecuteSearch(database.DB, searchReq, database.Task{})
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "获取任务列表失败: "+err.Error())
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get task list: "+err.Error())
 		return
 	}
 
@@ -228,41 +228,41 @@ func ListTasks(c *gin.Context) {
 }
 
 // SearchTasks handles complex task search with advanced filtering
-// @Summary Search tasks
-// @Description Search tasks with complex filtering, sorting and pagination
-// @Tags Tasks
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body dto.TaskSearchRequest true "Task search request"
-// @Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.TaskResponse]] "Tasks retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/tasks/search [post]
+//	@Summary Search tasks
+//	@Description Search tasks with complex filtering, sorting and pagination
+//	@Tags Tasks
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.TaskSearchRequest true "Task search request"
+//	@Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.TaskResponse]] "Tasks retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/tasks/search [post]
 func SearchTasks(c *gin.Context) {
 	// Check permission first
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "用户未认证")
+		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	checker := repository.NewPermissionChecker(userID.(int), nil)
 	canRead, err := checker.CanReadResource(consts.ResourceTask)
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "权限检查失败: "+err.Error())
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
 		return
 	}
 
 	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "没有读取任务的权限")
+		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read tasks")
 		return
 	}
 
 	var req dto.TaskSearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "请求格式无效: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 
@@ -271,14 +271,14 @@ func SearchTasks(c *gin.Context) {
 
 	// Validate search request
 	if err := searchReq.ValidateSearchRequest(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "搜索参数无效: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid search parameters: "+err.Error())
 		return
 	}
 
 	// Execute search using query builder
 	searchResult, err := repository.ExecuteSearch(database.DB, searchReq, database.Task{})
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "搜索任务失败: "+err.Error())
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to search tasks: "+err.Error())
 		return
 	}
 
@@ -325,28 +325,28 @@ func SearchTasks(c *gin.Context) {
 }
 
 // GetQueuedTasks handles getting tasks in queue with pagination
-// @Summary Get queued tasks
-// @Description Get tasks in queue (ready and delayed) with pagination and filtering
-// @Tags Tasks
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body dto.AdvancedSearchRequest true "Search request with pagination"
-// @Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.TaskResponse]] "Queued tasks retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/tasks/queue [post]
+//	@Summary Get queued tasks
+//	@Description Get tasks in queue (ready and delayed) with pagination and filtering
+//	@Tags Tasks
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.AdvancedSearchRequest true "Search request with pagination"
+//	@Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.TaskResponse]] "Queued tasks retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/tasks/queue [post]
 func GetQueuedTasks(c *gin.Context) {
 	var req dto.AdvancedSearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "请求格式无效: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 
 	// Convert and validate search request
 	searchReq := req.ConvertAdvancedToSearch()
 	if err := searchReq.ValidateSearchRequest(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "搜索参数无效: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid search parameters: "+err.Error())
 		return
 	}
 
@@ -357,22 +357,22 @@ func GetQueuedTasks(c *gin.Context) {
 	// Get tasks from ready queue (immediate execution)
 	readyTasks, err := redisCli.LRange(ctx, "ready_queue", 0, -1).Result()
 	if err != nil && !errors.Is(err, redis.Nil) {
-		logrus.Errorf("获取就绪队列任务失败: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "获取就绪队列任务失败")
+		logrus.Errorf("Failed to get ready queue tasks: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get ready queue tasks")
 		return
 	}
 
 	for _, taskData := range readyTasks {
 		var task database.Task
 		if err := json.Unmarshal([]byte(taskData), &task); err != nil {
-			logrus.Warnf("无效的任务数据: %v", err)
+			logrus.Warnf("Invalid task data: %v", err)
 			continue
 		}
 
 		tasks = append(tasks, dto.TaskResponse{
 			ID:        task.ID,
 			Type:      task.Type,
-			Status:    "排队中",
+			Status:    "Queued",
 			TraceID:   task.TraceID,
 			GroupID:   task.GroupID,
 			Immediate: true,
@@ -390,8 +390,8 @@ func GetQueuedTasks(c *gin.Context) {
 	}).Result()
 
 	if err != nil && !errors.Is(err, redis.Nil) {
-		logrus.Errorf("获取延迟队列任务失败: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "获取延迟队列任务失败")
+		logrus.Errorf("Failed to get delayed queue tasks: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get delayed queue tasks")
 		return
 	}
 
@@ -403,14 +403,14 @@ func GetQueuedTasks(c *gin.Context) {
 
 		var task database.Task
 		if err := json.Unmarshal([]byte(taskData), &task); err != nil {
-			logrus.Warnf("无效的延迟任务数据: %v", err)
+			logrus.Warnf("Invalid delayed task data: %v", err)
 			continue
 		}
 
 		tasks = append(tasks, dto.TaskResponse{
 			ID:        task.ID,
 			Type:      task.Type,
-			Status:    "计划中",
+			Status:    "Scheduled",
 			TraceID:   task.TraceID,
 			GroupID:   task.GroupID,
 			Immediate: false,

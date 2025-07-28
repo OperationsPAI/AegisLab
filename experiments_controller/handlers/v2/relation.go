@@ -10,18 +10,18 @@ import (
 )
 
 // AssignUserRole handles user-role assignment
-// @Summary Assign role to user
-// @Description Assign a role to a user (global role assignment)
-// @Tags Relations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body dto.AssignUserRoleRequest true "User role assignment request"
-// @Success 200 {object} dto.GenericResponse[any] "Role assigned successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 404 {object} dto.GenericResponse[any] "User or role not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/relations/user-roles [post]
+//	@Summary Assign role to user
+//	@Description Assign a role to a user (global role assignment)
+//	@Tags Relations
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.AssignUserRoleRequest true "User role assignment request"
+//	@Success 200 {object} dto.GenericResponse[any] "Role assigned successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 404 {object} dto.GenericResponse[any] "User or role not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/relations/user-roles [post]
 func AssignUserRole(c *gin.Context) {
 	var req dto.AssignUserRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -51,18 +51,18 @@ func AssignUserRole(c *gin.Context) {
 }
 
 // RemoveUserRole handles user-role removal
-// @Summary Remove role from user
-// @Description Remove a role from a user (global role removal)
-// @Tags Relations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body dto.RemoveUserRoleRequest true "User role removal request"
-// @Success 200 {object} dto.GenericResponse[any] "Role removed successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 404 {object} dto.GenericResponse[any] "User or role not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/relations/user-roles [delete]
+//	@Summary Remove role from user
+//	@Description Remove a role from a user (global role removal)
+//	@Tags Relations
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.RemoveUserRoleRequest true "User role removal request"
+//	@Success 200 {object} dto.GenericResponse[any] "Role removed successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 404 {object} dto.GenericResponse[any] "User or role not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/relations/user-roles [delete]
 func RemoveUserRole(c *gin.Context) {
 	var req dto.RemoveUserRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -80,18 +80,18 @@ func RemoveUserRole(c *gin.Context) {
 }
 
 // AssignRolePermissions handles role-permission assignment
-// @Summary Assign permissions to role
-// @Description Assign multiple permissions to a role
-// @Tags Relations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body dto.AssignRolePermissionRequest true "Role permission assignment request"
-// @Success 200 {object} dto.GenericResponse[any] "Permissions assigned successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 404 {object} dto.GenericResponse[any] "Role or permission not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/relations/role-permissions [post]
+//	@Summary Assign permissions to role
+//	@Description Assign multiple permissions to a role
+//	@Tags Relations
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.AssignRolePermissionRequest true "Role permission assignment request"
+//	@Success 200 {object} dto.GenericResponse[any] "Permissions assigned successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 404 {object} dto.GenericResponse[any] "Role or permission not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/relations/role-permissions [post]
 func AssignRolePermissions(c *gin.Context) {
 	var req dto.AssignRolePermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -117,17 +117,17 @@ func AssignRolePermissions(c *gin.Context) {
 }
 
 // RemoveRolePermissions handles role-permission removal
-// @Summary Remove permissions from role
-// @Description Remove multiple permissions from a role
-// @Tags Relations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body dto.RemoveRolePermissionRequest true "Role permission removal request"
-// @Success 200 {object} dto.GenericResponse[any] "Permissions removed successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/relations/role-permissions [delete]
+//	@Summary Remove permissions from role
+//	@Description Remove multiple permissions from a role
+//	@Tags Relations
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.RemoveRolePermissionRequest true "Role permission removal request"
+//	@Success 200 {object} dto.GenericResponse[any] "Permissions removed successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/relations/role-permissions [delete]
 func RemoveRolePermissions(c *gin.Context) {
 	var req dto.RemoveRolePermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -147,18 +147,18 @@ func RemoveRolePermissions(c *gin.Context) {
 }
 
 // AssignUserPermission handles direct user-permission assignment
-// @Summary Assign permission to user
-// @Description Assign a permission directly to a user (with optional project scope)
-// @Tags Relations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body dto.AssignUserPermissionRequest true "User permission assignment request"
-// @Success 200 {object} dto.GenericResponse[any] "Permission assigned successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 404 {object} dto.GenericResponse[any] "User or permission not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/relations/user-permissions [post]
+//	@Summary Assign permission to user
+//	@Description Assign a permission directly to a user (with optional project scope)
+//	@Tags Relations
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.AssignUserPermissionRequest true "User permission assignment request"
+//	@Success 200 {object} dto.GenericResponse[any] "Permission assigned successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 404 {object} dto.GenericResponse[any] "User or permission not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/relations/user-permissions [post]
 func AssignUserPermission(c *gin.Context) {
 	var req dto.AssignUserPermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -182,17 +182,17 @@ func AssignUserPermission(c *gin.Context) {
 }
 
 // RemoveUserPermission handles direct user-permission removal
-// @Summary Remove permission from user
-// @Description Remove a permission directly from a user
-// @Tags Relations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body dto.RemoveUserPermissionRequest true "User permission removal request"
-// @Success 200 {object} dto.GenericResponse[any] "Permission removed successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/relations/user-permissions [delete]
+//	@Summary Remove permission from user
+//	@Description Remove a permission directly from a user
+//	@Tags Relations
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.RemoveUserPermissionRequest true "User permission removal request"
+//	@Success 200 {object} dto.GenericResponse[any] "Permission removed successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/relations/user-permissions [delete]
 func RemoveUserPermission(c *gin.Context) {
 	var req dto.RemoveUserPermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -210,17 +210,17 @@ func RemoveUserPermission(c *gin.Context) {
 }
 
 // BatchRelationOperations handles batch relationship operations
-// @Summary Batch relationship operations
-// @Description Perform multiple relationship operations in a single request
-// @Tags Relations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body dto.BatchRelationRequest true "Batch relation operations request"
-// @Success 200 {object} dto.GenericResponse[any] "Batch operations completed successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/relations/batch [post]
+//	@Summary Batch relationship operations
+//	@Description Perform multiple relationship operations in a single request
+//	@Tags Relations
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.BatchRelationRequest true "Batch relation operations request"
+//	@Success 200 {object} dto.GenericResponse[any] "Batch operations completed successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/relations/batch [post]
 func BatchRelationOperations(c *gin.Context) {
 	var req dto.BatchRelationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -260,22 +260,22 @@ func BatchRelationOperations(c *gin.Context) {
 }
 
 // ListRelations handles listing relationships
-// @Summary List relationships
-// @Description Get paginated list of relationships with optional filtering
-// @Tags Relations
-// @Produce json
-// @Security BearerAuth
-// @Param page query int false "Page number" default(1)
-// @Param size query int false "Page size" default(20)
-// @Param type query string false "Relationship type"
-// @Param source_type query string false "Source entity type"
-// @Param target_type query string false "Target entity type"
-// @Param source_id query int false "Source entity ID"
-// @Param target_id query int false "Target entity ID"
-// @Success 200 {object} dto.GenericResponse[dto.RelationListResponse] "Relations retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request parameters"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/relations [get]
+//	@Summary List relationships
+//	@Description Get paginated list of relationships with optional filtering
+//	@Tags Relations
+//	@Produce json
+//	@Security BearerAuth
+//	@Param page query int false "Page number" default(1)
+//	@Param size query int false "Page size" default(20)
+//	@Param type query string false "Relationship type"
+//	@Param source_type query string false "Source entity type"
+//	@Param target_type query string false "Target entity type"
+//	@Param source_id query int false "Source entity ID"
+//	@Param target_id query int false "Target entity ID"
+//	@Success 200 {object} dto.GenericResponse[dto.RelationListResponse] "Relations retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request parameters"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/relations [get]
 func ListRelations(c *gin.Context) {
 	var req dto.RelationListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -336,14 +336,14 @@ func ListRelations(c *gin.Context) {
 }
 
 // GetRelationStatistics handles relationship statistics
-// @Summary Get relationship statistics
-// @Description Get statistics about all relationship types in the system
-// @Tags Relations
-// @Produce json
-// @Security BearerAuth
-// @Success 200 {object} dto.GenericResponse[dto.RelationStatisticsResponse] "Statistics retrieved successfully"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/relations/statistics [get]
+//	@Summary Get relationship statistics
+//	@Description Get statistics about all relationship types in the system
+//	@Tags Relations
+//	@Produce json
+//	@Security BearerAuth
+//	@Success 200 {object} dto.GenericResponse[dto.RelationStatisticsResponse] "Statistics retrieved successfully"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/relations/statistics [get]
 func GetRelationStatistics(c *gin.Context) {
 	// Get relationship statistics from repository
 	stats, err := repository.GetRelationStatistics()

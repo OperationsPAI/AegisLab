@@ -19,11 +19,14 @@ __version__ = "1.0.0"
 
 # Define package exports
 __all__ = [
+    "AlgorithmsApi",
     "AuthenticationApi",
+    "ContainersApi",
     "PermissionsApi",
     "RelationsApi",
     "RolesApi",
     "SystemApi",
+    "TasksApi",
     "UsersApi",
     "AlgorithmApi",
     "AnalyzerApi",
@@ -45,9 +48,13 @@ __all__ = [
     "ApiException",
     "ConstsTaskType",
     "DatabaseContainer",
+    "DatabaseProject",
     "DatabaseTask",
+    "DtoAdvancedSearchRequest",
     "DtoAlgorithmDatasetPair",
     "DtoAlgorithmItem",
+    "DtoAlgorithmResponse",
+    "DtoAlgorithmSearchRequest",
     "DtoAnalyzeInjectionsResp",
     "DtoAssignUserPermissionRequest",
     "DtoAssignUserRoleRequest",
@@ -58,6 +65,8 @@ __all__ = [
     "DtoAuditLogResponse",
     "DtoBatchRelationRequest",
     "DtoChangePasswordRequest",
+    "DtoContainerResponse",
+    "DtoContainerSearchRequest",
     "DtoContainerStatistics",
     "DtoCreatePermissionRequest",
     "DtoCreateRoleRequest",
@@ -80,6 +89,7 @@ __all__ = [
     "DtoGenericResponseDtoAnalyzeInjectionsResp",
     "DtoGenericResponseDtoAuditLogListResponse",
     "DtoGenericResponseDtoAuditLogResponse",
+    "DtoGenericResponseDtoContainerResponse",
     "DtoGenericResponseDtoDatasetDeleteResp",
     "DtoGenericResponseDtoGetCompletedMapResp",
     "DtoGenericResponseDtoGroundTruthResp",
@@ -102,8 +112,11 @@ __all__ = [
     "DtoGenericResponseDtoRelationStatisticsResponse",
     "DtoGenericResponseDtoRoleListResponse",
     "DtoGenericResponseDtoRoleResponse",
+    "DtoGenericResponseDtoSearchResponseDtoAlgorithmResponse",
+    "DtoGenericResponseDtoSearchResponseDtoContainerResponse",
     "DtoGenericResponseDtoSearchResponseDtoPermissionResponse",
     "DtoGenericResponseDtoSearchResponseDtoRoleResponse",
+    "DtoGenericResponseDtoSearchResponseDtoTaskResponse",
     "DtoGenericResponseDtoSearchResponseDtoUserResponse",
     "DtoGenericResponseDtoSubmitInjectionResp",
     "DtoGenericResponseDtoSubmitResp",
@@ -111,6 +124,7 @@ __all__ = [
     "DtoGenericResponseDtoSystemInfo",
     "DtoGenericResponseDtoSystemStatisticsResponse",
     "DtoGenericResponseDtoTaskDetailResp",
+    "DtoGenericResponseDtoTaskDetailResponse",
     "DtoGenericResponseDtoTokenRefreshResponse",
     "DtoGenericResponseDtoTraceStats",
     "DtoGenericResponseDtoUserInfo",
@@ -143,6 +157,7 @@ __all__ = [
     "DtoPermissionListResponse",
     "DtoPermissionResponse",
     "DtoPermissionSearchRequest",
+    "DtoProjectResponse",
     "DtoProjectStatistics",
     "DtoQueryInjectionResp",
     "DtoRawDataItem",
@@ -161,8 +176,11 @@ __all__ = [
     "DtoRoleResponse",
     "DtoRoleSearchRequest",
     "DtoSearchFilter",
+    "DtoSearchResponseDtoAlgorithmResponse",
+    "DtoSearchResponseDtoContainerResponse",
     "DtoSearchResponseDtoPermissionResponse",
     "DtoSearchResponseDtoRoleResponse",
+    "DtoSearchResponseDtoTaskResponse",
     "DtoSearchResponseDtoUserResponse",
     "DtoServiceCoverageItem",
     "DtoServiceInfo",
@@ -175,7 +193,10 @@ __all__ = [
     "DtoSystemInfo",
     "DtoSystemStatisticsResponse",
     "DtoTaskDetailResp",
+    "DtoTaskDetailResponse",
     "DtoTaskItem",
+    "DtoTaskResponse",
+    "DtoTaskSearchRequest",
     "DtoTaskStatistics",
     "DtoTokenRefreshRequest",
     "DtoTokenRefreshResponse",
@@ -198,11 +219,14 @@ __all__ = [
 ]
 
 # import apis into sdk package
+from rcabench.openapi.api.algorithms_api import AlgorithmsApi as AlgorithmsApi
 from rcabench.openapi.api.authentication_api import AuthenticationApi as AuthenticationApi
+from rcabench.openapi.api.containers_api import ContainersApi as ContainersApi
 from rcabench.openapi.api.permissions_api import PermissionsApi as PermissionsApi
 from rcabench.openapi.api.relations_api import RelationsApi as RelationsApi
 from rcabench.openapi.api.roles_api import RolesApi as RolesApi
 from rcabench.openapi.api.system_api import SystemApi as SystemApi
+from rcabench.openapi.api.tasks_api import TasksApi as TasksApi
 from rcabench.openapi.api.users_api import UsersApi as UsersApi
 from rcabench.openapi.api.algorithm_api import AlgorithmApi as AlgorithmApi
 from rcabench.openapi.api.analyzer_api import AnalyzerApi as AnalyzerApi
@@ -228,9 +252,13 @@ from rcabench.openapi.exceptions import ApiException as ApiException
 # import models into sdk package
 from rcabench.openapi.models.consts_task_type import ConstsTaskType as ConstsTaskType
 from rcabench.openapi.models.database_container import DatabaseContainer as DatabaseContainer
+from rcabench.openapi.models.database_project import DatabaseProject as DatabaseProject
 from rcabench.openapi.models.database_task import DatabaseTask as DatabaseTask
+from rcabench.openapi.models.dto_advanced_search_request import DtoAdvancedSearchRequest as DtoAdvancedSearchRequest
 from rcabench.openapi.models.dto_algorithm_dataset_pair import DtoAlgorithmDatasetPair as DtoAlgorithmDatasetPair
 from rcabench.openapi.models.dto_algorithm_item import DtoAlgorithmItem as DtoAlgorithmItem
+from rcabench.openapi.models.dto_algorithm_response import DtoAlgorithmResponse as DtoAlgorithmResponse
+from rcabench.openapi.models.dto_algorithm_search_request import DtoAlgorithmSearchRequest as DtoAlgorithmSearchRequest
 from rcabench.openapi.models.dto_analyze_injections_resp import DtoAnalyzeInjectionsResp as DtoAnalyzeInjectionsResp
 from rcabench.openapi.models.dto_assign_user_permission_request import DtoAssignUserPermissionRequest as DtoAssignUserPermissionRequest
 from rcabench.openapi.models.dto_assign_user_role_request import DtoAssignUserRoleRequest as DtoAssignUserRoleRequest
@@ -241,6 +269,8 @@ from rcabench.openapi.models.dto_audit_log_request import DtoAuditLogRequest as 
 from rcabench.openapi.models.dto_audit_log_response import DtoAuditLogResponse as DtoAuditLogResponse
 from rcabench.openapi.models.dto_batch_relation_request import DtoBatchRelationRequest as DtoBatchRelationRequest
 from rcabench.openapi.models.dto_change_password_request import DtoChangePasswordRequest as DtoChangePasswordRequest
+from rcabench.openapi.models.dto_container_response import DtoContainerResponse as DtoContainerResponse
+from rcabench.openapi.models.dto_container_search_request import DtoContainerSearchRequest as DtoContainerSearchRequest
 from rcabench.openapi.models.dto_container_statistics import DtoContainerStatistics as DtoContainerStatistics
 from rcabench.openapi.models.dto_create_permission_request import DtoCreatePermissionRequest as DtoCreatePermissionRequest
 from rcabench.openapi.models.dto_create_role_request import DtoCreateRoleRequest as DtoCreateRoleRequest
@@ -263,6 +293,7 @@ from rcabench.openapi.models.dto_generic_response_array_dto_user_response import
 from rcabench.openapi.models.dto_generic_response_dto_analyze_injections_resp import DtoGenericResponseDtoAnalyzeInjectionsResp as DtoGenericResponseDtoAnalyzeInjectionsResp
 from rcabench.openapi.models.dto_generic_response_dto_audit_log_list_response import DtoGenericResponseDtoAuditLogListResponse as DtoGenericResponseDtoAuditLogListResponse
 from rcabench.openapi.models.dto_generic_response_dto_audit_log_response import DtoGenericResponseDtoAuditLogResponse as DtoGenericResponseDtoAuditLogResponse
+from rcabench.openapi.models.dto_generic_response_dto_container_response import DtoGenericResponseDtoContainerResponse as DtoGenericResponseDtoContainerResponse
 from rcabench.openapi.models.dto_generic_response_dto_dataset_delete_resp import DtoGenericResponseDtoDatasetDeleteResp as DtoGenericResponseDtoDatasetDeleteResp
 from rcabench.openapi.models.dto_generic_response_dto_get_completed_map_resp import DtoGenericResponseDtoGetCompletedMapResp as DtoGenericResponseDtoGetCompletedMapResp
 from rcabench.openapi.models.dto_generic_response_dto_ground_truth_resp import DtoGenericResponseDtoGroundTruthResp as DtoGenericResponseDtoGroundTruthResp
@@ -285,8 +316,11 @@ from rcabench.openapi.models.dto_generic_response_dto_relation_list_response imp
 from rcabench.openapi.models.dto_generic_response_dto_relation_statistics_response import DtoGenericResponseDtoRelationStatisticsResponse as DtoGenericResponseDtoRelationStatisticsResponse
 from rcabench.openapi.models.dto_generic_response_dto_role_list_response import DtoGenericResponseDtoRoleListResponse as DtoGenericResponseDtoRoleListResponse
 from rcabench.openapi.models.dto_generic_response_dto_role_response import DtoGenericResponseDtoRoleResponse as DtoGenericResponseDtoRoleResponse
+from rcabench.openapi.models.dto_generic_response_dto_search_response_dto_algorithm_response import DtoGenericResponseDtoSearchResponseDtoAlgorithmResponse as DtoGenericResponseDtoSearchResponseDtoAlgorithmResponse
+from rcabench.openapi.models.dto_generic_response_dto_search_response_dto_container_response import DtoGenericResponseDtoSearchResponseDtoContainerResponse as DtoGenericResponseDtoSearchResponseDtoContainerResponse
 from rcabench.openapi.models.dto_generic_response_dto_search_response_dto_permission_response import DtoGenericResponseDtoSearchResponseDtoPermissionResponse as DtoGenericResponseDtoSearchResponseDtoPermissionResponse
 from rcabench.openapi.models.dto_generic_response_dto_search_response_dto_role_response import DtoGenericResponseDtoSearchResponseDtoRoleResponse as DtoGenericResponseDtoSearchResponseDtoRoleResponse
+from rcabench.openapi.models.dto_generic_response_dto_search_response_dto_task_response import DtoGenericResponseDtoSearchResponseDtoTaskResponse as DtoGenericResponseDtoSearchResponseDtoTaskResponse
 from rcabench.openapi.models.dto_generic_response_dto_search_response_dto_user_response import DtoGenericResponseDtoSearchResponseDtoUserResponse as DtoGenericResponseDtoSearchResponseDtoUserResponse
 from rcabench.openapi.models.dto_generic_response_dto_submit_injection_resp import DtoGenericResponseDtoSubmitInjectionResp as DtoGenericResponseDtoSubmitInjectionResp
 from rcabench.openapi.models.dto_generic_response_dto_submit_resp import DtoGenericResponseDtoSubmitResp as DtoGenericResponseDtoSubmitResp
@@ -294,6 +328,7 @@ from rcabench.openapi.models.dto_generic_response_dto_successful_executions_resp
 from rcabench.openapi.models.dto_generic_response_dto_system_info import DtoGenericResponseDtoSystemInfo as DtoGenericResponseDtoSystemInfo
 from rcabench.openapi.models.dto_generic_response_dto_system_statistics_response import DtoGenericResponseDtoSystemStatisticsResponse as DtoGenericResponseDtoSystemStatisticsResponse
 from rcabench.openapi.models.dto_generic_response_dto_task_detail_resp import DtoGenericResponseDtoTaskDetailResp as DtoGenericResponseDtoTaskDetailResp
+from rcabench.openapi.models.dto_generic_response_dto_task_detail_response import DtoGenericResponseDtoTaskDetailResponse as DtoGenericResponseDtoTaskDetailResponse
 from rcabench.openapi.models.dto_generic_response_dto_token_refresh_response import DtoGenericResponseDtoTokenRefreshResponse as DtoGenericResponseDtoTokenRefreshResponse
 from rcabench.openapi.models.dto_generic_response_dto_trace_stats import DtoGenericResponseDtoTraceStats as DtoGenericResponseDtoTraceStats
 from rcabench.openapi.models.dto_generic_response_dto_user_info import DtoGenericResponseDtoUserInfo as DtoGenericResponseDtoUserInfo
@@ -326,6 +361,7 @@ from rcabench.openapi.models.dto_pair_stats import DtoPairStats as DtoPairStats
 from rcabench.openapi.models.dto_permission_list_response import DtoPermissionListResponse as DtoPermissionListResponse
 from rcabench.openapi.models.dto_permission_response import DtoPermissionResponse as DtoPermissionResponse
 from rcabench.openapi.models.dto_permission_search_request import DtoPermissionSearchRequest as DtoPermissionSearchRequest
+from rcabench.openapi.models.dto_project_response import DtoProjectResponse as DtoProjectResponse
 from rcabench.openapi.models.dto_project_statistics import DtoProjectStatistics as DtoProjectStatistics
 from rcabench.openapi.models.dto_query_injection_resp import DtoQueryInjectionResp as DtoQueryInjectionResp
 from rcabench.openapi.models.dto_raw_data_item import DtoRawDataItem as DtoRawDataItem
@@ -344,8 +380,11 @@ from rcabench.openapi.models.dto_role_list_response import DtoRoleListResponse a
 from rcabench.openapi.models.dto_role_response import DtoRoleResponse as DtoRoleResponse
 from rcabench.openapi.models.dto_role_search_request import DtoRoleSearchRequest as DtoRoleSearchRequest
 from rcabench.openapi.models.dto_search_filter import DtoSearchFilter as DtoSearchFilter
+from rcabench.openapi.models.dto_search_response_dto_algorithm_response import DtoSearchResponseDtoAlgorithmResponse as DtoSearchResponseDtoAlgorithmResponse
+from rcabench.openapi.models.dto_search_response_dto_container_response import DtoSearchResponseDtoContainerResponse as DtoSearchResponseDtoContainerResponse
 from rcabench.openapi.models.dto_search_response_dto_permission_response import DtoSearchResponseDtoPermissionResponse as DtoSearchResponseDtoPermissionResponse
 from rcabench.openapi.models.dto_search_response_dto_role_response import DtoSearchResponseDtoRoleResponse as DtoSearchResponseDtoRoleResponse
+from rcabench.openapi.models.dto_search_response_dto_task_response import DtoSearchResponseDtoTaskResponse as DtoSearchResponseDtoTaskResponse
 from rcabench.openapi.models.dto_search_response_dto_user_response import DtoSearchResponseDtoUserResponse as DtoSearchResponseDtoUserResponse
 from rcabench.openapi.models.dto_service_coverage_item import DtoServiceCoverageItem as DtoServiceCoverageItem
 from rcabench.openapi.models.dto_service_info import DtoServiceInfo as DtoServiceInfo
@@ -358,7 +397,10 @@ from rcabench.openapi.models.dto_successful_execution_item import DtoSuccessfulE
 from rcabench.openapi.models.dto_system_info import DtoSystemInfo as DtoSystemInfo
 from rcabench.openapi.models.dto_system_statistics_response import DtoSystemStatisticsResponse as DtoSystemStatisticsResponse
 from rcabench.openapi.models.dto_task_detail_resp import DtoTaskDetailResp as DtoTaskDetailResp
+from rcabench.openapi.models.dto_task_detail_response import DtoTaskDetailResponse as DtoTaskDetailResponse
 from rcabench.openapi.models.dto_task_item import DtoTaskItem as DtoTaskItem
+from rcabench.openapi.models.dto_task_response import DtoTaskResponse as DtoTaskResponse
+from rcabench.openapi.models.dto_task_search_request import DtoTaskSearchRequest as DtoTaskSearchRequest
 from rcabench.openapi.models.dto_task_statistics import DtoTaskStatistics as DtoTaskStatistics
 from rcabench.openapi.models.dto_token_refresh_request import DtoTokenRefreshRequest as DtoTokenRefreshRequest
 from rcabench.openapi.models.dto_token_refresh_response import DtoTokenRefreshResponse as DtoTokenRefreshResponse

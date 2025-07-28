@@ -12,40 +12,40 @@ import (
 )
 
 // SearchContainers handles complex container search with advanced filtering
-// @Summary Search containers
-// @Description Search containers with complex filtering, sorting and pagination. Supports all container types (algorithm, benchmark, etc.)
-// @Tags Containers
-// @Produce json
-// @Security BearerAuth
-// @Param request body dto.ContainerSearchRequest true "Container search request"
-// @Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.ContainerResponse]] "Containers retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/containers/search [post]
+//	@Summary Search containers
+//	@Description Search containers with complex filtering, sorting and pagination. Supports all container types (algorithm, benchmark, etc.)
+//	@Tags Containers
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.ContainerSearchRequest true "Container search request"
+//	@Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.ContainerResponse]] "Containers retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/containers/search [post]
 func SearchContainers(c *gin.Context) {
 	// Check permission first
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "用户未认证")
+		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	checker := repository.NewPermissionChecker(userID.(int), nil)
 	canRead, err := checker.CanReadResource(consts.ResourceContainer)
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "权限检查失败: "+err.Error())
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
 		return
 	}
 
 	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "没有读取容器的权限")
+		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read containers")
 		return
 	}
 
 	var req dto.ContainerSearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "请求格式无效: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 
@@ -54,14 +54,14 @@ func SearchContainers(c *gin.Context) {
 
 	// Validate search request
 	if err := searchReq.ValidateSearchRequest(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "搜索参数无效: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid search parameters: "+err.Error())
 		return
 	}
 
 	// Execute search using query builder
 	searchResult, err := repository.ExecuteSearch(database.DB, searchReq, database.Container{})
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "搜索容器失败: "+err.Error())
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to search containers: "+err.Error())
 		return
 	}
 
@@ -96,37 +96,37 @@ func SearchContainers(c *gin.Context) {
 }
 
 // ListContainers handles simple container listing
-// @Summary List containers
-// @Description Get a simple list of containers with basic filtering
-// @Tags Containers
-// @Produce json
-// @Security BearerAuth
-// @Param page query int false "Page number" default(1)
-// @Param size query int false "Page size" default(20)
-// @Param type query string false "Container type filter" Enums(algorithm,benchmark)
-// @Param status query bool false "Container status filter"
-// @Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.ContainerResponse]] "Containers retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/containers [get]
+//	@Summary List containers
+//	@Description Get a simple list of containers with basic filtering
+//	@Tags Containers
+//	@Produce json
+//	@Security BearerAuth
+//	@Param page query int false "Page number" default(1)
+//	@Param size query int false "Page size" default(20)
+//	@Param type query string false "Container type filter" Enums(algorithm,benchmark)
+//	@Param status query bool false "Container status filter"
+//	@Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.ContainerResponse]] "Containers retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/containers [get]
 func ListContainers(c *gin.Context) {
 	// Check permission first
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "用户未认证")
+		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	checker := repository.NewPermissionChecker(userID.(int), nil)
 	canRead, err := checker.CanReadResource(consts.ResourceContainer)
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "权限检查失败: "+err.Error())
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
 		return
 	}
 
 	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "没有读取容器的权限")
+		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read containers")
 		return
 	}
 
@@ -170,14 +170,14 @@ func ListContainers(c *gin.Context) {
 
 	// Validate search request
 	if err := searchReq.ValidateSearchRequest(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "搜索参数无效: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid search parameters: "+err.Error())
 		return
 	}
 
 	// Execute search using query builder
 	searchResult, err := repository.ExecuteSearch(database.DB, searchReq, database.Container{})
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "获取容器列表失败: "+err.Error())
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get container list: "+err.Error())
 		return
 	}
 
@@ -212,51 +212,51 @@ func ListContainers(c *gin.Context) {
 }
 
 // GetContainer handles getting a single container by ID
-// @Summary Get container by ID
-// @Description Get detailed information about a specific container
-// @Tags Containers
-// @Produce json
-// @Security BearerAuth
-// @Param id path int true "Container ID"
-// @Success 200 {object} dto.GenericResponse[dto.ContainerResponse] "Container retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid container ID"
-// @Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-// @Failure 404 {object} dto.GenericResponse[any] "Container not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/containers/{id} [get]
+//	@Summary Get container by ID
+//	@Description Get detailed information about a specific container
+//	@Tags Containers
+//	@Produce json
+//	@Security BearerAuth
+//	@Param id path int true "Container ID"
+//	@Success 200 {object} dto.GenericResponse[dto.ContainerResponse] "Container retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid container ID"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 404 {object} dto.GenericResponse[any] "Container not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/containers/{id} [get]
 func GetContainer(c *gin.Context) {
 	// Check permission first
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "用户未认证")
+		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	checker := repository.NewPermissionChecker(userID.(int), nil)
 	canRead, err := checker.CanReadResource(consts.ResourceContainer)
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "权限检查失败: "+err.Error())
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
 		return
 	}
 
 	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "没有读取容器的权限")
+		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read containers")
 		return
 	}
 
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "无效的容器ID")
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container ID")
 		return
 	}
 
 	var container database.Container
 	if err := database.DB.First(&container, id).Error; err != nil {
 		if err.Error() == "record not found" {
-			dto.ErrorResponse(c, http.StatusNotFound, "容器未找到")
+			dto.ErrorResponse(c, http.StatusNotFound, "Container not found")
 		} else {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "获取容器失败: "+err.Error())
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get container: "+err.Error())
 		}
 		return
 	}

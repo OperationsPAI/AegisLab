@@ -18,31 +18,22 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.database_project import DatabaseProject
+from rcabench.openapi.models.dto_pagination_resp_dto_fault_injection_no_issues_resp import DtoPaginationRespDtoFaultInjectionNoIssuesResp
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DatabaseContainer(BaseModel):
+class DtoGenericResponseDtoPaginationRespDtoFaultInjectionNoIssuesResp(BaseModel):
     """
-    DatabaseContainer
+    DtoGenericResponseDtoPaginationRespDtoFaultInjectionNoIssuesResp
     """ # noqa: E501
-    command: Optional[StrictStr] = Field(default=None, description="启动命令")
-    created_at: Optional[StrictStr] = Field(default=None, description="创建时间")
-    env_vars: Optional[StrictStr] = Field(default=None, description="环境变量名称列表")
-    id: Optional[StrictInt] = Field(default=None, description="唯一标识")
-    image: Optional[StrictStr] = Field(default=None, description="镜像名")
-    is_public: Optional[StrictBool] = Field(default=None, description="是否公开可见")
-    name: Optional[StrictStr] = Field(default=None, description="名称")
-    project: Optional[DatabaseProject] = Field(default=None, description="外键关联")
-    project_id: Optional[StrictInt] = Field(default=None, description="容器必须属于某个项目")
-    status: Optional[StrictBool] = Field(default=None, description="0: 已删除 1: 活跃")
-    tag: Optional[StrictStr] = Field(default=None, description="镜像标签")
-    type: Optional[StrictStr] = Field(default=None, description="镜像类型")
-    updated_at: Optional[StrictStr] = Field(default=None, description="更新时间")
+    code: Optional[StrictInt] = Field(default=None, description="状态码")
+    data: Optional[DtoPaginationRespDtoFaultInjectionNoIssuesResp] = Field(default=None, description="泛型类型的数据")
+    message: Optional[StrictStr] = Field(default=None, description="响应消息")
+    timestamp: Optional[StrictInt] = Field(default=None, description="响应生成时间")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["command", "created_at", "env_vars", "id", "image", "is_public", "name", "project", "project_id", "status", "tag", "type", "updated_at"]
+    __properties: ClassVar[List[str]] = ["code", "data", "message", "timestamp"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -62,7 +53,7 @@ class DatabaseContainer(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DatabaseContainer from a JSON string"""
+        """Create an instance of DtoGenericResponseDtoPaginationRespDtoFaultInjectionNoIssuesResp from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -85,9 +76,9 @@ class DatabaseContainer(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of project
-        if self.project:
-            _dict['project'] = self.project.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of data
+        if self.data:
+            _dict['data'] = self.data.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -97,7 +88,7 @@ class DatabaseContainer(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DatabaseContainer from a dict"""
+        """Create an instance of DtoGenericResponseDtoPaginationRespDtoFaultInjectionNoIssuesResp from a dict"""
         if obj is None:
             return None
 
@@ -105,19 +96,10 @@ class DatabaseContainer(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "command": obj.get("command"),
-            "created_at": obj.get("created_at"),
-            "env_vars": obj.get("env_vars"),
-            "id": obj.get("id"),
-            "image": obj.get("image"),
-            "is_public": obj.get("is_public"),
-            "name": obj.get("name"),
-            "project": DatabaseProject.from_dict(obj["project"]) if obj.get("project") is not None else None,
-            "project_id": obj.get("project_id"),
-            "status": obj.get("status"),
-            "tag": obj.get("tag"),
-            "type": obj.get("type"),
-            "updated_at": obj.get("updated_at")
+            "code": obj.get("code"),
+            "data": DtoPaginationRespDtoFaultInjectionNoIssuesResp.from_dict(obj["data"]) if obj.get("data") is not None else None,
+            "message": obj.get("message"),
+            "timestamp": obj.get("timestamp")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

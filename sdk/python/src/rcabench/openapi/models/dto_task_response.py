@@ -20,29 +20,27 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.database_project import DatabaseProject
+from rcabench.openapi.models.dto_project_response import DtoProjectResponse
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DatabaseContainer(BaseModel):
+class DtoTaskResponse(BaseModel):
     """
-    DatabaseContainer
+    DtoTaskResponse
     """ # noqa: E501
-    command: Optional[StrictStr] = Field(default=None, description="启动命令")
-    created_at: Optional[StrictStr] = Field(default=None, description="创建时间")
-    env_vars: Optional[StrictStr] = Field(default=None, description="环境变量名称列表")
-    id: Optional[StrictInt] = Field(default=None, description="唯一标识")
-    image: Optional[StrictStr] = Field(default=None, description="镜像名")
-    is_public: Optional[StrictBool] = Field(default=None, description="是否公开可见")
-    name: Optional[StrictStr] = Field(default=None, description="名称")
-    project: Optional[DatabaseProject] = Field(default=None, description="外键关联")
-    project_id: Optional[StrictInt] = Field(default=None, description="容器必须属于某个项目")
-    status: Optional[StrictBool] = Field(default=None, description="0: 已删除 1: 活跃")
-    tag: Optional[StrictStr] = Field(default=None, description="镜像标签")
-    type: Optional[StrictStr] = Field(default=None, description="镜像类型")
-    updated_at: Optional[StrictStr] = Field(default=None, description="更新时间")
+    created_at: Optional[StrictStr] = None
+    group_id: Optional[StrictStr] = None
+    id: Optional[StrictStr] = None
+    immediate: Optional[StrictBool] = None
+    logs: Optional[List[StrictStr]] = Field(default=None, description="Only included when specifically requested")
+    project: Optional[DtoProjectResponse] = Field(default=None, description="Related entities (only included when specifically requested)")
+    project_id: Optional[StrictInt] = None
+    status: Optional[StrictStr] = None
+    trace_id: Optional[StrictStr] = None
+    type: Optional[StrictStr] = None
+    updated_at: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["command", "created_at", "env_vars", "id", "image", "is_public", "name", "project", "project_id", "status", "tag", "type", "updated_at"]
+    __properties: ClassVar[List[str]] = ["created_at", "group_id", "id", "immediate", "logs", "project", "project_id", "status", "trace_id", "type", "updated_at"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -62,7 +60,7 @@ class DatabaseContainer(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DatabaseContainer from a JSON string"""
+        """Create an instance of DtoTaskResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -97,7 +95,7 @@ class DatabaseContainer(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DatabaseContainer from a dict"""
+        """Create an instance of DtoTaskResponse from a dict"""
         if obj is None:
             return None
 
@@ -105,17 +103,15 @@ class DatabaseContainer(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "command": obj.get("command"),
             "created_at": obj.get("created_at"),
-            "env_vars": obj.get("env_vars"),
+            "group_id": obj.get("group_id"),
             "id": obj.get("id"),
-            "image": obj.get("image"),
-            "is_public": obj.get("is_public"),
-            "name": obj.get("name"),
-            "project": DatabaseProject.from_dict(obj["project"]) if obj.get("project") is not None else None,
+            "immediate": obj.get("immediate"),
+            "logs": obj.get("logs"),
+            "project": DtoProjectResponse.from_dict(obj["project"]) if obj.get("project") is not None else None,
             "project_id": obj.get("project_id"),
             "status": obj.get("status"),
-            "tag": obj.get("tag"),
+            "trace_id": obj.get("trace_id"),
             "type": obj.get("type"),
             "updated_at": obj.get("updated_at")
         })

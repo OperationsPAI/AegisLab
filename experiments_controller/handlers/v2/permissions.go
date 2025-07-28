@@ -11,18 +11,18 @@ import (
 )
 
 // CreatePermission handles permission creation
-// @Summary Create a new permission
-// @Description Create a new permission with specified resource and action
-// @Tags Permissions
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body dto.CreatePermissionRequest true "Permission creation request"
-// @Success 201 {object} dto.GenericResponse[dto.PermissionResponse] "Permission created successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 409 {object} dto.GenericResponse[any] "Permission already exists"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/permissions [post]
+//	@Summary Create a new permission
+//	@Description Create a new permission with specified resource and action
+//	@Tags Permissions
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.CreatePermissionRequest true "Permission creation request"
+//	@Success 201 {object} dto.GenericResponse[dto.PermissionResponse] "Permission created successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 409 {object} dto.GenericResponse[any] "Permission already exists"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/permissions [post]
 func CreatePermission(c *gin.Context) {
 	var req dto.CreatePermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -58,17 +58,17 @@ func CreatePermission(c *gin.Context) {
 }
 
 // GetPermission handles getting a single permission by ID
-// @Summary Get permission by ID
-// @Description Get detailed information about a specific permission
-// @Tags Permissions
-// @Produce json
-// @Security BearerAuth
-// @Param id path int true "Permission ID"
-// @Success 200 {object} dto.GenericResponse[dto.PermissionResponse] "Permission retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid permission ID"
-// @Failure 404 {object} dto.GenericResponse[any] "Permission not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/permissions/{id} [get]
+//	@Summary Get permission by ID
+//	@Description Get detailed information about a specific permission
+//	@Tags Permissions
+//	@Produce json
+//	@Security BearerAuth
+//	@Param id path int true "Permission ID"
+//	@Success 200 {object} dto.GenericResponse[dto.PermissionResponse] "Permission retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid permission ID"
+//	@Failure 404 {object} dto.GenericResponse[any] "Permission not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/permissions/{id} [get]
 func GetPermission(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -90,22 +90,22 @@ func GetPermission(c *gin.Context) {
 }
 
 // ListPermissions handles listing permissions with pagination and filtering
-// @Summary List permissions
-// @Description Get paginated list of permissions with optional filtering
-// @Tags Permissions
-// @Produce json
-// @Security BearerAuth
-// @Param page query int false "Page number" default(1)
-// @Param size query int false "Page size" default(20)
-// @Param action query string false "Filter by action"
-// @Param resource_id query int false "Filter by resource ID"
-// @Param status query int false "Filter by status"
-// @Param is_system query bool false "Filter by system permission"
-// @Param name query string false "Filter by permission name"
-// @Success 200 {object} dto.GenericResponse[dto.PermissionListResponse] "Permissions retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request parameters"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/permissions [get]
+//	@Summary List permissions
+//	@Description Get paginated list of permissions with optional filtering
+//	@Tags Permissions
+//	@Produce json
+//	@Security BearerAuth
+//	@Param page query int false "Page number" default(1)
+//	@Param size query int false "Page size" default(20)
+//	@Param action query string false "Filter by action"
+//	@Param resource_id query int false "Filter by resource ID"
+//	@Param status query int false "Filter by status"
+//	@Param is_system query bool false "Filter by system permission"
+//	@Param name query string false "Filter by permission name"
+//	@Success 200 {object} dto.GenericResponse[dto.PermissionListResponse] "Permissions retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request parameters"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/permissions [get]
 func ListPermissions(c *gin.Context) {
 	var req dto.PermissionListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -150,19 +150,19 @@ func ListPermissions(c *gin.Context) {
 }
 
 // UpdatePermission handles permission updates
-// @Summary Update permission
-// @Description Update permission information (partial update supported)
-// @Tags Permissions
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path int true "Permission ID"
-// @Param request body dto.UpdatePermissionRequest true "Permission update request"
-// @Success 200 {object} dto.GenericResponse[dto.PermissionResponse] "Permission updated successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 404 {object} dto.GenericResponse[any] "Permission not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/permissions/{id} [put]
+//	@Summary Update permission
+//	@Description Update permission information (partial update supported)
+//	@Tags Permissions
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param id path int true "Permission ID"
+//	@Param request body dto.UpdatePermissionRequest true "Permission update request"
+//	@Success 200 {object} dto.GenericResponse[dto.PermissionResponse] "Permission updated successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 404 {object} dto.GenericResponse[any] "Permission not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/permissions/{id} [put]
 func UpdatePermission(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -218,18 +218,18 @@ func UpdatePermission(c *gin.Context) {
 }
 
 // DeletePermission handles permission deletion
-// @Summary Delete permission
-// @Description Delete a permission (soft delete by setting status to -1)
-// @Tags Permissions
-// @Produce json
-// @Security BearerAuth
-// @Param id path int true "Permission ID"
-// @Success 200 {object} dto.GenericResponse[any] "Permission deleted successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid permission ID"
-// @Failure 404 {object} dto.GenericResponse[any] "Permission not found"
-// @Failure 403 {object} dto.GenericResponse[any] "Cannot delete system permission"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/permissions/{id} [delete]
+//	@Summary Delete permission
+//	@Description Delete a permission (soft delete by setting status to -1)
+//	@Tags Permissions
+//	@Produce json
+//	@Security BearerAuth
+//	@Param id path int true "Permission ID"
+//	@Success 200 {object} dto.GenericResponse[any] "Permission deleted successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid permission ID"
+//	@Failure 404 {object} dto.GenericResponse[any] "Permission not found"
+//	@Failure 403 {object} dto.GenericResponse[any] "Cannot delete system permission"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/permissions/{id} [delete]
 func DeletePermission(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -259,17 +259,17 @@ func DeletePermission(c *gin.Context) {
 }
 
 // SearchPermissions handles complex permission search
-// @Summary Search permissions
-// @Description Search permissions with complex filtering and sorting
-// @Tags Permissions
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body dto.PermissionSearchRequest true "Permission search request"
-// @Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.PermissionResponse]] "Permissions retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/permissions/search [post]
+//	@Summary Search permissions
+//	@Description Search permissions with complex filtering and sorting
+//	@Tags Permissions
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.PermissionSearchRequest true "Permission search request"
+//	@Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.PermissionResponse]] "Permissions retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/permissions/search [post]
 func SearchPermissions(c *gin.Context) {
 	var req dto.PermissionSearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -343,17 +343,17 @@ func SearchPermissions(c *gin.Context) {
 }
 
 // GetPermissionRoles handles getting roles that have a specific permission
-// @Summary Get permission roles
-// @Description Get list of roles that have been assigned a specific permission
-// @Tags Permissions
-// @Produce json
-// @Security BearerAuth
-// @Param id path int true "Permission ID"
-// @Success 200 {object} dto.GenericResponse[[]dto.RoleResponse] "Roles retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid permission ID"
-// @Failure 404 {object} dto.GenericResponse[any] "Permission not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/permissions/{id}/roles [get]
+//	@Summary Get permission roles
+//	@Description Get list of roles that have been assigned a specific permission
+//	@Tags Permissions
+//	@Produce json
+//	@Security BearerAuth
+//	@Param id path int true "Permission ID"
+//	@Success 200 {object} dto.GenericResponse[[]dto.RoleResponse] "Roles retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid permission ID"
+//	@Failure 404 {object} dto.GenericResponse[any] "Permission not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/permissions/{id}/roles [get]
 func GetPermissionRoles(c *gin.Context) {
 	idStr := c.Param("id")
 	permissionID, err := strconv.Atoi(idStr)
@@ -385,16 +385,16 @@ func GetPermissionRoles(c *gin.Context) {
 }
 
 // GetPermissionsByResource handles getting permissions for a specific resource
-// @Summary Get permissions by resource
-// @Description Get list of permissions associated with a specific resource
-// @Tags Permissions
-// @Produce json
-// @Security BearerAuth
-// @Param resource_id path int true "Resource ID"
-// @Success 200 {object} dto.GenericResponse[[]dto.PermissionResponse] "Permissions retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid resource ID"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/permissions/resource/{resource_id} [get]
+//	@Summary Get permissions by resource
+//	@Description Get list of permissions associated with a specific resource
+//	@Tags Permissions
+//	@Produce json
+//	@Security BearerAuth
+//	@Param resource_id path int true "Resource ID"
+//	@Success 200 {object} dto.GenericResponse[[]dto.PermissionResponse] "Permissions retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid resource ID"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/permissions/resource/{resource_id} [get]
 func GetPermissionsByResource(c *gin.Context) {
 	resourceIDStr := c.Param("resource_id")
 	resourceID, err := strconv.Atoi(resourceIDStr)
