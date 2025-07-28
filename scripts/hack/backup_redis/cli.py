@@ -10,6 +10,7 @@ DEFAULT_LOCAL_URL = "redis://localhost:6379"
 DEFAULT_REMOTE_URL = "redis://10.10.10.220:32279"
 DEFAULT_REDIS_DB = 0
 
+
 app = typer.Typer(help="Redis 备份工具")
 console = Console()
 

@@ -74,7 +74,7 @@ func (req *ListDisplayConfigsReq) Validate() error {
 	return nil
 }
 
-type ListInjectionsReq struct {
+type InjectionFilterOptions struct {
 	ProjectName string `form:"project_name" binding:"omitempty"`
 
 	Env       string `form:"env" binding:"omitempty"`
@@ -83,34 +83,45 @@ type ListInjectionsReq struct {
 	Benchmark string `form:"benchmark" binding:"omitempty"`
 	Status    *int   `form:"status" binding:"omitempty"`
 	FaultType *int   `form:"fault_type" binding:"omitempty"`
+}
 
+func (opts *InjectionFilterOptions) Validate() error {
+	if opts.Benchmark != "" {
+		if _, exists := config.GetValidBenchmarkMap()[opts.Benchmark]; !exists {
+			return fmt.Errorf("Invalid benchmark: %s", opts.Benchmark)
+		}
+	}
+
+	if opts.Status != nil {
+		status := *opts.Status
+		if status < 0 {
+			return fmt.Errorf("Status must be a non-negative integer")
+		}
+
+		if _, exists := DatasetStatusMap[status]; !exists {
+			return fmt.Errorf("Invalid status: %d", opts.Status)
+		}
+	}
+
+	if opts.FaultType != nil {
+		if _, exists := chaos.ChaosTypeMap[chaos.ChaosType(*opts.FaultType)]; !exists {
+			return fmt.Errorf("Invalid fault type: %d", opts.FaultType)
+		}
+	}
+
+	return nil
+}
+
+type ListInjectionsReq struct {
+	InjectionFilterOptions
 	ListOptionsQuery
 	PaginationQuery
 	TimeRangeQuery
 }
 
 func (req *ListInjectionsReq) Validate() error {
-	if req.Benchmark != "" {
-		if _, exists := config.GetValidBenchmarkMap()[req.Benchmark]; !exists {
-			return fmt.Errorf("Invalid benchmark: %s", req.Benchmark)
-		}
-	}
-
-	if req.Status != nil {
-		status := *req.Status
-		if status < 0 {
-			return fmt.Errorf("Status must be a non-negative integer")
-		}
-
-		if _, exists := DatasetStatusMap[status]; !exists {
-			return fmt.Errorf("Invalid status: %d", req.Status)
-		}
-	}
-
-	if req.FaultType != nil {
-		if _, exists := chaos.ChaosTypeMap[chaos.ChaosType(*req.FaultType)]; !exists {
-			return fmt.Errorf("Invalid fault type: %d", req.FaultType)
-		}
+	if err := req.InjectionFilterOptions.Validate(); err != nil {
+		return err
 	}
 
 	if err := req.ListOptionsQuery.Validate(); err != nil {

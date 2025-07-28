@@ -32,9 +32,10 @@ func New() *gin.Engine {
 		algorithms.POST("", handlers.SubmitAlgorithmExecution)
 	}
 
-	analyzer := r.Group("/analyzer")
+	analyzers := r.Group("/analyzers")
 	{
-		analyzer.GET("/traces", handlers.AnalyzeTraces)
+		analyzers.GET("/injections", handlers.AnalyzeInjections)
+		analyzers.GET("/traces", handlers.AnalyzeTraces)
 	}
 
 	containers := r.Group("/containers")

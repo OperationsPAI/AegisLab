@@ -37,11 +37,6 @@ type TraceStreamReq struct {
 	LastID string `bind:"last_event_id"`
 }
 
-type TraceAnalyzeFilterOptions struct {
-	FirstTaskType consts.TaskType
-	TimeFilterOptions
-}
-
 type GetCompletedMapReq struct {
 	TimeRangeQuery
 }
@@ -53,15 +48,4 @@ type GetCompletedMapResp struct {
 
 func (req *GetCompletedMapReq) Validate() error {
 	return req.TimeRangeQuery.Validate()
-}
-
-func (req *GetCompletedMapReq) Convert() (*TraceAnalyzeFilterOptions, error) {
-	opts, err := req.TimeRangeQuery.Convert()
-	if err != nil {
-		return nil, err
-	}
-
-	return &TraceAnalyzeFilterOptions{
-		TimeFilterOptions: *opts,
-	}, nil
 }

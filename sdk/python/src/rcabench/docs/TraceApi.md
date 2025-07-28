@@ -4,12 +4,12 @@ All URIs are relative to *http://localhost:8080/api/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**api_v1_traces_analyze_get**](TraceApi.md#api_v1_traces_analyze_get) | **GET** /api/v1/traces/analyze | 分析链路数据
+[**api_v1_analyzers_traces_get**](TraceApi.md#api_v1_analyzers_traces_get) | **GET** /api/v1/analyzers/traces | 分析链路数据
 [**api_v1_traces_completed_get**](TraceApi.md#api_v1_traces_completed_get) | **GET** /api/v1/traces/completed | 获取完成状态的链路
 
 
-# **api_v1_traces_analyze_get**
-> DtoGenericResponseAny api_v1_traces_analyze_get(first_task_type=first_task_type, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
+# **api_v1_analyzers_traces_get**
+> DtoGenericResponseDtoTraceStats api_v1_analyzers_traces_get(first_task_type=first_task_type, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
 
 分析链路数据
 
@@ -20,7 +20,7 @@ Method | HTTP request | Description
 
 ```python
 import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_any import DtoGenericResponseAny
+from rcabench.openapi.models.dto_generic_response_dto_trace_stats import DtoGenericResponseDtoTraceStats
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
@@ -35,18 +35,18 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.TraceApi(api_client)
-    first_task_type = 'first_task_type_example' # str | 子任务类型筛选 (optional)
-    lookback = 'lookback_example' # str | 相对时间查询，如 1h, 24h, 7d或者是custom (optional)
-    custom_start_time = 'custom_start_time_example' # str | 当lookback=custom时必需，自定义开始时间(RFC3339格式) (optional)
-    custom_end_time = 'custom_end_time_example' # str | 当lookback=custom时必需，自定义结束时间(RFC3339格式) (optional)
+    first_task_type = 'first_task_type_example' # str | 首任务类型筛选 (optional)
+    lookback = 'lookback_example' # str | 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置 (optional)
+    custom_start_time = '2013-10-20T19:20:30+01:00' # datetime | 自定义开始时间，RFC3339格式，当lookback=custom时必需 (optional)
+    custom_end_time = '2013-10-20T19:20:30+01:00' # datetime | 自定义结束时间，RFC3339格式，当lookback=custom时必需 (optional)
 
     try:
         # 分析链路数据
-        api_response = api_instance.api_v1_traces_analyze_get(first_task_type=first_task_type, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
-        print("The response of TraceApi->api_v1_traces_analyze_get:\n")
+        api_response = api_instance.api_v1_analyzers_traces_get(first_task_type=first_task_type, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
+        print("The response of TraceApi->api_v1_analyzers_traces_get:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling TraceApi->api_v1_traces_analyze_get: %s\n" % e)
+        print("Exception when calling TraceApi->api_v1_analyzers_traces_get: %s\n" % e)
 ```
 
 
@@ -56,14 +56,14 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **first_task_type** | **str**| 子任务类型筛选 | [optional] 
- **lookback** | **str**| 相对时间查询，如 1h, 24h, 7d或者是custom | [optional] 
- **custom_start_time** | **str**| 当lookback&#x3D;custom时必需，自定义开始时间(RFC3339格式) | [optional] 
- **custom_end_time** | **str**| 当lookback&#x3D;custom时必需，自定义结束时间(RFC3339格式) | [optional] 
+ **first_task_type** | **str**| 首任务类型筛选 | [optional] 
+ **lookback** | **str**| 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置 | [optional] 
+ **custom_start_time** | **datetime**| 自定义开始时间，RFC3339格式，当lookback&#x3D;custom时必需 | [optional] 
+ **custom_end_time** | **datetime**| 自定义结束时间，RFC3339格式，当lookback&#x3D;custom时必需 | [optional] 
 
 ### Return type
 
-[**DtoGenericResponseAny**](DtoGenericResponseAny.md)
+[**DtoGenericResponseDtoTraceStats**](DtoGenericResponseDtoTraceStats.md)
 
 ### Authorization
 
@@ -78,9 +78,9 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | 返回统计信息，包含fault_injection_traces字段显示以FaultInjection事件结束的trace_id列表 |  -  |
-**400** | Bad Request |  -  |
-**500** | Internal Server Error |  -  |
+**200** | 返回链路分析统计信息 |  -  |
+**400** | 请求参数错误，如参数格式不正确、验证失败等 |  -  |
+**500** | 服务器内部错误 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

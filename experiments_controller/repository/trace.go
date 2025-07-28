@@ -177,12 +177,12 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 	return stat, nil
 }
 
-func GetAllTraceIDsFromRedis(ctx context.Context, opts dto.TraceAnalyzeFilterOptions) ([]string, error) {
+func GetAllTraceIDsFromRedis(ctx context.Context) ([]string, error) {
 	var cursor uint64
 	var traceIDs []string
 
 	for {
-		keys, nextCursor, err := client.GetRedisClient().Scan(ctx, cursor, "trace:*:log", 100).Result()
+		keys, nextCursor, err := client.GetRedisClient().Scan(ctx, cursor, "trace:*:log", 1000).Result()
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan Redis keys: %v", err)
 		}

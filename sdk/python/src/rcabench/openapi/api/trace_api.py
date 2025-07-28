@@ -17,11 +17,12 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
+from datetime import datetime
 from pydantic import Field, StrictStr
 from typing import Optional
 from typing_extensions import Annotated
-from rcabench.openapi.models.dto_generic_response_any import DtoGenericResponseAny
 from rcabench.openapi.models.dto_generic_response_dto_get_completed_map_resp import DtoGenericResponseDtoGetCompletedMapResp
+from rcabench.openapi.models.dto_generic_response_dto_trace_stats import DtoGenericResponseDtoTraceStats
 
 from rcabench.openapi.api_client import ApiClient, RequestSerialized
 from rcabench.openapi.api_response import ApiResponse
@@ -42,12 +43,12 @@ class TraceApi:
 
 
     @validate_call
-    def api_v1_traces_analyze_get(
+    def api_v1_analyzers_traces_get(
         self,
-        first_task_type: Annotated[Optional[StrictStr], Field(description="子任务类型筛选")] = None,
-        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
-        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间(RFC3339格式)")] = None,
-        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间(RFC3339格式)")] = None,
+        first_task_type: Annotated[Optional[StrictStr], Field(description="首任务类型筛选")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -60,19 +61,19 @@ class TraceApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseAny:
+    ) -> DtoGenericResponseDtoTraceStats:
         """分析链路数据
 
         使用多种筛选条件分析链路数据，返回包括故障注入结束链路在内的统计信息
 
-        :param first_task_type: 子任务类型筛选
+        :param first_task_type: 首任务类型筛选
         :type first_task_type: str
-        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         :type lookback: str
-        :param custom_start_time: 当lookback=custom时必需，自定义开始时间(RFC3339格式)
-        :type custom_start_time: str
-        :param custom_end_time: 当lookback=custom时必需，自定义结束时间(RFC3339格式)
-        :type custom_end_time: str
+        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :type custom_start_time: datetime
+        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -95,7 +96,7 @@ class TraceApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_traces_analyze_get_serialize(
+        _param = self._api_v1_analyzers_traces_get_serialize(
             first_task_type=first_task_type,
             lookback=lookback,
             custom_start_time=custom_start_time,
@@ -107,7 +108,7 @@ class TraceApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseAny",
+            '200': "DtoGenericResponseDtoTraceStats",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -123,12 +124,12 @@ class TraceApi:
 
 
     @validate_call
-    def api_v1_traces_analyze_get_with_http_info(
+    def api_v1_analyzers_traces_get_with_http_info(
         self,
-        first_task_type: Annotated[Optional[StrictStr], Field(description="子任务类型筛选")] = None,
-        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
-        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间(RFC3339格式)")] = None,
-        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间(RFC3339格式)")] = None,
+        first_task_type: Annotated[Optional[StrictStr], Field(description="首任务类型筛选")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -141,19 +142,19 @@ class TraceApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseAny]:
+    ) -> ApiResponse[DtoGenericResponseDtoTraceStats]:
         """分析链路数据
 
         使用多种筛选条件分析链路数据，返回包括故障注入结束链路在内的统计信息
 
-        :param first_task_type: 子任务类型筛选
+        :param first_task_type: 首任务类型筛选
         :type first_task_type: str
-        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         :type lookback: str
-        :param custom_start_time: 当lookback=custom时必需，自定义开始时间(RFC3339格式)
-        :type custom_start_time: str
-        :param custom_end_time: 当lookback=custom时必需，自定义结束时间(RFC3339格式)
-        :type custom_end_time: str
+        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :type custom_start_time: datetime
+        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -176,7 +177,7 @@ class TraceApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_traces_analyze_get_serialize(
+        _param = self._api_v1_analyzers_traces_get_serialize(
             first_task_type=first_task_type,
             lookback=lookback,
             custom_start_time=custom_start_time,
@@ -188,7 +189,7 @@ class TraceApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseAny",
+            '200': "DtoGenericResponseDtoTraceStats",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -204,12 +205,12 @@ class TraceApi:
 
 
     @validate_call
-    def api_v1_traces_analyze_get_without_preload_content(
+    def api_v1_analyzers_traces_get_without_preload_content(
         self,
-        first_task_type: Annotated[Optional[StrictStr], Field(description="子任务类型筛选")] = None,
-        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
-        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间(RFC3339格式)")] = None,
-        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间(RFC3339格式)")] = None,
+        first_task_type: Annotated[Optional[StrictStr], Field(description="首任务类型筛选")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -227,14 +228,14 @@ class TraceApi:
 
         使用多种筛选条件分析链路数据，返回包括故障注入结束链路在内的统计信息
 
-        :param first_task_type: 子任务类型筛选
+        :param first_task_type: 首任务类型筛选
         :type first_task_type: str
-        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
         :type lookback: str
-        :param custom_start_time: 当lookback=custom时必需，自定义开始时间(RFC3339格式)
-        :type custom_start_time: str
-        :param custom_end_time: 当lookback=custom时必需，自定义结束时间(RFC3339格式)
-        :type custom_end_time: str
+        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :type custom_start_time: datetime
+        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -257,7 +258,7 @@ class TraceApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_traces_analyze_get_serialize(
+        _param = self._api_v1_analyzers_traces_get_serialize(
             first_task_type=first_task_type,
             lookback=lookback,
             custom_start_time=custom_start_time,
@@ -269,7 +270,7 @@ class TraceApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseAny",
+            '200': "DtoGenericResponseDtoTraceStats",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -280,7 +281,7 @@ class TraceApi:
         return response_data.response
 
 
-    def _api_v1_traces_analyze_get_serialize(
+    def _api_v1_analyzers_traces_get_serialize(
         self,
         first_task_type,
         lookback,
@@ -317,12 +318,30 @@ class TraceApi:
             _query_params.append(('lookback', lookback))
             
         if custom_start_time is not None:
-            
-            _query_params.append(('custom_start_time', custom_start_time))
+            if isinstance(custom_start_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_start_time',
+                        custom_start_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_start_time', custom_start_time))
             
         if custom_end_time is not None:
-            
-            _query_params.append(('custom_end_time', custom_end_time))
+            if isinstance(custom_end_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_end_time',
+                        custom_end_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_end_time', custom_end_time))
             
         # process the header parameters
         # process the form parameters
@@ -344,7 +363,7 @@ class TraceApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/v1/traces/analyze',
+            resource_path='/api/v1/analyzers/traces',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

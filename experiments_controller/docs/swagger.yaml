@@ -98,6 +98,22 @@ definitions:
     required:
     - name
     type: object
+  dto.AnalyzeInjectionsResp:
+    properties:
+      efficiency:
+        type: string
+      stats:
+        additionalProperties:
+          $ref: '#/definitions/dto.InjectionStats'
+        type: object
+    type: object
+  dto.AttributeCoverageItem:
+    properties:
+      coverage:
+        type: number
+      num:
+        type: integer
+    type: object
   dto.DatasetBuildPayload:
     properties:
       benchmark:
@@ -205,6 +221,22 @@ definitions:
         items:
           $ref: '#/definitions/dto.FaultInjectionWithIssuesResp'
         type: array
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_AnalyzeInjectionsResp:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.AnalyzeInjectionsResp'
+        description: 泛型类型的数据
       message:
         description: 响应消息
         type: string
@@ -488,6 +520,22 @@ definitions:
         description: 响应生成时间
         type: integer
     type: object
+  dto.GenericResponse-dto_TraceStats:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.TraceStats'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
   dto.GenericResponse-handler_Node:
     properties:
       code:
@@ -559,6 +607,31 @@ definitions:
     type: object
   dto.InjectCancelResp:
     type: object
+  dto.InjectionDiversity:
+    properties:
+      attribute_coverages:
+        additionalProperties:
+          additionalProperties:
+            $ref: '#/definitions/dto.AttributeCoverageItem'
+          type: object
+        type: object
+      fault_distribution:
+        additionalProperties:
+          type: integer
+        type: object
+      fault_service_coverages:
+        additionalProperties:
+          $ref: '#/definitions/dto.ServiceCoverageItem'
+        type: object
+      pair_distribution:
+        items:
+          $ref: '#/definitions/dto.PairStats'
+        type: array
+      service_distribution:
+        additionalProperties:
+          type: integer
+        type: object
+    type: object
   dto.InjectionFieldMappingResp:
     properties:
       fault_resource:
@@ -598,6 +671,11 @@ definitions:
         type: integer
       tag:
         type: string
+    type: object
+  dto.InjectionStats:
+    properties:
+      diversity:
+        $ref: '#/definitions/dto.InjectionDiversity'
     type: object
   dto.InjectionStatsResp:
     properties:
@@ -646,6 +724,15 @@ definitions:
       total:
         type: integer
       total_pages:
+        type: integer
+    type: object
+  dto.PairStats:
+    properties:
+      inDegree:
+        type: integer
+      name:
+        type: string
+      outDegree:
         type: integer
     type: object
   dto.QueryInjectionResp:
@@ -738,6 +825,17 @@ definitions:
         type: integer
       max_attempts:
         description: Maximum number of retry attempts
+        type: integer
+    type: object
+  dto.ServiceCoverageItem:
+    properties:
+      coverage:
+        type: number
+      notCovered:
+        items:
+          type: string
+        type: array
+      num:
         type: integer
     type: object
   dto.SubmitInjectionReq:
@@ -840,6 +938,38 @@ definitions:
         type: integer
       trace_id:
         type: string
+    type: object
+  dto.TraceStats:
+    properties:
+      avg_duration:
+        type: number
+      end_count_map:
+        additionalProperties:
+          additionalProperties:
+            type: integer
+          type: object
+        type: object
+      fault_injection_traces:
+        items:
+          type: string
+        type: array
+      max_duration:
+        type: number
+      min_duration:
+        type: number
+      total:
+        type: integer
+      trace_completed_list:
+        items:
+          type: string
+        type: array
+      trace_errors: {}
+      trace_status_time_map:
+        additionalProperties:
+          additionalProperties:
+            type: number
+          type: object
+        type: object
     type: object
   dto.UnifiedTask:
     properties:
@@ -1036,6 +1166,123 @@ paths:
       summary: 提交算法执行任务
       tags:
       - algorithm
+  /api/v1/analyzers/injections:
+    get:
+      description: 使用多种筛选条件分析故障注入数据，返回包括效率、多样性、种子之间的距离等统计信息
+      parameters:
+      - description: 项目名称过滤
+        in: query
+        name: project_name
+        type: string
+      - default: prod
+        description: 环境标签过滤
+        enum:
+        - dev
+        - prod
+        in: query
+        name: env
+        type: string
+      - description: 批次标签过滤
+        in: query
+        name: batch
+        type: string
+      - default: train
+        description: 分类标签过滤
+        enum:
+        - train
+        - test
+        in: query
+        name: tag
+        type: string
+      - default: clickhouse
+        description: 基准测试类型过滤
+        enum:
+        - clickhouse
+        in: query
+        name: benchmark
+        type: string
+      - default: 0
+        description: 状态过滤，具体值参考字段映射接口(/mapping)
+        in: query
+        name: status
+        type: integer
+      - default: 0
+        description: 故障类型过滤，具体值参考字段映射接口(/mapping)
+        in: query
+        name: fault_type
+        type: integer
+      - description: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+        in: query
+        name: lookback
+        type: string
+      - description: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        format: date-time
+        in: query
+        name: custom_start_time
+        type: string
+      - description: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        format: date-time
+        in: query
+        name: custom_end_time
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回故障注入分析统计信息
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_AnalyzeInjectionsResp'
+        "400":
+          description: 请求参数错误，如参数格式不正确、验证失败等
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: 分析故障注入数据
+      tags:
+      - analyzer
+  /api/v1/analyzers/traces:
+    get:
+      description: 使用多种筛选条件分析链路数据，返回包括故障注入结束链路在内的统计信息
+      parameters:
+      - description: 首任务类型筛选
+        in: query
+        name: first_task_type
+        type: string
+      - description: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+        in: query
+        name: lookback
+        type: string
+      - description: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        format: date-time
+        in: query
+        name: custom_start_time
+        type: string
+      - description: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        format: date-time
+        in: query
+        name: custom_end_time
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回链路分析统计信息
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_TraceStats'
+        "400":
+          description: 请求参数错误，如参数格式不正确、验证失败等
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: 分析链路数据
+      tags:
+      - trace
   /api/v1/containers:
     post:
       consumes:
@@ -1945,44 +2192,6 @@ paths:
       summary: 获取队列中的任务
       tags:
       - task
-  /api/v1/traces/analyze:
-    get:
-      description: 使用多种筛选条件分析链路数据，返回包括故障注入结束链路在内的统计信息
-      parameters:
-      - description: 子任务类型筛选
-        in: query
-        name: first_task_type
-        type: string
-      - description: 相对时间查询，如 1h, 24h, 7d或者是custom
-        in: query
-        name: lookback
-        type: string
-      - description: 当lookback=custom时必需，自定义开始时间(RFC3339格式)
-        in: query
-        name: custom_start_time
-        type: string
-      - description: 当lookback=custom时必需，自定义结束时间(RFC3339格式)
-        in: query
-        name: custom_end_time
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 返回统计信息，包含fault_injection_traces字段显示以FaultInjection事件结束的trace_id列表
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 分析链路数据
-      tags:
-      - trace
   /api/v1/traces/completed:
     get:
       description: 根据指定的时间范围获取完成状态的链路
