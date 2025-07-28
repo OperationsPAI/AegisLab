@@ -25,6 +25,7 @@ func SetupV1Routes(router *gin.Engine) {
 
 	analyzer := r.Group("/analyzer")
 	{
+		analyzer.GET("/injections", handlers.AnalyzeInjections)
 		analyzer.GET("/traces", handlers.AnalyzeTraces)
 	}
 

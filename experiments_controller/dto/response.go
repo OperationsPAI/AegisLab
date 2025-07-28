@@ -74,3 +74,101 @@ func ErrorResponse(c *gin.Context, code int, message string) {
 		Timestamp: time.Now().Unix(),
 	})
 }
+
+// TaskResponse represents task response for v2 API
+type TaskResponse struct {
+	ID        string    `json:"id"`
+	Type      string    `json:"type"`
+	Status    string    `json:"status"`
+	TraceID   string    `json:"trace_id"`
+	GroupID   string    `json:"group_id,omitempty"`
+	ProjectID int       `json:"project_id"`
+	Immediate bool      `json:"immediate"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Logs      []string  `json:"logs,omitempty"` // Only included when specifically requested
+
+	// Related entities (only included when specifically requested)
+	Project *ProjectResponse `json:"project,omitempty"`
+}
+
+// AlgorithmResponse represents algorithm response for v2 API
+type AlgorithmResponse struct {
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	Type      string    `json:"type"`
+	Image     string    `json:"image"`
+	Tag       string    `json:"tag"`
+	Command   string    `json:"command"`
+	EnvVars   string    `json:"env_vars"`
+	ProjectID int       `json:"project_id"`
+	IsPublic  bool      `json:"is_public"`
+	Status    bool      `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// Related entities (only included when specifically requested)
+	Project *ProjectResponse `json:"project,omitempty"`
+}
+
+// ContainerResponse represents container response for v2 API
+type ContainerResponse struct {
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	Type      string    `json:"type"`
+	Image     string    `json:"image"`
+	Tag       string    `json:"tag"`
+	Command   string    `json:"command"`
+	EnvVars   string    `json:"env_vars"`
+	ProjectID int       `json:"project_id"`
+	IsPublic  bool      `json:"is_public"`
+	Status    bool      `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// Related entities (only included when specifically requested)
+	Project *ProjectResponse `json:"project,omitempty"`
+}
+
+// ProjectResponse represents project response for v2 API
+type ProjectResponse struct {
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	IsPublic    bool      `json:"is_public"`
+	Status      int       `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+
+	// Related entities (only included when specifically requested)
+	Members []UserProjectResponse `json:"members,omitempty"` // Project members with their roles
+}
+
+// DatasetResponse represents dataset response for v2 API
+type DatasetResponse struct {
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	Version     string    `json:"version"`
+	Description string    `json:"description"`
+	Type        string    `json:"type"`
+	Size        int64     `json:"size"`
+	FileCount   int       `json:"file_count"`
+	DataSource  string    `json:"data_source"`
+	Format      string    `json:"format"`
+	ProjectID   int       `json:"project_id"`
+	Status      int       `json:"status"`
+	IsPublic    bool      `json:"is_public"`
+	DownloadURL string    `json:"download_url,omitempty"`
+	Checksum    string    `json:"checksum,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+
+	// Related entities (only included when specifically requested)
+	Project *ProjectResponse `json:"project,omitempty"`
+}
+
+// TaskDetailResponse represents detailed task response including logs
+type TaskDetailResponse struct {
+	TaskResponse
+	Logs []string `json:"logs"`
+}

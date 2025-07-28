@@ -4355,7 +4355,6 @@ const docTemplate = `{
                 }
             }
         },
-<<<<<<< HEAD
         "dto.AnalyzeInjectionsResp": {
             "type": "object",
             "properties": {
@@ -4366,7 +4365,10 @@ const docTemplate = `{
                     "type": "object",
                     "additionalProperties": {
                         "$ref": "#/definitions/dto.InjectionStats"
-=======
+                    }
+                }
+            }
+        },
         "dto.AssignPermissionToRoleRequest": {
             "type": "object"
         },
@@ -4438,6 +4440,17 @@ const docTemplate = `{
                 "role_id": {
                     "type": "integer",
                     "example": 2
+                }
+            }
+        },
+        "dto.AttributeCoverageItem": {
+            "type": "object",
+            "properties": {
+                "coverage": {
+                    "type": "number"
+                },
+                "num": {
+                    "type": "integer"
                 }
             }
         },
@@ -4543,21 +4556,10 @@ const docTemplate = `{
                     "minItems": 1,
                     "items": {
                         "$ref": "#/definitions/dto.RelationOperation"
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
                     }
                 }
             }
         },
-<<<<<<< HEAD
-        "dto.AttributeCoverageItem": {
-            "type": "object",
-            "properties": {
-                "coverage": {
-                    "type": "number"
-                },
-                "num": {
-                    "type": "integer"
-=======
         "dto.ChangePasswordRequest": {
             "type": "object",
             "required": [
@@ -4687,7 +4689,6 @@ const docTemplate = `{
                 "username": {
                     "type": "string",
                     "example": "newuser"
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
                 }
             }
         },
@@ -4972,9 +4973,6 @@ const docTemplate = `{
                 }
             }
         },
-<<<<<<< HEAD
-        "dto.GenericResponse-dto_AnalyzeInjectionsResp": {
-=======
         "dto.GenericResponse-array_dto_PermissionResponse": {
             "type": "object",
             "properties": {
@@ -5047,8 +5045,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_AuditLogListResponse": {
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
+        "dto.GenericResponse-dto_AnalyzeInjectionsResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -5059,9 +5056,31 @@ const docTemplate = `{
                     "description": "泛型类型的数据",
                     "allOf": [
                         {
-<<<<<<< HEAD
                             "$ref": "#/definitions/dto.AnalyzeInjectionsResp"
-=======
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_AuditLogListResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
                             "$ref": "#/definitions/dto.AuditLogListResponse"
                         }
                     ]
@@ -5088,7 +5107,6 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.AuditLogResponse"
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
                         }
                     ]
                 },
@@ -5873,11 +5891,7 @@ const docTemplate = `{
                 }
             }
         },
-<<<<<<< HEAD
-        "dto.GenericResponse-dto_TraceStats": {
-=======
         "dto.GenericResponse-dto_TokenRefreshResponse": {
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
             "type": "object",
             "properties": {
                 "code": {
@@ -5888,10 +5902,32 @@ const docTemplate = `{
                     "description": "泛型类型的数据",
                     "allOf": [
                         {
-<<<<<<< HEAD
-                            "$ref": "#/definitions/dto.TraceStats"
-=======
                             "$ref": "#/definitions/dto.TokenRefreshResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_TraceStats": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.TraceStats"
                         }
                     ]
                 },
@@ -5967,7 +6003,6 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.UserResponse"
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
                         }
                     ]
                 },
@@ -6216,13 +6251,6 @@ const docTemplate = `{
                 }
             }
         },
-<<<<<<< HEAD
-        "dto.InjectionStats": {
-            "type": "object",
-            "properties": {
-                "diversity": {
-                    "$ref": "#/definitions/dto.InjectionDiversity"
-=======
         "dto.InjectionStatistics": {
             "type": "object",
             "properties": {
@@ -6245,7 +6273,14 @@ const docTemplate = `{
                 "total": {
                     "type": "integer",
                     "example": 500
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
+                }
+            }
+        },
+        "dto.InjectionStats": {
+            "type": "object",
+            "properties": {
+                "diversity": {
+                    "$ref": "#/definitions/dto.InjectionDiversity"
                 }
             }
         },
@@ -6462,7 +6497,6 @@ const docTemplate = `{
                 }
             }
         },
-<<<<<<< HEAD
         "dto.PairStats": {
             "type": "object",
             "properties": {
@@ -6473,7 +6507,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "outDegree": {
-=======
+                    "type": "integer"
+                }
+            }
+        },
         "dto.PermissionListResponse": {
             "type": "object",
             "properties": {
@@ -6662,13 +6699,10 @@ const docTemplate = `{
                     "$ref": "#/definitions/dto.DateRange"
                 },
                 "user_id": {
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
                     "type": "integer"
                 }
             }
         },
-<<<<<<< HEAD
-=======
         "dto.ProjectStatistics": {
             "type": "object",
             "properties": {
@@ -6690,7 +6724,6 @@ const docTemplate = `{
                 }
             }
         },
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
         "dto.QueryInjectionResp": {
             "type": "object",
             "properties": {
@@ -7052,15 +7085,6 @@ const docTemplate = `{
                 }
             }
         },
-<<<<<<< HEAD
-        "dto.ServiceCoverageItem": {
-            "type": "object",
-            "properties": {
-                "coverage": {
-                    "type": "number"
-                },
-                "notCovered": {
-=======
         "dto.RoleListResponse": {
             "type": "object",
             "properties": {
@@ -7146,15 +7170,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "exclude_fields": {
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
-<<<<<<< HEAD
-                "num": {
-=======
                 "filters": {
                     "description": "Filters",
                     "type": "array",
@@ -7243,13 +7263,10 @@ const docTemplate = `{
                     ]
                 },
                 "user_id": {
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
                     "type": "integer"
                 }
             }
         },
-<<<<<<< HEAD
-=======
         "dto.SearchFilter": {
             "type": "object",
             "required": [
@@ -7357,6 +7374,23 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.ServiceCoverageItem": {
+            "type": "object",
+            "properties": {
+                "coverage": {
+                    "type": "number"
+                },
+                "notCovered": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "num": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.ServiceInfo": {
             "type": "object",
             "properties": {
@@ -7410,7 +7444,6 @@ const docTemplate = `{
                 }
             }
         },
->>>>>>> 14fe60084b00189716715b54de8a59186b2b5b61
         "dto.SubmitInjectionReq": {
             "type": "object",
             "required": [

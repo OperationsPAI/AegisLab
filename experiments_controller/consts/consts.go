@@ -2,6 +2,61 @@ package consts
 
 import "time"
 
+// ResourceName 资源名称类型，用于权限检查
+type ResourceName string
+
+// 系统资源名称常量
+const (
+	ResourceProject        ResourceName = "project"         // 项目资源
+	ResourceDataset        ResourceName = "dataset"         // 数据集资源
+	ResourceFaultInjection ResourceName = "fault_injection" // 故障注入资源
+	ResourceContainer      ResourceName = "container"       // 容器资源
+	ResourceTask           ResourceName = "task"            // 任务资源
+	ResourceUser           ResourceName = "user"            // 用户资源
+	ResourceRole           ResourceName = "role"            // 角色资源
+	ResourcePermission     ResourceName = "permission"      // 权限资源
+)
+
+// String 返回资源名称的字符串表示
+func (r ResourceName) String() string {
+	return string(r)
+}
+
+// ActionName 权限动作类型，用于权限检查
+type ActionName string
+
+// 系统权限动作常量
+const (
+	ActionRead    ActionName = "read"    // 读取权限
+	ActionWrite   ActionName = "write"   // 写入权限
+	ActionDelete  ActionName = "delete"  // 删除权限
+	ActionExecute ActionName = "execute" // 执行权限
+	ActionManage  ActionName = "manage"  // 管理权限
+)
+
+// String 返回动作名称的字符串表示
+func (a ActionName) String() string {
+	return string(a)
+}
+
+/*
+权限检查使用示例：
+
+// 基本权限检查（推荐使用类型安全的方式）
+checker := repository.NewPermissionChecker(userID, nil)
+
+// 使用类型安全的常量进行权限检查
+canRead, err := checker.CanReadResource(consts.ResourceContainer)
+canWrite, err := checker.CanWriteResource(consts.ResourceTask)
+canDelete, err := checker.CanDeleteResource(consts.ResourceProject)
+
+// 通用权限检查
+hasPermission, err := checker.HasPermissionTyped(consts.ActionRead, consts.ResourceContainer)
+
+// 兼容的字符串方式（不推荐，但仍然支持）
+canRead, err := checker.CanRead("container")
+*/
+
 // 定义任务类型
 type TaskType string
 
