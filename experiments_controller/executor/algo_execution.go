@@ -124,6 +124,20 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			}
 		}
 
+		// 确保在函数退出时释放令牌
+		var tokenAcquired = true
+		defer func() {
+			if tokenAcquired {
+				if releaseErr := rateLimiter.ReleaseToken(ctx, task.TaskID, task.TraceID); releaseErr != nil {
+					logrus.WithFields(logrus.Fields{
+						"task_id":  task.TaskID,
+						"trace_id": task.TraceID,
+						"error":    releaseErr,
+					}).Error("Failed to release algorithm execution token")
+				}
+			}
+		}()
+
 		// Note: Token will be released when job completes or fails, not here
 		// This ensures proper rate limiting during the entire job execution period
 
@@ -186,6 +200,10 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			consts.LabelDataset:     payload.dataset,
 			consts.LabelExecutionID: strconv.Itoa(executionID),
 		}
+
+		// 如果成功创建了 Kubernetes Job，标记令牌不需要在这里释放
+		// 令牌将在 Job 成功或失败的回调中释放
+		tokenAcquired = false
 
 		return createAlgoJob(childCtx, config.GetString("k8s.namespace"), jobName, fullImage, annotations, labels, payload, container, record)
 	})

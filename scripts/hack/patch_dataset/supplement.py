@@ -8,6 +8,8 @@ from rcabench.openapi import (
     AlgorithmApi,
     DtoExecutionPayload,
     DtoAlgorithmItem,
+    DtoSubmitDatasetBuildingReq,
+    DtoSubmitExecutionReq,
 )
 from rcabench.openapi.models.dto_dataset_build_payload import DtoDatasetBuildPayload
 import time
@@ -86,16 +88,19 @@ def dataset(
                         print(f"  提取的命名空间: {namespace}")
 
                         resp = api.api_v1_datasets_post(
-                            body=[
-                                DtoDatasetBuildPayload(
-                                    benchmark="clickhouse",
-                                    name=injection_name,
-                                    pre_duration=4,
-                                    env_vars={
-                                        "NAMESPACE": namespace,
-                                    },
-                                )
-                            ]
+                            body=DtoSubmitDatasetBuildingReq(
+                                project_name="pair_diagnosis",
+                                payloads=[
+                                    DtoDatasetBuildPayload(
+                                        benchmark="clickhouse",
+                                        name=injection_name,
+                                        pre_duration=4,
+                                        env_vars={
+                                            "NAMESPACE": namespace,
+                                        },
+                                    ),
+                                ],
+                            ),
                         )
 
                         print(f"  🔄 提交数据集成功：{resp}")
@@ -154,7 +159,7 @@ def detector(
                     WHERE id NOT IN (
                         SELECT DISTINCT fis.id
                         FROM fault_injection_schedules fis 
-                        JOIN execution_results er ON fis.injection_name = er.dataset
+                        JOIN execution_results er ON fis.id = er.dataset_id
                         JOIN detectors d ON er.id = d.execution_id
                     ) AND status = 4
                     ORDER BY id DESC
@@ -175,12 +180,15 @@ def detector(
 
                     try:
                         resp = api.api_v1_algorithms_post(
-                            body=[
-                                DtoExecutionPayload(
-                                    algorithm=DtoAlgorithmItem(name=detector_image),
-                                    dataset=injection_name,
-                                )
-                            ]
+                            body=DtoSubmitExecutionReq(
+                                project_name="pair_diagnosis",
+                                payloads=[
+                                    DtoExecutionPayload(
+                                        algorithm=DtoAlgorithmItem(name=detector_image),
+                                        dataset=injection_name,
+                                    )
+                                ],
+                            ),
                         )
                         print(f"  🔄 提交检测器成功：{resp}")
 
@@ -279,45 +287,65 @@ def align_db(
                             with open(injection_json_path, "r", encoding="utf-8") as f:
                                 injection_data = json.load(f)
 
-                            # 生成新的task_id
-                            new_task_id = str(uuid.uuid4())
+                            # 生成新的task_id - 使用NULL而不是UUID，因为外键约束
+                            new_task_id = None
 
                             # 构建插入语句
                             insert_query = """
                             INSERT INTO fault_injection_schedules (
                                 task_id, fault_type, display_config, engine_config, 
                                 pre_duration, start_time, end_time, status, 
-                                description, benchmark, injection_name, labels,
+                                description, benchmark, injection_name,
                                 created_at, updated_at
-                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                             """
 
-                            # 准备数据
+                            # 准备数据并进行类型转换
+                            def safe_get(data, key, default=None):
+                                value = data.get(key, default)
+                                if value is None:
+                                    return None
+                                return value
+
+                            def parse_timestamp(timestamp_str):
+                                if timestamp_str is None:
+                                    return None
+                                try:
+                                    # 尝试解析时间戳字符串
+                                    if isinstance(timestamp_str, str):
+                                        return datetime.fromisoformat(
+                                            timestamp_str.replace("Z", "+00:00")
+                                        )
+                                    return timestamp_str
+                                except:
+                                    return None
+
                             values = (
-                                new_task_id,
-                                injection_data.get("fault_type"),
-                                injection_data.get("display_config"),
-                                injection_data.get("engine_config"),
-                                injection_data.get("pre_duration"),
-                                injection_data.get("start_time"),
-                                injection_data.get("end_time"),
-                                injection_data.get("status"),
-                                injection_data.get("description"),
-                                injection_data.get("benchmark"),
-                                injection_data.get("injection_name"),
-                                json.dumps(injection_data.get("labels", {})),
-                                injection_data.get("created_at"),
-                                injection_data.get("updated_at"),
+                                new_task_id,  # task_id 设为 NULL
+                                safe_get(injection_data, "fault_type"),
+                                safe_get(injection_data, "display_config"),
+                                safe_get(injection_data, "engine_config"),
+                                safe_get(injection_data, "pre_duration"),
+                                parse_timestamp(safe_get(injection_data, "start_time")),
+                                parse_timestamp(safe_get(injection_data, "end_time")),
+                                4,
+                                safe_get(injection_data, "description"),
+                                safe_get(injection_data, "benchmark"),
+                                safe_get(injection_data, "injection_name"),
+                                parse_timestamp(safe_get(injection_data, "created_at")),
+                                parse_timestamp(safe_get(injection_data, "updated_at")),
                             )
 
                             cursor.execute(insert_query, values)
-                            print(
-                                f"➕ 添加数据库记录: Name={local_dataset}, TaskID={new_task_id}"
-                            )
+                            print(f"➕ 添加数据库记录: Name={local_dataset}")
                             added_count += 1
 
                         except Exception as e:
                             print(f"❌ 添加记录失败 {local_dataset}: {e}")
+                            # 回滚当前事务，避免影响后续操作
+                            connection.rollback()
+                            # 重新开始事务
+                            connection.commit()
                     else:
                         print(f"⚠️ 缺少injection.json文件: {injection_json_path}")
 

@@ -76,15 +76,15 @@ type ExecutionResult struct {
 	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`                                       // 唯一标识
 	TaskID      string    `gorm:"index:idx_exec_task_status;index:idx_exec_task_algo" json:"task_id"`       // 从属什么 taskid，添加复合索引
 	AlgorithmID int       `gorm:"index:idx_exec_task_algo;index:idx_exec_algo_dataset" json:"container_id"` // 使用的算法，添加复合索引
-	DatasetID   int       `gorm:"index:idx_exec_algo_dataset" json:"dataset_id"`                            // 数据集标识，添加复合索引
+	DatapackID  int       `gorm:"index:idx_exec_algo_dataset" json:"datapack_id"`                           // 数据包标识，添加复合索引
 	Status      int       `gorm:"default:0;index:idx_exec_task_status" json:"status"`                       // 状态，添加复合索引
 	CreatedAt   time.Time `gorm:"autoCreateTime;index" json:"created_at"`                                   // 创建时间，添加时间索引
 	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                         // 更新时间
 
 	// 外键关联
-	Task      *Task      `gorm:"foreignKey:TaskID" json:"task,omitempty"`
-	Algorithm *Container `gorm:"foreignKey:AlgorithmID" json:"algorithm,omitempty"`
-	Dataset   *Dataset   `gorm:"foreignKey:DatasetID" json:"dataset,omitempty"`
+	Task      *Task                   `gorm:"foreignKey:TaskID" json:"task,omitempty"`
+	Algorithm *Container              `gorm:"foreignKey:AlgorithmID" json:"algorithm,omitempty"`
+	Datapack  *FaultInjectionSchedule `gorm:"foreignKey:DatapackID" json:"datapack,omitempty"`
 }
 
 type GranularityResult struct {
