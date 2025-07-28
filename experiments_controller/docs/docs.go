@@ -1666,6 +1666,122 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/algorithms": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a simple list of all active algorithms without complex filtering",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Algorithms"
+                ],
+                "summary": "List algorithms",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Algorithms retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_AlgorithmResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/algorithms/search": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Search algorithms with complex filtering, sorting and pagination. Algorithms are containers with type 'algorithm'",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Algorithms"
+                ],
+                "summary": "Search algorithms",
+                "parameters": [
+                    {
+                        "description": "Algorithm search request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AlgorithmSearchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Algorithms retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_AlgorithmResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/audit": {
             "get": {
                 "description": "Get paginated list of audit logs with optional filtering",
@@ -2129,6 +2245,193 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "User already exists",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/containers": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a simple list of containers with basic filtering",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Containers"
+                ],
+                "summary": "List containers",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "algorithm",
+                            "benchmark"
+                        ],
+                        "type": "string",
+                        "description": "Container type filter",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Container status filter",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Containers retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_ContainerResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/containers/search": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Search containers with complex filtering, sorting and pagination. Supports all container types (algorithm, benchmark, etc.)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Containers"
+                ],
+                "summary": "Search containers",
+                "parameters": [
+                    {
+                        "description": "Container search request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ContainerSearchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Containers retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_ContainerResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/containers/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get detailed information about a specific container",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Containers"
+                ],
+                "summary": "Get container by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Container ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Container retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid container ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Container not found",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -3743,6 +4046,294 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/tasks": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a simple list of tasks with basic filtering via query parameters",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "List tasks",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by task ID",
+                        "name": "task_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by trace ID",
+                        "name": "trace_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by group ID",
+                        "name": "group_id",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "RestartService",
+                            "FaultInjection",
+                            "BuildDataset",
+                            "RunAlgorithm",
+                            "CollectResult",
+                            "BuildImage"
+                        ],
+                        "type": "string",
+                        "description": "Filter by task type",
+                        "name": "task_type",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "Pending",
+                            "Running",
+                            "Completed",
+                            "Error",
+                            "Cancelled",
+                            "Scheduled",
+                            "Rescheduled"
+                        ],
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by immediate execution",
+                        "name": "immediate",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tasks retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_TaskResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/tasks/queue": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get tasks in queue (ready and delayed) with pagination and filtering",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get queued tasks",
+                "parameters": [
+                    {
+                        "description": "Search request with pagination",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AdvancedSearchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Queued tasks retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_TaskResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/tasks/search": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Search tasks with complex filtering, sorting and pagination",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Search tasks",
+                "parameters": [
+                    {
+                        "description": "Task search request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.TaskSearchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tasks retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_TaskResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/tasks/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get detailed information about a specific task including logs",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get task by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Task ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "description": "Include additional data (logs)",
+                        "name": "include",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Task retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_TaskDetailResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid task ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Task not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/users": {
             "get": {
                 "security": [
@@ -4257,9 +4848,25 @@ const docTemplate = `{
                     "description": "镜像名",
                     "type": "string"
                 },
+                "is_public": {
+                    "description": "是否公开可见",
+                    "type": "boolean"
+                },
                 "name": {
                     "description": "名称",
                     "type": "string"
+                },
+                "project": {
+                    "description": "外键关联",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/database.Project"
+                        }
+                    ]
+                },
+                "project_id": {
+                    "description": "容器必须属于某个项目",
+                    "type": "integer"
                 },
                 "status": {
                     "description": "0: 已删除 1: 活跃",
@@ -4275,6 +4882,34 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "description": "更新时间",
+                    "type": "string"
+                }
+            }
+        },
+        "database.Project": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_public": {
+                    "description": "是否公开可见",
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "0:禁用 1:启用 -1:删除",
+                    "type": "integer"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
@@ -4306,8 +4941,16 @@ const docTemplate = `{
                 "payload": {
                     "type": "string"
                 },
+                "project": {
+                    "description": "外键关联",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/database.Project"
+                        }
+                    ]
+                },
                 "project_id": {
-                    "description": "复合索引",
+                    "description": "任务必须属于某个项目",
                     "type": "integer"
                 },
                 "status": {
@@ -4324,6 +4967,85 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.AdvancedSearchRequest": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "description": "Common filters shortcuts",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.DateRange"
+                        }
+                    ]
+                },
+                "exclude_fields": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "filters": {
+                    "description": "Filters",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SearchFilter"
+                    }
+                },
+                "include": {
+                    "description": "Include related entities",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "include_fields": {
+                    "description": "Include/Exclude fields",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "keyword": {
+                    "description": "Search keyword (for general text search)",
+                    "type": "string"
+                },
+                "page": {
+                    "description": "Pagination",
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer",
+                    "maximum": 1000,
+                    "minimum": 1
+                },
+                "sort": {
+                    "description": "Sort",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SortOption"
+                    }
+                },
+                "status": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "updated_at": {
+                    "$ref": "#/definitions/dto.DateRange"
+                },
+                "user_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -4352,6 +5074,147 @@ const docTemplate = `{
                 },
                 "tag": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.AlgorithmResponse": {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "env_vars": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "is_public": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "project": {
+                    "description": "Related entities (only included when specifically requested)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ProjectResponse"
+                        }
+                    ]
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "boolean"
+                },
+                "tag": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.AlgorithmSearchRequest": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "description": "Common filters shortcuts",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.DateRange"
+                        }
+                    ]
+                },
+                "exclude_fields": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "filters": {
+                    "description": "Filters",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SearchFilter"
+                    }
+                },
+                "image": {
+                    "type": "string"
+                },
+                "include": {
+                    "description": "Include related entities",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "include_fields": {
+                    "description": "Include/Exclude fields",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "keyword": {
+                    "description": "Search keyword (for general text search)",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Algorithm-specific filters",
+                    "type": "string"
+                },
+                "page": {
+                    "description": "Pagination",
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer",
+                    "maximum": 1000,
+                    "minimum": 1
+                },
+                "sort": {
+                    "description": "Sort",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SortOption"
+                    }
+                },
+                "status": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "tag": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "$ref": "#/definitions/dto.DateRange"
+                },
+                "user_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -4575,6 +5438,150 @@ const docTemplate = `{
                 "old_password": {
                     "type": "string",
                     "example": "oldpassword123"
+                }
+            }
+        },
+        "dto.ContainerResponse": {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "env_vars": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "is_public": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "project": {
+                    "description": "Related entities (only included when specifically requested)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ProjectResponse"
+                        }
+                    ]
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "boolean"
+                },
+                "tag": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ContainerSearchRequest": {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "Common filters shortcuts",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.DateRange"
+                        }
+                    ]
+                },
+                "exclude_fields": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "filters": {
+                    "description": "Filters",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SearchFilter"
+                    }
+                },
+                "image": {
+                    "type": "string"
+                },
+                "include": {
+                    "description": "Include related entities",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "include_fields": {
+                    "description": "Include/Exclude fields",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "keyword": {
+                    "description": "Search keyword (for general text search)",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Container-specific filters",
+                    "type": "string"
+                },
+                "page": {
+                    "description": "Pagination",
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer",
+                    "maximum": 1000,
+                    "minimum": 1
+                },
+                "sort": {
+                    "description": "Sort",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SortOption"
+                    }
+                },
+                "status": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "tag": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "$ref": "#/definitions/dto.DateRange"
+                },
+                "user_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -5107,6 +6114,31 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.AuditLogResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_ContainerResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ContainerResponse"
                         }
                     ]
                 },
@@ -5667,6 +6699,56 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GenericResponse-dto_SearchResponse-dto_AlgorithmResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.SearchResponse-dto_AlgorithmResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_SearchResponse-dto_ContainerResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.SearchResponse-dto_ContainerResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GenericResponse-dto_SearchResponse-dto_PermissionResponse": {
             "type": "object",
             "properties": {
@@ -5704,6 +6786,31 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.SearchResponse-dto_RoleResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_SearchResponse-dto_TaskResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.SearchResponse-dto_TaskResponse"
                         }
                     ]
                 },
@@ -5878,6 +6985,31 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.TaskDetailResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_TaskDetailResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.TaskDetailResponse"
                         }
                     ]
                 },
@@ -6703,6 +7835,39 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.ProjectResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_public": {
+                    "type": "boolean"
+                },
+                "members": {
+                    "description": "Related entities (only included when specifically requested)",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.UserProjectResponse"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.ProjectStatistics": {
             "type": "object",
             "properties": {
@@ -7296,6 +8461,58 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.SearchResponse-dto_AlgorithmResponse": {
+            "type": "object",
+            "properties": {
+                "applied_filters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SearchFilter"
+                    }
+                },
+                "applied_sort": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SortOption"
+                    }
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.AlgorithmResponse"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
+        "dto.SearchResponse-dto_ContainerResponse": {
+            "type": "object",
+            "properties": {
+                "applied_filters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SearchFilter"
+                    }
+                },
+                "applied_sort": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SortOption"
+                    }
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ContainerResponse"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
         "dto.SearchResponse-dto_PermissionResponse": {
             "type": "object",
             "properties": {
@@ -7341,6 +8558,32 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/dto.RoleResponse"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
+        "dto.SearchResponse-dto_TaskResponse": {
+            "type": "object",
+            "properties": {
+                "applied_filters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SearchFilter"
+                    }
+                },
+                "applied_sort": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SortOption"
+                    }
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.TaskResponse"
                     }
                 },
                 "pagination": {
@@ -7608,6 +8851,52 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.TaskDetailResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "immediate": {
+                    "type": "boolean"
+                },
+                "logs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "project": {
+                    "description": "Related entities (only included when specifically requested)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ProjectResponse"
+                        }
+                    ]
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "trace_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.TaskItem": {
             "type": "object",
             "properties": {
@@ -7628,6 +8917,145 @@ const docTemplate = `{
                 },
                 "type": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.TaskResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "immediate": {
+                    "type": "boolean"
+                },
+                "logs": {
+                    "description": "Only included when specifically requested",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "project": {
+                    "description": "Related entities (only included when specifically requested)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ProjectResponse"
+                        }
+                    ]
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "trace_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.TaskSearchRequest": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "description": "Common filters shortcuts",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.DateRange"
+                        }
+                    ]
+                },
+                "exclude_fields": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "filters": {
+                    "description": "Filters",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SearchFilter"
+                    }
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "immediate": {
+                    "type": "boolean"
+                },
+                "include": {
+                    "description": "Include related entities",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "include_fields": {
+                    "description": "Include/Exclude fields",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "keyword": {
+                    "description": "Search keyword (for general text search)",
+                    "type": "string"
+                },
+                "page": {
+                    "description": "Pagination",
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer",
+                    "maximum": 1000,
+                    "minimum": 1
+                },
+                "sort": {
+                    "description": "Sort",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SortOption"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "task_id": {
+                    "description": "Task-specific filters",
+                    "type": "string"
+                },
+                "task_type": {
+                    "type": "string"
+                },
+                "trace_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "$ref": "#/definitions/dto.DateRange"
+                },
+                "user_id": {
+                    "type": "integer"
                 }
             }
         },

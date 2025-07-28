@@ -18,31 +18,25 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.database_project import DatabaseProject
+from rcabench.openapi.models.dto_container_response import DtoContainerResponse
+from rcabench.openapi.models.dto_pagination_info import DtoPaginationInfo
+from rcabench.openapi.models.dto_search_filter import DtoSearchFilter
+from rcabench.openapi.models.dto_sort_option import DtoSortOption
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DatabaseContainer(BaseModel):
+class DtoSearchResponseDtoContainerResponse(BaseModel):
     """
-    DatabaseContainer
+    DtoSearchResponseDtoContainerResponse
     """ # noqa: E501
-    command: Optional[StrictStr] = Field(default=None, description="启动命令")
-    created_at: Optional[StrictStr] = Field(default=None, description="创建时间")
-    env_vars: Optional[StrictStr] = Field(default=None, description="环境变量名称列表")
-    id: Optional[StrictInt] = Field(default=None, description="唯一标识")
-    image: Optional[StrictStr] = Field(default=None, description="镜像名")
-    is_public: Optional[StrictBool] = Field(default=None, description="是否公开可见")
-    name: Optional[StrictStr] = Field(default=None, description="名称")
-    project: Optional[DatabaseProject] = Field(default=None, description="外键关联")
-    project_id: Optional[StrictInt] = Field(default=None, description="容器必须属于某个项目")
-    status: Optional[StrictBool] = Field(default=None, description="0: 已删除 1: 活跃")
-    tag: Optional[StrictStr] = Field(default=None, description="镜像标签")
-    type: Optional[StrictStr] = Field(default=None, description="镜像类型")
-    updated_at: Optional[StrictStr] = Field(default=None, description="更新时间")
+    applied_filters: Optional[List[DtoSearchFilter]] = None
+    applied_sort: Optional[List[DtoSortOption]] = None
+    items: Optional[List[DtoContainerResponse]] = None
+    pagination: Optional[DtoPaginationInfo] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["command", "created_at", "env_vars", "id", "image", "is_public", "name", "project", "project_id", "status", "tag", "type", "updated_at"]
+    __properties: ClassVar[List[str]] = ["applied_filters", "applied_sort", "items", "pagination"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -62,7 +56,7 @@ class DatabaseContainer(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DatabaseContainer from a JSON string"""
+        """Create an instance of DtoSearchResponseDtoContainerResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -85,9 +79,30 @@ class DatabaseContainer(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of project
-        if self.project:
-            _dict['project'] = self.project.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of each item in applied_filters (list)
+        _items = []
+        if self.applied_filters:
+            for _item_applied_filters in self.applied_filters:
+                if _item_applied_filters:
+                    _items.append(_item_applied_filters.to_dict())
+            _dict['applied_filters'] = _items
+        # override the default output from pydantic by calling `to_dict()` of each item in applied_sort (list)
+        _items = []
+        if self.applied_sort:
+            for _item_applied_sort in self.applied_sort:
+                if _item_applied_sort:
+                    _items.append(_item_applied_sort.to_dict())
+            _dict['applied_sort'] = _items
+        # override the default output from pydantic by calling `to_dict()` of each item in items (list)
+        _items = []
+        if self.items:
+            for _item_items in self.items:
+                if _item_items:
+                    _items.append(_item_items.to_dict())
+            _dict['items'] = _items
+        # override the default output from pydantic by calling `to_dict()` of pagination
+        if self.pagination:
+            _dict['pagination'] = self.pagination.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -97,7 +112,7 @@ class DatabaseContainer(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DatabaseContainer from a dict"""
+        """Create an instance of DtoSearchResponseDtoContainerResponse from a dict"""
         if obj is None:
             return None
 
@@ -105,19 +120,10 @@ class DatabaseContainer(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "command": obj.get("command"),
-            "created_at": obj.get("created_at"),
-            "env_vars": obj.get("env_vars"),
-            "id": obj.get("id"),
-            "image": obj.get("image"),
-            "is_public": obj.get("is_public"),
-            "name": obj.get("name"),
-            "project": DatabaseProject.from_dict(obj["project"]) if obj.get("project") is not None else None,
-            "project_id": obj.get("project_id"),
-            "status": obj.get("status"),
-            "tag": obj.get("tag"),
-            "type": obj.get("type"),
-            "updated_at": obj.get("updated_at")
+            "applied_filters": [DtoSearchFilter.from_dict(_item) for _item in obj["applied_filters"]] if obj.get("applied_filters") is not None else None,
+            "applied_sort": [DtoSortOption.from_dict(_item) for _item in obj["applied_sort"]] if obj.get("applied_sort") is not None else None,
+            "items": [DtoContainerResponse.from_dict(_item) for _item in obj["items"]] if obj.get("items") is not None else None,
+            "pagination": DtoPaginationInfo.from_dict(obj["pagination"]) if obj.get("pagination") is not None else None
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

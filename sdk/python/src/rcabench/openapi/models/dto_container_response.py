@@ -20,27 +20,27 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.database_project import DatabaseProject
+from rcabench.openapi.models.dto_project_response import DtoProjectResponse
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DatabaseContainer(BaseModel):
+class DtoContainerResponse(BaseModel):
     """
-    DatabaseContainer
+    DtoContainerResponse
     """ # noqa: E501
-    command: Optional[StrictStr] = Field(default=None, description="启动命令")
-    created_at: Optional[StrictStr] = Field(default=None, description="创建时间")
-    env_vars: Optional[StrictStr] = Field(default=None, description="环境变量名称列表")
-    id: Optional[StrictInt] = Field(default=None, description="唯一标识")
-    image: Optional[StrictStr] = Field(default=None, description="镜像名")
-    is_public: Optional[StrictBool] = Field(default=None, description="是否公开可见")
-    name: Optional[StrictStr] = Field(default=None, description="名称")
-    project: Optional[DatabaseProject] = Field(default=None, description="外键关联")
-    project_id: Optional[StrictInt] = Field(default=None, description="容器必须属于某个项目")
-    status: Optional[StrictBool] = Field(default=None, description="0: 已删除 1: 活跃")
-    tag: Optional[StrictStr] = Field(default=None, description="镜像标签")
-    type: Optional[StrictStr] = Field(default=None, description="镜像类型")
-    updated_at: Optional[StrictStr] = Field(default=None, description="更新时间")
+    command: Optional[StrictStr] = None
+    created_at: Optional[StrictStr] = None
+    env_vars: Optional[StrictStr] = None
+    id: Optional[StrictInt] = None
+    image: Optional[StrictStr] = None
+    is_public: Optional[StrictBool] = None
+    name: Optional[StrictStr] = None
+    project: Optional[DtoProjectResponse] = Field(default=None, description="Related entities (only included when specifically requested)")
+    project_id: Optional[StrictInt] = None
+    status: Optional[StrictBool] = None
+    tag: Optional[StrictStr] = None
+    type: Optional[StrictStr] = None
+    updated_at: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["command", "created_at", "env_vars", "id", "image", "is_public", "name", "project", "project_id", "status", "tag", "type", "updated_at"]
 
@@ -62,7 +62,7 @@ class DatabaseContainer(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DatabaseContainer from a JSON string"""
+        """Create an instance of DtoContainerResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -97,7 +97,7 @@ class DatabaseContainer(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DatabaseContainer from a dict"""
+        """Create an instance of DtoContainerResponse from a dict"""
         if obj is None:
             return None
 
@@ -112,7 +112,7 @@ class DatabaseContainer(BaseModel):
             "image": obj.get("image"),
             "is_public": obj.get("is_public"),
             "name": obj.get("name"),
-            "project": DatabaseProject.from_dict(obj["project"]) if obj.get("project") is not None else None,
+            "project": DtoProjectResponse.from_dict(obj["project"]) if obj.get("project") is not None else None,
             "project_id": obj.get("project_id"),
             "status": obj.get("status"),
             "tag": obj.get("tag"),

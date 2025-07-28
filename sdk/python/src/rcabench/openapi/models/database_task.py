@@ -20,6 +20,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from rcabench.openapi.models.database_project import DatabaseProject
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -34,13 +35,14 @@ class DatabaseTask(BaseModel):
     id: Optional[StrictStr] = None
     immediate: Optional[StrictBool] = None
     payload: Optional[StrictStr] = None
-    project_id: Optional[StrictInt] = Field(default=None, description="复合索引")
+    project: Optional[DatabaseProject] = Field(default=None, description="外键关联")
+    project_id: Optional[StrictInt] = Field(default=None, description="任务必须属于某个项目")
     status: Optional[StrictStr] = Field(default=None, description="添加多个复合索引")
     trace_id: Optional[StrictStr] = Field(default=None, description="添加追踪ID索引")
     type: Optional[StrictStr] = Field(default=None, description="添加复合索引")
     updated_at: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["created_at", "cron_expr", "execute_time", "group_id", "id", "immediate", "payload", "project_id", "status", "trace_id", "type", "updated_at"]
+    __properties: ClassVar[List[str]] = ["created_at", "cron_expr", "execute_time", "group_id", "id", "immediate", "payload", "project", "project_id", "status", "trace_id", "type", "updated_at"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -83,6 +85,9 @@ class DatabaseTask(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of project
+        if self.project:
+            _dict['project'] = self.project.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -107,6 +112,7 @@ class DatabaseTask(BaseModel):
             "id": obj.get("id"),
             "immediate": obj.get("immediate"),
             "payload": obj.get("payload"),
+            "project": DatabaseProject.from_dict(obj["project"]) if obj.get("project") is not None else None,
             "project_id": obj.get("project_id"),
             "status": obj.get("status"),
             "trace_id": obj.get("trace_id"),

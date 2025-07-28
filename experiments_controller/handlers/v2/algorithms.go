@@ -12,41 +12,41 @@ import (
 )
 
 // SearchAlgorithms handles complex algorithm search with advanced filtering
-// @Summary Search algorithms
-// @Description Search algorithms with complex filtering, sorting and pagination. Algorithms are containers with type 'algorithm'
-// @Tags Algorithms
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body dto.AlgorithmSearchRequest true "Algorithm search request"
-// @Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.AlgorithmResponse]] "Algorithms retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/algorithms/search [post]
+//	@Summary Search algorithms
+//	@Description Search algorithms with complex filtering, sorting and pagination. Algorithms are containers with type 'algorithm'
+//	@Tags Algorithms
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.AlgorithmSearchRequest true "Algorithm search request"
+//	@Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.AlgorithmResponse]] "Algorithms retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/algorithms/search [post]
 func SearchAlgorithms(c *gin.Context) {
 	// Check permission first
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "用户未认证")
+		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	checker := repository.NewPermissionChecker(userID.(int), nil)
 	canRead, err := checker.CanReadResource(consts.ResourceContainer)
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "权限检查失败: "+err.Error())
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
 		return
 	}
 
 	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "没有读取算法的权限")
+		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read algorithms")
 		return
 	}
 
 	var req dto.AlgorithmSearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "请求格式无效: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 
@@ -56,14 +56,14 @@ func SearchAlgorithms(c *gin.Context) {
 
 	// Validate search request
 	if err := searchReq.ValidateSearchRequest(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "搜索参数无效: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid search parameters: "+err.Error())
 		return
 	}
 
 	// Execute search using query builder
 	searchResult, err := repository.ExecuteSearch(database.DB, searchReq, database.Container{})
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "搜索算法失败: "+err.Error())
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to search algorithms: "+err.Error())
 		return
 	}
 
@@ -98,35 +98,35 @@ func SearchAlgorithms(c *gin.Context) {
 }
 
 // ListAlgorithms handles simple algorithm listing
-// @Summary List algorithms
-// @Description Get a simple list of all active algorithms without complex filtering
-// @Tags Algorithms
-// @Produce json
-// @Security BearerAuth
-// @Param page query int false "Page number" default(1)
-// @Param size query int false "Page size" default(20)
-// @Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.AlgorithmResponse]] "Algorithms retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/algorithms [get]
+//	@Summary List algorithms
+//	@Description Get a simple list of all active algorithms without complex filtering
+//	@Tags Algorithms
+//	@Produce json
+//	@Security BearerAuth
+//	@Param page query int false "Page number" default(1)
+//	@Param size query int false "Page size" default(20)
+//	@Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.AlgorithmResponse]] "Algorithms retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/algorithms [get]
 func ListAlgorithms(c *gin.Context) {
 	// Check permission first
 	userID, exists := c.Get("user_id")
 	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "用户未认证")
+		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	checker := repository.NewPermissionChecker(userID.(int), nil)
 	canRead, err := checker.CanReadResource(consts.ResourceContainer)
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "权限检查失败: "+err.Error())
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
 		return
 	}
 
 	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "没有读取算法的权限")
+		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read algorithms")
 		return
 	}
 
@@ -162,14 +162,14 @@ func ListAlgorithms(c *gin.Context) {
 
 	// Validate search request
 	if err := searchReq.ValidateSearchRequest(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "搜索参数无效: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid search parameters: "+err.Error())
 		return
 	}
 
 	// Execute search using query builder
 	searchResult, err := repository.ExecuteSearch(database.DB, searchReq, database.Container{})
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "获取算法列表失败: "+err.Error())
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get algorithm list: "+err.Error())
 		return
 	}
 

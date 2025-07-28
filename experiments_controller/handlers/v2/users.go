@@ -12,18 +12,18 @@ import (
 )
 
 // CreateUser handles user creation
-// @Summary Create a new user
-// @Description Create a new user account with specified details
-// @Tags Users
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body dto.CreateUserRequest true "User creation request"
-// @Success 201 {object} dto.GenericResponse[dto.UserResponse] "User created successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 409 {object} dto.GenericResponse[any] "User already exists"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/users [post]
+//	@Summary Create a new user
+//	@Description Create a new user account with specified details
+//	@Tags Users
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.CreateUserRequest true "User creation request"
+//	@Success 201 {object} dto.GenericResponse[dto.UserResponse] "User created successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 409 {object} dto.GenericResponse[any] "User already exists"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/users [post]
 func CreateUser(c *gin.Context) {
 	var req dto.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -72,17 +72,17 @@ func CreateUser(c *gin.Context) {
 }
 
 // GetUser handles getting a single user by ID
-// @Summary Get user by ID
-// @Description Get detailed information about a specific user
-// @Tags Users
-// @Produce json
-// @Security BearerAuth
-// @Param id path int true "User ID"
-// @Success 200 {object} dto.GenericResponse[dto.UserResponse] "User retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid user ID"
-// @Failure 404 {object} dto.GenericResponse[any] "User not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/users/{id} [get]
+//	@Summary Get user by ID
+//	@Description Get detailed information about a specific user
+//	@Tags Users
+//	@Produce json
+//	@Security BearerAuth
+//	@Param id path int true "User ID"
+//	@Success 200 {object} dto.GenericResponse[dto.UserResponse] "User retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid user ID"
+//	@Failure 404 {object} dto.GenericResponse[any] "User not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/users/{id} [get]
 func GetUser(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -120,22 +120,22 @@ func GetUser(c *gin.Context) {
 }
 
 // ListUsers handles listing users with pagination and filtering
-// @Summary List users
-// @Description Get paginated list of users with optional filtering
-// @Tags Users
-// @Produce json
-// @Security BearerAuth
-// @Param page query int false "Page number" default(1)
-// @Param size query int false "Page size" default(20)
-// @Param status query int false "Filter by status"
-// @Param is_active query bool false "Filter by active status"
-// @Param username query string false "Filter by username"
-// @Param email query string false "Filter by email"
-// @Param full_name query string false "Filter by full name"
-// @Success 200 {object} dto.GenericResponse[dto.UserListResponse] "Users retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request parameters"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/users [get]
+//	@Summary List users
+//	@Description Get paginated list of users with optional filtering
+//	@Tags Users
+//	@Produce json
+//	@Security BearerAuth
+//	@Param page query int false "Page number" default(1)
+//	@Param size query int false "Page size" default(20)
+//	@Param status query int false "Filter by status"
+//	@Param is_active query bool false "Filter by active status"
+//	@Param username query string false "Filter by username"
+//	@Param email query string false "Filter by email"
+//	@Param full_name query string false "Filter by full name"
+//	@Success 200 {object} dto.GenericResponse[dto.UserListResponse] "Users retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request parameters"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/users [get]
 func ListUsers(c *gin.Context) {
 	var req dto.UserListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -180,19 +180,19 @@ func ListUsers(c *gin.Context) {
 }
 
 // UpdateUser handles user updates
-// @Summary Update user
-// @Description Update user information (partial update supported)
-// @Tags Users
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path int true "User ID"
-// @Param request body dto.UpdateUserRequest true "User update request"
-// @Success 200 {object} dto.GenericResponse[dto.UserResponse] "User updated successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 404 {object} dto.GenericResponse[any] "User not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/users/{id} [put]
+//	@Summary Update user
+//	@Description Update user information (partial update supported)
+//	@Tags Users
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param id path int true "User ID"
+//	@Param request body dto.UpdateUserRequest true "User update request"
+//	@Success 200 {object} dto.GenericResponse[dto.UserResponse] "User updated successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 404 {object} dto.GenericResponse[any] "User not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/users/{id} [put]
 func UpdateUser(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -245,17 +245,17 @@ func UpdateUser(c *gin.Context) {
 }
 
 // DeleteUser handles user deletion
-// @Summary Delete user
-// @Description Delete a user (soft delete by setting status to -1)
-// @Tags Users
-// @Produce json
-// @Security BearerAuth
-// @Param id path int true "User ID"
-// @Success 200 {object} dto.GenericResponse[any] "User deleted successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid user ID"
-// @Failure 404 {object} dto.GenericResponse[any] "User not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/users/{id} [delete]
+//	@Summary Delete user
+//	@Description Delete a user (soft delete by setting status to -1)
+//	@Tags Users
+//	@Produce json
+//	@Security BearerAuth
+//	@Param id path int true "User ID"
+//	@Success 200 {object} dto.GenericResponse[any] "User deleted successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid user ID"
+//	@Failure 404 {object} dto.GenericResponse[any] "User not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/users/{id} [delete]
 func DeleteUser(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -273,17 +273,17 @@ func DeleteUser(c *gin.Context) {
 }
 
 // SearchUsers handles complex user search
-// @Summary Search users
-// @Description Search users with complex filtering and sorting
-// @Tags Users
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param request body dto.UserSearchRequest true "User search request"
-// @Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.UserResponse]] "Users retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/users/search [post]
+//	@Summary Search users
+//	@Description Search users with complex filtering and sorting
+//	@Tags Users
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.UserSearchRequest true "User search request"
+//	@Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.UserResponse]] "Users retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/users/search [post]
 func SearchUsers(c *gin.Context) {
 	var req dto.UserSearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -363,19 +363,19 @@ func SearchUsers(c *gin.Context) {
 }
 
 // AssignUserToProject handles user-project assignment
-// @Summary Assign user to project
-// @Description Assign a user to a project with a specific role
-// @Tags Users
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path int true "User ID"
-// @Param request body dto.AssignUserToProjectRequest true "Project assignment request"
-// @Success 200 {object} dto.GenericResponse[any] "User assigned to project successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 404 {object} dto.GenericResponse[any] "User not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/users/{id}/projects [post]
+//	@Summary Assign user to project
+//	@Description Assign a user to a project with a specific role
+//	@Tags Users
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param id path int true "User ID"
+//	@Param request body dto.AssignUserToProjectRequest true "Project assignment request"
+//	@Success 200 {object} dto.GenericResponse[any] "User assigned to project successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 404 {object} dto.GenericResponse[any] "User not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/users/{id}/projects [post]
 func AssignUserToProject(c *gin.Context) {
 	idStr := c.Param("id")
 	userID, err := strconv.Atoi(idStr)
@@ -405,17 +405,17 @@ func AssignUserToProject(c *gin.Context) {
 }
 
 // RemoveUserFromProject handles user-project removal
-// @Summary Remove user from project
-// @Description Remove a user from a project
-// @Tags Users
-// @Produce json
-// @Security BearerAuth
-// @Param id path int true "User ID"
-// @Param project_id path int true "Project ID"
-// @Success 200 {object} dto.GenericResponse[any] "User removed from project successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid ID"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/users/{id}/projects/{project_id} [delete]
+//	@Summary Remove user from project
+//	@Description Remove a user from a project
+//	@Tags Users
+//	@Produce json
+//	@Security BearerAuth
+//	@Param id path int true "User ID"
+//	@Param project_id path int true "Project ID"
+//	@Success 200 {object} dto.GenericResponse[any] "User removed from project successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid ID"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/users/{id}/projects/{project_id} [delete]
 func RemoveUserFromProject(c *gin.Context) {
 	userIDStr := c.Param("id")
 	projectIDStr := c.Param("project_id")

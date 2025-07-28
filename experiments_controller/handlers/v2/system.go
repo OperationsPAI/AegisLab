@@ -14,13 +14,13 @@ import (
 )
 
 // GetHealth handles system health check
-// @Summary System health check
-// @Description Get system health status and service information
-// @Tags System
-// @Produce json
-// @Success 200 {object} dto.GenericResponse[dto.HealthCheckResponse] "Health check successful"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/health [get]
+//	@Summary System health check
+//	@Description Get system health status and service information
+//	@Tags System
+//	@Produce json
+//	@Success 200 {object} dto.GenericResponse[dto.HealthCheckResponse] "Health check successful"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/health [get]
 func GetHealth(c *gin.Context) {
 	// Mock service health information
 	services := map[string]dto.ServiceInfo{
@@ -53,13 +53,13 @@ func GetHealth(c *gin.Context) {
 }
 
 // GetStatistics handles system statistics
-// @Summary Get system statistics
-// @Description Get comprehensive system statistics and metrics
-// @Tags System
-// @Produce json
-// @Success 200 {object} dto.GenericResponse[dto.SystemStatisticsResponse] "Statistics retrieved successfully"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/statistics [get]
+//	@Summary Get system statistics
+//	@Description Get comprehensive system statistics and metrics
+//	@Tags System
+//	@Produce json
+//	@Success 200 {object} dto.GenericResponse[dto.SystemStatisticsResponse] "Statistics retrieved successfully"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/statistics [get]
 func GetStatistics(c *gin.Context) {
 	var response dto.SystemStatisticsResponse
 
@@ -208,22 +208,22 @@ func GetStatistics(c *gin.Context) {
 }
 
 // ListAuditLogs handles audit log listing
-// @Summary List audit logs
-// @Description Get paginated list of audit logs with optional filtering
-// @Tags System
-// @Produce json
-// @Param page query int false "Page number" default(1)
-// @Param size query int false "Page size" default(20)
-// @Param user_id query int false "Filter by user ID"
-// @Param action query string false "Filter by action"
-// @Param resource query string false "Filter by resource"
-// @Param success query bool false "Filter by success status"
-// @Param start_date query string false "Filter from date (YYYY-MM-DD)"
-// @Param end_date query string false "Filter to date (YYYY-MM-DD)"
-// @Success 200 {object} dto.GenericResponse[dto.AuditLogListResponse] "Audit logs retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request parameters"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/audit [get]
+//	@Summary List audit logs
+//	@Description Get paginated list of audit logs with optional filtering
+//	@Tags System
+//	@Produce json
+//	@Param page query int false "Page number" default(1)
+//	@Param size query int false "Page size" default(20)
+//	@Param user_id query int false "Filter by user ID"
+//	@Param action query string false "Filter by action"
+//	@Param resource query string false "Filter by resource"
+//	@Param success query bool false "Filter by success status"
+//	@Param start_date query string false "Filter from date (YYYY-MM-DD)"
+//	@Param end_date query string false "Filter to date (YYYY-MM-DD)"
+//	@Success 200 {object} dto.GenericResponse[dto.AuditLogListResponse] "Audit logs retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request parameters"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/audit [get]
 func ListAuditLogs(c *gin.Context) {
 	var req dto.AuditLogListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -310,16 +310,16 @@ func ListAuditLogs(c *gin.Context) {
 }
 
 // GetMetrics handles monitoring metrics query
-// @Summary Get monitoring metrics
-// @Description Query monitoring metrics for system performance
-// @Tags System
-// @Accept json
-// @Produce json
-// @Param request body dto.MonitoringQueryRequest true "Metrics query request"
-// @Success 200 {object} dto.GenericResponse[dto.MonitoringMetricsResponse] "Metrics retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/monitor/metrics [post]
+//	@Summary Get monitoring metrics
+//	@Description Query monitoring metrics for system performance
+//	@Tags System
+//	@Accept json
+//	@Produce json
+//	@Param request body dto.MonitoringQueryRequest true "Metrics query request"
+//	@Success 200 {object} dto.GenericResponse[dto.MonitoringMetricsResponse] "Metrics retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/monitor/metrics [post]
 func GetMetrics(c *gin.Context) {
 	var req dto.MonitoringQueryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -367,13 +367,13 @@ func GetMetrics(c *gin.Context) {
 }
 
 // GetSystemInfo handles basic system information
-// @Summary Get system information
-// @Description Get basic system information and status
-// @Tags System
-// @Produce json
-// @Success 200 {object} dto.GenericResponse[dto.SystemInfo] "System info retrieved successfully"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/monitor/info [get]
+//	@Summary Get system information
+//	@Description Get basic system information and status
+//	@Tags System
+//	@Produce json
+//	@Success 200 {object} dto.GenericResponse[dto.SystemInfo] "System info retrieved successfully"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/monitor/info [get]
 func GetSystemInfo(c *gin.Context) {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
@@ -389,17 +389,17 @@ func GetSystemInfo(c *gin.Context) {
 }
 
 // CreateAuditLog handles creating new audit log entries
-// @Summary Create audit log
-// @Description Create a new audit log entry
-// @Tags System
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param audit_log body dto.AuditLogRequest true "Audit log data"
-// @Success 201 {object} dto.GenericResponse[dto.AuditLogResponse] "Audit log created successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/audit [post]
+//	@Summary Create audit log
+//	@Description Create a new audit log entry
+//	@Tags System
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param audit_log body dto.AuditLogRequest true "Audit log data"
+//	@Success 201 {object} dto.GenericResponse[dto.AuditLogResponse] "Audit log created successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/audit [post]
 func CreateAuditLog(c *gin.Context) {
 	var req dto.AuditLogRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -453,16 +453,16 @@ func CreateAuditLog(c *gin.Context) {
 }
 
 // GetAuditLog handles single audit log retrieval
-// @Summary Get audit log by ID
-// @Description Get a specific audit log entry by ID
-// @Tags System
-// @Produce json
-// @Param id path int true "Audit log ID"
-// @Success 200 {object} dto.GenericResponse[dto.AuditLogResponse] "Audit log retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid ID"
-// @Failure 404 {object} dto.GenericResponse[any] "Audit log not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/audit/{id} [get]
+//	@Summary Get audit log by ID
+//	@Description Get a specific audit log entry by ID
+//	@Tags System
+//	@Produce json
+//	@Param id path int true "Audit log ID"
+//	@Success 200 {object} dto.GenericResponse[dto.AuditLogResponse] "Audit log retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid ID"
+//	@Failure 404 {object} dto.GenericResponse[any] "Audit log not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/audit/{id} [get]
 func GetAuditLog(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
