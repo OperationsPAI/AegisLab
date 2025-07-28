@@ -3,6 +3,7 @@ package repository
 import (
 	"fmt"
 
+	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"gorm.io/gorm"
 )
@@ -21,34 +22,29 @@ func NewPermissionChecker(userID int, projectID *int) *PermissionChecker {
 	}
 }
 
-// HasPermission 检查是否有特定权限
-func (pc *PermissionChecker) HasPermission(action, resourceName string) (bool, error) {
-	return CheckUserPermission(pc.UserID, action, resourceName, pc.ProjectID)
+// HasPermissionTyped 检查是否有特定权限（使用ActionName和ResourceName类型）
+func (pc *PermissionChecker) HasPermissionTyped(action consts.ActionName, resource consts.ResourceName) (bool, error) {
+	return CheckUserPermission(pc.UserID, action.String(), resource.String(), pc.ProjectID)
 }
 
-// CanRead 检查是否有读取权限
-func (pc *PermissionChecker) CanRead(resourceName string) (bool, error) {
-	return pc.HasPermission("read", resourceName)
+// CanReadResource 检查是否有读取权限（使用ResourceName类型）
+func (pc *PermissionChecker) CanReadResource(resource consts.ResourceName) (bool, error) {
+	return pc.HasPermissionTyped(consts.ActionRead, resource)
 }
 
-// CanWrite 检查是否有写入权限
-func (pc *PermissionChecker) CanWrite(resourceName string) (bool, error) {
-	return pc.HasPermission("write", resourceName)
+// CanWriteResource 检查是否有写入权限（使用ResourceName类型）
+func (pc *PermissionChecker) CanWriteResource(resource consts.ResourceName) (bool, error) {
+	return pc.HasPermissionTyped(consts.ActionWrite, resource)
 }
 
-// CanDelete 检查是否有删除权限
-func (pc *PermissionChecker) CanDelete(resourceName string) (bool, error) {
-	return pc.HasPermission("delete", resourceName)
+// CanDeleteResource 检查是否有删除权限（使用ResourceName类型）
+func (pc *PermissionChecker) CanDeleteResource(resource consts.ResourceName) (bool, error) {
+	return pc.HasPermissionTyped(consts.ActionDelete, resource)
 }
 
-// CanExecute 检查是否有执行权限
-func (pc *PermissionChecker) CanExecute(resourceName string) (bool, error) {
-	return pc.HasPermission("execute", resourceName)
-}
-
-// CanManage 检查是否有管理权限
-func (pc *PermissionChecker) CanManage(resourceName string) (bool, error) {
-	return pc.HasPermission("manage", resourceName)
+// CanExecuteResource 检查是否有执行权限（使用ResourceName类型）
+func (pc *PermissionChecker) CanExecuteResource(resource consts.ResourceName) (bool, error) {
+	return pc.HasPermissionTyped(consts.ActionExecute, resource)
 }
 
 // IsAdmin 检查是否是管理员
@@ -107,7 +103,7 @@ func (pc *PermissionChecker) CheckMultiplePermissions(permissions map[string]str
 		}
 
 		action, resource := parts[0], parts[1]
-		allowed, err := pc.HasPermission(action, resource)
+		allowed, err := pc.HasPermissionTyped(consts.ActionName(action), consts.ResourceName(resource))
 		if err != nil {
 			results[key] = AuthResult{Allowed: false, Reason: fmt.Sprintf("error: %v", err)}
 		} else {
@@ -127,14 +123,14 @@ func InitializeSystemData() error {
 	return database.DB.Transaction(func(tx *gorm.DB) error {
 		// 创建系统资源
 		systemResources := []database.Resource{
-			{Name: "project", DisplayName: "项目", Type: "table", Category: "core", IsSystem: true, Status: 1},
-			{Name: "dataset", DisplayName: "数据集", Type: "table", Category: "core", IsSystem: true, Status: 1},
-			{Name: "fault_injection", DisplayName: "故障注入", Type: "table", Category: "core", IsSystem: true, Status: 1},
-			{Name: "container", DisplayName: "容器", Type: "table", Category: "core", IsSystem: true, Status: 1},
-			{Name: "task", DisplayName: "任务", Type: "table", Category: "core", IsSystem: true, Status: 1},
-			{Name: "user", DisplayName: "用户", Type: "table", Category: "admin", IsSystem: true, Status: 1},
-			{Name: "role", DisplayName: "角色", Type: "table", Category: "admin", IsSystem: true, Status: 1},
-			{Name: "permission", DisplayName: "权限", Type: "table", Category: "admin", IsSystem: true, Status: 1},
+			{Name: consts.ResourceProject.String(), DisplayName: "项目", Type: "table", Category: "core", IsSystem: true, Status: 1},
+			{Name: consts.ResourceDataset.String(), DisplayName: "数据集", Type: "table", Category: "core", IsSystem: true, Status: 1},
+			{Name: consts.ResourceFaultInjection.String(), DisplayName: "故障注入", Type: "table", Category: "core", IsSystem: true, Status: 1},
+			{Name: consts.ResourceContainer.String(), DisplayName: "容器", Type: "table", Category: "core", IsSystem: true, Status: 1},
+			{Name: consts.ResourceTask.String(), DisplayName: "任务", Type: "table", Category: "core", IsSystem: true, Status: 1},
+			{Name: consts.ResourceUser.String(), DisplayName: "用户", Type: "table", Category: "admin", IsSystem: true, Status: 1},
+			{Name: consts.ResourceRole.String(), DisplayName: "角色", Type: "table", Category: "admin", IsSystem: true, Status: 1},
+			{Name: consts.ResourcePermission.String(), DisplayName: "权限", Type: "table", Category: "admin", IsSystem: true, Status: 1},
 		}
 
 		for _, resource := range systemResources {
@@ -145,7 +141,7 @@ func InitializeSystemData() error {
 		}
 
 		// 创建系统权限
-		actions := []string{"read", "write", "delete", "execute", "manage"}
+		actions := []consts.ActionName{consts.ActionRead, consts.ActionWrite, consts.ActionDelete, consts.ActionExecute, consts.ActionManage}
 		for _, resource := range systemResources {
 			var resourceRecord database.Resource
 			if err := tx.Where("name = ?", resource.Name).First(&resourceRecord).Error; err != nil {
@@ -154,9 +150,9 @@ func InitializeSystemData() error {
 
 			for _, action := range actions {
 				permission := database.Permission{
-					Name:        fmt.Sprintf("%s_%s", action, resource.Name),
-					DisplayName: fmt.Sprintf("%s %s", actionDisplayName(action), resource.DisplayName),
-					Action:      action,
+					Name:        fmt.Sprintf("%s_%s", action.String(), resource.Name),
+					DisplayName: fmt.Sprintf("%s %s", actionDisplayName(action.String()), resource.DisplayName),
+					Action:      action.String(),
 					ResourceID:  resourceRecord.ID,
 					IsSystem:    true,
 					Status:      1,

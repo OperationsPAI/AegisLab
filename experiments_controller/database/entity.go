@@ -8,7 +8,8 @@ type Project struct {
 	ID          int       `gorm:"primaryKey" json:"id"`
 	Name        string    `gorm:"unique,index;not null" json:"name"`
 	Description string    `gorm:"type:text" json:"description"`
-	Status      int       `gorm:"default:1;index" json:"status"` // 0:禁用 1:启用 -1:删除
+	IsPublic    bool      `gorm:"default:false;index:idx_project_visibility" json:"is_public"` // 是否公开可见
+	Status      int       `gorm:"default:1;index" json:"status"`                               // 0:禁用 1:启用 -1:删除
 	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
@@ -24,9 +25,12 @@ type Task struct {
 	Status      string    `gorm:"index:idx_task_type_status;index:idx_task_project_status" json:"status"` // 添加多个复合索引
 	TraceID     string    `gorm:"index" json:"trace_id"`                                                  // 添加追踪ID索引
 	GroupID     string    `gorm:"index" json:"group_id"`                                                  // 添加组ID索引
-	ProjectID   int       `gorm:"index:idx_task_project_status" json:"project_id"`                        // 复合索引
+	ProjectID   int       `gorm:"not null;index:idx_task_project_status" json:"project_id"`               // 任务必须属于某个项目
 	CreatedAt   time.Time `gorm:"autoCreateTime;index" json:"created_at"`                                 // 添加时间索引
 	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+
+	// 外键关联
+	Project *Project `gorm:"foreignKey:ProjectID" json:"project,omitempty"`
 }
 
 // FaultInjectionSchedule 模型
@@ -58,9 +62,14 @@ type Container struct {
 	Tag       string    `gorm:"not null;default:'latest';uniqueIndex:idx_container_unique" json:"tag"` // 镜像标签
 	Command   string    `gorm:"type:text;default:'bash /entrypoint.sh'" json:"command"`                // 启动命令
 	EnvVars   string    `gorm:"default:''" json:"env_vars"`                                            // 环境变量名称列表
+	ProjectID int       `gorm:"not null;index:idx_container_project" json:"project_id"`                // 容器必须属于某个项目
+	IsPublic  bool      `gorm:"default:false;index:idx_container_visibility" json:"is_public"`         // 是否公开可见
 	Status    bool      `gorm:"default:true" json:"status"`                                            // 0: 已删除 1: 活跃
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`                                      // 创建时间
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                      // 更新时间
+
+	// 外键关联
+	Project *Project `gorm:"foreignKey:ProjectID" json:"project,omitempty"`
 }
 
 type ExecutionResult struct {
@@ -116,22 +125,23 @@ type Detector struct {
 
 // Dataset 数据集表
 type Dataset struct {
-	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`                                           // 唯一标识
-	Name        string    `gorm:"not null;index:idx_dataset_name_version,unique" json:"name"`                   // 数据集名称
-	Version     string    `gorm:"not null;default:'v1.0';index:idx_dataset_name_version,unique" json:"version"` // 数据集版本
-	Description string    `gorm:"type:text" json:"description"`                                                 // 数据集描述
-	Type        string    `gorm:"index" json:"type"`                                                            // 数据集类型 (e.g., "microservice", "database", "network")
-	Size        int64     `gorm:"default:0" json:"size"`                                                        // 数据集大小（字节）
-	FileCount   int       `gorm:"default:0" json:"file_count"`                                                  // 文件数量
-	DataSource  string    `gorm:"type:text" json:"data_source"`                                                 // 数据来源描述
-	Format      string    `gorm:"default:'json'" json:"format"`                                                 // 数据格式 (json, csv, parquet等)
-	ProjectID   int       `gorm:"index" json:"project_id"`                                                      // 所属项目ID
-	Status      int       `gorm:"default:1;index" json:"status"`                                                // 0:禁用 1:启用 -1:删除
-	IsPublic    bool      `gorm:"default:false;index" json:"is_public"`                                         // 是否公开
-	DownloadURL string    `json:"download_url,omitempty"`                                                       // 下载链接
-	Checksum    string    `gorm:"type:varchar(64)" json:"checksum,omitempty"`                                   // 文件校验和
-	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`                                             // 创建时间
-	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                             // 更新时间
+	ID          int    `gorm:"primaryKey;autoIncrement" json:"id"`                                           // 唯一标识
+	Name        string `gorm:"not null;index:idx_dataset_name_version,unique" json:"name"`                   // 数据集名称
+	Version     string `gorm:"not null;default:'v1.0';index:idx_dataset_name_version,unique" json:"version"` // 数据集版本
+	Description string `gorm:"type:text" json:"description"`                                                 // 数据集描述
+	Type        string `gorm:"index" json:"type"`                                                            // 数据集类型 (e.g., "microservice", "database", "network")
+	Size        int64  `gorm:"default:0" json:"size"`                                                        // 数据集大小（字节）
+	FileCount   int    `gorm:"default:0" json:"file_count"`                                                  // 文件数量
+	DataSource  string `gorm:"type:text" json:"data_source"`                                                 // 数据来源描述
+	Format      string `gorm:"default:'json'" json:"format"`                                                 // 数据格式 (json, csv, parquet等)
+	ProjectID   int    `gorm:"not null;index:idx_dataset_project" json:"project_id"`                         // 数据集必须属于某个项目
+
+	Status      int       `gorm:"default:1;index" json:"status"`                               // 0:禁用 1:启用 -1:删除
+	IsPublic    bool      `gorm:"default:false;index:idx_dataset_visibility" json:"is_public"` // 是否公开
+	DownloadURL string    `json:"download_url,omitempty"`                                      // 下载链接
+	Checksum    string    `gorm:"type:varchar(64)" json:"checksum,omitempty"`                  // 文件校验和
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`                            // 创建时间
+	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`                            // 更新时间
 
 	// 外键关联
 	Project *Project `gorm:"foreignKey:ProjectID" json:"project,omitempty"`
