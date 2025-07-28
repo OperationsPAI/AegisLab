@@ -190,6 +190,11 @@ func InitializeSystemData() error {
 			return fmt.Errorf("failed to assign system role permissions: %v", err)
 		}
 
+		// 创建超级管理员用户和默认项目
+		if err := initializeAdminUserAndProjects(tx); err != nil {
+			return fmt.Errorf("failed to initialize admin user and projects: %v", err)
+		}
+
 		return nil
 	})
 }
@@ -316,6 +321,73 @@ func assignPermissionsToRole(tx *gorm.DB, roleName string, permissionNames []str
 		}
 		if err := tx.FirstOrCreate(&rolePermission, rolePermission).Error; err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+// initializeAdminUserAndProjects 初始化超级管理员用户和默认项目
+func initializeAdminUserAndProjects(tx *gorm.DB) error {
+	// 1. 创建超级管理员用户
+	adminUser := database.User{
+		Username: "admin",
+		Email:    "admin@rcabench.local",
+		// 密码: admin123，使用项目标准的SHA256+盐值加密
+		Password: "60c873a916c7659b9798e17015e9130c0cb9c9f4f7f7c022222c0b869243fd6b:98a126542e7a0e2bf0322965b28885e8eb628c605f3cd0228b74e3d36e5edeee",
+		FullName: "系统管理员",
+		Status:   1,
+		IsActive: true,
+	}
+
+	var existingUser database.User
+	if err := tx.Where("username = ?", adminUser.Username).FirstOrCreate(&existingUser, adminUser).Error; err != nil {
+		return fmt.Errorf("failed to create admin user: %v", err)
+	}
+
+	// 2. 为超级管理员分配超级管理员角色
+	var superAdminRole database.Role
+	if err := tx.Where("name = ?", "super_admin").First(&superAdminRole).Error; err != nil {
+		return fmt.Errorf("failed to find super_admin role: %v", err)
+	}
+
+	userRole := database.UserRole{
+		UserID: existingUser.ID,
+		RoleID: superAdminRole.ID,
+	}
+	if err := tx.Where("user_id = ? AND role_id = ?", existingUser.ID, superAdminRole.ID).FirstOrCreate(&userRole).Error; err != nil {
+		return fmt.Errorf("failed to assign super_admin role to admin user: %v", err)
+	}
+
+	// 3. 创建默认项目
+	defaultProjects := []database.Project{
+		{
+			Name:        "Default Project",
+			Description: "系统默认项目，用于初始化和测试",
+			Status:      1,
+		},
+		{
+			Name:        "Demo Project",
+			Description: "演示项目，用于展示系统功能",
+			Status:      1,
+		},
+	}
+
+	for _, project := range defaultProjects {
+		var existingProject database.Project
+		if err := tx.Where("name = ?", project.Name).FirstOrCreate(&existingProject, project).Error; err != nil {
+			return fmt.Errorf("failed to create project %s: %v", project.Name, err)
+		}
+
+		// 将超级管理员加入项目
+		userProject := database.UserProject{
+			UserID:    existingUser.ID,
+			ProjectID: existingProject.ID,
+			RoleID:    superAdminRole.ID,
+			Status:    1,
+		}
+		if err := tx.Where("user_id = ? AND project_id = ?", existingUser.ID, existingProject.ID).FirstOrCreate(&userProject).Error; err != nil {
+			return fmt.Errorf("failed to add admin user to project %s: %v", project.Name, err)
 		}
 	}
 

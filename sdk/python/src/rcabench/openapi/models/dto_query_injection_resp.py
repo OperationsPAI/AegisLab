@@ -20,6 +20,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from rcabench.openapi.models.database_task import DatabaseTask
 from rcabench.openapi.models.handler_groundtruth import HandlerGroundtruth
 from typing import Optional, Set
 from typing_extensions import Self
@@ -28,24 +29,24 @@ class DtoQueryInjectionResp(BaseModel):
     """
     DtoQueryInjectionResp
     """ # noqa: E501
-    benchmark: Optional[StrictStr] = Field(default=None, description="基准数据库")
-    created_at: Optional[StrictStr] = Field(default=None, description="创建时间")
+    benchmark: Optional[StrictStr] = Field(default=None, description="基准数据库，添加索引")
+    created_at: Optional[StrictStr] = Field(default=None, description="创建时间，添加时间索引")
     description: Optional[StrictStr] = Field(default=None, description="描述（可选字段）")
     display_config: Optional[StrictStr] = Field(default=None, description="面向用户的展示配置")
-    end_time: Optional[StrictStr] = Field(default=None, description="预计故障结束时间")
+    end_time: Optional[StrictStr] = Field(default=None, description="预计故障结束时间，添加时间索引")
     engine_config: Optional[StrictStr] = Field(default=None, description="面向系统的运行配置")
-    fault_type: Optional[StrictInt] = Field(default=None, description="故障类型")
+    fault_type: Optional[StrictInt] = Field(default=None, description="故障类型，添加复合索引")
     ground_truth: Optional[HandlerGroundtruth] = None
     id: Optional[StrictInt] = Field(default=None, description="唯一标识")
     injection_name: Optional[StrictStr] = Field(default=None, description="在k8s资源里注入的名字")
-    labels: Optional[Dict[str, StrictStr]] = Field(default=None, description="用户自定义标签，JSONB格式存储 key-value pairs")
     pre_duration: Optional[StrictInt] = Field(default=None, description="正常数据时间")
-    start_time: Optional[StrictStr] = Field(default=None, description="预计故障开始时间")
-    status: Optional[StrictInt] = Field(default=None, description="-1: 已删除 0: 初始状态 1: 注入结束且失败 2: 注入结束且成功 3: 收集数据失败 4:收集数据成功")
-    task_id: Optional[StrictStr] = Field(default=None, description="从属什么 taskid")
+    start_time: Optional[StrictStr] = Field(default=None, description="预计故障开始时间，添加时间索引")
+    status: Optional[StrictInt] = Field(default=None, description="状态，添加复合索引")
+    task: Optional[DatabaseTask] = Field(default=None, description="外键关联")
+    task_id: Optional[StrictStr] = Field(default=None, description="从属什么 taskid，添加复合索引")
     updated_at: Optional[StrictStr] = Field(default=None, description="更新时间")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["benchmark", "created_at", "description", "display_config", "end_time", "engine_config", "fault_type", "ground_truth", "id", "injection_name", "labels", "pre_duration", "start_time", "status", "task_id", "updated_at"]
+    __properties: ClassVar[List[str]] = ["benchmark", "created_at", "description", "display_config", "end_time", "engine_config", "fault_type", "ground_truth", "id", "injection_name", "pre_duration", "start_time", "status", "task", "task_id", "updated_at"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -91,6 +92,9 @@ class DtoQueryInjectionResp(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of ground_truth
         if self.ground_truth:
             _dict['ground_truth'] = self.ground_truth.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of task
+        if self.task:
+            _dict['task'] = self.task.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -118,10 +122,10 @@ class DtoQueryInjectionResp(BaseModel):
             "ground_truth": HandlerGroundtruth.from_dict(obj["ground_truth"]) if obj.get("ground_truth") is not None else None,
             "id": obj.get("id"),
             "injection_name": obj.get("injection_name"),
-            "labels": obj.get("labels"),
             "pre_duration": obj.get("pre_duration"),
             "start_time": obj.get("start_time"),
             "status": obj.get("status"),
+            "task": DatabaseTask.from_dict(obj["task"]) if obj.get("task") is not None else None,
             "task_id": obj.get("task_id"),
             "updated_at": obj.get("updated_at")
         })

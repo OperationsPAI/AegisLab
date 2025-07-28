@@ -39,7 +39,6 @@ func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
 			return err
 		}
 
-		// TODO 修改annotations
 		annotations, err := getAnnotations(ctx, task)
 		if err != nil {
 			span.RecordError(err)

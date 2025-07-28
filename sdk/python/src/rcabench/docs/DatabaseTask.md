@@ -5,17 +5,17 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**created_at** | **str** |  | [optional] 
+**created_at** | **str** | 添加时间索引 | [optional] 
 **cron_expr** | **str** |  | [optional] 
-**execute_time** | **int** |  | [optional] 
-**group_id** | **str** |  | [optional] 
+**execute_time** | **int** | 添加执行时间索引 | [optional] 
+**group_id** | **str** | 添加组ID索引 | [optional] 
 **id** | **str** |  | [optional] 
 **immediate** | **bool** |  | [optional] 
 **payload** | **str** |  | [optional] 
-**project_id** | **int** |  | [optional] 
-**status** | **str** |  | [optional] 
-**trace_id** | **str** |  | [optional] 
-**type** | **str** |  | [optional] 
+**project_id** | **int** | 复合索引 | [optional] 
+**status** | **str** | 添加多个复合索引 | [optional] 
+**trace_id** | **str** | 添加追踪ID索引 | [optional] 
+**type** | **str** | 添加复合索引 | [optional] 
 **updated_at** | **str** |  | [optional] 
 
 ## Example

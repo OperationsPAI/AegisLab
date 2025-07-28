@@ -271,3 +271,66 @@ func RevokePermissionFromUser(userID, permissionID int, projectID *int) error {
 	}
 	return nil
 }
+
+// GetPermissionRoles retrieves all roles that have a specific permission
+func GetPermissionRoles(permissionID int) ([]database.Role, error) {
+	var roles []database.Role
+
+	err := database.DB.Table("roles").
+		Joins("JOIN role_permissions ON roles.id = role_permissions.role_id").
+		Where("role_permissions.permission_id = ? AND roles.status != -1", permissionID).
+		Find(&roles).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get roles for permission %d: %v", permissionID, err)
+	}
+
+	return roles, nil
+}
+
+// GetPermissionsByResourcePaginated retrieves permissions filtered by resource with pagination
+func GetPermissionsByResourcePaginated(resourceID int, page, pageSize int) ([]database.Permission, int64, error) {
+	var permissions []database.Permission
+	var total int64
+
+	query := database.DB.Model(&database.Permission{}).Where("resource_id = ? AND status != -1", resourceID)
+
+	// Get total count
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count permissions for resource %d: %v", resourceID, err)
+	}
+
+	// Get paginated results
+	offset := (page - 1) * pageSize
+	if err := query.Offset(offset).Limit(pageSize).Find(&permissions).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to get permissions for resource %d: %v", resourceID, err)
+	}
+
+	return permissions, total, nil
+}
+
+// CountPermissionsByAction returns count of permissions grouped by action
+func CountPermissionsByAction() (map[string]int64, error) {
+	type ActionCount struct {
+		Action string `json:"action"`
+		Count  int64  `json:"count"`
+	}
+
+	var results []ActionCount
+	err := database.DB.Model(&database.Permission{}).
+		Select("action, COUNT(*) as count").
+		Where("status != -1").
+		Group("action").
+		Find(&results).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to count permissions by action: %v", err)
+	}
+
+	actionCounts := make(map[string]int64)
+	for _, result := range results {
+		actionCounts[result.Action] = result.Count
+	}
+
+	return actionCounts, nil
+}
