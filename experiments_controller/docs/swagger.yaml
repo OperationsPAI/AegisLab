@@ -59,6 +59,88 @@ definitions:
         description: 更新时间
         type: string
     type: object
+  database.FaultInjectionSchedule:
+    properties:
+      benchmark:
+        description: 基准数据库，添加索引
+        type: string
+      created_at:
+        description: 创建时间，添加时间索引
+        type: string
+      description:
+        description: 描述（可选字段）
+        type: string
+      display_config:
+        description: 面向用户的展示配置
+        type: string
+      end_time:
+        description: 预计故障结束时间，添加时间索引
+        type: string
+      engine_config:
+        description: 面向系统的运行配置
+        type: string
+      fault_type:
+        description: 故障类型，添加复合索引
+        type: integer
+      id:
+        description: 唯一标识
+        type: integer
+      injection_name:
+        description: 在k8s资源里注入的名字
+        type: string
+      pre_duration:
+        description: 正常数据时间
+        type: integer
+      start_time:
+        description: 预计故障开始时间，添加时间索引
+        type: string
+      status:
+        description: 状态，添加复合索引
+        type: integer
+      task:
+        allOf:
+        - $ref: '#/definitions/database.Task'
+        description: 外键关联
+      task_id:
+        description: 从属什么 taskid，添加复合索引
+        type: string
+      updated_at:
+        description: 更新时间
+        type: string
+    type: object
+  database.Label:
+    properties:
+      category:
+        description: 标签分类 (dataset, fault_injection, algorithm, container等)
+        type: string
+      color:
+        description: 标签颜色 (hex格式)
+        type: string
+      created_at:
+        description: 创建时间
+        type: string
+      description:
+        description: 标签描述
+        type: string
+      id:
+        description: 唯一标识
+        type: integer
+      is_system:
+        description: 是否为系统标签
+        type: boolean
+      key:
+        description: 标签键
+        type: string
+      updated_at:
+        description: 更新时间
+        type: string
+      usage:
+        description: 使用次数
+        type: integer
+      value:
+        description: 标签值
+        type: string
+    type: object
   database.Project:
     properties:
       created_at:
@@ -641,6 +723,18 @@ definitions:
       success_count:
         type: integer
     type: object
+  dto.DatasetSearchResponse:
+    properties:
+      items:
+        description: 结果列表
+        items:
+          $ref: '#/definitions/dto.DatasetV2Response'
+        type: array
+      pagination:
+        allOf:
+        - $ref: '#/definitions/dto.PaginationInfo'
+        description: 分页信息
+    type: object
   dto.DatasetStatistics:
     properties:
       private:
@@ -656,11 +750,318 @@ definitions:
         example: 1073741824
         type: integer
     type: object
+  dto.DatasetV2CreateReq:
+    properties:
+      data_source:
+        description: 数据来源描述
+        maxLength: 500
+        type: string
+      description:
+        description: 数据集描述
+        maxLength: 1000
+        type: string
+      format:
+        description: 数据格式
+        maxLength: 50
+        type: string
+      injection_ids:
+        description: 关联的故障注入ID列表
+        items:
+          type: integer
+        type: array
+      is_public:
+        description: 是否公开，可选，默认false
+        type: boolean
+      label_ids:
+        description: 关联的标签ID列表
+        items:
+          type: integer
+        type: array
+      name:
+        description: 数据集名称
+        maxLength: 255
+        type: string
+      new_labels:
+        description: 新建标签列表
+        items:
+          $ref: '#/definitions/dto.DatasetV2LabelCreateReq'
+        type: array
+      project_id:
+        description: 项目ID
+        minimum: 1
+        type: integer
+      type:
+        description: 数据集类型
+        maxLength: 50
+        type: string
+      version:
+        description: 数据集版本，可选，默认v1.0
+        maxLength: 50
+        type: string
+    required:
+    - name
+    - project_id
+    - type
+    type: object
+  dto.DatasetV2InjectionManageReq:
+    properties:
+      add_injections:
+        description: 要添加的故障注入ID列表
+        items:
+          type: integer
+        type: array
+      remove_injections:
+        description: 要移除的故障注入ID列表
+        items:
+          type: integer
+        type: array
+    type: object
+  dto.DatasetV2InjectionRelationResponse:
+    properties:
+      created_at:
+        description: 创建时间
+        type: string
+      fault_injection:
+        allOf:
+        - $ref: '#/definitions/database.FaultInjectionSchedule'
+        description: 故障注入详情
+      fault_injection_id:
+        description: 故障注入ID
+        type: integer
+      id:
+        description: 关联ID
+        type: integer
+      updated_at:
+        description: 更新时间
+        type: string
+    type: object
+  dto.DatasetV2LabelCreateReq:
+    properties:
+      category:
+        description: 标签分类
+        maxLength: 50
+        type: string
+      color:
+        description: 标签颜色 (hex格式)
+        maxLength: 7
+        type: string
+      description:
+        description: 标签描述
+        maxLength: 500
+        type: string
+      key:
+        description: 标签键
+        maxLength: 100
+        type: string
+      value:
+        description: 标签值
+        maxLength: 255
+        type: string
+    required:
+    - key
+    - value
+    type: object
+  dto.DatasetV2LabelManageReq:
+    properties:
+      add_labels:
+        description: 要添加的标签ID列表
+        items:
+          type: integer
+        type: array
+      new_labels:
+        description: 新建标签列表
+        items:
+          $ref: '#/definitions/dto.DatasetV2LabelCreateReq'
+        type: array
+      remove_labels:
+        description: 要移除的标签ID列表
+        items:
+          type: integer
+        type: array
+    type: object
+  dto.DatasetV2Response:
+    properties:
+      checksum:
+        description: 文件校验和
+        type: string
+      created_at:
+        description: 创建时间
+        type: string
+      data_source:
+        description: 数据来源描述
+        type: string
+      description:
+        description: 数据集描述
+        type: string
+      download_url:
+        description: 下载链接
+        type: string
+      file_count:
+        description: 文件数量
+        type: integer
+      format:
+        description: 数据格式
+        type: string
+      id:
+        description: 唯一标识
+        type: integer
+      injections:
+        description: 关联的故障注入
+        items:
+          $ref: '#/definitions/dto.DatasetV2InjectionRelationResponse'
+        type: array
+      is_public:
+        description: 是否公开
+        type: boolean
+      labels:
+        description: 关联的标签
+        items:
+          $ref: '#/definitions/database.Label'
+        type: array
+      name:
+        description: 数据集名称
+        type: string
+      project:
+        allOf:
+        - $ref: '#/definitions/database.Project'
+        description: 关联项目信息
+      project_id:
+        description: 项目ID
+        type: integer
+      status:
+        description: 状态
+        type: integer
+      type:
+        description: 数据集类型
+        type: string
+      updated_at:
+        description: 更新时间
+        type: string
+      version:
+        description: 数据集版本
+        type: string
+    type: object
+  dto.DatasetV2SearchReq:
+    properties:
+      date_range:
+        allOf:
+        - $ref: '#/definitions/dto.DateRangeFilter'
+        description: 时间范围过滤
+      include:
+        description: 包含的关联数据
+        items:
+          type: string
+        type: array
+      is_public:
+        description: 是否公开
+        type: boolean
+      label_keys:
+        description: 按标签键过滤
+        items:
+          type: string
+        type: array
+      label_values:
+        description: 按标签值过滤
+        items:
+          type: string
+        type: array
+      page:
+        description: 页码
+        minimum: 1
+        type: integer
+      project_ids:
+        description: 项目ID列表
+        items:
+          type: integer
+        type: array
+      search:
+        description: 搜索关键词
+        type: string
+      size:
+        description: 每页大小
+        maximum: 100
+        minimum: 1
+        type: integer
+      size_range:
+        allOf:
+        - $ref: '#/definitions/dto.SizeRangeFilter'
+        description: 大小范围过滤
+      sort_by:
+        description: 排序字段
+        type: string
+      sort_order:
+        description: 排序方向
+        type: string
+      statuses:
+        description: 状态列表
+        items:
+          type: integer
+        type: array
+      types:
+        description: 数据集类型列表
+        items:
+          type: string
+        type: array
+    type: object
+  dto.DatasetV2UpdateReq:
+    properties:
+      data_source:
+        description: 数据来源描述
+        maxLength: 500
+        type: string
+      description:
+        description: 数据集描述
+        maxLength: 1000
+        type: string
+      format:
+        description: 数据格式
+        maxLength: 50
+        type: string
+      injection_ids:
+        description: 更新关联的故障注入ID列表（完全替换）
+        items:
+          type: integer
+        type: array
+      is_public:
+        description: 是否公开
+        type: boolean
+      label_ids:
+        description: 更新关联的标签ID列表（完全替换）
+        items:
+          type: integer
+        type: array
+      name:
+        description: 数据集名称
+        maxLength: 255
+        type: string
+      new_labels:
+        description: 新建标签列表
+        items:
+          $ref: '#/definitions/dto.DatasetV2LabelCreateReq'
+        type: array
+      type:
+        description: 数据集类型
+        maxLength: 50
+        type: string
+      version:
+        description: 数据集版本
+        maxLength: 50
+        type: string
+    type: object
   dto.DateRange:
     properties:
       from:
         type: string
       to:
+        type: string
+    type: object
+  dto.DateRangeFilter:
+    properties:
+      end_time:
+        description: 结束时间
+        type: string
+      start_time:
+        description: 开始时间
         type: string
     type: object
   dto.ExecutionPayload:
@@ -949,6 +1350,38 @@ definitions:
       data:
         allOf:
         - $ref: '#/definitions/dto.DatasetDeleteResp'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_DatasetSearchResponse:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.DatasetSearchResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_DatasetV2Response:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.DatasetV2Response'
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -1320,6 +1753,22 @@ definitions:
       data:
         allOf:
         - $ref: '#/definitions/dto.SearchResponse-dto_ContainerResponse'
+        description: 泛型类型的数据
+      message:
+        description: 响应消息
+        type: string
+      timestamp:
+        description: 响应生成时间
+        type: integer
+    type: object
+  dto.GenericResponse-dto_SearchResponse-dto_DatasetV2Response:
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.SearchResponse-dto_DatasetV2Response'
         description: 泛型类型的数据
       message:
         description: 响应消息
@@ -2523,6 +2972,23 @@ definitions:
       pagination:
         $ref: '#/definitions/dto.PaginationInfo'
     type: object
+  dto.SearchResponse-dto_DatasetV2Response:
+    properties:
+      applied_filters:
+        items:
+          $ref: '#/definitions/dto.SearchFilter'
+        type: array
+      applied_sort:
+        items:
+          $ref: '#/definitions/dto.SortOption'
+        type: array
+      items:
+        items:
+          $ref: '#/definitions/dto.DatasetV2Response'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationInfo'
+    type: object
   dto.SearchResponse-dto_PermissionResponse:
     properties:
       applied_filters:
@@ -2616,6 +3082,15 @@ definitions:
       status:
         example: healthy
         type: string
+    type: object
+  dto.SizeRangeFilter:
+    properties:
+      max_size:
+        description: 最大大小（字节）
+        type: integer
+      min_size:
+        description: 最小大小（字节）
+        type: integer
     type: object
   dto.SortDirection:
     enum:
@@ -4981,6 +5456,360 @@ paths:
       summary: Search containers
       tags:
       - Containers
+  /api/v2/datasets:
+    get:
+      description: Get a paginated list of datasets with filtering and sorting
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size (default 20, max 100)
+        in: query
+        name: size
+        type: integer
+      - description: Filter by project ID
+        in: query
+        name: project_id
+        type: integer
+      - description: Filter by dataset type
+        in: query
+        name: type
+        type: string
+      - description: Filter by status
+        in: query
+        name: status
+        type: integer
+      - description: Filter by public status
+        in: query
+        name: is_public
+        type: boolean
+      - description: Search in name and description
+        in: query
+        name: search
+        type: string
+      - description: Sort field (id,name,created_at,updated_at)
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc,desc)
+        in: query
+        name: sort_order
+        type: string
+      - description: Include related data (project,injections,labels)
+        in: query
+        name: include
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Datasets retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_DatasetSearchResponse'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: List datasets
+      tags:
+      - Datasets
+    post:
+      consumes:
+      - application/json
+      description: Create a new dataset with optional injection and label associations
+      parameters:
+      - description: Dataset creation request
+        in: body
+        name: dataset
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DatasetV2CreateReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Dataset created successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_DatasetV2Response'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "409":
+          description: Dataset already exists
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Create dataset
+      tags:
+      - Datasets
+  /api/v2/datasets/{id}:
+    delete:
+      description: Soft delete a dataset (sets status to -1)
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Dataset deleted successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid dataset ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Dataset not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Delete dataset
+      tags:
+      - Datasets
+    get:
+      description: Get detailed information about a specific dataset
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Include related data (project,injections,labels)
+        in: query
+        name: include
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Dataset retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_DatasetV2Response'
+        "400":
+          description: Invalid dataset ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Dataset not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get dataset by ID
+      tags:
+      - Datasets
+    put:
+      consumes:
+      - application/json
+      description: Update dataset information, injection and label associations
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dataset update request
+        in: body
+        name: dataset
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DatasetV2UpdateReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Dataset updated successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_DatasetV2Response'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Dataset not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Update dataset
+      tags:
+      - Datasets
+  /api/v2/datasets/{id}/injections:
+    patch:
+      consumes:
+      - application/json
+      description: Add or remove injection associations for a dataset
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Injection management request
+        in: body
+        name: manage
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DatasetV2InjectionManageReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Injections managed successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_DatasetV2Response'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Dataset not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Manage dataset injections
+      tags:
+      - Datasets
+  /api/v2/datasets/{id}/labels:
+    patch:
+      consumes:
+      - application/json
+      description: Add, remove labels or create new labels for a dataset
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Label management request
+        in: body
+        name: manage
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DatasetV2LabelManageReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Labels managed successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_DatasetV2Response'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Dataset not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Manage dataset labels
+      tags:
+      - Datasets
+  /api/v2/datasets/search:
+    post:
+      consumes:
+      - application/json
+      description: Advanced search for datasets with complex filtering
+      parameters:
+      - description: Search criteria
+        in: body
+        name: search
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DatasetV2SearchReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Search results
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SearchResponse-dto_DatasetV2Response'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Search datasets
+      tags:
+      - Datasets
   /api/v2/health:
     get:
       description: Get system health status and service information

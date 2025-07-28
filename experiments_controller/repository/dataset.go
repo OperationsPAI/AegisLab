@@ -121,8 +121,6 @@ func AddDatasetToFaultInjection(datasetID, faultInjectionID int, relationType st
 	relation := &database.DatasetFaultInjection{
 		DatasetID:        datasetID,
 		FaultInjectionID: faultInjectionID,
-		RelationType:     relationType,
-		IsGroundTruth:    isGroundTruth,
 	}
 
 	if err := database.DB.Create(relation).Error; err != nil {

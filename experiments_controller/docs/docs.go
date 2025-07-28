@@ -2445,6 +2445,557 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/datasets": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a paginated list of datasets with filtering and sorting",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datasets"
+                ],
+                "summary": "List datasets",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (default 20, max 100)",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by project ID",
+                        "name": "project_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by dataset type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by public status",
+                        "name": "is_public",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search in name and description",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort field (id,name,created_at,updated_at)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order (asc,desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Include related data (project,injections,labels)",
+                        "name": "include",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Datasets retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetSearchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new dataset with optional injection and label associations",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datasets"
+                ],
+                "summary": "Create dataset",
+                "parameters": [
+                    {
+                        "description": "Dataset creation request",
+                        "name": "dataset",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.DatasetV2CreateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Dataset created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetV2Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "409": {
+                        "description": "Dataset already exists",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/datasets/search": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Advanced search for datasets with complex filtering",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datasets"
+                ],
+                "summary": "Search datasets",
+                "parameters": [
+                    {
+                        "description": "Search criteria",
+                        "name": "search",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.DatasetV2SearchReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Search results",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_DatasetV2Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/datasets/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get detailed information about a specific dataset",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datasets"
+                ],
+                "summary": "Get dataset by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Dataset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Include related data (project,injections,labels)",
+                        "name": "include",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dataset retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetV2Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid dataset ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Dataset not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update dataset information, injection and label associations",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datasets"
+                ],
+                "summary": "Update dataset",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Dataset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dataset update request",
+                        "name": "dataset",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.DatasetV2UpdateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dataset updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetV2Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Dataset not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Soft delete a dataset (sets status to -1)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datasets"
+                ],
+                "summary": "Delete dataset",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Dataset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dataset deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid dataset ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Dataset not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/datasets/{id}/injections": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Add or remove injection associations for a dataset",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datasets"
+                ],
+                "summary": "Manage dataset injections",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Dataset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Injection management request",
+                        "name": "manage",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.DatasetV2InjectionManageReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Injections managed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetV2Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Dataset not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/datasets/{id}/labels": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Add, remove labels or create new labels for a dataset",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datasets"
+                ],
+                "summary": "Manage dataset labels",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Dataset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Label management request",
+                        "name": "manage",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.DatasetV2LabelManageReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Labels managed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetV2Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Dataset not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/health": {
             "get": {
                 "description": "Get system health status and service information",
@@ -4886,6 +5437,120 @@ const docTemplate = `{
                 }
             }
         },
+        "database.FaultInjectionSchedule": {
+            "type": "object",
+            "properties": {
+                "benchmark": {
+                    "description": "基准数据库，添加索引",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "创建时间，添加时间索引",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "描述（可选字段）",
+                    "type": "string"
+                },
+                "display_config": {
+                    "description": "面向用户的展示配置",
+                    "type": "string"
+                },
+                "end_time": {
+                    "description": "预计故障结束时间，添加时间索引",
+                    "type": "string"
+                },
+                "engine_config": {
+                    "description": "面向系统的运行配置",
+                    "type": "string"
+                },
+                "fault_type": {
+                    "description": "故障类型，添加复合索引",
+                    "type": "integer"
+                },
+                "id": {
+                    "description": "唯一标识",
+                    "type": "integer"
+                },
+                "injection_name": {
+                    "description": "在k8s资源里注入的名字",
+                    "type": "string"
+                },
+                "pre_duration": {
+                    "description": "正常数据时间",
+                    "type": "integer"
+                },
+                "start_time": {
+                    "description": "预计故障开始时间，添加时间索引",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "状态，添加复合索引",
+                    "type": "integer"
+                },
+                "task": {
+                    "description": "外键关联",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/database.Task"
+                        }
+                    ]
+                },
+                "task_id": {
+                    "description": "从属什么 taskid，添加复合索引",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "description": "更新时间",
+                    "type": "string"
+                }
+            }
+        },
+        "database.Label": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "description": "标签分类 (dataset, fault_injection, algorithm, container等)",
+                    "type": "string"
+                },
+                "color": {
+                    "description": "标签颜色 (hex格式)",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "创建时间",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "标签描述",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "唯一标识",
+                    "type": "integer"
+                },
+                "is_system": {
+                    "description": "是否为系统标签",
+                    "type": "boolean"
+                },
+                "key": {
+                    "description": "标签键",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "description": "更新时间",
+                    "type": "string"
+                },
+                "usage": {
+                    "description": "使用次数",
+                    "type": "integer"
+                },
+                "value": {
+                    "description": "标签值",
+                    "type": "string"
+                }
+            }
+        },
         "database.Project": {
             "type": "object",
             "properties": {
@@ -5733,6 +6398,26 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.DatasetSearchResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "description": "结果列表",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DatasetV2Response"
+                    }
+                },
+                "pagination": {
+                    "description": "分页信息",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.PaginationInfo"
+                        }
+                    ]
+                }
+            }
+        },
         "dto.DatasetStatistics": {
             "type": "object",
             "properties": {
@@ -5754,6 +6439,421 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.DatasetV2CreateReq": {
+            "type": "object",
+            "required": [
+                "name",
+                "project_id",
+                "type"
+            ],
+            "properties": {
+                "data_source": {
+                    "description": "数据来源描述",
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "description": {
+                    "description": "数据集描述",
+                    "type": "string",
+                    "maxLength": 1000
+                },
+                "format": {
+                    "description": "数据格式",
+                    "type": "string",
+                    "maxLength": 50
+                },
+                "injection_ids": {
+                    "description": "关联的故障注入ID列表",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "is_public": {
+                    "description": "是否公开，可选，默认false",
+                    "type": "boolean"
+                },
+                "label_ids": {
+                    "description": "关联的标签ID列表",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "name": {
+                    "description": "数据集名称",
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "new_labels": {
+                    "description": "新建标签列表",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DatasetV2LabelCreateReq"
+                    }
+                },
+                "project_id": {
+                    "description": "项目ID",
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "type": {
+                    "description": "数据集类型",
+                    "type": "string",
+                    "maxLength": 50
+                },
+                "version": {
+                    "description": "数据集版本，可选，默认v1.0",
+                    "type": "string",
+                    "maxLength": 50
+                }
+            }
+        },
+        "dto.DatasetV2InjectionManageReq": {
+            "type": "object",
+            "properties": {
+                "add_injections": {
+                    "description": "要添加的故障注入ID列表",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "remove_injections": {
+                    "description": "要移除的故障注入ID列表",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "dto.DatasetV2InjectionRelationResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "description": "创建时间",
+                    "type": "string"
+                },
+                "fault_injection": {
+                    "description": "故障注入详情",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/database.FaultInjectionSchedule"
+                        }
+                    ]
+                },
+                "fault_injection_id": {
+                    "description": "故障注入ID",
+                    "type": "integer"
+                },
+                "id": {
+                    "description": "关联ID",
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "description": "更新时间",
+                    "type": "string"
+                }
+            }
+        },
+        "dto.DatasetV2LabelCreateReq": {
+            "type": "object",
+            "required": [
+                "key",
+                "value"
+            ],
+            "properties": {
+                "category": {
+                    "description": "标签分类",
+                    "type": "string",
+                    "maxLength": 50
+                },
+                "color": {
+                    "description": "标签颜色 (hex格式)",
+                    "type": "string",
+                    "maxLength": 7
+                },
+                "description": {
+                    "description": "标签描述",
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "key": {
+                    "description": "标签键",
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "value": {
+                    "description": "标签值",
+                    "type": "string",
+                    "maxLength": 255
+                }
+            }
+        },
+        "dto.DatasetV2LabelManageReq": {
+            "type": "object",
+            "properties": {
+                "add_labels": {
+                    "description": "要添加的标签ID列表",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "new_labels": {
+                    "description": "新建标签列表",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DatasetV2LabelCreateReq"
+                    }
+                },
+                "remove_labels": {
+                    "description": "要移除的标签ID列表",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "dto.DatasetV2Response": {
+            "type": "object",
+            "properties": {
+                "checksum": {
+                    "description": "文件校验和",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "创建时间",
+                    "type": "string"
+                },
+                "data_source": {
+                    "description": "数据来源描述",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "数据集描述",
+                    "type": "string"
+                },
+                "download_url": {
+                    "description": "下载链接",
+                    "type": "string"
+                },
+                "file_count": {
+                    "description": "文件数量",
+                    "type": "integer"
+                },
+                "format": {
+                    "description": "数据格式",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "唯一标识",
+                    "type": "integer"
+                },
+                "injections": {
+                    "description": "关联的故障注入",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DatasetV2InjectionRelationResponse"
+                    }
+                },
+                "is_public": {
+                    "description": "是否公开",
+                    "type": "boolean"
+                },
+                "labels": {
+                    "description": "关联的标签",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/database.Label"
+                    }
+                },
+                "name": {
+                    "description": "数据集名称",
+                    "type": "string"
+                },
+                "project": {
+                    "description": "关联项目信息",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/database.Project"
+                        }
+                    ]
+                },
+                "project_id": {
+                    "description": "项目ID",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "状态",
+                    "type": "integer"
+                },
+                "type": {
+                    "description": "数据集类型",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "description": "更新时间",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "数据集版本",
+                    "type": "string"
+                }
+            }
+        },
+        "dto.DatasetV2SearchReq": {
+            "type": "object",
+            "properties": {
+                "date_range": {
+                    "description": "时间范围过滤",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.DateRangeFilter"
+                        }
+                    ]
+                },
+                "include": {
+                    "description": "包含的关联数据",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "is_public": {
+                    "description": "是否公开",
+                    "type": "boolean"
+                },
+                "label_keys": {
+                    "description": "按标签键过滤",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "label_values": {
+                    "description": "按标签值过滤",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "page": {
+                    "description": "页码",
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "project_ids": {
+                    "description": "项目ID列表",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "search": {
+                    "description": "搜索关键词",
+                    "type": "string"
+                },
+                "size": {
+                    "description": "每页大小",
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 1
+                },
+                "size_range": {
+                    "description": "大小范围过滤",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.SizeRangeFilter"
+                        }
+                    ]
+                },
+                "sort_by": {
+                    "description": "排序字段",
+                    "type": "string"
+                },
+                "sort_order": {
+                    "description": "排序方向",
+                    "type": "string"
+                },
+                "statuses": {
+                    "description": "状态列表",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "types": {
+                    "description": "数据集类型列表",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "dto.DatasetV2UpdateReq": {
+            "type": "object",
+            "properties": {
+                "data_source": {
+                    "description": "数据来源描述",
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "description": {
+                    "description": "数据集描述",
+                    "type": "string",
+                    "maxLength": 1000
+                },
+                "format": {
+                    "description": "数据格式",
+                    "type": "string",
+                    "maxLength": 50
+                },
+                "injection_ids": {
+                    "description": "更新关联的故障注入ID列表（完全替换）",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "is_public": {
+                    "description": "是否公开",
+                    "type": "boolean"
+                },
+                "label_ids": {
+                    "description": "更新关联的标签ID列表（完全替换）",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "name": {
+                    "description": "数据集名称",
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "new_labels": {
+                    "description": "新建标签列表",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DatasetV2LabelCreateReq"
+                    }
+                },
+                "type": {
+                    "description": "数据集类型",
+                    "type": "string",
+                    "maxLength": 50
+                },
+                "version": {
+                    "description": "数据集版本",
+                    "type": "string",
+                    "maxLength": 50
+                }
+            }
+        },
         "dto.DateRange": {
             "type": "object",
             "properties": {
@@ -5761,6 +6861,19 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "to": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.DateRangeFilter": {
+            "type": "object",
+            "properties": {
+                "end_time": {
+                    "description": "结束时间",
+                    "type": "string"
+                },
+                "start_time": {
+                    "description": "开始时间",
                     "type": "string"
                 }
             }
@@ -6164,6 +7277,56 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.DatasetDeleteResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_DatasetSearchResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.DatasetSearchResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_DatasetV2Response": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.DatasetV2Response"
                         }
                     ]
                 },
@@ -6736,6 +7899,31 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.SearchResponse-dto_ContainerResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "响应消息",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "响应生成时间",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_SearchResponse-dto_DatasetV2Response": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "状态码",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "泛型类型的数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.SearchResponse-dto_DatasetV2Response"
                         }
                     ]
                 },
@@ -8513,6 +9701,32 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.SearchResponse-dto_DatasetV2Response": {
+            "type": "object",
+            "properties": {
+                "applied_filters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SearchFilter"
+                    }
+                },
+                "applied_sort": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SortOption"
+                    }
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DatasetV2Response"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
         "dto.SearchResponse-dto_PermissionResponse": {
             "type": "object",
             "properties": {
@@ -8652,6 +9866,19 @@ const docTemplate = `{
                 "status": {
                     "type": "string",
                     "example": "healthy"
+                }
+            }
+        },
+        "dto.SizeRangeFilter": {
+            "type": "object",
+            "properties": {
+                "max_size": {
+                    "description": "最大大小（字节）",
+                    "type": "integer"
+                },
+                "min_size": {
+                    "description": "最小大小（字节）",
+                    "type": "integer"
                 }
             }
         },
