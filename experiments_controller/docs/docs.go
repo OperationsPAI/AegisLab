@@ -66,10 +66,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/dto.ExecutionPayload"
-                            }
+                            "$ref": "#/definitions/dto.SubmitExecutionReq"
                         }
                     }
                 ],
@@ -455,10 +452,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/dto.DatasetBuildPayload"
-                            }
+                            "$ref": "#/definitions/dto.SubmitDatasetBuildingReq"
                         }
                     }
                 ],
@@ -5407,18 +5401,6 @@ const docTemplate = `{
                     "description": "名称",
                     "type": "string"
                 },
-                "project": {
-                    "description": "外键关联",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/database.Project"
-                        }
-                    ]
-                },
-                "project_id": {
-                    "description": "容器必须属于某个项目",
-                    "type": "integer"
-                },
                 "status": {
                     "description": "0: 已删除 1: 活跃",
                     "type": "boolean"
@@ -5434,6 +5416,18 @@ const docTemplate = `{
                 "updated_at": {
                     "description": "更新时间",
                     "type": "string"
+                },
+                "user": {
+                    "description": "外键关联",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/database.User"
+                        }
+                    ]
+                },
+                "user_id": {
+                    "description": "容器必须属于某个用户",
+                    "type": "integer"
                 }
             }
         },
@@ -5631,6 +5625,55 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "database.User": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "description": "头像URL",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "创建时间",
+                    "type": "string"
+                },
+                "email": {
+                    "description": "邮箱（唯一）",
+                    "type": "string"
+                },
+                "full_name": {
+                    "description": "全名",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "唯一标识",
+                    "type": "integer"
+                },
+                "is_active": {
+                    "description": "是否激活",
+                    "type": "boolean"
+                },
+                "last_login_at": {
+                    "description": "最后登录时间",
+                    "type": "string"
+                },
+                "phone": {
+                    "description": "电话号码",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "0:禁用 1:启用 -1:删除",
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "description": "更新时间",
+                    "type": "string"
+                },
+                "username": {
+                    "description": "用户名（唯一）",
                     "type": "string"
                 }
             }
@@ -9910,6 +9953,42 @@ const docTemplate = `{
                 },
                 "field": {
                     "description": "排序字段",
+                    "type": "string"
+                }
+            }
+        },
+        "dto.SubmitDatasetBuildingReq": {
+            "type": "object",
+            "required": [
+                "payloads",
+                "project_name"
+            ],
+            "properties": {
+                "payloads": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DatasetBuildPayload"
+                    }
+                },
+                "project_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.SubmitExecutionReq": {
+            "type": "object",
+            "required": [
+                "payloads",
+                "project_name"
+            ],
+            "properties": {
+                "payloads": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ExecutionPayload"
+                    }
+                },
+                "project_name": {
                     "type": "string"
                 }
             }

@@ -163,8 +163,8 @@ No authorization required
 
 ```python
 import rcabench.openapi
-from rcabench.openapi.models.dto_dataset_build_payload import DtoDatasetBuildPayload
 from rcabench.openapi.models.dto_generic_response_dto_submit_resp import DtoGenericResponseDtoSubmitResp
+from rcabench.openapi.models.dto_submit_dataset_building_req import DtoSubmitDatasetBuildingReq
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
@@ -179,7 +179,7 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.DatasetApi(api_client)
-    body = [rcabench.openapi.DtoDatasetBuildPayload()] # List[DtoDatasetBuildPayload] | 数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置
+    body = rcabench.openapi.DtoSubmitDatasetBuildingReq() # DtoSubmitDatasetBuildingReq | 数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置
 
     try:
         # 批量构建数据集
@@ -197,7 +197,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**List[DtoDatasetBuildPayload]**](DtoDatasetBuildPayload.md)| 数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置 | 
+ **body** | [**DtoSubmitDatasetBuildingReq**](DtoSubmitDatasetBuildingReq.md)| 数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置 | 
 
 ### Return type
 

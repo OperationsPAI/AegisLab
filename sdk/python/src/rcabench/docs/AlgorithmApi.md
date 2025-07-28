@@ -85,8 +85,8 @@ No authorization required
 
 ```python
 import rcabench.openapi
-from rcabench.openapi.models.dto_execution_payload import DtoExecutionPayload
 from rcabench.openapi.models.dto_generic_response_dto_submit_resp import DtoGenericResponseDtoSubmitResp
+from rcabench.openapi.models.dto_submit_execution_req import DtoSubmitExecutionReq
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
@@ -101,7 +101,7 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.AlgorithmApi(api_client)
-    body = [rcabench.openapi.DtoExecutionPayload()] # List[DtoExecutionPayload] | 算法执行请求列表，包含算法名称、数据集和环境变量
+    body = rcabench.openapi.DtoSubmitExecutionReq() # DtoSubmitExecutionReq | 算法执行请求列表，包含算法名称、数据集和环境变量
 
     try:
         # 提交算法执行任务
@@ -119,7 +119,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**List[DtoExecutionPayload]**](DtoExecutionPayload.md)| 算法执行请求列表，包含算法名称、数据集和环境变量 | 
+ **body** | [**DtoSubmitExecutionReq**](DtoSubmitExecutionReq.md)| 算法执行请求列表，包含算法名称、数据集和环境变量 | 
 
 ### Return type
 

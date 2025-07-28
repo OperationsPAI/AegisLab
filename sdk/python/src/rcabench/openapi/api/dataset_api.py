@@ -20,9 +20,9 @@ from typing_extensions import Annotated
 from pydantic import Field, StrictStr
 from typing import List, Optional
 from typing_extensions import Annotated
-from rcabench.openapi.models.dto_dataset_build_payload import DtoDatasetBuildPayload
 from rcabench.openapi.models.dto_generic_response_dto_dataset_delete_resp import DtoGenericResponseDtoDatasetDeleteResp
 from rcabench.openapi.models.dto_generic_response_dto_submit_resp import DtoGenericResponseDtoSubmitResp
+from rcabench.openapi.models.dto_submit_dataset_building_req import DtoSubmitDatasetBuildingReq
 
 from rcabench.openapi.api_client import ApiClient, RequestSerialized
 from rcabench.openapi.api_response import ApiResponse
@@ -604,7 +604,7 @@ class DatasetApi:
     @validate_call
     def api_v1_datasets_post(
         self,
-        body: Annotated[List[DtoDatasetBuildPayload], Field(description="数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置")],
+        body: Annotated[DtoSubmitDatasetBuildingReq, Field(description="数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -623,7 +623,7 @@ class DatasetApi:
         根据指定的时间范围和基准测试容器批量构建数据集。
 
         :param body: 数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置 (required)
-        :type body: List[DtoDatasetBuildPayload]
+        :type body: DtoSubmitDatasetBuildingReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -673,7 +673,7 @@ class DatasetApi:
     @validate_call
     def api_v1_datasets_post_with_http_info(
         self,
-        body: Annotated[List[DtoDatasetBuildPayload], Field(description="数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置")],
+        body: Annotated[DtoSubmitDatasetBuildingReq, Field(description="数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -692,7 +692,7 @@ class DatasetApi:
         根据指定的时间范围和基准测试容器批量构建数据集。
 
         :param body: 数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置 (required)
-        :type body: List[DtoDatasetBuildPayload]
+        :type body: DtoSubmitDatasetBuildingReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -742,7 +742,7 @@ class DatasetApi:
     @validate_call
     def api_v1_datasets_post_without_preload_content(
         self,
-        body: Annotated[List[DtoDatasetBuildPayload], Field(description="数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置")],
+        body: Annotated[DtoSubmitDatasetBuildingReq, Field(description="数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -761,7 +761,7 @@ class DatasetApi:
         根据指定的时间范围和基准测试容器批量构建数据集。
 
         :param body: 数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置 (required)
-        :type body: List[DtoDatasetBuildPayload]
+        :type body: DtoSubmitDatasetBuildingReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -816,7 +816,6 @@ class DatasetApi:
         _host = None
 
         _collection_formats: Dict[str, str] = {
-            'body': '',
         }
 
         _path_params: Dict[str, str] = {}

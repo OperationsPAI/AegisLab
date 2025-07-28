@@ -18,31 +18,20 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.database_user import DatabaseUser
+from pydantic import BaseModel, ConfigDict, StrictStr
+from typing import Any, ClassVar, Dict, List
+from rcabench.openapi.models.dto_dataset_build_payload import DtoDatasetBuildPayload
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DatabaseContainer(BaseModel):
+class DtoSubmitDatasetBuildingReq(BaseModel):
     """
-    DatabaseContainer
+    DtoSubmitDatasetBuildingReq
     """ # noqa: E501
-    command: Optional[StrictStr] = Field(default=None, description="启动命令")
-    created_at: Optional[StrictStr] = Field(default=None, description="创建时间")
-    env_vars: Optional[StrictStr] = Field(default=None, description="环境变量名称列表")
-    id: Optional[StrictInt] = Field(default=None, description="唯一标识")
-    image: Optional[StrictStr] = Field(default=None, description="镜像名")
-    is_public: Optional[StrictBool] = Field(default=None, description="是否公开可见")
-    name: Optional[StrictStr] = Field(default=None, description="名称")
-    status: Optional[StrictBool] = Field(default=None, description="0: 已删除 1: 活跃")
-    tag: Optional[StrictStr] = Field(default=None, description="镜像标签")
-    type: Optional[StrictStr] = Field(default=None, description="镜像类型")
-    updated_at: Optional[StrictStr] = Field(default=None, description="更新时间")
-    user: Optional[DatabaseUser] = Field(default=None, description="外键关联")
-    user_id: Optional[StrictInt] = Field(default=None, description="容器必须属于某个用户")
+    payloads: List[DtoDatasetBuildPayload]
+    project_name: StrictStr
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["command", "created_at", "env_vars", "id", "image", "is_public", "name", "status", "tag", "type", "updated_at", "user", "user_id"]
+    __properties: ClassVar[List[str]] = ["payloads", "project_name"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -62,7 +51,7 @@ class DatabaseContainer(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DatabaseContainer from a JSON string"""
+        """Create an instance of DtoSubmitDatasetBuildingReq from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -85,9 +74,13 @@ class DatabaseContainer(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of user
-        if self.user:
-            _dict['user'] = self.user.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of each item in payloads (list)
+        _items = []
+        if self.payloads:
+            for _item_payloads in self.payloads:
+                if _item_payloads:
+                    _items.append(_item_payloads.to_dict())
+            _dict['payloads'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -97,7 +90,7 @@ class DatabaseContainer(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DatabaseContainer from a dict"""
+        """Create an instance of DtoSubmitDatasetBuildingReq from a dict"""
         if obj is None:
             return None
 
@@ -105,19 +98,8 @@ class DatabaseContainer(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "command": obj.get("command"),
-            "created_at": obj.get("created_at"),
-            "env_vars": obj.get("env_vars"),
-            "id": obj.get("id"),
-            "image": obj.get("image"),
-            "is_public": obj.get("is_public"),
-            "name": obj.get("name"),
-            "status": obj.get("status"),
-            "tag": obj.get("tag"),
-            "type": obj.get("type"),
-            "updated_at": obj.get("updated_at"),
-            "user": DatabaseUser.from_dict(obj["user"]) if obj.get("user") is not None else None,
-            "user_id": obj.get("user_id")
+            "payloads": [DtoDatasetBuildPayload.from_dict(_item) for _item in obj["payloads"]] if obj.get("payloads") is not None else None,
+            "project_name": obj.get("project_name")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

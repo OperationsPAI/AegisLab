@@ -53,6 +53,7 @@ __all__ = [
     "DatabaseLabel",
     "DatabaseProject",
     "DatabaseTask",
+    "DatabaseUser",
     "DtoAdvancedSearchRequest",
     "DtoAlgorithmDatasetPair",
     "DtoAlgorithmItem",
@@ -204,6 +205,8 @@ __all__ = [
     "DtoSizeRangeFilter",
     "DtoSortDirection",
     "DtoSortOption",
+    "DtoSubmitDatasetBuildingReq",
+    "DtoSubmitExecutionReq",
     "DtoSubmitInjectionReq",
     "DtoSubmitInjectionResp",
     "DtoSubmitResp",
@@ -275,6 +278,7 @@ from rcabench.openapi.models.database_fault_injection_schedule import DatabaseFa
 from rcabench.openapi.models.database_label import DatabaseLabel as DatabaseLabel
 from rcabench.openapi.models.database_project import DatabaseProject as DatabaseProject
 from rcabench.openapi.models.database_task import DatabaseTask as DatabaseTask
+from rcabench.openapi.models.database_user import DatabaseUser as DatabaseUser
 from rcabench.openapi.models.dto_advanced_search_request import DtoAdvancedSearchRequest as DtoAdvancedSearchRequest
 from rcabench.openapi.models.dto_algorithm_dataset_pair import DtoAlgorithmDatasetPair as DtoAlgorithmDatasetPair
 from rcabench.openapi.models.dto_algorithm_item import DtoAlgorithmItem as DtoAlgorithmItem
@@ -426,6 +430,8 @@ from rcabench.openapi.models.dto_service_info import DtoServiceInfo as DtoServic
 from rcabench.openapi.models.dto_size_range_filter import DtoSizeRangeFilter as DtoSizeRangeFilter
 from rcabench.openapi.models.dto_sort_direction import DtoSortDirection as DtoSortDirection
 from rcabench.openapi.models.dto_sort_option import DtoSortOption as DtoSortOption
+from rcabench.openapi.models.dto_submit_dataset_building_req import DtoSubmitDatasetBuildingReq as DtoSubmitDatasetBuildingReq
+from rcabench.openapi.models.dto_submit_execution_req import DtoSubmitExecutionReq as DtoSubmitExecutionReq
 from rcabench.openapi.models.dto_submit_injection_req import DtoSubmitInjectionReq as DtoSubmitInjectionReq
 from rcabench.openapi.models.dto_submit_injection_resp import DtoSubmitInjectionResp as DtoSubmitInjectionResp
 from rcabench.openapi.models.dto_submit_resp import DtoSubmitResp as DtoSubmitResp

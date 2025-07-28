@@ -12,12 +12,12 @@ Name | Type | Description | Notes
 **image** | **str** | 镜像名 | [optional] 
 **is_public** | **bool** | 是否公开可见 | [optional] 
 **name** | **str** | 名称 | [optional] 
-**project** | [**DatabaseProject**](DatabaseProject.md) | 外键关联 | [optional] 
-**project_id** | **int** | 容器必须属于某个项目 | [optional] 
 **status** | **bool** | 0: 已删除 1: 活跃 | [optional] 
 **tag** | **str** | 镜像标签 | [optional] 
 **type** | **str** | 镜像类型 | [optional] 
 **updated_at** | **str** | 更新时间 | [optional] 
+**user** | [**DatabaseUser**](DatabaseUser.md) | 外键关联 | [optional] 
+**user_id** | **int** | 容器必须属于某个用户 | [optional] 
 
 ## Example
 
