@@ -48,7 +48,6 @@ func rescheduleBuildTask(ctx context.Context, task *dto.UnifiedTask, reason stri
 
 	var executeTime time.Time
 
-	// 实现随机 1 到 5 分钟的延迟
 	minDelayMinutes := 1
 	maxDelayMinutes := 5
 	randomDelayMinutes := minDelayMinutes + rand.Intn(maxDelayMinutes-minDelayMinutes+1)

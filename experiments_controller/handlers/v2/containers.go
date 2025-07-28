@@ -12,6 +12,7 @@ import (
 )
 
 // SearchContainers handles complex container search with advanced filtering
+//
 //	@Summary Search containers
 //	@Description Search containers with complex filtering, sorting and pagination. Supports all container types (algorithm, benchmark, etc.)
 //	@Tags Containers
@@ -96,6 +97,7 @@ func SearchContainers(c *gin.Context) {
 }
 
 // ListContainers handles simple container listing
+//
 //	@Summary List containers
 //	@Description Get a simple list of containers with basic filtering
 //	@Tags Containers
@@ -212,6 +214,7 @@ func ListContainers(c *gin.Context) {
 }
 
 // GetContainer handles getting a single container by ID
+//
 //	@Summary Get container by ID
 //	@Description Get detailed information about a specific container
 //	@Tags Containers

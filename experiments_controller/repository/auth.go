@@ -3,6 +3,7 @@ package repository
 import (
 	"fmt"
 
+	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"gorm.io/gorm"
@@ -187,8 +188,13 @@ func InitializeSystemData() error {
 		}
 
 		// 创建超级管理员用户和默认项目
-		if err := initializeAdminUserAndProjects(tx); err != nil {
+		adminUser, err := initializeAdminUserAndProjects(tx)
+		if err != nil {
 			return fmt.Errorf("failed to initialize admin user and projects: %v", err)
+		}
+
+		if err := initializeContainers(tx, adminUser.ID); err != nil {
+			return fmt.Errorf("failed to initialize containers: %v", err)
 		}
 
 		return nil
@@ -326,7 +332,7 @@ func assignPermissionsToRole(tx *gorm.DB, roleName consts.RoleName, permissionNa
 }
 
 // initializeAdminUserAndProjects initializes the super admin user and default projects
-func initializeAdminUserAndProjects(tx *gorm.DB) error {
+func initializeAdminUserAndProjects(tx *gorm.DB) (*database.User, error) {
 	// 1. Create super admin user
 	adminUser := database.User{
 		Username: "admin",
@@ -340,13 +346,13 @@ func initializeAdminUserAndProjects(tx *gorm.DB) error {
 
 	var existingUser database.User
 	if err := tx.Where("username = ?", adminUser.Username).FirstOrCreate(&existingUser, adminUser).Error; err != nil {
-		return fmt.Errorf("failed to create admin user: %v", err)
+		return nil, fmt.Errorf("failed to create admin user: %v", err)
 	}
 
 	// 2. Assign super admin role to the super admin user
 	var superAdminRole database.Role
 	if err := tx.Where("name = ?", "super_admin").First(&superAdminRole).Error; err != nil {
-		return fmt.Errorf("failed to find super_admin role: %v", err)
+		return nil, fmt.Errorf("failed to find super_admin role: %v", err)
 	}
 
 	userRole := database.UserRole{
@@ -354,7 +360,7 @@ func initializeAdminUserAndProjects(tx *gorm.DB) error {
 		RoleID: superAdminRole.ID,
 	}
 	if err := tx.Where("user_id = ? AND role_id = ?", existingUser.ID, superAdminRole.ID).FirstOrCreate(&userRole).Error; err != nil {
-		return fmt.Errorf("failed to assign super_admin role to admin user: %v", err)
+		return nil, fmt.Errorf("failed to assign super_admin role to admin user: %v", err)
 	}
 
 	// 3. Create default projects
@@ -369,7 +375,7 @@ func initializeAdminUserAndProjects(tx *gorm.DB) error {
 	for _, project := range defaultProjects {
 		var existingProject database.Project
 		if err := tx.Where("name = ?", project.Name).FirstOrCreate(&existingProject, project).Error; err != nil {
-			return fmt.Errorf("failed to create project %s: %v", project.Name, err)
+			return nil, fmt.Errorf("failed to create project %s: %v", project.Name, err)
 		}
 
 		// Add super admin to the project
@@ -380,7 +386,57 @@ func initializeAdminUserAndProjects(tx *gorm.DB) error {
 			Status:    1,
 		}
 		if err := tx.Where("user_id = ? AND project_id = ?", existingUser.ID, existingProject.ID).FirstOrCreate(&userProject).Error; err != nil {
-			return fmt.Errorf("failed to add admin user to project %s: %v", project.Name, err)
+			return nil, fmt.Errorf("failed to add admin user to project %s: %v", project.Name, err)
+		}
+	}
+
+	return &existingUser, nil
+}
+
+func initializeContainers(tx *gorm.DB, userID int) error {
+	isPublic := true
+	containers := []database.Container{
+		{
+			Type:     "algorithm",
+			Name:     config.GetString("algo.detector"),
+			Image:    "10.10.10.240/library/detector",
+			Tag:      "d3bc0bf",
+			Command:  "bash /entrypoint.sh",
+			UserID:   userID,
+			IsPublic: isPublic,
+		},
+		{
+			Type:     "algorithm",
+			Name:     "traceback",
+			Image:    "10.10.10.240/library/rca-algo-traceback",
+			Tag:      "latest",
+			Command:  "bash /entrypoint.sh",
+			UserID:   userID,
+			IsPublic: isPublic,
+		},
+		{
+			Type:     "benchmark",
+			Name:     "clickhouse",
+			Image:    "10.10.10.240/library/detector",
+			Tag:      "d3bc0bf",
+			Command:  "bash /entrypoint.sh",
+			UserID:   userID,
+			IsPublic: isPublic,
+		},
+		{
+			Type:     "namespace",
+			Name:     "ts",
+			Image:    "10.10.10.240/library/ts-train-service",
+			Tag:      "2ad833a2",
+			UserID:   userID,
+			IsPublic: isPublic,
+		},
+	}
+
+	for _, resource := range containers {
+		var existingContainer database.Container
+		if err := tx.Where("name = ?", resource.Name).FirstOrCreate(&existingContainer, resource).Error; err != nil {
+			return fmt.Errorf("failed to create container %s: %v", resource.Name, err)
 		}
 	}
 

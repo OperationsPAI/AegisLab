@@ -95,7 +95,7 @@ func main() {
 
 	executor.InitConcurrencyLock(ctx)
 
-	// Producer 子命令
+	// Producer command - runs HTTP server for API endpoints
 	var producerCmd = &cobra.Command{
 		Use:   "producer",
 		Short: "Run as a producer",
@@ -121,7 +121,7 @@ func main() {
 		},
 	}
 
-	// Consumer 子命令
+	// Consumer command - runs background workers and Kubernetes controllers
 	var consumerCmd = &cobra.Command{
 		Use:   "consumer",
 		Short: "Run as a consumer",

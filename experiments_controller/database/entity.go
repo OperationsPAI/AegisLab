@@ -60,7 +60,7 @@ type Container struct {
 	Name      string    `gorm:"index;not null;uniqueIndex:idx_container_unique" json:"name"`           // 名称
 	Image     string    `gorm:"not null;uniqueIndex:idx_container_unique" json:"image"`                // 镜像名
 	Tag       string    `gorm:"not null;default:'latest';uniqueIndex:idx_container_unique" json:"tag"` // 镜像标签
-	Command   string    `gorm:"type:text;default:'bash /entrypoint.sh'" json:"command"`                // 启动命令
+	Command   string    `gorm:"type:text;default:''" json:"command"`                                   // 启动命令
 	EnvVars   string    `gorm:"default:''" json:"env_vars"`                                            // 环境变量名称列表
 	UserID    int       `gorm:"not null;index:idx_container_user" json:"user_id"`                      // 容器必须属于某个用户
 	IsPublic  bool      `gorm:"default:false;index:idx_container_visibility" json:"is_public"`         // 是否公开可见
