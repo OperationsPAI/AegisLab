@@ -248,6 +248,8 @@ const (
 
 	EventAcquireLock EventType = "acquire.lock"
 	EventReleaseLock EventType = "release.lock"
+
+	EventJobLogsRecorded EventType = "job.logs.recorded"
 )
 
 // K8s Job 名称

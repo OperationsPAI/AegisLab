@@ -54,6 +54,8 @@ class EventType(str, Enum):
     EventAcquireLock = "acquire.lock"
     EventReleaseLock = "release.lock"
 
+    EventJobLogsRecorded = "job.logs.recorded"
+
 
 class TaskType(str, Enum):
     DUMMY = ""
