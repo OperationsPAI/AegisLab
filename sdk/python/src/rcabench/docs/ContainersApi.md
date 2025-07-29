@@ -6,6 +6,7 @@ Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**api_v2_containers_get**](ContainersApi.md#api_v2_containers_get) | **GET** /api/v2/containers | List containers
 [**api_v2_containers_id_get**](ContainersApi.md#api_v2_containers_id_get) | **GET** /api/v2/containers/{id} | Get container by ID
+[**api_v2_containers_post**](ContainersApi.md#api_v2_containers_post) | **POST** /api/v2/containers | Create container
 [**api_v2_containers_search_post**](ContainersApi.md#api_v2_containers_search_post) | **POST** /api/v2/containers/search | Search containers
 
 
@@ -18,6 +19,7 @@ Get a simple list of containers with basic filtering
 
 ### Example
 
+* Api Key Authentication (BearerAuth):
 
 ```python
 import rcabench.openapi
@@ -31,6 +33,16 @@ configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8080/api/v1"
 )
 
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: BearerAuth
+configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
 with rcabench.openapi.ApiClient(configuration) as api_client:
@@ -68,7 +80,7 @@ Name | Type | Description  | Notes
 
 ### Authorization
 
-No authorization required
+[BearerAuth](../README.md#BearerAuth)
 
 ### HTTP request headers
 
@@ -95,6 +107,7 @@ Get detailed information about a specific container
 
 ### Example
 
+* Api Key Authentication (BearerAuth):
 
 ```python
 import rcabench.openapi
@@ -108,6 +121,16 @@ configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8080/api/v1"
 )
 
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: BearerAuth
+configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
 with rcabench.openapi.ApiClient(configuration) as api_client:
@@ -139,7 +162,7 @@ Name | Type | Description  | Notes
 
 ### Authorization
 
-No authorization required
+[BearerAuth](../README.md#BearerAuth)
 
 ### HTTP request headers
 
@@ -158,6 +181,122 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **api_v2_containers_post**
+> DtoGenericResponseDtoSubmitResp api_v2_containers_post(type, name, image, tag=tag, command=command, env_vars=env_vars, is_public=is_public, build_source_type=build_source_type, file=file, github_repository=github_repository, github_branch=github_branch, github_commit=github_commit, github_path=github_path, github_token=github_token, harbor_image=harbor_image, harbor_tag=harbor_tag, context_dir=context_dir, dockerfile_path=dockerfile_path)
+
+Create container
+
+Create a new container with build configuration. Containers are associated with the authenticated user.
+
+### Example
+
+* Api Key Authentication (BearerAuth):
+
+```python
+import rcabench.openapi
+from rcabench.openapi.models.dto_generic_response_dto_submit_resp import DtoGenericResponseDtoSubmitResp
+from rcabench.openapi.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = rcabench.openapi.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: BearerAuth
+configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with rcabench.openapi.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = rcabench.openapi.ContainersApi(api_client)
+    type = algorithm # str | Container type (default to algorithm)
+    name = 'name_example' # str | Container name
+    image = 'image_example' # str | Docker image name
+    tag = 'latest' # str | Docker image tag (optional) (default to 'latest')
+    command = '/bin/bash' # str | Container startup command (optional) (default to '/bin/bash')
+    env_vars = ['env_vars_example'] # List[str] | Environment variables (can be specified multiple times) (optional)
+    is_public = False # bool | Whether the container is public (optional) (default to False)
+    build_source_type = file # str | Build source type (optional) (default to file)
+    file = None # bytearray | Source code file (zip or tar.gz format, max 5MB) - required when build_source_type=file (optional)
+    github_repository = 'github_repository_example' # str | GitHub repository (owner/repo) - required when build_source_type=github (optional)
+    github_branch = 'main' # str | GitHub branch name (optional) (default to 'main')
+    github_commit = 'github_commit_example' # str | GitHub commit hash (if specified, branch is ignored) (optional)
+    github_path = '.' # str | Path within repository (optional) (default to '.')
+    github_token = 'github_token_example' # str | GitHub access token for private repositories (optional)
+    harbor_image = 'harbor_image_example' # str | Harbor image name - required when build_source_type=harbor (optional)
+    harbor_tag = 'harbor_tag_example' # str | Harbor image tag - required when build_source_type=harbor (optional)
+    context_dir = '.' # str | Docker build context directory (optional) (default to '.')
+    dockerfile_path = 'Dockerfile' # str | Dockerfile path relative to source root (optional) (default to 'Dockerfile')
+
+    try:
+        # Create container
+        api_response = api_instance.api_v2_containers_post(type, name, image, tag=tag, command=command, env_vars=env_vars, is_public=is_public, build_source_type=build_source_type, file=file, github_repository=github_repository, github_branch=github_branch, github_commit=github_commit, github_path=github_path, github_token=github_token, harbor_image=harbor_image, harbor_tag=harbor_tag, context_dir=context_dir, dockerfile_path=dockerfile_path)
+        print("The response of ContainersApi->api_v2_containers_post:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling ContainersApi->api_v2_containers_post: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **type** | **str**| Container type | [default to algorithm]
+ **name** | **str**| Container name | 
+ **image** | **str**| Docker image name | 
+ **tag** | **str**| Docker image tag | [optional] [default to &#39;latest&#39;]
+ **command** | **str**| Container startup command | [optional] [default to &#39;/bin/bash&#39;]
+ **env_vars** | [**List[str]**](str.md)| Environment variables (can be specified multiple times) | [optional] 
+ **is_public** | **bool**| Whether the container is public | [optional] [default to False]
+ **build_source_type** | **str**| Build source type | [optional] [default to file]
+ **file** | **bytearray**| Source code file (zip or tar.gz format, max 5MB) - required when build_source_type&#x3D;file | [optional] 
+ **github_repository** | **str**| GitHub repository (owner/repo) - required when build_source_type&#x3D;github | [optional] 
+ **github_branch** | **str**| GitHub branch name | [optional] [default to &#39;main&#39;]
+ **github_commit** | **str**| GitHub commit hash (if specified, branch is ignored) | [optional] 
+ **github_path** | **str**| Path within repository | [optional] [default to &#39;.&#39;]
+ **github_token** | **str**| GitHub access token for private repositories | [optional] 
+ **harbor_image** | **str**| Harbor image name - required when build_source_type&#x3D;harbor | [optional] 
+ **harbor_tag** | **str**| Harbor image tag - required when build_source_type&#x3D;harbor | [optional] 
+ **context_dir** | **str**| Docker build context directory | [optional] [default to &#39;.&#39;]
+ **dockerfile_path** | **str**| Dockerfile path relative to source root | [optional] [default to &#39;Dockerfile&#39;]
+
+### Return type
+
+[**DtoGenericResponseDtoSubmitResp**](DtoGenericResponseDtoSubmitResp.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: multipart/form-data
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**202** | Container creation task submitted successfully |  -  |
+**400** | Invalid request |  -  |
+**403** | Permission denied |  -  |
+**500** | Internal server error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **api_v2_containers_search_post**
 > DtoGenericResponseDtoSearchResponseDtoContainerResponse api_v2_containers_search_post(request)
 
@@ -167,6 +306,7 @@ Search containers with complex filtering, sorting and pagination. Supports all c
 
 ### Example
 
+* Api Key Authentication (BearerAuth):
 
 ```python
 import rcabench.openapi
@@ -181,6 +321,16 @@ configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8080/api/v1"
 )
 
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: BearerAuth
+configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
 with rcabench.openapi.ApiClient(configuration) as api_client:
@@ -212,7 +362,7 @@ Name | Type | Description  | Notes
 
 ### Authorization
 
-No authorization required
+[BearerAuth](../README.md#BearerAuth)
 
 ### HTTP request headers
 

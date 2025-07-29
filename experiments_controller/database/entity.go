@@ -25,7 +25,7 @@ type Task struct {
 	Status      string    `gorm:"index:idx_task_type_status;index:idx_task_project_status" json:"status"` // 添加多个复合索引
 	TraceID     string    `gorm:"index" json:"trace_id"`                                                  // 添加追踪ID索引
 	GroupID     string    `gorm:"index" json:"group_id"`                                                  // 添加组ID索引
-	ProjectID   int       `gorm:"not null;index:idx_task_project_status" json:"project_id"`               // 任务必须属于某个项目
+	ProjectID   *int      `gorm:"index:idx_task_project_status" json:"project_id,omitempty"`              // 任务可以属于某个项目（可选）
 	CreatedAt   time.Time `gorm:"autoCreateTime;index" json:"created_at"`                                 // 添加时间索引
 	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 

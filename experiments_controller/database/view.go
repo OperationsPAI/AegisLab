@@ -158,14 +158,14 @@ func createExecutionResultViews() {
 		c.image,
 		c.tag,
 		fis.injection_name AS dataset,
-		p.name AS project_name`).
+		COALESCE(p.name, 'No Project') AS project_name`).
 		Joins("JOIN containers c ON c.id = er.algorithm_id").
 		Joins("JOIN fault_injection_schedules fis ON fis.id = er.dataset_id").
 		Joins(`JOIN (
         	SELECT id AS task_id, project_id
         	FROM tasks
     	) t ON er.task_id = t.task_id`).
-		Joins("JOIN projects p ON p.id = t.project_id")
+		Joins("LEFT JOIN projects p ON p.id = t.project_id")
 	if err = DB.Migrator().CreateView("execution_result_project", gorm.ViewOption{Query: projectQuery}); err != nil {
 		logrus.Errorf("failed to create execution_result_project view: %v", err)
 	}
@@ -192,14 +192,14 @@ func createFaultInjectionViews() {
 			MAX(CASE WHEN l.key = 'tag' THEN l.value END) AS tag,
 			fis.injection_name, 
 			fis.created_at,
-			p.name AS project_name`).
+			COALESCE(p.name, 'No Project') AS project_name`).
 		Joins("LEFT JOIN fault_injection_labels fil ON fis.id = fil.fault_injection_id").
 		Joins("LEFT JOIN labels l ON fil.label_id = l.id").
 		Joins(`JOIN (
         	SELECT id AS task_id, project_id
         	FROM tasks
     	) t ON fis.task_id = t.task_id`).
-		Joins("JOIN projects p ON p.id = t.project_id").
+		Joins("LEFT JOIN projects p ON p.id = t.project_id").
 		Group("fis.id, fis.fault_type, fis.display_config, fis.engine_config, fis.pre_duration, fis.start_time, fis.end_time, fis.status, fis.benchmark, fis.injection_name, fis.created_at, p.name")
 	if err = DB.Migrator().CreateView("fault_injection_project", gorm.ViewOption{Query: projectQuery}); err != nil {
 		logrus.Errorf("failed to create fault_injection_project view: %v", err)

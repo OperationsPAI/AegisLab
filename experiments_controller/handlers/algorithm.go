@@ -95,7 +95,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 			Payload:   utils.StructToMap(payload),
 			Immediate: true,
 			GroupID:   groupID,
-			ProjectID: project.ID,
+			ProjectID: &project.ID,
 		}
 		task.SetGroupCtx(spanCtx)
 

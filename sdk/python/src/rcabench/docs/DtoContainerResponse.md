@@ -12,12 +12,12 @@ Name | Type | Description | Notes
 **image** | **str** |  | [optional] 
 **is_public** | **bool** |  | [optional] 
 **name** | **str** |  | [optional] 
-**project** | [**DtoProjectResponse**](DtoProjectResponse.md) | Related entities (only included when specifically requested) | [optional] 
-**project_id** | **int** |  | [optional] 
 **status** | **bool** |  | [optional] 
 **tag** | **str** |  | [optional] 
 **type** | **str** |  | [optional] 
 **updated_at** | **str** |  | [optional] 
+**user** | [**DtoUserResponse**](DtoUserResponse.md) | Related entities (only included when specifically requested) | [optional] 
+**user_id** | **int** |  | [optional] 
 
 ## Example
 

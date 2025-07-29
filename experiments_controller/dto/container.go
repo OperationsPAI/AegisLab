@@ -31,11 +31,17 @@ type ListContainersFilterOptions struct {
 	Names  []string
 }
 
+// BuildSource represents the source configuration for container building
+// @Description Build source configuration with different source types
 type BuildSource struct {
-	Type   consts.BuildSourceType `json:"type" binding:"required"`
-	File   *FileSource            `json:"file" binding:"omitempty"`
-	GitHub *GitHubSource          `json:"github" binding:"omitempty"`
-	Harbor *HarborSource          `json:"harbor" binding:"omitempty"`
+	// @Description Build source type (file, github, or harbor)
+	Type consts.BuildSourceType `json:"type" binding:"required" swaggertype:"string"`
+	// @Description File source configuration (for file uploads)
+	File *FileSource `json:"file" binding:"omitempty"`
+	// @Description GitHub source configuration
+	GitHub *GitHubSource `json:"github" binding:"omitempty"`
+	// @Description Harbor source configuration
+	Harbor *HarborSource `json:"harbor" binding:"omitempty"`
 }
 
 func (s *BuildSource) Validate() error {
@@ -51,21 +57,30 @@ func (s *BuildSource) Validate() error {
 }
 
 // FileSource 文件源配置
+// @Description File source configuration for uploads
 type FileSource struct {
 	// 通过 multipart/form-data 上传的文件会自动处理
 	// 这里只是为了文档说明
+	// @Description Filename of the uploaded file
 	Filename string `json:"file_name,omitempty"`
-	Size     int64  `json:"size,omitempty"`
+	// @Description Size of the uploaded file in bytes
+	Size int64 `json:"size,omitempty"`
 }
 
 // GitHubSource GitHub源配置
+// @Description GitHub source configuration
 type GitHubSource struct {
+	// @Description GitHub repository in format 'owner/repo'
 	Repository string `json:"repository" binding:"required"`
-	Token      string `json:"token" binding:"omitempty"`
-	Branch     string `json:"branch" binding:"omitempty"`
-	Commit     string `json:"commit" binding:"omitempty"`
-	Path       string `json:"path" binding:"omitempty"`
-} //@name GitHubSource
+	// @Description GitHub access token (optional)
+	Token string `json:"token" binding:"omitempty"`
+	// @Description Branch name (optional, defaults to main)
+	Branch string `json:"branch" binding:"omitempty"`
+	// @Description Specific commit hash (optional)
+	Commit string `json:"commit" binding:"omitempty"`
+	// @Description Path within the repository (optional)
+	Path string `json:"path" binding:"omitempty"`
+}
 
 func (s *GitHubSource) Validate() error {
 	parts := strings.Split(s.Repository, "/")
@@ -100,9 +115,12 @@ func (s *GitHubSource) Validate() error {
 }
 
 // HarborSource Harbor源配置
+// @Description Harbor source configuration
 type HarborSource struct {
+	// @Description Harbor image name
 	Image string `json:"image" binding:"required"`
-	Tag   string `json:"tag" binding:"omitempty"`
+	// @Description Image tag (optional, defaults to latest)
+	Tag string `json:"tag" binding:"omitempty"`
 }
 
 func (s *HarborSource) Validate() error {
@@ -120,13 +138,20 @@ func (s *HarborSource) Validate() error {
 }
 
 // BuildOptions 构建选项
+// @Description Build options for container creation
 type BuildOptions struct {
-	ContextDir     string            `json:"context_dir" binding:"omitempty"`
-	DockerfilePath string            `json:"dockerfile_path" binding:"omitempty"`
-	Target         string            `json:"target" binding:"omitempty"`
-	BuildArgs      map[string]string `json:"build_args" binding:"omitempty" swaggertype:"object"`
-	Labels         map[string]string `json:"labels" binding:"omitempty" swaggertype:"object"`
-	ForceRebuild   bool              `json:"force_rebuild" binding:"omitempty"`
+	// @Description Context directory for build (optional)
+	ContextDir string `json:"context_dir" binding:"omitempty"`
+	// @Description Path to Dockerfile (optional, defaults to Dockerfile)
+	DockerfilePath string `json:"dockerfile_path" binding:"omitempty"`
+	// @Description Build target (optional)
+	Target string `json:"target" binding:"omitempty"`
+	// @Description Build arguments (optional)
+	BuildArgs map[string]string `json:"build_args" binding:"omitempty" swaggertype:"object"`
+	// @Description Build labels (optional)
+	Labels map[string]string `json:"labels" binding:"omitempty" swaggertype:"object"`
+	// @Description Force rebuild even if image exists
+	ForceRebuild bool `json:"force_rebuild" binding:"omitempty"`
 }
 
 func (opts *BuildOptions) Validate() error {
@@ -259,16 +284,31 @@ var ValidContainerTypes = map[consts.ContainerType]struct{}{
 
 // CreateContainerRequest represents the v2 API request for creating a container
 // Containers are associated with users, not projects
+// @Description Container creation request for v2 API
 type CreateContainerRequest struct {
-	ContainerType consts.ContainerType `json:"type" binding:"required,oneof=algorithm benchmark"`
-	Name          string               `json:"name" binding:"required"`
-	Image         string               `json:"image" binding:"required"`
-	Tag           string               `json:"tag" binding:"omitempty"`
-	Command       string               `json:"command" binding:"omitempty"`
-	EnvVars       []string             `json:"env_vars" binding:"omitempty" swaggertype:"array"`
-	IsPublic      bool                 `json:"is_public" binding:"omitempty"`
-	Source        BuildSource          `json:"source" binding:"required"`
-	BuildOptions  *BuildOptions        `json:"build_options" binding:"omitempty"`
+	// @Description Container type (algorithm or benchmark)
+	// @example algorithm
+	ContainerType consts.ContainerType `json:"type" binding:"required,oneof=algorithm benchmark" swaggertype:"string"`
+	// @Description Container name
+	// @example my-container
+	Name string `json:"name" binding:"required"`
+	// @Description Docker image name
+	// @example my-image
+	Image string `json:"image" binding:"required"`
+	// @Description Docker image tag
+	// @example latest
+	Tag string `json:"tag" binding:"omitempty"`
+	// @Description Container startup command
+	// @example /bin/bash
+	Command string `json:"command" binding:"omitempty"`
+	// @Description Environment variables
+	EnvVars []string `json:"env_vars" binding:"omitempty"`
+	// @Description Whether the container is public
+	IsPublic bool `json:"is_public" binding:"omitempty"`
+	// @Description Container build source configuration
+	BuildSource *BuildSource `json:"build_source" binding:"omitempty"`
+	// @Description Container build options
+	BuildOptions *BuildOptions `json:"build_options" binding:"omitempty"`
 }
 
 func (req *CreateContainerRequest) Validate() error {
@@ -276,6 +316,10 @@ func (req *CreateContainerRequest) Validate() error {
 		if _, exists := ValidContainerTypes[req.ContainerType]; !exists {
 			return fmt.Errorf("Invalid container type: %s", req.ContainerType)
 		}
+	}
+
+	if req.Name == "" {
+		return fmt.Errorf("Container name cannot be empty")
 	}
 
 	if req.Image == "" {
@@ -299,16 +343,10 @@ func (req *CreateContainerRequest) Validate() error {
 		}
 	}
 
-	if req.EnvVars != nil {
-		for i, envVar := range req.EnvVars {
-			if err := utils.IsValidEnvVar(envVar); err != nil {
-				return fmt.Errorf("Invalid environment variable %s at index %d: %v", envVar, i, err)
-			}
+	if req.BuildSource != nil {
+		if err := req.BuildSource.Validate(); err != nil {
+			return fmt.Errorf("Invalid build source: %v", err)
 		}
-	}
-
-	if err := req.Source.Validate(); err != nil {
-		return fmt.Errorf("Invalid build source: %v", err)
 	}
 
 	if req.BuildOptions != nil {

@@ -30,7 +30,7 @@ type TaskIdentifiers struct {
 	TaskID    string `json:"task_id"`
 	TraceID   string `json:"trace_id"`
 	GroupID   string `json:"group_id"`
-	ProjectID int    `json:"project_id"`
+	ProjectID *int   `json:"project_id,omitempty"`
 }
 
 type CRDLabels struct {
@@ -446,15 +446,14 @@ func parseTaskIdentifiers(message string, labels map[string]string) (*TaskIdenti
 		return nil, fmt.Errorf(message, consts.LabelGroupID)
 	}
 
-	var projectID int
+	var projectID *int
 	projectIDStr, ok := labels[consts.LabelProjectID]
 	if ok && projectIDStr != "" {
 		id, err := strconv.Atoi(projectIDStr)
 		if err != nil {
 			return nil, fmt.Errorf(message, consts.LabelProjectID)
 		}
-
-		projectID = id
+		projectID = &id
 	}
 
 	return &TaskIdentifiers{

@@ -386,7 +386,7 @@ func SubmitFaultInjection(c *gin.Context) {
 			Immediate:   false,
 			ExecuteTime: config.ExecuteTime.Unix(),
 			GroupID:     groupID,
-			ProjectID:   project.ID,
+			ProjectID:   &project.ID,
 		}
 		task.SetGroupCtx(spanCtx)
 

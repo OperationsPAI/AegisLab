@@ -12,6 +12,7 @@ import (
 )
 
 // SearchAlgorithms handles complex algorithm search with advanced filtering
+//
 //	@Summary Search algorithms
 //	@Description Search algorithms with complex filtering, sorting and pagination. Algorithms are containers with type 'algorithm'
 //	@Tags Algorithms
@@ -98,6 +99,7 @@ func SearchAlgorithms(c *gin.Context) {
 }
 
 // ListAlgorithms handles simple algorithm listing
+//
 //	@Summary List algorithms
 //	@Description Get a simple list of all active algorithms without complex filtering
 //	@Tags Algorithms

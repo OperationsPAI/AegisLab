@@ -35,7 +35,7 @@ class DtoUnifiedTask(BaseModel):
     group_id: Optional[StrictStr] = Field(default=None, description="ID for grouping tasks")
     immediate: Optional[StrictBool] = Field(default=None, description="Whether to execute immediately")
     payload: Optional[Dict[str, Any]] = Field(default=None, description="Task-specific data")
-    project_id: Optional[StrictInt] = None
+    project_id: Optional[StrictInt] = Field(default=None, description="ID for the project (optional)")
     restart_num: Optional[StrictInt] = Field(default=None, description="Number of restarts for the task")
     retry_policy: Optional[DtoRetryPolicy] = Field(default=None, description="Policy for retrying failed tasks")
     status: Optional[StrictStr] = Field(default=None, description="Status of the task")

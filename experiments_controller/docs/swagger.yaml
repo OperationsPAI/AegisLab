@@ -184,7 +184,7 @@ definitions:
         - $ref: '#/definitions/database.Project'
         description: 外键关联
       project_id:
-        description: 任务必须属于某个项目
+        description: 任务可以属于某个项目（可选）
         type: integer
       status:
         description: 添加多个复合索引
@@ -573,12 +573,6 @@ definitions:
         type: boolean
       name:
         type: string
-      project:
-        allOf:
-        - $ref: '#/definitions/dto.ProjectResponse'
-        description: Related entities (only included when specifically requested)
-      project_id:
-        type: integer
       status:
         type: boolean
       tag:
@@ -587,6 +581,12 @@ definitions:
         type: string
       updated_at:
         type: string
+      user:
+        allOf:
+        - $ref: '#/definitions/dto.UserResponse'
+        description: Related entities (only included when specifically requested)
+      user_id:
+        type: integer
     type: object
   dto.ContainerSearchRequest:
     properties:
@@ -3520,6 +3520,7 @@ definitions:
         description: Task-specific data
         type: object
       project_id:
+        description: ID for the project (optional)
         type: integer
       restart_num:
         description: Number of restarts for the task
@@ -5438,6 +5439,131 @@ paths:
       security:
       - BearerAuth: []
       summary: List containers
+      tags:
+      - Containers
+    post:
+      consumes:
+      - multipart/form-data
+      description: Create a new container with build configuration. Containers are
+        associated with the authenticated user.
+      parameters:
+      - default: algorithm
+        description: Container type
+        enum:
+        - algorithm
+        - benchmark
+        in: formData
+        name: type
+        required: true
+        type: string
+      - description: Container name
+        in: formData
+        name: name
+        required: true
+        type: string
+      - description: Docker image name
+        in: formData
+        name: image
+        required: true
+        type: string
+      - default: latest
+        description: Docker image tag
+        in: formData
+        name: tag
+        type: string
+      - default: /bin/bash
+        description: Container startup command
+        in: formData
+        name: command
+        type: string
+      - collectionFormat: csv
+        description: Environment variables (can be specified multiple times)
+        in: formData
+        items:
+          type: string
+        name: env_vars
+        type: array
+      - default: false
+        description: Whether the container is public
+        in: formData
+        name: is_public
+        type: boolean
+      - default: file
+        description: Build source type
+        enum:
+        - file
+        - github
+        - harbor
+        in: formData
+        name: build_source_type
+        type: string
+      - description: Source code file (zip or tar.gz format, max 5MB) - required when
+          build_source_type=file
+        in: formData
+        name: file
+        type: file
+      - description: GitHub repository (owner/repo) - required when build_source_type=github
+        in: formData
+        name: github_repository
+        type: string
+      - default: main
+        description: GitHub branch name
+        in: formData
+        name: github_branch
+        type: string
+      - description: GitHub commit hash (if specified, branch is ignored)
+        in: formData
+        name: github_commit
+        type: string
+      - default: .
+        description: Path within repository
+        in: formData
+        name: github_path
+        type: string
+      - description: GitHub access token for private repositories
+        in: formData
+        name: github_token
+        type: string
+      - description: Harbor image name - required when build_source_type=harbor
+        in: formData
+        name: harbor_image
+        type: string
+      - description: Harbor image tag - required when build_source_type=harbor
+        in: formData
+        name: harbor_tag
+        type: string
+      - default: .
+        description: Docker build context directory
+        in: formData
+        name: context_dir
+        type: string
+      - default: Dockerfile
+        description: Dockerfile path relative to source root
+        in: formData
+        name: dockerfile_path
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Container creation task submitted successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SubmitResp'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Create container
       tags:
       - Containers
   /api/v2/containers/{id}:
@@ -7384,4 +7510,10 @@ produces:
 schemes:
 - http
 - https
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

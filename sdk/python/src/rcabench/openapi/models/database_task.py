@@ -36,7 +36,7 @@ class DatabaseTask(BaseModel):
     immediate: Optional[StrictBool] = None
     payload: Optional[StrictStr] = None
     project: Optional[DatabaseProject] = Field(default=None, description="外键关联")
-    project_id: Optional[StrictInt] = Field(default=None, description="任务必须属于某个项目")
+    project_id: Optional[StrictInt] = Field(default=None, description="任务可以属于某个项目（可选）")
     status: Optional[StrictStr] = Field(default=None, description="添加多个复合索引")
     trace_id: Optional[StrictStr] = Field(default=None, description="添加追踪ID索引")
     type: Optional[StrictStr] = Field(default=None, description="添加复合索引")
