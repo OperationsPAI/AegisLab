@@ -302,8 +302,8 @@ func GetContainer(c *gin.Context) {
 
 // CreateContainer handles container creation for v2 API
 //
-//	@Summary Create container
-//	@Description Create a new container with build configuration. Containers are associated with the authenticated user.
+//	@Summary Create or update container
+//	@Description Create a new container with build configuration or update existing one if it already exists. Containers are associated with the authenticated user. If a container with the same name, type, image, and tag already exists, it will be updated instead of creating a new one.
 //	@Tags Containers
 //	@Accept multipart/form-data
 //	@Produce json
@@ -326,7 +326,8 @@ func GetContainer(c *gin.Context) {
 //	@Param harbor_tag formData string false "Harbor image tag - required when build_source_type=harbor"
 //	@Param context_dir formData string false "Docker build context directory" default(.)
 //	@Param dockerfile_path formData string false "Dockerfile path relative to source root" default(Dockerfile)
-//	@Success 202 {object} dto.GenericResponse[dto.SubmitResp] "Container creation task submitted successfully"
+//	@Success 202 {object} dto.GenericResponse[dto.SubmitResp] "Container creation/update task submitted successfully"
+//	@Success 200 {object} dto.GenericResponse[dto.SubmitResp] "Container information updated successfully from Harbor"
 //	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
 //	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
@@ -446,9 +447,17 @@ func CreateContainer(c *gin.Context) {
 	result := database.DB.Where("name = ? AND type = ? AND image = ? AND tag = ? AND user_id = ? AND status = true",
 		req.Name, req.ContainerType, req.Image, req.Tag, userID).First(&existingContainer)
 
+	var isUpdate bool
 	if result.Error == nil {
-		dto.ErrorResponse(c, http.StatusConflict, "Container with same name, type, image and tag already exists")
-		return
+		// Container already exists, we'll update it
+		isUpdate = true
+		logrus.WithFields(logrus.Fields{
+			"user_id": userID,
+			"name":    req.Name,
+			"type":    req.ContainerType,
+			"image":   req.Image,
+			"tag":     req.Tag,
+		}).Info("Container already exists, will be updated")
 	}
 
 	// Handle different source types
@@ -502,14 +511,19 @@ func CreateContainer(c *gin.Context) {
 
 	// Handle Harbor direct update
 	if req.BuildSource.Type == consts.BuildSourceTypeHarbor {
-		taskID, traceID, err := processHarborDirectUpdateV2(spanCtx, &req, userID.(int))
+		taskID, traceID, err := processHarborDirectUpdateV2(spanCtx, &req, userID.(int), isUpdate)
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to process harbor direct update")
 			return
 		}
 
+		message := "Container information created successfully from Harbor"
+		if isUpdate {
+			message = "Container information updated successfully from Harbor (existing record was overwritten)"
+		}
+
 		dto.JSONResponse(c, http.StatusOK,
-			"Container information updated successfully from Harbor",
+			message,
 			dto.SubmitResp{Traces: []dto.Trace{{TraceID: traceID, HeadTaskID: taskID, Index: 0}}},
 		)
 		return
@@ -539,8 +553,13 @@ func CreateContainer(c *gin.Context) {
 		return
 	}
 
+	message := "Container building task submitted successfully"
+	if isUpdate {
+		message = "Container building task submitted successfully (existing record will be overwritten)"
+	}
+
 	dto.JSONResponse(c, http.StatusAccepted,
-		"Container building task submitted successfully",
+		message,
 		dto.SubmitResp{Traces: []dto.Trace{{TraceID: traceID, HeadTaskID: taskID, Index: 0}}},
 	)
 }
@@ -727,7 +746,7 @@ func validateRequiredFilesV2(sourcePath string, buildOptions *dto.BuildOptions) 
 	return nil
 }
 
-func processHarborDirectUpdateV2(ctx context.Context, req *dto.CreateContainerRequest, userID int) (string, string, error) {
+func processHarborDirectUpdateV2(ctx context.Context, req *dto.CreateContainerRequest, userID int, isUpdate bool) (string, string, error) {
 	taskID := fmt.Sprintf("harbor-%d", time.Now().UnixNano())
 	traceID := fmt.Sprintf("trace-%d", time.Now().UnixNano())
 
@@ -749,8 +768,28 @@ func processHarborDirectUpdateV2(ctx context.Context, req *dto.CreateContainerRe
 		Status:   true,
 	}
 
-	if err := database.DB.Create(container).Error; err != nil {
-		return "", "", fmt.Errorf("failed to create container record: %v", err)
+	var err error
+	if isUpdate {
+		// Update existing container
+		var existingContainer database.Container
+		if err := database.DB.Where("name = ? AND type = ? AND image = ? AND tag = ? AND user_id = ? AND status = true",
+			req.Name, req.ContainerType, req.BuildSource.Harbor.Image, req.BuildSource.Harbor.Tag, userID).First(&existingContainer).Error; err != nil {
+			return "", "", fmt.Errorf("failed to find existing container record: %v", err)
+		}
+
+		// Update the existing record
+		container.ID = existingContainer.ID
+		container.CreatedAt = existingContainer.CreatedAt
+		container.UpdatedAt = time.Now()
+
+		err = database.DB.Save(container).Error
+	} else {
+		// Create new container
+		err = database.DB.Create(container).Error
+	}
+
+	if err != nil {
+		return "", "", fmt.Errorf("failed to save container record: %v", err)
 	}
 
 	return taskID, traceID, nil
