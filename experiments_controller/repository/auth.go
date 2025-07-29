@@ -188,14 +188,14 @@ func InitializeSystemData() error {
 		}
 
 		// 创建超级管理员用户和默认项目
-		adminUser, err := initializeAdminUserAndProjects(tx)
+		_, err := initializeAdminUserAndProjects(tx)
 		if err != nil {
 			return fmt.Errorf("failed to initialize admin user and projects: %v", err)
 		}
 
-		if err := initializeContainers(tx, adminUser.ID); err != nil {
-			return fmt.Errorf("failed to initialize containers: %v", err)
-		}
+		// if err := initializeContainers(tx, adminUser.ID); err != nil {
+		// 	return fmt.Errorf("failed to initialize containers: %v", err)
+		// }
 
 		return nil
 	})
@@ -435,7 +435,8 @@ func initializeContainers(tx *gorm.DB, userID int) error {
 
 	for _, resource := range containers {
 		var existingContainer database.Container
-		if err := tx.Where("name = ?", resource.Name).FirstOrCreate(&existingContainer, resource).Error; err != nil {
+		if err := tx.Where("type = ? AND name = ? AND image = ? AND tag = ?",
+			resource.Type, resource.Name, resource.Image, resource.Tag).FirstOrCreate(&existingContainer, resource).Error; err != nil {
 			return fmt.Errorf("failed to create container %s: %v", resource.Name, err)
 		}
 	}
