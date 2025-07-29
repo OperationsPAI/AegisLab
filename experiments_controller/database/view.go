@@ -160,7 +160,7 @@ func createExecutionResultViews() {
 		fis.injection_name AS dataset,
 		COALESCE(p.name, 'No Project') AS project_name`).
 		Joins("JOIN containers c ON c.id = er.algorithm_id").
-		Joins("JOIN fault_injection_schedules fis ON fis.id = er.dataset_id").
+		Joins("JOIN fault_injection_schedules fis ON fis.id = er.datapack_id").
 		Joins(`JOIN (
         	SELECT id AS task_id, project_id
         	FROM tasks
