@@ -18,31 +18,19 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_user_response import DtoUserResponse
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoContainerResponse(BaseModel):
+class DtoFileSource(BaseModel):
     """
-    DtoContainerResponse
+    File source configuration for uploads
     """ # noqa: E501
-    command: Optional[StrictStr] = None
-    created_at: Optional[StrictStr] = None
-    env_vars: Optional[StrictStr] = None
-    id: Optional[StrictInt] = None
-    image: Optional[StrictStr] = None
-    is_public: Optional[StrictBool] = None
-    name: Optional[StrictStr] = None
-    status: Optional[StrictBool] = None
-    tag: Optional[StrictStr] = None
-    type: Optional[StrictStr] = None
-    updated_at: Optional[StrictStr] = None
-    user: Optional[DtoUserResponse] = Field(default=None, description="Related entities (only included when specifically requested)")
-    user_id: Optional[StrictInt] = None
+    file_name: Optional[StrictStr] = Field(default=None, description="通过 multipart/form-data 上传的文件会自动处理 这里只是为了文档说明 @Description Filename of the uploaded file")
+    size: Optional[StrictInt] = Field(default=None, description="@Description Size of the uploaded file in bytes")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["command", "created_at", "env_vars", "id", "image", "is_public", "name", "status", "tag", "type", "updated_at", "user", "user_id"]
+    __properties: ClassVar[List[str]] = ["file_name", "size"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -62,7 +50,7 @@ class DtoContainerResponse(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoContainerResponse from a JSON string"""
+        """Create an instance of DtoFileSource from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -85,9 +73,6 @@ class DtoContainerResponse(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of user
-        if self.user:
-            _dict['user'] = self.user.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -97,7 +82,7 @@ class DtoContainerResponse(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoContainerResponse from a dict"""
+        """Create an instance of DtoFileSource from a dict"""
         if obj is None:
             return None
 
@@ -105,19 +90,8 @@ class DtoContainerResponse(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "command": obj.get("command"),
-            "created_at": obj.get("created_at"),
-            "env_vars": obj.get("env_vars"),
-            "id": obj.get("id"),
-            "image": obj.get("image"),
-            "is_public": obj.get("is_public"),
-            "name": obj.get("name"),
-            "status": obj.get("status"),
-            "tag": obj.get("tag"),
-            "type": obj.get("type"),
-            "updated_at": obj.get("updated_at"),
-            "user": DtoUserResponse.from_dict(obj["user"]) if obj.get("user") is not None else None,
-            "user_id": obj.get("user_id")
+            "file_name": obj.get("file_name"),
+            "size": obj.get("size")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

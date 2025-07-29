@@ -18,31 +18,19 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_user_response import DtoUserResponse
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoContainerResponse(BaseModel):
+class DtoHarborSource(BaseModel):
     """
-    DtoContainerResponse
+    Harbor source configuration
     """ # noqa: E501
-    command: Optional[StrictStr] = None
-    created_at: Optional[StrictStr] = None
-    env_vars: Optional[StrictStr] = None
-    id: Optional[StrictInt] = None
-    image: Optional[StrictStr] = None
-    is_public: Optional[StrictBool] = None
-    name: Optional[StrictStr] = None
-    status: Optional[StrictBool] = None
-    tag: Optional[StrictStr] = None
-    type: Optional[StrictStr] = None
-    updated_at: Optional[StrictStr] = None
-    user: Optional[DtoUserResponse] = Field(default=None, description="Related entities (only included when specifically requested)")
-    user_id: Optional[StrictInt] = None
+    image: StrictStr = Field(description="@Description Harbor image name")
+    tag: Optional[StrictStr] = Field(default=None, description="@Description Image tag (optional, defaults to latest)")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["command", "created_at", "env_vars", "id", "image", "is_public", "name", "status", "tag", "type", "updated_at", "user", "user_id"]
+    __properties: ClassVar[List[str]] = ["image", "tag"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -62,7 +50,7 @@ class DtoContainerResponse(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoContainerResponse from a JSON string"""
+        """Create an instance of DtoHarborSource from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -85,9 +73,6 @@ class DtoContainerResponse(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of user
-        if self.user:
-            _dict['user'] = self.user.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -97,7 +82,7 @@ class DtoContainerResponse(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoContainerResponse from a dict"""
+        """Create an instance of DtoHarborSource from a dict"""
         if obj is None:
             return None
 
@@ -105,19 +90,8 @@ class DtoContainerResponse(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "command": obj.get("command"),
-            "created_at": obj.get("created_at"),
-            "env_vars": obj.get("env_vars"),
-            "id": obj.get("id"),
             "image": obj.get("image"),
-            "is_public": obj.get("is_public"),
-            "name": obj.get("name"),
-            "status": obj.get("status"),
-            "tag": obj.get("tag"),
-            "type": obj.get("type"),
-            "updated_at": obj.get("updated_at"),
-            "user": DtoUserResponse.from_dict(obj["user"]) if obj.get("user") is not None else None,
-            "user_id": obj.get("user_id")
+            "tag": obj.get("tag")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

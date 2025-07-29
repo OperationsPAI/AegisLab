@@ -13,7 +13,7 @@ Name | Type | Description | Notes
 **immediate** | **bool** |  | [optional] 
 **payload** | **str** |  | [optional] 
 **project** | [**DatabaseProject**](DatabaseProject.md) | 外键关联 | [optional] 
-**project_id** | **int** | 任务必须属于某个项目 | [optional] 
+**project_id** | **int** | 任务可以属于某个项目（可选） | [optional] 
 **status** | **str** | 添加多个复合索引 | [optional] 
 **trace_id** | **str** | 添加追踪ID索引 | [optional] 
 **type** | **str** | 添加复合索引 | [optional] 

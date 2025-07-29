@@ -18,31 +18,24 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_user_response import DtoUserResponse
+from rcabench.openapi.models.dto_file_source import DtoFileSource
+from rcabench.openapi.models.dto_git_hub_source import DtoGitHubSource
+from rcabench.openapi.models.dto_harbor_source import DtoHarborSource
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoContainerResponse(BaseModel):
+class DtoBuildSource(BaseModel):
     """
-    DtoContainerResponse
+    Build source configuration with different source types
     """ # noqa: E501
-    command: Optional[StrictStr] = None
-    created_at: Optional[StrictStr] = None
-    env_vars: Optional[StrictStr] = None
-    id: Optional[StrictInt] = None
-    image: Optional[StrictStr] = None
-    is_public: Optional[StrictBool] = None
-    name: Optional[StrictStr] = None
-    status: Optional[StrictBool] = None
-    tag: Optional[StrictStr] = None
-    type: Optional[StrictStr] = None
-    updated_at: Optional[StrictStr] = None
-    user: Optional[DtoUserResponse] = Field(default=None, description="Related entities (only included when specifically requested)")
-    user_id: Optional[StrictInt] = None
+    file: Optional[DtoFileSource] = Field(default=None, description="@Description File source configuration (for file uploads)")
+    github: Optional[DtoGitHubSource] = Field(default=None, description="@Description GitHub source configuration")
+    harbor: Optional[DtoHarborSource] = Field(default=None, description="@Description Harbor source configuration")
+    type: StrictStr = Field(description="@Description Build source type (file, github, or harbor)")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["command", "created_at", "env_vars", "id", "image", "is_public", "name", "status", "tag", "type", "updated_at", "user", "user_id"]
+    __properties: ClassVar[List[str]] = ["file", "github", "harbor", "type"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -62,7 +55,7 @@ class DtoContainerResponse(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoContainerResponse from a JSON string"""
+        """Create an instance of DtoBuildSource from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -85,9 +78,15 @@ class DtoContainerResponse(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of user
-        if self.user:
-            _dict['user'] = self.user.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of file
+        if self.file:
+            _dict['file'] = self.file.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of github
+        if self.github:
+            _dict['github'] = self.github.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of harbor
+        if self.harbor:
+            _dict['harbor'] = self.harbor.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -97,7 +96,7 @@ class DtoContainerResponse(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoContainerResponse from a dict"""
+        """Create an instance of DtoBuildSource from a dict"""
         if obj is None:
             return None
 
@@ -105,19 +104,10 @@ class DtoContainerResponse(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "command": obj.get("command"),
-            "created_at": obj.get("created_at"),
-            "env_vars": obj.get("env_vars"),
-            "id": obj.get("id"),
-            "image": obj.get("image"),
-            "is_public": obj.get("is_public"),
-            "name": obj.get("name"),
-            "status": obj.get("status"),
-            "tag": obj.get("tag"),
-            "type": obj.get("type"),
-            "updated_at": obj.get("updated_at"),
-            "user": DtoUserResponse.from_dict(obj["user"]) if obj.get("user") is not None else None,
-            "user_id": obj.get("user_id")
+            "file": DtoFileSource.from_dict(obj["file"]) if obj.get("file") is not None else None,
+            "github": DtoGitHubSource.from_dict(obj["github"]) if obj.get("github") is not None else None,
+            "harbor": DtoHarborSource.from_dict(obj["harbor"]) if obj.get("harbor") is not None else None,
+            "type": obj.get("type")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

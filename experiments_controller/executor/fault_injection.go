@@ -86,7 +86,7 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 				consts.LabelTaskID:      task.TaskID,
 				consts.LabelTraceID:     task.TraceID,
 				consts.LabelGroupID:     task.GroupID,
-				consts.LabelProjectID:   strconv.Itoa(task.ProjectID),
+				consts.LabelProjectID:   getProjectIDString(task.ProjectID),
 				consts.LabelBenchmark:   payload.benchmark,
 				consts.LabelPreDuration: strconv.Itoa(payload.preDuration),
 			})

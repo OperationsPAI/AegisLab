@@ -17,12 +17,13 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-from pydantic import Field, StrictBool, StrictInt, StrictStr, field_validator
-from typing import Optional
+from pydantic import Field, StrictBool, StrictBytes, StrictInt, StrictStr, field_validator
+from typing import List, Optional, Tuple, Union
 from typing_extensions import Annotated
 from rcabench.openapi.models.dto_container_search_request import DtoContainerSearchRequest
 from rcabench.openapi.models.dto_generic_response_dto_container_response import DtoGenericResponseDtoContainerResponse
 from rcabench.openapi.models.dto_generic_response_dto_search_response_dto_container_response import DtoGenericResponseDtoSearchResponseDtoContainerResponse
+from rcabench.openapi.models.dto_generic_response_dto_submit_resp import DtoGenericResponseDtoSubmitResp
 
 from rcabench.openapi.api_client import ApiClient, RequestSerialized
 from rcabench.openapi.api_response import ApiResponse
@@ -344,6 +345,7 @@ class ContainersApi:
 
         # authentication setting
         _auth_settings: List[str] = [
+            'BearerAuth'
         ]
 
         return self.api_client.param_serialize(
@@ -616,11 +618,551 @@ class ContainersApi:
 
         # authentication setting
         _auth_settings: List[str] = [
+            'BearerAuth'
         ]
 
         return self.api_client.param_serialize(
             method='GET',
             resource_path='/api/v2/containers/{id}',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def api_v2_containers_post(
+        self,
+        type: Annotated[StrictStr, Field(description="Container type")],
+        name: Annotated[StrictStr, Field(description="Container name")],
+        image: Annotated[StrictStr, Field(description="Docker image name")],
+        tag: Annotated[Optional[StrictStr], Field(description="Docker image tag")] = None,
+        command: Annotated[Optional[StrictStr], Field(description="Container startup command")] = None,
+        env_vars: Annotated[Optional[List[StrictStr]], Field(description="Environment variables (can be specified multiple times)")] = None,
+        is_public: Annotated[Optional[StrictBool], Field(description="Whether the container is public")] = None,
+        build_source_type: Annotated[Optional[StrictStr], Field(description="Build source type")] = None,
+        file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="Source code file (zip or tar.gz format, max 5MB) - required when build_source_type=file")] = None,
+        github_repository: Annotated[Optional[StrictStr], Field(description="GitHub repository (owner/repo) - required when build_source_type=github")] = None,
+        github_branch: Annotated[Optional[StrictStr], Field(description="GitHub branch name")] = None,
+        github_commit: Annotated[Optional[StrictStr], Field(description="GitHub commit hash (if specified, branch is ignored)")] = None,
+        github_path: Annotated[Optional[StrictStr], Field(description="Path within repository")] = None,
+        github_token: Annotated[Optional[StrictStr], Field(description="GitHub access token for private repositories")] = None,
+        harbor_image: Annotated[Optional[StrictStr], Field(description="Harbor image name - required when build_source_type=harbor")] = None,
+        harbor_tag: Annotated[Optional[StrictStr], Field(description="Harbor image tag - required when build_source_type=harbor")] = None,
+        context_dir: Annotated[Optional[StrictStr], Field(description="Docker build context directory")] = None,
+        dockerfile_path: Annotated[Optional[StrictStr], Field(description="Dockerfile path relative to source root")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> DtoGenericResponseDtoSubmitResp:
+        """Create container
+
+        Create a new container with build configuration. Containers are associated with the authenticated user.
+
+        :param type: Container type (required)
+        :type type: str
+        :param name: Container name (required)
+        :type name: str
+        :param image: Docker image name (required)
+        :type image: str
+        :param tag: Docker image tag
+        :type tag: str
+        :param command: Container startup command
+        :type command: str
+        :param env_vars: Environment variables (can be specified multiple times)
+        :type env_vars: List[str]
+        :param is_public: Whether the container is public
+        :type is_public: bool
+        :param build_source_type: Build source type
+        :type build_source_type: str
+        :param file: Source code file (zip or tar.gz format, max 5MB) - required when build_source_type=file
+        :type file: bytearray
+        :param github_repository: GitHub repository (owner/repo) - required when build_source_type=github
+        :type github_repository: str
+        :param github_branch: GitHub branch name
+        :type github_branch: str
+        :param github_commit: GitHub commit hash (if specified, branch is ignored)
+        :type github_commit: str
+        :param github_path: Path within repository
+        :type github_path: str
+        :param github_token: GitHub access token for private repositories
+        :type github_token: str
+        :param harbor_image: Harbor image name - required when build_source_type=harbor
+        :type harbor_image: str
+        :param harbor_tag: Harbor image tag - required when build_source_type=harbor
+        :type harbor_tag: str
+        :param context_dir: Docker build context directory
+        :type context_dir: str
+        :param dockerfile_path: Dockerfile path relative to source root
+        :type dockerfile_path: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_containers_post_serialize(
+            type=type,
+            name=name,
+            image=image,
+            tag=tag,
+            command=command,
+            env_vars=env_vars,
+            is_public=is_public,
+            build_source_type=build_source_type,
+            file=file,
+            github_repository=github_repository,
+            github_branch=github_branch,
+            github_commit=github_commit,
+            github_path=github_path,
+            github_token=github_token,
+            harbor_image=harbor_image,
+            harbor_tag=harbor_tag,
+            context_dir=context_dir,
+            dockerfile_path=dockerfile_path,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '202': "DtoGenericResponseDtoSubmitResp",
+            '400': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def api_v2_containers_post_with_http_info(
+        self,
+        type: Annotated[StrictStr, Field(description="Container type")],
+        name: Annotated[StrictStr, Field(description="Container name")],
+        image: Annotated[StrictStr, Field(description="Docker image name")],
+        tag: Annotated[Optional[StrictStr], Field(description="Docker image tag")] = None,
+        command: Annotated[Optional[StrictStr], Field(description="Container startup command")] = None,
+        env_vars: Annotated[Optional[List[StrictStr]], Field(description="Environment variables (can be specified multiple times)")] = None,
+        is_public: Annotated[Optional[StrictBool], Field(description="Whether the container is public")] = None,
+        build_source_type: Annotated[Optional[StrictStr], Field(description="Build source type")] = None,
+        file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="Source code file (zip or tar.gz format, max 5MB) - required when build_source_type=file")] = None,
+        github_repository: Annotated[Optional[StrictStr], Field(description="GitHub repository (owner/repo) - required when build_source_type=github")] = None,
+        github_branch: Annotated[Optional[StrictStr], Field(description="GitHub branch name")] = None,
+        github_commit: Annotated[Optional[StrictStr], Field(description="GitHub commit hash (if specified, branch is ignored)")] = None,
+        github_path: Annotated[Optional[StrictStr], Field(description="Path within repository")] = None,
+        github_token: Annotated[Optional[StrictStr], Field(description="GitHub access token for private repositories")] = None,
+        harbor_image: Annotated[Optional[StrictStr], Field(description="Harbor image name - required when build_source_type=harbor")] = None,
+        harbor_tag: Annotated[Optional[StrictStr], Field(description="Harbor image tag - required when build_source_type=harbor")] = None,
+        context_dir: Annotated[Optional[StrictStr], Field(description="Docker build context directory")] = None,
+        dockerfile_path: Annotated[Optional[StrictStr], Field(description="Dockerfile path relative to source root")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[DtoGenericResponseDtoSubmitResp]:
+        """Create container
+
+        Create a new container with build configuration. Containers are associated with the authenticated user.
+
+        :param type: Container type (required)
+        :type type: str
+        :param name: Container name (required)
+        :type name: str
+        :param image: Docker image name (required)
+        :type image: str
+        :param tag: Docker image tag
+        :type tag: str
+        :param command: Container startup command
+        :type command: str
+        :param env_vars: Environment variables (can be specified multiple times)
+        :type env_vars: List[str]
+        :param is_public: Whether the container is public
+        :type is_public: bool
+        :param build_source_type: Build source type
+        :type build_source_type: str
+        :param file: Source code file (zip or tar.gz format, max 5MB) - required when build_source_type=file
+        :type file: bytearray
+        :param github_repository: GitHub repository (owner/repo) - required when build_source_type=github
+        :type github_repository: str
+        :param github_branch: GitHub branch name
+        :type github_branch: str
+        :param github_commit: GitHub commit hash (if specified, branch is ignored)
+        :type github_commit: str
+        :param github_path: Path within repository
+        :type github_path: str
+        :param github_token: GitHub access token for private repositories
+        :type github_token: str
+        :param harbor_image: Harbor image name - required when build_source_type=harbor
+        :type harbor_image: str
+        :param harbor_tag: Harbor image tag - required when build_source_type=harbor
+        :type harbor_tag: str
+        :param context_dir: Docker build context directory
+        :type context_dir: str
+        :param dockerfile_path: Dockerfile path relative to source root
+        :type dockerfile_path: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_containers_post_serialize(
+            type=type,
+            name=name,
+            image=image,
+            tag=tag,
+            command=command,
+            env_vars=env_vars,
+            is_public=is_public,
+            build_source_type=build_source_type,
+            file=file,
+            github_repository=github_repository,
+            github_branch=github_branch,
+            github_commit=github_commit,
+            github_path=github_path,
+            github_token=github_token,
+            harbor_image=harbor_image,
+            harbor_tag=harbor_tag,
+            context_dir=context_dir,
+            dockerfile_path=dockerfile_path,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '202': "DtoGenericResponseDtoSubmitResp",
+            '400': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def api_v2_containers_post_without_preload_content(
+        self,
+        type: Annotated[StrictStr, Field(description="Container type")],
+        name: Annotated[StrictStr, Field(description="Container name")],
+        image: Annotated[StrictStr, Field(description="Docker image name")],
+        tag: Annotated[Optional[StrictStr], Field(description="Docker image tag")] = None,
+        command: Annotated[Optional[StrictStr], Field(description="Container startup command")] = None,
+        env_vars: Annotated[Optional[List[StrictStr]], Field(description="Environment variables (can be specified multiple times)")] = None,
+        is_public: Annotated[Optional[StrictBool], Field(description="Whether the container is public")] = None,
+        build_source_type: Annotated[Optional[StrictStr], Field(description="Build source type")] = None,
+        file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="Source code file (zip or tar.gz format, max 5MB) - required when build_source_type=file")] = None,
+        github_repository: Annotated[Optional[StrictStr], Field(description="GitHub repository (owner/repo) - required when build_source_type=github")] = None,
+        github_branch: Annotated[Optional[StrictStr], Field(description="GitHub branch name")] = None,
+        github_commit: Annotated[Optional[StrictStr], Field(description="GitHub commit hash (if specified, branch is ignored)")] = None,
+        github_path: Annotated[Optional[StrictStr], Field(description="Path within repository")] = None,
+        github_token: Annotated[Optional[StrictStr], Field(description="GitHub access token for private repositories")] = None,
+        harbor_image: Annotated[Optional[StrictStr], Field(description="Harbor image name - required when build_source_type=harbor")] = None,
+        harbor_tag: Annotated[Optional[StrictStr], Field(description="Harbor image tag - required when build_source_type=harbor")] = None,
+        context_dir: Annotated[Optional[StrictStr], Field(description="Docker build context directory")] = None,
+        dockerfile_path: Annotated[Optional[StrictStr], Field(description="Dockerfile path relative to source root")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Create container
+
+        Create a new container with build configuration. Containers are associated with the authenticated user.
+
+        :param type: Container type (required)
+        :type type: str
+        :param name: Container name (required)
+        :type name: str
+        :param image: Docker image name (required)
+        :type image: str
+        :param tag: Docker image tag
+        :type tag: str
+        :param command: Container startup command
+        :type command: str
+        :param env_vars: Environment variables (can be specified multiple times)
+        :type env_vars: List[str]
+        :param is_public: Whether the container is public
+        :type is_public: bool
+        :param build_source_type: Build source type
+        :type build_source_type: str
+        :param file: Source code file (zip or tar.gz format, max 5MB) - required when build_source_type=file
+        :type file: bytearray
+        :param github_repository: GitHub repository (owner/repo) - required when build_source_type=github
+        :type github_repository: str
+        :param github_branch: GitHub branch name
+        :type github_branch: str
+        :param github_commit: GitHub commit hash (if specified, branch is ignored)
+        :type github_commit: str
+        :param github_path: Path within repository
+        :type github_path: str
+        :param github_token: GitHub access token for private repositories
+        :type github_token: str
+        :param harbor_image: Harbor image name - required when build_source_type=harbor
+        :type harbor_image: str
+        :param harbor_tag: Harbor image tag - required when build_source_type=harbor
+        :type harbor_tag: str
+        :param context_dir: Docker build context directory
+        :type context_dir: str
+        :param dockerfile_path: Dockerfile path relative to source root
+        :type dockerfile_path: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_containers_post_serialize(
+            type=type,
+            name=name,
+            image=image,
+            tag=tag,
+            command=command,
+            env_vars=env_vars,
+            is_public=is_public,
+            build_source_type=build_source_type,
+            file=file,
+            github_repository=github_repository,
+            github_branch=github_branch,
+            github_commit=github_commit,
+            github_path=github_path,
+            github_token=github_token,
+            harbor_image=harbor_image,
+            harbor_tag=harbor_tag,
+            context_dir=context_dir,
+            dockerfile_path=dockerfile_path,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '202': "DtoGenericResponseDtoSubmitResp",
+            '400': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _api_v2_containers_post_serialize(
+        self,
+        type,
+        name,
+        image,
+        tag,
+        command,
+        env_vars,
+        is_public,
+        build_source_type,
+        file,
+        github_repository,
+        github_branch,
+        github_commit,
+        github_path,
+        github_token,
+        harbor_image,
+        harbor_tag,
+        context_dir,
+        dockerfile_path,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+            'env_vars': 'csv',
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        if type is not None:
+            _form_params.append(('type', type))
+        if name is not None:
+            _form_params.append(('name', name))
+        if image is not None:
+            _form_params.append(('image', image))
+        if tag is not None:
+            _form_params.append(('tag', tag))
+        if command is not None:
+            _form_params.append(('command', command))
+        if env_vars is not None:
+            _form_params.append(('env_vars', env_vars))
+        if is_public is not None:
+            _form_params.append(('is_public', is_public))
+        if build_source_type is not None:
+            _form_params.append(('build_source_type', build_source_type))
+        if file is not None:
+            _files['file'] = file
+        if github_repository is not None:
+            _form_params.append(('github_repository', github_repository))
+        if github_branch is not None:
+            _form_params.append(('github_branch', github_branch))
+        if github_commit is not None:
+            _form_params.append(('github_commit', github_commit))
+        if github_path is not None:
+            _form_params.append(('github_path', github_path))
+        if github_token is not None:
+            _form_params.append(('github_token', github_token))
+        if harbor_image is not None:
+            _form_params.append(('harbor_image', harbor_image))
+        if harbor_tag is not None:
+            _form_params.append(('harbor_tag', harbor_tag))
+        if context_dir is not None:
+            _form_params.append(('context_dir', context_dir))
+        if dockerfile_path is not None:
+            _form_params.append(('dockerfile_path', dockerfile_path))
+        # process the body parameter
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'multipart/form-data'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'BearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='POST',
+            resource_path='/api/v2/containers',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -885,6 +1427,7 @@ class ContainersApi:
 
         # authentication setting
         _auth_settings: List[str] = [
+            'BearerAuth'
         ]
 
         return self.api_client.param_serialize(

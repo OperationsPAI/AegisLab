@@ -24,6 +24,7 @@ Get paginated list of roles with optional filtering
 
 ### Example
 
+* Api Key Authentication (BearerAuth):
 
 ```python
 import rcabench.openapi
@@ -37,6 +38,16 @@ configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8080/api/v1"
 )
 
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: BearerAuth
+configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
 with rcabench.openapi.ApiClient(configuration) as api_client:
@@ -78,7 +89,7 @@ Name | Type | Description  | Notes
 
 ### Authorization
 
-No authorization required
+[BearerAuth](../README.md#BearerAuth)
 
 ### HTTP request headers
 
@@ -104,6 +115,7 @@ Delete a role (soft delete by setting status to -1)
 
 ### Example
 
+* Api Key Authentication (BearerAuth):
 
 ```python
 import rcabench.openapi
@@ -117,6 +129,16 @@ configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8080/api/v1"
 )
 
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: BearerAuth
+configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
 with rcabench.openapi.ApiClient(configuration) as api_client:
@@ -148,7 +170,7 @@ Name | Type | Description  | Notes
 
 ### Authorization
 
-No authorization required
+[BearerAuth](../README.md#BearerAuth)
 
 ### HTTP request headers
 
@@ -176,6 +198,7 @@ Get detailed information about a specific role
 
 ### Example
 
+* Api Key Authentication (BearerAuth):
 
 ```python
 import rcabench.openapi
@@ -189,6 +212,16 @@ configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8080/api/v1"
 )
 
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: BearerAuth
+configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
 with rcabench.openapi.ApiClient(configuration) as api_client:
@@ -220,7 +253,7 @@ Name | Type | Description  | Notes
 
 ### Authorization
 
-No authorization required
+[BearerAuth](../README.md#BearerAuth)
 
 ### HTTP request headers
 
@@ -247,6 +280,7 @@ Remove multiple permissions from a role
 
 ### Example
 
+* Api Key Authentication (BearerAuth):
 
 ```python
 import rcabench.openapi
@@ -260,6 +294,16 @@ configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8080/api/v1"
 )
 
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: BearerAuth
+configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
 with rcabench.openapi.ApiClient(configuration) as api_client:
@@ -293,7 +337,7 @@ Name | Type | Description  | Notes
 
 ### Authorization
 
-No authorization required
+[BearerAuth](../README.md#BearerAuth)
 
 ### HTTP request headers
 
@@ -320,6 +364,7 @@ Assign multiple permissions to a role
 
 ### Example
 
+* Api Key Authentication (BearerAuth):
 
 ```python
 import rcabench.openapi
@@ -333,6 +378,16 @@ configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8080/api/v1"
 )
 
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: BearerAuth
+configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
 with rcabench.openapi.ApiClient(configuration) as api_client:
@@ -366,7 +421,7 @@ Name | Type | Description  | Notes
 
 ### Authorization
 
-No authorization required
+[BearerAuth](../README.md#BearerAuth)
 
 ### HTTP request headers
 
@@ -393,6 +448,7 @@ Update role information (partial update supported)
 
 ### Example
 
+* Api Key Authentication (BearerAuth):
 
 ```python
 import rcabench.openapi
@@ -407,6 +463,16 @@ configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8080/api/v1"
 )
 
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: BearerAuth
+configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
 with rcabench.openapi.ApiClient(configuration) as api_client:
@@ -440,7 +506,7 @@ Name | Type | Description  | Notes
 
 ### Authorization
 
-No authorization required
+[BearerAuth](../README.md#BearerAuth)
 
 ### HTTP request headers
 
@@ -467,6 +533,7 @@ Get list of users assigned to a specific role
 
 ### Example
 
+* Api Key Authentication (BearerAuth):
 
 ```python
 import rcabench.openapi
@@ -480,6 +547,16 @@ configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8080/api/v1"
 )
 
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: BearerAuth
+configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
 with rcabench.openapi.ApiClient(configuration) as api_client:
@@ -511,7 +588,7 @@ Name | Type | Description  | Notes
 
 ### Authorization
 
-No authorization required
+[BearerAuth](../README.md#BearerAuth)
 
 ### HTTP request headers
 
@@ -538,6 +615,7 @@ Create a new role with specified permissions
 
 ### Example
 
+* Api Key Authentication (BearerAuth):
 
 ```python
 import rcabench.openapi
@@ -552,6 +630,16 @@ configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8080/api/v1"
 )
 
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: BearerAuth
+configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
 with rcabench.openapi.ApiClient(configuration) as api_client:
@@ -583,7 +671,7 @@ Name | Type | Description  | Notes
 
 ### Authorization
 
-No authorization required
+[BearerAuth](../README.md#BearerAuth)
 
 ### HTTP request headers
 
@@ -610,6 +698,7 @@ Search roles with complex filtering and sorting
 
 ### Example
 
+* Api Key Authentication (BearerAuth):
 
 ```python
 import rcabench.openapi
@@ -624,6 +713,16 @@ configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8080/api/v1"
 )
 
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: BearerAuth
+configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
 with rcabench.openapi.ApiClient(configuration) as api_client:
@@ -655,7 +754,7 @@ Name | Type | Description  | Notes
 
 ### Authorization
 
-No authorization required
+[BearerAuth](../README.md#BearerAuth)
 
 ### HTTP request headers
 

@@ -35,9 +35,9 @@ type UnifiedTask struct {
 	Status       string                 `json:"status"`                       // Status of the task
 	TraceID      string                 `json:"trace_id"`                     // ID for tracing related tasks
 	GroupID      string                 `json:"group_id"`                     // ID for grouping tasks
-	ProjectID    int                    `json:"project_id"`
-	TraceCarrier propagation.MapCarrier `json:"trace_carrier,omitempty"` // Carrier for trace context
-	GroupCarrier propagation.MapCarrier `json:"group_carrier,omitempty"` // Carrier for group context
+	ProjectID    *int                   `json:"project_id,omitempty"`         // ID for the project (optional)
+	TraceCarrier propagation.MapCarrier `json:"trace_carrier,omitempty"`      // Carrier for trace context
+	GroupCarrier propagation.MapCarrier `json:"group_carrier,omitempty"`      // Carrier for group context
 }
 
 // -----------------------------------------------------------------------------

@@ -181,7 +181,7 @@ type SubmitInjectionReq struct {
 	PreDuration int             `json:"pre_duration" binding:"required,min=1"`
 	Specs       []chaos.Node    `json:"specs" binding:"required"`
 	Benchmark   string          `json:"benchmark" binding:"required"`
-	Algorithms  []AlgorithmItem `json:"algorithms" bindging:"omitempty"`
+	Algorithms  []AlgorithmItem `json:"algorithms" binding:"omitempty"`
 	Labels      []LabelItem     `json:"labels" binding:"omitempty"`
 }
 

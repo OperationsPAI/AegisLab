@@ -22,6 +22,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// getProjectIDString converts a ProjectID pointer to string, handling nil case
+func getProjectIDString(projectID *int) string {
+	if projectID == nil {
+		return ""
+	}
+	return strconv.Itoa(*projectID)
+}
+
 type executionPayload struct {
 	algorithm dto.AlgorithmItem
 	dataset   string
@@ -196,7 +204,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			consts.LabelTaskID:      task.TaskID,
 			consts.LabelTraceID:     task.TraceID,
 			consts.LabelGroupID:     task.GroupID,
-			consts.LabelProjectID:   strconv.Itoa(task.ProjectID),
+			consts.LabelProjectID:   getProjectIDString(task.ProjectID),
 			consts.LabelTaskType:    string(consts.TaskTypeRunAlgorithm),
 			consts.LabelDataset:     payload.dataset,
 			consts.LabelExecutionID: strconv.Itoa(executionID),

@@ -2323,6 +2323,185 @@
                         }
                     }
                 }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new container with build configuration. Containers are associated with the authenticated user.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Containers"
+                ],
+                "summary": "Create container",
+                "parameters": [
+                    {
+                        "enum": [
+                            "algorithm",
+                            "benchmark"
+                        ],
+                        "type": "string",
+                        "default": "algorithm",
+                        "description": "Container type",
+                        "name": "type",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Container name",
+                        "name": "name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Docker image name",
+                        "name": "image",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "latest",
+                        "description": "Docker image tag",
+                        "name": "tag",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "default": "/bin/bash",
+                        "description": "Container startup command",
+                        "name": "command",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Environment variables (can be specified multiple times)",
+                        "name": "env_vars",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Whether the container is public",
+                        "name": "is_public",
+                        "in": "formData"
+                    },
+                    {
+                        "enum": [
+                            "file",
+                            "github",
+                            "harbor"
+                        ],
+                        "type": "string",
+                        "default": "file",
+                        "description": "Build source type",
+                        "name": "build_source_type",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Source code file (zip or tar.gz format, max 5MB) - required when build_source_type=file",
+                        "name": "file",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "GitHub repository (owner/repo) - required when build_source_type=github",
+                        "name": "github_repository",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "default": "main",
+                        "description": "GitHub branch name",
+                        "name": "github_branch",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "GitHub commit hash (if specified, branch is ignored)",
+                        "name": "github_commit",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "default": ".",
+                        "description": "Path within repository",
+                        "name": "github_path",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "GitHub access token for private repositories",
+                        "name": "github_token",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Harbor image name - required when build_source_type=harbor",
+                        "name": "harbor_image",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Harbor image tag - required when build_source_type=harbor",
+                        "name": "harbor_tag",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "default": ".",
+                        "description": "Docker build context directory",
+                        "name": "context_dir",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "default": "Dockerfile",
+                        "description": "Dockerfile path relative to source root",
+                        "name": "dockerfile_path",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Container creation task submitted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
             }
         },
         "/api/v2/containers/search": {
@@ -5607,7 +5786,7 @@
                     ]
                 },
                 "project_id": {
-                    "description": "任务必须属于某个项目",
+                    "description": "任务可以属于某个项目（可选）",
                     "type": "integer"
                 },
                 "status": {
@@ -6171,17 +6350,6 @@
                 "name": {
                     "type": "string"
                 },
-                "project": {
-                    "description": "Related entities (only included when specifically requested)",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.ProjectResponse"
-                        }
-                    ]
-                },
-                "project_id": {
-                    "type": "integer"
-                },
                 "status": {
                     "type": "boolean"
                 },
@@ -6193,6 +6361,17 @@
                 },
                 "updated_at": {
                     "type": "string"
+                },
+                "user": {
+                    "description": "Related entities (only included when specifically requested)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.UserResponse"
+                        }
+                    ]
+                },
+                "user_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -10507,6 +10686,7 @@
                     "type": "object"
                 },
                 "project_id": {
+                    "description": "ID for the project (optional)",
                     "type": "integer"
                 },
                 "restart_num": {
@@ -11047,6 +11227,14 @@
             "additionalProperties": {
                 "type": "string"
             }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Type \"Bearer\" followed by a space and JWT token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }

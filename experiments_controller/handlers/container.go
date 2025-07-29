@@ -207,7 +207,6 @@ func SubmitContainerBuilding(c *gin.Context) {
 		},
 		Immediate: true,
 		GroupID:   groupID,
-		ProjectID: project.ID,
 	}
 	task.SetGroupCtx(spanCtx)
 

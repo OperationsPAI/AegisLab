@@ -18,31 +18,35 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_user_response import DtoUserResponse
+from rcabench.openapi.models.dto_build_options import DtoBuildOptions
+from rcabench.openapi.models.dto_build_source import DtoBuildSource
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoContainerResponse(BaseModel):
+class DtoCreateContainerRequest(BaseModel):
     """
-    DtoContainerResponse
+    Container creation request for v2 API
     """ # noqa: E501
-    command: Optional[StrictStr] = None
-    created_at: Optional[StrictStr] = None
-    env_vars: Optional[StrictStr] = None
-    id: Optional[StrictInt] = None
-    image: Optional[StrictStr] = None
-    is_public: Optional[StrictBool] = None
-    name: Optional[StrictStr] = None
-    status: Optional[StrictBool] = None
-    tag: Optional[StrictStr] = None
-    type: Optional[StrictStr] = None
-    updated_at: Optional[StrictStr] = None
-    user: Optional[DtoUserResponse] = Field(default=None, description="Related entities (only included when specifically requested)")
-    user_id: Optional[StrictInt] = None
+    build_options: Optional[DtoBuildOptions] = Field(default=None, description="@Description Container build options")
+    build_source: Optional[DtoBuildSource] = Field(default=None, description="@Description Container build source configuration")
+    command: Optional[StrictStr] = Field(default=None, description="@Description Container startup command @example /bin/bash")
+    env_vars: Optional[List[StrictStr]] = Field(default=None, description="@Description Environment variables")
+    image: StrictStr = Field(description="@Description Docker image name @example my-image")
+    is_public: Optional[StrictBool] = Field(default=None, description="@Description Whether the container is public")
+    name: StrictStr = Field(description="@Description Container name @example my-container")
+    tag: Optional[StrictStr] = Field(default=None, description="@Description Docker image tag @example latest")
+    type: StrictStr = Field(description="@Description Container type (algorithm or benchmark) @example algorithm")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["command", "created_at", "env_vars", "id", "image", "is_public", "name", "status", "tag", "type", "updated_at", "user", "user_id"]
+    __properties: ClassVar[List[str]] = ["build_options", "build_source", "command", "env_vars", "image", "is_public", "name", "tag", "type"]
+
+    @field_validator('type')
+    def type_validate_enum(cls, value):
+        """Validates the enum"""
+        if value not in set(['algorithm', 'benchmark']):
+            raise ValueError("must be one of enum values ('algorithm', 'benchmark')")
+        return value
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -62,7 +66,7 @@ class DtoContainerResponse(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoContainerResponse from a JSON string"""
+        """Create an instance of DtoCreateContainerRequest from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -85,9 +89,12 @@ class DtoContainerResponse(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of user
-        if self.user:
-            _dict['user'] = self.user.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of build_options
+        if self.build_options:
+            _dict['build_options'] = self.build_options.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of build_source
+        if self.build_source:
+            _dict['build_source'] = self.build_source.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -97,7 +104,7 @@ class DtoContainerResponse(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoContainerResponse from a dict"""
+        """Create an instance of DtoCreateContainerRequest from a dict"""
         if obj is None:
             return None
 
@@ -105,19 +112,15 @@ class DtoContainerResponse(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "build_options": DtoBuildOptions.from_dict(obj["build_options"]) if obj.get("build_options") is not None else None,
+            "build_source": DtoBuildSource.from_dict(obj["build_source"]) if obj.get("build_source") is not None else None,
             "command": obj.get("command"),
-            "created_at": obj.get("created_at"),
             "env_vars": obj.get("env_vars"),
-            "id": obj.get("id"),
             "image": obj.get("image"),
             "is_public": obj.get("is_public"),
             "name": obj.get("name"),
-            "status": obj.get("status"),
             "tag": obj.get("tag"),
-            "type": obj.get("type"),
-            "updated_at": obj.get("updated_at"),
-            "user": DtoUserResponse.from_dict(obj["user"]) if obj.get("user") is not None else None,
-            "user_id": obj.get("user_id")
+            "type": obj.get("type")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

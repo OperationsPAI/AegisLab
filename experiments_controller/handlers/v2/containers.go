@@ -305,10 +305,27 @@ func GetContainer(c *gin.Context) {
 //	@Summary Create container
 //	@Description Create a new container with build configuration. Containers are associated with the authenticated user.
 //	@Tags Containers
-//	@Accept json
+//	@Accept multipart/form-data
 //	@Produce json
 //	@Security BearerAuth
-//	@Param request body dto.CreateContainerRequest true "Container creation request"
+//	@Param type formData string true "Container type" Enums(algorithm,benchmark) default(algorithm)
+//	@Param name formData string true "Container name"
+//	@Param image formData string true "Docker image name"
+//	@Param tag formData string false "Docker image tag" default(latest)
+//	@Param command formData string false "Container startup command" default(/bin/bash)
+//	@Param env_vars formData []string false "Environment variables (can be specified multiple times)"
+//	@Param is_public formData boolean false "Whether the container is public" default(false)
+//	@Param build_source_type formData string false "Build source type" Enums(file,github,harbor) default(file)
+//	@Param file formData file false "Source code file (zip or tar.gz format, max 5MB) - required when build_source_type=file"
+//	@Param github_repository formData string false "GitHub repository (owner/repo) - required when build_source_type=github"
+//	@Param github_branch formData string false "GitHub branch name" default(main)
+//	@Param github_commit formData string false "GitHub commit hash (if specified, branch is ignored)"
+//	@Param github_path formData string false "Path within repository" default(.)
+//	@Param github_token formData string false "GitHub access token for private repositories"
+//	@Param harbor_image formData string false "Harbor image name - required when build_source_type=harbor"
+//	@Param harbor_tag formData string false "Harbor image tag - required when build_source_type=harbor"
+//	@Param context_dir formData string false "Docker build context directory" default(.)
+//	@Param dockerfile_path formData string false "Dockerfile path relative to source root" default(Dockerfile)
 //	@Success 202 {object} dto.GenericResponse[dto.SubmitResp] "Container creation task submitted successfully"
 //	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
 //	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
@@ -335,10 +352,87 @@ func CreateContainer(c *gin.Context) {
 		return
 	}
 
-	var req dto.CreateContainerRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+	// Parse multipart form
+	err = c.Request.ParseMultipartForm(32 << 20) // 32MB max memory
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Failed to parse multipart form: "+err.Error())
 		return
+	}
+
+	// Build CreateContainerRequest from form fields
+	req := dto.CreateContainerRequest{
+		ContainerType: consts.ContainerType(c.PostForm("type")),
+		Name:          c.PostForm("name"),
+		Image:         c.PostForm("image"),
+		Tag:           c.DefaultPostForm("tag", "latest"),
+		Command:       c.DefaultPostForm("command", "/bin/bash"),
+		EnvVars:       c.PostFormArray("env_vars"),
+		IsPublic:      c.PostForm("is_public") == "true",
+	}
+
+	// Validate required fields
+	if req.ContainerType == "" {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Missing required field: type")
+		return
+	}
+	if req.Name == "" {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Missing required field: name")
+		return
+	}
+	if req.Image == "" {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Missing required field: image")
+		return
+	}
+
+	// Handle build source
+	buildSourceType := c.DefaultPostForm("build_source_type", "file")
+	if buildSourceType != "" {
+		req.BuildSource = &dto.BuildSource{
+			Type: consts.BuildSourceType(buildSourceType),
+		}
+
+		switch consts.BuildSourceType(buildSourceType) {
+		case consts.BuildSourceTypeFile:
+			req.BuildSource.File = &dto.FileSource{}
+		case consts.BuildSourceTypeGitHub:
+			repository := c.PostForm("github_repository")
+			if repository == "" && buildSourceType == "github" {
+				dto.ErrorResponse(c, http.StatusBadRequest, "github_repository is required when build_source_type is github")
+				return
+			}
+			req.BuildSource.GitHub = &dto.GitHubSource{
+				Repository: repository,
+				Branch:     c.DefaultPostForm("github_branch", "main"),
+				Commit:     c.PostForm("github_commit"),
+				Path:       c.DefaultPostForm("github_path", "."),
+				Token:      c.PostForm("github_token"),
+			}
+		case consts.BuildSourceTypeHarbor:
+			harborImage := c.PostForm("harbor_image")
+			harborTag := c.PostForm("harbor_tag")
+			if harborImage == "" && buildSourceType == "harbor" {
+				dto.ErrorResponse(c, http.StatusBadRequest, "harbor_image is required when build_source_type is harbor")
+				return
+			}
+			if harborTag == "" && buildSourceType == "harbor" {
+				dto.ErrorResponse(c, http.StatusBadRequest, "harbor_tag is required when build_source_type is harbor")
+				return
+			}
+			req.BuildSource.Harbor = &dto.HarborSource{
+				Image: harborImage,
+				Tag:   harborTag,
+			}
+		}
+	}
+
+	// Handle build options
+	contextDir := c.PostForm("context_dir")
+	dockerfilePath := c.PostForm("dockerfile_path")
+	if contextDir != "" || dockerfilePath != "" {
+		req.BuildOptions = &dto.BuildOptions{
+			ContextDir:     c.DefaultPostForm("context_dir", "."),
+			DockerfilePath: c.DefaultPostForm("dockerfile_path", "Dockerfile"),
+		}
 	}
 
 	// Validate request
@@ -360,7 +454,7 @@ func CreateContainer(c *gin.Context) {
 	// Handle different source types
 	var code int
 	var sourcePath string
-	switch req.Source.Type {
+	switch req.BuildSource.Type {
 	case consts.BuildSourceTypeFile:
 		code, sourcePath, err = processFileSourceV2(c, &req)
 		if err != nil {
@@ -386,7 +480,7 @@ func CreateContainer(c *gin.Context) {
 	}
 
 	// For non-Harbor sources, validate info content and required files
-	if req.Source.Type != consts.BuildSourceTypeHarbor {
+	if req.BuildSource.Type != consts.BuildSourceTypeHarbor {
 		if code, err := req.ValidateInfoContent(sourcePath); err != nil {
 			dto.ErrorResponse(c, code, err.Error())
 			return
@@ -407,7 +501,7 @@ func CreateContainer(c *gin.Context) {
 	spanCtx := ctx.(context.Context)
 
 	// Handle Harbor direct update
-	if req.Source.Type == consts.BuildSourceTypeHarbor {
+	if req.BuildSource.Type == consts.BuildSourceTypeHarbor {
 		taskID, traceID, err := processHarborDirectUpdateV2(spanCtx, &req, userID.(int))
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to process harbor direct update")
@@ -435,7 +529,7 @@ func CreateContainer(c *gin.Context) {
 			consts.BuildBuildOptions:  req.BuildOptions,
 		},
 		Immediate: true,
-		ProjectID: 0, // No project association for user containers
+		ProjectID: nil, // No project association for user containers
 	}
 	task.SetGroupCtx(spanCtx)
 
@@ -465,7 +559,7 @@ func processFileSourceV2(c *gin.Context, req *dto.CreateContainerRequest) (int, 
 		return http.StatusBadRequest, "", fmt.Errorf("file size exceeds %dMB limit", maxSize/(1024*1024))
 	}
 
-	req.Source.File = &dto.FileSource{
+	req.BuildSource.File = &dto.FileSource{
 		Filename: header.Filename,
 		Size:     header.Size,
 	}
@@ -522,7 +616,7 @@ func processFileSourceV2(c *gin.Context, req *dto.CreateContainerRequest) (int, 
 }
 
 func processGitHubSourceV2(req *dto.CreateContainerRequest) (int, string, error) {
-	github := req.Source.GitHub
+	github := req.BuildSource.GitHub
 
 	targetDir := filepath.Join(config.GetString("container.storage_path"), string(req.ContainerType), req.Name, fmt.Sprintf("build_%d", time.Now().Unix()))
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
@@ -585,7 +679,7 @@ func processGitHubSourceV2(req *dto.CreateContainerRequest) (int, string, error)
 }
 
 func processHarborSourceV2(req *dto.CreateContainerRequest, userID int) (int, error) {
-	harbor := req.Source.Harbor
+	harbor := req.BuildSource.Harbor
 
 	// Extract image name from full image path
 	imageName := harbor.Image
@@ -646,8 +740,8 @@ func processHarborDirectUpdateV2(ctx context.Context, req *dto.CreateContainerRe
 	container := &database.Container{
 		Type:     string(req.ContainerType),
 		Name:     req.Name,
-		Image:    req.Source.Harbor.Image,
-		Tag:      req.Source.Harbor.Tag,
+		Image:    req.BuildSource.Harbor.Image,
+		Tag:      req.BuildSource.Harbor.Tag,
 		Command:  req.Command,
 		EnvVars:  envVarsStr,
 		UserID:   userID,
