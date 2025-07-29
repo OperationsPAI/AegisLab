@@ -197,6 +197,22 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 		},
 	))
 
+	// 使用 PublishEvent 记录 job 日志
+	if len(logs) > 0 {
+		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
+			TaskID:    taskOptions.TaskID,
+			TaskType:  taskOptions.Type,
+			EventName: consts.EventJobLogsRecorded,
+			Payload: map[string]interface{}{
+				"job_name":  job.Name,
+				"namespace": job.Namespace,
+				"status":    "failed",
+				"error_msg": errMsg,
+				"logs":      logs,
+			},
+		}, repository.WithCallerLevel(4))
+	}
+
 	logEntry := logrus.WithFields(logrus.Fields{
 		"task_id":  taskOptions.TaskID,
 		"trace_id": taskOptions.TraceID,
@@ -276,12 +292,31 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 	)
 }
 
-func (e *Executor) HandleJobSucceeded(annotations map[string]string, labels map[string]string) {
+func (e *Executor) HandleJobSucceeded(job *batchv1.Job, annotations map[string]string, labels map[string]string) {
 	parsedAnnotations, _ := parseAnnotations(annotations)
 	taskOptions, _ := parseTaskOptions(labels)
 	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.TaskCarrier)
 	traceCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.TraceCarrier)
 	taskSpan := trace.SpanFromContext(taskCtx)
+
+	logs, err := k8s.GetJobPodLogs(taskCtx, job.Namespace, job.Name)
+	if err != nil {
+		logrus.WithField("job_name", job.Name).Errorf("failed to get job logs: %v", err)
+	}
+
+	if len(logs) > 0 {
+		repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
+			TaskID:    taskOptions.TaskID,
+			TaskType:  taskOptions.Type,
+			EventName: consts.EventJobLogsRecorded,
+			Payload: map[string]interface{}{
+				"job_name":  job.Name,
+				"namespace": job.Namespace,
+				"status":    "succeeded",
+				"logs":      logs,
+			},
+		}, repository.WithCallerLevel(4))
+	}
 
 	logEntry := logrus.WithFields(logrus.Fields{
 		"task_id":  taskOptions.TaskID,

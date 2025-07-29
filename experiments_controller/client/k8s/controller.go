@@ -48,7 +48,7 @@ type Callback interface {
 	HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, annotations map[string]string, labels map[string]string)
 	HandleJobAdd(annotations map[string]string, labels map[string]string)
 	HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string, errMsg string)
-	HandleJobSucceeded(annotations map[string]string, labels map[string]string)
+	HandleJobSucceeded(job *batchv1.Job, annotations map[string]string, labels map[string]string)
 }
 
 type QueueItem struct {
@@ -294,7 +294,7 @@ func (c *Controller) genJobEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 				}
 
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {
-					c.callback.HandleJobSucceeded(newJob.Annotations, newJob.Labels)
+					c.callback.HandleJobSucceeded(newJob, newJob.Annotations, newJob.Labels)
 					if !config.GetBool("debugging.enable") {
 						c.queue.Add(QueueItem{
 							Type:      DeleteJob,
