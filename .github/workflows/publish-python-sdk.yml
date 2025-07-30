@@ -55,11 +55,12 @@ jobs:
       - name: Generate Swagger documentation
         run: |
           echo "📝 Generating Swagger documentation..."
+          cd src
           go mod tidy
-          swag init -d ./src --parseDependency --parseDepth 1 --output ./src/docs
+          swag init --parseDependency --parseDepth 1 --output ./docs
           
           # Verify generated files
-          if [ ! -f src/docs/swagger.json ]; then
+          if [ ! -f docs/swagger.json ]; then
             echo "❌ Failed to generate Swagger documentation"
             exit 1
           fi
