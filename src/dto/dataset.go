@@ -157,17 +157,16 @@ var DatasetStatusReverseMap = map[string]int{
 
 // DatasetV2CreateReq Create dataset request
 type DatasetV2CreateReq struct {
-	Name         string                    `json:"name" binding:"required,max=255"`     // Dataset name
-	Version      string                    `json:"version" binding:"max=50"`            // Dataset version, optional, defaults to v1.0
-	Description  string                    `json:"description" binding:"max=1000"`      // Dataset description
-	Type         string                    `json:"type" binding:"required,max=50"`      // Dataset type
-	DataSource   string                    `json:"data_source" binding:"max=500"`       // Data source description
-	Format       string                    `json:"format" binding:"max=50"`             // Data format
-	ProjectID    int                       `json:"project_id" binding:"required,min=1"` // Project ID
-	IsPublic     *bool                     `json:"is_public"`                           // Whether public, optional, defaults to false
-	InjectionIDs []int                     `json:"injection_ids"`                       // Associated fault injection ID list
-	LabelIDs     []int                     `json:"label_ids"`                           // Associated label ID list
-	NewLabels    []DatasetV2LabelCreateReq `json:"new_labels"`                          // New label list
+	Name         string                    `json:"name" binding:"required,max=255"` // Dataset name
+	Version      string                    `json:"version" binding:"max=50"`        // Dataset version, optional, defaults to v1.0
+	Description  string                    `json:"description" binding:"max=1000"`  // Dataset description
+	Type         string                    `json:"type" binding:"required,max=50"`  // Dataset type
+	DataSource   string                    `json:"data_source" binding:"max=500"`   // Data source description
+	Format       string                    `json:"format" binding:"max=50"`         // Data format
+	IsPublic     *bool                     `json:"is_public"`                       // Whether public, optional, defaults to false
+	InjectionIDs []int                     `json:"injection_ids"`                   // Associated fault injection ID list
+	LabelIDs     []int                     `json:"label_ids"`                       // Associated label ID list
+	NewLabels    []DatasetV2LabelCreateReq `json:"new_labels"`                      // New label list
 }
 
 // DatasetV2LabelCreateReq Create label request
@@ -299,18 +298,12 @@ func ToDatasetV2Response(dataset *database.Dataset, includeRelations bool) *Data
 		FileCount:   dataset.FileCount,
 		DataSource:  dataset.DataSource,
 		Format:      dataset.Format,
-		ProjectID:   dataset.ProjectID,
 		Status:      dataset.Status,
 		IsPublic:    dataset.IsPublic,
 		DownloadURL: dataset.DownloadURL,
 		Checksum:    dataset.Checksum,
 		CreatedAt:   dataset.CreatedAt,
 		UpdatedAt:   dataset.UpdatedAt,
-	}
-
-	// Include project info
-	if dataset.Project != nil {
-		resp.Project = dataset.Project
 	}
 
 	return resp

@@ -83,7 +83,6 @@ func CreateDataset(c *gin.Context) {
 		Type:        req.Type,
 		DataSource:  req.DataSource,
 		Format:      req.Format,
-		ProjectID:   req.ProjectID,
 		Status:      1, // Active
 		IsPublic:    req.IsPublic != nil && *req.IsPublic,
 	}
