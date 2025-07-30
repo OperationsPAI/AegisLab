@@ -83,20 +83,17 @@ jobs:
 
       - name: Setup SDK configuration
         run: |
-          cd sdk/python
-          
-          # Update version number
-          sed -i 's/version = "[^"]*"/version = "${{ steps.version.outputs.version }}"/' pyproject.toml
-          
-          # Verify version update
-          echo "Updated version information:"
-          grep "version = " pyproject.toml
-          
-          # Run post-processing scripts
-          cd ../..
+
           ./scripts/fix-generated-sdk.sh
           ./scripts/mv-generated-sdk.sh
+
+          cd sdk/python
+        
+          sed -i 's/version = "[^"]*"/version = "${{ steps.version.outputs.version }}"/' pyproject.toml
           
+          echo "Updated version information:"
+          grep "version = " pyproject.toml
+        
           echo "✅ Python SDK post-processing completed"
 
       - name: Build and publish
