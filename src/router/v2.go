@@ -297,6 +297,16 @@ func SetupV2Routes(router *gin.Engine) {
 
 		// POST /api/v2/algorithms/search - Advanced search for algorithms (containers with type=algorithm) - permission checked in handler
 		algorithms.POST("/search", v2handlers.SearchAlgorithms)
+
+		// Algorithm result upload operations - permission checked in handler
+		// POST /api/v2/algorithms/{algorithm_id}/executions/{execution_id}/detectors - Upload detector results
+		algorithms.POST("/:algorithm_id/executions/:execution_id/detectors", v2handlers.UploadDetectorResults)
+
+		// POST /api/v2/algorithms/{algorithm_id}/results - Upload granularity results (supports auto-execution creation)
+		algorithms.POST("/:algorithm_id/results", v2handlers.UploadGranularityResults)
+
+		// POST /api/v2/algorithms/{algorithm_id}/executions/{execution_id}/results - Upload granularity results to existing execution
+		algorithms.POST("/:algorithm_id/executions/:execution_id/results", v2handlers.UploadGranularityResults)
 	}
 
 	// 其他业务实体 API 组

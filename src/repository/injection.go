@@ -295,14 +295,14 @@ func ListInjections(params *dto.ListInjectionsReq) (int64, []database.FaultInjec
 		sortField = fmt.Sprintf("%s %s", params.SortField, params.SortOrder)
 	}
 
-	genericQueryParams := &genericQueryParams{
-		builder:   builder,
-		sortField: sortField,
-		limit:     params.Limit,
-		pageNum:   params.PageNum,
-		pageSize:  params.PageSize,
+	genericQueryParams := &GenericQueryParams{
+		Builder:   builder,
+		SortField: sortField,
+		Limit:     params.Limit,
+		PageNum:   params.PageNum,
+		PageSize:  params.PageSize,
 	}
-	return genericQueryWithBuilder[database.FaultInjectionProject](genericQueryParams)
+	return GenericQueryWithBuilder[database.FaultInjectionProject](genericQueryParams)
 }
 
 func UpdateStatusByDataset(name string, status int) error {
@@ -359,35 +359,7 @@ func GetAllFaultInjectionNoIssues(params *dto.FaultInjectionNoIssuesReq) (int64,
 	builder := func(db *gorm.DB) *gorm.DB {
 		query := db
 
-		if params.Env != "" {
-			query = query.Where("labels ->> 'env' = ?", params.Env)
-		}
-
-		if params.Batch != "" {
-			query = query.Where("labels ->> 'batch' = ?", params.Batch)
-		}
-
-		query = opts.AddTimeFilter(query, "created_at")
-		return query
-	}
-
-	genericQueryParams := &genericQueryParams{
-		builder:       builder,
-		sortField:     "dataset_id desc",
-		selectColumns: []string{},
-	}
-	return genericQueryWithBuilder[database.FaultInjectionNoIssues](genericQueryParams)
-}
-
-func GetAllFaultInjectionWithIssues(params *dto.FaultInjectionWithIssuesReq) (int64, []database.FaultInjectionWithIssues, error) {
-	opts, err := params.TimeRangeQuery.Convert()
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to convert time range query: %v", err)
-	}
-
-	builder := func(db *gorm.DB) *gorm.DB {
-		query := db
-
+		// 直接使用视图中的字段进行查询
 		if params.Env != "" {
 			query = query.Where("env = ?", params.Env)
 		}
@@ -400,12 +372,42 @@ func GetAllFaultInjectionWithIssues(params *dto.FaultInjectionWithIssuesReq) (in
 		return query
 	}
 
-	genericQueryParams := &genericQueryParams{
-		builder:       builder,
-		sortField:     "dataset_id desc",
-		selectColumns: []string{},
+	genericQueryParams := &GenericQueryParams{
+		Builder:       builder,
+		SortField:     "dataset_id desc",
+		SelectColumns: []string{},
 	}
-	return genericQueryWithBuilder[database.FaultInjectionWithIssues](genericQueryParams)
+	return GenericQueryWithBuilder[database.FaultInjectionNoIssues](genericQueryParams)
+}
+
+func GetAllFaultInjectionWithIssues(params *dto.FaultInjectionWithIssuesReq) (int64, []database.FaultInjectionWithIssues, error) {
+	opts, err := params.TimeRangeQuery.Convert()
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to convert time range query: %v", err)
+	}
+
+	builder := func(db *gorm.DB) *gorm.DB {
+		query := db
+
+		// 直接使用视图中的字段进行查询
+		if params.Env != "" {
+			query = query.Where("env = ?", params.Env)
+		}
+
+		if params.Batch != "" {
+			query = query.Where("batch = ?", params.Batch)
+		}
+
+		query = opts.AddTimeFilter(query, "created_at")
+		return query
+	}
+
+	genericQueryParams := &GenericQueryParams{
+		Builder:       builder,
+		SortField:     "dataset_id desc",
+		SelectColumns: []string{},
+	}
+	return GenericQueryWithBuilder[database.FaultInjectionWithIssues](genericQueryParams)
 }
 
 func GetFLByDatasetName(datasetName string) (*database.FaultInjectionSchedule, error) {
