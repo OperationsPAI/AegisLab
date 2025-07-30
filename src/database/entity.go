@@ -123,7 +123,7 @@ type Detector struct {
 	Execution *ExecutionResult `gorm:"foreignKey:ExecutionID" json:"execution,omitempty"`
 }
 
-// Dataset table
+// Dataset table, is design to store multiple versions of a dataset(a series of datapack). Only admin can create a dataset, so there is no user id foreign key.
 type Dataset struct {
 	ID          int    `gorm:"primaryKey;autoIncrement" json:"id"`                                           // Unique identifier
 	Name        string `gorm:"not null;index:idx_dataset_name_version,unique" json:"name"`                   // Dataset name
@@ -133,7 +133,6 @@ type Dataset struct {
 	FileCount   int    `gorm:"default:0" json:"file_count"`                                                  // File count
 	DataSource  string `gorm:"type:text" json:"data_source"`                                                 // Data source description
 	Format      string `gorm:"default:'json'" json:"format"`                                                 // Data format (json, csv, parquet, etc.)
-	ProjectID   int    `gorm:"not null;index:idx_dataset_project" json:"project_id"`                         // Dataset must belong to a project
 
 	Status      int       `gorm:"default:1;index" json:"status"`                               // 0:disabled 1:enabled -1:deleted
 	IsPublic    bool      `gorm:"default:false;index:idx_dataset_visibility" json:"is_public"` // Whether public
@@ -141,9 +140,6 @@ type Dataset struct {
 	Checksum    string    `gorm:"type:varchar(64)" json:"checksum,omitempty"`                  // File checksum
 	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`                            // Creation time
 	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`                            // Update time
-
-	// Foreign key association
-	Project *Project `gorm:"foreignKey:ProjectID" json:"project,omitempty"`
 }
 
 // Label table - Unified label management
