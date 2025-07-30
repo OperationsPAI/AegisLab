@@ -3547,6 +3547,37 @@ definitions:
         - $ref: '#/definitions/consts.TaskType'
         description: Task type (determines how it's processed)
     type: object
+  dto.UpdateContainerRequest:
+    description: Request structure for updating container information
+    properties:
+      command:
+        description: '@Description Container startup command (optional)'
+        type: string
+      env_vars:
+        description: '@Description Environment variables (optional)'
+        type: string
+      image:
+        description: '@Description Docker image name (optional)'
+        type: string
+      is_public:
+        description: '@Description Whether the container is public (optional)'
+        type: boolean
+      name:
+        description: '@Description Container name (optional)'
+        type: string
+      status:
+        description: '@Description Container status (optional)'
+        type: boolean
+      tag:
+        description: '@Description Docker image tag (optional)'
+        type: string
+      type:
+        description: '@Description Container type (optional)'
+        enum:
+        - algorithm
+        - benchmark
+        type: string
+    type: object
   dto.UpdatePermissionRequest:
     properties:
       action:
@@ -5573,6 +5604,42 @@ paths:
       tags:
       - Containers
   /api/v2/containers/{id}:
+    delete:
+      description: Delete a container (soft delete by setting status to false)
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Container deleted successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid container ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Container not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Delete container
+      tags:
+      - Containers
     get:
       description: Get detailed information about a specific container
       parameters:
@@ -5607,6 +5674,50 @@ paths:
       security:
       - BearerAuth: []
       summary: Get container by ID
+      tags:
+      - Containers
+    put:
+      consumes:
+      - application/json
+      description: Update an existing container's information
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Container update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateContainerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Container updated successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_ContainerResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Container not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Update container
       tags:
       - Containers
   /api/v2/containers/search:

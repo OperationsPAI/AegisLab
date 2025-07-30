@@ -224,6 +224,7 @@ __all__ = [
     "DtoTrace",
     "DtoTraceStats",
     "DtoUnifiedTask",
+    "DtoUpdateContainerRequest",
     "DtoUpdatePermissionRequest",
     "DtoUpdateRoleRequest",
     "DtoUpdateUserRequest",
@@ -449,6 +450,7 @@ from rcabench.openapi.models.dto_token_refresh_response import DtoTokenRefreshRe
 from rcabench.openapi.models.dto_trace import DtoTrace as DtoTrace
 from rcabench.openapi.models.dto_trace_stats import DtoTraceStats as DtoTraceStats
 from rcabench.openapi.models.dto_unified_task import DtoUnifiedTask as DtoUnifiedTask
+from rcabench.openapi.models.dto_update_container_request import DtoUpdateContainerRequest as DtoUpdateContainerRequest
 from rcabench.openapi.models.dto_update_permission_request import DtoUpdatePermissionRequest as DtoUpdatePermissionRequest
 from rcabench.openapi.models.dto_update_role_request import DtoUpdateRoleRequest as DtoUpdateRoleRequest
 from rcabench.openapi.models.dto_update_user_request import DtoUpdateUserRequest as DtoUpdateUserRequest

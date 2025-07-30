@@ -2622,6 +2622,130 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing container's information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Containers"
+                ],
+                "summary": "Update container",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Container ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Container update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateContainerRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Container updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Container not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete a container (soft delete by setting status to false)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Containers"
+                ],
+                "summary": "Delete container",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Container ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Container deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid container ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Container not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
             }
         },
         "/api/v2/datasets": {
@@ -10735,6 +10859,48 @@ const docTemplate = `{
                         {
                             "$ref": "#/definitions/consts.TaskType"
                         }
+                    ]
+                }
+            }
+        },
+        "dto.UpdateContainerRequest": {
+            "description": "Request structure for updating container information",
+            "type": "object",
+            "properties": {
+                "command": {
+                    "description": "@Description Container startup command (optional)",
+                    "type": "string"
+                },
+                "env_vars": {
+                    "description": "@Description Environment variables (optional)",
+                    "type": "string"
+                },
+                "image": {
+                    "description": "@Description Docker image name (optional)",
+                    "type": "string"
+                },
+                "is_public": {
+                    "description": "@Description Whether the container is public (optional)",
+                    "type": "boolean"
+                },
+                "name": {
+                    "description": "@Description Container name (optional)",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "@Description Container status (optional)",
+                    "type": "boolean"
+                },
+                "tag": {
+                    "description": "@Description Docker image tag (optional)",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "@Description Container type (optional)",
+                    "type": "string",
+                    "enum": [
+                        "algorithm",
+                        "benchmark"
                     ]
                 }
             }

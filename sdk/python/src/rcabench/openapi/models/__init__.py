@@ -192,6 +192,7 @@ from rcabench.openapi.models.dto_token_refresh_response import DtoTokenRefreshRe
 from rcabench.openapi.models.dto_trace import DtoTrace
 from rcabench.openapi.models.dto_trace_stats import DtoTraceStats
 from rcabench.openapi.models.dto_unified_task import DtoUnifiedTask
+from rcabench.openapi.models.dto_update_container_request import DtoUpdateContainerRequest
 from rcabench.openapi.models.dto_update_permission_request import DtoUpdatePermissionRequest
 from rcabench.openapi.models.dto_update_role_request import DtoUpdateRoleRequest
 from rcabench.openapi.models.dto_update_user_request import DtoUpdateUserRequest
