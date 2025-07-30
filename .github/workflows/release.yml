@@ -12,7 +12,7 @@ on:
         type: string
 
 env:
-  CONTROLLER_DIR: experiments_controller
+  CONTROLLER_DIR: src
   SDK_DIR: sdk/python-gen
 
 jobs:

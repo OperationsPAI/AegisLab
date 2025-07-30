@@ -7,11 +7,19 @@
     "golangci-lint@latest"
   ],
   "shell": {
-    "init_hook": ["echo 'Welcome to devbox!'"],
+    "init_hook": [
+      "echo 'Welcome to devbox!'"
+    ],
     "scripts": {
-      "lint-go": ["cd experiments_controller && golangci-lint run"],
-      "lint-py": ["ruff check --fix --show-fixes --exclude algorithms"],
-      "build":  ["skaffold build --default-repo=10.10.10.240/library"]
+      "lint-go": [
+        "cd src && golangci-lint run"
+      ],
+      "lint-py": [
+        "ruff check --fix --show-fixes --exclude algorithms"
+      ],
+      "build": [
+        "skaffold build --default-repo=10.10.10.240/library"
+      ]
     }
   }
 }
