@@ -184,7 +184,7 @@ func (qb *SearchQueryBuilder) getSearchableFields(modelType interface{}) []strin
 		"Project":    {"name", "description"},
 		"Task":       {"name", "description"},
 		"Dataset":    {"name", "description"},
-		"Container":  {"name", "description"},
+		"Container":  {"name"},
 	}
 
 	typeName := qb.getTypeName(modelType)
@@ -256,22 +256,22 @@ func BuildSearchResponse[T any](items []T, totalCount int64, searchReq *dto.Sear
 // ExecuteSearch executes a complete search operation
 func ExecuteSearch[T any](db *gorm.DB, searchReq *dto.SearchRequest, modelType T) (dto.SearchResponse[T], error) {
 	qb := NewSearchQueryBuilder(db)
-	
+
 	// Apply search conditions
 	qb.ApplySearchRequest(searchReq, modelType)
-	
+
 	// Get total count
 	totalCount, err := qb.GetCount()
 	if err != nil {
 		return dto.SearchResponse[T]{}, fmt.Errorf("failed to get count: %w", err)
 	}
-	
+
 	// Apply pagination and execute query
 	var items []T
 	err = qb.ApplyPagination(searchReq).Find(&items).Error
 	if err != nil {
 		return dto.SearchResponse[T]{}, fmt.Errorf("failed to execute search: %w", err)
 	}
-	
+
 	return BuildSearchResponse(items, totalCount, searchReq), nil
 }
