@@ -15,7 +15,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/consts"
 )
 
-// 单例模式的 Harbor 客户端
+// Singleton pattern Harbor client
 var (
 	harborClient *HarborClient
 	harborOnce   sync.Once
@@ -36,18 +36,18 @@ func GetHarborClient() *HarborClient {
 		username := config.GetString("harbor.username")
 		password := config.GetString("harbor.password")
 
-		// 构建完整的 Harbor URL
+		// Build complete Harbor URL
 		harborURL := fmt.Sprintf("http://%s", host)
 
 		clientSet, err := harbor.NewClientSet(&harbor.ClientSetConfig{
 			URL:      harborURL,
 			Username: username,
 			Password: password,
-			Insecure: true, // 根据需要调整
+			Insecure: true, // Adjust as needed
 		})
 		if err != nil {
-			// 如果客户端创建失败，记录错误但继续使用 nil 客户端
-			// 在实际方法中会返回错误
+			// If client creation fails, log error but continue using nil client
+			// Will return error in actual methods
 			harborClient = &HarborClient{
 				host:      host,
 				project:   project,

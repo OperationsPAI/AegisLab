@@ -25,7 +25,7 @@ type JobConfig struct {
 	Parallelism    int32
 	Completions    int32
 	Annotations    map[string]string
-	Labels         map[string]string // 用于自定义标签
+	Labels         map[string]string // For custom labels
 	EnvVars        []corev1.EnvVar
 	InitContainers []corev1.Container
 }
@@ -152,7 +152,7 @@ func deleteJob(ctx context.Context, namespace, name string) error {
 
 	logEntry := logrus.WithField("namespace", namespace).WithField("name", name)
 
-	// 1. 先检查 Job 是否存在及状态
+	// 1. First check if Job exists and its status
 	job, err := k8sClient.BatchV1().Jobs(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -161,13 +161,13 @@ func deleteJob(ctx context.Context, namespace, name string) error {
 		return fmt.Errorf("failed to get Job: %v", err)
 	}
 
-	// 2. 检查是否已在删除中
+	// 2. Check if already being deleted
 	if !job.GetDeletionTimestamp().IsZero() {
 		logEntry.Info("job is already being deleted")
 		return nil
 	}
 
-	// 3. 执行删除（幂等操作）
+	// 3. Execute deletion (idempotent operation)
 	err = k8sClient.BatchV1().Jobs(namespace).Delete(ctx, name, deleteOptions)
 	if err != nil {
 		if errors.IsNotFound(err) {

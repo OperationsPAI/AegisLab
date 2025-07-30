@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// CreateLabel 创建标签
+// CreateLabel creates a label
 func CreateLabel(label *database.Label) error {
 	if err := database.DB.Create(label).Error; err != nil {
 		return fmt.Errorf("failed to create label: %v", err)
@@ -16,7 +16,7 @@ func CreateLabel(label *database.Label) error {
 	return nil
 }
 
-// GetLabelByID 根据ID获取标签
+// GetLabelByID gets label by ID
 func GetLabelByID(id int) (*database.Label, error) {
 	var label database.Label
 	if err := database.DB.First(&label, id).Error; err != nil {
@@ -28,7 +28,7 @@ func GetLabelByID(id int) (*database.Label, error) {
 	return &label, nil
 }
 
-// GetLabelByKeyValue 根据键值对获取标签
+// GetLabelByKeyValue gets label by key-value pair
 func GetLabelByKeyValue(key, value string) (*database.Label, error) {
 	var label database.Label
 	if err := database.DB.Where("key = ? AND value = ?", key, value).First(&label).Error; err != nil {
@@ -40,14 +40,14 @@ func GetLabelByKeyValue(key, value string) (*database.Label, error) {
 	return &label, nil
 }
 
-// GetOrCreateLabel 获取或创建标签
+// GetOrCreateLabel gets or creates label
 func GetOrCreateLabel(key, value, category string) (*database.Label, error) {
 	var label database.Label
 
-	// 先尝试获取
+	     // First try to get
 	if err := database.DB.Where("key = ? AND value = ?", key, value).First(&label).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// 不存在则创建
+			                     // Create if not exists
 			label = database.Label{
 				Key:      key,
 				Value:    value,
@@ -64,7 +64,7 @@ func GetOrCreateLabel(key, value, category string) (*database.Label, error) {
 	return &label, nil
 }
 
-// UpdateLabel 更新标签信息
+// UpdateLabel updates label information
 func UpdateLabel(label *database.Label) error {
 	if err := database.DB.Save(label).Error; err != nil {
 		return fmt.Errorf("failed to update label: %v", err)
@@ -72,10 +72,10 @@ func UpdateLabel(label *database.Label) error {
 	return nil
 }
 
-// DeleteLabel 删除标签（硬删除，因为标签被删除后关联关系也应该被清理）
+// DeleteLabel deletes label (hard delete, because relationships should also be cleaned up when label is deleted)
 func DeleteLabel(id int) error {
 	return database.DB.Transaction(func(tx *gorm.DB) error {
-		// 先删除所有关联关系
+		// Delete all related relationships first
 		if err := tx.Where("label_id = ?", id).Delete(&database.DatasetLabel{}).Error; err != nil {
 			return fmt.Errorf("failed to delete dataset label relations: %v", err)
 		}
@@ -92,7 +92,7 @@ func DeleteLabel(id int) error {
 			return fmt.Errorf("failed to delete project label relations: %v", err)
 		}
 
-		// 最后删除标签本身
+		// Finally delete the label itself
 		if err := tx.Delete(&database.Label{}, id).Error; err != nil {
 			return fmt.Errorf("failed to delete label: %v", err)
 		}
@@ -101,7 +101,7 @@ func DeleteLabel(id int) error {
 	})
 }
 
-// ListLabels 获取标签列表
+// ListLabels gets the label list
 func ListLabels(page, pageSize int, category string, isSystem *bool) ([]database.Label, int64, error) {
 	var labels []database.Label
 	var total int64
@@ -116,12 +116,12 @@ func ListLabels(page, pageSize int, category string, isSystem *bool) ([]database
 		query = query.Where("is_system = ?", *isSystem)
 	}
 
-	// 获取总数
+	// Get total count
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to count labels: %v", err)
 	}
 
-	// 分页查询
+	// Pagination query
 	offset := (page - 1) * pageSize
 	if err := query.Offset(offset).Limit(pageSize).Order("usage DESC, created_at DESC").Find(&labels).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to list labels: %v", err)
@@ -130,7 +130,7 @@ func ListLabels(page, pageSize int, category string, isSystem *bool) ([]database
 	return labels, total, nil
 }
 
-// SearchLabels 搜索标签
+// SearchLabels searches for labels
 func SearchLabels(keyword string, category string, limit int) ([]database.Label, error) {
 	var labels []database.Label
 
@@ -156,7 +156,7 @@ func SearchLabels(keyword string, category string, limit int) ([]database.Label,
 	return labels, nil
 }
 
-// GetPopularLabels 获取热门标签
+// GetPopularLabels gets popular labels
 func GetPopularLabels(category string, limit int) ([]database.Label, error) {
 	var labels []database.Label
 
@@ -177,7 +177,7 @@ func GetPopularLabels(category string, limit int) ([]database.Label, error) {
 	return labels, nil
 }
 
-// GetUnusedLabels 获取未使用的标签
+// GetUnusedLabels gets unused labels
 func GetUnusedLabels(category string) ([]database.Label, error) {
 	var labels []database.Label
 
@@ -194,19 +194,19 @@ func GetUnusedLabels(category string) ([]database.Label, error) {
 	return labels, nil
 }
 
-// CleanupUnusedLabels 清理未使用的标签
+// CleanupUnusedLabels cleans up unused labels
 func CleanupUnusedLabels(olderThanDays int) (int64, error) {
 	var count int64
 
 	query := database.DB.Model(&database.Label{}).
 		Where("usage = 0 AND is_system = false AND created_at < NOW() - INTERVAL ? DAY", olderThanDays)
 
-	// 先获取要删除的数量
+	// First get the count to be deleted
 	if err := query.Count(&count).Error; err != nil {
 		return 0, fmt.Errorf("failed to count unused labels: %v", err)
 	}
 
-	// 执行删除
+	// Execute deletion
 	if err := query.Delete(&database.Label{}).Error; err != nil {
 		return 0, fmt.Errorf("failed to cleanup unused labels: %v", err)
 	}
@@ -214,7 +214,7 @@ func CleanupUnusedLabels(olderThanDays int) (int64, error) {
 	return count, nil
 }
 
-// GetLabelsByCategory 根据分类获取标签
+// GetLabelsByCategory gets labels by category
 func GetLabelsByCategory(category string) ([]database.Label, error) {
 	var labels []database.Label
 	if err := database.DB.Where("category = ?", category).
@@ -224,7 +224,7 @@ func GetLabelsByCategory(category string) ([]database.Label, error) {
 	return labels, nil
 }
 
-// GetSystemLabels 获取系统标签
+// GetSystemLabels gets system labels
 func GetSystemLabels() ([]database.Label, error) {
 	var labels []database.Label
 	if err := database.DB.Where("is_system = true").

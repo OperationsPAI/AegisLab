@@ -42,8 +42,8 @@ type GetCompletedMapReq struct {
 }
 
 type GetCompletedMapResp struct {
-	AnomalyTraces   []string `json:"has_anomaly"` // 检测到异常的链路ID列表
-	NoAnomalyTraces []string `json:"no_anomaly"`  // 没有异常的链路ID列表
+	AnomalyTraces   []string `json:"has_anomaly"` // List of trace IDs with detected anomalies
+	NoAnomalyTraces []string `json:"no_anomaly"`  // List of trace IDs without anomalies
 }
 
 func (req *GetCompletedMapReq) Validate() error {

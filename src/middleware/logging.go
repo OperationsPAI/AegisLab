@@ -6,8 +6,8 @@ import (
 
 func Logging() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 在请求之前做些事情（记录日志等）
-		c.Next() // 处理请求的其余部分
-		// 在请求之后做些事情（记录响应等）
+		// Do something before the request (log, etc.)
+		c.Next() // Process the rest of the request
+		// Do something after the request (log response, etc.)
 	}
 }

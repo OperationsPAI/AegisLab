@@ -22,7 +22,7 @@ type TraceStatistic struct {
 	DetectAnomaly      bool
 
 	CurrentTaskType consts.TaskType
-	LastEndEvent    consts.EventType // 添加最后一个结束事件类型
+	     LastEndEvent    consts.EventType // Add last end event type
 
 	TotalDuration float64
 	StatusTimeMap map[consts.TaskType]float64
@@ -100,7 +100,7 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 			taskStartTime = eventTime
 			stat.CurrentTaskType = event.TaskType
 
-		// 重启服务相关事件
+		            // Restart service related events
 		case consts.EventNoNamespaceAvailable:
 			restartWaitTimes++
 		case consts.EventRestartServiceStarted:
@@ -113,7 +113,7 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 			stat.IntermediateFailed = true
 			endTime = eventTime
 
-		// 故障注入相关事件
+		            // Fault injection related events
 		case consts.EventFaultInjectionStarted:
 			stageStartTime = eventTime
 		case consts.EventFaultInjectionCompleted:
@@ -128,15 +128,15 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 			stat.LastEndEvent = consts.EventFaultInjectionFailed
 			endTime = eventTime
 
-		// 数据集构建相关事件
+		            // Dataset building related events
 		case consts.EventDatasetBuildSucceed:
 			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(taskStartTime).Seconds()
 
-		// 算法运行相关事件
+		            // Algorithm execution related events
 		case consts.EventAlgoRunSucceed:
 			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(taskStartTime).Seconds()
 
-		// 结果收集相关事件
+		            // Result collection related events
 		case consts.EventDatasetNoAnomaly:
 			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(taskStartTime).Seconds()
 			stat.Finished = true

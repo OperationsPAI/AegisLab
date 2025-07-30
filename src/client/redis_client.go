@@ -9,13 +9,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// 单例模式的 Redis 客户端
+// Singleton pattern Redis client
 var (
 	redisClient *redis.Client
 	redisOnce   sync.Once
 )
 
-// 获取 Redis 客户端
+// Get Redis client
 func GetRedisClient() *redis.Client {
 	redisOnce.Do(func() {
 		logrus.Infof("Connecting to Redis %s", config.GetString("redis.host"))

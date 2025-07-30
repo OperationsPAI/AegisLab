@@ -213,7 +213,7 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 						return
 					}
 
-					// 会花费 duration 的时间去尝试注入
+					// Will spend duration time to try injection
 					allInjected := getCRDConditionStatus(conditions, "AllInjected")
 					if !allInjected {
 						c.handleCRDFailed(gvr, newU, "failed to inject all targets in the chaos experiment")
@@ -224,7 +224,7 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 				oldConditions, _, _ := unstructured.NestedSlice(oldU.Object, "status", "conditions")
 				newConditions, _, _ := unstructured.NestedSlice(newU.Object, "status", "conditions")
 
-				// 判断是否注入
+				// Check if injected
 				oldAllInjected := getCRDConditionStatus(oldConditions, "AllInjected")
 				newAllInjected := getCRDConditionStatus(newConditions, "AllInjected")
 				if !oldAllInjected && newAllInjected {
@@ -345,6 +345,10 @@ func (c *Controller) genPodEventHandlerFuncs(ctx context.Context) cache.Resource
 
 						if job != nil {
 							handlePodError(ctx, newPod, job, reason)
+							// Trigger job failed callback to ensure proper cleanup (e.g., token release)
+							errorMsg := fmt.Sprintf("Pod failed with reason: %s", reason)
+							c.callback.HandleJobFailed(job, job.Annotations, job.Labels, errorMsg)
+
 							if !config.GetBool("debugging.enable") {
 								c.queue.Add(QueueItem{
 									Type:      DeleteJob,
@@ -582,14 +586,14 @@ func extractJobError(job *batchv1.Job) string {
 
 func checkPodReason(pod *corev1.Pod, reason string) bool {
 	for _, containerStatus := range pod.Status.ContainerStatuses {
-		// 检查容器的 Waiting 状态
+		// Check container Waiting status
 		if containerStatus.State.Waiting != nil {
 			if containerStatus.State.Waiting.Reason == reason {
 				return true
 			}
 		}
 
-		// 某些情况下，镜像拉取失败可能导致容器直接终止（例如重试次数耗尽）
+		// In some cases, image pull failure may cause container to terminate directly (e.g., retry count exhausted)
 		if containerStatus.State.Terminated != nil {
 			if containerStatus.State.Terminated.Reason == reason {
 				return true
@@ -601,7 +605,7 @@ func checkPodReason(pod *corev1.Pod, reason string) bool {
 }
 
 func handlePodError(ctx context.Context, pod *corev1.Pod, job *batchv1.Job, reason string) {
-	// 获取 Pod 事件
+	// Get Pod events
 	events, err := k8sClient.CoreV1().Events(pod.Namespace).List(ctx, metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("involvedObject.name=%s", pod.Name),
 	})

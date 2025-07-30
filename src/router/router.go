@@ -12,11 +12,11 @@ import (
 func New() *gin.Engine {
 	router := gin.Default()
 
-	// CORS 配置
+	// CORS configuration
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = true
 
-	// 中间件设置
+	// Middleware setup
 	router.Use(
 		middleware.Logging(),
 		middleware.GroupID(),
@@ -25,11 +25,11 @@ func New() *gin.Engine {
 		middleware.TracerMiddleware(),
 	)
 
-	// 设置 API 路由
+	// Set up API routes
 	SetupV1Routes(router)
 	SetupV2Routes(router)
 
-	// Swagger 文档
+	// Swagger documentation
 	router.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	return router

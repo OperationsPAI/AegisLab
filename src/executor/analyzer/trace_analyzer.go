@@ -57,7 +57,7 @@ func AnalyzeTraces(ctx context.Context, req *dto.AnalyzeTracesReq) (*dto.TraceSt
 			stats.EndCountMap[stat.CurrentTaskType]["completed"]++
 			stats.TraceCompletedList = append(stats.TraceCompletedList, result.traceID)
 
-			// 检查是否以故障注入事件结束
+			// Check if it ends with fault injection event
 			if stat.LastEndEvent == consts.EventFaultInjectionCompleted {
 				stats.FaultInjectionTraces = append(stats.FaultInjectionTraces, result.traceID)
 			}
@@ -89,7 +89,7 @@ func AnalyzeTraces(ctx context.Context, req *dto.AnalyzeTracesReq) (*dto.TraceSt
 		stats.MinDuration = 0
 	}
 
-	// 将错误信息赋值给 TraceErrors 字段
+	// Assign error information to TraceErrors field
 	stats.TraceErrors = traceErrorMap
 
 	return stats, nil

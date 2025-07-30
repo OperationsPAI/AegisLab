@@ -56,18 +56,18 @@ func (s *BuildSource) Validate() error {
 	return nil
 }
 
-// FileSource 文件源配置
+// FileSource File source configuration
 // @Description File source configuration for uploads
 type FileSource struct {
-	// 通过 multipart/form-data 上传的文件会自动处理
-	// 这里只是为了文档说明
+	// Files uploaded via multipart/form-data are automatically processed
+	// This is just for documentation purposes
 	// @Description Filename of the uploaded file
 	Filename string `json:"file_name,omitempty"`
 	// @Description Size of the uploaded file in bytes
 	Size int64 `json:"size,omitempty"`
 }
 
-// GitHubSource GitHub源配置
+// GitHubSource GitHub source configuration
 // @Description GitHub source configuration
 type GitHubSource struct {
 	// @Description GitHub repository in format 'owner/repo'
@@ -106,7 +106,7 @@ func (s *GitHubSource) Validate() error {
 		}
 	}
 
-	// 验证 path 格式
+	// Validate path format
 	if err := utils.IsValidGitHubPath(s.Path); err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ func (s *GitHubSource) Validate() error {
 	return nil
 }
 
-// HarborSource Harbor源配置
+// HarborSource Harbor source configuration
 // @Description Harbor source configuration
 type HarborSource struct {
 	// @Description Harbor image name
@@ -137,7 +137,7 @@ func (s *HarborSource) Validate() error {
 	return nil
 }
 
-// BuildOptions 构建选项
+// BuildOptions Build options
 // @Description Build options for container creation
 type BuildOptions struct {
 	// @Description Context directory for build (optional)

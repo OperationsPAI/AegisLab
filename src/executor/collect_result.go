@@ -211,7 +211,7 @@ func parseCollectPayload(payload map[string]any) (*collectionPayload, error) {
 func readDetectorCSV(csvContent []byte, executionID int) ([]database.Detector, error) {
 	reader := csv.NewReader(bytes.NewReader(csvContent))
 
-	// 读取表头
+	// Read header
 	header, err := reader.Read()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read CSV header: %v", err)
@@ -227,7 +227,7 @@ func readDetectorCSV(csvContent []byte, executionID int) ([]database.Detector, e
 		}
 	}
 
-	// 读取所有行
+	// Read all rows
 	rows, err := reader.ReadAll()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read CSV rows: %v", err)
@@ -242,11 +242,11 @@ func readDetectorCSV(csvContent []byte, executionID int) ([]database.Detector, e
 		spanName := row[0]
 		issues := row[1]
 
-		// 处理空值
+		// Handle empty values
 		var abnormalAvgDuration, normalAvgDuration, abnormalSuccRate, normalSuccRate *float64
 		var abnormalP90, normalP90, abnormalP95, normalP95, abnormalP99, normalP99 *float64
 
-		// 如果字段非空，转换为 float64，否则设置为 nil
+		// If the field is not empty, convert to float64, otherwise set to nil
 		if row[2] != "" {
 			val, err := strconv.ParseFloat(row[2], 64)
 			if err != nil {
@@ -318,7 +318,7 @@ func readDetectorCSV(csvContent []byte, executionID int) ([]database.Detector, e
 			normalP99 = &val
 		}
 
-		// 将数据添加到结果
+		// Add data to results
 		results = append(results, database.Detector{
 			ExecutionID:         executionID,
 			SpanName:            spanName,
@@ -342,7 +342,7 @@ func readDetectorCSV(csvContent []byte, executionID int) ([]database.Detector, e
 func readCSVContent2Result(csvContent []byte, executionID int) ([]database.GranularityResult, error) {
 	reader := csv.NewReader(bytes.NewReader(csvContent))
 
-	// 读取表头
+	// Read header
 	header, err := reader.Read()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read CSV header: %v", err)

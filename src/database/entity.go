@@ -8,338 +8,338 @@ type Project struct {
 	ID          int       `gorm:"primaryKey" json:"id"`
 	Name        string    `gorm:"unique,index;not null" json:"name"`
 	Description string    `gorm:"type:text" json:"description"`
-	IsPublic    bool      `gorm:"default:false;index:idx_project_visibility" json:"is_public"` // 是否公开可见
-	Status      int       `gorm:"default:1;index" json:"status"`                               // 0:禁用 1:启用 -1:删除
+	IsPublic    bool      `gorm:"default:false;index:idx_project_visibility" json:"is_public"` // Whether publicly visible
+	Status      int       `gorm:"default:1;index" json:"status"`                               // 0:disabled 1:enabled -1:deleted
 	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
-// Task 模型
+// Task model
 type Task struct {
 	ID          string    `gorm:"primaryKey" json:"id"`
-	Type        string    `gorm:"index:idx_task_type_status" json:"type"` // 添加复合索引
+	Type        string    `gorm:"index:idx_task_type_status" json:"type"` // Add composite index
 	Immediate   bool      `json:"immediate"`
-	ExecuteTime int64     `gorm:"index" json:"execute_time"` // 添加执行时间索引
+	ExecuteTime int64     `gorm:"index" json:"execute_time"` // Add execution time index
 	CronExpr    string    `json:"cron_expr,omitempty"`
 	Payload     string    `json:"payload"`
-	Status      string    `gorm:"index:idx_task_type_status;index:idx_task_project_status" json:"status"` // 添加多个复合索引
-	TraceID     string    `gorm:"index" json:"trace_id"`                                                  // 添加追踪ID索引
-	GroupID     string    `gorm:"index" json:"group_id"`                                                  // 添加组ID索引
-	ProjectID   *int      `gorm:"index:idx_task_project_status" json:"project_id,omitempty"`              // 任务可以属于某个项目（可选）
-	CreatedAt   time.Time `gorm:"autoCreateTime;index" json:"created_at"`                                 // 添加时间索引
+	Status      string    `gorm:"index:idx_task_type_status;index:idx_task_project_status" json:"status"` // Add multiple composite indexes
+	TraceID     string    `gorm:"index" json:"trace_id"`                                                  // Add trace ID index
+	GroupID     string    `gorm:"index" json:"group_id"`                                                  // Add group ID index
+	ProjectID   *int      `gorm:"index:idx_task_project_status" json:"project_id,omitempty"`              // Task can belong to a project (optional)
+	CreatedAt   time.Time `gorm:"autoCreateTime;index" json:"created_at"`                                 // Add time index
 	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 
-	// 外键关联
+	// Foreign key association
 	Project *Project `gorm:"foreignKey:ProjectID" json:"project,omitempty"`
 }
 
-// FaultInjectionSchedule 模型
+// FaultInjectionSchedule model
 type FaultInjectionSchedule struct {
-	ID            int       `gorm:"primaryKey;autoIncrement" json:"id"`                                      // 唯一标识
-	TaskID        string    `gorm:"index:idx_fault_task_status;index:idx_fault_task_type" json:"task_id"`    // 从属什么 taskid，添加复合索引
-	FaultType     int       `gorm:"index:idx_fault_task_type;index:idx_fault_type_status" json:"fault_type"` // 故障类型，添加复合索引
-	DisplayConfig string    `json:"display_config"`                                                          // 面向用户的展示配置
-	EngineConfig  string    `json:"engine_config"`                                                           // 面向系统的运行配置
-	PreDuration   int       `json:"pre_duration"`                                                            // 正常数据时间
-	StartTime     time.Time `gorm:"default:null;index" json:"start_time"`                                    // 预计故障开始时间，添加时间索引
-	EndTime       time.Time `gorm:"default:null;index" json:"end_time"`                                      // 预计故障结束时间，添加时间索引
-	Status        int       `gorm:"index:idx_fault_task_status;index:idx_fault_type_status" json:"status"`   // 状态，添加复合索引
-	Description   string    `json:"description"`                                                             // 描述（可选字段）
-	Benchmark     string    `gorm:"index" json:"benchmark"`                                                  // 基准数据库，添加索引
-	InjectionName string    `gorm:"unique,index" json:"injection_name"`                                      // 在k8s资源里注入的名字
-	CreatedAt     time.Time `gorm:"autoCreateTime;index" json:"created_at"`                                  // 创建时间，添加时间索引
-	UpdatedAt     time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                        // 更新时间
+	ID            int       `gorm:"primaryKey;autoIncrement" json:"id"`                                      // Unique identifier
+	TaskID        string    `gorm:"index:idx_fault_task_status;index:idx_fault_task_type" json:"task_id"`    // Associated task ID, add composite index
+	FaultType     int       `gorm:"index:idx_fault_task_type;index:idx_fault_type_status" json:"fault_type"` // Fault type, add composite index
+	DisplayConfig string    `json:"display_config"`                                                          // User-facing display configuration
+	EngineConfig  string    `json:"engine_config"`                                                           // System-facing runtime configuration
+	PreDuration   int       `json:"pre_duration"`                                                            // Normal data duration
+	StartTime     time.Time `gorm:"default:null;index" json:"start_time"`                                    // Expected fault start time, add time index
+	EndTime       time.Time `gorm:"default:null;index" json:"end_time"`                                      // Expected fault end time, add time index
+	Status        int       `gorm:"index:idx_fault_task_status;index:idx_fault_type_status" json:"status"`   // Status, add composite index
+	Description   string    `json:"description"`                                                             // Description (optional field)
+	Benchmark     string    `gorm:"index" json:"benchmark"`                                                  // Benchmark database, add index
+	InjectionName string    `gorm:"unique,index" json:"injection_name"`                                      // Name injected in k8s resources
+	CreatedAt     time.Time `gorm:"autoCreateTime;index" json:"created_at"`                                  // Creation time, add time index
+	UpdatedAt     time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                        // Update time
 
-	// 外键关联
+	// Foreign key association
 	Task *Task `gorm:"foreignKey:TaskID" json:"task,omitempty"`
 }
 
 type Container struct {
-	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`                                    // 唯一标识
-	Type      string    `gorm:"index;not null;uniqueIndex:idx_container_unique" json:"type"`           // 镜像类型
-	Name      string    `gorm:"index;not null;uniqueIndex:idx_container_unique" json:"name"`           // 名称
-	Image     string    `gorm:"not null;uniqueIndex:idx_container_unique" json:"image"`                // 镜像名
-	Tag       string    `gorm:"not null;default:'latest';uniqueIndex:idx_container_unique" json:"tag"` // 镜像标签
-	Command   string    `gorm:"type:text;default:''" json:"command"`                                   // 启动命令
-	EnvVars   string    `gorm:"default:''" json:"env_vars"`                                            // 环境变量名称列表
-	UserID    int       `gorm:"not null;index:idx_container_user" json:"user_id"`                      // 容器必须属于某个用户
-	IsPublic  bool      `gorm:"default:false;index:idx_container_visibility" json:"is_public"`         // 是否公开可见
-	Status    bool      `gorm:"default:true" json:"status"`                                            // 0: 已删除 1: 活跃
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`                                      // 创建时间
-	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                      // 更新时间
+	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`                                    // Unique identifier
+	Type      string    `gorm:"index;not null;uniqueIndex:idx_container_unique" json:"type"`           // Image type
+	Name      string    `gorm:"index;not null;uniqueIndex:idx_container_unique" json:"name"`           // Name
+	Image     string    `gorm:"not null;uniqueIndex:idx_container_unique" json:"image"`                // Image name
+	Tag       string    `gorm:"not null;default:'latest';uniqueIndex:idx_container_unique" json:"tag"` // Image tag
+	Command   string    `gorm:"type:text;default:''" json:"command"`                                   // Startup command
+	EnvVars   string    `gorm:"default:''" json:"env_vars"`                                            // List of environment variable names
+	UserID    int       `gorm:"not null;index:idx_container_user" json:"user_id"`                      // Container must belong to a user
+	IsPublic  bool      `gorm:"default:false;index:idx_container_visibility" json:"is_public"`         // Whether publicly visible
+	Status    bool      `gorm:"default:true" json:"status"`                                            // 0: deleted 1: active
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`                                      // Creation time
+	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                      // Update time
 
-	// 外键关联
+	// Foreign key association
 	User *User `gorm:"foreignKey:UserID" json:"user,omitempty"`
 }
 
 type ExecutionResult struct {
-	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`                                       // 唯一标识
-	TaskID      string    `gorm:"index:idx_exec_task_status;index:idx_exec_task_algo" json:"task_id"`       // 从属什么 taskid，添加复合索引
-	AlgorithmID int       `gorm:"index:idx_exec_task_algo;index:idx_exec_algo_dataset" json:"container_id"` // 使用的算法，添加复合索引
-	DatapackID  int       `gorm:"index:idx_exec_algo_dataset" json:"datapack_id"`                           // 数据包标识，添加复合索引
-	Status      int       `gorm:"default:0;index:idx_exec_task_status" json:"status"`                       // 状态，添加复合索引
-	CreatedAt   time.Time `gorm:"autoCreateTime;index" json:"created_at"`                                   // 创建时间，添加时间索引
-	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                         // 更新时间
+	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`                                       // Unique identifier
+	TaskID      string    `gorm:"index:idx_exec_task_status;index:idx_exec_task_algo" json:"task_id"`       // Associated task ID, add composite index
+	AlgorithmID int       `gorm:"index:idx_exec_task_algo;index:idx_exec_algo_dataset" json:"container_id"` // Algorithm used, add composite index
+	DatapackID  int       `gorm:"index:idx_exec_algo_dataset" json:"datapack_id"`                           // Data package identifier, add composite index
+	Status      int       `gorm:"default:0;index:idx_exec_task_status" json:"status"`                       // Status, add composite index
+	CreatedAt   time.Time `gorm:"autoCreateTime;index" json:"created_at"`                                   // Creation time, add time index
+	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                         // Update time
 
-	// 外键关联
+	// Foreign key association
 	Task      *Task                   `gorm:"foreignKey:TaskID" json:"task,omitempty"`
 	Algorithm *Container              `gorm:"foreignKey:AlgorithmID" json:"algorithm,omitempty"`
 	Datapack  *FaultInjectionSchedule `gorm:"foreignKey:DatapackID" json:"datapack,omitempty"`
 }
 
 type GranularityResult struct {
-	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"` // 唯一标识
-	ExecutionID int       `gorm:"index,unique" json:"execution_id"`   // 关联ExecutionResult的ID
-	Level       string    `json:"level"`                              // 粒度类型 (e.g., "service", "pod", "span", "metric")
-	Result      string    `json:"result"`                             // 定位结果，以逗号分隔
-	Rank        int       `json:"rank"`                               // 排序，表示top1, top2等
-	Confidence  float64   `json:"confidence"`                         // 可信度（可选）
-	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`   // 创建时间
-	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`   // 更新时间
+	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"` // Unique identifier
+	ExecutionID int       `gorm:"index,unique" json:"execution_id"`   // Associated ExecutionResult ID
+	Level       string    `json:"level"`                              // Granularity type (e.g., "service", "pod", "span", "metric")
+	Result      string    `json:"result"`                             // Localization result, comma-separated
+	Rank        int       `json:"rank"`                               // Ranking, representing top1, top2, etc.
+	Confidence  float64   `json:"confidence"`                         // Confidence level (optional)
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`   // Creation time
+	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`   // Update time
 
-	// 外键关联
+	// Foreign key association
 	Execution *ExecutionResult `gorm:"foreignKey:ExecutionID" json:"execution,omitempty"`
 }
 
 type Detector struct {
-	ID                  int       `gorm:"primaryKey" json:"id"`                    // 唯一标识
-	ExecutionID         int       `gorm:"index,unique" json:"execution_id"`        // ExecutionID 是主键
-	SpanName            string    `gorm:"type:varchar(255)" json:"span_name"`      // SpanName 数据库字段类型
-	Issues              string    `gorm:"type:text" json:"issues"`                 // Issues 字段类型为文本
-	AbnormalAvgDuration *float64  `gorm:"type:float" json:"abnormal_avg_duration"` // 异常时段的平均耗时
-	NormalAvgDuration   *float64  `gorm:"type:float" json:"normal_avg_duration"`   // 正常时段的平均耗时
-	AbnormalSuccRate    *float64  `gorm:"type:float" json:"abnormal_succ_rate"`    // 异常时段的成功率
-	NormalSuccRate      *float64  `gorm:"type:float" json:"normal_succ_rate"`      // 正常时段的成功率
-	AbnormalP90         *float64  `gorm:"type:float" json:"abnormal_p90"`          // 异常时段的P90
-	NormalP90           *float64  `gorm:"type:float" json:"normal_p90"`            // 正常时段的P90
-	AbnormalP95         *float64  `gorm:"type:float" json:"abnormal_p95"`          // 异常时段的P95
-	NormalP95           *float64  `gorm:"type:float" json:"normal_p95"`            // 正常时段的P95
-	AbnormalP99         *float64  `gorm:"type:float" json:"abnormal_p99"`          // 异常时段的P99
-	NormalP99           *float64  `gorm:"type:float" json:"normal_p99"`            // 正常时段的P99
-	CreatedAt           time.Time `gorm:"autoCreateTime" json:"created_at"`        // CreatedAt 自动设置为当前时间
-	UpdatedAt           time.Time `gorm:"autoUpdateTime" json:"updated_at"`        // UpdatedAt 自动更新时间
+	ID                  int       `gorm:"primaryKey" json:"id"`                    // Unique identifier
+	ExecutionID         int       `gorm:"index,unique" json:"execution_id"`        // ExecutionID is primary key
+	SpanName            string    `gorm:"type:varchar(255)" json:"span_name"`      // SpanName database field type
+	Issues              string    `gorm:"type:text" json:"issues"`                 // Issues field type is text
+	AbnormalAvgDuration *float64  `gorm:"type:float" json:"abnormal_avg_duration"` // Average duration during abnormal period
+	NormalAvgDuration   *float64  `gorm:"type:float" json:"normal_avg_duration"`   // Average duration during normal period
+	AbnormalSuccRate    *float64  `gorm:"type:float" json:"abnormal_succ_rate"`    // Success rate during abnormal period
+	NormalSuccRate      *float64  `gorm:"type:float" json:"normal_succ_rate"`      // Success rate during normal period
+	AbnormalP90         *float64  `gorm:"type:float" json:"abnormal_p90"`          // P90 during abnormal period
+	NormalP90           *float64  `gorm:"type:float" json:"normal_p90"`            // P90 during normal period
+	AbnormalP95         *float64  `gorm:"type:float" json:"abnormal_p95"`          // P95 during abnormal period
+	NormalP95           *float64  `gorm:"type:float" json:"normal_p95"`            // P95 during normal period
+	AbnormalP99         *float64  `gorm:"type:float" json:"abnormal_p99"`          // P99 during abnormal period
+	NormalP99           *float64  `gorm:"type:float" json:"normal_p99"`            // P99 during normal period
+	CreatedAt           time.Time `gorm:"autoCreateTime" json:"created_at"`        // CreatedAt automatically set to current time
+	UpdatedAt           time.Time `gorm:"autoUpdateTime" json:"updated_at"`        // UpdatedAt automatically updates time
 
-	// 外键关联
+	// Foreign key association
 	Execution *ExecutionResult `gorm:"foreignKey:ExecutionID" json:"execution,omitempty"`
 }
 
-// Dataset 数据集表
+// Dataset table
 type Dataset struct {
-	ID          int    `gorm:"primaryKey;autoIncrement" json:"id"`                                           // 唯一标识
-	Name        string `gorm:"not null;index:idx_dataset_name_version,unique" json:"name"`                   // 数据集名称
-	Version     string `gorm:"not null;default:'v1.0';index:idx_dataset_name_version,unique" json:"version"` // 数据集版本
-	Description string `gorm:"type:text" json:"description"`                                                 // 数据集描述
-	Type        string `gorm:"index" json:"type"`                                                            // 数据集类型 (e.g., "microservice", "database", "network")
-	FileCount   int    `gorm:"default:0" json:"file_count"`                                                  // 文件数量
-	DataSource  string `gorm:"type:text" json:"data_source"`                                                 // 数据来源描述
-	Format      string `gorm:"default:'json'" json:"format"`                                                 // 数据格式 (json, csv, parquet等)
-	ProjectID   int    `gorm:"not null;index:idx_dataset_project" json:"project_id"`                         // 数据集必须属于某个项目
+	ID          int    `gorm:"primaryKey;autoIncrement" json:"id"`                                           // Unique identifier
+	Name        string `gorm:"not null;index:idx_dataset_name_version,unique" json:"name"`                   // Dataset name
+	Version     string `gorm:"not null;default:'v1.0';index:idx_dataset_name_version,unique" json:"version"` // Dataset version
+	Description string `gorm:"type:text" json:"description"`                                                 // Dataset description
+	Type        string `gorm:"index" json:"type"`                                                            // Dataset type (e.g., "microservice", "database", "network")
+	FileCount   int    `gorm:"default:0" json:"file_count"`                                                  // File count
+	DataSource  string `gorm:"type:text" json:"data_source"`                                                 // Data source description
+	Format      string `gorm:"default:'json'" json:"format"`                                                 // Data format (json, csv, parquet, etc.)
+	ProjectID   int    `gorm:"not null;index:idx_dataset_project" json:"project_id"`                         // Dataset must belong to a project
 
-	Status      int       `gorm:"default:1;index" json:"status"`                               // 0:禁用 1:启用 -1:删除
-	IsPublic    bool      `gorm:"default:false;index:idx_dataset_visibility" json:"is_public"` // 是否公开
-	DownloadURL string    `json:"download_url,omitempty"`                                      // 下载链接
-	Checksum    string    `gorm:"type:varchar(64)" json:"checksum,omitempty"`                  // 文件校验和
-	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`                            // 创建时间
-	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`                            // 更新时间
+	Status      int       `gorm:"default:1;index" json:"status"`                               // 0:disabled 1:enabled -1:deleted
+	IsPublic    bool      `gorm:"default:false;index:idx_dataset_visibility" json:"is_public"` // Whether public
+	DownloadURL string    `json:"download_url,omitempty"`                                      // Download link
+	Checksum    string    `gorm:"type:varchar(64)" json:"checksum,omitempty"`                  // File checksum
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`                            // Creation time
+	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`                            // Update time
 
-	// 外键关联
+	// Foreign key association
 	Project *Project `gorm:"foreignKey:ProjectID" json:"project,omitempty"`
 }
 
-// Label 标签表 - 统一的标签管理
+// Label table - Unified label management
 type Label struct {
-	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`                     // 唯一标识
-	Key         string    `gorm:"not null;index:idx_label_key_value,unique" json:"key"`   // 标签键
-	Value       string    `gorm:"not null;index:idx_label_key_value,unique" json:"value"` // 标签值
-	Category    string    `gorm:"index" json:"category"`                                  // 标签分类 (dataset, fault_injection, algorithm, container等)
-	Description string    `gorm:"type:text" json:"description"`                           // 标签描述
-	Color       string    `gorm:"type:varchar(7);default:'#1890ff'" json:"color"`         // 标签颜色 (hex格式)
-	IsSystem    bool      `gorm:"default:false;index" json:"is_system"`                   // 是否为系统标签
-	Usage       int       `gorm:"default:0;index" json:"usage"`                           // 使用次数
-	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`                       // 创建时间
-	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`                       // 更新时间
+	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`                     // Unique identifier
+	Key         string    `gorm:"not null;index:idx_label_key_value,unique" json:"key"`   // Label key
+	Value       string    `gorm:"not null;index:idx_label_key_value,unique" json:"value"` // Label value
+	Category    string    `gorm:"index" json:"category"`                                  // Label category (dataset, fault_injection, algorithm, container, etc.)
+	Description string    `gorm:"type:text" json:"description"`                           // Label description
+	Color       string    `gorm:"type:varchar(7);default:'#1890ff'" json:"color"`         // Label color (hex format)
+	IsSystem    bool      `gorm:"default:false;index" json:"is_system"`                   // Whether system label
+	Usage       int       `gorm:"default:0;index" json:"usage"`                           // Usage count
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`                       // Creation time
+	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`                       // Update time
 }
 
-// DatasetFaultInjection Dataset与FaultInjectionSchedule的多对多关系表
+// DatasetFaultInjection Many-to-many relationship table between Dataset and FaultInjectionSchedule
 type DatasetFaultInjection struct {
-	ID               int       `gorm:"primaryKey;autoIncrement" json:"id"`                                       // 唯一标识
-	DatasetID        int       `gorm:"not null;index:idx_dataset_fault_unique,unique" json:"dataset_id"`         // 数据集ID
-	FaultInjectionID int       `gorm:"not null;index:idx_dataset_fault_unique,unique" json:"fault_injection_id"` // 故障注入ID
-	CreatedAt        time.Time `gorm:"autoCreateTime" json:"created_at"`                                         // 创建时间
-	UpdatedAt        time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                         // 更新时间
+	ID               int       `gorm:"primaryKey;autoIncrement" json:"id"`                                       // Unique identifier
+	DatasetID        int       `gorm:"not null;index:idx_dataset_fault_unique,unique" json:"dataset_id"`         // Dataset ID
+	FaultInjectionID int       `gorm:"not null;index:idx_dataset_fault_unique,unique" json:"fault_injection_id"` // Fault injection ID
+	CreatedAt        time.Time `gorm:"autoCreateTime" json:"created_at"`                                         // Creation time
+	UpdatedAt        time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                         // Update time
 
-	// 外键关联
+	// Foreign key association
 	Dataset                *Dataset                `gorm:"foreignKey:DatasetID" json:"dataset,omitempty"`
 	FaultInjectionSchedule *FaultInjectionSchedule `gorm:"foreignKey:FaultInjectionID" json:"fault_injection,omitempty"`
 }
 
-// DatasetLabel Dataset与Label的多对多关系表
+// DatasetLabel Many-to-many relationship table between Dataset and Label
 type DatasetLabel struct {
-	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`                               // 唯一标识
-	DatasetID int       `gorm:"not null;index:idx_dataset_label_unique,unique" json:"dataset_id"` // 数据集ID
-	LabelID   int       `gorm:"not null;index:idx_dataset_label_unique,unique" json:"label_id"`   // 标签ID
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`                                 // 创建时间
+	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`                               // Unique identifier
+	DatasetID int       `gorm:"not null;index:idx_dataset_label_unique,unique" json:"dataset_id"` // Dataset ID
+	LabelID   int       `gorm:"not null;index:idx_dataset_label_unique,unique" json:"label_id"`   // Label ID
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`                                 // Creation time
 
-	// 外键关联
+	// Foreign key association
 	Dataset *Dataset `gorm:"foreignKey:DatasetID" json:"dataset,omitempty"`
 	Label   *Label   `gorm:"foreignKey:LabelID" json:"label,omitempty"`
 }
 
-// FaultInjectionLabel FaultInjectionSchedule与Label的多对多关系表
+// FaultInjectionLabel Many-to-many relationship table between FaultInjectionSchedule and Label
 type FaultInjectionLabel struct {
-	ID               int       `gorm:"primaryKey;autoIncrement" json:"id"`                                     // 唯一标识
-	FaultInjectionID int       `gorm:"not null;index:idx_fault_label_unique,unique" json:"fault_injection_id"` // 故障注入ID
-	LabelID          int       `gorm:"not null;index:idx_fault_label_unique,unique" json:"label_id"`           // 标签ID
-	CreatedAt        time.Time `gorm:"autoCreateTime" json:"created_at"`                                       // 创建时间
+	ID               int       `gorm:"primaryKey;autoIncrement" json:"id"`                                     // Unique identifier
+	FaultInjectionID int       `gorm:"not null;index:idx_fault_label_unique,unique" json:"fault_injection_id"` // Fault injection ID
+	LabelID          int       `gorm:"not null;index:idx_fault_label_unique,unique" json:"label_id"`           // Label ID
+	CreatedAt        time.Time `gorm:"autoCreateTime" json:"created_at"`                                       // Creation time
 
-	// 外键关联
+	// Foreign key association
 	FaultInjectionSchedule *FaultInjectionSchedule `gorm:"foreignKey:FaultInjectionID" json:"fault_injection,omitempty"`
 	Label                  *Label                  `gorm:"foreignKey:LabelID" json:"label,omitempty"`
 }
 
-// ContainerLabel Container与Label的多对多关系表
+// ContainerLabel Many-to-many relationship table between Container and Label
 type ContainerLabel struct {
-	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`                                   // 唯一标识
-	ContainerID int       `gorm:"not null;index:idx_container_label_unique,unique" json:"container_id"` // 容器ID
-	LabelID     int       `gorm:"not null;index:idx_container_label_unique,unique" json:"label_id"`     // 标签ID
-	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`                                     // 创建时间
+	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`                                   // Unique identifier
+	ContainerID int       `gorm:"not null;index:idx_container_label_unique,unique" json:"container_id"` // Container ID
+	LabelID     int       `gorm:"not null;index:idx_container_label_unique,unique" json:"label_id"`     // Label ID
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`                                     // Creation time
 
-	// 外键关联
+	// Foreign key association
 	Container *Container `gorm:"foreignKey:ContainerID" json:"container,omitempty"`
 	Label     *Label     `gorm:"foreignKey:LabelID" json:"label,omitempty"`
 }
 
-// ProjectLabel Project与Label的多对多关系表
+// ProjectLabel Many-to-many relationship table between Project and Label
 type ProjectLabel struct {
-	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`                               // 唯一标识
-	ProjectID int       `gorm:"not null;index:idx_project_label_unique,unique" json:"project_id"` // 项目ID
-	LabelID   int       `gorm:"not null;index:idx_project_label_unique,unique" json:"label_id"`   // 标签ID
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`                                 // 创建时间
+	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`                               // Unique identifier
+	ProjectID int       `gorm:"not null;index:idx_project_label_unique,unique" json:"project_id"` // Project ID
+	LabelID   int       `gorm:"not null;index:idx_project_label_unique,unique" json:"label_id"`   // Label ID
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`                                 // Creation time
 
-	// 外键关联
+	// Foreign key association
 	Project *Project `gorm:"foreignKey:ProjectID" json:"project,omitempty"`
 	Label   *Label   `gorm:"foreignKey:LabelID" json:"label,omitempty"`
 }
 
-// User 用户表
+// User User table
 type User struct {
-	ID          int        `gorm:"primaryKey;autoIncrement" json:"id"`    // 唯一标识
-	Username    string     `gorm:"unique;not null;index" json:"username"` // 用户名（唯一）
-	Email       string     `gorm:"unique;not null;index" json:"email"`    // 邮箱（唯一）
-	Password    string     `gorm:"not null" json:"-"`                     // 密码（不返回给前端）
-	FullName    string     `gorm:"not null" json:"full_name"`             // 全名
-	Avatar      string     `json:"avatar,omitempty"`                      // 头像URL
-	Phone       string     `gorm:"index" json:"phone,omitempty"`          // 电话号码
-	Status      int        `gorm:"default:1;index" json:"status"`         // 0:禁用 1:启用 -1:删除
-	IsActive    bool       `gorm:"default:true;index" json:"is_active"`   // 是否激活
-	LastLoginAt *time.Time `json:"last_login_at,omitempty"`               // 最后登录时间
-	CreatedAt   time.Time  `gorm:"autoCreateTime" json:"created_at"`      // 创建时间
-	UpdatedAt   time.Time  `gorm:"autoUpdateTime" json:"updated_at"`      // 更新时间
+	ID          int        `gorm:"primaryKey;autoIncrement" json:"id"`    // Unique identifier
+	Username    string     `gorm:"unique;not null;index" json:"username"` // Username (unique)
+	Email       string     `gorm:"unique;not null;index" json:"email"`    // Email (unique)
+	Password    string     `gorm:"not null" json:"-"`                     // Password (not returned to frontend)
+	FullName    string     `gorm:"not null" json:"full_name"`             // Full name
+	Avatar      string     `json:"avatar,omitempty"`                      // Avatar URL
+	Phone       string     `gorm:"index" json:"phone,omitempty"`          // Phone number
+	Status      int        `gorm:"default:1;index" json:"status"`         // 0:disabled 1:enabled -1:deleted
+	IsActive    bool       `gorm:"default:true;index" json:"is_active"`   // Whether active
+	LastLoginAt *time.Time `json:"last_login_at,omitempty"`               // Last login time
+	CreatedAt   time.Time  `gorm:"autoCreateTime" json:"created_at"`      // Creation time
+	UpdatedAt   time.Time  `gorm:"autoUpdateTime" json:"updated_at"`      // Update time
 }
 
-// Role 角色表
+// Role Role table
 type Role struct {
-	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`   // 唯一标识
-	Name        string    `gorm:"unique;not null;index" json:"name"`    // 角色名称（唯一）
-	DisplayName string    `gorm:"not null" json:"display_name"`         // 显示名称
-	Description string    `gorm:"type:text" json:"description"`         // 角色描述
-	Type        string    `gorm:"default:'custom';index" json:"type"`   // 角色类型 (system, custom)
-	IsSystem    bool      `gorm:"default:false;index" json:"is_system"` // 是否为系统角色
-	Status      int       `gorm:"default:1;index" json:"status"`        // 0:禁用 1:启用 -1:删除
-	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`     // 创建时间
-	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`     // 更新时间
+	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`   // Unique identifier
+	Name        string    `gorm:"unique;not null;index" json:"name"`    // Role name (unique)
+	DisplayName string    `gorm:"not null" json:"display_name"`         // Display name
+	Description string    `gorm:"type:text" json:"description"`         // Role description
+	Type        string    `gorm:"default:'custom';index" json:"type"`   // Role type (system, custom)
+	IsSystem    bool      `gorm:"default:false;index" json:"is_system"` // Whether system role
+	Status      int       `gorm:"default:1;index" json:"status"`        // 0:disabled 1:enabled -1:deleted
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`     // Creation time
+	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`     // Update time
 }
 
-// Permission 权限表
+// Permission Permission table
 type Permission struct {
-	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`   // 唯一标识
-	Name        string    `gorm:"unique;not null;index" json:"name"`    // 权限名称（唯一）
-	DisplayName string    `gorm:"not null" json:"display_name"`         // 显示名称
-	Description string    `gorm:"type:text" json:"description"`         // 权限描述
-	Action      string    `gorm:"not null;index" json:"action"`         // 动作 (read, write, delete, execute等)
-	ResourceID  int       `gorm:"index" json:"resource_id"`             // 关联的资源ID
-	IsSystem    bool      `gorm:"default:false;index" json:"is_system"` // 是否为系统权限
-	Status      int       `gorm:"default:1;index" json:"status"`        // 0:禁用 1:启用 -1:删除
-	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`     // 创建时间
-	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`     // 更新时间
+	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`   // Unique identifier
+	Name        string    `gorm:"unique;not null;index" json:"name"`    // Permission name (unique)
+	DisplayName string    `gorm:"not null" json:"display_name"`         // Display name
+	Description string    `gorm:"type:text" json:"description"`         // Permission description
+	Action      string    `gorm:"not null;index" json:"action"`         // Action (read, write, delete, execute, etc.)
+	ResourceID  int       `gorm:"index" json:"resource_id"`             // Associated resource ID
+	IsSystem    bool      `gorm:"default:false;index" json:"is_system"` // Whether system permission
+	Status      int       `gorm:"default:1;index" json:"status"`        // 0:disabled 1:enabled -1:deleted
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`     // Creation time
+	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`     // Update time
 
-	// 外键关联
+	// Foreign key association
 	Resource *Resource `gorm:"foreignKey:ResourceID" json:"resource,omitempty"`
 }
 
-// Resource 资源表
+// Resource Resource table
 type Resource struct {
-	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`   // 唯一标识
-	Name        string    `gorm:"unique;not null;index" json:"name"`    // 资源名称（唯一）
-	DisplayName string    `gorm:"not null" json:"display_name"`         // 显示名称
-	Description string    `gorm:"type:text" json:"description"`         // 资源描述
-	Type        string    `gorm:"not null;index" json:"type"`           // 资源类型 (table, api, function等)
-	Category    string    `gorm:"index" json:"category"`                // 资源分类
-	ParentID    *int      `gorm:"index" json:"parent_id,omitempty"`     // 父资源ID（支持层级结构）
-	IsSystem    bool      `gorm:"default:false;index" json:"is_system"` // 是否为系统资源
-	Status      int       `gorm:"default:1;index" json:"status"`        // 0:禁用 1:启用 -1:删除
-	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`     // 创建时间
-	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`     // 更新时间
+	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`   // Unique identifier
+	Name        string    `gorm:"unique;not null;index" json:"name"`    // Resource name (unique)
+	DisplayName string    `gorm:"not null" json:"display_name"`         // Display name
+	Description string    `gorm:"type:text" json:"description"`         // Resource description
+	Type        string    `gorm:"not null;index" json:"type"`           // Resource type (table, api, function, etc.)
+	Category    string    `gorm:"index" json:"category"`                // Resource category
+	ParentID    *int      `gorm:"index" json:"parent_id,omitempty"`     // Parent resource ID (supports hierarchy)
+	IsSystem    bool      `gorm:"default:false;index" json:"is_system"` // Whether system resource
+	Status      int       `gorm:"default:1;index" json:"status"`        // 0:disabled 1:enabled -1:deleted
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`     // Creation time
+	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`     // Update time
 
-	// 外键关联
+	// Foreign key association
 	Parent *Resource `gorm:"foreignKey:ParentID" json:"parent,omitempty"`
 }
 
-// UserProject 用户与项目的多对多关系表（包含项目级权限）
+// UserProject Many-to-many relationship table between User and Project (includes project-level permissions)
 type UserProject struct {
-	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`                              // 唯一标识
-	UserID    int       `gorm:"not null;index:idx_user_project_unique,unique" json:"user_id"`    // 用户ID
-	ProjectID int       `gorm:"not null;index:idx_user_project_unique,unique" json:"project_id"` // 项目ID
-	RoleID    int       `gorm:"index" json:"role_id"`                                            // 在该项目中的角色ID
-	JoinedAt  time.Time `gorm:"autoCreateTime" json:"joined_at"`                                 // 加入时间
-	Status    int       `gorm:"default:1;index" json:"status"`                                   // 0:禁用 1:启用 -1:退出
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`                                // 创建时间
-	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                // 更新时间
+	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`                              // Unique identifier
+	UserID    int       `gorm:"not null;index:idx_user_project_unique,unique" json:"user_id"`    // User ID
+	ProjectID int       `gorm:"not null;index:idx_user_project_unique,unique" json:"project_id"` // Project ID
+	RoleID    int       `gorm:"index" json:"role_id"`                                            // Role ID in this project
+	JoinedAt  time.Time `gorm:"autoCreateTime" json:"joined_at"`                                 // Join time
+	Status    int       `gorm:"default:1;index" json:"status"`                                   // 0:disabled 1:enabled -1:quit
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`                                // Creation time
+	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                // Update time
 
-	// 外键关联
+	// Foreign key association
 	User    *User    `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	Project *Project `gorm:"foreignKey:ProjectID" json:"project,omitempty"`
 	Role    *Role    `gorm:"foreignKey:RoleID" json:"role,omitempty"`
 }
 
-// UserRole 用户与全局角色的多对多关系表
+// UserRole Many-to-many relationship table between User and global roles
 type UserRole struct {
-	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`                        // 唯一标识
-	UserID    int       `gorm:"not null;index:idx_user_role_unique,unique" json:"user_id"` // 用户ID
-	RoleID    int       `gorm:"not null;index:idx_user_role_unique,unique" json:"role_id"` // 角色ID
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`                          // 创建时间
-	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`                          // 更新时间
+	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`                        // Unique identifier
+	UserID    int       `gorm:"not null;index:idx_user_role_unique,unique" json:"user_id"` // User ID
+	RoleID    int       `gorm:"not null;index:idx_user_role_unique,unique" json:"role_id"` // Role ID
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`                          // Creation time
+	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`                          // Update time
 
-	// 外键关联
+	// Foreign key association
 	User *User `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	Role *Role `gorm:"foreignKey:RoleID" json:"role,omitempty"`
 }
 
-// RolePermission 角色与权限的多对多关系表
+// RolePermission Many-to-many relationship table between Role and Permission
 type RolePermission struct {
-	ID           int       `gorm:"primaryKey;autoIncrement" json:"id"`                                    // 唯一标识
-	RoleID       int       `gorm:"not null;index:idx_role_permission_unique,unique" json:"role_id"`       // 角色ID
-	PermissionID int       `gorm:"not null;index:idx_role_permission_unique,unique" json:"permission_id"` // 权限ID
-	CreatedAt    time.Time `gorm:"autoCreateTime" json:"created_at"`                                      // 创建时间
-	UpdatedAt    time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                      // 更新时间
+	ID           int       `gorm:"primaryKey;autoIncrement" json:"id"`                                    // Unique identifier
+	RoleID       int       `gorm:"not null;index:idx_role_permission_unique,unique" json:"role_id"`       // Role ID
+	PermissionID int       `gorm:"not null;index:idx_role_permission_unique,unique" json:"permission_id"` // Permission ID
+	CreatedAt    time.Time `gorm:"autoCreateTime" json:"created_at"`                                      // Creation time
+	UpdatedAt    time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                      // Update time
 
-	// 外键关联
+	// Foreign key association
 	Role       *Role       `gorm:"foreignKey:RoleID" json:"role,omitempty"`
 	Permission *Permission `gorm:"foreignKey:PermissionID" json:"permission,omitempty"`
 }
 
-// UserPermission 用户直接权限表（补充角色权限的不足，支持特殊权限分配）
+// UserPermission User direct permission table (supplements role permissions, supports special permission assignment)
 type UserPermission struct {
-	ID           int        `gorm:"primaryKey;autoIncrement" json:"id"`                                    // 唯一标识
-	UserID       int        `gorm:"not null;index:idx_user_permission_unique,unique" json:"user_id"`       // 用户ID
-	PermissionID int        `gorm:"not null;index:idx_user_permission_unique,unique" json:"permission_id"` // 权限ID
-	ProjectID    *int       `gorm:"index:idx_user_permission_unique,unique" json:"project_id,omitempty"`   // 项目ID（项目级权限，为空表示全局权限）
-	GrantType    string     `gorm:"default:'grant';index" json:"grant_type"`                               // 授权类型 (grant, deny)
-	ExpiresAt    *time.Time `json:"expires_at,omitempty"`                                                  // 过期时间
-	CreatedAt    time.Time  `gorm:"autoCreateTime" json:"created_at"`                                      // 创建时间
-	UpdatedAt    time.Time  `gorm:"autoUpdateTime" json:"updated_at"`                                      // 更新时间
+	ID           int        `gorm:"primaryKey;autoIncrement" json:"id"`                                    // Unique identifier
+	UserID       int        `gorm:"not null;index:idx_user_permission_unique,unique" json:"user_id"`       // User ID
+	PermissionID int        `gorm:"not null;index:idx_user_permission_unique,unique" json:"permission_id"` // Permission ID
+	ProjectID    *int       `gorm:"index:idx_user_permission_unique,unique" json:"project_id,omitempty"`   // Project ID (project-level permission, empty means global permission)
+	GrantType    string     `gorm:"default:'grant';index" json:"grant_type"`                               // Grant type (grant, deny)
+	ExpiresAt    *time.Time `json:"expires_at,omitempty"`                                                  // Expiration time
+	CreatedAt    time.Time  `gorm:"autoCreateTime" json:"created_at"`                                      // Creation time
+	UpdatedAt    time.Time  `gorm:"autoUpdateTime" json:"updated_at"`                                      // Update time
 
-	// 外键关联
+	// Foreign key association
 	User       *User       `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	Permission *Permission `gorm:"foreignKey:PermissionID" json:"permission,omitempty"`
 	Project    *Project    `gorm:"foreignKey:ProjectID" json:"project,omitempty"`

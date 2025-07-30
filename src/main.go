@@ -107,7 +107,7 @@ func main() {
 			logrus.Println("Running as producer")
 			database.InitDB()
 
-			// 初始化系统数据（角色、权限、用户、项目）
+			// Initialize system data (roles, permissions, users, projects)
 			if err := repository.InitializeSystemData(); err != nil {
 				logrus.Errorf("Failed to initialize system data: %v", err)
 				logrus.Warn("System will continue running without initial system data")
@@ -134,7 +134,7 @@ func main() {
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
 			database.InitDB()
 
-			// 初始化系统数据（角色、权限、用户、项目）
+			// Initialize system data (roles, permissions, users, projects)
 			if err := repository.InitializeSystemData(); err != nil {
 				logrus.Errorf("Failed to initialize system data: %v", err)
 				logrus.Warn("System will continue running without initial system data")
@@ -149,7 +149,7 @@ func main() {
 		},
 	}
 
-	// Both 子命令
+	// Both subcommand
 	var bothCmd = &cobra.Command{
 		Use:   "both",
 		Short: "Run as both producer and consumer",
@@ -159,7 +159,7 @@ func main() {
 			engine := router.New()
 			database.InitDB()
 
-			// 初始化系统数据（角色、权限、用户、项目）
+			// Initialize system data (roles, permissions, users, projects)
 			if err := repository.InitializeSystemData(); err != nil {
 				logrus.Errorf("Failed to initialize system data: %v", err)
 				logrus.Warn("System will continue running without initial system data")
@@ -171,7 +171,7 @@ func main() {
 			go k8s.Init(ctx, executor.Exec)
 			go executor.ConsumeTasks()
 			go executor.StartScheduler(ctx)
-			port := viper.GetString("port") // 从 Viper 获取最终端口
+			port := viper.GetString("port") // Get final port from Viper
 			err := engine.Run(":" + port)
 			if err != nil {
 				panic(err)

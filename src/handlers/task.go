@@ -19,15 +19,15 @@ import (
 
 // GetTaskDetail
 //
-//	@Summary		获取任务详情
-//	@Description	根据任务ID获取任务详细信息,包括任务基本信息和执行日志
+//	@Summary		Get task detail
+//	@Description	Get detailed information of a task by task ID, including basic info and execution logs
 //	@Tags			task
 //	@Produce		json
-//	@Param			task_id	path		string	true	"任务ID"
+//	@Param			task_id	path		string	true	"Task ID"
 //	@Success		200		{object}	dto.GenericResponse[dto.TaskDetailResp]
-//	@Failure		400		{object}	dto.GenericResponse[any]	"无效的任务ID"
-//	@Failure		404		{object}	dto.GenericResponse[any]	"任务不存在"
-//	@Failure		500		{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Failure		400		{object}	dto.GenericResponse[any]	"Invalid task ID"
+//	@Failure		404		{object}	dto.GenericResponse[any]	"Task not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v1/tasks/{task_id} [get]
 func GetTaskDetail(c *gin.Context) {
 	var req dto.TaskReq
@@ -41,11 +41,11 @@ func GetTaskDetail(c *gin.Context) {
 	taskItem, err := repository.FindTaskItemByID(req.TaskID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			message := "task not found"
+			message := "Task not found"
 			logEntry.Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusNotFound, message)
 		} else {
-			message := "failed to retrieve task of injection"
+			message := "Failed to retrieve task of injection"
 			logEntry.Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusInternalServerError, message)
 		}
@@ -71,12 +71,12 @@ func GetTaskDetail(c *gin.Context) {
 
 // GetQueuedTasks
 //
-//	@Summary		获取队列中的任务
-//	@Description	分页获取队列中等待执行的任务列表
+//	@Summary		Get queued tasks
+//	@Description	Paginate and get the list of tasks waiting in the queue
 //	@Tags			task
 //	@Produce		json
-//	@Param			page_num	query		int	false	"页码"		default(1)
-//	@Param			page_size	query		int	false	"每页大小"	default(10)
+//	@Param			page_num	query		int	false	"Page number"		default(1)
+//	@Param			page_size	query		int	false	"Page size"		default(10)
 //	@Success		200			{object}	dto.GenericResponse[dto.PaginationResp[dto.UnifiedTask]]
 //	@Failure		400			{object}	dto.GenericResponse[any]
 //	@Failure		500			{object}	dto.GenericResponse[any]
@@ -171,25 +171,25 @@ func GetQueuedTasks(c *gin.Context) {
 
 // ListTasks
 //
-//	@Summary		获取任务列表
-//	@Description	根据多种条件分页获取任务列表。支持按任务ID、跟踪ID、组ID进行精确查询，或按任务类型、状态等进行过滤查询
+//	@Summary		Get task list
+//	@Description	Paginate and get task list by multiple conditions. Supports exact query by task ID, trace ID, group ID, or filter by type, status, etc.
 //	@Tags			task
 //	@Produce		json
-//	@Param			task_id				query		string	false	"任务ID - 精确匹配特定任务 (与trace_id、group_id互斥)"
-//	@Param			trace_id			query		string	false	"跟踪ID - 查找属于同一跟踪的所有任务 (与task_id、group_id互斥)"
-//	@Param			group_id			query		string	false	"组ID - 查找属于同一组的所有任务 (与task_id、trace_id互斥)"
-//	@Param			task_type			query		string	false	"任务类型过滤"	Enums(RestartService, FaultInjection, BuildDataset, RunAlgorithm, CollectResult, BuildImage)
-//	@Param			status				query		string	false	"任务状态过滤"	Enums(Pending, Running, Completed, Error, Cancelled, Scheduled, Rescheduled)
-//	@Param			immediate			query		bool	false	"是否立即执行 - true:立即执行任务, false:延时执行任务"
-//	@Param			sort_field			query		string	false	"排序字段，默认created_at" default(created_at)
-//	@Param			sort_order			query		string	false	"排序方式，默认desc"	Enums(asc, desc)	default(desc)
-//	@Param			limit				query		int		false	"结果数量限制，用于控制返回记录数量"	minimum(1)
-//	@Param			lookback			query		string	false	"时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置"
-//	@Param			custom_start_time	query		string	false	"自定义开始时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
-//	@Param			custom_end_time		query		string	false	"自定义结束时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
-//	@Success		200					{object}	dto.GenericResponse[dto.ListTasksResp]	"成功返回故障注入记录列表"
-//	@Failure		400					{object}	dto.GenericResponse[any]	"请求参数错误，如参数格式不正确、验证失败等"
-//	@Failure		500					{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Param			task_id				query		string	false	"Task ID - exact match (mutually exclusive with trace_id, group_id)"
+//	@Param			trace_id			query		string	false	"Trace ID - find all tasks in the same trace (mutually exclusive with task_id, group_id)"
+//	@Param			group_id			query		string	false	"Group ID - find all tasks in the same group (mutually exclusive with task_id, trace_id)"
+//	@Param			task_type			query		string	false	"Task type filter"	Enums(RestartService, FaultInjection, BuildDataset, RunAlgorithm, CollectResult, BuildImage)
+//	@Param			status				query		string	false	"Task status filter"	Enums(Pending, Running, Completed, Error, Cancelled, Scheduled, Rescheduled)
+//	@Param			immediate			query		bool	false	"Immediate execution - true: immediate, false: delayed"
+//	@Param			sort_field			query		string	false	"Sort field, default created_at" default(created_at)
+//	@Param			sort_order			query		string	false	"Sort order, default desc"	Enums(asc, desc)	default(desc)
+//	@Param			limit				query		int		false	"Result limit, controls number of records returned"	minimum(1)
+//	@Param			lookback			query		string	false	"Time range query, supports relative time (1h/24h/7d) or custom, default unset"
+//	@Param			custom_start_time	query		string	false	"Custom start time, RFC3339 format, required if lookback=custom"	Format(date-time)
+//	@Param			custom_end_time		query		string	false	"Custom end time, RFC3339 format, required if lookback=custom"	Format(date-time)
+//	@Success		200					{object}	dto.GenericResponse[dto.ListTasksResp]	"Successfully returned fault injection record list"
+//	@Failure		400					{object}	dto.GenericResponse[any]	"Request parameter error, e.g. invalid format or validation failed"
+//	@Failure		500					{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v1/tasks	[get]
 func ListTasks(c *gin.Context) {
 	var req dto.ListTasksReq
@@ -199,7 +199,7 @@ func ListTasks(c *gin.Context) {
 	}
 
 	if err := req.Validate(); err != nil {
-		logrus.Errorf("invalid query parameters: %v", err)
+		logrus.Errorf("Invalid query parameters: %v", err)
 		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}

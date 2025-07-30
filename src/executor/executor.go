@@ -197,7 +197,7 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 		},
 	))
 
-	// 使用 PublishEvent 记录 job 日志
+	// Use PublishEvent to record job logs
 	if len(logs) > 0 {
 		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
 			TaskID:    taskOptions.TaskID,
@@ -260,7 +260,7 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 			}).Info("Successfully released algorithm execution token on job failure")
 		}
 
-		logEntry.Errorf("algorithm execute failed: %v", errMsg) //TODO errMsg为空
+		logEntry.Errorf("algorithm execute failed: %v", errMsg) //TODO errMsg is empty
 		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
 			TaskID:    taskOptions.TaskID,
 			TaskType:  consts.TaskTypeRunAlgorithm,
@@ -353,7 +353,7 @@ func (e *Executor) HandleJobSucceeded(job *batchv1.Job, annotations map[string]s
 		task := &dto.UnifiedTask{
 			Type: consts.TaskTypeRunAlgorithm,
 			Payload: map[string]any{
-				// TODO 在injection payload中
+				// TODO in injection payload
 				consts.ExecuteAlgorithm: dto.AlgorithmItem{
 					Name: config.GetString("algo.detector"),
 				},

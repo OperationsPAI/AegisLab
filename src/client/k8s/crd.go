@@ -26,7 +26,7 @@ func deleteCRD(ctx context.Context, gvr *schema.GroupVersionResource, namespace,
 		"name":      name,
 	})
 
-	// 1. 检查资源是否存在
+	// 1. Check if resource exists
 	obj, err := k8sDynamicClient.Resource(*gvr).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -35,13 +35,13 @@ func deleteCRD(ctx context.Context, gvr *schema.GroupVersionResource, namespace,
 		return fmt.Errorf("failed to get CRD: %v", err)
 	}
 
-	// 2. 检查是否已在删除中
+	// 2. Check if already being deleted
 	if !obj.GetDeletionTimestamp().IsZero() {
 		logEntry.Info("CRD is already being deleted")
 		return nil
 	}
 
-	// 3. 执行删除（幂等操作）
+	// 3. Execute deletion (idempotent operation)
 	_, err = k8sDynamicClient.Resource(*gvr).Namespace(namespace).Patch(
 		timeoutCtx,
 		name,

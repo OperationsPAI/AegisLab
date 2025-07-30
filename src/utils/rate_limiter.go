@@ -13,7 +13,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// RateLimiterConfig 限流器配置
+// RateLimiterConfig rate limiter configuration
 type RateLimiterConfig struct {
 	TokenBucketKey   string
 	MaxTokensKey     string
@@ -22,7 +22,7 @@ type RateLimiterConfig struct {
 	ServiceName      string
 }
 
-// TokenBucketRateLimiter 基于 Redis 的令牌桶限流器
+// TokenBucketRateLimiter token bucket rate limiter
 type TokenBucketRateLimiter struct {
 	redisClient *redis.Client
 	bucketKey   string
@@ -31,7 +31,7 @@ type TokenBucketRateLimiter struct {
 	serviceName string
 }
 
-// NewTokenBucketRateLimiter 创建新的令牌桶限流器
+// NewTokenBucketRateLimiter creates a new token bucket rate limiter
 func NewTokenBucketRateLimiter(cfg RateLimiterConfig) *TokenBucketRateLimiter {
 	maxTokens := config.GetInt(cfg.MaxTokensKey)
 	if maxTokens <= 0 {
@@ -52,7 +52,7 @@ func NewTokenBucketRateLimiter(cfg RateLimiterConfig) *TokenBucketRateLimiter {
 	}
 }
 
-// AcquireToken 获取令牌
+// AcquireToken acquires a token
 func (r *TokenBucketRateLimiter) AcquireToken(ctx context.Context, taskID, traceID string) (bool, error) {
 	span := trace.SpanFromContext(ctx)
 
@@ -63,11 +63,9 @@ func (r *TokenBucketRateLimiter) AcquireToken(ctx context.Context, taskID, trace
 		local trace_id = ARGV[3]
 		local expire_time = tonumber(ARGV[4])
 		
-		-- 获取当前令牌数量
 		local current_tokens = redis.call('SCARD', bucket_key)
 		
 		if current_tokens < max_tokens then
-			-- 有可用令牌，添加任务ID到集合中
 			redis.call('SADD', bucket_key, task_id)
 			redis.call('EXPIRE', bucket_key, expire_time)
 			return 1
@@ -99,11 +97,10 @@ func (r *TokenBucketRateLimiter) AcquireToken(ctx context.Context, taskID, trace
 	return acquired, nil
 }
 
-// ReleaseToken 释放令牌
+// ReleaseToken releases a token
 func (r *TokenBucketRateLimiter) ReleaseToken(ctx context.Context, taskID, traceID string) error {
 	span := trace.SpanFromContext(ctx)
 
-	// 从集合中移除任务ID
 	result, err := r.redisClient.SRem(ctx, r.bucketKey, taskID).Result()
 	if err != nil {
 		span.RecordError(err)
@@ -123,7 +120,7 @@ func (r *TokenBucketRateLimiter) ReleaseToken(ctx context.Context, taskID, trace
 	return nil
 }
 
-// WaitForToken 等待获取令牌，如果超时则返回 false
+// WaitForToken waits for a token, returns false if timeout
 func (r *TokenBucketRateLimiter) WaitForToken(ctx context.Context, taskID, traceID string) (bool, error) {
 	span := trace.SpanFromContext(ctx)
 	span.AddEvent("waiting for token")
@@ -158,7 +155,7 @@ func (r *TokenBucketRateLimiter) WaitForToken(ctx context.Context, taskID, trace
 	}
 }
 
-// NewRestartServiceRateLimiter 创建重启服务限流器
+// NewRestartServiceRateLimiter creates a restart service rate limiter
 func NewRestartServiceRateLimiter() *TokenBucketRateLimiter {
 	return NewTokenBucketRateLimiter(RateLimiterConfig{
 		TokenBucketKey:   consts.RestartServiceTokenBucket,
@@ -169,7 +166,7 @@ func NewRestartServiceRateLimiter() *TokenBucketRateLimiter {
 	})
 }
 
-// NewBuildContainerRateLimiter 创建构建容器限流器
+// NewBuildContainerRateLimiter creates a build container rate limiter
 func NewBuildContainerRateLimiter() *TokenBucketRateLimiter {
 	return NewTokenBucketRateLimiter(RateLimiterConfig{
 		TokenBucketKey:   consts.BuildContainerTokenBucket,
@@ -180,7 +177,7 @@ func NewBuildContainerRateLimiter() *TokenBucketRateLimiter {
 	})
 }
 
-// NewAlgoExecutionRateLimiter 创建算法执行限流器
+// NewAlgoExecutionRateLimiter creates an algorithm execution rate limiter
 func NewAlgoExecutionRateLimiter() *TokenBucketRateLimiter {
 	return NewTokenBucketRateLimiter(RateLimiterConfig{
 		TokenBucketKey:   consts.AlgoExecutionTokenBucket,

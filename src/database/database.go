@@ -12,7 +12,7 @@ import (
 	"gorm.io/plugin/opentelemetry/tracing"
 )
 
-// 全局 DB 对象
+// Global DB object
 var DB *gorm.DB
 
 func InitDB() {

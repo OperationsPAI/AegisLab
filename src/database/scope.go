@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// 模糊搜索 Scope
+// Fuzzy search Scope
 func KeywordSearch(keyword string, fields ...string) func(db *gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		if keyword == "" {
@@ -32,7 +32,7 @@ func CursorPaginate(lastID uint, size int) func(db *gorm.DB) *gorm.DB {
 	}
 }
 
-// 分页 Scope
+// Pagination Scope
 func Paginate(pageNum, pageSize int) func(db *gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		offset := (pageNum - 1) * pageSize
@@ -40,7 +40,7 @@ func Paginate(pageNum, pageSize int) func(db *gorm.DB) *gorm.DB {
 	}
 }
 
-// 排序 Scope
+// Sort Scope
 func Sort(sort string) func(db *gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		if sort == "" {

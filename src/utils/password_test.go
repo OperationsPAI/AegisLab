@@ -135,7 +135,7 @@ func TestValidatePasswordStrength(t *testing.T) {
 		{
 			name:             "Strong Password",
 			password:         "StrongPass123!",
-			expectedStrength: VeryStrongPassword, // 6分：长度8+, 长度12+, 小写, 大写, 数字, 特殊字符
+			expectedStrength: VeryStrongPassword,
 			shouldError:      false,
 			description:      "Should be very strong with all character types",
 		},
@@ -163,7 +163,7 @@ func TestValidatePasswordStrength(t *testing.T) {
 		{
 			name:             "Common Pattern",
 			password:         "password123",
-			expectedStrength: ModeratePassword, // 3分-1分=2分：长度8+, 小写, 数字, 减去常见模式penalty
+			expectedStrength: ModeratePassword,
 			shouldError:      false,
 			description:      "Should be moderate despite common pattern penalty",
 		},

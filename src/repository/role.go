@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// CreateRole 创建角色
+// CreateRole creates a role
 func CreateRole(role *database.Role) error {
 	if err := database.DB.Create(role).Error; err != nil {
 		return fmt.Errorf("failed to create role: %v", err)
@@ -16,7 +16,7 @@ func CreateRole(role *database.Role) error {
 	return nil
 }
 
-// GetRoleByID 根据ID获取角色
+// GetRoleByID gets role by ID
 func GetRoleByID(id int) (*database.Role, error) {
 	var role database.Role
 	if err := database.DB.First(&role, id).Error; err != nil {
@@ -28,7 +28,7 @@ func GetRoleByID(id int) (*database.Role, error) {
 	return &role, nil
 }
 
-// GetRoleByName 根据名称获取角色
+// GetRoleByName gets role by name
 func GetRoleByName(name string) (*database.Role, error) {
 	var role database.Role
 	if err := database.DB.Where("name = ?", name).First(&role).Error; err != nil {
@@ -40,7 +40,7 @@ func GetRoleByName(name string) (*database.Role, error) {
 	return &role, nil
 }
 
-// UpdateRole 更新角色信息
+// UpdateRole updates role information
 func UpdateRole(role *database.Role) error {
 	if err := database.DB.Save(role).Error; err != nil {
 		return fmt.Errorf("failed to update role: %v", err)
@@ -48,7 +48,7 @@ func UpdateRole(role *database.Role) error {
 	return nil
 }
 
-// DeleteRole 软删除角色（设置状态为-1）
+// DeleteRole soft deletes role (sets status to -1)
 func DeleteRole(id int) error {
 	if err := database.DB.Model(&database.Role{}).Where("id = ?", id).Update("status", -1).Error; err != nil {
 		return fmt.Errorf("failed to delete role: %v", err)
@@ -56,7 +56,7 @@ func DeleteRole(id int) error {
 	return nil
 }
 
-// ListRoles 获取角色列表
+// ListRoles gets role list
 func ListRoles(page, pageSize int, roleType string, status *int) ([]database.Role, int64, error) {
 	var roles []database.Role
 	var total int64
@@ -71,12 +71,12 @@ func ListRoles(page, pageSize int, roleType string, status *int) ([]database.Rol
 		query = query.Where("type = ?", roleType)
 	}
 
-	// 获取总数
+	      // Get total count
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to count roles: %v", err)
 	}
 
-	// 分页查询
+	      // Paginated query
 	offset := (page - 1) * pageSize
 	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&roles).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to list roles: %v", err)
@@ -85,7 +85,7 @@ func ListRoles(page, pageSize int, roleType string, status *int) ([]database.Rol
 	return roles, total, nil
 }
 
-// GetRolePermissions 获取角色的权限
+// GetRolePermissions gets role permissions
 func GetRolePermissions(roleID int) ([]database.Permission, error) {
 	var permissions []database.Permission
 	if err := database.DB.Table("permissions").
@@ -97,7 +97,7 @@ func GetRolePermissions(roleID int) ([]database.Permission, error) {
 	return permissions, nil
 }
 
-// AssignPermissionToRole 给角色分配权限
+// AssignPermissionToRole assigns permission to role
 func AssignPermissionToRole(roleID, permissionID int) error {
 	rolePermission := &database.RolePermission{
 		RoleID:       roleID,
@@ -110,7 +110,7 @@ func AssignPermissionToRole(roleID, permissionID int) error {
 	return nil
 }
 
-// RemovePermissionFromRole 移除角色的权限
+// RemovePermissionFromRole removes permission from role
 func RemovePermissionFromRole(roleID, permissionID int) error {
 	if err := database.DB.Where("role_id = ? AND permission_id = ?", roleID, permissionID).
 		Delete(&database.RolePermission{}).Error; err != nil {
@@ -119,7 +119,7 @@ func RemovePermissionFromRole(roleID, permissionID int) error {
 	return nil
 }
 
-// GetRoleUsers 获取拥有该角色的用户
+// GetRoleUsers gets users who have this role
 func GetRoleUsers(roleID int) ([]database.User, error) {
 	var users []database.User
 	if err := database.DB.Table("users").
@@ -131,7 +131,7 @@ func GetRoleUsers(roleID int) ([]database.User, error) {
 	return users, nil
 }
 
-// GetSystemRoles 获取系统角色
+// GetSystemRoles gets system roles
 func GetSystemRoles() ([]database.Role, error) {
 	var roles []database.Role
 	if err := database.DB.Where("is_system = true AND status = 1").

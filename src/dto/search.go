@@ -48,16 +48,16 @@ const (
 
 // SearchFilter represents a single filter condition
 type SearchFilter struct {
-	Field    string         `json:"field" binding:"required"`    // 字段名
-	Operator FilterOperator `json:"operator" binding:"required"` // 操作符
-	Value    interface{}    `json:"value"`                       // 值
-	Values   []interface{}  `json:"values,omitempty"`            // 多值（用于IN操作等）
+	Field    string         `json:"field" binding:"required"`    // Field name
+	Operator FilterOperator `json:"operator" binding:"required"` // Operator
+	Value    interface{}    `json:"value"`                       // Value
+	Values   []interface{}  `json:"values,omitempty"`            // Multiple values (for IN operations etc.)
 }
 
 // SortOption represents a sort option
 type SortOption struct {
-	Field     string        `json:"field" binding:"required"`     // 排序字段
-	Direction SortDirection `json:"direction" binding:"required"` // 排序方向
+	Field     string        `json:"field" binding:"required"`     // Sort field
+	Direction SortDirection `json:"direction" binding:"required"` // Sort direction
 }
 
 // SearchRequest represents a complex search request

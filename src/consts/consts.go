@@ -2,62 +2,62 @@ package consts
 
 import "time"
 
-// ResourceName 资源名称类型，用于权限检查
+// ResourceName is the type for resource names, used for permission checks
 type ResourceName string
 
-// 系统资源名称常量
+// System resource name constants
 const (
-	ResourceProject        ResourceName = "project"         // 项目资源
-	ResourceDataset        ResourceName = "dataset"         // 数据集资源
-	ResourceFaultInjection ResourceName = "fault_injection" // 故障注入资源
-	ResourceContainer      ResourceName = "container"       // 容器资源
-	ResourceTask           ResourceName = "task"            // 任务资源
-	ResourceUser           ResourceName = "user"            // 用户资源
-	ResourceRole           ResourceName = "role"            // 角色资源
-	ResourcePermission     ResourceName = "permission"      // 权限资源
+	ResourceProject        ResourceName = "project"         // project resource
+	ResourceDataset        ResourceName = "dataset"         // dataset resource
+	ResourceFaultInjection ResourceName = "fault_injection" // fault injection resource
+	ResourceContainer      ResourceName = "container"       // container resource
+	ResourceTask           ResourceName = "task"            // task resource
+	ResourceUser           ResourceName = "user"            // user resource
+	ResourceRole           ResourceName = "role"            // role resource
+	ResourcePermission     ResourceName = "permission"      // permission resource
 )
 
-// String 返回资源名称的字符串表示
+// String returns the string representation of the resource name
 func (r ResourceName) String() string {
 	return string(r)
 }
 
-// ActionName 权限动作类型，用于权限检查
+// ActionName is the type for permission action names, used for permission checks
 type ActionName string
 
-// 系统权限动作常量
+// System permission action constants
 const (
-	ActionRead    ActionName = "read"    // 读取权限
-	ActionWrite   ActionName = "write"   // 写入权限
-	ActionDelete  ActionName = "delete"  // 删除权限
-	ActionExecute ActionName = "execute" // 执行权限
-	ActionManage  ActionName = "manage"  // 管理权限
+	ActionRead    ActionName = "read"    // read permission
+	ActionWrite   ActionName = "write"   // write permission
+	ActionDelete  ActionName = "delete"  // delete permission
+	ActionExecute ActionName = "execute" // execute permission
+	ActionManage  ActionName = "manage"  // manage permission
 )
 
-// String 返回动作名称的字符串表示
+// String returns the string representation of the action name
 func (a ActionName) String() string {
 	return string(a)
 }
 
 /*
-权限检查使用示例：
+Permission check usage example:
 
-// 基本权限检查（推荐使用类型安全的方式）
+// Basic permission check (type-safe approach recommended)
 checker := repository.NewPermissionChecker(userID, nil)
 
-// 使用类型安全的常量进行权限检查
+// Use type-safe constants for permission checks
 canRead, err := checker.CanReadResource(consts.ResourceContainer)
 canWrite, err := checker.CanWriteResource(consts.ResourceTask)
 canDelete, err := checker.CanDeleteResource(consts.ResourceProject)
 
-// 通用权限检查
+// General permission check
 hasPermission, err := checker.HasPermissionTyped(consts.ActionRead, consts.ResourceContainer)
 
-// 兼容的字符串方式（不推荐，但仍然支持）
+// Compatible string approach (not recommended, but still supported)
 canRead, err := checker.CanRead("container")
 */
 
-// 定义任务类型
+// Define task types
 type TaskType string
 
 type ContainerType string
@@ -120,7 +120,7 @@ const (
 	TaskMsgFailed    string = "Task %s failed"
 )
 
-// 不同任务类型的 Payload 键
+// Payload keys for different task types
 const (
 	BuildBenchmark   = "benchmark"
 	BuildDataset     = "name"
@@ -172,7 +172,7 @@ const (
 	RestartInjectPayload = "inject_payload"
 )
 
-// 环境变量名称
+// Environment variable names
 const (
 	BuildEnvVarNamespace = "NAMESPACE"
 )
@@ -186,7 +186,7 @@ const (
 	InjectionAlgorithmsKey = "injection:algorithms"
 )
 
-// Redis stream 频道和字段
+// Redis stream channels and fields
 const (
 	StreamLogKey = "trace:%s:log"
 
@@ -252,7 +252,7 @@ const (
 	EventJobLogsRecorded EventType = "job.logs.recorded"
 )
 
-// K8s Job 名称
+// K8s Job name
 const (
 	DatasetJobName = "dataset"
 )
@@ -263,25 +263,25 @@ const (
 	GroupCarrier = "group_carrier"
 )
 
-// K8s Label 字段
+// K8s label fields
 const (
 	LabelTaskID    = "task_id"
 	LabelTraceID   = "trace_id"
 	LabelGroupID   = "group_id"
 	LabelProjectID = "project_id"
 
-	// CRD Label 字段
+	// CRD label fields
 	LabelBenchmark   = "benchmark"
 	LabelPreDuration = "pre_duration"
 
-	// Job Label 字段
+	// Job label fields
 	LabelTaskType    = "task_type"
 	LabelDataset     = "dataset"
 	LabelExecutionID = "execution_id"
 	LabelTimestamp   = "timestamp"
 )
 
-// sse 事件类型
+// SSE event types
 const (
 	EventEnd    = "end"
 	EventUpdate = "update"
@@ -313,7 +313,7 @@ const (
 	TaskStatusKey = "task.task_status"
 )
 
-// PermissionName type for permission constants
+// PermissionName is the type for permission constants
 type PermissionName string
 
 // Permission constants for system permissions
@@ -347,7 +347,7 @@ const (
 	PermissionReadPermission PermissionName = "read_permission" // Read permission
 )
 
-// RoleName type for role constants
+// RoleName is the type for role constants
 type RoleName string
 
 // Role constants for system roles

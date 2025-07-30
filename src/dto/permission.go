@@ -62,14 +62,14 @@ type PermissionSearchRequest struct {
 	AdvancedSearchRequest
 
 	// Permission-specific filter shortcuts
-	NamePattern        string   `json:"name_pattern,omitempty"`         // 权限名模糊匹配
-	DisplayNamePattern string   `json:"display_name_pattern,omitempty"` // 显示名模糊匹配
-	DescriptionPattern string   `json:"description_pattern,omitempty"`  // 描述模糊匹配
-	Actions            []string `json:"actions,omitempty"`              // 操作筛选
-	ResourceIDs        []int    `json:"resource_ids,omitempty"`         // 资源ID筛选
-	ResourceNames      []string `json:"resource_names,omitempty"`       // 资源名称筛选
-	IsSystem           *bool    `json:"is_system,omitempty"`            // 是否系统权限
-	RoleIDs            []int    `json:"role_ids,omitempty"`             // 拥有此权限的角色ID
+	NamePattern        string   `json:"name_pattern,omitempty"`         // Fuzzy match for permission name
+	DisplayNamePattern string   `json:"display_name_pattern,omitempty"` // Fuzzy match for display name
+	DescriptionPattern string   `json:"description_pattern,omitempty"`  // Fuzzy match for description
+	Actions            []string `json:"actions,omitempty"`              // Action filter
+	ResourceIDs        []int    `json:"resource_ids,omitempty"`         // Resource ID filter
+	ResourceNames      []string `json:"resource_names,omitempty"`       // Resource name filter
+	IsSystem           *bool    `json:"is_system,omitempty"`            // Is system permission
+	RoleIDs            []int    `json:"role_ids,omitempty"`             // Role IDs that have this permission
 }
 
 // ConvertToSearchRequest converts PermissionSearchRequest to SearchRequest with permission-specific filters

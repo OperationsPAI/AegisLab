@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// CreateDataset 创建数据集
+// CreateDataset creates a dataset
 //
 //	@Summary Create dataset
 //	@Description Create a new dataset with optional injection and label associations
@@ -163,7 +163,7 @@ func CreateDataset(c *gin.Context) {
 	dto.JSONResponse(c, http.StatusCreated, "Dataset created successfully", response)
 }
 
-// GetDataset 获取单个数据集
+// GetDataset gets a single dataset
 //
 //	@Summary Get dataset by ID
 //	@Description Get detailed information about a specific dataset
@@ -258,7 +258,7 @@ func GetDataset(c *gin.Context) {
 	dto.SuccessResponse(c, response)
 }
 
-// ListDatasets 获取数据集列表
+// ListDatasets gets the dataset list
 //
 //	@Summary List datasets
 //	@Description Get a paginated list of datasets with filtering and sorting
@@ -357,7 +357,7 @@ func ListDatasets(c *gin.Context) {
 	dto.SuccessResponse(c, response)
 }
 
-// UpdateDataset 更新数据集
+// UpdateDataset updates a dataset
 //
 //	@Summary Update dataset
 //	@Description Update dataset information, injection and label associations
@@ -542,7 +542,7 @@ func UpdateDataset(c *gin.Context) {
 	dto.SuccessResponse(c, response)
 }
 
-// DeleteDataset 删除数据集（逻辑删除）
+// DeleteDataset deletes a dataset (soft delete)
 //
 //	@Summary Delete dataset
 //	@Description Soft delete a dataset (sets status to -1)
@@ -601,7 +601,7 @@ func DeleteDataset(c *gin.Context) {
 	dto.SuccessResponse(c, gin.H{"message": "Dataset deleted successfully"})
 }
 
-// SearchDatasets 搜索数据集（复杂查询）
+// SearchDatasets advanced search for datasets
 //
 //	@Summary Search datasets
 //	@Description Advanced search for datasets with complex filtering
@@ -714,7 +714,7 @@ func SearchDatasets(c *gin.Context) {
 	dto.SuccessResponse(c, response)
 }
 
-// ManageDatasetInjections 管理数据集中的故障注入
+// ManageDatasetInjections manages dataset injections
 //
 //	@Summary Manage dataset injections
 //	@Description Add or remove injection associations for a dataset
@@ -814,7 +814,7 @@ func ManageDatasetInjections(c *gin.Context) {
 	dto.SuccessResponse(c, response)
 }
 
-// ManageDatasetLabels 管理数据集中的标签
+// ManageDatasetLabels manages dataset labels
 //
 //	@Summary Manage dataset labels
 //	@Description Add, remove labels or create new labels for a dataset

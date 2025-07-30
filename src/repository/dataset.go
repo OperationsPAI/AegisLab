@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// CreateDataset 创建数据集
+// CreateDataset creates a dataset
 func CreateDataset(dataset *database.Dataset) error {
 	if err := database.DB.Create(dataset).Error; err != nil {
 		return fmt.Errorf("failed to create dataset: %v", err)
@@ -16,7 +16,7 @@ func CreateDataset(dataset *database.Dataset) error {
 	return nil
 }
 
-// GetDatasetByID 根据ID获取数据集
+// GetDatasetByID gets dataset by ID
 func GetDatasetByID(id int) (*database.Dataset, error) {
 	var dataset database.Dataset
 	if err := database.DB.Preload("Project").First(&dataset, id).Error; err != nil {
@@ -28,7 +28,7 @@ func GetDatasetByID(id int) (*database.Dataset, error) {
 	return &dataset, nil
 }
 
-// GetDatasetByNameAndVersion 根据名称和版本获取数据集
+// GetDatasetByNameAndVersion gets dataset by name and version
 func GetDatasetByNameAndVersion(name, version string) (*database.Dataset, error) {
 	var dataset database.Dataset
 	if err := database.DB.Preload("Project").
@@ -42,7 +42,7 @@ func GetDatasetByNameAndVersion(name, version string) (*database.Dataset, error)
 	return &dataset, nil
 }
 
-// UpdateDataset 更新数据集信息
+// UpdateDataset updates dataset information
 func UpdateDataset(dataset *database.Dataset) error {
 	if err := database.DB.Save(dataset).Error; err != nil {
 		return fmt.Errorf("failed to update dataset: %v", err)
@@ -50,7 +50,7 @@ func UpdateDataset(dataset *database.Dataset) error {
 	return nil
 }
 
-// DeleteDataset 软删除数据集（设置状态为-1）
+// DeleteDataset soft deletes dataset (sets status to -1)
 func DeleteDataset(id int) error {
 	if err := database.DB.Model(&database.Dataset{}).Where("id = ?", id).Update("status", -1).Error; err != nil {
 		return fmt.Errorf("failed to delete dataset: %v", err)
@@ -58,7 +58,7 @@ func DeleteDataset(id int) error {
 	return nil
 }
 
-// ListDatasets 获取数据集列表
+// ListDatasets gets dataset list
 func ListDatasets(page, pageSize int, projectID *int, datasetType string, status *int, isPublic *bool) ([]database.Dataset, int64, error) {
 	var datasets []database.Dataset
 	var total int64
@@ -81,12 +81,12 @@ func ListDatasets(page, pageSize int, projectID *int, datasetType string, status
 		query = query.Where("is_public = ?", *isPublic)
 	}
 
-	// 获取总数
+	// Get total count
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to count datasets: %v", err)
 	}
 
-	// 分页查询
+	// Pagination query
 	offset := (page - 1) * pageSize
 	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&datasets).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to list datasets: %v", err)
@@ -95,7 +95,7 @@ func ListDatasets(page, pageSize int, projectID *int, datasetType string, status
 	return datasets, total, nil
 }
 
-// GetDatasetVersions 获取数据集的所有版本
+// GetDatasetVersions gets all versions of a dataset
 func GetDatasetVersions(name string) ([]database.Dataset, error) {
 	var datasets []database.Dataset
 	if err := database.DB.Where("name = ? AND status != -1", name).
@@ -105,7 +105,7 @@ func GetDatasetVersions(name string) ([]database.Dataset, error) {
 	return datasets, nil
 }
 
-// GetDatasetFaultInjections 获取数据集关联的故障注入
+// GetDatasetFaultInjections gets fault injections associated with dataset
 func GetDatasetFaultInjections(datasetID int) ([]database.DatasetFaultInjection, error) {
 	var relations []database.DatasetFaultInjection
 	if err := database.DB.Preload("FaultInjectionSchedule").
@@ -116,7 +116,7 @@ func GetDatasetFaultInjections(datasetID int) ([]database.DatasetFaultInjection,
 	return relations, nil
 }
 
-// AddDatasetToFaultInjection 将数据集与故障注入关联
+// AddDatasetToFaultInjection associates dataset with fault injection
 func AddDatasetToFaultInjection(datasetID, faultInjectionID int, relationType string, isGroundTruth bool) error {
 	relation := &database.DatasetFaultInjection{
 		DatasetID:        datasetID,
@@ -129,7 +129,7 @@ func AddDatasetToFaultInjection(datasetID, faultInjectionID int, relationType st
 	return nil
 }
 
-// RemoveDatasetFromFaultInjection 移除数据集与故障注入的关联
+// RemoveDatasetFromFaultInjection removes association between dataset and fault injection
 func RemoveDatasetFromFaultInjection(datasetID, faultInjectionID int) error {
 	if err := database.DB.Where("dataset_id = ? AND fault_injection_id = ?", datasetID, faultInjectionID).
 		Delete(&database.DatasetFaultInjection{}).Error; err != nil {
@@ -138,7 +138,7 @@ func RemoveDatasetFromFaultInjection(datasetID, faultInjectionID int) error {
 	return nil
 }
 
-// GetDatasetLabels 获取数据集的标签
+// GetDatasetLabels gets dataset labels
 func GetDatasetLabels(datasetID int) ([]database.Label, error) {
 	var labels []database.Label
 	if err := database.DB.Table("labels").
@@ -150,7 +150,7 @@ func GetDatasetLabels(datasetID int) ([]database.Label, error) {
 	return labels, nil
 }
 
-// AddLabelToDataset 给数据集添加标签
+// AddLabelToDataset adds label to dataset
 func AddLabelToDataset(datasetID, labelID int) error {
 	datasetLabel := &database.DatasetLabel{
 		DatasetID: datasetID,
@@ -161,7 +161,7 @@ func AddLabelToDataset(datasetID, labelID int) error {
 		return fmt.Errorf("failed to add label to dataset: %v", err)
 	}
 
-	// 增加标签使用次数
+	// Increase label usage count
 	if err := database.DB.Model(&database.Label{}).Where("id = ?", labelID).
 		UpdateColumn("usage", gorm.Expr("usage + 1")).Error; err != nil {
 		return fmt.Errorf("failed to update label usage: %v", err)
@@ -170,14 +170,13 @@ func AddLabelToDataset(datasetID, labelID int) error {
 	return nil
 }
 
-// RemoveLabelFromDataset 移除数据集的标签
+// RemoveLabelFromDataset removes label from dataset
 func RemoveLabelFromDataset(datasetID, labelID int) error {
 	if err := database.DB.Where("dataset_id = ? AND label_id = ?", datasetID, labelID).
 		Delete(&database.DatasetLabel{}).Error; err != nil {
 		return fmt.Errorf("failed to remove label from dataset: %v", err)
 	}
 
-	// 减少标签使用次数
 	if err := database.DB.Model(&database.Label{}).Where("id = ?", labelID).
 		UpdateColumn("usage", gorm.Expr("usage - 1")).Error; err != nil {
 		return fmt.Errorf("failed to update label usage: %v", err)
@@ -186,7 +185,7 @@ func RemoveLabelFromDataset(datasetID, labelID int) error {
 	return nil
 }
 
-// SearchDatasetsByLabels 根据标签搜索数据集
+// SearchDatasetsByLabels searches datasets by labels
 func SearchDatasetsByLabels(labelKeys []string, labelValues []string) ([]database.Dataset, error) {
 	var datasets []database.Dataset
 
@@ -270,7 +269,7 @@ func GetDatasetCountByType() (map[string]int64, error) {
 	return typeCounts, nil
 }
 
-// GetDatasetTotalSize 获取数据集总存储大小
+// GetDatasetTotalSize gets total size of datasets
 func GetDatasetTotalSize() (int64, error) {
 	var totalSize int64
 	if err := database.DB.Model(&database.Dataset{}).

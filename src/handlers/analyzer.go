@@ -11,25 +11,25 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// AnalyzeInjections 处理故障注入分析请求
+// AnalyzeInjections handles fault injection analysis requests
 //
-//	@Summary     	分析故障注入数据
-//	@Description 	使用多种筛选条件分析故障注入数据，返回包括效率、多样性、种子之间的距离等统计信息
+//	@Summary     	Analyze fault injection data
+//	@Description 	Analyze fault injection data using various filtering conditions, returning statistical information including efficiency, diversity, distance between seeds, etc.
 //	@Tags        	analyzer
 //	@Produce     	json
-//	@Param			project_name		query		string	false	"项目名称过滤"
-//	@Param			env					query		string	false	"环境标签过滤"	Enums(dev, prod)	default(prod)
-//	@Param			batch				query		string	false	"批次标签过滤"
-//	@Param			tag					query		string	false	"分类标签过滤"	Enums(train, test)	default(train)
-//	@Param			benchmark			query		string	false	"基准测试类型过滤"	Enums(clickhouse)	default(clickhouse)
-//	@Param			status				query		int		false	"状态过滤，具体值参考字段映射接口(/mapping)"	default(0)
-//	@Param			fault_type			query		int		false	"故障类型过滤，具体值参考字段映射接口(/mapping)"	default(0)
-//	@Param			lookback			query		string	false	"时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置"
-//	@Param			custom_start_time	query		string	false	"自定义开始时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
-//	@Param			custom_end_time		query		string	false	"自定义结束时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
-//	@Success     	200  				{object}    dto.GenericResponse[dto.AnalyzeInjectionsResp]	"返回故障注入分析统计信息"
-//	@Failure		400					{object}	dto.GenericResponse[any]	"请求参数错误，如参数格式不正确、验证失败等"
-//	@Failure     	500  				{object}    dto.GenericResponse[any]	"服务器内部错误"
+//	@Param			project_name		query		string	false	"Project name filter"
+//	@Param			env					query		string	false	"Environment label filter"	Enums(dev, prod)	default(prod)
+//	@Param			batch				query		string	false	"Batch label filter"
+//	@Param			tag					query		string	false	"Classification label filter"	Enums(train, test)	default(train)
+//	@Param			benchmark			query		string	false	"Benchmark type filter"	Enums(clickhouse)	default(clickhouse)
+//	@Param			status				query		int		false	"Status filter, refer to field mapping interface (/mapping) for specific values"	default(0)
+//	@Param			fault_type			query		int		false	"Fault type filter, refer to field mapping interface (/mapping) for specific values"	default(0)
+//	@Param			lookback			query		string	false	"Time range query, supports custom relative time (1h/24h/7d) or custom, default is not set"
+//	@Param			custom_start_time	query		string	false	"Custom start time, RFC3339 format, required when lookback=custom"	Format(date-time)
+//	@Param			custom_end_time		query		string	false	"Custom end time, RFC3339 format, required when lookback=custom"	Format(date-time)
+//	@Success     	200  				{object}    dto.GenericResponse[dto.AnalyzeInjectionsResp]	"Returns fault injection analysis statistics"
+//	@Failure		400					{object}	dto.GenericResponse[any]	"Request parameter error, such as incorrect parameter format, validation failure, etc."
+//	@Failure     	500  				{object}    dto.GenericResponse[any]	"Internal server error"
 //	@Router      	/api/v1/analyzers/injections [get]
 func AnalyzeInjections(c *gin.Context) {
 	var req dto.AnalyzeInjectionsReq
@@ -88,19 +88,19 @@ func AnalyzeInjections(c *gin.Context) {
 	})
 }
 
-// AnalyzeTraces 处理链路分析请求
+// AnalyzeTraces handles trace analysis requests
 //
-//	@Summary     	分析链路数据
-//	@Description 	使用多种筛选条件分析链路数据，返回包括故障注入结束链路在内的统计信息
+//	@Summary     	Analyze trace data
+//	@Description 	Analyze trace data using various filtering conditions, returning statistical information including traces ending with fault injection
 //	@Tags        	trace
 //	@Produce     	json
-//	@Param       	first_task_type     query   	string  false  	"首任务类型筛选"
-//	@Param			lookback			query		string	false	"时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置"
-//	@Param			custom_start_time	query		string	false	"自定义开始时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
-//	@Param			custom_end_time		query		string	false	"自定义结束时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
-//	@Success     	200  				{object}    dto.GenericResponse[dto.TraceStats]	"返回链路分析统计信息"
-//	@Failure		400					{object}	dto.GenericResponse[any]	"请求参数错误，如参数格式不正确、验证失败等"
-//	@Failure     	500  				{object}    dto.GenericResponse[any]	"服务器内部错误"
+//	@Param       	first_task_type     query   	string  false  	"First task type filter"
+//	@Param			lookback			query		string	false	"Time range query, supports custom relative time (1h/24h/7d) or custom, default is not set"
+//	@Param			custom_start_time	query		string	false	"Custom start time, RFC3339 format, required when lookback=custom"	Format(date-time)
+//	@Param			custom_end_time		query		string	false	"Custom end time, RFC3339 format, required when lookback=custom"	Format(date-time)
+//	@Success     	200  				{object}    dto.GenericResponse[dto.TraceStats]	"Returns trace analysis statistics"
+//	@Failure		400					{object}	dto.GenericResponse[any]	"Request parameter error, such as incorrect parameter format, validation failure, etc."
+//	@Failure     	500  				{object}    dto.GenericResponse[any]	"Internal server error"
 //	@Router      	/api/v1/analyzers/traces [get]
 func AnalyzeTraces(c *gin.Context) {
 	var req dto.AnalyzeTracesReq

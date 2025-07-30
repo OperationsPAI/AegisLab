@@ -25,11 +25,11 @@ import (
 
 // CancelInjection
 //
-//	@Summary		取消故障注入任务
-//	@Description	取消指定的故障注入任务
+//	@Summary		Cancel Fault Injection Task
+//	@Description	Cancel the specified fault injection task
 //	@Tags			injection
 //	@Produce		application/json
-//	@Param			task_id	path		string	true	"任务ID"
+//	@Param			task_id	path		string	true	"Task ID"
 //	@Success		200		{object}	dto.GenericResponse[dto.InjectCancelResp]
 //	@Failure		400		{object}	dto.GenericResponse[any]
 //	@Failure		500		{object}	dto.GenericResponse[any]
@@ -39,15 +39,15 @@ func CancelInjection(c *gin.Context) {
 
 // GetInjectionConf
 //
-//	@Summary		获取故障注入配置
-//	@Description	获取指定命名空间的故障注入配置信息，支持不同显示模式的配置树结构
+//	@Summary		Get Fault Injection Configuration
+//	@Description	Get fault injection configuration for the specified namespace, supporting different display modes for configuration tree structure
 //	@Tags			injection
 //	@Produce		json
-//	@Param			namespace	query		string	true	"命名空间，指定要获取配置的命名空间"
-//	@Param			mode		query		string	false	"显示模式"	Enums(display, engine) default(engine)
-//	@Success		200			{object}	dto.GenericResponse[chaos.Node]	"成功返回配置树结构"
-//	@Failure		400			{object}	dto.GenericResponse[any]	"请求参数错误，如命名空间或模式参数缺失"
-//	@Failure		500			{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Param			namespace	query		string	true	"Namespace, specifies the namespace to get configuration for"
+//	@Param			mode		query		string	false	"Display mode"	Enums(display, engine) default(engine)
+//	@Success		200			{object}	dto.GenericResponse[chaos.Node]	"Successfully returned configuration tree structure"
+//	@Failure		400			{object}	dto.GenericResponse[any]	"Request parameter error, such as missing namespace or mode parameter"
+//	@Failure		500			{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v1/injections/conf [get]
 func GetInjectionConf(c *gin.Context) {
 	var req dto.InjectionConfReq
@@ -72,12 +72,12 @@ func GetInjectionConf(c *gin.Context) {
 
 // GetInjectionFieldMapping
 //
-//	@Summary		获取字段映射关系
-//	@Description	获取状态和故障类型的字符串与数字映射关系，用于前端显示和API参数验证
+//	@Summary		Get Field Mapping
+//	@Description	Get string-to-number mapping relationships for status and fault types, used for frontend display and API parameter validation
 //	@Tags			injection
 //	@Produce		json
-//	@Success		200	{object}	dto.GenericResponse[dto.InjectionFieldMappingResp]	"成功返回字段映射关系"
-//	@Failure		500	{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Success		200	{object}	dto.GenericResponse[dto.InjectionFieldMappingResp]	"Successfully returned field mapping relationships"
+//	@Failure		500	{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v1/injections/mapping [get]
 func GetInjectionFieldMapping(c *gin.Context) {
 	if dto.DatasetStatusMap == nil || chaos.ChaosTypeMap == nil {
@@ -102,15 +102,15 @@ func GetInjectionFieldMapping(c *gin.Context) {
 
 // GetNsResourcesMap
 //
-//	@Summary		获取命名空间资源映射
-//	@Description	获取所有命名空间及其对应的资源信息映射，或查询指定命名空间的资源信息。返回命名空间到资源的映射表，用于故障注入配置和资源管理
+//	@Summary		Get Namespace Resource Mapping
+//	@Description	Get mapping of all namespaces and their corresponding resource information, or query resource information for a specific namespace. Returns a mapping table from namespace to resources, used for fault injection configuration and resource management
 //	@Tags			injection
 //	@Produce		json
-//	@Param			namespace	query		string	false	"命名空间名称，不指定时返回所有命名空间的资源映射"
-//	@Success		200			{object}	dto.GenericResponse[dto.NsResourcesResp]	"成功返回命名空间资源映射表"
-//	@Success		200			{object}	dto.GenericResponse[chaos.Resources]		"指定命名空间时返回该命名空间的资源信息"
-//	@Failure		404			{object}	dto.GenericResponse[any]					"指定的命名空间不存在"
-//	@Failure		500			{object}	dto.GenericResponse[any]					"服务器内部错误，无法获取资源映射"
+//	@Param			namespace	query		string	false	"Namespace name, returns resource mappings for all namespaces if not specified"
+//	@Success		200			{object}	dto.GenericResponse[dto.NsResourcesResp]	"Successfully returned namespace resource mapping table"
+//	@Success		200			{object}	dto.GenericResponse[chaos.Resources]		"Returns resource information for the specified namespace when a namespace is provided"
+//	@Failure		404			{object}	dto.GenericResponse[any]					"The specified namespace does not exist"
+//	@Failure		500			{object}	dto.GenericResponse[any]					"Internal server error, unable to get resource mapping"
 //	@Router			/api/v1/injections/ns-resources [get]
 func GetNsResourceMap(c *gin.Context) {
 	namespace := c.Query("namespace")
@@ -139,14 +139,14 @@ func GetNsResourceMap(c *gin.Context) {
 
 // ListDisplayConfigs
 //
-//	@Summary		获取已注入故障配置列表
-//	@Description	根据多个TraceID获取对应的故障注入配置信息，用于查看已提交的故障注入任务的配置详情
+//	@Summary		Get Injected Fault Configuration List
+//	@Description	Get fault injection configuration information based on multiple TraceIDs, used to view configuration details of submitted fault injection tasks
 //	@Tags			injection
 //	@Produce		json
-//	@Param			trace_ids	query		[]string	false	"TraceID列表，支持多个值，用于查询对应的配置信息"	collectionFormat(multi)
-//	@Success		200			{object}	dto.GenericResponse[any]	"成功返回配置列表"
-//	@Failure		400			{object}	dto.GenericResponse[any]	"请求参数错误，如TraceID参数缺失或格式不正确"
-//	@Failure		500			{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Param			trace_ids	query		[]string	false	"TraceID list, supports multiple values, used to query corresponding configuration information"	collectionFormat(multi)
+//	@Success		200			{object}	dto.GenericResponse[any]	"Successfully returned configuration list"
+//	@Failure		400			{object}	dto.GenericResponse[any]	"Request parameter error, such as missing TraceID parameter or incorrect format"
+//	@Failure		500			{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v1/injections/configs [get]
 func ListDisplayConfigs(c *gin.Context) {
 	var req dto.ListDisplayConfigsReq
@@ -174,28 +174,28 @@ func ListDisplayConfigs(c *gin.Context) {
 
 // ListInjections
 //
-//	@Summary		获取故障注入记录列表
-//	@Description	支持排序、过滤的故障注入记录查询接口。返回数据库原始记录列表，不进行数据转换。
+//	@Summary		Get Fault Injection Record List
+//	@Description	Fault injection record query interface supporting sorting and filtering. Returns the original database record list without data conversion.
 //	@Tags			injection
 //	@Produce		json
-//	@Param			project_name		query		string	false	"项目名称过滤"
-//	@Param			env					query		string	false	"环境标签过滤"	Enums(dev, prod)	default(prod)
-//	@Param			batch				query		string	false	"批次标签过滤"
-//	@Param			tag					query		string	false	"分类标签过滤"	Enums(train, test)	default(train)
-//	@Param			benchmark			query		string	false	"基准测试类型过滤"	Enums(clickhouse)	default(clickhouse)
-//	@Param			status				query		int		false	"状态过滤，具体值参考字段映射接口(/mapping)"	default(0)
-//	@Param			fault_type			query		int		false	"故障类型过滤，具体值参考字段映射接口(/mapping)"	default(0)
-//	@Param			sort_field			query		string	false	"排序字段，默认created_at" default(created_at)
-//	@Param			sort_order			query		string	false	"排序方式，默认desc"	Enums(asc, desc)	default(desc)
-//	@Param			limit				query		int		false	"结果数量限制，用于控制返回记录数量"	minimum(0)	default(0)
-//	@Param			page_num			query		int		false	"分页查询，页码"	minimum(0)	default(0)
-//	@Param			page_size			query		int		false	"分页查询，每页数量"	minimum(0)	default(0)
-//	@Param			lookback			query		string	false	"时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置"
-//	@Param			custom_start_time	query		string	false	"自定义开始时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
-//	@Param			custom_end_time		query		string	false	"自定义结束时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
-//	@Success		200					{object}	dto.GenericResponse[dto.ListInjectionsResp]	"成功返回故障注入记录列表"
-//	@Failure		400					{object}	dto.GenericResponse[any]	"请求参数错误，如参数格式不正确、验证失败等"
-//	@Failure		500					{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Param			project_name		query		string	false	"Project name filter"
+//	@Param			env					query		string	false	"Environment label filter"	Enums(dev, prod)	default(prod)
+//	@Param			batch				query		string	false	"Batch label filter"
+//	@Param			tag					query		string	false	"Category label filter"	Enums(train, test)	default(train)
+//	@Param			benchmark			query		string	false	"Benchmark type filter"	Enums(clickhouse)	default(clickhouse)
+//	@Param			status				query		int		false	"Status filter, refer to field mapping interface (/mapping) for specific values"	default(0)
+//	@Param			fault_type			query		int		false	"Fault type filter, refer to field mapping interface (/mapping) for specific values"	default(0)
+//	@Param			sort_field			query		string	false	"Sort field, default created_at" default(created_at)
+//	@Param			sort_order			query		string	false	"Sort order, default desc"	Enums(asc, desc)	default(desc)
+//	@Param			limit				query		int		false	"Result quantity limit, used to control the number of returned records"	minimum(0)	default(0)
+//	@Param			page_num			query		int		false	"Pagination query, page number"	minimum(0)	default(0)
+//	@Param			page_size			query		int		false	"Pagination query, records per page"	minimum(0)	default(0)
+//	@Param			lookback			query		string	false	"Time range query, supports custom relative time (1h/24h/7d) or custom, default not set"
+//	@Param			custom_start_time	query		string	false	"Custom start time, RFC3339 format, required when lookback=custom"	Format(date-time)
+//	@Param			custom_end_time		query		string	false	"Custom end time, RFC3339 format, required when lookback=custom"	Format(date-time)
+//	@Success		200					{object}	dto.GenericResponse[dto.ListInjectionsResp]	"Successfully returned fault injection record list"
+//	@Failure		400					{object}	dto.GenericResponse[any]	"Request parameter error, such as incorrect parameter format, validation failure, etc."
+//	@Failure		500					{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v1/injections	[get]
 func ListInjections(c *gin.Context) {
 	var req dto.ListInjectionsReq
@@ -237,15 +237,15 @@ func ListInjections(c *gin.Context) {
 
 // QueryInjection
 //
-//	@Summary		查询单个故障注入记录
-//	@Description	根据名称或任务ID查询故障注入记录详情，两个参数至少提供一个
+//	@Summary		Query Single Fault Injection Record
+//	@Description	Query fault injection record details by name or task ID, at least one of the two parameters must be provided
 //	@Tags			injection
 //	@Produce		json
-//	@Param			name		query		string	false	"故障注入名称"
-//	@Param			task_id		query		string	false	"任务ID"
-//	@Success		200			{object}	dto.GenericResponse[dto.QueryInjectionResp]	"成功返回故障注入记录详情"
-//	@Failure		400			{object}	dto.GenericResponse[any]	"请求参数错误，如参数缺失、格式不正确或验证失败等"
-//	@Failure		500			{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Param			name		query		string	false	"Fault injection name"
+//	@Param			task_id		query		string	false	"Task ID"
+//	@Success		200			{object}	dto.GenericResponse[dto.QueryInjectionResp]	"Successfully returned fault injection record details"
+//	@Failure		400			{object}	dto.GenericResponse[any]	"Request parameter error, such as missing parameters, incorrect format, or validation failure, etc."
+//	@Failure		500			{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v1/injections/query [get]
 func QueryInjection(c *gin.Context) {
 	var req dto.QueryInjectionReq
@@ -290,15 +290,15 @@ func QueryInjection(c *gin.Context) {
 
 // SubmitFaultInjection
 //
-//	@Summary		提交故障注入任务
-//	@Description	提交故障注入任务，支持批量提交多个故障配置，系统会自动去重并返回提交结果
+//	@Summary		Submit Fault Injection Task
+//	@Description	Submit fault injection task, supporting batch submission of multiple fault configurations, the system will automatically deduplicate and return submission results
 //	@Tags			injection
 //	@Produce		json
 //	@Consumes		application/json
-//	@Param			body	body		dto.SubmitInjectionReq	true	"故障注入请求体"
-//	@Success		202		{object}	dto.GenericResponse[dto.SubmitInjectionResp]	"成功提交故障注入任务"
-//	@Failure		400		{object}	dto.GenericResponse[any]	"请求参数错误，如JSON格式不正确、参数验证失败或算法无效等"
-//	@Failure		500		{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Param			body	body		dto.SubmitInjectionReq	true	"Fault injection request body"
+//	@Success		202		{object}	dto.GenericResponse[dto.SubmitInjectionResp]	"Successfully submitted fault injection task"
+//	@Failure		400		{object}	dto.GenericResponse[any]	"Request parameter error, such as incorrect JSON format, parameter validation failure, or invalid algorithm, etc."
+//	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v1/injections [post]
 func SubmitFaultInjection(c *gin.Context) {
 	groupID := c.GetString("groupID")
@@ -445,7 +445,7 @@ func removeDuplicated(configs []dto.InjectionConfig) ([]dto.InjectionConfig, err
 	return newConfigs, nil
 }
 
-// TODO 修复container的时候因为pod一定不同，可以重复注入
+// TODO When fixing container, since pods are always different, repeated injections are possible
 func findMissingIndices(confs []string, batch_size int) ([]int, error) {
 	var missingIndices []int
 	existingMap := make(map[string]struct{})
@@ -477,18 +477,18 @@ func findMissingIndices(confs []string, batch_size int) ([]int, error) {
 
 // GetFaultInjectionNoIssues
 //
-//	@Summary		查询没有问题的故障注入记录
-//	@Description	根据时间范围查询所有没有问题的故障注入记录列表，返回包含配置信息的详细记录
+//	@Summary		Query Fault Injection Records Without Issues
+//	@Description	Query all fault injection records without issues based on time range, returning detailed records including configuration information
 //	@Tags			injection
 //	@Produce		json
-//	@Param			env					query	string	false	"环境标签过滤"
-//	@Param			batch				query	string	false	"批次标签过滤"
-//	@Param			lookback			query	string	false	"时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置"
-//	@Param			custom_start_time	query	string	false	"自定义开始时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
-//	@Param			custom_end_time		query	string	false	"自定义结束时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
-//	@Success		200					{object}	dto.GenericResponse[[]dto.FaultInjectionNoIssuesResp]	"成功返回没有问题的故障注入记录列表"
-//	@Failure		400					{object}	dto.GenericResponse[any]	"请求参数错误，如时间格式不正确或参数验证失败等"
-//	@Failure		500					{object}	dto.GenericResponse[any]	"服务器内部错"
+//	@Param			env					query	string	false	"Environment label filter"
+//	@Param			batch				query	string	false	"Batch label filter"
+//	@Param			lookback			query	string	false	"Time range query, supports custom relative time (1h/24h/7d) or custom, default not set"
+//	@Param			custom_start_time	query	string	false	"Custom start time, RFC3339 format, required when lookback=custom"	Format(date-time)
+//	@Param			custom_end_time		query	string	false	"Custom end time, RFC3339 format, required when lookback=custom"	Format(date-time)
+//	@Success		200					{object}	dto.GenericResponse[[]dto.FaultInjectionNoIssuesResp]	"Successfully returned fault injection records without issues"
+//	@Failure		400					{object}	dto.GenericResponse[any]	"Request parameter error, such as incorrect time format or parameter validation failure, etc."
+//	@Failure		500					{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v1/injections/analysis/no-issues [get]
 func GetFaultInjectionNoIssues(c *gin.Context) {
 	var req dto.FaultInjectionNoIssuesReq
@@ -533,18 +533,18 @@ func GetFaultInjectionNoIssues(c *gin.Context) {
 
 // GetFaultInjectionWithIssues
 //
-//	@Summary		查询有问题的故障注入记录
-//	@Description	根据时间范围查询所有有问题的故障注入记录列表
+//	@Summary		Query Fault Injection Records With Issues
+//	@Description	Query all fault injection records with issues based on time range
 //	@Tags			injection
 //	@Produce		json
-//	@Param			env					query	string	false	"环境标签过滤"
-//	@Param			batch				query	string	false	"批次标签过滤"
-//	@Param			lookback			query	string	false	"时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置"
-//	@Param			custom_start_time	query	string	false	"自定义开始时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
-//	@Param			custom_end_time		query	string	false	"自定义结束时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
+//	@Param			env					query	string	false	"Environment label filter"
+//	@Param			batch				query	string	false	"Batch label filter"
+//	@Param			lookback			query	string	false	"Time range query, supports custom relative time (1h/24h/7d) or custom, default not set"
+//	@Param			custom_start_time	query	string	false	"Custom start time, RFC3339 format, required when lookback=custom"	Format(date-time)
+//	@Param			custom_end_time		query	string	false	"Custom end time, RFC3339 format, required when lookback=custom"	Format(date-time)
 //	@Success		200					{object}	dto.GenericResponse[[]dto.FaultInjectionWithIssuesResp]
-//	@Failure		400					{object}	dto.GenericResponse[any]	"请求参数错误，如时间格式不正确或参数验证失败等"
-//	@Failure		500					{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Failure		400					{object}	dto.GenericResponse[any]	"Request parameter error, such as incorrect time format or parameter validation failure, etc."
+//	@Failure		500					{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v1/injections/analysis/with-issues [get]
 func GetFaultInjectionWithIssues(c *gin.Context) {
 	var req dto.FaultInjectionWithIssuesReq
@@ -596,16 +596,16 @@ func GetFaultInjectionWithIssues(c *gin.Context) {
 
 // GetInjectionStats
 //
-//	@Summary		获取故障注入统计信息
-//	@Description	获取故障注入记录的统计信息，包括有问题、没有问题和总记录数量
+//	@Summary		Get Fault Injection Statistics
+//	@Description	Get statistical information of fault injection records, including counts of records with issues, without issues, and total records
 //	@Tags			injection
 //	@Produce		json
-//	@Param			lookback			query	string	false	"时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置"
-//	@Param			custom_start_time	query	string	false	"自定义开始时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
-//	@Param			custom_end_time		query	string	false	"自定义结束时间，RFC3339格式，当lookback=custom时必需"	Format(date-time)
-//	@Success		200					{object}	dto.GenericResponse[dto.InjectionStatsResp]	"成功返回故障注入统计信息"
-//	@Failure		400					{object}	dto.GenericResponse[any]	"请求参数错误，如时间格式不正确或参数验证失败等"
-//	@Failure		500					{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Param			lookback			query	string	false	"Time range query, supports custom relative time (1h/24h/7d) or custom, default not set"
+//	@Param			custom_start_time	query	string	false	"Custom start time, RFC3339 format, required when lookback=custom"	Format(date-time)
+//	@Param			custom_end_time		query	string	false	"Custom end time, RFC3339 format, required when lookback=custom"	Format(date-time)
+//	@Success		200					{object}	dto.GenericResponse[dto.InjectionStatsResp]	"Successfully returned fault injection statistics"
+//	@Failure		400					{object}	dto.GenericResponse[any]	"Request parameter error, such as incorrect time format or parameter validation failure, etc."
+//	@Failure		500					{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v1/injections/analysis/stats [get]
 func GetInjectionStats(c *gin.Context) {
 	var req dto.TimeRangeQuery

@@ -10,7 +10,7 @@ import (
 )
 
 func TestTokenBucketRateLimiter_AcquireAndRelease(t *testing.T) {
-	// 初始化配置（确保 redis 配置正确）
+
 	os.Setenv("REDIS_ADDR", "localhost:6379")
 	os.Setenv("REDIS_DB", "0")
 	os.Setenv("REDIS_PASSWORD", "")
@@ -25,7 +25,7 @@ func TestTokenBucketRateLimiter_AcquireAndRelease(t *testing.T) {
 	})
 
 	ctx := context.Background()
-	// 清空测试用的 bucket
+
 	limiter.redisClient.Del(ctx, "test:token_bucket")
 
 	taskID1 := "task1"
@@ -49,7 +49,6 @@ func TestTokenBucketRateLimiter_AcquireAndRelease(t *testing.T) {
 		t.Fatalf("should not acquire token for task3, bucket full")
 	}
 
-	// 释放一个 token，再尝试获取
 	err = limiter.ReleaseToken(ctx, taskID1, traceID)
 	if err != nil {
 		t.Fatalf("failed to release token: %v", err)
@@ -85,7 +84,6 @@ func TestTokenBucketRateLimiter_WaitForToken(t *testing.T) {
 	if err != nil || !acquired1 {
 		t.Fatalf("expected to acquire token for task1, got %v, err: %v", acquired1, err)
 	}
-	// task2 等待获取 token，应该超时
 	start := time.Now()
 	acquired2, err := limiter.WaitForToken(ctx, taskID2, traceID)
 	duration := time.Since(start)
@@ -99,7 +97,6 @@ func TestTokenBucketRateLimiter_WaitForToken(t *testing.T) {
 		t.Fatalf("wait duration too short, expected at least 2s, got %v", duration)
 	}
 
-	// 释放 token，再次等待获取，应该能成功
 	err = limiter.ReleaseToken(ctx, taskID1, traceID)
 	if err != nil {
 		t.Fatalf("failed to release token: %v", err)

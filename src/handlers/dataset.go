@@ -21,15 +21,15 @@ import (
 
 // DeleteDataset
 //
-//	@Summary		删除数据集数据
-//	@Description	删除数据集数据
-//	@Tags			dataset
-//	@Produce		application/json
-//	@Param			names	query		[]string	true	"数据集名称列表"
-//	@Success		200		{object}	dto.GenericResponse[dto.DatasetDeleteResp]
-//	@Failure		400		{object}	dto.GenericResponse[any]
-//	@Failure		500		{object}	dto.GenericResponse[any]
-//	@Router			/api/v1/datasets [delete]
+//	@Summary      Delete dataset data
+//	@Description  Delete dataset data
+//	@Tags         dataset
+//	@Produce      application/json
+//	@Param        names  query  []string  true  "Dataset name list"
+//	@Success      200    {object}  dto.GenericResponse[dto.DatasetDeleteResp]
+//	@Failure      400    {object}  dto.GenericResponse[any]
+//	@Failure      500    {object}  dto.GenericResponse[any]
+//	@Router       /api/v1/datasets [delete]
 func DeleteDataset(c *gin.Context) {
 	var req dto.DatasetDeleteReq
 	if err := c.BindQuery(&req); err != nil {
@@ -46,19 +46,19 @@ func DeleteDataset(c *gin.Context) {
 	dto.SuccessResponse(c, dto.DatasetDeleteResp{SuccessCount: successCount, FailedNames: failedNames})
 }
 
-// DownloadDataset 处理数据集下载请求
+// DownloadDataset handles dataset download requests
 //
-//	@Summary		下载数据集打包文件
-//	@Description	将指定的多个数据集打包为 ZIP 文件下载，自动排除 result.csv 和检测器结论文件。支持按组ID或数据集名称进行下载，两种方式二选一。下载文件结构：按组ID下载时为 datasets/{groupId}/{datasetName}/...，按名称下载时为 datasets/{datasetName}/...
-//	@Tags			dataset
-//	@Produce		application/zip
-//	@Param			group_ids	query		[]string	false	"任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids")
-//	@Param			names		query		[]string	false	"数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一"
-//	@Success		200			{string}	binary		"ZIP 文件流，Content-Disposition 头中包含文件名 datasets.zip"
-//	@Failure		400			{object}	dto.GenericResponse[any]	"请求参数错误：1) 参数绑定失败 2) 两个参数都为空 3) 同时提供两种参数"
-//	@Failure		403			{object}	dto.GenericResponse[any]	"权限错误：请求访问的数据集路径不在系统允许的范围内"
-//	@Failure		500			{object}	dto.GenericResponse[any]	"服务器内部错误"
-//	@Router			/api/v1/datasets/download [get]
+//	@Summary      Download dataset archive file
+//	@Description  Package specified datasets into a ZIP file for download, automatically excluding result.csv and detector conclusion files. Supports downloading by group ID or dataset name (mutually exclusive). Directory structure: when downloading by group ID: datasets/{groupId}/{datasetName}/...; when by name: datasets/{datasetName}/...
+//	@Tags         dataset
+//	@Produce      application/zip
+//	@Param        group_ids  query  []string  false  "List of task group IDs, format: group1,group2,group3. Mutually exclusive with names parameter; group_ids takes precedence"
+//	@Param        names      query  []string  false  "List of dataset names, format: dataset1,dataset2,dataset3. Mutually exclusive with group_ids parameter"
+//	@Success      200        {string}  binary  "ZIP file stream; the Content-Disposition header contains filename datasets.zip"
+//	@Failure      400        {object}  dto.GenericResponse[any]  "Bad request parameters: 1) Parameter binding failed 2) Both parameters are empty 3) Both parameters provided"
+//	@Failure      403        {object}  dto.GenericResponse[any]  "Permission error: requested dataset path is not within allowed scope"
+//	@Failure      500        {object}  dto.GenericResponse[any]  "Internal server error"
+//	@Router       /api/v1/datasets/download [get]
 func DownloadDataset(c *gin.Context) {
 	var req dto.DatasetDownloadReq
 	if err := c.BindQuery(&req); err != nil {
@@ -71,7 +71,7 @@ func DownloadDataset(c *gin.Context) {
 		return
 	}
 
-	// 设置响应头
+	// Set the response headers
 	c.Header("Content-Type", "application/zip")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.zip", consts.DownloadFilename))
 
@@ -83,14 +83,14 @@ func DownloadDataset(c *gin.Context) {
 		{Pattern: consts.ExecutionResultFile, IsGlob: false},
 	}
 
-	// 定义处理函数
+	// Define error handler function
 	handleError := func(statusCode int, err error) {
 		delete(c.Writer.Header(), "Content-Disposition")
 		c.Header("Content-Type", "application/json; charset=utf-8")
 		dto.ErrorResponse(c, statusCode, err.Error())
 	}
 
-	// 根据输入选择下载方式
+	// Select download method based on input
 	var (
 		downloadFunc func(*zip.Writer, []string, []utils.ExculdeRule) (int, error)
 		input        []string
@@ -124,11 +124,10 @@ func downloadByGroupIds(zipWriter *zip.Writer, groupIDs []string, excludeRules [
 		if _, exists := groupedResults[joinedResult.GroupID]; !exists {
 			groupedResults[joinedResult.GroupID] = []string{}
 		}
-
 		groupedResults[joinedResult.GroupID] = append(groupedResults[joinedResult.GroupID], joinedResult.Name)
 	}
 
-	// 预先检查所有数据集路径合法性
+	// Pre-validate all dataset paths
 	for _, datasets := range groupedResults {
 		for _, dataset := range datasets {
 			workDir := filepath.Join(config.GetString("nfs.path"), dataset)
@@ -153,26 +152,26 @@ func downloadByGroupIds(zipWriter *zip.Writer, groupIDs []string, excludeRules [
 				fullRelPath := filepath.Join(folderName, filepath.Base(workDir), relPath)
 				fileName := filepath.Base(path)
 
-				// 应用排除规则
+				// Apply exclusion rules
 				for _, rule := range excludeRules {
 					if utils.MatchFile(fileName, rule) {
 						return nil
 					}
 				}
 
-				// 获取文件信息以读取修改时间
+				// Get file info to read modification time
 				fileInfo, err := dir.Info()
 				if err != nil {
 					return err
 				}
 
-				// 转换路径分隔符为/
+				// Convert path separators to "/"
 				zipPath := filepath.ToSlash(fullRelPath)
 				return utils.AddToZip(zipWriter, fileInfo, path, zipPath)
 			})
 			if err != nil {
-				logrus.Errorf("failed to packcage: %v", err)
-				return http.StatusForbidden, fmt.Errorf("Failed to pacage")
+				logrus.Errorf("failed to package: %v", err)
+				return http.StatusForbidden, fmt.Errorf("Failed to package")
 			}
 		}
 	}
@@ -202,26 +201,26 @@ func downloadByNames(zipWriter *zip.Writer, names []string, excludeRules []utils
 			fullRelPath := filepath.Join(folderName, filepath.Base(workDir), relPath)
 			fileName := filepath.Base(path)
 
-			// 应用排除规则
+			// Apply exclusion rules
 			for _, rule := range excludeRules {
 				if utils.MatchFile(fileName, rule) {
 					return nil
 				}
 			}
 
-			// 获取文件信息以读取修改时间
+			// Get file info to read modification time
 			fileInfo, err := dir.Info()
 			if err != nil {
 				return err
 			}
 
-			// 转换路径分隔符为/
+			// Convert path separators to "/"
 			zipPath := filepath.ToSlash(fullRelPath)
 			return utils.AddToZip(zipWriter, fileInfo, path, zipPath)
 		})
 		if err != nil {
-			logrus.Errorf("failed to packcage: %v", err)
-			return http.StatusForbidden, fmt.Errorf("Failed to pacage")
+			logrus.Errorf("failed to package: %v", err)
+			return http.StatusForbidden, fmt.Errorf("Failed to package")
 		}
 	}
 
@@ -230,16 +229,16 @@ func downloadByNames(zipWriter *zip.Writer, names []string, excludeRules []utils
 
 // SubmitDatasetBuilding
 //
-//	@Summary		批量构建数据集
-//	@Description	根据指定的时间范围和基准测试容器批量构建数据集。
-//	@Tags			dataset
-//	@Accept			json
-//	@Produce		json
-//	@Param			body	body		dto.SubmitDatasetBuildingReq	true	"数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置"
-//	@Success		202		{object}	dto.GenericResponse[dto.SubmitResp]	"成功提交数据集构建任务，返回任务组ID和跟踪信息列表"
-//	@Failure		400		{object}	dto.GenericResponse[any]	"请求参数错误：1) JSON格式不正确 2) 数据集名称为空 3) 时间范围无效 4) 基准测试不存在 5) 环境变量名称不支持"
-//	@Failure		500		{object}	dto.GenericResponse[any]	"服务器内部错误"
-//	@Router			/api/v1/datasets [post]
+//	@Summary      Batch build datasets
+//	@Description  Batch build datasets based on specified time range and benchmark container
+//	@Tags         dataset
+//	@Accept       json
+//	@Produce      json
+//	@Param        body  body  dto.SubmitDatasetBuildingReq  true  "List of dataset build requests; each request includes dataset name, time range, benchmark, and environment variable configuration"
+//	@Success      202   {object}  dto.GenericResponse[dto.SubmitResp]  "Successfully submitted dataset building tasks; returns group ID and trace information list"
+//	@Failure      400   {object}  dto.GenericResponse[any]  "Bad request parameters: 1) Invalid JSON format 2) Empty dataset name 3) Invalid time range 4) Benchmark does not exist 5) Unsupported environment variable name"
+//	@Failure      500   {object}  dto.GenericResponse[any]  "Internal server error"
+//	@Router       /api/v1/datasets [post]
 func SubmitDatasetBuilding(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	logrus.Infof("SubmitDatasetBuilding, groupID: %s", groupID)
@@ -257,7 +256,7 @@ func SubmitDatasetBuilding(c *gin.Context) {
 		return
 	}
 
-	// 优化span输出
+	// Optimize span output
 	ctx, ok := c.Get(middleware.SpanContextKey)
 	if !ok {
 		logrus.Error("failed to get span context from gin.Context")
