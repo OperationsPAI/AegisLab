@@ -94,10 +94,17 @@ jobs:
           # Verify version update
           echo "Updated version information:"
           grep "version = " pyproject.toml
+          
+          # Run post-processing scripts
+          cd ../..
+          ./scripts/fix-generated-sdk.sh
+          ./scripts/mv-generated-sdk.sh
+          
+          echo "✅ Python SDK post-processing completed"
 
       - name: Build and publish
         run: |
-          cd sdk/python-gen
+          cd sdk/python
           echo "🔨 Building SDK..."
           uv build
           
