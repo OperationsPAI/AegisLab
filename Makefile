@@ -290,7 +290,6 @@ generate-sdk: swag-init ## 🐍 从 Swagger 文档生成 Python SDK
 		-c /local/.openapi-generator/config.properties \
 		--additional-properties=packageName=openapi,projectName=rcabench
 	@echo "$(BLUE)📦 后处理生成的 SDK...$(RESET)"
-	./scripts/fix-generated-sdk.sh
 	./scripts/mv-generated-sdk.sh
 	@echo "$(GREEN)✅ Python SDK 生成完成$(RESET)"
 

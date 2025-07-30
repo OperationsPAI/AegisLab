@@ -77,14 +77,13 @@ jobs:
             -i src/docs/swagger.json \
             -g python \
             -o sdk/python-gen \
-            --additional-properties=packageName=rcabench,projectName=rcabench
+            --additional-properties=packageName=openapi,projectName=rcabench
           
           echo "✅ Python SDK generated successfully"
 
       - name: Setup SDK configuration
         run: |
 
-          ./scripts/fix-generated-sdk.sh
           ./scripts/mv-generated-sdk.sh
 
           cd sdk/python
