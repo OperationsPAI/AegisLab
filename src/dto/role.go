@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/LGU-SE-Internal/rcabench/database"
@@ -94,9 +95,9 @@ func (rsr *RoleSearchRequest) ConvertToSearchRequest() *SearchRequest {
 	}
 
 	if len(rsr.Types) > 0 {
-		values := make([]interface{}, len(rsr.Types))
+		values := make([]string, len(rsr.Types))
 		for i, v := range rsr.Types {
-			values[i] = v
+			values[i] = fmt.Sprintf("%v", v)
 		}
 		sr.Filters = append(sr.Filters, SearchFilter{
 			Field:    "type",
@@ -110,9 +111,9 @@ func (rsr *RoleSearchRequest) ConvertToSearchRequest() *SearchRequest {
 	}
 
 	if len(rsr.PermissionIDs) > 0 {
-		values := make([]interface{}, len(rsr.PermissionIDs))
+		values := make([]string, len(rsr.PermissionIDs))
 		for i, v := range rsr.PermissionIDs {
-			values[i] = v
+			values[i] = fmt.Sprintf("%v", v)
 		}
 		sr.Filters = append(sr.Filters, SearchFilter{
 			Field:    "permission_id",

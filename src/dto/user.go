@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/LGU-SE-Internal/rcabench/database"
@@ -113,9 +114,9 @@ func (usr *UserSearchRequest) ConvertToSearchRequest() *SearchRequest {
 	}
 
 	if len(usr.RoleIDs) > 0 {
-		values := make([]interface{}, len(usr.RoleIDs))
+		values := make([]string, len(usr.RoleIDs))
 		for i, v := range usr.RoleIDs {
-			values[i] = v
+			values[i] = fmt.Sprintf("%v", v)
 		}
 		sr.Filters = append(sr.Filters, SearchFilter{
 			Field:    "role_id",
@@ -125,9 +126,9 @@ func (usr *UserSearchRequest) ConvertToSearchRequest() *SearchRequest {
 	}
 
 	if len(usr.ProjectIDs) > 0 {
-		values := make([]interface{}, len(usr.ProjectIDs))
+		values := make([]string, len(usr.ProjectIDs))
 		for i, v := range usr.ProjectIDs {
-			values[i] = v
+			values[i] = fmt.Sprintf("%v", v)
 		}
 		sr.Filters = append(sr.Filters, SearchFilter{
 			Field:    "project_id",
@@ -137,9 +138,9 @@ func (usr *UserSearchRequest) ConvertToSearchRequest() *SearchRequest {
 	}
 
 	if len(usr.Departments) > 0 {
-		values := make([]interface{}, len(usr.Departments))
+		values := make([]string, len(usr.Departments))
 		for i, v := range usr.Departments {
-			values[i] = v
+			values[i] = fmt.Sprintf("%v", v)
 		}
 		sr.Filters = append(sr.Filters, SearchFilter{
 			Field:    "department",

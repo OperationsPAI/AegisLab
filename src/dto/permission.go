@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/LGU-SE-Internal/rcabench/database"
@@ -90,9 +91,9 @@ func (psr *PermissionSearchRequest) ConvertToSearchRequest() *SearchRequest {
 	}
 
 	if len(psr.Actions) > 0 {
-		values := make([]interface{}, len(psr.Actions))
+		values := make([]string, len(psr.Actions))
 		for i, v := range psr.Actions {
-			values[i] = v
+			values[i] = fmt.Sprintf("%v", v)
 		}
 		sr.Filters = append(sr.Filters, SearchFilter{
 			Field:    "action",
@@ -102,9 +103,9 @@ func (psr *PermissionSearchRequest) ConvertToSearchRequest() *SearchRequest {
 	}
 
 	if len(psr.ResourceIDs) > 0 {
-		values := make([]interface{}, len(psr.ResourceIDs))
+		values := make([]string, len(psr.ResourceIDs))
 		for i, v := range psr.ResourceIDs {
-			values[i] = v
+			values[i] = fmt.Sprintf("%v", v)
 		}
 		sr.Filters = append(sr.Filters, SearchFilter{
 			Field:    "resource_id",
@@ -114,9 +115,9 @@ func (psr *PermissionSearchRequest) ConvertToSearchRequest() *SearchRequest {
 	}
 
 	if len(psr.ResourceNames) > 0 {
-		values := make([]interface{}, len(psr.ResourceNames))
+		values := make([]string, len(psr.ResourceNames))
 		for i, v := range psr.ResourceNames {
-			values[i] = v
+			values[i] = fmt.Sprintf("%v", v)
 		}
 		sr.Filters = append(sr.Filters, SearchFilter{
 			Field:    "resource_name",
@@ -130,9 +131,9 @@ func (psr *PermissionSearchRequest) ConvertToSearchRequest() *SearchRequest {
 	}
 
 	if len(psr.RoleIDs) > 0 {
-		values := make([]interface{}, len(psr.RoleIDs))
+		values := make([]string, len(psr.RoleIDs))
 		for i, v := range psr.RoleIDs {
-			values[i] = v
+			values[i] = fmt.Sprintf("%v", v)
 		}
 		sr.Filters = append(sr.Filters, SearchFilter{
 			Field:    "role_id",

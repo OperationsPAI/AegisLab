@@ -11,6 +11,7 @@ import (
 )
 
 // CreatePermission handles permission creation
+//
 //	@Summary Create a new permission
 //	@Description Create a new permission with specified resource and action
 //	@Tags Permissions
@@ -58,6 +59,7 @@ func CreatePermission(c *gin.Context) {
 }
 
 // GetPermission handles getting a single permission by ID
+//
 //	@Summary Get permission by ID
 //	@Description Get detailed information about a specific permission
 //	@Tags Permissions
@@ -90,6 +92,7 @@ func GetPermission(c *gin.Context) {
 }
 
 // ListPermissions handles listing permissions with pagination and filtering
+//
 //	@Summary List permissions
 //	@Description Get paginated list of permissions with optional filtering
 //	@Tags Permissions
@@ -150,6 +153,7 @@ func ListPermissions(c *gin.Context) {
 }
 
 // UpdatePermission handles permission updates
+//
 //	@Summary Update permission
 //	@Description Update permission information (partial update supported)
 //	@Tags Permissions
@@ -218,6 +222,7 @@ func UpdatePermission(c *gin.Context) {
 }
 
 // DeletePermission handles permission deletion
+//
 //	@Summary Delete permission
 //	@Description Delete a permission (soft delete by setting status to -1)
 //	@Tags Permissions
@@ -259,6 +264,7 @@ func DeletePermission(c *gin.Context) {
 }
 
 // SearchPermissions handles complex permission search
+//
 //	@Summary Search permissions
 //	@Description Search permissions with complex filtering and sorting
 //	@Tags Permissions
@@ -302,28 +308,26 @@ func SearchPermissions(c *gin.Context) {
 		// Load related data if requested
 		if searchReq.HasFilter("include") {
 			includes := searchReq.GetFilter("include")
-			if includes != nil && includes.Value != nil {
-				includeList, ok := includes.Value.([]string)
-				if ok {
-					for _, include := range includeList {
-						switch include {
-						case "roles":
-							if roles, err := repository.GetPermissionRoles(permission.ID); err == nil {
-								response.Roles = make([]dto.RoleResponse, len(roles))
-								for i, role := range roles {
-									response.Roles[i].ConvertFromRole(&role)
-								}
+			if includes != nil && includes.Value != "" {
+				for _, include := range includes.Values {
+					switch include {
+					case "roles":
+						if roles, err := repository.GetPermissionRoles(permission.ID); err == nil {
+							response.Roles = make([]dto.RoleResponse, len(roles))
+							for i, role := range roles {
+								response.Roles[i].ConvertFromRole(&role)
 							}
-						case "resource":
-							if resource, err := repository.GetResourceByID(permission.ResourceID); err == nil {
-								response.Resource = &dto.ResourceResponse{
-									ID:          resource.ID,
-									Name:        resource.Name,
-									DisplayName: resource.DisplayName,
-								}
+						}
+					case "resource":
+						if resource, err := repository.GetResourceByID(permission.ResourceID); err == nil {
+							response.Resource = &dto.ResourceResponse{
+								ID:          resource.ID,
+								Name:        resource.Name,
+								DisplayName: resource.DisplayName,
 							}
 						}
 					}
+
 				}
 			}
 		}
@@ -343,6 +347,7 @@ func SearchPermissions(c *gin.Context) {
 }
 
 // GetPermissionRoles handles getting roles that have a specific permission
+//
 //	@Summary Get permission roles
 //	@Description Get list of roles that have been assigned a specific permission
 //	@Tags Permissions
@@ -385,6 +390,7 @@ func GetPermissionRoles(c *gin.Context) {
 }
 
 // GetPermissionsByResource handles getting permissions for a specific resource
+//
 //	@Summary Get permissions by resource
 //	@Description Get list of permissions associated with a specific resource
 //	@Tags Permissions
