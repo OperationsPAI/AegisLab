@@ -119,6 +119,7 @@ __all__ = [
     "DtoGenericResponseDtoInjectionFieldMappingResp",
     "DtoGenericResponseDtoInjectionSearchResponse",
     "DtoGenericResponseDtoInjectionStatsResp",
+    "DtoGenericResponseDtoInjectionV2CreateResponse",
     "DtoGenericResponseDtoInjectionV2Response",
     "DtoGenericResponseDtoListAlgorithmsResp",
     "DtoGenericResponseDtoListInjectionsResp",
@@ -163,6 +164,7 @@ __all__ = [
     "DtoGranularityResultItem",
     "DtoGroundTruthReq",
     "DtoHealthCheckResponse",
+    "DtoInjectionCreateError",
     "DtoInjectionDiversity",
     "DtoInjectionFieldMappingResp",
     "DtoInjectionItem",
@@ -170,6 +172,9 @@ __all__ = [
     "DtoInjectionStatistics",
     "DtoInjectionStats",
     "DtoInjectionStatsResp",
+    "DtoInjectionV2CreateItem",
+    "DtoInjectionV2CreateReq",
+    "DtoInjectionV2CreateResponse",
     "DtoInjectionV2Response",
     "DtoInjectionV2SearchReq",
     "DtoInjectionV2UpdateReq",
@@ -361,6 +366,7 @@ from rcabench.openapi.models.dto_generic_response_dto_inject_cancel_resp import 
 from rcabench.openapi.models.dto_generic_response_dto_injection_field_mapping_resp import DtoGenericResponseDtoInjectionFieldMappingResp as DtoGenericResponseDtoInjectionFieldMappingResp
 from rcabench.openapi.models.dto_generic_response_dto_injection_search_response import DtoGenericResponseDtoInjectionSearchResponse as DtoGenericResponseDtoInjectionSearchResponse
 from rcabench.openapi.models.dto_generic_response_dto_injection_stats_resp import DtoGenericResponseDtoInjectionStatsResp as DtoGenericResponseDtoInjectionStatsResp
+from rcabench.openapi.models.dto_generic_response_dto_injection_v2_create_response import DtoGenericResponseDtoInjectionV2CreateResponse as DtoGenericResponseDtoInjectionV2CreateResponse
 from rcabench.openapi.models.dto_generic_response_dto_injection_v2_response import DtoGenericResponseDtoInjectionV2Response as DtoGenericResponseDtoInjectionV2Response
 from rcabench.openapi.models.dto_generic_response_dto_list_algorithms_resp import DtoGenericResponseDtoListAlgorithmsResp as DtoGenericResponseDtoListAlgorithmsResp
 from rcabench.openapi.models.dto_generic_response_dto_list_injections_resp import DtoGenericResponseDtoListInjectionsResp as DtoGenericResponseDtoListInjectionsResp
@@ -405,6 +411,7 @@ from rcabench.openapi.models.dto_granularity_result_enhanced_request import DtoG
 from rcabench.openapi.models.dto_granularity_result_item import DtoGranularityResultItem as DtoGranularityResultItem
 from rcabench.openapi.models.dto_ground_truth_req import DtoGroundTruthReq as DtoGroundTruthReq
 from rcabench.openapi.models.dto_health_check_response import DtoHealthCheckResponse as DtoHealthCheckResponse
+from rcabench.openapi.models.dto_injection_create_error import DtoInjectionCreateError as DtoInjectionCreateError
 from rcabench.openapi.models.dto_injection_diversity import DtoInjectionDiversity as DtoInjectionDiversity
 from rcabench.openapi.models.dto_injection_field_mapping_resp import DtoInjectionFieldMappingResp as DtoInjectionFieldMappingResp
 from rcabench.openapi.models.dto_injection_item import DtoInjectionItem as DtoInjectionItem
@@ -412,6 +419,9 @@ from rcabench.openapi.models.dto_injection_search_response import DtoInjectionSe
 from rcabench.openapi.models.dto_injection_statistics import DtoInjectionStatistics as DtoInjectionStatistics
 from rcabench.openapi.models.dto_injection_stats import DtoInjectionStats as DtoInjectionStats
 from rcabench.openapi.models.dto_injection_stats_resp import DtoInjectionStatsResp as DtoInjectionStatsResp
+from rcabench.openapi.models.dto_injection_v2_create_item import DtoInjectionV2CreateItem as DtoInjectionV2CreateItem
+from rcabench.openapi.models.dto_injection_v2_create_req import DtoInjectionV2CreateReq as DtoInjectionV2CreateReq
+from rcabench.openapi.models.dto_injection_v2_create_response import DtoInjectionV2CreateResponse as DtoInjectionV2CreateResponse
 from rcabench.openapi.models.dto_injection_v2_response import DtoInjectionV2Response as DtoInjectionV2Response
 from rcabench.openapi.models.dto_injection_v2_search_req import DtoInjectionV2SearchReq as DtoInjectionV2SearchReq
 from rcabench.openapi.models.dto_injection_v2_update_req import DtoInjectionV2UpdateReq as DtoInjectionV2UpdateReq

@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**confidence** | **float** |  | 
+**confidence** | **float** |  | [optional] 
 **level** | **str** |  | 
 **rank** | **int** |  | 
 **result** | **str** |  | 

@@ -1,6 +1,5 @@
 from typing import Any
 from ..const import EventType, TaskStatus, TaskType
-from ..openapi import DtoAlgorithmItem
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from uuid import UUID
 import json
@@ -10,7 +9,7 @@ class GetTraceEventsReq(BaseModel):
     trace_id: UUID = Field(
         ...,
         description="Unique identifier for the entire trace",
-        json_schema_extra={"example": UUID("75430787-c19a-4f90-8c1f-07d215a664b7")},
+        json_schema_extra={"example": "75430787-c19a-4f90-8c1f-07d215a664b7"},
     )
 
     last_event_id: str = Field(
@@ -48,9 +47,7 @@ class DetectorRecord(BaseModel):
     model_config = ConfigDict(extra="ignore", validate_by_name=True)
 
     span_name: str = Field(..., alias="SpanName", description="Span name")
-    issues: dict[str, Any] = Field(
-        ..., default_factory=dict, description="Issues detected"
-    )
+    issues: dict[str, Any] = Field(..., description="Issues detected")
     abnormal_avg_duration: float = Field(..., alias="AbnormalAvgDuration")
     normal_avg_duration: float = Field(..., alias="NormalAvgDuration")
     abnormal_succ_rate: float = Field(..., alias="AbnormalSuccRate")
@@ -67,14 +64,6 @@ class DetectorRecord(BaseModel):
                 return {}
 
         return v if isinstance(v, dict) else {}
-
-
-class ExecutionOptions(BaseModel):
-    """Execution options model"""
-
-    algorithm: DtoAlgorithmItem = Field(..., description="Algorithm name")
-    dataset: str = Field(..., description="Dataset name")
-    execution_id: int = Field(..., description="Execution ID", ge=1)
 
 
 class InfoPayload(BaseModel):
