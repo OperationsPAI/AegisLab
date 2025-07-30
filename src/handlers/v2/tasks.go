@@ -302,9 +302,8 @@ func SearchTasks(c *gin.Context) {
 		// Load logs if requested
 		if searchReq.HasFilter("include") {
 			includes := searchReq.GetFilter("include")
-			if includes != nil && includes.Value != nil {
-				includeList, ok := includes.Value.([]string)
-				if ok && containsString(includeList, "logs") {
+			if includes != nil && includes.Value != "" {
+				if containsString(includes.Values, "logs") {
 					logKey := fmt.Sprintf("task:%s:logs", task.ID)
 					if logs, err := client.GetRedisClient().LRange(context.Background(), logKey, 0, -1).Result(); err == nil {
 						taskResponse.Logs = logs

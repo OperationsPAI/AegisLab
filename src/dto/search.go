@@ -50,8 +50,8 @@ const (
 type SearchFilter struct {
 	Field    string         `json:"field" binding:"required"`                    // Field name
 	Operator FilterOperator `json:"operator" binding:"required"`                 // Operator
-	Value    interface{}    `json:"value" swaggertype:"string"`                  // Value (can be string, number, boolean, etc.)
-	Values   []interface{}  `json:"values,omitempty" swaggertype:"array,string"` // Multiple values (for IN operations etc.)
+	Value    string         `json:"value" swaggertype:"string"`                  // Value (can be string, number, boolean, etc.)
+	Values   []string       `json:"values,omitempty" swaggertype:"array,string"` // Multiple values (for IN operations etc.)
 }
 
 // SortOption represents a sort option
@@ -148,7 +148,7 @@ func (sr *SearchRequest) ValidateSearchRequest() error {
 				return fmt.Errorf("'%s' operator requires exactly 2 values", filter.Operator)
 			}
 		default:
-			if filter.Value == nil {
+			if filter.Value == "" {
 				return fmt.Errorf("'%s' operator requires a value", filter.Operator)
 			}
 		}
@@ -194,10 +194,13 @@ func (sr *SearchRequest) GetFilter(field string) *SearchFilter {
 
 // AddFilter adds a new filter
 func (sr *SearchRequest) AddFilter(field string, operator FilterOperator, value interface{}) {
+	// Convert value to string
+	valueStr := fmt.Sprintf("%v", value)
+
 	sr.Filters = append(sr.Filters, SearchFilter{
 		Field:    field,
 		Operator: operator,
-		Value:    value,
+		Value:    valueStr,
 	})
 }
 
@@ -235,9 +238,9 @@ func (asr *AdvancedSearchRequest) ConvertAdvancedToSearch() *SearchRequest {
 	}
 
 	if len(asr.Status) > 0 {
-		values := make([]interface{}, len(asr.Status))
+		values := make([]string, len(asr.Status))
 		for i, v := range asr.Status {
-			values[i] = v
+			values[i] = fmt.Sprintf("%v", v)
 		}
 		sr.Filters = append(sr.Filters, SearchFilter{
 			Field:    "status",

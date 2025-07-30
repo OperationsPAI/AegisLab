@@ -12,6 +12,7 @@ import (
 )
 
 // CreateUser handles user creation
+//
 //	@Summary Create a new user
 //	@Description Create a new user account with specified details
 //	@Tags Users
@@ -72,6 +73,7 @@ func CreateUser(c *gin.Context) {
 }
 
 // GetUser handles getting a single user by ID
+//
 //	@Summary Get user by ID
 //	@Description Get detailed information about a specific user
 //	@Tags Users
@@ -120,6 +122,7 @@ func GetUser(c *gin.Context) {
 }
 
 // ListUsers handles listing users with pagination and filtering
+//
 //	@Summary List users
 //	@Description Get paginated list of users with optional filtering
 //	@Tags Users
@@ -180,6 +183,7 @@ func ListUsers(c *gin.Context) {
 }
 
 // UpdateUser handles user updates
+//
 //	@Summary Update user
 //	@Description Update user information (partial update supported)
 //	@Tags Users
@@ -245,6 +249,7 @@ func UpdateUser(c *gin.Context) {
 }
 
 // DeleteUser handles user deletion
+//
 //	@Summary Delete user
 //	@Description Delete a user (soft delete by setting status to -1)
 //	@Tags Users
@@ -273,6 +278,7 @@ func DeleteUser(c *gin.Context) {
 }
 
 // SearchUsers handles complex user search
+//
 //	@Summary Search users
 //	@Description Search users with complex filtering and sorting
 //	@Tags Users
@@ -316,35 +322,33 @@ func SearchUsers(c *gin.Context) {
 		// Load related data if requested
 		if searchReq.HasFilter("include") {
 			includes := searchReq.GetFilter("include")
-			if includes != nil && includes.Value != nil {
-				includeList, ok := includes.Value.([]string)
-				if ok {
-					for _, include := range includeList {
-						switch include {
-						case "roles":
-							if roles, err := repository.GetUserRoles(user.ID); err == nil {
-								response.GlobalRoles = make([]dto.RoleResponse, len(roles))
-								for i, role := range roles {
-									response.GlobalRoles[i].ConvertFromRole(&role)
-								}
+			if includes != nil && includes.Value != "" {
+				for _, include := range includes.Values {
+					switch include {
+					case "roles":
+						if roles, err := repository.GetUserRoles(user.ID); err == nil {
+							response.GlobalRoles = make([]dto.RoleResponse, len(roles))
+							for i, role := range roles {
+								response.GlobalRoles[i].ConvertFromRole(&role)
 							}
-						case "projects":
-							if userProjects, err := repository.GetUserProjects(user.ID); err == nil {
-								response.ProjectRoles = make([]dto.UserProjectResponse, len(userProjects))
-								for i, up := range userProjects {
-									response.ProjectRoles[i].ConvertFromUserProject(&up)
-								}
+						}
+					case "projects":
+						if userProjects, err := repository.GetUserProjects(user.ID); err == nil {
+							response.ProjectRoles = make([]dto.UserProjectResponse, len(userProjects))
+							for i, up := range userProjects {
+								response.ProjectRoles[i].ConvertFromUserProject(&up)
 							}
-						case "permissions":
-							if permissions, err := repository.GetUserPermissions(user.ID, nil); err == nil {
-								response.Permissions = make([]dto.PermissionResponse, len(permissions))
-								for i, permission := range permissions {
-									response.Permissions[i].ConvertFromPermission(&permission)
-								}
+						}
+					case "permissions":
+						if permissions, err := repository.GetUserPermissions(user.ID, nil); err == nil {
+							response.Permissions = make([]dto.PermissionResponse, len(permissions))
+							for i, permission := range permissions {
+								response.Permissions[i].ConvertFromPermission(&permission)
 							}
 						}
 					}
 				}
+
 			}
 		}
 
@@ -363,6 +367,7 @@ func SearchUsers(c *gin.Context) {
 }
 
 // AssignUserToProject handles user-project assignment
+//
 //	@Summary Assign user to project
 //	@Description Assign a user to a project with a specific role
 //	@Tags Users
@@ -405,6 +410,7 @@ func AssignUserToProject(c *gin.Context) {
 }
 
 // RemoveUserFromProject handles user-project removal
+//
 //	@Summary Remove user from project
 //	@Description Remove a user from a project
 //	@Tags Users
