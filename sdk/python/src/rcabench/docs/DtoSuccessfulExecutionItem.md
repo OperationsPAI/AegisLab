@@ -5,10 +5,10 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**algorithm** | **str** | 算法名称 | [optional] 
-**created_at** | **str** | 创建时间 | [optional] 
-**dataset** | **str** | 数据集名称 | [optional] 
-**id** | **int** | 执行ID | [optional] 
+**algorithm** | **str** | Algorithm name | [optional] 
+**created_at** | **str** | Creation time | [optional] 
+**dataset** | **str** | Dataset name | [optional] 
+**id** | **int** | Execution ID | [optional] 
 
 ## Example
 

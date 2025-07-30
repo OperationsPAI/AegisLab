@@ -5,18 +5,18 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**created_at** | **str** | 添加时间索引 | [optional] 
+**created_at** | **str** | Add time index | [optional] 
 **cron_expr** | **str** |  | [optional] 
-**execute_time** | **int** | 添加执行时间索引 | [optional] 
-**group_id** | **str** | 添加组ID索引 | [optional] 
+**execute_time** | **int** | Add execution time index | [optional] 
+**group_id** | **str** | Add group ID index | [optional] 
 **id** | **str** |  | [optional] 
 **immediate** | **bool** |  | [optional] 
 **payload** | **str** |  | [optional] 
-**project** | [**DatabaseProject**](DatabaseProject.md) | 外键关联 | [optional] 
-**project_id** | **int** | 任务可以属于某个项目（可选） | [optional] 
-**status** | **str** | 添加多个复合索引 | [optional] 
-**trace_id** | **str** | 添加追踪ID索引 | [optional] 
-**type** | **str** | 添加复合索引 | [optional] 
+**project** | [**DatabaseProject**](DatabaseProject.md) | Foreign key association | [optional] 
+**project_id** | **int** | Task can belong to a project (optional) | [optional] 
+**status** | **str** | Add multiple composite indexes | [optional] 
+**trace_id** | **str** | Add trace ID index | [optional] 
+**type** | **str** | Add composite index | [optional] 
 **updated_at** | **str** |  | [optional] 
 
 ## Example

@@ -57,9 +57,9 @@ class AlgorithmApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseDtoListAlgorithmsResp:
-        """获取算法列表
+        """Get algorithm list
 
-        获取系统中所有可用的算法列表，包括算法的镜像信息、标签和更新时间。只返回状态为激活的算法容器
+        Get all available algorithms in the system, including image info, tags, and update time. Only returns containers with active status.
 
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -121,9 +121,9 @@ class AlgorithmApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseDtoListAlgorithmsResp]:
-        """获取算法列表
+        """Get algorithm list
 
-        获取系统中所有可用的算法列表，包括算法的镜像信息、标签和更新时间。只返回状态为激活的算法容器
+        Get all available algorithms in the system, including image info, tags, and update time. Only returns containers with active status.
 
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -185,9 +185,9 @@ class AlgorithmApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """获取算法列表
+        """Get algorithm list
 
-        获取系统中所有可用的算法列表，包括算法的镜像信息、标签和更新时间。只返回状态为激活的算法容器
+        Get all available algorithms in the system, including image info, tags, and update time. Only returns containers with active status.
 
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -292,7 +292,7 @@ class AlgorithmApi:
     @validate_call
     def api_v1_algorithms_post(
         self,
-        body: Annotated[DtoSubmitExecutionReq, Field(description="算法执行请求列表，包含算法名称、数据集和环境变量")],
+        body: Annotated[DtoSubmitExecutionReq, Field(description="Algorithm execution request list, including algorithm name, dataset, and environment variables")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -306,11 +306,11 @@ class AlgorithmApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseDtoSubmitResp:
-        """提交算法执行任务
+        """Submit algorithm execution task
 
-        批量提交算法执行任务，支持多个算法和数据集的组合执行。系统将为每个执行任务分配唯一的 TraceID 用于跟踪任务状态和结果
+        Batch submit algorithm execution tasks, supporting multiple algorithm and dataset combinations. The system assigns a unique TraceID for each execution task to track status and results.
 
-        :param body: 算法执行请求列表，包含算法名称、数据集和环境变量 (required)
+        :param body: Algorithm execution request list, including algorithm name, dataset, and environment variables (required)
         :type body: DtoSubmitExecutionReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -361,7 +361,7 @@ class AlgorithmApi:
     @validate_call
     def api_v1_algorithms_post_with_http_info(
         self,
-        body: Annotated[DtoSubmitExecutionReq, Field(description="算法执行请求列表，包含算法名称、数据集和环境变量")],
+        body: Annotated[DtoSubmitExecutionReq, Field(description="Algorithm execution request list, including algorithm name, dataset, and environment variables")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -375,11 +375,11 @@ class AlgorithmApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseDtoSubmitResp]:
-        """提交算法执行任务
+        """Submit algorithm execution task
 
-        批量提交算法执行任务，支持多个算法和数据集的组合执行。系统将为每个执行任务分配唯一的 TraceID 用于跟踪任务状态和结果
+        Batch submit algorithm execution tasks, supporting multiple algorithm and dataset combinations. The system assigns a unique TraceID for each execution task to track status and results.
 
-        :param body: 算法执行请求列表，包含算法名称、数据集和环境变量 (required)
+        :param body: Algorithm execution request list, including algorithm name, dataset, and environment variables (required)
         :type body: DtoSubmitExecutionReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -430,7 +430,7 @@ class AlgorithmApi:
     @validate_call
     def api_v1_algorithms_post_without_preload_content(
         self,
-        body: Annotated[DtoSubmitExecutionReq, Field(description="算法执行请求列表，包含算法名称、数据集和环境变量")],
+        body: Annotated[DtoSubmitExecutionReq, Field(description="Algorithm execution request list, including algorithm name, dataset, and environment variables")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -444,11 +444,11 @@ class AlgorithmApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """提交算法执行任务
+        """Submit algorithm execution task
 
-        批量提交算法执行任务，支持多个算法和数据集的组合执行。系统将为每个执行任务分配唯一的 TraceID 用于跟踪任务状态和结果
+        Batch submit algorithm execution tasks, supporting multiple algorithm and dataset combinations. The system assigns a unique TraceID for each execution task to track status and results.
 
-        :param body: 算法执行请求列表，包含算法名称、数据集和环境变量 (required)
+        :param body: Algorithm execution request list, including algorithm name, dataset, and environment variables (required)
         :type body: DtoSubmitExecutionReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request

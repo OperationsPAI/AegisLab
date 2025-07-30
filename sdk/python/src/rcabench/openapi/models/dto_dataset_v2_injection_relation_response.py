@@ -28,11 +28,11 @@ class DtoDatasetV2InjectionRelationResponse(BaseModel):
     """
     DtoDatasetV2InjectionRelationResponse
     """ # noqa: E501
-    created_at: Optional[StrictStr] = Field(default=None, description="创建时间")
-    fault_injection: Optional[DatabaseFaultInjectionSchedule] = Field(default=None, description="故障注入详情")
-    fault_injection_id: Optional[StrictInt] = Field(default=None, description="故障注入ID")
-    id: Optional[StrictInt] = Field(default=None, description="关联ID")
-    updated_at: Optional[StrictStr] = Field(default=None, description="更新时间")
+    created_at: Optional[StrictStr] = Field(default=None, description="Creation time")
+    fault_injection: Optional[DatabaseFaultInjectionSchedule] = Field(default=None, description="Fault injection details")
+    fault_injection_id: Optional[StrictInt] = Field(default=None, description="Fault injection ID")
+    id: Optional[StrictInt] = Field(default=None, description="Relation ID")
+    updated_at: Optional[StrictStr] = Field(default=None, description="Update time")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["created_at", "fault_injection", "fault_injection_id", "id", "updated_at"]
 

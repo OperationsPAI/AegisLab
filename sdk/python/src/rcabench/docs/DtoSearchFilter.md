@@ -5,10 +5,10 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**var_field** | **str** | 字段名 | 
-**operator** | [**DtoFilterOperator**](DtoFilterOperator.md) | 操作符 | 
-**value** | **object** | 值 | [optional] 
-**values** | **List[object]** | 多值（用于IN操作等） | [optional] 
+**var_field** | **str** | Field name | 
+**operator** | [**DtoFilterOperator**](DtoFilterOperator.md) | Operator | 
+**value** | **object** | Value | [optional] 
+**values** | **List[object]** | Multiple values (for IN operations etc.) | [optional] 
 
 ## Example
 

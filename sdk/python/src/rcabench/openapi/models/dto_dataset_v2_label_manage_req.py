@@ -28,9 +28,9 @@ class DtoDatasetV2LabelManageReq(BaseModel):
     """
     DtoDatasetV2LabelManageReq
     """ # noqa: E501
-    add_labels: Optional[List[StrictInt]] = Field(default=None, description="要添加的标签ID列表")
-    new_labels: Optional[List[DtoDatasetV2LabelCreateReq]] = Field(default=None, description="新建标签列表")
-    remove_labels: Optional[List[StrictInt]] = Field(default=None, description="要移除的标签ID列表")
+    add_labels: Optional[List[StrictInt]] = Field(default=None, description="List of label IDs to add")
+    new_labels: Optional[List[DtoDatasetV2LabelCreateReq]] = Field(default=None, description="New label list")
+    remove_labels: Optional[List[StrictInt]] = Field(default=None, description="List of label IDs to remove")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["add_labels", "new_labels", "remove_labels"]
 

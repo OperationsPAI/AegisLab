@@ -4,15 +4,15 @@ All URIs are relative to *http://localhost:8080/api/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**api_v1_debug_ns_status_get**](DebugApi.md#api_v1_debug_ns_status_get) | **GET** /api/v1/debug/ns/status | 获取命名空间锁状态
+[**api_v1_debug_ns_status_get**](DebugApi.md#api_v1_debug_ns_status_get) | **GET** /api/v1/debug/ns/status | Get namespace lock status
 
 
 # **api_v1_debug_ns_status_get**
 > DtoGenericResponseAny api_v1_debug_ns_status_get()
 
-获取命名空间锁状态
+Get namespace lock status
 
-获取命名空间锁状态信息
+Get namespace lock status information
 
 ### Example
 
@@ -36,7 +36,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
     api_instance = rcabench.openapi.DebugApi(api_client)
 
     try:
-        # 获取命名空间锁状态
+        # Get namespace lock status
         api_response = api_instance.api_v1_debug_ns_status_get()
         print("The response of DebugApi->api_v1_debug_ns_status_get:\n")
         pprint(api_response)

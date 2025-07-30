@@ -43,23 +43,23 @@ class ContainerApi:
     @validate_call
     def api_v1_containers_post(
         self,
-        image: Annotated[StrictStr, Field(description="Docker镜像名称。当source_type为harbor时，指定Harbor中已存在的镜像名称；其他情况下支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）")],
-        type: Annotated[Optional[StrictStr], Field(description="容器类型，指定容器的用途")] = None,
-        name: Annotated[Optional[StrictStr], Field(description="容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段")] = None,
-        tag: Annotated[Optional[StrictStr], Field(description="Docker镜像标签。当source_type为harbor时，指定Harbor中已存在的镜像标签；其他情况下用于版本控制")] = None,
-        command: Annotated[Optional[StrictStr], Field(description="Docker镜像启动命令，默认为bash /entrypoint.sh")] = None,
-        env_vars: Annotated[Optional[List[StrictStr]], Field(description="环境变量名称列表，支持多个环境变量")] = None,
-        source_type: Annotated[Optional[StrictStr], Field(description="构建源类型，指定源码来源")] = None,
-        file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB")] = None,
-        github_token: Annotated[Optional[StrictStr], Field(description="GitHub访问令牌，用于访问私有仓库，公开仓库可不提供")] = None,
-        github_repo: Annotated[Optional[StrictStr], Field(description="GitHub仓库地址，格式：owner/repo，当source_type为github时必需")] = None,
-        github_branch: Annotated[Optional[StrictStr], Field(description="GitHub分支名，指定要构建的分支")] = None,
-        github_commit: Annotated[Optional[StrictStr], Field(description="GitHub commit哈希值（支持短hash），如果指定commit则忽略branch参数")] = None,
-        github_path: Annotated[Optional[StrictStr], Field(description="仓库内的子目录路径，如果源码不在根目录")] = None,
-        context_dir: Annotated[Optional[StrictStr], Field(description="Docker构建上下文路径，相对于源码根目录")] = None,
-        dockerfile_path: Annotated[Optional[StrictStr], Field(description="Dockerfile路径，相对于源码根目录")] = None,
-        target: Annotated[Optional[StrictStr], Field(description="Dockerfile构建目标（multi-stage build时使用）")] = None,
-        force_rebuild: Annotated[Optional[StrictBool], Field(description="是否强制重新构建镜像，忽略缓存")] = None,
+        image: Annotated[StrictStr, Field(description="Docker image name. When source_type is harbor, specify the existing image name in Harbor; otherwise, supports the following formats: 1) image-name (automatically adds default Harbor address and namespace) 2) namespace/image-name (automatically adds default Harbor address)")],
+        type: Annotated[Optional[StrictStr], Field(description="Container type, specifies the purpose of the container")] = None,
+        name: Annotated[Optional[StrictStr], Field(description="Container name, used to identify the container, will be used as the image build identifier, defaults to the name field in info.toml")] = None,
+        tag: Annotated[Optional[StrictStr], Field(description="Docker image tag. When source_type is harbor, specify the existing image tag in Harbor; otherwise, used for version control")] = None,
+        command: Annotated[Optional[StrictStr], Field(description="Docker image startup command, defaults to bash /entrypoint.sh")] = None,
+        env_vars: Annotated[Optional[List[StrictStr]], Field(description="List of environment variable names, supports multiple variables")] = None,
+        source_type: Annotated[Optional[StrictStr], Field(description="Build source type, specifies the source of the code")] = None,
+        file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="Source file (supports zip or tar.gz format), required when source_type is file, file size limit 5MB")] = None,
+        github_token: Annotated[Optional[StrictStr], Field(description="GitHub access token, used for private repositories, not required for public repositories")] = None,
+        github_repo: Annotated[Optional[StrictStr], Field(description="GitHub repository address, format: owner/repo, required when source_type is github")] = None,
+        github_branch: Annotated[Optional[StrictStr], Field(description="GitHub branch name, specifies the branch to build")] = None,
+        github_commit: Annotated[Optional[StrictStr], Field(description="GitHub commit hash (supports short hash), if specified, branch parameter is ignored")] = None,
+        github_path: Annotated[Optional[StrictStr], Field(description="Subdirectory path in the repository, if the source code is not in the root directory")] = None,
+        context_dir: Annotated[Optional[StrictStr], Field(description="Docker build context path, relative to the source root directory")] = None,
+        dockerfile_path: Annotated[Optional[StrictStr], Field(description="Dockerfile path, relative to the source root directory")] = None,
+        target: Annotated[Optional[StrictStr], Field(description="Dockerfile build target (used for multi-stage builds)")] = None,
+        force_rebuild: Annotated[Optional[StrictBool], Field(description="Whether to force rebuild the image, ignore cache")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -73,43 +73,43 @@ class ContainerApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseDtoSubmitResp:
-        """提交镜像构建任务
+        """Submit container build task
 
-        通过上传文件、指定GitHub仓库或Harbor镜像来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建，或从Harbor直接获取已存在的镜像并更新数据库。系统会自动验证必需文件（Dockerfile）并设置执行权限
+        Build Docker images by uploading files, specifying GitHub repositories, or Harbor images. Supports zip and tar.gz file uploads, or automatically pulls code from GitHub for building, or directly updates the database from existing Harbor images. The system automatically validates required files (Dockerfile) and sets execution permissions.
 
-        :param image: Docker镜像名称。当source_type为harbor时，指定Harbor中已存在的镜像名称；其他情况下支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址） (required)
+        :param image: Docker image name. When source_type is harbor, specify the existing image name in Harbor; otherwise, supports the following formats: 1) image-name (automatically adds default Harbor address and namespace) 2) namespace/image-name (automatically adds default Harbor address) (required)
         :type image: str
-        :param type: 容器类型，指定容器的用途
+        :param type: Container type, specifies the purpose of the container
         :type type: str
-        :param name: 容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段
+        :param name: Container name, used to identify the container, will be used as the image build identifier, defaults to the name field in info.toml
         :type name: str
-        :param tag: Docker镜像标签。当source_type为harbor时，指定Harbor中已存在的镜像标签；其他情况下用于版本控制
+        :param tag: Docker image tag. When source_type is harbor, specify the existing image tag in Harbor; otherwise, used for version control
         :type tag: str
-        :param command: Docker镜像启动命令，默认为bash /entrypoint.sh
+        :param command: Docker image startup command, defaults to bash /entrypoint.sh
         :type command: str
-        :param env_vars: 环境变量名称列表，支持多个环境变量
+        :param env_vars: List of environment variable names, supports multiple variables
         :type env_vars: List[str]
-        :param source_type: 构建源类型，指定源码来源
+        :param source_type: Build source type, specifies the source of the code
         :type source_type: str
-        :param file: 源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB
+        :param file: Source file (supports zip or tar.gz format), required when source_type is file, file size limit 5MB
         :type file: bytearray
-        :param github_token: GitHub访问令牌，用于访问私有仓库，公开仓库可不提供
+        :param github_token: GitHub access token, used for private repositories, not required for public repositories
         :type github_token: str
-        :param github_repo: GitHub仓库地址，格式：owner/repo，当source_type为github时必需
+        :param github_repo: GitHub repository address, format: owner/repo, required when source_type is github
         :type github_repo: str
-        :param github_branch: GitHub分支名，指定要构建的分支
+        :param github_branch: GitHub branch name, specifies the branch to build
         :type github_branch: str
-        :param github_commit: GitHub commit哈希值（支持短hash），如果指定commit则忽略branch参数
+        :param github_commit: GitHub commit hash (supports short hash), if specified, branch parameter is ignored
         :type github_commit: str
-        :param github_path: 仓库内的子目录路径，如果源码不在根目录
+        :param github_path: Subdirectory path in the repository, if the source code is not in the root directory
         :type github_path: str
-        :param context_dir: Docker构建上下文路径，相对于源码根目录
+        :param context_dir: Docker build context path, relative to the source root directory
         :type context_dir: str
-        :param dockerfile_path: Dockerfile路径，相对于源码根目录
+        :param dockerfile_path: Dockerfile path, relative to the source root directory
         :type dockerfile_path: str
-        :param target: Dockerfile构建目标（multi-stage build时使用）
+        :param target: Dockerfile build target (used for multi-stage builds)
         :type target: str
-        :param force_rebuild: 是否强制重新构建镜像，忽略缓存
+        :param force_rebuild: Whether to force rebuild the image, ignore cache
         :type force_rebuild: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -177,23 +177,23 @@ class ContainerApi:
     @validate_call
     def api_v1_containers_post_with_http_info(
         self,
-        image: Annotated[StrictStr, Field(description="Docker镜像名称。当source_type为harbor时，指定Harbor中已存在的镜像名称；其他情况下支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）")],
-        type: Annotated[Optional[StrictStr], Field(description="容器类型，指定容器的用途")] = None,
-        name: Annotated[Optional[StrictStr], Field(description="容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段")] = None,
-        tag: Annotated[Optional[StrictStr], Field(description="Docker镜像标签。当source_type为harbor时，指定Harbor中已存在的镜像标签；其他情况下用于版本控制")] = None,
-        command: Annotated[Optional[StrictStr], Field(description="Docker镜像启动命令，默认为bash /entrypoint.sh")] = None,
-        env_vars: Annotated[Optional[List[StrictStr]], Field(description="环境变量名称列表，支持多个环境变量")] = None,
-        source_type: Annotated[Optional[StrictStr], Field(description="构建源类型，指定源码来源")] = None,
-        file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB")] = None,
-        github_token: Annotated[Optional[StrictStr], Field(description="GitHub访问令牌，用于访问私有仓库，公开仓库可不提供")] = None,
-        github_repo: Annotated[Optional[StrictStr], Field(description="GitHub仓库地址，格式：owner/repo，当source_type为github时必需")] = None,
-        github_branch: Annotated[Optional[StrictStr], Field(description="GitHub分支名，指定要构建的分支")] = None,
-        github_commit: Annotated[Optional[StrictStr], Field(description="GitHub commit哈希值（支持短hash），如果指定commit则忽略branch参数")] = None,
-        github_path: Annotated[Optional[StrictStr], Field(description="仓库内的子目录路径，如果源码不在根目录")] = None,
-        context_dir: Annotated[Optional[StrictStr], Field(description="Docker构建上下文路径，相对于源码根目录")] = None,
-        dockerfile_path: Annotated[Optional[StrictStr], Field(description="Dockerfile路径，相对于源码根目录")] = None,
-        target: Annotated[Optional[StrictStr], Field(description="Dockerfile构建目标（multi-stage build时使用）")] = None,
-        force_rebuild: Annotated[Optional[StrictBool], Field(description="是否强制重新构建镜像，忽略缓存")] = None,
+        image: Annotated[StrictStr, Field(description="Docker image name. When source_type is harbor, specify the existing image name in Harbor; otherwise, supports the following formats: 1) image-name (automatically adds default Harbor address and namespace) 2) namespace/image-name (automatically adds default Harbor address)")],
+        type: Annotated[Optional[StrictStr], Field(description="Container type, specifies the purpose of the container")] = None,
+        name: Annotated[Optional[StrictStr], Field(description="Container name, used to identify the container, will be used as the image build identifier, defaults to the name field in info.toml")] = None,
+        tag: Annotated[Optional[StrictStr], Field(description="Docker image tag. When source_type is harbor, specify the existing image tag in Harbor; otherwise, used for version control")] = None,
+        command: Annotated[Optional[StrictStr], Field(description="Docker image startup command, defaults to bash /entrypoint.sh")] = None,
+        env_vars: Annotated[Optional[List[StrictStr]], Field(description="List of environment variable names, supports multiple variables")] = None,
+        source_type: Annotated[Optional[StrictStr], Field(description="Build source type, specifies the source of the code")] = None,
+        file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="Source file (supports zip or tar.gz format), required when source_type is file, file size limit 5MB")] = None,
+        github_token: Annotated[Optional[StrictStr], Field(description="GitHub access token, used for private repositories, not required for public repositories")] = None,
+        github_repo: Annotated[Optional[StrictStr], Field(description="GitHub repository address, format: owner/repo, required when source_type is github")] = None,
+        github_branch: Annotated[Optional[StrictStr], Field(description="GitHub branch name, specifies the branch to build")] = None,
+        github_commit: Annotated[Optional[StrictStr], Field(description="GitHub commit hash (supports short hash), if specified, branch parameter is ignored")] = None,
+        github_path: Annotated[Optional[StrictStr], Field(description="Subdirectory path in the repository, if the source code is not in the root directory")] = None,
+        context_dir: Annotated[Optional[StrictStr], Field(description="Docker build context path, relative to the source root directory")] = None,
+        dockerfile_path: Annotated[Optional[StrictStr], Field(description="Dockerfile path, relative to the source root directory")] = None,
+        target: Annotated[Optional[StrictStr], Field(description="Dockerfile build target (used for multi-stage builds)")] = None,
+        force_rebuild: Annotated[Optional[StrictBool], Field(description="Whether to force rebuild the image, ignore cache")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -207,43 +207,43 @@ class ContainerApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseDtoSubmitResp]:
-        """提交镜像构建任务
+        """Submit container build task
 
-        通过上传文件、指定GitHub仓库或Harbor镜像来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建，或从Harbor直接获取已存在的镜像并更新数据库。系统会自动验证必需文件（Dockerfile）并设置执行权限
+        Build Docker images by uploading files, specifying GitHub repositories, or Harbor images. Supports zip and tar.gz file uploads, or automatically pulls code from GitHub for building, or directly updates the database from existing Harbor images. The system automatically validates required files (Dockerfile) and sets execution permissions.
 
-        :param image: Docker镜像名称。当source_type为harbor时，指定Harbor中已存在的镜像名称；其他情况下支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址） (required)
+        :param image: Docker image name. When source_type is harbor, specify the existing image name in Harbor; otherwise, supports the following formats: 1) image-name (automatically adds default Harbor address and namespace) 2) namespace/image-name (automatically adds default Harbor address) (required)
         :type image: str
-        :param type: 容器类型，指定容器的用途
+        :param type: Container type, specifies the purpose of the container
         :type type: str
-        :param name: 容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段
+        :param name: Container name, used to identify the container, will be used as the image build identifier, defaults to the name field in info.toml
         :type name: str
-        :param tag: Docker镜像标签。当source_type为harbor时，指定Harbor中已存在的镜像标签；其他情况下用于版本控制
+        :param tag: Docker image tag. When source_type is harbor, specify the existing image tag in Harbor; otherwise, used for version control
         :type tag: str
-        :param command: Docker镜像启动命令，默认为bash /entrypoint.sh
+        :param command: Docker image startup command, defaults to bash /entrypoint.sh
         :type command: str
-        :param env_vars: 环境变量名称列表，支持多个环境变量
+        :param env_vars: List of environment variable names, supports multiple variables
         :type env_vars: List[str]
-        :param source_type: 构建源类型，指定源码来源
+        :param source_type: Build source type, specifies the source of the code
         :type source_type: str
-        :param file: 源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB
+        :param file: Source file (supports zip or tar.gz format), required when source_type is file, file size limit 5MB
         :type file: bytearray
-        :param github_token: GitHub访问令牌，用于访问私有仓库，公开仓库可不提供
+        :param github_token: GitHub access token, used for private repositories, not required for public repositories
         :type github_token: str
-        :param github_repo: GitHub仓库地址，格式：owner/repo，当source_type为github时必需
+        :param github_repo: GitHub repository address, format: owner/repo, required when source_type is github
         :type github_repo: str
-        :param github_branch: GitHub分支名，指定要构建的分支
+        :param github_branch: GitHub branch name, specifies the branch to build
         :type github_branch: str
-        :param github_commit: GitHub commit哈希值（支持短hash），如果指定commit则忽略branch参数
+        :param github_commit: GitHub commit hash (supports short hash), if specified, branch parameter is ignored
         :type github_commit: str
-        :param github_path: 仓库内的子目录路径，如果源码不在根目录
+        :param github_path: Subdirectory path in the repository, if the source code is not in the root directory
         :type github_path: str
-        :param context_dir: Docker构建上下文路径，相对于源码根目录
+        :param context_dir: Docker build context path, relative to the source root directory
         :type context_dir: str
-        :param dockerfile_path: Dockerfile路径，相对于源码根目录
+        :param dockerfile_path: Dockerfile path, relative to the source root directory
         :type dockerfile_path: str
-        :param target: Dockerfile构建目标（multi-stage build时使用）
+        :param target: Dockerfile build target (used for multi-stage builds)
         :type target: str
-        :param force_rebuild: 是否强制重新构建镜像，忽略缓存
+        :param force_rebuild: Whether to force rebuild the image, ignore cache
         :type force_rebuild: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -311,23 +311,23 @@ class ContainerApi:
     @validate_call
     def api_v1_containers_post_without_preload_content(
         self,
-        image: Annotated[StrictStr, Field(description="Docker镜像名称。当source_type为harbor时，指定Harbor中已存在的镜像名称；其他情况下支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）")],
-        type: Annotated[Optional[StrictStr], Field(description="容器类型，指定容器的用途")] = None,
-        name: Annotated[Optional[StrictStr], Field(description="容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段")] = None,
-        tag: Annotated[Optional[StrictStr], Field(description="Docker镜像标签。当source_type为harbor时，指定Harbor中已存在的镜像标签；其他情况下用于版本控制")] = None,
-        command: Annotated[Optional[StrictStr], Field(description="Docker镜像启动命令，默认为bash /entrypoint.sh")] = None,
-        env_vars: Annotated[Optional[List[StrictStr]], Field(description="环境变量名称列表，支持多个环境变量")] = None,
-        source_type: Annotated[Optional[StrictStr], Field(description="构建源类型，指定源码来源")] = None,
-        file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB")] = None,
-        github_token: Annotated[Optional[StrictStr], Field(description="GitHub访问令牌，用于访问私有仓库，公开仓库可不提供")] = None,
-        github_repo: Annotated[Optional[StrictStr], Field(description="GitHub仓库地址，格式：owner/repo，当source_type为github时必需")] = None,
-        github_branch: Annotated[Optional[StrictStr], Field(description="GitHub分支名，指定要构建的分支")] = None,
-        github_commit: Annotated[Optional[StrictStr], Field(description="GitHub commit哈希值（支持短hash），如果指定commit则忽略branch参数")] = None,
-        github_path: Annotated[Optional[StrictStr], Field(description="仓库内的子目录路径，如果源码不在根目录")] = None,
-        context_dir: Annotated[Optional[StrictStr], Field(description="Docker构建上下文路径，相对于源码根目录")] = None,
-        dockerfile_path: Annotated[Optional[StrictStr], Field(description="Dockerfile路径，相对于源码根目录")] = None,
-        target: Annotated[Optional[StrictStr], Field(description="Dockerfile构建目标（multi-stage build时使用）")] = None,
-        force_rebuild: Annotated[Optional[StrictBool], Field(description="是否强制重新构建镜像，忽略缓存")] = None,
+        image: Annotated[StrictStr, Field(description="Docker image name. When source_type is harbor, specify the existing image name in Harbor; otherwise, supports the following formats: 1) image-name (automatically adds default Harbor address and namespace) 2) namespace/image-name (automatically adds default Harbor address)")],
+        type: Annotated[Optional[StrictStr], Field(description="Container type, specifies the purpose of the container")] = None,
+        name: Annotated[Optional[StrictStr], Field(description="Container name, used to identify the container, will be used as the image build identifier, defaults to the name field in info.toml")] = None,
+        tag: Annotated[Optional[StrictStr], Field(description="Docker image tag. When source_type is harbor, specify the existing image tag in Harbor; otherwise, used for version control")] = None,
+        command: Annotated[Optional[StrictStr], Field(description="Docker image startup command, defaults to bash /entrypoint.sh")] = None,
+        env_vars: Annotated[Optional[List[StrictStr]], Field(description="List of environment variable names, supports multiple variables")] = None,
+        source_type: Annotated[Optional[StrictStr], Field(description="Build source type, specifies the source of the code")] = None,
+        file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="Source file (supports zip or tar.gz format), required when source_type is file, file size limit 5MB")] = None,
+        github_token: Annotated[Optional[StrictStr], Field(description="GitHub access token, used for private repositories, not required for public repositories")] = None,
+        github_repo: Annotated[Optional[StrictStr], Field(description="GitHub repository address, format: owner/repo, required when source_type is github")] = None,
+        github_branch: Annotated[Optional[StrictStr], Field(description="GitHub branch name, specifies the branch to build")] = None,
+        github_commit: Annotated[Optional[StrictStr], Field(description="GitHub commit hash (supports short hash), if specified, branch parameter is ignored")] = None,
+        github_path: Annotated[Optional[StrictStr], Field(description="Subdirectory path in the repository, if the source code is not in the root directory")] = None,
+        context_dir: Annotated[Optional[StrictStr], Field(description="Docker build context path, relative to the source root directory")] = None,
+        dockerfile_path: Annotated[Optional[StrictStr], Field(description="Dockerfile path, relative to the source root directory")] = None,
+        target: Annotated[Optional[StrictStr], Field(description="Dockerfile build target (used for multi-stage builds)")] = None,
+        force_rebuild: Annotated[Optional[StrictBool], Field(description="Whether to force rebuild the image, ignore cache")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -341,43 +341,43 @@ class ContainerApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """提交镜像构建任务
+        """Submit container build task
 
-        通过上传文件、指定GitHub仓库或Harbor镜像来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建，或从Harbor直接获取已存在的镜像并更新数据库。系统会自动验证必需文件（Dockerfile）并设置执行权限
+        Build Docker images by uploading files, specifying GitHub repositories, or Harbor images. Supports zip and tar.gz file uploads, or automatically pulls code from GitHub for building, or directly updates the database from existing Harbor images. The system automatically validates required files (Dockerfile) and sets execution permissions.
 
-        :param image: Docker镜像名称。当source_type为harbor时，指定Harbor中已存在的镜像名称；其他情况下支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址） (required)
+        :param image: Docker image name. When source_type is harbor, specify the existing image name in Harbor; otherwise, supports the following formats: 1) image-name (automatically adds default Harbor address and namespace) 2) namespace/image-name (automatically adds default Harbor address) (required)
         :type image: str
-        :param type: 容器类型，指定容器的用途
+        :param type: Container type, specifies the purpose of the container
         :type type: str
-        :param name: 容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段
+        :param name: Container name, used to identify the container, will be used as the image build identifier, defaults to the name field in info.toml
         :type name: str
-        :param tag: Docker镜像标签。当source_type为harbor时，指定Harbor中已存在的镜像标签；其他情况下用于版本控制
+        :param tag: Docker image tag. When source_type is harbor, specify the existing image tag in Harbor; otherwise, used for version control
         :type tag: str
-        :param command: Docker镜像启动命令，默认为bash /entrypoint.sh
+        :param command: Docker image startup command, defaults to bash /entrypoint.sh
         :type command: str
-        :param env_vars: 环境变量名称列表，支持多个环境变量
+        :param env_vars: List of environment variable names, supports multiple variables
         :type env_vars: List[str]
-        :param source_type: 构建源类型，指定源码来源
+        :param source_type: Build source type, specifies the source of the code
         :type source_type: str
-        :param file: 源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB
+        :param file: Source file (supports zip or tar.gz format), required when source_type is file, file size limit 5MB
         :type file: bytearray
-        :param github_token: GitHub访问令牌，用于访问私有仓库，公开仓库可不提供
+        :param github_token: GitHub access token, used for private repositories, not required for public repositories
         :type github_token: str
-        :param github_repo: GitHub仓库地址，格式：owner/repo，当source_type为github时必需
+        :param github_repo: GitHub repository address, format: owner/repo, required when source_type is github
         :type github_repo: str
-        :param github_branch: GitHub分支名，指定要构建的分支
+        :param github_branch: GitHub branch name, specifies the branch to build
         :type github_branch: str
-        :param github_commit: GitHub commit哈希值（支持短hash），如果指定commit则忽略branch参数
+        :param github_commit: GitHub commit hash (supports short hash), if specified, branch parameter is ignored
         :type github_commit: str
-        :param github_path: 仓库内的子目录路径，如果源码不在根目录
+        :param github_path: Subdirectory path in the repository, if the source code is not in the root directory
         :type github_path: str
-        :param context_dir: Docker构建上下文路径，相对于源码根目录
+        :param context_dir: Docker build context path, relative to the source root directory
         :type context_dir: str
-        :param dockerfile_path: Dockerfile路径，相对于源码根目录
+        :param dockerfile_path: Dockerfile path, relative to the source root directory
         :type dockerfile_path: str
-        :param target: Dockerfile构建目标（multi-stage build时使用）
+        :param target: Dockerfile build target (used for multi-stage builds)
         :type target: str
-        :param force_rebuild: 是否强制重新构建镜像，忽略缓存
+        :param force_rebuild: Whether to force rebuild the image, ignore cache
         :type force_rebuild: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request

@@ -47,10 +47,10 @@ class EvaluationApi:
     @validate_call
     def api_v1_evaluations_executions_get(
         self,
-        start_time: Annotated[Optional[StrictStr], Field(description="开始时间，格式：2006-01-02T15:04:05Z07:00")] = None,
-        end_time: Annotated[Optional[StrictStr], Field(description="结束时间，格式：2006-01-02T15:04:05Z07:00")] = None,
-        limit: Annotated[Optional[StrictInt], Field(description="数量限制")] = None,
-        offset: Annotated[Optional[StrictInt], Field(description="偏移量，用于分页")] = None,
+        start_time: Annotated[Optional[StrictStr], Field(description="Start time, format: 2006-01-02T15:04:05Z07:00")] = None,
+        end_time: Annotated[Optional[StrictStr], Field(description="End time, format: 2006-01-02T15:04:05Z07:00")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Limit")] = None,
+        offset: Annotated[Optional[StrictInt], Field(description="Offset for pagination")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -64,17 +64,17 @@ class EvaluationApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseDtoSuccessfulExecutionsResp:
-        """获取成功执行的算法记录
+        """Get successful algorithm execution records
 
-        获取所有ExecutionResult中status为ExecutionSuccess的记录，支持时间区间筛选和数量筛选
+        Get all records in ExecutionResult with status ExecutionSuccess, supports time range filtering and quantity filtering
 
-        :param start_time: 开始时间，格式：2006-01-02T15:04:05Z07:00
+        :param start_time: Start time, format: 2006-01-02T15:04:05Z07:00
         :type start_time: str
-        :param end_time: 结束时间，格式：2006-01-02T15:04:05Z07:00
+        :param end_time: End time, format: 2006-01-02T15:04:05Z07:00
         :type end_time: str
-        :param limit: 数量限制
+        :param limit: Limit
         :type limit: int
-        :param offset: 偏移量，用于分页
+        :param offset: Offset for pagination
         :type offset: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -128,10 +128,10 @@ class EvaluationApi:
     @validate_call
     def api_v1_evaluations_executions_get_with_http_info(
         self,
-        start_time: Annotated[Optional[StrictStr], Field(description="开始时间，格式：2006-01-02T15:04:05Z07:00")] = None,
-        end_time: Annotated[Optional[StrictStr], Field(description="结束时间，格式：2006-01-02T15:04:05Z07:00")] = None,
-        limit: Annotated[Optional[StrictInt], Field(description="数量限制")] = None,
-        offset: Annotated[Optional[StrictInt], Field(description="偏移量，用于分页")] = None,
+        start_time: Annotated[Optional[StrictStr], Field(description="Start time, format: 2006-01-02T15:04:05Z07:00")] = None,
+        end_time: Annotated[Optional[StrictStr], Field(description="End time, format: 2006-01-02T15:04:05Z07:00")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Limit")] = None,
+        offset: Annotated[Optional[StrictInt], Field(description="Offset for pagination")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -145,17 +145,17 @@ class EvaluationApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseDtoSuccessfulExecutionsResp]:
-        """获取成功执行的算法记录
+        """Get successful algorithm execution records
 
-        获取所有ExecutionResult中status为ExecutionSuccess的记录，支持时间区间筛选和数量筛选
+        Get all records in ExecutionResult with status ExecutionSuccess, supports time range filtering and quantity filtering
 
-        :param start_time: 开始时间，格式：2006-01-02T15:04:05Z07:00
+        :param start_time: Start time, format: 2006-01-02T15:04:05Z07:00
         :type start_time: str
-        :param end_time: 结束时间，格式：2006-01-02T15:04:05Z07:00
+        :param end_time: End time, format: 2006-01-02T15:04:05Z07:00
         :type end_time: str
-        :param limit: 数量限制
+        :param limit: Limit
         :type limit: int
-        :param offset: 偏移量，用于分页
+        :param offset: Offset for pagination
         :type offset: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -209,10 +209,10 @@ class EvaluationApi:
     @validate_call
     def api_v1_evaluations_executions_get_without_preload_content(
         self,
-        start_time: Annotated[Optional[StrictStr], Field(description="开始时间，格式：2006-01-02T15:04:05Z07:00")] = None,
-        end_time: Annotated[Optional[StrictStr], Field(description="结束时间，格式：2006-01-02T15:04:05Z07:00")] = None,
-        limit: Annotated[Optional[StrictInt], Field(description="数量限制")] = None,
-        offset: Annotated[Optional[StrictInt], Field(description="偏移量，用于分页")] = None,
+        start_time: Annotated[Optional[StrictStr], Field(description="Start time, format: 2006-01-02T15:04:05Z07:00")] = None,
+        end_time: Annotated[Optional[StrictStr], Field(description="End time, format: 2006-01-02T15:04:05Z07:00")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Limit")] = None,
+        offset: Annotated[Optional[StrictInt], Field(description="Offset for pagination")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -226,17 +226,17 @@ class EvaluationApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """获取成功执行的算法记录
+        """Get successful algorithm execution records
 
-        获取所有ExecutionResult中status为ExecutionSuccess的记录，支持时间区间筛选和数量筛选
+        Get all records in ExecutionResult with status ExecutionSuccess, supports time range filtering and quantity filtering
 
-        :param start_time: 开始时间，格式：2006-01-02T15:04:05Z07:00
+        :param start_time: Start time, format: 2006-01-02T15:04:05Z07:00
         :type start_time: str
-        :param end_time: 结束时间，格式：2006-01-02T15:04:05Z07:00
+        :param end_time: End time, format: 2006-01-02T15:04:05Z07:00
         :type end_time: str
-        :param limit: 数量限制
+        :param limit: Limit
         :type limit: int
-        :param offset: 偏移量，用于分页
+        :param offset: Offset for pagination
         :type offset: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -366,7 +366,7 @@ class EvaluationApi:
     @validate_call
     def api_v1_evaluations_groundtruth_post(
         self,
-        body: Annotated[DtoGroundTruthReq, Field(description="Ground truth查询请求，包含数据集列表")],
+        body: Annotated[DtoGroundTruthReq, Field(description="Ground truth query request, contains dataset list")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -380,11 +380,11 @@ class EvaluationApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseDtoGroundTruthResp:
-        """获取数据集的 ground truth
+        """Get ground truth for datasets
 
-        根据数据集数组获取对应的 ground truth 数据，用于算法评估的基准数据。支持批量查询多个数据集的真实标签信息
+        Get ground truth data for the given dataset array, used as benchmark data for algorithm evaluation. Supports batch query for ground truth information of multiple datasets
 
-        :param body: Ground truth查询请求，包含数据集列表 (required)
+        :param body: Ground truth query request, contains dataset list (required)
         :type body: DtoGroundTruthReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -435,7 +435,7 @@ class EvaluationApi:
     @validate_call
     def api_v1_evaluations_groundtruth_post_with_http_info(
         self,
-        body: Annotated[DtoGroundTruthReq, Field(description="Ground truth查询请求，包含数据集列表")],
+        body: Annotated[DtoGroundTruthReq, Field(description="Ground truth query request, contains dataset list")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -449,11 +449,11 @@ class EvaluationApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseDtoGroundTruthResp]:
-        """获取数据集的 ground truth
+        """Get ground truth for datasets
 
-        根据数据集数组获取对应的 ground truth 数据，用于算法评估的基准数据。支持批量查询多个数据集的真实标签信息
+        Get ground truth data for the given dataset array, used as benchmark data for algorithm evaluation. Supports batch query for ground truth information of multiple datasets
 
-        :param body: Ground truth查询请求，包含数据集列表 (required)
+        :param body: Ground truth query request, contains dataset list (required)
         :type body: DtoGroundTruthReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -504,7 +504,7 @@ class EvaluationApi:
     @validate_call
     def api_v1_evaluations_groundtruth_post_without_preload_content(
         self,
-        body: Annotated[DtoGroundTruthReq, Field(description="Ground truth查询请求，包含数据集列表")],
+        body: Annotated[DtoGroundTruthReq, Field(description="Ground truth query request, contains dataset list")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -518,11 +518,11 @@ class EvaluationApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """获取数据集的 ground truth
+        """Get ground truth for datasets
 
-        根据数据集数组获取对应的 ground truth 数据，用于算法评估的基准数据。支持批量查询多个数据集的真实标签信息
+        Get ground truth data for the given dataset array, used as benchmark data for algorithm evaluation. Supports batch query for ground truth information of multiple datasets
 
-        :param body: Ground truth查询请求，包含数据集列表 (required)
+        :param body: Ground truth query request, contains dataset list (required)
         :type body: DtoGroundTruthReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -632,7 +632,7 @@ class EvaluationApi:
     @validate_call
     def api_v1_evaluations_raw_data_post(
         self,
-        body: Annotated[DtoRawDataReq, Field(description="原始数据查询请求，支持三种模式：pairs数组、(algorithms+datasets)笛卡尔积、或execution_ids列表")],
+        body: Annotated[DtoRawDataReq, Field(description="Raw data query request, supports three modes: pairs array, (algorithms+datasets) Cartesian product, or execution_ids list")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -646,11 +646,11 @@ class EvaluationApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseDtoRawDataResp:
-        """获取原始评估数据
+        """Get raw evaluation data
 
-        支持三种查询模式：1) 直接传入算法-数据集对数组进行精确查询；2) 传入算法和数据集列表进行笛卡尔积查询；3) 通过执行ID列表查询。三种模式互斥，只能选择其中一种
+        Supports three query modes: 1) Directly pass an array of algorithm-dataset pairs for precise query; 2) Pass lists of algorithms and datasets for Cartesian product query; 3) Query by execution ID list. The three modes are mutually exclusive, only one can be selected
 
-        :param body: 原始数据查询请求，支持三种模式：pairs数组、(algorithms+datasets)笛卡尔积、或execution_ids列表 (required)
+        :param body: Raw data query request, supports three modes: pairs array, (algorithms+datasets) Cartesian product, or execution_ids list (required)
         :type body: DtoRawDataReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -701,7 +701,7 @@ class EvaluationApi:
     @validate_call
     def api_v1_evaluations_raw_data_post_with_http_info(
         self,
-        body: Annotated[DtoRawDataReq, Field(description="原始数据查询请求，支持三种模式：pairs数组、(algorithms+datasets)笛卡尔积、或execution_ids列表")],
+        body: Annotated[DtoRawDataReq, Field(description="Raw data query request, supports three modes: pairs array, (algorithms+datasets) Cartesian product, or execution_ids list")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -715,11 +715,11 @@ class EvaluationApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseDtoRawDataResp]:
-        """获取原始评估数据
+        """Get raw evaluation data
 
-        支持三种查询模式：1) 直接传入算法-数据集对数组进行精确查询；2) 传入算法和数据集列表进行笛卡尔积查询；3) 通过执行ID列表查询。三种模式互斥，只能选择其中一种
+        Supports three query modes: 1) Directly pass an array of algorithm-dataset pairs for precise query; 2) Pass lists of algorithms and datasets for Cartesian product query; 3) Query by execution ID list. The three modes are mutually exclusive, only one can be selected
 
-        :param body: 原始数据查询请求，支持三种模式：pairs数组、(algorithms+datasets)笛卡尔积、或execution_ids列表 (required)
+        :param body: Raw data query request, supports three modes: pairs array, (algorithms+datasets) Cartesian product, or execution_ids list (required)
         :type body: DtoRawDataReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -770,7 +770,7 @@ class EvaluationApi:
     @validate_call
     def api_v1_evaluations_raw_data_post_without_preload_content(
         self,
-        body: Annotated[DtoRawDataReq, Field(description="原始数据查询请求，支持三种模式：pairs数组、(algorithms+datasets)笛卡尔积、或execution_ids列表")],
+        body: Annotated[DtoRawDataReq, Field(description="Raw data query request, supports three modes: pairs array, (algorithms+datasets) Cartesian product, or execution_ids list")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -784,11 +784,11 @@ class EvaluationApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """获取原始评估数据
+        """Get raw evaluation data
 
-        支持三种查询模式：1) 直接传入算法-数据集对数组进行精确查询；2) 传入算法和数据集列表进行笛卡尔积查询；3) 通过执行ID列表查询。三种模式互斥，只能选择其中一种
+        Supports three query modes: 1) Directly pass an array of algorithm-dataset pairs for precise query; 2) Pass lists of algorithms and datasets for Cartesian product query; 3) Query by execution ID list. The three modes are mutually exclusive, only one can be selected
 
-        :param body: 原始数据查询请求，支持三种模式：pairs数组、(algorithms+datasets)笛卡尔积、或execution_ids列表 (required)
+        :param body: Raw data query request, supports three modes: pairs array, (algorithms+datasets) Cartesian product, or execution_ids list (required)
         :type body: DtoRawDataReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request

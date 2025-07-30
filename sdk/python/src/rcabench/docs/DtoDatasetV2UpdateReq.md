@@ -5,16 +5,16 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**data_source** | **str** | 数据来源描述 | [optional] 
-**description** | **str** | 数据集描述 | [optional] 
-**format** | **str** | 数据格式 | [optional] 
-**injection_ids** | **List[int]** | 更新关联的故障注入ID列表（完全替换） | [optional] 
-**is_public** | **bool** | 是否公开 | [optional] 
-**label_ids** | **List[int]** | 更新关联的标签ID列表（完全替换） | [optional] 
-**name** | **str** | 数据集名称 | [optional] 
-**new_labels** | [**List[DtoDatasetV2LabelCreateReq]**](DtoDatasetV2LabelCreateReq.md) | 新建标签列表 | [optional] 
-**type** | **str** | 数据集类型 | [optional] 
-**version** | **str** | 数据集版本 | [optional] 
+**data_source** | **str** | Data source description | [optional] 
+**description** | **str** | Dataset description | [optional] 
+**format** | **str** | Data format | [optional] 
+**injection_ids** | **List[int]** | Update associated fault injection ID list (complete replacement) | [optional] 
+**is_public** | **bool** | Whether public | [optional] 
+**label_ids** | **List[int]** | Update associated label ID list (complete replacement) | [optional] 
+**name** | **str** | Dataset name | [optional] 
+**new_labels** | [**List[DtoDatasetV2LabelCreateReq]**](DtoDatasetV2LabelCreateReq.md) | New label list | [optional] 
+**type** | **str** | Dataset type | [optional] 
+**version** | **str** | Dataset version | [optional] 
 
 ## Example
 

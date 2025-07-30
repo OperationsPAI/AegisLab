@@ -5,17 +5,17 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**avatar** | **str** | 头像URL | [optional] 
-**created_at** | **str** | 创建时间 | [optional] 
-**email** | **str** | 邮箱（唯一） | [optional] 
-**full_name** | **str** | 全名 | [optional] 
-**id** | **int** | 唯一标识 | [optional] 
-**is_active** | **bool** | 是否激活 | [optional] 
-**last_login_at** | **str** | 最后登录时间 | [optional] 
-**phone** | **str** | 电话号码 | [optional] 
-**status** | **int** | 0:禁用 1:启用 -1:删除 | [optional] 
-**updated_at** | **str** | 更新时间 | [optional] 
-**username** | **str** | 用户名（唯一） | [optional] 
+**avatar** | **str** | Avatar URL | [optional] 
+**created_at** | **str** | Creation time | [optional] 
+**email** | **str** | Email (unique) | [optional] 
+**full_name** | **str** | Full name | [optional] 
+**id** | **int** | Unique identifier | [optional] 
+**is_active** | **bool** | Whether active | [optional] 
+**last_login_at** | **str** | Last login time | [optional] 
+**phone** | **str** | Phone number | [optional] 
+**status** | **int** | 0:disabled 1:enabled -1:deleted | [optional] 
+**updated_at** | **str** | Update time | [optional] 
+**username** | **str** | Username (unique) | [optional] 
 
 ## Example
 

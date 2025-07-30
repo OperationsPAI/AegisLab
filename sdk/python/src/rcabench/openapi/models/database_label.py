@@ -27,16 +27,16 @@ class DatabaseLabel(BaseModel):
     """
     DatabaseLabel
     """ # noqa: E501
-    category: Optional[StrictStr] = Field(default=None, description="标签分类 (dataset, fault_injection, algorithm, container等)")
-    color: Optional[StrictStr] = Field(default=None, description="标签颜色 (hex格式)")
-    created_at: Optional[StrictStr] = Field(default=None, description="创建时间")
-    description: Optional[StrictStr] = Field(default=None, description="标签描述")
-    id: Optional[StrictInt] = Field(default=None, description="唯一标识")
-    is_system: Optional[StrictBool] = Field(default=None, description="是否为系统标签")
-    key: Optional[StrictStr] = Field(default=None, description="标签键")
-    updated_at: Optional[StrictStr] = Field(default=None, description="更新时间")
-    usage: Optional[StrictInt] = Field(default=None, description="使用次数")
-    value: Optional[StrictStr] = Field(default=None, description="标签值")
+    category: Optional[StrictStr] = Field(default=None, description="Label category (dataset, fault_injection, algorithm, container, etc.)")
+    color: Optional[StrictStr] = Field(default=None, description="Label color (hex format)")
+    created_at: Optional[StrictStr] = Field(default=None, description="Creation time")
+    description: Optional[StrictStr] = Field(default=None, description="Label description")
+    id: Optional[StrictInt] = Field(default=None, description="Unique identifier")
+    is_system: Optional[StrictBool] = Field(default=None, description="Whether system label")
+    key: Optional[StrictStr] = Field(default=None, description="Label key")
+    updated_at: Optional[StrictStr] = Field(default=None, description="Update time")
+    usage: Optional[StrictInt] = Field(default=None, description="Usage count")
+    value: Optional[StrictStr] = Field(default=None, description="Label value")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["category", "color", "created_at", "description", "id", "is_system", "key", "updated_at", "usage", "value"]
 

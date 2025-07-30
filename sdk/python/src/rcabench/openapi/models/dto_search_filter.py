@@ -28,10 +28,10 @@ class DtoSearchFilter(BaseModel):
     """
     DtoSearchFilter
     """ # noqa: E501
-    var_field: StrictStr = Field(description="字段名", alias="field")
-    operator: DtoFilterOperator = Field(description="操作符")
-    value: Optional[Dict[str, Any]] = Field(default=None, description="值")
-    values: Optional[List[Dict[str, Any]]] = Field(default=None, description="多值（用于IN操作等）")
+    var_field: StrictStr = Field(description="Field name", alias="field")
+    operator: DtoFilterOperator = Field(description="Operator")
+    value: Optional[Dict[str, Any]] = Field(default=None, description="Value")
+    values: Optional[List[Dict[str, Any]]] = Field(default=None, description="Multiple values (for IN operations etc.)")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["field", "operator", "value", "values"]
 

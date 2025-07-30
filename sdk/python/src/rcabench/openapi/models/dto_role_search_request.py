@@ -33,25 +33,25 @@ class DtoRoleSearchRequest(BaseModel):
     DtoRoleSearchRequest
     """ # noqa: E501
     created_at: Optional[DtoDateRange] = Field(default=None, description="Common filters shortcuts")
-    description_pattern: Optional[StrictStr] = Field(default=None, description="描述模糊匹配")
-    display_name_pattern: Optional[StrictStr] = Field(default=None, description="显示名模糊匹配")
+    description_pattern: Optional[StrictStr] = Field(default=None, description="Description fuzzy match")
+    display_name_pattern: Optional[StrictStr] = Field(default=None, description="Display name fuzzy match")
     exclude_fields: Optional[List[StrictStr]] = None
     filters: Optional[List[DtoSearchFilter]] = Field(default=None, description="Filters")
     include: Optional[List[StrictStr]] = Field(default=None, description="Include related entities")
     include_fields: Optional[List[StrictStr]] = Field(default=None, description="Include/Exclude fields")
     is_active: Optional[StrictBool] = None
-    is_system: Optional[StrictBool] = Field(default=None, description="是否系统角色")
+    is_system: Optional[StrictBool] = Field(default=None, description="Whether system role")
     keyword: Optional[StrictStr] = Field(default=None, description="Search keyword (for general text search)")
     name_pattern: Optional[StrictStr] = Field(default=None, description="Role-specific filter shortcuts")
     page: Optional[Annotated[int, Field(strict=True, ge=1)]] = Field(default=None, description="Pagination")
-    permission_ids: Optional[List[StrictInt]] = Field(default=None, description="权限ID筛选")
+    permission_ids: Optional[List[StrictInt]] = Field(default=None, description="Permission ID filter")
     project_id: Optional[StrictInt] = None
     size: Optional[Annotated[int, Field(le=1000, strict=True, ge=1)]] = None
     sort: Optional[List[DtoSortOption]] = Field(default=None, description="Sort")
     status: Optional[List[StrictInt]] = None
-    types: Optional[List[StrictStr]] = Field(default=None, description="角色类型筛选")
+    types: Optional[List[StrictStr]] = Field(default=None, description="Role type filter")
     updated_at: Optional[DtoDateRange] = None
-    user_count: Optional[DtoNumberRange] = Field(default=None, description="用户数量范围")
+    user_count: Optional[DtoNumberRange] = Field(default=None, description="User count range")
     user_id: Optional[StrictInt] = None
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["created_at", "description_pattern", "display_name_pattern", "exclude_fields", "filters", "include", "include_fields", "is_active", "is_system", "keyword", "name_pattern", "page", "permission_ids", "project_id", "size", "sort", "status", "types", "updated_at", "user_count", "user_id"]

@@ -8,9 +8,9 @@ Name | Type | Description | Notes
 **created_at** | **str** |  | [optional] 
 **description** | **str** |  | [optional] 
 **id** | **int** |  | [optional] 
-**is_public** | **bool** | 是否公开可见 | [optional] 
+**is_public** | **bool** | Whether publicly visible | [optional] 
 **name** | **str** |  | [optional] 
-**status** | **int** | 0:禁用 1:启用 -1:删除 | [optional] 
+**status** | **int** | 0:disabled 1:enabled -1:deleted | [optional] 
 **updated_at** | **str** |  | [optional] 
 
 ## Example

@@ -30,20 +30,20 @@ class DtoDatasetV2SearchReq(BaseModel):
     """
     DtoDatasetV2SearchReq
     """ # noqa: E501
-    date_range: Optional[DtoDateRangeFilter] = Field(default=None, description="时间范围过滤")
-    include: Optional[List[StrictStr]] = Field(default=None, description="包含的关联数据")
-    is_public: Optional[StrictBool] = Field(default=None, description="是否公开")
-    label_keys: Optional[List[StrictStr]] = Field(default=None, description="按标签键过滤")
-    label_values: Optional[List[StrictStr]] = Field(default=None, description="按标签值过滤")
-    page: Optional[Annotated[int, Field(strict=True, ge=1)]] = Field(default=None, description="页码")
-    project_ids: Optional[List[StrictInt]] = Field(default=None, description="项目ID列表")
-    search: Optional[StrictStr] = Field(default=None, description="搜索关键词")
-    size: Optional[Annotated[int, Field(le=100, strict=True, ge=1)]] = Field(default=None, description="每页大小")
-    size_range: Optional[DtoSizeRangeFilter] = Field(default=None, description="大小范围过滤")
-    sort_by: Optional[StrictStr] = Field(default=None, description="排序字段")
-    sort_order: Optional[StrictStr] = Field(default=None, description="排序方向")
-    statuses: Optional[List[StrictInt]] = Field(default=None, description="状态列表")
-    types: Optional[List[StrictStr]] = Field(default=None, description="数据集类型列表")
+    date_range: Optional[DtoDateRangeFilter] = Field(default=None, description="Date range filter")
+    include: Optional[List[StrictStr]] = Field(default=None, description="Included related data")
+    is_public: Optional[StrictBool] = Field(default=None, description="Whether public")
+    label_keys: Optional[List[StrictStr]] = Field(default=None, description="Filter by label key")
+    label_values: Optional[List[StrictStr]] = Field(default=None, description="Filter by label value")
+    page: Optional[Annotated[int, Field(strict=True, ge=1)]] = Field(default=None, description="Page number")
+    project_ids: Optional[List[StrictInt]] = Field(default=None, description="Project ID list")
+    search: Optional[StrictStr] = Field(default=None, description="Search keywords")
+    size: Optional[Annotated[int, Field(le=100, strict=True, ge=1)]] = Field(default=None, description="Page size")
+    size_range: Optional[DtoSizeRangeFilter] = Field(default=None, description="Size range filter")
+    sort_by: Optional[StrictStr] = Field(default=None, description="Sort field")
+    sort_order: Optional[StrictStr] = Field(default=None, description="Sort direction")
+    statuses: Optional[List[StrictInt]] = Field(default=None, description="Status list")
+    types: Optional[List[StrictStr]] = Field(default=None, description="Dataset type list")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["date_range", "include", "is_public", "label_keys", "label_values", "page", "project_ids", "search", "size", "size_range", "sort_by", "sort_order", "statuses", "types"]
 

@@ -5,11 +5,11 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**category** | **str** | 标签分类 | [optional] 
-**color** | **str** | 标签颜色 (hex格式) | [optional] 
-**description** | **str** | 标签描述 | [optional] 
-**key** | **str** | 标签键 | 
-**value** | **str** | 标签值 | 
+**category** | **str** | Label category | [optional] 
+**color** | **str** | Label color (hex format) | [optional] 
+**description** | **str** | Label description | [optional] 
+**key** | **str** | Label key | 
+**value** | **str** | Label value | 
 
 ## Example
 

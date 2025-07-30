@@ -27,8 +27,8 @@ class DtoDateRangeFilter(BaseModel):
     """
     DtoDateRangeFilter
     """ # noqa: E501
-    end_time: Optional[StrictStr] = Field(default=None, description="结束时间")
-    start_time: Optional[StrictStr] = Field(default=None, description="开始时间")
+    end_time: Optional[StrictStr] = Field(default=None, description="End time")
+    start_time: Optional[StrictStr] = Field(default=None, description="Start time")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["end_time", "start_time"]
 

@@ -29,16 +29,16 @@ class DtoDatasetV2UpdateReq(BaseModel):
     """
     DtoDatasetV2UpdateReq
     """ # noqa: E501
-    data_source: Optional[Annotated[str, Field(strict=True, max_length=500)]] = Field(default=None, description="数据来源描述")
-    description: Optional[Annotated[str, Field(strict=True, max_length=1000)]] = Field(default=None, description="数据集描述")
-    format: Optional[Annotated[str, Field(strict=True, max_length=50)]] = Field(default=None, description="数据格式")
-    injection_ids: Optional[List[StrictInt]] = Field(default=None, description="更新关联的故障注入ID列表（完全替换）")
-    is_public: Optional[StrictBool] = Field(default=None, description="是否公开")
-    label_ids: Optional[List[StrictInt]] = Field(default=None, description="更新关联的标签ID列表（完全替换）")
-    name: Optional[Annotated[str, Field(strict=True, max_length=255)]] = Field(default=None, description="数据集名称")
-    new_labels: Optional[List[DtoDatasetV2LabelCreateReq]] = Field(default=None, description="新建标签列表")
-    type: Optional[Annotated[str, Field(strict=True, max_length=50)]] = Field(default=None, description="数据集类型")
-    version: Optional[Annotated[str, Field(strict=True, max_length=50)]] = Field(default=None, description="数据集版本")
+    data_source: Optional[Annotated[str, Field(strict=True, max_length=500)]] = Field(default=None, description="Data source description")
+    description: Optional[Annotated[str, Field(strict=True, max_length=1000)]] = Field(default=None, description="Dataset description")
+    format: Optional[Annotated[str, Field(strict=True, max_length=50)]] = Field(default=None, description="Data format")
+    injection_ids: Optional[List[StrictInt]] = Field(default=None, description="Update associated fault injection ID list (complete replacement)")
+    is_public: Optional[StrictBool] = Field(default=None, description="Whether public")
+    label_ids: Optional[List[StrictInt]] = Field(default=None, description="Update associated label ID list (complete replacement)")
+    name: Optional[Annotated[str, Field(strict=True, max_length=255)]] = Field(default=None, description="Dataset name")
+    new_labels: Optional[List[DtoDatasetV2LabelCreateReq]] = Field(default=None, description="New label list")
+    type: Optional[Annotated[str, Field(strict=True, max_length=50)]] = Field(default=None, description="Dataset type")
+    version: Optional[Annotated[str, Field(strict=True, max_length=50)]] = Field(default=None, description="Dataset version")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["data_source", "description", "format", "injection_ids", "is_public", "label_ids", "name", "new_labels", "type", "version"]
 

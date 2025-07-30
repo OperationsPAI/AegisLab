@@ -4,16 +4,16 @@ All URIs are relative to *http://localhost:8080/api/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**api_v1_analyzers_traces_get**](TraceApi.md#api_v1_analyzers_traces_get) | **GET** /api/v1/analyzers/traces | 分析链路数据
-[**api_v1_traces_completed_get**](TraceApi.md#api_v1_traces_completed_get) | **GET** /api/v1/traces/completed | 获取完成状态的链路
+[**api_v1_analyzers_traces_get**](TraceApi.md#api_v1_analyzers_traces_get) | **GET** /api/v1/analyzers/traces | Analyze trace data
+[**api_v1_traces_completed_get**](TraceApi.md#api_v1_traces_completed_get) | **GET** /api/v1/traces/completed | Get completed traces
 
 
 # **api_v1_analyzers_traces_get**
 > DtoGenericResponseDtoTraceStats api_v1_analyzers_traces_get(first_task_type=first_task_type, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
 
-分析链路数据
+Analyze trace data
 
-使用多种筛选条件分析链路数据，返回包括故障注入结束链路在内的统计信息
+Analyze trace data using various filtering conditions, returning statistical information including traces ending with fault injection
 
 ### Example
 
@@ -35,13 +35,13 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.TraceApi(api_client)
-    first_task_type = 'first_task_type_example' # str | 首任务类型筛选 (optional)
-    lookback = 'lookback_example' # str | 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置 (optional)
-    custom_start_time = '2013-10-20T19:20:30+01:00' # datetime | 自定义开始时间，RFC3339格式，当lookback=custom时必需 (optional)
-    custom_end_time = '2013-10-20T19:20:30+01:00' # datetime | 自定义结束时间，RFC3339格式，当lookback=custom时必需 (optional)
+    first_task_type = 'first_task_type_example' # str | First task type filter (optional)
+    lookback = 'lookback_example' # str | Time range query, supports custom relative time (1h/24h/7d) or custom, default is not set (optional)
+    custom_start_time = '2013-10-20T19:20:30+01:00' # datetime | Custom start time, RFC3339 format, required when lookback=custom (optional)
+    custom_end_time = '2013-10-20T19:20:30+01:00' # datetime | Custom end time, RFC3339 format, required when lookback=custom (optional)
 
     try:
-        # 分析链路数据
+        # Analyze trace data
         api_response = api_instance.api_v1_analyzers_traces_get(first_task_type=first_task_type, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
         print("The response of TraceApi->api_v1_analyzers_traces_get:\n")
         pprint(api_response)
@@ -56,10 +56,10 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **first_task_type** | **str**| 首任务类型筛选 | [optional] 
- **lookback** | **str**| 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置 | [optional] 
- **custom_start_time** | **datetime**| 自定义开始时间，RFC3339格式，当lookback&#x3D;custom时必需 | [optional] 
- **custom_end_time** | **datetime**| 自定义结束时间，RFC3339格式，当lookback&#x3D;custom时必需 | [optional] 
+ **first_task_type** | **str**| First task type filter | [optional] 
+ **lookback** | **str**| Time range query, supports custom relative time (1h/24h/7d) or custom, default is not set | [optional] 
+ **custom_start_time** | **datetime**| Custom start time, RFC3339 format, required when lookback&#x3D;custom | [optional] 
+ **custom_end_time** | **datetime**| Custom end time, RFC3339 format, required when lookback&#x3D;custom | [optional] 
 
 ### Return type
 
@@ -78,18 +78,18 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | 返回链路分析统计信息 |  -  |
-**400** | 请求参数错误，如参数格式不正确、验证失败等 |  -  |
-**500** | 服务器内部错误 |  -  |
+**200** | Returns trace analysis statistics |  -  |
+**400** | Request parameter error, such as incorrect parameter format, validation failure, etc. |  -  |
+**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_traces_completed_get**
 > DtoGenericResponseDtoGetCompletedMapResp api_v1_traces_completed_get(lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
 
-获取完成状态的链路
+Get completed traces
 
-根据指定的时间范围获取完成状态的链路
+Get completed traces within a specified time range
 
 ### Example
 
@@ -111,12 +111,12 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.TraceApi(api_client)
-    lookback = 'lookback_example' # str | 相对时间查询，如 1h, 24h, 7d或者是custom (optional)
-    custom_start_time = 'custom_start_time_example' # str | 当lookback=custom时必需，自定义开始时间(RFC3339格式) (optional)
-    custom_end_time = 'custom_end_time_example' # str | 当lookback=custom时必需，自定义结束时间(RFC3339格式) (optional)
+    lookback = 'lookback_example' # str | Relative time query, e.g. 1h, 24h, 7d or custom (optional)
+    custom_start_time = 'custom_start_time_example' # str | Required when lookback=custom, custom start time (RFC3339 format) (optional)
+    custom_end_time = 'custom_end_time_example' # str | Required when lookback=custom, custom end time (RFC3339 format) (optional)
 
     try:
-        # 获取完成状态的链路
+        # Get completed traces
         api_response = api_instance.api_v1_traces_completed_get(lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
         print("The response of TraceApi->api_v1_traces_completed_get:\n")
         pprint(api_response)
@@ -131,9 +131,9 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **lookback** | **str**| 相对时间查询，如 1h, 24h, 7d或者是custom | [optional] 
- **custom_start_time** | **str**| 当lookback&#x3D;custom时必需，自定义开始时间(RFC3339格式) | [optional] 
- **custom_end_time** | **str**| 当lookback&#x3D;custom时必需，自定义结束时间(RFC3339格式) | [optional] 
+ **lookback** | **str**| Relative time query, e.g. 1h, 24h, 7d or custom | [optional] 
+ **custom_start_time** | **str**| Required when lookback&#x3D;custom, custom start time (RFC3339 format) | [optional] 
+ **custom_end_time** | **str**| Required when lookback&#x3D;custom, custom end time (RFC3339 format) | [optional] 
 
 ### Return type
 

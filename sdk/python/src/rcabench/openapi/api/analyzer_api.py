@@ -44,16 +44,16 @@ class AnalyzerApi:
     @validate_call
     def api_v1_analyzers_injections_get(
         self,
-        project_name: Annotated[Optional[StrictStr], Field(description="项目名称过滤")] = None,
-        env: Annotated[Optional[StrictStr], Field(description="环境标签过滤")] = None,
-        batch: Annotated[Optional[StrictStr], Field(description="批次标签过滤")] = None,
-        tag: Annotated[Optional[StrictStr], Field(description="分类标签过滤")] = None,
-        benchmark: Annotated[Optional[StrictStr], Field(description="基准测试类型过滤")] = None,
-        status: Annotated[Optional[StrictInt], Field(description="状态过滤，具体值参考字段映射接口(/mapping)")] = None,
-        fault_type: Annotated[Optional[StrictInt], Field(description="故障类型过滤，具体值参考字段映射接口(/mapping)")] = None,
-        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
-        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
-        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
+        project_name: Annotated[Optional[StrictStr], Field(description="Project name filter")] = None,
+        env: Annotated[Optional[StrictStr], Field(description="Environment label filter")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="Batch label filter")] = None,
+        tag: Annotated[Optional[StrictStr], Field(description="Classification label filter")] = None,
+        benchmark: Annotated[Optional[StrictStr], Field(description="Benchmark type filter")] = None,
+        status: Annotated[Optional[StrictInt], Field(description="Status filter, refer to field mapping interface (/mapping) for specific values")] = None,
+        fault_type: Annotated[Optional[StrictInt], Field(description="Fault type filter, refer to field mapping interface (/mapping) for specific values")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="Time range query, supports custom relative time (1h/24h/7d) or custom, default is not set")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="Custom start time, RFC3339 format, required when lookback=custom")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="Custom end time, RFC3339 format, required when lookback=custom")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -67,29 +67,29 @@ class AnalyzerApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseDtoAnalyzeInjectionsResp:
-        """分析故障注入数据
+        """Analyze fault injection data
 
-        使用多种筛选条件分析故障注入数据，返回包括效率、多样性、种子之间的距离等统计信息
+        Analyze fault injection data using various filtering conditions, returning statistical information including efficiency, diversity, distance between seeds, etc.
 
-        :param project_name: 项目名称过滤
+        :param project_name: Project name filter
         :type project_name: str
-        :param env: 环境标签过滤
+        :param env: Environment label filter
         :type env: str
-        :param batch: 批次标签过滤
+        :param batch: Batch label filter
         :type batch: str
-        :param tag: 分类标签过滤
+        :param tag: Classification label filter
         :type tag: str
-        :param benchmark: 基准测试类型过滤
+        :param benchmark: Benchmark type filter
         :type benchmark: str
-        :param status: 状态过滤，具体值参考字段映射接口(/mapping)
+        :param status: Status filter, refer to field mapping interface (/mapping) for specific values
         :type status: int
-        :param fault_type: 故障类型过滤，具体值参考字段映射接口(/mapping)
+        :param fault_type: Fault type filter, refer to field mapping interface (/mapping) for specific values
         :type fault_type: int
-        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+        :param lookback: Time range query, supports custom relative time (1h/24h/7d) or custom, default is not set
         :type lookback: str
-        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :param custom_start_time: Custom start time, RFC3339 format, required when lookback=custom
         :type custom_start_time: datetime
-        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :param custom_end_time: Custom end time, RFC3339 format, required when lookback=custom
         :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -149,16 +149,16 @@ class AnalyzerApi:
     @validate_call
     def api_v1_analyzers_injections_get_with_http_info(
         self,
-        project_name: Annotated[Optional[StrictStr], Field(description="项目名称过滤")] = None,
-        env: Annotated[Optional[StrictStr], Field(description="环境标签过滤")] = None,
-        batch: Annotated[Optional[StrictStr], Field(description="批次标签过滤")] = None,
-        tag: Annotated[Optional[StrictStr], Field(description="分类标签过滤")] = None,
-        benchmark: Annotated[Optional[StrictStr], Field(description="基准测试类型过滤")] = None,
-        status: Annotated[Optional[StrictInt], Field(description="状态过滤，具体值参考字段映射接口(/mapping)")] = None,
-        fault_type: Annotated[Optional[StrictInt], Field(description="故障类型过滤，具体值参考字段映射接口(/mapping)")] = None,
-        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
-        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
-        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
+        project_name: Annotated[Optional[StrictStr], Field(description="Project name filter")] = None,
+        env: Annotated[Optional[StrictStr], Field(description="Environment label filter")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="Batch label filter")] = None,
+        tag: Annotated[Optional[StrictStr], Field(description="Classification label filter")] = None,
+        benchmark: Annotated[Optional[StrictStr], Field(description="Benchmark type filter")] = None,
+        status: Annotated[Optional[StrictInt], Field(description="Status filter, refer to field mapping interface (/mapping) for specific values")] = None,
+        fault_type: Annotated[Optional[StrictInt], Field(description="Fault type filter, refer to field mapping interface (/mapping) for specific values")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="Time range query, supports custom relative time (1h/24h/7d) or custom, default is not set")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="Custom start time, RFC3339 format, required when lookback=custom")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="Custom end time, RFC3339 format, required when lookback=custom")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -172,29 +172,29 @@ class AnalyzerApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseDtoAnalyzeInjectionsResp]:
-        """分析故障注入数据
+        """Analyze fault injection data
 
-        使用多种筛选条件分析故障注入数据，返回包括效率、多样性、种子之间的距离等统计信息
+        Analyze fault injection data using various filtering conditions, returning statistical information including efficiency, diversity, distance between seeds, etc.
 
-        :param project_name: 项目名称过滤
+        :param project_name: Project name filter
         :type project_name: str
-        :param env: 环境标签过滤
+        :param env: Environment label filter
         :type env: str
-        :param batch: 批次标签过滤
+        :param batch: Batch label filter
         :type batch: str
-        :param tag: 分类标签过滤
+        :param tag: Classification label filter
         :type tag: str
-        :param benchmark: 基准测试类型过滤
+        :param benchmark: Benchmark type filter
         :type benchmark: str
-        :param status: 状态过滤，具体值参考字段映射接口(/mapping)
+        :param status: Status filter, refer to field mapping interface (/mapping) for specific values
         :type status: int
-        :param fault_type: 故障类型过滤，具体值参考字段映射接口(/mapping)
+        :param fault_type: Fault type filter, refer to field mapping interface (/mapping) for specific values
         :type fault_type: int
-        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+        :param lookback: Time range query, supports custom relative time (1h/24h/7d) or custom, default is not set
         :type lookback: str
-        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :param custom_start_time: Custom start time, RFC3339 format, required when lookback=custom
         :type custom_start_time: datetime
-        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :param custom_end_time: Custom end time, RFC3339 format, required when lookback=custom
         :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -254,16 +254,16 @@ class AnalyzerApi:
     @validate_call
     def api_v1_analyzers_injections_get_without_preload_content(
         self,
-        project_name: Annotated[Optional[StrictStr], Field(description="项目名称过滤")] = None,
-        env: Annotated[Optional[StrictStr], Field(description="环境标签过滤")] = None,
-        batch: Annotated[Optional[StrictStr], Field(description="批次标签过滤")] = None,
-        tag: Annotated[Optional[StrictStr], Field(description="分类标签过滤")] = None,
-        benchmark: Annotated[Optional[StrictStr], Field(description="基准测试类型过滤")] = None,
-        status: Annotated[Optional[StrictInt], Field(description="状态过滤，具体值参考字段映射接口(/mapping)")] = None,
-        fault_type: Annotated[Optional[StrictInt], Field(description="故障类型过滤，具体值参考字段映射接口(/mapping)")] = None,
-        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
-        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
-        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
+        project_name: Annotated[Optional[StrictStr], Field(description="Project name filter")] = None,
+        env: Annotated[Optional[StrictStr], Field(description="Environment label filter")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="Batch label filter")] = None,
+        tag: Annotated[Optional[StrictStr], Field(description="Classification label filter")] = None,
+        benchmark: Annotated[Optional[StrictStr], Field(description="Benchmark type filter")] = None,
+        status: Annotated[Optional[StrictInt], Field(description="Status filter, refer to field mapping interface (/mapping) for specific values")] = None,
+        fault_type: Annotated[Optional[StrictInt], Field(description="Fault type filter, refer to field mapping interface (/mapping) for specific values")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="Time range query, supports custom relative time (1h/24h/7d) or custom, default is not set")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="Custom start time, RFC3339 format, required when lookback=custom")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="Custom end time, RFC3339 format, required when lookback=custom")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -277,29 +277,29 @@ class AnalyzerApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """分析故障注入数据
+        """Analyze fault injection data
 
-        使用多种筛选条件分析故障注入数据，返回包括效率、多样性、种子之间的距离等统计信息
+        Analyze fault injection data using various filtering conditions, returning statistical information including efficiency, diversity, distance between seeds, etc.
 
-        :param project_name: 项目名称过滤
+        :param project_name: Project name filter
         :type project_name: str
-        :param env: 环境标签过滤
+        :param env: Environment label filter
         :type env: str
-        :param batch: 批次标签过滤
+        :param batch: Batch label filter
         :type batch: str
-        :param tag: 分类标签过滤
+        :param tag: Classification label filter
         :type tag: str
-        :param benchmark: 基准测试类型过滤
+        :param benchmark: Benchmark type filter
         :type benchmark: str
-        :param status: 状态过滤，具体值参考字段映射接口(/mapping)
+        :param status: Status filter, refer to field mapping interface (/mapping) for specific values
         :type status: int
-        :param fault_type: 故障类型过滤，具体值参考字段映射接口(/mapping)
+        :param fault_type: Fault type filter, refer to field mapping interface (/mapping) for specific values
         :type fault_type: int
-        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+        :param lookback: Time range query, supports custom relative time (1h/24h/7d) or custom, default is not set
         :type lookback: str
-        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :param custom_start_time: Custom start time, RFC3339 format, required when lookback=custom
         :type custom_start_time: datetime
-        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :param custom_end_time: Custom end time, RFC3339 format, required when lookback=custom
         :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request

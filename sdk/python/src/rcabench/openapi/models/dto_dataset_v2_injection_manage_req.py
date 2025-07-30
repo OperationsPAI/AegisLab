@@ -27,8 +27,8 @@ class DtoDatasetV2InjectionManageReq(BaseModel):
     """
     DtoDatasetV2InjectionManageReq
     """ # noqa: E501
-    add_injections: Optional[List[StrictInt]] = Field(default=None, description="要添加的故障注入ID列表")
-    remove_injections: Optional[List[StrictInt]] = Field(default=None, description="要移除的故障注入ID列表")
+    add_injections: Optional[List[StrictInt]] = Field(default=None, description="List of fault injection IDs to add")
+    remove_injections: Optional[List[StrictInt]] = Field(default=None, description="List of fault injection IDs to remove")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["add_injections", "remove_injections"]
 

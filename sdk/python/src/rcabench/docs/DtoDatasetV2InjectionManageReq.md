@@ -5,8 +5,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**add_injections** | **List[int]** | 要添加的故障注入ID列表 | [optional] 
-**remove_injections** | **List[int]** | 要移除的故障注入ID列表 | [optional] 
+**add_injections** | **List[int]** | List of fault injection IDs to add | [optional] 
+**remove_injections** | **List[int]** | List of fault injection IDs to remove | [optional] 
 
 ## Example
 

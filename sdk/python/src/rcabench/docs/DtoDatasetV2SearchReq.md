@@ -5,20 +5,20 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**date_range** | [**DtoDateRangeFilter**](DtoDateRangeFilter.md) | 时间范围过滤 | [optional] 
-**include** | **List[str]** | 包含的关联数据 | [optional] 
-**is_public** | **bool** | 是否公开 | [optional] 
-**label_keys** | **List[str]** | 按标签键过滤 | [optional] 
-**label_values** | **List[str]** | 按标签值过滤 | [optional] 
-**page** | **int** | 页码 | [optional] 
-**project_ids** | **List[int]** | 项目ID列表 | [optional] 
-**search** | **str** | 搜索关键词 | [optional] 
-**size** | **int** | 每页大小 | [optional] 
-**size_range** | [**DtoSizeRangeFilter**](DtoSizeRangeFilter.md) | 大小范围过滤 | [optional] 
-**sort_by** | **str** | 排序字段 | [optional] 
-**sort_order** | **str** | 排序方向 | [optional] 
-**statuses** | **List[int]** | 状态列表 | [optional] 
-**types** | **List[str]** | 数据集类型列表 | [optional] 
+**date_range** | [**DtoDateRangeFilter**](DtoDateRangeFilter.md) | Date range filter | [optional] 
+**include** | **List[str]** | Included related data | [optional] 
+**is_public** | **bool** | Whether public | [optional] 
+**label_keys** | **List[str]** | Filter by label key | [optional] 
+**label_values** | **List[str]** | Filter by label value | [optional] 
+**page** | **int** | Page number | [optional] 
+**project_ids** | **List[int]** | Project ID list | [optional] 
+**search** | **str** | Search keywords | [optional] 
+**size** | **int** | Page size | [optional] 
+**size_range** | [**DtoSizeRangeFilter**](DtoSizeRangeFilter.md) | Size range filter | [optional] 
+**sort_by** | **str** | Sort field | [optional] 
+**sort_order** | **str** | Sort direction | [optional] 
+**statuses** | **List[int]** | Status list | [optional] 
+**types** | **List[str]** | Dataset type list | [optional] 
 
 ## Example
 

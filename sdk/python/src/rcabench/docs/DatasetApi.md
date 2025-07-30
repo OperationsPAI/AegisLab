@@ -4,17 +4,17 @@ All URIs are relative to *http://localhost:8080/api/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**api_v1_datasets_delete**](DatasetApi.md#api_v1_datasets_delete) | **DELETE** /api/v1/datasets | 删除数据集数据
-[**api_v1_datasets_download_get**](DatasetApi.md#api_v1_datasets_download_get) | **GET** /api/v1/datasets/download | 下载数据集打包文件
-[**api_v1_datasets_post**](DatasetApi.md#api_v1_datasets_post) | **POST** /api/v1/datasets | 批量构建数据集
+[**api_v1_datasets_delete**](DatasetApi.md#api_v1_datasets_delete) | **DELETE** /api/v1/datasets | Delete dataset data
+[**api_v1_datasets_download_get**](DatasetApi.md#api_v1_datasets_download_get) | **GET** /api/v1/datasets/download | Download dataset archive file
+[**api_v1_datasets_post**](DatasetApi.md#api_v1_datasets_post) | **POST** /api/v1/datasets | Batch build datasets
 
 
 # **api_v1_datasets_delete**
 > DtoGenericResponseDtoDatasetDeleteResp api_v1_datasets_delete(names)
 
-删除数据集数据
+Delete dataset data
 
-删除数据集数据
+Delete dataset data
 
 ### Example
 
@@ -36,10 +36,10 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.DatasetApi(api_client)
-    names = ['names_example'] # List[str] | 数据集名称列表
+    names = ['names_example'] # List[str] | Dataset name list
 
     try:
-        # 删除数据集数据
+        # Delete dataset data
         api_response = api_instance.api_v1_datasets_delete(names)
         print("The response of DatasetApi->api_v1_datasets_delete:\n")
         pprint(api_response)
@@ -54,7 +54,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **names** | [**List[str]**](str.md)| 数据集名称列表 | 
+ **names** | [**List[str]**](str.md)| Dataset name list | 
 
 ### Return type
 
@@ -82,9 +82,9 @@ No authorization required
 # **api_v1_datasets_download_get**
 > str api_v1_datasets_download_get(group_ids=group_ids, names=names)
 
-下载数据集打包文件
+Download dataset archive file
 
-将指定的多个数据集打包为 ZIP 文件下载，自动排除 result.csv 和检测器结论文件。支持按组ID或数据集名称进行下载，两种方式二选一。下载文件结构：按组ID下载时为 datasets/{groupId}/{datasetName}/...，按名称下载时为 datasets/{datasetName}/...
+Package specified datasets into a ZIP file for download, automatically excluding result.csv and detector conclusion files. Supports downloading by group ID or dataset name (mutually exclusive). Directory structure: when downloading by group ID: datasets/{groupId}/{datasetName}/...; when by name: datasets/{datasetName}/...
 
 ### Example
 
@@ -105,11 +105,11 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.DatasetApi(api_client)
-    group_ids = ['group_ids_example'] # List[str] | 任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids (optional)
-    names = ['names_example'] # List[str] | 数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一 (optional)
+    group_ids = ['group_ids_example'] # List[str] | List of task group IDs, format: group1,group2,group3. Mutually exclusive with names parameter; group_ids takes precedence (optional)
+    names = ['names_example'] # List[str] | List of dataset names, format: dataset1,dataset2,dataset3. Mutually exclusive with group_ids parameter (optional)
 
     try:
-        # 下载数据集打包文件
+        # Download dataset archive file
         api_response = api_instance.api_v1_datasets_download_get(group_ids=group_ids, names=names)
         print("The response of DatasetApi->api_v1_datasets_download_get:\n")
         pprint(api_response)
@@ -124,8 +124,8 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **group_ids** | [**List[str]**](str.md)| 任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids | [optional] 
- **names** | [**List[str]**](str.md)| 数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一 | [optional] 
+ **group_ids** | [**List[str]**](str.md)| List of task group IDs, format: group1,group2,group3. Mutually exclusive with names parameter; group_ids takes precedence | [optional] 
+ **names** | [**List[str]**](str.md)| List of dataset names, format: dataset1,dataset2,dataset3. Mutually exclusive with group_ids parameter | [optional] 
 
 ### Return type
 
@@ -144,19 +144,19 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | ZIP 文件流，Content-Disposition 头中包含文件名 datasets.zip |  -  |
-**400** | 请求参数错误：1) 参数绑定失败 2) 两个参数都为空 3) 同时提供两种参数 |  -  |
-**403** | 权限错误：请求访问的数据集路径不在系统允许的范围内 |  -  |
-**500** | 服务器内部错误 |  -  |
+**200** | ZIP file stream; the Content-Disposition header contains filename datasets.zip |  -  |
+**400** | Bad request parameters: 1) Parameter binding failed 2) Both parameters are empty 3) Both parameters provided |  -  |
+**403** | Permission error: requested dataset path is not within allowed scope |  -  |
+**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_datasets_post**
 > DtoGenericResponseDtoSubmitResp api_v1_datasets_post(body)
 
-批量构建数据集
+Batch build datasets
 
-根据指定的时间范围和基准测试容器批量构建数据集。
+Batch build datasets based on specified time range and benchmark container
 
 ### Example
 
@@ -179,10 +179,10 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.DatasetApi(api_client)
-    body = rcabench.openapi.DtoSubmitDatasetBuildingReq() # DtoSubmitDatasetBuildingReq | 数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置
+    body = rcabench.openapi.DtoSubmitDatasetBuildingReq() # DtoSubmitDatasetBuildingReq | List of dataset build requests; each request includes dataset name, time range, benchmark, and environment variable configuration
 
     try:
-        # 批量构建数据集
+        # Batch build datasets
         api_response = api_instance.api_v1_datasets_post(body)
         print("The response of DatasetApi->api_v1_datasets_post:\n")
         pprint(api_response)
@@ -197,7 +197,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**DtoSubmitDatasetBuildingReq**](DtoSubmitDatasetBuildingReq.md)| 数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置 | 
+ **body** | [**DtoSubmitDatasetBuildingReq**](DtoSubmitDatasetBuildingReq.md)| List of dataset build requests; each request includes dataset name, time range, benchmark, and environment variable configuration | 
 
 ### Return type
 
@@ -216,9 +216,9 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**202** | 成功提交数据集构建任务，返回任务组ID和跟踪信息列表 |  -  |
-**400** | 请求参数错误：1) JSON格式不正确 2) 数据集名称为空 3) 时间范围无效 4) 基准测试不存在 5) 环境变量名称不支持 |  -  |
-**500** | 服务器内部错误 |  -  |
+**202** | Successfully submitted dataset building tasks; returns group ID and trace information list |  -  |
+**400** | Bad request parameters: 1) Invalid JSON format 2) Empty dataset name 3) Invalid time range 4) Benchmark does not exist 5) Unsupported environment variable name |  -  |
+**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

@@ -28,18 +28,18 @@ class DatabaseTask(BaseModel):
     """
     DatabaseTask
     """ # noqa: E501
-    created_at: Optional[StrictStr] = Field(default=None, description="添加时间索引")
+    created_at: Optional[StrictStr] = Field(default=None, description="Add time index")
     cron_expr: Optional[StrictStr] = None
-    execute_time: Optional[StrictInt] = Field(default=None, description="添加执行时间索引")
-    group_id: Optional[StrictStr] = Field(default=None, description="添加组ID索引")
+    execute_time: Optional[StrictInt] = Field(default=None, description="Add execution time index")
+    group_id: Optional[StrictStr] = Field(default=None, description="Add group ID index")
     id: Optional[StrictStr] = None
     immediate: Optional[StrictBool] = None
     payload: Optional[StrictStr] = None
-    project: Optional[DatabaseProject] = Field(default=None, description="外键关联")
-    project_id: Optional[StrictInt] = Field(default=None, description="任务可以属于某个项目（可选）")
-    status: Optional[StrictStr] = Field(default=None, description="添加多个复合索引")
-    trace_id: Optional[StrictStr] = Field(default=None, description="添加追踪ID索引")
-    type: Optional[StrictStr] = Field(default=None, description="添加复合索引")
+    project: Optional[DatabaseProject] = Field(default=None, description="Foreign key association")
+    project_id: Optional[StrictInt] = Field(default=None, description="Task can belong to a project (optional)")
+    status: Optional[StrictStr] = Field(default=None, description="Add multiple composite indexes")
+    trace_id: Optional[StrictStr] = Field(default=None, description="Add trace ID index")
+    type: Optional[StrictStr] = Field(default=None, description="Add composite index")
     updated_at: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["created_at", "cron_expr", "execute_time", "group_id", "id", "immediate", "payload", "project", "project_id", "status", "trace_id", "type", "updated_at"]

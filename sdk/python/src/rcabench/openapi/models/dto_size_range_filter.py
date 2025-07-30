@@ -27,8 +27,8 @@ class DtoSizeRangeFilter(BaseModel):
     """
     DtoSizeRangeFilter
     """ # noqa: E501
-    max_size: Optional[StrictInt] = Field(default=None, description="最大大小（字节）")
-    min_size: Optional[StrictInt] = Field(default=None, description="最小大小（字节）")
+    max_size: Optional[StrictInt] = Field(default=None, description="Maximum size (bytes)")
+    min_size: Optional[StrictInt] = Field(default=None, description="Minimum size (bytes)")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["max_size", "min_size"]
 

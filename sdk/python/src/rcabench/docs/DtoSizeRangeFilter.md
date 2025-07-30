@@ -5,8 +5,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**max_size** | **int** | 最大大小（字节） | [optional] 
-**min_size** | **int** | 最小大小（字节） | [optional] 
+**max_size** | **int** | Maximum size (bytes) | [optional] 
+**min_size** | **int** | Minimum size (bytes) | [optional] 
 
 ## Example
 
