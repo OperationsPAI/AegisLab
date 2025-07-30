@@ -513,3 +513,150 @@ func GetInjectionDetailedStats() (map[string]int64, error) {
 
 	return stats, nil
 }
+
+// V2 API Repository Methods
+
+// GetInjectionByIDV2 gets injection by ID for V2 API
+func GetInjectionByIDV2(id int) (*database.FaultInjectionSchedule, error) {
+	var injection database.FaultInjectionSchedule
+	if err := database.DB.First(&injection, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("injection not found")
+		}
+		return nil, err
+	}
+	return &injection, nil
+}
+
+// ListInjectionsV2 lists injections with pagination and filtering
+func ListInjectionsV2(page, size int, taskID string, faultType, status *int, benchmark, search string) ([]database.FaultInjectionSchedule, int64, error) {
+	query := database.DB.Model(&database.FaultInjectionSchedule{})
+
+	// Apply filters
+	if taskID != "" {
+		query = query.Where("task_id = ?", taskID)
+	}
+	if faultType != nil {
+		query = query.Where("fault_type = ?", *faultType)
+	}
+	if status != nil {
+		query = query.Where("status = ?", *status)
+	}
+	if benchmark != "" {
+		query = query.Where("benchmark = ?", benchmark)
+	}
+	if search != "" {
+		query = query.Where("injection_name LIKE ? OR description LIKE ?", "%"+search+"%", "%"+search+"%")
+	}
+
+	// Count total
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Apply pagination
+	offset := (page - 1) * size
+	query = query.Offset(offset).Limit(size)
+
+	// Execute query
+	var injections []database.FaultInjectionSchedule
+	if err := query.Find(&injections).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return injections, total, nil
+}
+
+// UpdateInjectionV2 updates injection by ID for V2 API
+func UpdateInjectionV2(id int, updates map[string]interface{}) error {
+	result := database.DB.Model(&database.FaultInjectionSchedule{}).Where("id = ?", id).Updates(updates)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("injection not found or no changes made")
+	}
+	return nil
+}
+
+// DeleteInjectionV2 soft deletes injection by ID for V2 API
+func DeleteInjectionV2(id int) error {
+	result := database.DB.Model(&database.FaultInjectionSchedule{}).Where("id = ?", id).Update("status", -1)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("injection not found")
+	}
+	return nil
+}
+
+// SearchInjectionsV2 performs advanced search on injections
+func SearchInjectionsV2(req *dto.InjectionV2SearchReq) ([]database.FaultInjectionSchedule, int64, error) {
+	query := database.DB.Model(&database.FaultInjectionSchedule{})
+
+	// Apply filters
+	if len(req.TaskIDs) > 0 {
+		query = query.Where("task_id IN ?", req.TaskIDs)
+	}
+	if len(req.FaultTypes) > 0 {
+		query = query.Where("fault_type IN ?", req.FaultTypes)
+	}
+	if len(req.Statuses) > 0 {
+		query = query.Where("status IN ?", req.Statuses)
+	}
+	if len(req.Benchmarks) > 0 {
+		query = query.Where("benchmark IN ?", req.Benchmarks)
+	}
+	if req.Search != "" {
+		query = query.Where("injection_name LIKE ? OR description LIKE ?", "%"+req.Search+"%", "%"+req.Search+"%")
+	}
+
+	// Time range filters
+	if req.StartTimeGte != nil {
+		query = query.Where("start_time >= ?", *req.StartTimeGte)
+	}
+	if req.StartTimeLte != nil {
+		query = query.Where("start_time <= ?", *req.StartTimeLte)
+	}
+	if req.EndTimeGte != nil {
+		query = query.Where("end_time >= ?", *req.EndTimeGte)
+	}
+	if req.EndTimeLte != nil {
+		query = query.Where("end_time <= ?", *req.EndTimeLte)
+	}
+	if req.CreatedAtGte != nil {
+		query = query.Where("created_at >= ?", *req.CreatedAtGte)
+	}
+	if req.CreatedAtLte != nil {
+		query = query.Where("created_at <= ?", *req.CreatedAtLte)
+	}
+
+	// Count total
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Apply sorting
+	if req.SortBy != "" && req.SortOrder != "" {
+		query = query.Order(fmt.Sprintf("%s %s", req.SortBy, req.SortOrder))
+	} else {
+		query = query.Order("created_at DESC")
+	}
+
+	// Apply pagination
+	if req.Page > 0 && req.Size > 0 {
+		offset := (req.Page - 1) * req.Size
+		query = query.Offset(offset).Limit(req.Size)
+	}
+
+	// Execute query
+	var injections []database.FaultInjectionSchedule
+	if err := query.Find(&injections).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return injections, total, nil
+}

@@ -310,7 +310,17 @@ func SetupV2Routes(router *gin.Engine) {
 	}
 
 	// 其他业务实体 API 组
-	injections := v2.Group("/injections") // 故障注入管理 - FaultInjectionSchedule 实体
+	injections := v2.Group("/injections", middleware.JWTAuth()) // 故障注入管理 - FaultInjectionSchedule 实体
+	{
+		// Read operations - permission checked in handler
+		injections.GET("", v2handlers.ListInjections)           // List injections
+		injections.GET("/:id", v2handlers.GetInjection)         // Get injection by ID
+		injections.POST("/search", v2handlers.SearchInjections) // Advanced search
+
+		// Write operations - permission checked in handler
+		injections.PUT("/:id", v2handlers.UpdateInjection)    // Update injection
+		injections.DELETE("/:id", v2handlers.DeleteInjection) // Delete injection (soft delete)
+	}
 
 	// 数据集管理 - Dataset 实体
 	datasets := v2.Group("/datasets", middleware.JWTAuth())
