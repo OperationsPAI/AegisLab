@@ -7,7 +7,7 @@ build:
     - image: 10.10.10.240/library/rcabench
       context: .
       docker:
-        dockerfile: experiments_controller/Dockerfile
+        dockerfile: src/Dockerfile
 deploy:
   helm:
     releases:

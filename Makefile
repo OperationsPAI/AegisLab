@@ -4,7 +4,7 @@ NS          ?= exp
 CHAOS_TYPES ?= dnschaos httpchaos jvmchaos networkchaos podchaos stresschaos timechaos
 TS_NS       ?= ts
 PORT        ?= 30080
-CONTROLLER_DIR = experiments_controller
+CONTROLLER_DIR = src
 SDK_DIR = sdk/python-gen
 
 # 声明所有非文件目标

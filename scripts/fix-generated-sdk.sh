@@ -37,7 +37,7 @@ if [ -f "pyproject.toml" ]; then
 fi
 
 # Get version from main.go
-MAIN_GO="../../experiments_controller/main.go"
+MAIN_GO="../../src/main.go"
 if [ -f "$MAIN_GO" ]; then
     VERSION=$(grep -o '@version[[:space:]]*[0-9]\+\.[0-9]\+\.[0-9]\+' "$MAIN_GO" | sed 's/@version[[:space:]]*//')
     if [ -z "$VERSION" ]; then

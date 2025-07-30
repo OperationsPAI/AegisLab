@@ -12,7 +12,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration
-CONTROLLER_DIR="experiments_controller"
+CONTROLLER_DIR="src"
 SDK_DIR="sdk/python-gen"
 MAIN_GO_FILE="${CONTROLLER_DIR}/main.go"
 PYPROJECT_FILE="${SDK_DIR}/pyproject.toml"

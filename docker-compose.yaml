@@ -46,7 +46,7 @@ services:
 
   exp:
     build:
-      context: ./experiments_controller
+      context: ./src
     container_name: exp
     environment:
       GOPRIVATE: "github.com/LGU-SE-Internal/chaos-experiment"
@@ -57,7 +57,7 @@ services:
       - ./algorithms:/app/algorithms
       - ./experiments:/app/experiments
       - ./reports:/app/reports
-      - ./experiments_controller/config.prod.toml:/etc/rcabench/config.prod.toml
+      - ./src/config.prod.toml:/etc/rcabench/config.prod.toml
       - ./data:/var/lib/rcabench
       - ./output:/app/output
       - /var/run/docker.sock:/var/run/docker.sock
