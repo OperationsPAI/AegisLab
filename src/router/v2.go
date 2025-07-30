@@ -298,6 +298,13 @@ func SetupV2Routes(router *gin.Engine) {
 		// POST /api/v2/algorithms/search - Advanced search for algorithms (containers with type=algorithm) - permission checked in handler
 		algorithms.POST("/search", v2handlers.SearchAlgorithms)
 
+		// Algorithm execution operations - permission checked in handler
+		// POST /api/v2/algorithms/execute - Submit single algorithm execution (supports both datapack and dataset)
+		algorithms.POST("/execute", v2handlers.SubmitAlgorithmExecution)
+
+		// POST /api/v2/algorithms/execute/batch - Submit batch algorithm execution
+		algorithms.POST("/execute/batch", v2handlers.SubmitBatchAlgorithmExecution)
+
 		// Algorithm result upload operations - permission checked in handler
 		// POST /api/v2/algorithms/{algorithm_id}/executions/{execution_id}/detectors - Upload detector results
 		algorithms.POST("/:algorithm_id/executions/:execution_id/detectors", v2handlers.UploadDetectorResults)
