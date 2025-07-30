@@ -20,18 +20,18 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_algorithm_list_resp import DtoAlgorithmListResp
+from rcabench.openapi.models.dto_injection_v2_create_response import DtoInjectionV2CreateResponse
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoGenericResponseDtoAlgorithmListResp(BaseModel):
+class DtoGenericResponseDtoInjectionV2CreateResponse(BaseModel):
     """
-    DtoGenericResponseDtoAlgorithmListResp
+    DtoGenericResponseDtoInjectionV2CreateResponse
     """ # noqa: E501
-    code: Optional[StrictInt] = Field(default=None, description="状态码")
-    data: Optional[DtoAlgorithmListResp] = Field(default=None, description="泛型类型的数据")
-    message: Optional[StrictStr] = Field(default=None, description="响应消息")
-    timestamp: Optional[StrictInt] = Field(default=None, description="响应生成时间")
+    code: Optional[StrictInt] = Field(default=None, description="Status code")
+    data: Optional[DtoInjectionV2CreateResponse] = Field(default=None, description="Generic type data")
+    message: Optional[StrictStr] = Field(default=None, description="Response message")
+    timestamp: Optional[StrictInt] = Field(default=None, description="Response generation time")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["code", "data", "message", "timestamp"]
 
@@ -53,7 +53,7 @@ class DtoGenericResponseDtoAlgorithmListResp(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoGenericResponseDtoAlgorithmListResp from a JSON string"""
+        """Create an instance of DtoGenericResponseDtoInjectionV2CreateResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -88,7 +88,7 @@ class DtoGenericResponseDtoAlgorithmListResp(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoGenericResponseDtoAlgorithmListResp from a dict"""
+        """Create an instance of DtoGenericResponseDtoInjectionV2CreateResponse from a dict"""
         if obj is None:
             return None
 
@@ -97,7 +97,7 @@ class DtoGenericResponseDtoAlgorithmListResp(BaseModel):
 
         _obj = cls.model_validate({
             "code": obj.get("code"),
-            "data": DtoAlgorithmListResp.from_dict(obj["data"]) if obj.get("data") is not None else None,
+            "data": DtoInjectionV2CreateResponse.from_dict(obj["data"]) if obj.get("data") is not None else None,
             "message": obj.get("message"),
             "timestamp": obj.get("timestamp")
         })

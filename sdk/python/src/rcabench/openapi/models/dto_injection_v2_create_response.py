@@ -18,21 +18,24 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictInt
+from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_task_item import DtoTaskItem
+from rcabench.openapi.models.dto_injection_create_error import DtoInjectionCreateError
+from rcabench.openapi.models.dto_injection_v2_response import DtoInjectionV2Response
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoPaginationRespDtoTaskItem(BaseModel):
+class DtoInjectionV2CreateResponse(BaseModel):
     """
-    DtoPaginationRespDtoTaskItem
+    DtoInjectionV2CreateResponse
     """ # noqa: E501
-    items: Optional[List[DtoTaskItem]] = None
-    total: Optional[StrictInt] = None
-    total_pages: Optional[StrictInt] = None
+    created_count: Optional[StrictInt] = None
+    created_items: Optional[List[DtoInjectionV2Response]] = None
+    failed_count: Optional[StrictInt] = None
+    failed_items: Optional[List[DtoInjectionCreateError]] = None
+    message: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["items", "total", "total_pages"]
+    __properties: ClassVar[List[str]] = ["created_count", "created_items", "failed_count", "failed_items", "message"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -52,7 +55,7 @@ class DtoPaginationRespDtoTaskItem(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoPaginationRespDtoTaskItem from a JSON string"""
+        """Create an instance of DtoInjectionV2CreateResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -75,13 +78,20 @@ class DtoPaginationRespDtoTaskItem(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of each item in items (list)
+        # override the default output from pydantic by calling `to_dict()` of each item in created_items (list)
         _items = []
-        if self.items:
-            for _item_items in self.items:
-                if _item_items:
-                    _items.append(_item_items.to_dict())
-            _dict['items'] = _items
+        if self.created_items:
+            for _item_created_items in self.created_items:
+                if _item_created_items:
+                    _items.append(_item_created_items.to_dict())
+            _dict['created_items'] = _items
+        # override the default output from pydantic by calling `to_dict()` of each item in failed_items (list)
+        _items = []
+        if self.failed_items:
+            for _item_failed_items in self.failed_items:
+                if _item_failed_items:
+                    _items.append(_item_failed_items.to_dict())
+            _dict['failed_items'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -91,7 +101,7 @@ class DtoPaginationRespDtoTaskItem(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoPaginationRespDtoTaskItem from a dict"""
+        """Create an instance of DtoInjectionV2CreateResponse from a dict"""
         if obj is None:
             return None
 
@@ -99,9 +109,11 @@ class DtoPaginationRespDtoTaskItem(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "items": [DtoTaskItem.from_dict(_item) for _item in obj["items"]] if obj.get("items") is not None else None,
-            "total": obj.get("total"),
-            "total_pages": obj.get("total_pages")
+            "created_count": obj.get("created_count"),
+            "created_items": [DtoInjectionV2Response.from_dict(_item) for _item in obj["created_items"]] if obj.get("created_items") is not None else None,
+            "failed_count": obj.get("failed_count"),
+            "failed_items": [DtoInjectionCreateError.from_dict(_item) for _item in obj["failed_items"]] if obj.get("failed_items") is not None else None,
+            "message": obj.get("message")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():
