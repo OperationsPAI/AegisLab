@@ -340,3 +340,125 @@ type InjectionStatsResp struct {
 	NoIssuesInjections   int64 `json:"no_issues_injections"`
 	WithIssuesInjections int64 `json:"with_issues_injections"`
 }
+
+// V2 API DTOs for FaultInjectionSchedule
+
+// InjectionV2Response represents the response structure for injection
+type InjectionV2Response struct {
+	ID            int       `json:"id"`
+	TaskID        string    `json:"task_id"`
+	FaultType     int       `json:"fault_type"`
+	DisplayConfig string    `json:"display_config"`
+	EngineConfig  string    `json:"engine_config"`
+	PreDuration   int       `json:"pre_duration"`
+	StartTime     time.Time `json:"start_time"`
+	EndTime       time.Time `json:"end_time"`
+	Status        int       `json:"status"`
+	Description   string    `json:"description"`
+	Benchmark     string    `json:"benchmark"`
+	InjectionName string    `json:"injection_name"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+
+	// Optional relations
+	Task *TaskV2Response `json:"task,omitempty"`
+}
+
+// InjectionV2ListReq represents the request for listing injections
+type InjectionV2ListReq struct {
+	Page      int    `form:"page" binding:"omitempty,min=1"`
+	Size      int    `form:"size" binding:"omitempty,min=1,max=100"`
+	TaskID    string `form:"task_id" binding:"omitempty"`
+	FaultType *int   `form:"fault_type" binding:"omitempty"`
+	Status    *int   `form:"status" binding:"omitempty"`
+	Benchmark string `form:"benchmark" binding:"omitempty"`
+	Search    string `form:"search" binding:"omitempty"`
+	SortBy    string `form:"sort_by" binding:"omitempty,oneof=id task_id fault_type status benchmark injection_name created_at updated_at"`
+	SortOrder string `form:"sort_order" binding:"omitempty,oneof=asc desc"`
+	Include   string `form:"include" binding:"omitempty"`
+}
+
+// InjectionV2UpdateReq represents the request for updating injection
+type InjectionV2UpdateReq struct {
+	TaskID        *string    `json:"task_id" binding:"omitempty"`
+	FaultType     *int       `json:"fault_type" binding:"omitempty"`
+	DisplayConfig *string    `json:"display_config" binding:"omitempty"`
+	EngineConfig  *string    `json:"engine_config" binding:"omitempty"`
+	PreDuration   *int       `json:"pre_duration" binding:"omitempty"`
+	StartTime     *time.Time `json:"start_time" binding:"omitempty"`
+	EndTime       *time.Time `json:"end_time" binding:"omitempty"`
+	Status        *int       `json:"status" binding:"omitempty"`
+	Description   *string    `json:"description" binding:"omitempty"`
+	Benchmark     *string    `json:"benchmark" binding:"omitempty"`
+	InjectionName *string    `json:"injection_name" binding:"omitempty"`
+}
+
+// InjectionV2SearchReq represents the request for advanced search
+type InjectionV2SearchReq struct {
+	Page         int        `json:"page" binding:"omitempty,min=1"`
+	Size         int        `json:"size" binding:"omitempty,min=1,max=100"`
+	TaskIDs      []string   `json:"task_ids" binding:"omitempty"`
+	FaultTypes   []int      `json:"fault_types" binding:"omitempty"`
+	Statuses     []int      `json:"statuses" binding:"omitempty"`
+	Benchmarks   []string   `json:"benchmarks" binding:"omitempty"`
+	Search       string     `json:"search" binding:"omitempty"`
+	StartTimeGte *time.Time `json:"start_time_gte" binding:"omitempty"`
+	StartTimeLte *time.Time `json:"start_time_lte" binding:"omitempty"`
+	EndTimeGte   *time.Time `json:"end_time_gte" binding:"omitempty"`
+	EndTimeLte   *time.Time `json:"end_time_lte" binding:"omitempty"`
+	CreatedAtGte *time.Time `json:"created_at_gte" binding:"omitempty"`
+	CreatedAtLte *time.Time `json:"created_at_lte" binding:"omitempty"`
+	SortBy       string     `json:"sort_by" binding:"omitempty,oneof=id task_id fault_type status benchmark injection_name created_at updated_at"`
+	SortOrder    string     `json:"sort_order" binding:"omitempty,oneof=asc desc"`
+	Include      string     `json:"include" binding:"omitempty"`
+}
+
+// InjectionSearchResponse represents the search response
+type InjectionSearchResponse struct {
+	Items      []InjectionV2Response `json:"items"`
+	Pagination PaginationInfo        `json:"pagination"`
+}
+
+// ToInjectionV2Response converts database model to response DTO
+func ToInjectionV2Response(injection *database.FaultInjectionSchedule, includeTask bool) *InjectionV2Response {
+	response := &InjectionV2Response{
+		ID:            injection.ID,
+		TaskID:        injection.TaskID,
+		FaultType:     injection.FaultType,
+		DisplayConfig: injection.DisplayConfig,
+		EngineConfig:  injection.EngineConfig,
+		PreDuration:   injection.PreDuration,
+		StartTime:     injection.StartTime,
+		EndTime:       injection.EndTime,
+		Status:        injection.Status,
+		Description:   injection.Description,
+		Benchmark:     injection.Benchmark,
+		InjectionName: injection.InjectionName,
+		CreatedAt:     injection.CreatedAt,
+		UpdatedAt:     injection.UpdatedAt,
+	}
+
+	if includeTask && injection.Task != nil {
+		response.Task = ToTaskV2Response(injection.Task)
+	}
+
+	return response
+}
+
+// TaskV2Response represents a simplified task response for injection
+type TaskV2Response struct {
+	ID        string    `json:"id"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// ToTaskV2Response converts task model to response DTO
+func ToTaskV2Response(task *database.Task) *TaskV2Response {
+	return &TaskV2Response{
+		ID:        task.ID,
+		Status:    task.Status,
+		CreatedAt: task.CreatedAt,
+		UpdatedAt: task.UpdatedAt,
+	}
+}
