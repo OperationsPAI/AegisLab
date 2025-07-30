@@ -30,8 +30,8 @@ class DtoSearchFilter(BaseModel):
     """ # noqa: E501
     var_field: StrictStr = Field(description="Field name", alias="field")
     operator: DtoFilterOperator = Field(description="Operator")
-    value: Optional[Dict[str, Any]] = Field(default=None, description="Value")
-    values: Optional[List[Dict[str, Any]]] = Field(default=None, description="Multiple values (for IN operations etc.)")
+    value: Optional[StrictStr] = Field(default=None, description="Value (can be string, number, boolean, etc.)")
+    values: Optional[List[StrictStr]] = Field(default=None, description="Multiple values (for IN operations etc.)")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["field", "operator", "value", "values"]
 

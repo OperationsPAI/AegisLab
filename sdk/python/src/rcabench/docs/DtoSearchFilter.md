@@ -7,8 +7,8 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **var_field** | **str** | Field name | 
 **operator** | [**DtoFilterOperator**](DtoFilterOperator.md) | Operator | 
-**value** | **object** | Value | [optional] 
-**values** | **List[object]** | Multiple values (for IN operations etc.) | [optional] 
+**value** | **str** | Value (can be string, number, boolean, etc.) | [optional] 
+**values** | **List[str]** | Multiple values (for IN operations etc.) | [optional] 
 
 ## Example
 
