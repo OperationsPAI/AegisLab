@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// CreatePermission 创建权限
+// CreatePermission creates a permission
 func CreatePermission(permission *database.Permission) error {
 	if err := database.DB.Create(permission).Error; err != nil {
 		return fmt.Errorf("failed to create permission: %v", err)
@@ -16,7 +16,7 @@ func CreatePermission(permission *database.Permission) error {
 	return nil
 }
 
-// GetPermissionByID 根据ID获取权限
+// GetPermissionByID gets permission by ID
 func GetPermissionByID(id int) (*database.Permission, error) {
 	var permission database.Permission
 	if err := database.DB.Preload("Resource").First(&permission, id).Error; err != nil {
@@ -28,7 +28,7 @@ func GetPermissionByID(id int) (*database.Permission, error) {
 	return &permission, nil
 }
 
-// GetPermissionByName 根据名称获取权限
+// GetPermissionByName gets permission by name
 func GetPermissionByName(name string) (*database.Permission, error) {
 	var permission database.Permission
 	if err := database.DB.Preload("Resource").Where("name = ?", name).First(&permission).Error; err != nil {
@@ -40,7 +40,7 @@ func GetPermissionByName(name string) (*database.Permission, error) {
 	return &permission, nil
 }
 
-// UpdatePermission 更新权限信息
+// UpdatePermission updates permission information
 func UpdatePermission(permission *database.Permission) error {
 	if err := database.DB.Save(permission).Error; err != nil {
 		return fmt.Errorf("failed to update permission: %v", err)
@@ -48,7 +48,7 @@ func UpdatePermission(permission *database.Permission) error {
 	return nil
 }
 
-// DeletePermission 软删除权限（设置状态为-1）
+// DeletePermission soft deletes permission (sets status to -1)
 func DeletePermission(id int) error {
 	if err := database.DB.Model(&database.Permission{}).Where("id = ?", id).Update("status", -1).Error; err != nil {
 		return fmt.Errorf("failed to delete permission: %v", err)
@@ -56,7 +56,7 @@ func DeletePermission(id int) error {
 	return nil
 }
 
-// ListPermissions 获取权限列表
+// ListPermissions gets permission list
 func ListPermissions(page, pageSize int, action string, resourceID *int, status *int) ([]database.Permission, int64, error) {
 	var permissions []database.Permission
 	var total int64
@@ -75,12 +75,12 @@ func ListPermissions(page, pageSize int, action string, resourceID *int, status 
 		query = query.Where("resource_id = ?", *resourceID)
 	}
 
-	// 获取总数
+	        // Get total count
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to count permissions: %v", err)
 	}
 
-	// 分页查询
+	        // Paginated query
 	offset := (page - 1) * pageSize
 	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&permissions).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to list permissions: %v", err)
@@ -89,7 +89,7 @@ func ListPermissions(page, pageSize int, action string, resourceID *int, status 
 	return permissions, total, nil
 }
 
-// GetPermissionsByResource 根据资源获取权限
+// GetPermissionsByResource gets permissions by resource
 func GetPermissionsByResource(resourceID int) ([]database.Permission, error) {
 	var permissions []database.Permission
 	if err := database.DB.Where("resource_id = ? AND status = 1", resourceID).
@@ -99,7 +99,7 @@ func GetPermissionsByResource(resourceID int) ([]database.Permission, error) {
 	return permissions, nil
 }
 
-// GetPermissionsByAction 根据动作获取权限
+// GetPermissionsByAction gets permissions by action
 func GetPermissionsByAction(action string) ([]database.Permission, error) {
 	var permissions []database.Permission
 	if err := database.DB.Preload("Resource").Where("action = ? AND status = 1", action).
@@ -109,7 +109,7 @@ func GetPermissionsByAction(action string) ([]database.Permission, error) {
 	return permissions, nil
 }
 
-// GetSystemPermissions 获取系统权限
+// GetSystemPermissions gets system permissions
 func GetSystemPermissions() ([]database.Permission, error) {
 	var permissions []database.Permission
 	if err := database.DB.Preload("Resource").Where("is_system = true AND status = 1").
@@ -119,9 +119,9 @@ func GetSystemPermissions() ([]database.Permission, error) {
 	return permissions, nil
 }
 
-// CheckUserPermission 检查用户是否有特定权限
+// CheckUserPermission checks if user has specific permission
 func CheckUserPermission(userID int, action string, resourceName string, projectID *int) (bool, error) {
-	// 1. 先检查直接权限
+	       // 1. First check direct permissions
 	var directPermCount int64
 	directQuery := database.DB.Table("user_permissions").
 		Joins("JOIN permissions ON user_permissions.permission_id = permissions.id").
@@ -144,7 +144,7 @@ func CheckUserPermission(userID int, action string, resourceName string, project
 		return true, nil
 	}
 
-	// 2. 检查角色权限（全局角色）
+	       // 2. Check role permissions (global roles)
 	var globalRolePermCount int64
 	globalRoleQuery := database.DB.Table("user_roles").
 		Joins("JOIN role_permissions ON user_roles.role_id = role_permissions.role_id").
@@ -160,7 +160,7 @@ func CheckUserPermission(userID int, action string, resourceName string, project
 		return true, nil
 	}
 
-	// 3. 检查项目角色权限
+	       // 3. Check project role permissions
 	if projectID != nil {
 		var projectRolePermCount int64
 		projectRoleQuery := database.DB.Table("user_projects").
@@ -183,22 +183,22 @@ func CheckUserPermission(userID int, action string, resourceName string, project
 	return false, nil
 }
 
-// GetUserPermissions 获取用户的所有权限
+// GetUserPermissions gets all permissions for a user
 func GetUserPermissions(userID int, projectID *int) ([]database.Permission, error) {
 	var permissions []database.Permission
 
-	// 构建基础查询
+	       // Build base query
 	baseQuery := `
 		SELECT DISTINCT p.* FROM permissions p
 		WHERE p.status = 1 AND (
-			-- 直接权限
+			                       -- Direct permissions
 			p.id IN (
 				SELECT up.permission_id FROM user_permissions up 
 				WHERE up.user_id = ? AND up.grant_type = 'grant'
 				AND (up.expires_at IS NULL OR up.expires_at > NOW())
 				%s
 			)
-			-- 全局角色权限
+			                       -- Global role permissions
 			OR p.id IN (
 				SELECT rp.permission_id FROM user_roles ur
 				JOIN role_permissions rp ON ur.role_id = rp.role_id
@@ -211,14 +211,14 @@ func GetUserPermissions(userID int, projectID *int) ([]database.Permission, erro
 	var args []interface{}
 	args = append(args, userID)
 
-	// 处理项目级权限
+	       // Handle project-level permissions
 	var projectCondition string
 	var projectRoleCondition string
 
 	if projectID != nil {
 		projectCondition = "AND (up.project_id = ? OR up.project_id IS NULL)"
 		projectRoleCondition = `
-			-- 项目角色权限
+			                       -- Project role permissions
 			OR p.id IN (
 				SELECT rp.permission_id FROM user_projects up
 				JOIN role_permissions rp ON up.role_id = rp.role_id
@@ -241,7 +241,7 @@ func GetUserPermissions(userID int, projectID *int) ([]database.Permission, erro
 	return permissions, nil
 }
 
-// GrantPermissionToUser 给用户授予直接权限
+// GrantPermissionToUser grants direct permission to user
 func GrantPermissionToUser(userID, permissionID int, projectID *int) error {
 	userPermission := &database.UserPermission{
 		UserID:       userID,
@@ -256,7 +256,7 @@ func GrantPermissionToUser(userID, permissionID int, projectID *int) error {
 	return nil
 }
 
-// RevokePermissionFromUser 撤销用户的直接权限
+// RevokePermissionFromUser revokes direct permission from user
 func RevokePermissionFromUser(userID, permissionID int, projectID *int) error {
 	query := database.DB.Where("user_id = ? AND permission_id = ?", userID, permissionID)
 

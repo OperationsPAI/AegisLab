@@ -86,13 +86,13 @@ type UserSearchRequest struct {
 	AdvancedSearchRequest
 
 	// User-specific filter shortcuts
-	UsernamePattern string     `json:"username_pattern,omitempty"` // 用户名模糊匹配
-	EmailPattern    string     `json:"email_pattern,omitempty"`    // 邮箱模糊匹配
-	FullNamePattern string     `json:"fullname_pattern,omitempty"` // 全名模糊匹配
-	RoleIDs         []int      `json:"role_ids,omitempty"`         // 角色ID筛选
-	ProjectIDs      []int      `json:"project_ids,omitempty"`      // 项目ID筛选
-	Departments     []string   `json:"departments,omitempty"`      // 部门筛选
-	LastLoginRange  *DateRange `json:"last_login_range,omitempty"` // 最后登录时间范围
+	UsernamePattern string     `json:"username_pattern,omitempty"` // Username fuzzy match
+	EmailPattern    string     `json:"email_pattern,omitempty"`    // Email fuzzy match
+	FullNamePattern string     `json:"fullname_pattern,omitempty"` // Full name fuzzy match
+	RoleIDs         []int      `json:"role_ids,omitempty"`         // Role ID filter
+	ProjectIDs      []int      `json:"project_ids,omitempty"`      // Project ID filter
+	Departments     []string   `json:"departments,omitempty"`      // Department filter
+	LastLoginRange  *DateRange `json:"last_login_range,omitempty"` // Last login time range
 }
 
 // ConvertToSearchRequest converts UserSearchRequest to SearchRequest with user-specific filters

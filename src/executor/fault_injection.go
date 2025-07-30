@@ -50,7 +50,7 @@ type restartPayload struct {
 	injectPayload map[string]any
 }
 
-// 执行故障注入任务
+// Execute fault injection task
 func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(ctx)
@@ -195,7 +195,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 		deltaTime := time.Duration(payload.interval) * consts.DefaultTimeUnit
 		namespace := monitor.GetNamespaceToRestart(t.Add(deltaTime), task.TraceID)
 		if namespace == "" {
-			// 没有获取到 namespace 锁，立即释放限流令牌
+			// Failed to acquire namespace lock, immediately release rate limit token
 			if releaseErr := rateLimiter.ReleaseToken(ctx, task.TaskID, task.TraceID); releaseErr != nil {
 				logrus.WithFields(logrus.Fields{
 					"task_id":  task.TaskID,
@@ -203,7 +203,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 					"error":    releaseErr,
 				}).Error("Failed to release restart service token after namespace lock failure")
 			}
-			tokenAcquired = false // 标记令牌已释放，避免 defer 中重复释放
+			tokenAcquired = false // Mark token as released to avoid duplicate release in defer
 
 			if err := rescheduleTask(childCtx, task, "failed to acquire lock for namespace, retrying"); err != nil {
 				return err

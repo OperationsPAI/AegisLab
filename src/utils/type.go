@@ -32,12 +32,12 @@ func GetTypeName(obj any) string {
 		objType = objType.Elem()
 	}
 
-	// 处理指针类型
+	// Handle pointer type
 	if objType.Kind() == reflect.Ptr {
 		objType = objType.Elem()
 	}
 
-	// 处理匿名类型或无效类型
+	// Handle anonymous type or invalid type
 	objName := "item"
 	if objType != nil {
 		objName = objType.Name()

@@ -161,14 +161,14 @@ func GetValidTaskTypes(c *gin.Context) {
 	dto.SuccessResponse(c, dto.ValidFirstTaskTypes)
 }
 
-// GetCompletedMap 获取完成状态的链路
-// @Summary     获取完成状态的链路
-// @Description 根据指定的时间范围获取完成状态的链路
+// GetCompletedMap Get completed traces
+// @Summary     Get completed traces
+// @Description Get completed traces within a specified time range
 // @Tags        trace
 // @Produce     json
-// @Param		lookback			query		string	false	"相对时间查询，如 1h, 24h, 7d或者是custom"
-// @Param       custom_start_time 	query   string   false "当lookback=custom时必需，自定义开始时间(RFC3339格式)"
-// @Param       custom_end_time  	query   string   false "当lookback=custom时必需，自定义结束时间(RFC3339格式)"
+// @Param		lookback			query		string	false	"Relative time query, e.g. 1h, 24h, 7d or custom"
+// @Param       custom_start_time 	query   string   false "Required when lookback=custom, custom start time (RFC3339 format)"
+// @Param       custom_end_time  	query   string   false "Required when lookback=custom, custom end time (RFC3339 format)"
 // @Success     200 {object}     	dto.GenericResponse[dto.GetCompletedMapResp]
 // @Failure     400 {object}     	dto.GenericResponse[any]
 // @Failure     500 {object}     	dto.GenericResponse[any]

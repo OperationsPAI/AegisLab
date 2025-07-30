@@ -155,140 +155,140 @@ var DatasetStatusReverseMap = map[string]int{
 
 // ===================== V2 API DTOs =====================
 
-// DatasetV2CreateReq 创建数据集请求
+// DatasetV2CreateReq Create dataset request
 type DatasetV2CreateReq struct {
-	Name         string                    `json:"name" binding:"required,max=255"`     // 数据集名称
-	Version      string                    `json:"version" binding:"max=50"`            // 数据集版本，可选，默认v1.0
-	Description  string                    `json:"description" binding:"max=1000"`      // 数据集描述
-	Type         string                    `json:"type" binding:"required,max=50"`      // 数据集类型
-	DataSource   string                    `json:"data_source" binding:"max=500"`       // 数据来源描述
-	Format       string                    `json:"format" binding:"max=50"`             // 数据格式
-	ProjectID    int                       `json:"project_id" binding:"required,min=1"` // 项目ID
-	IsPublic     *bool                     `json:"is_public"`                           // 是否公开，可选，默认false
-	InjectionIDs []int                     `json:"injection_ids"`                       // 关联的故障注入ID列表
-	LabelIDs     []int                     `json:"label_ids"`                           // 关联的标签ID列表
-	NewLabels    []DatasetV2LabelCreateReq `json:"new_labels"`                          // 新建标签列表
+	Name         string                    `json:"name" binding:"required,max=255"`     // Dataset name
+	Version      string                    `json:"version" binding:"max=50"`            // Dataset version, optional, defaults to v1.0
+	Description  string                    `json:"description" binding:"max=1000"`      // Dataset description
+	Type         string                    `json:"type" binding:"required,max=50"`      // Dataset type
+	DataSource   string                    `json:"data_source" binding:"max=500"`       // Data source description
+	Format       string                    `json:"format" binding:"max=50"`             // Data format
+	ProjectID    int                       `json:"project_id" binding:"required,min=1"` // Project ID
+	IsPublic     *bool                     `json:"is_public"`                           // Whether public, optional, defaults to false
+	InjectionIDs []int                     `json:"injection_ids"`                       // Associated fault injection ID list
+	LabelIDs     []int                     `json:"label_ids"`                           // Associated label ID list
+	NewLabels    []DatasetV2LabelCreateReq `json:"new_labels"`                          // New label list
 }
 
-// DatasetV2LabelCreateReq 创建标签请求
+// DatasetV2LabelCreateReq Create label request
 type DatasetV2LabelCreateReq struct {
-	Key         string `json:"key" binding:"required,max=100"`   // 标签键
-	Value       string `json:"value" binding:"required,max=255"` // 标签值
-	Category    string `json:"category" binding:"max=50"`        // 标签分类
-	Description string `json:"description" binding:"max=500"`    // 标签描述
-	Color       string `json:"color" binding:"max=7"`            // 标签颜色 (hex格式)
+	Key         string `json:"key" binding:"required,max=100"`   // Label key
+	Value       string `json:"value" binding:"required,max=255"` // Label value
+	Category    string `json:"category" binding:"max=50"`        // Label category
+	Description string `json:"description" binding:"max=500"`    // Label description
+	Color       string `json:"color" binding:"max=7"`            // Label color (hex format)
 }
 
-// DatasetV2UpdateReq 更新数据集请求
+// DatasetV2UpdateReq Update dataset request
 type DatasetV2UpdateReq struct {
-	Name         *string                   `json:"name" binding:"omitempty,max=255"`         // 数据集名称
-	Version      *string                   `json:"version" binding:"omitempty,max=50"`       // 数据集版本
-	Description  *string                   `json:"description" binding:"omitempty,max=1000"` // 数据集描述
-	Type         *string                   `json:"type" binding:"omitempty,max=50"`          // 数据集类型
-	DataSource   *string                   `json:"data_source" binding:"omitempty,max=500"`  // 数据来源描述
-	Format       *string                   `json:"format" binding:"omitempty,max=50"`        // 数据格式
-	IsPublic     *bool                     `json:"is_public"`                                // 是否公开
-	InjectionIDs []int                     `json:"injection_ids"`                            // 更新关联的故障注入ID列表（完全替换）
-	LabelIDs     []int                     `json:"label_ids"`                                // 更新关联的标签ID列表（完全替换）
-	NewLabels    []DatasetV2LabelCreateReq `json:"new_labels"`                               // 新建标签列表
+	Name         *string                   `json:"name" binding:"omitempty,max=255"`         // Dataset name
+	Version      *string                   `json:"version" binding:"omitempty,max=50"`       // Dataset version
+	Description  *string                   `json:"description" binding:"omitempty,max=1000"` // Dataset description
+	Type         *string                   `json:"type" binding:"omitempty,max=50"`          // Dataset type
+	DataSource   *string                   `json:"data_source" binding:"omitempty,max=500"`  // Data source description
+	Format       *string                   `json:"format" binding:"omitempty,max=50"`        // Data format
+	IsPublic     *bool                     `json:"is_public"`                                // Whether public
+	InjectionIDs []int                     `json:"injection_ids"`                            // Update associated fault injection ID list (complete replacement)
+	LabelIDs     []int                     `json:"label_ids"`                                // Update associated label ID list (complete replacement)
+	NewLabels    []DatasetV2LabelCreateReq `json:"new_labels"`                               // New label list
 }
 
-// DatasetV2InjectionManageReq 管理数据集中的故障注入
+// DatasetV2InjectionManageReq Manage fault injections in dataset
 type DatasetV2InjectionManageReq struct {
-	AddInjections    []int `json:"add_injections"`    // 要添加的故障注入ID列表
-	RemoveInjections []int `json:"remove_injections"` // 要移除的故障注入ID列表
+	AddInjections    []int `json:"add_injections"`    // List of fault injection IDs to add
+	RemoveInjections []int `json:"remove_injections"` // List of fault injection IDs to remove
 }
 
-// DatasetV2LabelManageReq 管理数据集中的标签
+// DatasetV2LabelManageReq Manage labels in dataset
 type DatasetV2LabelManageReq struct {
-	AddLabels    []int                     `json:"add_labels"`    // 要添加的标签ID列表
-	RemoveLabels []int                     `json:"remove_labels"` // 要移除的标签ID列表
-	NewLabels    []DatasetV2LabelCreateReq `json:"new_labels"`    // 新建标签列表
+	AddLabels    []int                     `json:"add_labels"`    // List of label IDs to add
+	RemoveLabels []int                     `json:"remove_labels"` // List of label IDs to remove
+	NewLabels    []DatasetV2LabelCreateReq `json:"new_labels"`    // New label list
 }
 
-// DatasetV2Response 数据集响应
+// DatasetV2Response Dataset response
 type DatasetV2Response struct {
-	ID          int    `json:"id"`          // 唯一标识
-	Name        string `json:"name"`        // 数据集名称
-	Version     string `json:"version"`     // 数据集版本
-	Description string `json:"description"` // 数据集描述
-	Type        string `json:"type"`        // 数据集类型
+	ID          int    `json:"id"`          // Unique identifier
+	Name        string `json:"name"`        // Dataset name
+	Version     string `json:"version"`     // Dataset version
+	Description string `json:"description"` // Dataset description
+	Type        string `json:"type"`        // Dataset type
 
-	FileCount   int                                  `json:"file_count"`             // 文件数量
-	DataSource  string                               `json:"data_source"`            // 数据来源描述
-	Format      string                               `json:"format"`                 // 数据格式
-	ProjectID   int                                  `json:"project_id"`             // 项目ID
-	Status      int                                  `json:"status"`                 // 状态
-	IsPublic    bool                                 `json:"is_public"`              // 是否公开
-	DownloadURL string                               `json:"download_url,omitempty"` // 下载链接
-	Checksum    string                               `json:"checksum,omitempty"`     // 文件校验和
-	CreatedAt   time.Time                            `json:"created_at"`             // 创建时间
-	UpdatedAt   time.Time                            `json:"updated_at"`             // 更新时间
-	Project     *database.Project                    `json:"project,omitempty"`      // 关联项目信息
-	Injections  []DatasetV2InjectionRelationResponse `json:"injections,omitempty"`   // 关联的故障注入
-	Labels      []database.Label                     `json:"labels,omitempty"`       // 关联的标签
+	FileCount   int                                  `json:"file_count"`             // File count
+	DataSource  string                               `json:"data_source"`            // Data source description
+	Format      string                               `json:"format"`                 // Data format
+	ProjectID   int                                  `json:"project_id"`             // Project ID
+	Status      int                                  `json:"status"`                 // Status
+	IsPublic    bool                                 `json:"is_public"`              // Whether public
+	DownloadURL string                               `json:"download_url,omitempty"` // Download URL
+	Checksum    string                               `json:"checksum,omitempty"`     // File checksum
+	CreatedAt   time.Time                            `json:"created_at"`             // Creation time
+	UpdatedAt   time.Time                            `json:"updated_at"`             // Update time
+	Project     *database.Project                    `json:"project,omitempty"`      // Associated project info
+	Injections  []DatasetV2InjectionRelationResponse `json:"injections,omitempty"`   // Associated fault injections
+	Labels      []database.Label                     `json:"labels,omitempty"`       // Associated labels
 }
 
-// DatasetV2InjectionRelationResponse 数据集故障注入关联响应
+// DatasetV2InjectionRelationResponse Dataset fault injection relation response
 type DatasetV2InjectionRelationResponse struct {
-	ID               int                              `json:"id"`                        // 关联ID
-	FaultInjectionID int                              `json:"fault_injection_id"`        // 故障注入ID
-	CreatedAt        time.Time                        `json:"created_at"`                // 创建时间
-	UpdatedAt        time.Time                        `json:"updated_at"`                // 更新时间
-	FaultInjection   *database.FaultInjectionSchedule `json:"fault_injection,omitempty"` // 故障注入详情
+	ID               int                              `json:"id"`                        // Relation ID
+	FaultInjectionID int                              `json:"fault_injection_id"`        // Fault injection ID
+	CreatedAt        time.Time                        `json:"created_at"`                // Creation time
+	UpdatedAt        time.Time                        `json:"updated_at"`                // Update time
+	FaultInjection   *database.FaultInjectionSchedule `json:"fault_injection,omitempty"` // Fault injection details
 }
 
-// DatasetV2ListReq 数据集列表查询请求
+// DatasetV2ListReq Dataset list query request
 type DatasetV2ListReq struct {
-	Page      int    `form:"page" binding:"omitempty,min=1"`         // 页码，默认1
-	Size      int    `form:"size" binding:"omitempty,min=1,max=100"` // 每页大小，默认20
-	ProjectID *int   `form:"project_id" binding:"omitempty,min=1"`   // 项目ID过滤
-	Type      string `form:"type"`                                   // 数据集类型过滤
-	Status    *int   `form:"status"`                                 // 状态过滤
-	IsPublic  *bool  `form:"is_public"`                              // 是否公开过滤
-	Search    string `form:"search"`                                 // 搜索关键词（名称、描述）
-	SortBy    string `form:"sort_by"`                                // 排序字段（id, name, created_at, updated_at）
-	SortOrder string `form:"sort_order"`                             // 排序方向（asc, desc）
-	Include   string `form:"include"`                                // 包含的关联数据（project, injections, labels）
+	Page      int    `form:"page" binding:"omitempty,min=1"`         // Page number, defaults to 1
+	Size      int    `form:"size" binding:"omitempty,min=1,max=100"` // Page size, defaults to 20
+	ProjectID *int   `form:"project_id" binding:"omitempty,min=1"`   // Project ID filter
+	Type      string `form:"type"`                                   // Dataset type filter
+	Status    *int   `form:"status"`                                 // Status filter
+	IsPublic  *bool  `form:"is_public"`                              // Public filter
+	Search    string `form:"search"`                                 // Search keywords (name, description)
+	SortBy    string `form:"sort_by"`                                // Sort field (id, name, created_at, updated_at)
+	SortOrder string `form:"sort_order"`                             // Sort direction (asc, desc)
+	Include   string `form:"include"`                                // Included related data (project, injections, labels)
 }
 
-// DatasetV2SearchReq 数据集搜索请求（POST方式，支持复杂条件）
+// DatasetV2SearchReq Dataset search request (POST method, supports complex conditions)
 type DatasetV2SearchReq struct {
-	Page        int              `json:"page" binding:"omitempty,min=1"`         // 页码
-	Size        int              `json:"size" binding:"omitempty,min=1,max=100"` // 每页大小
-	ProjectIDs  []int            `json:"project_ids"`                            // 项目ID列表
-	Types       []string         `json:"types"`                                  // 数据集类型列表
-	Statuses    []int            `json:"statuses"`                               // 状态列表
-	IsPublic    *bool            `json:"is_public"`                              // 是否公开
-	Search      string           `json:"search"`                                 // 搜索关键词
-	DateRange   *DateRangeFilter `json:"date_range"`                             // 时间范围过滤
-	SizeRange   *SizeRangeFilter `json:"size_range"`                             // 大小范围过滤
-	Include     []string         `json:"include"`                                // 包含的关联数据
-	SortBy      string           `json:"sort_by"`                                // 排序字段
-	SortOrder   string           `json:"sort_order"`                             // 排序方向
-	LabelKeys   []string         `json:"label_keys"`                             // 按标签键过滤
-	LabelValues []string         `json:"label_values"`                           // 按标签值过滤
+	Page        int              `json:"page" binding:"omitempty,min=1"`         // Page number
+	Size        int              `json:"size" binding:"omitempty,min=1,max=100"` // Page size
+	ProjectIDs  []int            `json:"project_ids"`                            // Project ID list
+	Types       []string         `json:"types"`                                  // Dataset type list
+	Statuses    []int            `json:"statuses"`                               // Status list
+	IsPublic    *bool            `json:"is_public"`                              // Whether public
+	Search      string           `json:"search"`                                 // Search keywords
+	DateRange   *DateRangeFilter `json:"date_range"`                             // Date range filter
+	SizeRange   *SizeRangeFilter `json:"size_range"`                             // Size range filter
+	Include     []string         `json:"include"`                                // Included related data
+	SortBy      string           `json:"sort_by"`                                // Sort field
+	SortOrder   string           `json:"sort_order"`                             // Sort direction
+	LabelKeys   []string         `json:"label_keys"`                             // Filter by label key
+	LabelValues []string         `json:"label_values"`                           // Filter by label value
 }
 
-// DateRangeFilter 时间范围过滤器
+// DateRangeFilter Date range filter
 type DateRangeFilter struct {
-	StartTime *time.Time `json:"start_time"` // 开始时间
-	EndTime   *time.Time `json:"end_time"`   // 结束时间
+	StartTime *time.Time `json:"start_time"` // Start time
+	EndTime   *time.Time `json:"end_time"`   // End time
 }
 
-// SizeRangeFilter 大小范围过滤器
+// SizeRangeFilter Size range filter
 type SizeRangeFilter struct {
-	MinSize *int64 `json:"min_size"` // 最小大小（字节）
-	MaxSize *int64 `json:"max_size"` // 最大大小（字节）
+	MinSize *int64 `json:"min_size"` // Minimum size (bytes)
+	MaxSize *int64 `json:"max_size"` // Maximum size (bytes)
 }
 
-// DatasetSearchResponse 数据集搜索响应结构
+// DatasetSearchResponse Dataset search response structure
 type DatasetSearchResponse struct {
-	Items      []DatasetV2Response `json:"items"`      // 结果列表
-	Pagination PaginationInfo      `json:"pagination"` // 分页信息
+	Items      []DatasetV2Response `json:"items"`      // Result list
+	Pagination PaginationInfo      `json:"pagination"` // Pagination info
 }
 
-// ToDatasetV2Response 将Database.Dataset转换为DatasetV2Response
+// ToDatasetV2Response converts Database.Dataset to DatasetV2Response
 func ToDatasetV2Response(dataset *database.Dataset, includeRelations bool) *DatasetV2Response {
 	resp := &DatasetV2Response{
 		ID:          dataset.ID,
@@ -308,7 +308,7 @@ func ToDatasetV2Response(dataset *database.Dataset, includeRelations bool) *Data
 		UpdatedAt:   dataset.UpdatedAt,
 	}
 
-	// 包含项目信息
+	// Include project info
 	if dataset.Project != nil {
 		resp.Project = dataset.Project
 	}

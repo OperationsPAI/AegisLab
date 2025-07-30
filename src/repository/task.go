@@ -374,7 +374,7 @@ func (sp *StreamProcessor) ProcessMessageForSSE(msg redis.XMessage) (string, str
 	return msg.ID, sseMessage, nil
 }
 
-// ParseEventFromValues 从 Redis Stream 消息解析事件
+// ParseEventFromValues parses events from Redis Stream messages
 func parseEventFromValues(values map[string]any) (*dto.StreamEvent, error) {
 	message := "missing or invalid key %s in redis stream message values"
 

@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// CreateUser 创建用户
+// CreateUser creates a user
 func CreateUser(user *database.User) error {
 	if err := database.DB.Create(user).Error; err != nil {
 		return fmt.Errorf("failed to create user: %v", err)
@@ -16,7 +16,7 @@ func CreateUser(user *database.User) error {
 	return nil
 }
 
-// GetUserByID 根据ID获取用户
+// GetUserByID gets a user by ID
 func GetUserByID(id int) (*database.User, error) {
 	var user database.User
 	if err := database.DB.First(&user, id).Error; err != nil {
@@ -28,7 +28,7 @@ func GetUserByID(id int) (*database.User, error) {
 	return &user, nil
 }
 
-// GetUserByUsername 根据用户名获取用户
+// GetUserByUsername gets a user by username
 func GetUserByUsername(username string) (*database.User, error) {
 	var user database.User
 	if err := database.DB.Where("username = ?", username).First(&user).Error; err != nil {
@@ -40,7 +40,7 @@ func GetUserByUsername(username string) (*database.User, error) {
 	return &user, nil
 }
 
-// GetUserByEmail 根据邮箱获取用户
+// GetUserByEmail gets a user by email
 func GetUserByEmail(email string) (*database.User, error) {
 	var user database.User
 	if err := database.DB.Where("email = ?", email).First(&user).Error; err != nil {
@@ -52,7 +52,7 @@ func GetUserByEmail(email string) (*database.User, error) {
 	return &user, nil
 }
 
-// UpdateUser 更新用户信息
+// UpdateUser updates user information
 func UpdateUser(user *database.User) error {
 	if err := database.DB.Save(user).Error; err != nil {
 		return fmt.Errorf("failed to update user: %v", err)
@@ -60,7 +60,7 @@ func UpdateUser(user *database.User) error {
 	return nil
 }
 
-// DeleteUser 软删除用户（设置状态为-1）
+// DeleteUser soft deletes a user (sets status to -1)
 func DeleteUser(id int) error {
 	if err := database.DB.Model(&database.User{}).Where("id = ?", id).Update("status", -1).Error; err != nil {
 		return fmt.Errorf("failed to delete user: %v", err)
@@ -68,7 +68,7 @@ func DeleteUser(id int) error {
 	return nil
 }
 
-// ListUsers 获取用户列表
+// ListUsers gets a list of users
 func ListUsers(page, pageSize int, status *int) ([]database.User, int64, error) {
 	var users []database.User
 	var total int64
@@ -79,12 +79,12 @@ func ListUsers(page, pageSize int, status *int) ([]database.User, int64, error) 
 		query = query.Where("status = ?", *status)
 	}
 
-	// 获取总数
+	// Get total count
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to count users: %v", err)
 	}
 
-	// 分页查询
+	// Paginated query
 	offset := (page - 1) * pageSize
 	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&users).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to list users: %v", err)
@@ -93,7 +93,7 @@ func ListUsers(page, pageSize int, status *int) ([]database.User, int64, error) 
 	return users, total, nil
 }
 
-// UpdateUserLoginTime 更新用户最后登录时间
+// UpdateUserLoginTime updates user's last login time
 func UpdateUserLoginTime(userID int) error {
 	now := database.DB.NowFunc()
 	if err := database.DB.Model(&database.User{}).Where("id = ?", userID).Update("last_login_at", now).Error; err != nil {
@@ -102,7 +102,7 @@ func UpdateUserLoginTime(userID int) error {
 	return nil
 }
 
-// GetUserRoles 获取用户的全局角色
+// GetUserRoles gets user's global roles
 func GetUserRoles(userID int) ([]database.Role, error) {
 	var roles []database.Role
 	if err := database.DB.Table("roles").
@@ -114,7 +114,7 @@ func GetUserRoles(userID int) ([]database.Role, error) {
 	return roles, nil
 }
 
-// GetUserProjectRoles 获取用户在特定项目中的角色
+// GetUserProjectRoles gets user's roles in a specific project
 func GetUserProjectRoles(userID, projectID int) ([]database.Role, error) {
 	var roles []database.Role
 	if err := database.DB.Table("roles").
@@ -126,7 +126,7 @@ func GetUserProjectRoles(userID, projectID int) ([]database.Role, error) {
 	return roles, nil
 }
 
-// GetUserProjects 获取用户参与的项目
+// GetUserProjects gets projects the user participates in
 func GetUserProjects(userID int) ([]database.UserProject, error) {
 	var userProjects []database.UserProject
 	if err := database.DB.Preload("Project").Preload("Role").
@@ -137,7 +137,7 @@ func GetUserProjects(userID int) ([]database.UserProject, error) {
 	return userProjects, nil
 }
 
-// AddUserToProject 将用户添加到项目
+// AddUserToProject adds a user to a project
 func AddUserToProject(userID, projectID, roleID int) error {
 	userProject := &database.UserProject{
 		UserID:    userID,
@@ -152,7 +152,7 @@ func AddUserToProject(userID, projectID, roleID int) error {
 	return nil
 }
 
-// RemoveUserFromProject 将用户从项目中移除
+// RemoveUserFromProject removes a user from a project
 func RemoveUserFromProject(userID, projectID int) error {
 	if err := database.DB.Model(&database.UserProject{}).
 		Where("user_id = ? AND project_id = ?", userID, projectID).
@@ -162,7 +162,7 @@ func RemoveUserFromProject(userID, projectID int) error {
 	return nil
 }
 
-// AssignRoleToUser 给用户分配全局角色
+// AssignRoleToUser assigns a global role to a user
 func AssignRoleToUser(userID, roleID int) error {
 	userRole := &database.UserRole{
 		UserID: userID,
@@ -175,7 +175,7 @@ func AssignRoleToUser(userID, roleID int) error {
 	return nil
 }
 
-// RemoveRoleFromUser 移除用户的全局角色
+// RemoveRoleFromUser removes a global role from a user
 func RemoveRoleFromUser(userID, roleID int) error {
 	if err := database.DB.Where("user_id = ? AND role_id = ?", userID, roleID).
 		Delete(&database.UserRole{}).Error; err != nil {

@@ -34,10 +34,10 @@ type DebugEntry struct {
 	Type        EntryType           `json:"type"` // "readonly", "readwrite", "action", "health_check"
 	GetFunc     func() (any, error) `json:"-"`
 	SetFunc     func(any) error     `json:"-"`
-	AutoFix     bool                `json:"auto_fix"` // 是否支持自动修复
+	AutoFix     bool                `json:"auto_fix"` // Whether auto-fix is supported
 }
 
-// HistoryEntry 操作历史
+// HistoryEntry operation history
 type HistoryEntry struct {
 	ID        string    `json:"id"`
 	Timestamp time.Time `json:"timestamp"`
@@ -60,8 +60,8 @@ type DebugRegistry struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	// 状态变量
-	debugMode int32 // 原子操作
+	// State variable
+	debugMode int32 // atomic operation
 }
 
 func NewDebugRegistry() *DebugRegistry {

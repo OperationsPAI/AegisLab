@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Init 初始化配置
+// Init Initialize configuration
 func Init(configPath string) {
 	env := os.Getenv("ENV")
 	if env == "" {
@@ -31,66 +31,66 @@ func Init(configPath string) {
 		content, readErr := os.ReadFile(configFile)
 
 		if readErr != nil {
-			logrus.Errorf("读取配置文件内容失败: %v", readErr)
+			logrus.Errorf("Failed to read config file content: %v", readErr)
 		} else {
-			logrus.Errorf("配置文件原始内容:\n%s", string(content))
+			logrus.Errorf("Config file original content:\n%s", string(content))
 		}
 
 		if parseErr, ok := err.(*viper.ConfigParseError); ok {
-			logrus.Fatalf("配置文件解析失败: %v\n详细信息: %v", parseErr, parseErr.Error())
+			logrus.Fatalf("Config file parsing failed: %v\nDetails: %v", parseErr, parseErr.Error())
 		} else {
-			logrus.Fatalf("读取配置文件失败: %v", err)
+			logrus.Fatalf("Failed to read config file: %v", err)
 		}
 	}
 
-	logrus.Printf("配置文件加载成功: %v; configPath: %v, ", viper.ConfigFileUsed(), configPath)
+	logrus.Printf("Config file loaded successfully: %v; configPath: %v, ", viper.ConfigFileUsed(), configPath)
 
-	// 自动绑定环境变量
+	// Automatically bind environment variables
 	viper.AutomaticEnv()
 	logrus.Info(viper.AllSettings())
 }
 
-// Get 获取配置项的值
+// Get Get configuration item value
 func Get(key string) any {
 	return viper.Get(key)
 }
 
-// GetString 获取字符串类型的配置项
+// GetString Get string type configuration item
 func GetString(key string) string {
 	return viper.GetString(key)
 }
 
-// GetInt 获取整数类型的配置项
+// GetInt Get integer type configuration item
 func GetInt(key string) int {
 	return viper.GetInt(key)
 }
 
-// GetBool 获取布尔类型的配置项
+// GetBool Get boolean type configuration item
 func GetBool(key string) bool {
 	return viper.GetBool(key)
 }
 
-// GetFloat64 获取浮点数类型的配置项
+// GetFloat64 Get float64 type configuration item
 func GetFloat64(key string) float64 {
 	return viper.GetFloat64(key)
 }
 
-// GetStringSlice 获取字符串列表类型的配置项
+// GetStringSlice Get string slice type configuration item
 func GetStringSlice(key string) []string {
 	return viper.GetStringSlice(key)
 }
 
-// GetIntSlice 获取整数列表类型的配置项
+// GetIntSlice Get integer slice type configuration item
 func GetIntSlice(key string) []int {
 	return viper.GetIntSlice(key)
 }
 
-// GetMap 获取映射类型的配置项
+// GetMap Get map type configuration item
 func GetMap(key string) map[string]any {
 	return viper.GetStringMap(key)
 }
 
-// GetList 获取任意列表类型的配置项
+// GetList Get any list type configuration item
 func GetList(key string) []any {
 	value := viper.Get(key)
 	if value == nil {

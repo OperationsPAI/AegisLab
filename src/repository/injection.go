@@ -69,7 +69,7 @@ func DeleteDatasetByName(names []string) (int64, []string, error) {
 	return result.RowsAffected, allFailed, nil
 }
 
-// 计算差集
+// Calculate difference set
 func getMissingNames(requested []string, existing []string) []string {
 	existingSet := make(map[string]struct{})
 	for _, name := range existing {
@@ -359,7 +359,7 @@ func GetAllFaultInjectionNoIssues(params *dto.FaultInjectionNoIssuesReq) (int64,
 	builder := func(db *gorm.DB) *gorm.DB {
 		query := db
 
-		// 直接使用视图中的字段进行查询
+		// Directly use fields from view for query
 		if params.Env != "" {
 			query = query.Where("env = ?", params.Env)
 		}
@@ -389,7 +389,7 @@ func GetAllFaultInjectionWithIssues(params *dto.FaultInjectionWithIssuesReq) (in
 	builder := func(db *gorm.DB) *gorm.DB {
 		query := db
 
-		// 直接使用视图中的字段进行查询
+		// Directly use fields from view for query
 		if params.Env != "" {
 			query = query.Where("env = ?", params.Env)
 		}
@@ -467,7 +467,7 @@ func GetInjectionStats(req *dto.TimeRangeQuery) (map[string]int64, error) {
 	return stats, nil
 }
 
-// GetInjectionDetailedStats 获取故障注入详细状态统计
+// GetInjectionDetailedStats gets detailed fault injection status statistics
 func GetInjectionDetailedStats() (map[string]int64, error) {
 	stats := make(map[string]int64)
 

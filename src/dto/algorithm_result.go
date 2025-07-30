@@ -5,12 +5,12 @@ import (
 	"time"
 )
 
-// DetectorResultRequest 检测器结果上传请求
+// DetectorResultRequest Detector result upload request
 type DetectorResultRequest struct {
 	Results []DetectorResultItem `json:"results" binding:"required,dive,required"`
 }
 
-// DetectorResultItem 单个检测器结果项
+// DetectorResultItem Single detector result item
 type DetectorResultItem struct {
 	SpanName            string   `json:"span_name" binding:"required"`
 	Issues              string   `json:"issues" binding:"required"`
@@ -26,12 +26,12 @@ type DetectorResultItem struct {
 	NormalP99           *float64 `json:"normal_p99,omitempty"`
 }
 
-// GranularityResultRequest 粒度结果上传请求
+// GranularityResultRequest Granularity result upload request
 type GranularityResultRequest struct {
 	Results []GranularityResultItem `json:"results" binding:"required,dive,required"`
 }
 
-// GranularityResultItem 单个粒度结果项
+// GranularityResultItem Single granularity result item
 type GranularityResultItem struct {
 	Level      string  `json:"level" binding:"required"`
 	Result     string  `json:"result" binding:"required"`
@@ -39,74 +39,74 @@ type GranularityResultItem struct {
 	Confidence float64 `json:"confidence" binding:"required,min=0,max=1"`
 }
 
-// AlgorithmResultUploadResponse 算法结果上传响应
+// AlgorithmResultUploadResponse Algorithm result upload response
 type AlgorithmResultUploadResponse struct {
 	ExecutionID  int       `json:"execution_id"`
 	AlgorithmID  int       `json:"algorithm_id"`
 	ResultCount  int       `json:"result_count"`
 	UploadedAt   time.Time `json:"uploaded_at"`
-	HasAnomalies bool      `json:"has_anomalies,omitempty"` // 仅检测器结果包含
+	HasAnomalies bool      `json:"has_anomalies,omitempty"` // Only included for detector results
 	Message      string    `json:"message"`
 }
 
-// Validate 验证检测器结果请求
+// Validate validates the detector result request
 func (req *DetectorResultRequest) Validate() error {
 	if len(req.Results) == 0 {
-		return fmt.Errorf("至少需要一个检测结果")
+		return fmt.Errorf("at least one detection result is required")
 	}
 
 	for i, result := range req.Results {
 		if result.SpanName == "" {
-			return fmt.Errorf("第%d个结果的span_name不能为空", i+1)
+			return fmt.Errorf("span_name cannot be empty for result %d", i+1)
 		}
 		if result.Issues == "" {
-			return fmt.Errorf("第%d个结果的issues不能为空", i+1)
+			return fmt.Errorf("issues cannot be empty for result %d", i+1)
 		}
 
-		// 验证百分比值范围
+		// Validate percentage value range
 		if result.AbnormalSuccRate != nil && (*result.AbnormalSuccRate < 0 || *result.AbnormalSuccRate > 1) {
-			return fmt.Errorf("第%d个结果的abnormal_succ_rate必须在0-1之间", i+1)
+			return fmt.Errorf("abnormal_succ_rate must be between 0-1 for result %d", i+1)
 		}
 		if result.NormalSuccRate != nil && (*result.NormalSuccRate < 0 || *result.NormalSuccRate > 1) {
-			return fmt.Errorf("第%d个结果的normal_succ_rate必须在0-1之间", i+1)
+			return fmt.Errorf("normal_succ_rate must be between 0-1 for result %d", i+1)
 		}
 
-		// 验证持续时间为非负数
+		// Validate non-negative duration
 		if result.AbnormalAvgDuration != nil && *result.AbnormalAvgDuration < 0 {
-			return fmt.Errorf("第%d个结果的abnormal_avg_duration不能为负数", i+1)
+			return fmt.Errorf("abnormal_avg_duration cannot be negative for result %d", i+1)
 		}
 		if result.NormalAvgDuration != nil && *result.NormalAvgDuration < 0 {
-			return fmt.Errorf("第%d个结果的normal_avg_duration不能为负数", i+1)
+			return fmt.Errorf("normal_avg_duration cannot be negative for result %d", i+1)
 		}
 	}
 
 	return nil
 }
 
-// Validate 验证粒度结果请求
+// Validate validates the granularity result request
 func (req *GranularityResultRequest) Validate() error {
 	if len(req.Results) == 0 {
-		return fmt.Errorf("至少需要一个粒度结果")
+		return fmt.Errorf("at least one granularity result is required")
 	}
 
 	rankMap := make(map[int]bool)
 	for i, result := range req.Results {
 		if result.Level == "" {
-			return fmt.Errorf("第%d个结果的level不能为空", i+1)
+			return fmt.Errorf("level cannot be empty for result %d", i+1)
 		}
 		if result.Result == "" {
-			return fmt.Errorf("第%d个结果的result不能为空", i+1)
+			return fmt.Errorf("result cannot be empty for result %d", i+1)
 		}
 		if result.Rank <= 0 {
-			return fmt.Errorf("第%d个结果的rank必须大于0", i+1)
+			return fmt.Errorf("rank must be greater than 0 for result %d", i+1)
 		}
 		if result.Confidence < 0 || result.Confidence > 1 {
-			return fmt.Errorf("第%d个结果的confidence必须在0-1之间", i+1)
+			return fmt.Errorf("confidence must be between 0-1 for result %d", i+1)
 		}
 
-		// 检查rank是否重复
+		// Check for duplicate ranks
 		if rankMap[result.Rank] {
-			return fmt.Errorf("rank %d 重复出现", result.Rank)
+			return fmt.Errorf("rank %d appeared repeatedly", result.Rank)
 		}
 		rankMap[result.Rank] = true
 	}
@@ -114,7 +114,7 @@ func (req *GranularityResultRequest) Validate() error {
 	return nil
 }
 
-// HasAnomalies 检查检测器结果是否包含异常
+// HasAnomalies checks if detector results contain anomalies
 func (req *DetectorResultRequest) HasAnomalies() bool {
 	for _, result := range req.Results {
 		if result.Issues != "{}" && result.Issues != "" {
@@ -124,36 +124,36 @@ func (req *DetectorResultRequest) HasAnomalies() bool {
 	return false
 }
 
-// GranularityResultEnhancedRequest 增强版粒度结果上传请求
+// GranularityResultEnhancedRequest Enhanced granularity result upload request
 type GranularityResultEnhancedRequest struct {
-	DatapackID int                     `json:"datapack_id,omitempty"` // 当没有execution_id时必需
+	DatapackID int                     `json:"datapack_id,omitempty"` // Required if no execution_id
 	Results    []GranularityResultItem `json:"results" binding:"required,dive,required"`
 }
 
-// Validate 验证增强版粒度结果请求
+// Validate validates the enhanced granularity result request
 func (req *GranularityResultEnhancedRequest) Validate() error {
 	if len(req.Results) == 0 {
-		return fmt.Errorf("至少需要一个粒度结果")
+		return fmt.Errorf("at least one granularity result is required")
 	}
 
 	rankMap := make(map[int]bool)
 	for i, result := range req.Results {
 		if result.Level == "" {
-			return fmt.Errorf("第%d个结果的level不能为空", i+1)
+			return fmt.Errorf("level cannot be empty for result %d", i+1)
 		}
 		if result.Result == "" {
-			return fmt.Errorf("第%d个结果的result不能为空", i+1)
+			return fmt.Errorf("result cannot be empty for result %d", i+1)
 		}
 		if result.Rank <= 0 {
-			return fmt.Errorf("第%d个结果的rank必须大于0", i+1)
+			return fmt.Errorf("rank must be greater than 0 for result %d", i+1)
 		}
 		if result.Confidence < 0 || result.Confidence > 1 {
-			return fmt.Errorf("第%d个结果的confidence必须在0-1之间", i+1)
+			return fmt.Errorf("confidence must be between 0-1 for result %d", i+1)
 		}
 
-		// 检查rank是否重复
+		// Check for duplicate ranks
 		if rankMap[result.Rank] {
-			return fmt.Errorf("rank %d 重复出现", result.Rank)
+			return fmt.Errorf("rank %d appeared repeatedly", result.Rank)
 		}
 		rankMap[result.Rank] = true
 	}

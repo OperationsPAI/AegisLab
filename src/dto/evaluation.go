@@ -101,8 +101,8 @@ type Execution struct {
 
 // Conclusion represents evaluation conclusion
 type Conclusion struct {
-	Level  string  `json:"level"`  // 例如 service level
-	Metric string  `json:"metric"` // 例如 topk
+	Level  string  `json:"level"`  // For example service level
+	Metric string  `json:"metric"` // For example topk
 	Rate   float64 `json:"rate"`
 }
 

@@ -312,14 +312,14 @@ type SubmitInjectionResp struct {
 	OriginalCount   int `json:"original_count"`
 }
 
-// FaultInjectionNoIssuesResp 没有问题的故障注入响应
+// FaultInjectionNoIssuesResp Fault injection response without issues
 type FaultInjectionNoIssuesResp struct {
 	DatasetID     int        `json:"dataset_id"`
 	EngineConfig  chaos.Node `json:"engine_config"`
 	InjectionName string     `json:"injection_name"`
 }
 
-// FaultInjectionWithIssuesResp 有问题的故障注入响应
+// FaultInjectionWithIssuesResp Fault injection response with issues
 type FaultInjectionWithIssuesResp struct {
 	DatasetID           int        `json:"dataset_id"`
 	EngineConfig        chaos.Node `json:"engine_config"`
@@ -333,7 +333,7 @@ type FaultInjectionWithIssuesResp struct {
 	NormalP99           float64    `json:"normal_p99"`
 }
 
-// InjectionStatsResp 故障注入统计响应
+// InjectionStatsResp Fault injection statistics response
 type InjectionStatsResp struct {
 	NoIssuesRecords      int64 `json:"no_issues_records"`
 	WithIssuesRecords    int64 `json:"with_issues_records"`

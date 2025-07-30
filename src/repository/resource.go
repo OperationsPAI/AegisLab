@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// CreateResource 创建资源
+// CreateResource creates a resource
 func CreateResource(resource *database.Resource) error {
 	if err := database.DB.Create(resource).Error; err != nil {
 		return fmt.Errorf("failed to create resource: %v", err)
@@ -16,7 +16,7 @@ func CreateResource(resource *database.Resource) error {
 	return nil
 }
 
-// GetResourceByID 根据ID获取资源
+// GetResourceByID gets resource by ID
 func GetResourceByID(id int) (*database.Resource, error) {
 	var resource database.Resource
 	if err := database.DB.Preload("Parent").First(&resource, id).Error; err != nil {
@@ -28,7 +28,7 @@ func GetResourceByID(id int) (*database.Resource, error) {
 	return &resource, nil
 }
 
-// GetResourceByName 根据名称获取资源
+// GetResourceByName gets resource by name
 func GetResourceByName(name string) (*database.Resource, error) {
 	var resource database.Resource
 	if err := database.DB.Preload("Parent").Where("name = ?", name).First(&resource).Error; err != nil {
@@ -40,7 +40,7 @@ func GetResourceByName(name string) (*database.Resource, error) {
 	return &resource, nil
 }
 
-// UpdateResource 更新资源信息
+// UpdateResource updates resource information
 func UpdateResource(resource *database.Resource) error {
 	if err := database.DB.Save(resource).Error; err != nil {
 		return fmt.Errorf("failed to update resource: %v", err)
@@ -48,7 +48,7 @@ func UpdateResource(resource *database.Resource) error {
 	return nil
 }
 
-// DeleteResource 软删除资源（设置状态为-1）
+// DeleteResource soft deletes resource (sets status to -1)
 func DeleteResource(id int) error {
 	if err := database.DB.Model(&database.Resource{}).Where("id = ?", id).Update("status", -1).Error; err != nil {
 		return fmt.Errorf("failed to delete resource: %v", err)
@@ -56,7 +56,7 @@ func DeleteResource(id int) error {
 	return nil
 }
 
-// ListResources 获取资源列表
+// ListResources gets resource list
 func ListResources(page, pageSize int, resourceType string, category string, parentID *int, status *int) ([]database.Resource, int64, error) {
 	var resources []database.Resource
 	var total int64
@@ -79,12 +79,12 @@ func ListResources(page, pageSize int, resourceType string, category string, par
 		query = query.Where("parent_id = ?", *parentID)
 	}
 
-	// 获取总数
+	  // Get total count
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to count resources: %v", err)
 	}
 
-	// 分页查询
+	  // Paginated query
 	offset := (page - 1) * pageSize
 	if err := query.Offset(offset).Limit(pageSize).Order("name").Find(&resources).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to list resources: %v", err)
@@ -93,7 +93,7 @@ func ListResources(page, pageSize int, resourceType string, category string, par
 	return resources, total, nil
 }
 
-// GetResourcesByType 根据类型获取资源
+// GetResourcesByType gets resources by type
 func GetResourcesByType(resourceType string) ([]database.Resource, error) {
 	var resources []database.Resource
 	if err := database.DB.Where("type = ? AND status = 1", resourceType).
@@ -103,7 +103,7 @@ func GetResourcesByType(resourceType string) ([]database.Resource, error) {
 	return resources, nil
 }
 
-// GetResourcesByCategory 根据分类获取资源
+// GetResourcesByCategory gets resources by category
 func GetResourcesByCategory(category string) ([]database.Resource, error) {
 	var resources []database.Resource
 	if err := database.DB.Where("category = ? AND status = 1", category).
@@ -113,7 +113,7 @@ func GetResourcesByCategory(category string) ([]database.Resource, error) {
 	return resources, nil
 }
 
-// GetChildResources 获取子资源
+// GetChildResources gets child resources
 func GetChildResources(parentID int) ([]database.Resource, error) {
 	var resources []database.Resource
 	if err := database.DB.Where("parent_id = ? AND status = 1", parentID).
@@ -123,7 +123,7 @@ func GetChildResources(parentID int) ([]database.Resource, error) {
 	return resources, nil
 }
 
-// GetRootResources 获取根级资源（没有父资源）
+// GetRootResources gets root-level resources (no parent resource)
 func GetRootResources() ([]database.Resource, error) {
 	var resources []database.Resource
 	if err := database.DB.Where("parent_id IS NULL AND status = 1").
@@ -133,7 +133,7 @@ func GetRootResources() ([]database.Resource, error) {
 	return resources, nil
 }
 
-// GetResourceTree 获取资源树结构
+// GetResourceTree gets resource tree structure
 func GetResourceTree() ([]database.Resource, error) {
 	var allResources []database.Resource
 	if err := database.DB.Where("status = 1").Order("parent_id, name").Find(&allResources).Error; err != nil {
@@ -142,7 +142,7 @@ func GetResourceTree() ([]database.Resource, error) {
 	return allResources, nil
 }
 
-// GetSystemResources 获取系统资源
+// GetSystemResources gets system resources
 func GetSystemResources() ([]database.Resource, error) {
 	var resources []database.Resource
 	if err := database.DB.Where("is_system = true AND status = 1").
@@ -152,7 +152,7 @@ func GetSystemResources() ([]database.Resource, error) {
 	return resources, nil
 }
 
-// SearchResources 搜索资源
+// SearchResources searches resources
 func SearchResources(keyword string, resourceType string, category string) ([]database.Resource, error) {
 	var resources []database.Resource
 
@@ -178,7 +178,7 @@ func SearchResources(keyword string, resourceType string, category string) ([]da
 	return resources, nil
 }
 
-// GetResourcePermissions 获取资源的权限
+// GetResourcePermissions gets resource permissions
 func GetResourcePermissions(resourceID int) ([]database.Permission, error) {
 	var permissions []database.Permission
 	if err := database.DB.Where("resource_id = ? AND status = 1", resourceID).
@@ -188,14 +188,14 @@ func GetResourcePermissions(resourceID int) ([]database.Permission, error) {
 	return permissions, nil
 }
 
-// GetOrCreateResource 获取或创建资源
+// GetOrCreateResource gets or creates resource
 func GetOrCreateResource(name, displayName, resourceType, category string, parentID *int) (*database.Resource, error) {
 	var resource database.Resource
 
-	// 先尝试获取
+	 // First try to get
 	if err := database.DB.Where("name = ?", name).First(&resource).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// 不存在则创建
+			                 // Create if not exists
 			resource = database.Resource{
 				Name:        name,
 				DisplayName: displayName,
@@ -215,7 +215,7 @@ func GetOrCreateResource(name, displayName, resourceType, category string, paren
 	return &resource, nil
 }
 
-// CheckResourceExists 检查资源是否存在
+// CheckResourceExists checks if resource exists
 func CheckResourceExists(name string) (bool, error) {
 	var count int64
 	if err := database.DB.Model(&database.Resource{}).Where("name = ? AND status = 1", name).Count(&count).Error; err != nil {
@@ -224,7 +224,7 @@ func CheckResourceExists(name string) (bool, error) {
 	return count > 0, nil
 }
 
-// GetResourceHierarchy 获取资源的完整层级路径
+// GetResourceHierarchy gets complete hierarchy path of resource
 func GetResourceHierarchy(resourceID int) ([]database.Resource, error) {
 	var hierarchy []database.Resource
 	var currentID *int = &resourceID
@@ -238,7 +238,7 @@ func GetResourceHierarchy(resourceID int) ([]database.Resource, error) {
 			return nil, fmt.Errorf("failed to get resource hierarchy: %v", err)
 		}
 
-		hierarchy = append([]database.Resource{resource}, hierarchy...) // 前置插入
+		         hierarchy = append([]database.Resource{resource}, hierarchy...) // Prepend insert
 		currentID = resource.ParentID
 	}
 

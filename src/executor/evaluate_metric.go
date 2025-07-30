@@ -17,8 +17,8 @@ import (
 )
 
 type conclusionACatK struct {
-	Level  string `json:"level"`  // 例如 service level
-	Metric string `json:"metric"` // 例如 topk
+	Level  string `json:"level"`  // For example service level
+	Metric string `json:"metric"` // For example topk
 	Hit    []int  `json:"hit"`
 }
 
@@ -68,7 +68,7 @@ func init() {
 	utils.Must(registerMetric("MRR", mrr))
 }
 
-// 注册新的评估指标
+// Register a new evaluation metric
 func registerMetric(name string, metric dto.EvaluateMetric) error {
 	if name == "" {
 		return errors.New("metric name cannot be empty")
@@ -88,7 +88,7 @@ func registerMetric(name string, metric dto.EvaluateMetric) error {
 	return nil
 }
 
-// 获取所有已注册的评估指标
+// Get all registered evaluation metrics
 func GetMetrics() map[string]dto.EvaluateMetric {
 	metricsMu.RLock()
 	defer metricsMu.RUnlock()
@@ -98,7 +98,7 @@ func GetMetrics() map[string]dto.EvaluateMetric {
 	return copiedMetrics
 }
 
-// AC@k 评估逻辑
+// AC@k evaluation logic
 func accuracyk(executions []dto.Execution) ([]dto.Conclusion, error) {
 	if len(executions) == 0 {
 		return nil, errors.New("execution history is empty")
@@ -107,7 +107,7 @@ func accuracyk(executions []dto.Execution) ([]dto.Conclusion, error) {
 	ks := []int{1, 3, 5}
 	levelGran := make(map[string]map[string]*conclusionACatK)
 
-	// 初始化所有可能的粒度级别和对应的 AC@k
+	// Initialize all possible granularity levels and corresponding AC@k
 	for _, execution := range executions {
 		for _, g := range execution.GranularityRecords {
 			if _, exists := levelGran[g.Level]; !exists {
@@ -123,7 +123,7 @@ func accuracyk(executions []dto.Execution) ([]dto.Conclusion, error) {
 		}
 	}
 
-	// 处理每个执行记录
+	// Process each execution record
 	for _, execution := range executions {
 		payload, err := parseEvaluationPayload(execution.Dataset.Param)
 		if err != nil {
@@ -137,11 +137,11 @@ func accuracyk(executions []dto.Execution) ([]dto.Conclusion, error) {
 
 				switch {
 				case g.Rank == 1:
-					hits = []int{1, 1, 1} // AC@1, AC@3, AC@5 全部命中
+					hits = []int{1, 1, 1} // AC@1, AC@3, AC@5 all hit
 				case g.Rank <= 3:
-					hits = []int{0, 1, 1} // AC@3 和 AC@5 命中
+					hits = []int{0, 1, 1} // AC@3 and AC@5 hit
 				case g.Rank <= 5:
-					hits = []int{0, 0, 1} // 仅命中 AC@5
+					hits = []int{0, 0, 1} // Only AC@5 hit
 				}
 
 				for i, level := range hitLevels {
@@ -151,7 +151,7 @@ func accuracyk(executions []dto.Execution) ([]dto.Conclusion, error) {
 		}
 	}
 
-	// 生成评估结果
+	// Generate evaluation results
 	var results []dto.Conclusion
 	for _, acMap := range levelGran {
 		for _, value := range acMap {
@@ -162,7 +162,7 @@ func accuracyk(executions []dto.Execution) ([]dto.Conclusion, error) {
 				}
 			}
 
-			// 未能命中的情况下，命中率为 0
+			// If not hit, hit rate is 0
 			rate := 0.0
 			if len(value.Hit) != 0 {
 				rate = float64(hitCount) / float64(len(value.Hit))
@@ -179,7 +179,7 @@ func accuracyk(executions []dto.Execution) ([]dto.Conclusion, error) {
 	return results, nil
 }
 
-// Precision@k 评估逻辑
+// Precision@k evaluation logic
 func precisionk(executions []dto.Execution) ([]dto.Conclusion, error) {
 	if len(executions) == 0 {
 		return nil, errors.New("execution history is empty")
@@ -188,7 +188,7 @@ func precisionk(executions []dto.Execution) ([]dto.Conclusion, error) {
 	ks := []int{1, 3, 5}
 	levelGran := make(map[string]map[string]*conclusionPrecisionk)
 
-	// 初始化所有可能的粒度级别和对应的 PR@k
+	// Initialize all possible granularity levels and corresponding PR@k
 	indexLevel := make(map[int]string)
 	for idx, execution := range executions {
 		for _, g := range execution.GranularityRecords {
@@ -211,7 +211,7 @@ func precisionk(executions []dto.Execution) ([]dto.Conclusion, error) {
 		}
 	}
 
-	// 处理每个执行记录
+	// Process each execution record
 	for idx, execution := range executions {
 		payload, err := parseEvaluationPayload(execution.Dataset.Param)
 		if err != nil {
@@ -221,16 +221,16 @@ func precisionk(executions []dto.Execution) ([]dto.Conclusion, error) {
 		for _, k := range ks {
 			minK := k
 			if minK == 0 {
-				continue // 避免除以零
+				continue // Avoid division by zero
 			}
 
-			// 获取前 k 个预测
+			// Get top k predictions
 			topK := execution.GranularityRecords
 			if len(execution.GranularityRecords) > k {
 				topK = execution.GranularityRecords[:k]
 			}
 
-			// 计算命中数
+			// Count hits
 			hits := 0
 			for _, pred := range topK {
 				if pred.Result == payload.Label {
@@ -238,10 +238,10 @@ func precisionk(executions []dto.Execution) ([]dto.Conclusion, error) {
 				}
 			}
 
-			// 计算 PR@k
+			// Calculate PR@k
 			precision := float64(hits) / float64(minK)
 
-			// 累加到对应的结论
+			// Accumulate to corresponding conclusion
 			level := indexLevel[idx]
 			metric := fmt.Sprintf("PR@%d", k)
 			if conclusion, exists := levelGran[level][metric]; exists {
@@ -251,7 +251,7 @@ func precisionk(executions []dto.Execution) ([]dto.Conclusion, error) {
 		}
 	}
 
-	// 生成评估结果
+	// Generate evaluation results
 	var results []dto.Conclusion
 	for _, prMap := range levelGran {
 		for _, value := range prMap {
@@ -259,7 +259,7 @@ func precisionk(executions []dto.Execution) ([]dto.Conclusion, error) {
 				results = append(results, dto.Conclusion{
 					Level:  value.Level,
 					Metric: value.Metric,
-					Rate:   0.0, // 或者根据需求设定为其他默认值
+					Rate:   0.0, // Or set to other default value as needed
 				})
 			} else {
 				results = append(results, dto.Conclusion{
@@ -274,7 +274,7 @@ func precisionk(executions []dto.Execution) ([]dto.Conclusion, error) {
 	return results, nil
 }
 
-// Avg@k 评估逻辑
+// Avg@k evaluation logic
 func avgk(executions []dto.Execution) ([]dto.Conclusion, error) {
 	if len(executions) == 0 {
 		return nil, errors.New("execution history is empty")
@@ -284,7 +284,7 @@ func avgk(executions []dto.Execution) ([]dto.Conclusion, error) {
 	K := len(ks)
 	levelGran := make(map[string]*conclusionAvgk)
 
-	// 初始化所有可能的粒度级别和对应的 Avg@k
+	// Initialize all possible granularity levels and corresponding Avg@k
 	indexLevel := make(map[int]string)
 	for idx, execution := range executions {
 		for _, g := range execution.GranularityRecords {
@@ -303,22 +303,22 @@ func avgk(executions []dto.Execution) ([]dto.Conclusion, error) {
 		}
 	}
 
-	// 处理每个执行记录
+	// Process each execution record
 	for idx, execution := range executions {
 		payload, err := parseEvaluationPayload(execution.Dataset.Param)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get average: %v", err)
 		}
 
-		// 计算 A@k 并累加
+		// Calculate A@k and accumulate
 		var sumAvgk float64
 		for _, k := range ks {
 			minK := min(len(execution.GranularityRecords), k)
 			if minK == 0 {
-				continue // 避免除以零
+				continue // Avoid division by zero
 			}
 
-			// 计算 A@k
+			// Calculate A@k
 			totalRank := 0
 			count := 0
 			for i := range minK {
@@ -330,28 +330,28 @@ func avgk(executions []dto.Execution) ([]dto.Conclusion, error) {
 			}
 
 			if count == 0 {
-				continue // 避免除以零
+				continue // Avoid division by zero
 			}
 
 			avgk := float64(totalRank) / float64(count)
 			sumAvgk += avgk
 		}
 
-		// 计算 Avg@K = sum(A@k) / K
+		// Calculate Avg@K = sum(A@k) / K
 		avgK := sumAvgk / float64(K)
 		level := indexLevel[idx]
 		levelGran[level].Sum += avgK
 		levelGran[level].Count++
 	}
 
-	// 生成评估结果
+	// Generate evaluation results
 	var results []dto.Conclusion
 	for _, value := range levelGran {
 		if value.Count == 0 {
 			results = append(results, dto.Conclusion{
 				Level:  value.Level,
 				Metric: value.Metric,
-				Rate:   0.0, // 或者根据需求设定为其他默认值
+				Rate:   0.0, // Or set to other default value as needed
 			})
 		} else {
 			avgK := value.Sum / float64(value.Count)
@@ -366,7 +366,7 @@ func avgk(executions []dto.Execution) ([]dto.Conclusion, error) {
 	return results, nil
 }
 
-// MAP@k 评估逻辑
+// MAP@k evaluation logic
 func mapk(executions []dto.Execution) ([]dto.Conclusion, error) {
 	if len(executions) == 0 {
 		return nil, errors.New("execution history is empty")
@@ -376,7 +376,7 @@ func mapk(executions []dto.Execution) ([]dto.Conclusion, error) {
 	K := len(ks)
 	levelGran := make(map[string]*conclusionMAPk)
 
-	// 初始化所有可能的粒度级别和对应的 MAP@k
+	// Initialize all possible granularity levels and corresponding MAP@k
 	indexLevel := make(map[int]string)
 	for idx, execution := range executions {
 		for _, g := range execution.GranularityRecords {
@@ -395,18 +395,18 @@ func mapk(executions []dto.Execution) ([]dto.Conclusion, error) {
 		}
 	}
 
-	// 处理每个执行记录
+	// Process each execution record
 	for idx, execution := range executions {
 		payload, err := parseEvaluationPayload(execution.Dataset.Param)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get precesion: %v", err)
 		}
 
-		// 计算 PR@k 并累加
+		// Calculate PR@k and accumulate
 		for _, k := range ks {
 			minK := min(len(execution.GranularityRecords), k)
 			if minK == 0 {
-				continue // 避免除以零
+				continue // Avoid division by zero
 			}
 
 			hits := 0
@@ -420,7 +420,7 @@ func mapk(executions []dto.Execution) ([]dto.Conclusion, error) {
 				}
 			}
 
-			// 计算 PR@k 并累加
+			// Calculate PR@k and accumulate
 			PRk := sumPrecision / float64(K)
 			level := indexLevel[idx]
 			levelGran[level].Sum += PRk
@@ -428,14 +428,14 @@ func mapk(executions []dto.Execution) ([]dto.Conclusion, error) {
 		}
 	}
 
-	// 生成评估结果
+	// Generate evaluation results
 	var results []dto.Conclusion
 	for _, value := range levelGran {
 		if value.Count == 0 {
 			results = append(results, dto.Conclusion{
 				Level:  value.Level,
 				Metric: value.Metric,
-				Rate:   0.0, // 或者根据需求设定为其他默认值
+				Rate:   0.0, // Or set to other default value as needed
 			})
 		} else {
 			mapkValue := value.Sum / float64(value.Count)
@@ -497,14 +497,14 @@ func mrr(executions []dto.Execution) ([]dto.Conclusion, error) {
 		}
 	}
 
-	// 生成评估结果
+	// Generate evaluation results
 	var results []dto.Conclusion
 	for _, value := range levelGran {
 		if value.Count == 0 {
 			results = append(results, dto.Conclusion{
 				Level:  value.Level,
 				Metric: value.Metric,
-				Rate:   0.0, // 或者根据需求设定为其他默认值
+				Rate:   0.0,
 			})
 		} else {
 			results = append(results, dto.Conclusion{

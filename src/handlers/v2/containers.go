@@ -479,7 +479,7 @@ func CreateContainer(c *gin.Context) {
 	case consts.BuildSourceTypeHarbor:
 		code, err = processHarborSourceV2(&req)
 		if err != nil {
-			// 为 Harbor 镜像检查失败提供更详细的错误信息
+			// Provide more detailed error information for Harbor image check failure
 			errorMsg := fmt.Sprintf("Harbor image check failed: %s", err.Error())
 			logrus.WithFields(logrus.Fields{
 				"algorithm": req.Name,

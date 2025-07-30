@@ -41,7 +41,7 @@ func rescheduleAlgoExecutionTask(ctx context.Context, task *dto.UnifiedTask, rea
 
 	var executeTime time.Time
 
-	// 实现随机 1 到 5 分钟的延迟
+	// Implement random 1 to 5 minute delay
 	minDelayMinutes := 1
 	maxDelayMinutes := 5
 	randomDelayMinutes := minDelayMinutes + rand.Intn(maxDelayMinutes-minDelayMinutes+1)
@@ -132,7 +132,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			}
 		}
 
-		// 确保在函数退出时释放令牌
+		// Ensure token is released when function exits
 		var tokenAcquired = true
 		defer func() {
 			if tokenAcquired {
@@ -210,15 +210,19 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			consts.LabelExecutionID: strconv.Itoa(executionID),
 		}
 
-		// 如果成功创建了 Kubernetes Job，标记令牌不需要在这里释放
-		// 令牌将在 Job 成功或失败的回调中释放
-		tokenAcquired = false
+		if err := createAlgoJob(childCtx, config.GetString("k8s.namespace"), jobName, fullImage, annotations, labels, payload, container, record); err != nil {
+			// Job creation failed, token will be released by defer function
+			return err
+		}
 
-		return createAlgoJob(childCtx, config.GetString("k8s.namespace"), jobName, fullImage, annotations, labels, payload, container, record)
+		// If Kubernetes Job is successfully created, mark token doesn't need to be released here
+		// Token will be released in Job success or failure callback
+		tokenAcquired = false
+		return nil
 	})
 }
 
-// 解析算法执行任务的 Payload
+// Parse algorithm execution task Payload
 func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 	message := "missing or invalid '%s' key in payload"
 

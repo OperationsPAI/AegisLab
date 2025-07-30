@@ -8,55 +8,55 @@ import (
 
 /*
 ===================================================================================
-API v2 设计规范 - RESTful API 标准
+API v2 Design Specification - RESTful API Standard
 ===================================================================================
 
-v2 API 采用严格的 RESTful 设计规范，与 v1 的杂乱设计形成对比。
-v1 API 设计较为随意，方法和路径不规范，v2 将统一按照以下标准执行。
+v2 API strictly adheres to RESTful design principles, contrasting with the disorganized design of v1.
+v1 API design was rather arbitrary, with non-standard methods and paths. v2 will uniformly follow the standards below.
 
-📋 HTTP 方法使用规范：
-- GET    : 查询资源（幂等，可缓存）
-- POST   : 创建资源 / 复杂查询（非幂等）
-- PUT    : 完整更新资源（幂等）
-- PATCH  : 部分更新资源（幂等）
-- DELETE : 删除资源（幂等）
+📋 HTTP Method Usage Specification:
+- GET    : Query resources (idempotent, cacheable)
+- POST   : Create resources / Complex queries (non-idempotent)
+- PUT    : Full update of resources (idempotent)
+- PATCH  : Partial update of resources (idempotent)
+- DELETE : Delete resources (idempotent)
 
-🎯 URL 设计规范：
-1. 资源名称使用复数形式
+🎯 URL Design Specification:
+1. Resource names use plural form
    ✅ GET /api/v2/users          ❌ GET /api/v2/user
    ✅ GET /api/v2/projects       ❌ GET /api/v2/project
 
-2. 层级关系明确
+2. Clear hierarchical relationships
    ✅ GET /api/v2/users/{id}/projects
    ✅ GET /api/v2/projects/{id}/members
 
-3. 查询参数规范
+3. Query parameter specification
    ✅ GET /api/v2/users?page=1&size=10&status=active
    ✅ GET /api/v2/tasks?project_id=123&type=injection
 
-📊 标准 CRUD 操作模式：
-- GET    /api/v2/{resource}           # 列表查询（支持分页、过滤、排序）
-- POST   /api/v2/{resource}           # 创建资源
-- GET    /api/v2/{resource}/{id}      # 获取单个资源详情
-- PUT    /api/v2/{resource}/{id}      # 完整更新资源
-- PATCH  /api/v2/{resource}/{id}      # 部分更新资源
-- DELETE /api/v2/{resource}/{id}      # 删除资源
+📊 Standard CRUD Operation Modes:
+- GET    /api/v2/{resource}           # List query (supports pagination, filtering, sorting)
+- POST   /api/v2/{resource}           # Create resource
+- GET    /api/v2/{resource}/{id}      # Get single resource details
+- PUT    /api/v2/{resource}/{id}      # Full update of resource
+- PATCH  : Partial update of resource (idempotent)
+- DELETE : Delete resource (idempotent)
 
-🔍 复杂查询处理：
-对于复杂搜索条件，使用专门的搜索端点：
-- POST /api/v2/{resource}/search      # 复杂条件搜索
-- POST /api/v2/{resource}/query       # 高级查询
-- POST /api/v2/{resource}/batch       # 批量操作
+🔍 Complex Query Handling:
+For complex search conditions, use dedicated search endpoints:
+- POST /api/v2/{resource}/search      # Complex condition search
+- POST /api/v2/{resource}/query       # Advanced query
+- POST /api/v2/{resource}/batch       # Batch operations
 
-🎨 业务操作端点：
-语义化的业务操作使用动词形式：
-- POST /api/v2/users/{id}/activate    # 激活用户
-- POST /api/v2/tasks/{id}/cancel      # 取消任务
-- POST /api/v2/injections/{id}/start  # 开始故障注入
-- POST /api/v2/containers/{id}/build  # 构建容器
+🎨 Business Operation Endpoints:
+Semantic business operations use verb forms:
+- POST /api/v2/users/{id}/activate    # Activate user
+- POST /api/v2/tasks/{id}/cancel      # Cancel task
+- POST /api/v2/injections/{id}/start  # Start fault injection
+- POST /api/v2/containers/{id}/build  # Build container
 
-📨 响应格式规范：
-1. 成功响应：
+📨 Response Format Specification:
+1. Successful Response:
    {
      "code": 200,
      "message": "success",
@@ -64,7 +64,7 @@ v1 API 设计较为随意，方法和路径不规范，v2 将统一按照以下�
      "timestamp": "2024-01-01T12:00:00Z"
    }
 
-2. 列表响应：
+2. List Response:
    {
      "code": 200,
      "message": "success",
@@ -79,7 +79,7 @@ v1 API 设计较为随意，方法和路径不规范，v2 将统一按照以下�
      }
    }
 
-3. 错误响应：
+3. Error Response:
    {
      "code": 400,
      "message": "validation failed",
@@ -87,27 +87,27 @@ v1 API 设计较为随意，方法和路径不规范，v2 将统一按照以下�
      "timestamp": "2024-01-01T12:00:00Z"
    }
 
-🔐 认证授权规范：
-- 使用 JWT Bearer Token 认证
-- 权限检查基于 RBAC 模型
-- 敏感操作需要二次确认
+🔐 Authentication and Authorization Specification:
+- Use JWT Bearer Token authentication
+- Permission checks based on RBAC model
+- Sensitive operations require secondary confirmation
 
-⚡ 性能优化：
-- GET 请求支持 ETag 缓存
-- 列表查询默认分页（page=1, size=20）
-- 支持字段选择 ?fields=id,name,status
-- 支持关联查询 ?include=project,labels
+⚡ Performance Optimization:
+- GET requests support ETag caching
+- List queries default to pagination (page=1, size=20)
+- Supports field selection ?fields=id,name,status
+- Supports associated queries ?include=project,labels
 
-🔄 版本兼容：
-- v2 API 保证向后兼容
-- 废弃的端点提供 6 个月过渡期
-- 重大变更通过新版本号处理
+🔄 Version Compatibility:
+- v2 API ensures backward compatibility
+- Deprecated endpoints provide a 6-month transition period
+- Major changes handled by new version numbers
 
-注意：v1 API 设计较为混乱，不遵循统一标准，后续逐步迁移到 v2 规范。
+Note: v1 API design is chaotic and does not follow a unified standard. It will gradually migrate to v2 specification later.
 ===================================================================================
 */
 
-// SetupV2Routes 设置 API v2 路由 - 稳定版本的 API
+// SetupV2Routes sets up API v2 routes - stable version of the API
 func SetupV2Routes(router *gin.Engine) {
 
 	// Start rate limiting cleanup routine
@@ -190,8 +190,8 @@ func SetupV2Routes(router *gin.Engine) {
 		}
 	}
 
-	// 权限认证相关 API 组 (部分实现，其他供将来扩展)
-	roles := v2.Group("/roles", middleware.JWTAuth()) // 角色管理 - Role 实体
+	// Authentication and Authorization API Group (partially implemented, others for future expansion)
+	roles := v2.Group("/roles", middleware.JWTAuth()) // Role Management - Role Entity
 	{
 		roles.GET("", middleware.RequireRoleRead, v2handlers.ListRoles)              // List roles
 		roles.GET("/:id", middleware.RequireRoleRead, v2handlers.GetRole)            // Get role by ID
@@ -211,7 +211,7 @@ func SetupV2Routes(router *gin.Engine) {
 		roles.DELETE("/:id", middleware.RequireRoleDelete, v2handlers.DeleteRole) // Delete role
 	}
 
-	users := v2.Group("/users", middleware.JWTAuth()) // 用户管理 - User 实体
+	users := v2.Group("/users", middleware.JWTAuth()) // User Management - User Entity
 	{
 		users.GET("", middleware.RequireUserRead, v2handlers.ListUsers)               // List users
 		users.GET("/:id", middleware.RequireAdminOrUserOwnership, v2handlers.GetUser) // Get user by ID
@@ -230,7 +230,7 @@ func SetupV2Routes(router *gin.Engine) {
 		users.DELETE("/:id", middleware.RequireUserDelete, v2handlers.DeleteUser) // Delete user
 	}
 
-	permissions := v2.Group("/permissions", middleware.JWTAuth(), middleware.RequirePermissionRead) // 权限管理 - Permission 实体
+	permissions := v2.Group("/permissions", middleware.JWTAuth(), middleware.RequirePermissionRead) // Permission Management - Permission Entity
 	{
 		permissions.GET("", v2handlers.ListPermissions)                                // List permissions
 		permissions.GET("/:id", v2handlers.GetPermission)                              // Get permission by ID
@@ -249,11 +249,11 @@ func SetupV2Routes(router *gin.Engine) {
 		permissions.DELETE("/:id", middleware.RequirePermissionDelete, v2handlers.DeletePermission) // Delete permission
 	}
 
-	resources := v2.Group("/resources") // 资源管理 - Resource 实体
+	resources := v2.Group("/resources") // Resource Management - Resource Entity
 
-	// 核心业务实体 API 组
+	// Core Business Entity API Group
 
-	// 任务管理 - Task 实体
+	// Task Management - Task Entity
 	tasks := v2.Group("/tasks", middleware.JWTAuth())
 	{
 		// Read operations - permission checked in handler
@@ -270,7 +270,7 @@ func SetupV2Routes(router *gin.Engine) {
 		tasks.POST("/queue", middleware.RequireSystemRead, v2handlers.GetQueuedTasks)
 	}
 
-	// 容器管理 - Container 实体
+	// Container Management - Container Entity
 	containers := v2.Group("/containers", middleware.JWTAuth())
 	{
 		// Create operation - permission checked in handler
@@ -288,7 +288,7 @@ func SetupV2Routes(router *gin.Engine) {
 		containers.POST("/search", v2handlers.SearchContainers)
 	}
 
-	// 算法管理 - Algorithms (算法是容器的一个特殊类型)
+	// Algorithm Management - Algorithms (Algorithm is a special type of container)
 	algorithms := v2.Group("/algorithms", middleware.JWTAuth())
 	{
 		// Read operations - permission checked in handler
@@ -309,8 +309,8 @@ func SetupV2Routes(router *gin.Engine) {
 		algorithms.POST("/:algorithm_id/executions/:execution_id/results", v2handlers.UploadGranularityResults)
 	}
 
-	// 其他业务实体 API 组
-	injections := v2.Group("/injections", middleware.JWTAuth()) // 故障注入管理 - FaultInjectionSchedule 实体
+	// Other Business Entity API Group
+	injections := v2.Group("/injections", middleware.JWTAuth()) // Fault Injection Management - FaultInjectionSchedule Entity
 	{
 		// Read operations - permission checked in handler
 		injections.GET("", v2handlers.ListInjections)           // List injections
@@ -322,7 +322,7 @@ func SetupV2Routes(router *gin.Engine) {
 		injections.DELETE("/:id", v2handlers.DeleteInjection) // Delete injection (soft delete)
 	}
 
-	// 数据集管理 - Dataset 实体
+	// Dataset Management - Dataset Entity
 	datasets := v2.Group("/datasets", middleware.JWTAuth())
 	{
 		datasets.GET("", v2handlers.ListDatasets)
@@ -335,17 +335,17 @@ func SetupV2Routes(router *gin.Engine) {
 		datasets.DELETE("/:id", v2handlers.DeleteDataset)
 	}
 
-	executions := v2.Group("/executions") // 执行结果管理 - ExecutionResult 实体
-	labels := v2.Group("/labels")         // 标签管理 - Label 实体
-	projects := v2.Group("/projects")     // 项目管理 - Project 实体
+	executions := v2.Group("/executions") // Execution Result Management - ExecutionResult Entity
+	labels := v2.Group("/labels")         // Label Management - Label Entity
+	projects := v2.Group("/projects")     // Project Management - Project Entity
 
-	// 分析检测相关 API 组 (供将来扩展)
-	detectors := v2.Group("/detectors")     // 检测器管理 - Detector 实体
-	granularity := v2.Group("/granularity") // 粒度结果管理 - GranularityResult 实体
-	traces := v2.Group("/traces")           // 追踪管理 - 与 TraceID 相关
-	analyzer := v2.Group("/analyzer")       // 分析器相关
+	// Analysis and Detection related API Group (for future expansion)
+	detectors := v2.Group("/detectors")     // Detector Management - Detector Entity
+	granularity := v2.Group("/granularity") // Granularity Result Management - GranularityResult Entity
+	traces := v2.Group("/traces")           // Trace Management - Related to TraceID
+	analyzer := v2.Group("/analyzer")       // Analyzer related
 
-	// 暂时使用空赋值避免编译错误，后续逐步实现具体路由
+	// Temporarily use empty assignment to avoid compilation errors, specific routes will be implemented gradually later
 	_ = injections
 	_ = executions
 	_ = labels

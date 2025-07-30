@@ -18,12 +18,12 @@ import (
 
 // ListAlgorithms
 //
-//	@Summary		获取算法列表
-//	@Description	获取系统中所有可用的算法列表，包括算法的镜像信息、标签和更新时间。只返回状态为激活的算法容器
+//	@Summary		Get algorithm list
+//	@Description	Get all available algorithms in the system, including image info, tags, and update time. Only returns containers with active status.
 //	@Tags			algorithm
 //	@Produce		json
-//	@Success		200	{object}	dto.GenericResponse[dto.ListAlgorithmsResp]	"成功返回算法列表"
-//	@Failure		500	{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Success		200	{object}	dto.GenericResponse[dto.ListAlgorithmsResp]	"Successfully returned algorithm list"
+//	@Failure		500	{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v1/algorithms [get]
 func ListAlgorithms(c *gin.Context) {
 	containers, err := repository.ListContainers(&dto.ListContainersFilterOptions{
@@ -41,15 +41,15 @@ func ListAlgorithms(c *gin.Context) {
 
 // SubmitAlgorithmExecution
 //
-//	@Summary		提交算法执行任务
-//	@Description	批量提交算法执行任务，支持多个算法和数据集的组合执行。系统将为每个执行任务分配唯一的 TraceID 用于跟踪任务状态和结果
+//	@Summary		Submit algorithm execution task
+//	@Description	Batch submit algorithm execution tasks, supporting multiple algorithm and dataset combinations. The system assigns a unique TraceID for each execution task to track status and results.
 //	@Tags			algorithm
 //	@Produce		json
 //	@Consumes		application/json
-//	@Param			body	body		dto.SubmitExecutionReq	true	"算法执行请求列表，包含算法名称、数据集和环境变量"
-//	@Success		202		{object}	dto.GenericResponse[dto.SubmitResp]	"成功提交算法执行任务，返回任务跟踪信息"
-//	@Failure		400		{object}	dto.GenericResponse[any]	"请求参数错误，如JSON格式不正确、算法名称或数据集名称无效、环境变量名称不支持等"
-//	@Failure		500		{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Param			body	body		dto.SubmitExecutionReq	true	"Algorithm execution request list, including algorithm name, dataset, and environment variables"
+//	@Success		202		{object}	dto.GenericResponse[dto.SubmitResp]	"Successfully submitted algorithm execution task, returns task tracking info"
+//	@Failure		400		{object}	dto.GenericResponse[any]	"Request parameter error, such as invalid JSON format, algorithm name or dataset name, unsupported environment variable name, etc."
+//	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v1/algorithms [post]
 func SubmitAlgorithmExecution(c *gin.Context) {
 	groupID := c.GetString("groupID")

@@ -8,10 +8,10 @@ import (
 )
 
 type GenericResponse[T any] struct {
-	Code      int    `json:"code"`                // 状态码
-	Message   string `json:"message"`             // 响应消息
-	Data      T      `json:"data,omitempty"`      // 泛型类型的数据
-	Timestamp int64  `json:"timestamp,omitempty"` // 响应生成时间
+	Code      int    `json:"code"`                // Status code
+	Message   string `json:"message"`             // Response message
+	Data      T      `json:"data,omitempty"`      // Generic type data
+	Timestamp int64  `json:"timestamp,omitempty"` // Response generation time
 }
 
 type ListResp[T any] struct {

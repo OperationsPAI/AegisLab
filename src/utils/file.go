@@ -19,7 +19,7 @@ type ExculdeRule struct {
 	IsGlob  bool
 }
 
-// 添加文件到 ZIP
+// AddToZip adds file to ZIP
 func AddToZip(zipWriter *zip.Writer, fileInfo fs.FileInfo, srcPath string, zipPath string) error {
 	fileHeader, err := zip.FileInfoHeader(fileInfo)
 	if err != nil {
@@ -67,14 +67,12 @@ func GetAllSubDirectories(root string) ([]string, error) {
 	return directories, nil
 }
 
-// 安全检查防止路径遍历攻击
 func IsAllowedPath(path string) bool {
 	allowedRoot := config.GetString("nfs.path")
 	rel, err := filepath.Rel(allowedRoot, path)
 	return err == nil && !strings.Contains(rel, "..")
 }
 
-// 判断文件是否匹配排除规则
 func MatchFile(fileName string, rule ExculdeRule) bool {
 	if rule.IsGlob {
 		match, _ := filepath.Match(rule.Pattern, fileName)
@@ -134,7 +132,7 @@ func CopyFile(src, dst string) error {
 	return nil
 }
 
-// ExtractZip 解压zip文件，如果只有一个顶级目录则提升其内容到根目录
+// ExtractZip
 func ExtractZip(zipFile, destDir string) error {
 	r, err := zip.OpenReader(zipFile)
 	if err != nil {
@@ -172,7 +170,6 @@ func ExtractZip(zipFile, destDir string) error {
 			filePath = filepath.Join(destDir, f.Name)
 		}
 
-		// 安全检查
 		if !strings.HasPrefix(filePath, filepath.Clean(destDir)+string(os.PathSeparator)) {
 			return fmt.Errorf("illegal file path: %s", filePath)
 		}
@@ -211,7 +208,7 @@ func ExtractZip(zipFile, destDir string) error {
 	return nil
 }
 
-// ExtractTarGz 解压tar.gz文件，如果只有一个顶级目录则提升其内容到根目录
+// ExtractTarGz
 func ExtractTarGz(tarGzFile, destDir string) error {
 	file, err := os.Open(tarGzFile)
 	if err != nil {
@@ -283,7 +280,7 @@ func ExtractTarGz(tarGzFile, destDir string) error {
 		if allInSingleDir && topLevelDir != "" {
 			relativePath := strings.TrimPrefix(header.Name, topLevelDir+"/")
 			if relativePath == "" {
-				continue // 跳过顶级目录本身
+				continue
 			}
 
 			filePath = filepath.Join(destDir, relativePath)
@@ -291,7 +288,6 @@ func ExtractTarGz(tarGzFile, destDir string) error {
 			filePath = filepath.Join(destDir, header.Name)
 		}
 
-		// 安全检查
 		if !strings.HasPrefix(filePath, filepath.Clean(destDir)+string(os.PathSeparator)) {
 			return fmt.Errorf("illegal file path: %s", filePath)
 		}

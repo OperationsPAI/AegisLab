@@ -10,17 +10,17 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// ListEvaluationRawData 获取算法和数据集的原始评估数据
+// ListEvaluationRawData Get raw evaluation data for algorithms and datasets
 //
-//	@Summary		获取原始评估数据
-//	@Description	支持三种查询模式：1) 直接传入算法-数据集对数组进行精确查询；2) 传入算法和数据集列表进行笛卡尔积查询；3) 通过执行ID列表查询。三种模式互斥，只能选择其中一种
+//	@Summary		Get raw evaluation data
+//	@Description	Supports three query modes: 1) Directly pass an array of algorithm-dataset pairs for precise query; 2) Pass lists of algorithms and datasets for Cartesian product query; 3) Query by execution ID list. The three modes are mutually exclusive, only one can be selected
 //	@Tags			evaluation
 //	@Produce		json
 //	@Consumes		application/json
-//	@Param			body	body		dto.RawDataReq	true	"原始数据查询请求，支持三种模式：pairs数组、(algorithms+datasets)笛卡尔积、或execution_ids列表"
-//	@Success		200		{object}	dto.GenericResponse[dto.RawDataResp]	"成功返回原始评估数据列表"
-//	@Failure		400		{object}	dto.GenericResponse[any]				"请求参数错误，如JSON格式不正确、查询模式冲突或参数为空"
-//	@Failure		500		{object}	dto.GenericResponse[any]				"服务器内部错误"
+//	@Param			body	body		dto.RawDataReq	true	"Raw data query request, supports three modes: pairs array, (algorithms+datasets) Cartesian product, or execution_ids list"
+//	@Success		200		{object}	dto.GenericResponse[dto.RawDataResp]	"Successfully returns the list of raw evaluation data"
+//	@Failure		400		{object}	dto.GenericResponse[any]				"Request parameter error, such as incorrect JSON format, query mode conflict or empty parameter"
+//	@Failure		500		{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v1/evaluations/raw-data [post]
 func ListEvaluationRawData(c *gin.Context) {
 	var req dto.RawDataReq
@@ -53,17 +53,17 @@ func ListEvaluationRawData(c *gin.Context) {
 	dto.SuccessResponse(c, items)
 }
 
-// GetGroundtruth 获取数据集的 ground truth
+// GetGroundtruth Get ground truth for datasets
 //
-//	@Summary		获取数据集的 ground truth
-//	@Description	根据数据集数组获取对应的 ground truth 数据，用于算法评估的基准数据。支持批量查询多个数据集的真实标签信息
+//	@Summary		Get ground truth for datasets
+//	@Description	Get ground truth data for the given dataset array, used as benchmark data for algorithm evaluation. Supports batch query for ground truth information of multiple datasets
 //	@Tags			evaluation
 //	@Produce		json
 //	@Consumes		application/json
-//	@Param			body	body		dto.GroundTruthReq	true	"Ground truth查询请求，包含数据集列表"
-//	@Success		200		{object}	dto.GenericResponse[dto.GroundTruthResp]	"成功返回数据集的ground truth信息"
-//	@Failure		400		{object}	dto.GenericResponse[any]					"请求参数错误，如JSON格式不正确、数据集数组为空"
-//	@Failure		500		{object}	dto.GenericResponse[any]					"服务器内部错误"
+//	@Param			body	body		dto.GroundTruthReq	true	"Ground truth query request, contains dataset list"
+//	@Success		200		{object}	dto.GenericResponse[dto.GroundTruthResp]	"Successfully returns ground truth information for datasets"
+//	@Failure		400		{object}	dto.GenericResponse[any]					"Request parameter error, such as incorrect JSON format or empty dataset array"
+//	@Failure		500		{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v1/evaluations/groundtruth [post]
 func GetGroundtruth(c *gin.Context) {
 	var req dto.GroundTruthReq
@@ -89,19 +89,19 @@ func GetGroundtruth(c *gin.Context) {
 	dto.SuccessResponse(c, dto.GroundTruthResp(res))
 }
 
-// GetSuccessfulExecutions 获取所有成功执行的算法记录
+// GetSuccessfulExecutions Get all successful algorithm execution records
 //
-//	@Summary		获取成功执行的算法记录
-//	@Description	获取所有ExecutionResult中status为ExecutionSuccess的记录，支持时间区间筛选和数量筛选
+//	@Summary		Get successful algorithm execution records
+//	@Description	Get all records in ExecutionResult with status ExecutionSuccess, supports time range filtering and quantity filtering
 //	@Tags			evaluation
 //	@Produce		json
-//	@Param			start_time	query	string	false	"开始时间，格式：2006-01-02T15:04:05Z07:00"
-//	@Param			end_time	query	string	false	"结束时间，格式：2006-01-02T15:04:05Z07:00"
-//	@Param			limit		query	int		false	"数量限制"
-//	@Param			offset		query	int		false	"偏移量，用于分页"
-//	@Success		200			{object}	dto.GenericResponse[dto.SuccessfulExecutionsResp]	"成功返回成功执行的算法记录列表"
-//	@Failure		400			{object}	dto.GenericResponse[any]							"请求参数错误"
-//	@Failure		500			{object}	dto.GenericResponse[any]							"服务器内部错误"
+//	@Param			start_time	query	string	false	"Start time, format: 2006-01-02T15:04:05Z07:00"
+//	@Param			end_time	query	string	false	"End time, format: 2006-01-02T15:04:05Z07:00"
+//	@Param			limit		query	int		false	"Limit"
+//	@Param			offset		query	int		false	"Offset for pagination"
+//	@Success		200			{object}	dto.GenericResponse[dto.SuccessfulExecutionsResp]	"Successfully returns the list of successful algorithm execution records"
+//	@Failure		400			{object}	dto.GenericResponse[any]							"Request parameter error"
+//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v1/evaluations/executions [get]
 func GetSuccessfulExecutions(c *gin.Context) {
 	var req dto.SuccessfulExecutionsReq

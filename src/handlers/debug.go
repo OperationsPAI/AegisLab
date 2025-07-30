@@ -47,8 +47,8 @@ func SetVar(c *gin.Context) {
 
 // GetNSLock
 //
-//	@Summary		获取命名空间锁状态
-//	@Description	获取命名空间锁状态信息
+//	@Summary		Get namespace lock status
+//	@Description	Get namespace lock status information
 //	@Tags			debug
 //	@Produce		json
 //	@Success		200	{object}	dto.GenericResponse[any]

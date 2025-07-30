@@ -270,12 +270,12 @@ func GetGroundtruthMap(datasets []string) (map[string]chaos.Groundtruth, error) 
 	return groundtruthMap, nil
 }
 
-// ListSuccessfulExecutions 获取所有成功执行的算法记录
+// ListSuccessfulExecutions gets all successfully executed algorithm records
 func ListSuccessfulExecutions() ([]dto.SuccessfulExecutionItem, error) {
 	return ListSuccessfulExecutionsWithFilter(dto.SuccessfulExecutionsReq{})
 }
 
-// ListSuccessfulExecutionsWithFilter 根据筛选条件获取成功执行的算法记录
+// ListSuccessfulExecutionsWithFilter gets successfully executed algorithm records based on filter conditions
 func ListSuccessfulExecutionsWithFilter(req dto.SuccessfulExecutionsReq) ([]dto.SuccessfulExecutionItem, error) {
 	var executions []database.ExecutionResultProject
 	query := database.DB.Where("status = ?", consts.ExecutionSuccess)

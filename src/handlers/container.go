@@ -33,32 +33,32 @@ const (
 
 // SubmitContainerBuilding
 //
-//	@Summary		提交镜像构建任务
-//	@Description	通过上传文件、指定GitHub仓库或Harbor镜像来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建，或从Harbor直接获取已存在的镜像并更新数据库。系统会自动验证必需文件（Dockerfile）并设置执行权限
+//	@Summary		Submit container build task
+//	@Description	Build Docker images by uploading files, specifying GitHub repositories, or Harbor images. Supports zip and tar.gz file uploads, or automatically pulls code from GitHub for building, or directly updates the database from existing Harbor images. The system automatically validates required files (Dockerfile) and sets execution permissions.
 //	@Tags			container
 //	@Accept			multipart/form-data
 //	@Produce		json
-//	@Param			type			formData	string		false	"容器类型，指定容器的用途"	Enums(algorithm, benchmark)	default(algorithm)
-//	@Param			name			formData	string		false	"容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段"
-//	@Param			image			formData	string		true	"Docker镜像名称。当source_type为harbor时，指定Harbor中已存在的镜像名称；其他情况下支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）"
-//	@Param			tag				formData	string		false	"Docker镜像标签。当source_type为harbor时，指定Harbor中已存在的镜像标签；其他情况下用于版本控制"	default(latest)
-//	@Param			command			formData	string		false	"Docker镜像启动命令，默认为bash /entrypoint.sh"	default(bash /entrypoint.sh)
-//	@Param			env_vars		formData	[]string	false	"环境变量名称列表，支持多个环境变量"
-//	@Param			source_type		formData	string		false	"构建源类型，指定源码来源"	Enums(file,github,harbor)	default(file)
-//	@Param			file			formData	file		false	"源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB"
-//	@Param			github_token	formData	string		false	"GitHub访问令牌，用于访问私有仓库，公开仓库可不提供"
-//	@Param			github_repo		formData	string		false	"GitHub仓库地址，格式：owner/repo，当source_type为github时必需"
-//	@Param			github_branch	formData	string		false	"GitHub分支名，指定要构建的分支"	default(main)
-//	@Param			github_commit	formData	string		false	"GitHub commit哈希值（支持短hash），如果指定commit则忽略branch参数"
-//	@Param			github_path		formData	string		false	"仓库内的子目录路径，如果源码不在根目录"	default(.)
-//	@Param			context_dir		formData	string		false	"Docker构建上下文路径，相对于源码根目录"	default(.)
-//	@Param			dockerfile_path	formData	string		false	"Dockerfile路径，相对于源码根目录"	default(Dockerfile)
-//	@Param			target			formData	string		false	"Dockerfile构建目标（multi-stage build时使用）"
-//	@Param			force_rebuild	formData	bool		false	"是否强制重新构建镜像，忽略缓存"	default(false)
-//	@Success		202				{object}	dto.GenericResponse[dto.SubmitResp]	"成功提交容器构建任务，返回任务跟踪信息"
-//	@Failure		400				{object}	dto.GenericResponse[any]	"请求参数错误：文件格式不支持（仅支持zip、tar.gz）、文件大小超限（5MB）、参数验证失败、GitHub仓库地址无效、Harbor镜像参数无效、force_rebuild值格式错误等"
-//	@Failure		404				{object}	dto.GenericResponse[any]	"资源不存在：构建上下文路径不存在、缺少必需文件（Dockerfile、entrypoint.sh）、Harbor中镜像不存在"
-//	@Failure		500				{object}	dto.GenericResponse[any]	"服务器内部错误"
+//	@Param			type			formData	string		false	"Container type, specifies the purpose of the container"	Enums(algorithm, benchmark)	default(algorithm)
+//	@Param			name			formData	string		false	"Container name, used to identify the container, will be used as the image build identifier, defaults to the name field in info.toml"
+//	@Param			image			formData	string		true	"Docker image name. When source_type is harbor, specify the existing image name in Harbor; otherwise, supports the following formats: 1) image-name (automatically adds default Harbor address and namespace) 2) namespace/image-name (automatically adds default Harbor address)"
+//	@Param			tag				formData	string		false	"Docker image tag. When source_type is harbor, specify the existing image tag in Harbor; otherwise, used for version control"	default(latest)
+//	@Param			command			formData	string		false	"Docker image startup command, defaults to bash /entrypoint.sh"	default(bash /entrypoint.sh)
+//	@Param			env_vars		formData	[]string	false	"List of environment variable names, supports multiple variables"
+//	@Param			source_type		formData	string		false	"Build source type, specifies the source of the code"	Enums(file,github,harbor)	default(file)
+//	@Param			file			formData	file		false	"Source file (supports zip or tar.gz format), required when source_type is file, file size limit 5MB"
+//	@Param			github_token	formData	string		false	"GitHub access token, used for private repositories, not required for public repositories"
+//	@Param			github_repo		formData	string		false	"GitHub repository address, format: owner/repo, required when source_type is github"
+//	@Param			github_branch	formData	string		false	"GitHub branch name, specifies the branch to build"	default(main)
+//	@Param			github_commit	formData	string		false	"GitHub commit hash (supports short hash), if specified, branch parameter is ignored"
+//	@Param			github_path		formData	string		false	"Subdirectory path in the repository, if the source code is not in the root directory"	default(.)
+//	@Param			context_dir		formData	string		false	"Docker build context path, relative to the source root directory"	default(.)
+//	@Param			dockerfile_path	formData	string		false	"Dockerfile path, relative to the source root directory"	default(Dockerfile)
+//	@Param			target			formData	string		false	"Dockerfile build target (used for multi-stage builds)"
+//	@Param			force_rebuild	formData	bool		false	"Whether to force rebuild the image, ignore cache"	default(false)
+//	@Success		202				{object}	dto.GenericResponse[dto.SubmitResp]	"Successfully submitted container build task, returns task tracking information"
+//	@Failure		400				{object}	dto.GenericResponse[any]	"Request parameter error: unsupported file format (only zip, tar.gz), file size exceeds limit (5MB), parameter validation failed, invalid GitHub repository address, invalid Harbor image parameter, invalid force_rebuild value, etc."
+//	@Failure		404				{object}	dto.GenericResponse[any]	"Resource not found: build context path does not exist, missing required files (Dockerfile, entrypoint.sh), image not found in Harbor"
+//	@Failure		500				{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v1/containers [post]
 func SubmitContainerBuilding(c *gin.Context) {
 	groupID := c.GetString("groupID")
@@ -230,7 +230,7 @@ func processFileSource(c *gin.Context, req *dto.SubmitContainerBuildingReq) (int
 	}
 	defer file.Close()
 
-	const maxSize = 5 * 1024 * 1024 // 50MB
+	const maxSize = 5 * 1024 * 1024 // 5MB
 	if header.Size > maxSize {
 		return http.StatusBadRequest, "", fmt.Errorf("file size exceeds %dMB limit", maxSize/(1024*1024))
 	}
@@ -350,7 +350,7 @@ func processGitHubSource(req *dto.SubmitContainerBuildingReq) (int, string, erro
 	return 0, targetDir, nil
 }
 
-// validateRequiredFiles 验证构建所需的文件是否存在
+// validateRequiredFiles validates whether the required files for building exist
 func validateRequiredFiles(sourcePath, ContextDir string, DockerfilePath string) error {
 	buildContextPath := filepath.Join(sourcePath, ContextDir)
 	if _, err := os.Stat(buildContextPath); os.IsNotExist(err) {
@@ -368,8 +368,8 @@ func validateRequiredFiles(sourcePath, ContextDir string, DockerfilePath string)
 func processHarborSource(req *dto.SubmitContainerBuildingReq) (int, error) {
 	harbor := req.Source.Harbor
 
-	// 解析镜像名称，从完整的镜像路径中提取末尾的镜像名称
-	// 例如: 10.10.10.240/library/rca-algo-random -> rca-algo-random
+	// Parse image name, extract the last part from the full image path
+	// Example: 10.10.10.240/library/rca-algo-random -> rca-algo-random
 	imageName := harbor.Image
 	if strings.Contains(imageName, "/") {
 		parts := strings.Split(imageName, "/")
@@ -401,7 +401,7 @@ func processHarborDirectUpdate(ctx context.Context, req *dto.SubmitContainerBuil
 		Command: req.Command,
 		EnvVars: strings.Join(req.EnvVars, ","),
 		Status:  true,
-		UserID:  1, // TODO: 需要从认证上下文获取实际用户ID
+		UserID:  1, // TODO: Need to get actual user ID from authentication context
 	}
 
 	if err := repository.CreateContainer(container); err != nil {

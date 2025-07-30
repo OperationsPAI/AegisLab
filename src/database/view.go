@@ -45,7 +45,7 @@ func (FaultInjectionProject) TableName() string {
 	return "fault_injection_project"
 }
 
-// FaultInjectionNoIssues 视图模型
+// FaultInjectionNoIssues view model
 type FaultInjectionNoIssues struct {
 	DatasetID     int       `gorm:"column:dataset_id" json:"dataset_id"`
 	EngineConfig  string    `gorm:"column:engine_config" json:"engine_config"`
@@ -60,7 +60,7 @@ func (FaultInjectionNoIssues) TableName() string {
 	return "fault_injection_no_issues"
 }
 
-// FaultInjectionWithIssues 视图模型
+// FaultInjectionWithIssues view model
 type FaultInjectionWithIssues struct {
 	DatasetID           int       `gorm:"column:dataset_id" json:"dataset_id"`
 	EngineConfig        string    `gorm:"column:engine_config" json:"engine_config"`

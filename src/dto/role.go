@@ -67,13 +67,13 @@ type RoleSearchRequest struct {
 	AdvancedSearchRequest
 
 	// Role-specific filter shortcuts
-	NamePattern        string       `json:"name_pattern,omitempty"`         // 角色名模糊匹配
-	DisplayNamePattern string       `json:"display_name_pattern,omitempty"` // 显示名模糊匹配
-	DescriptionPattern string       `json:"description_pattern,omitempty"`  // 描述模糊匹配
-	Types              []string     `json:"types,omitempty"`                // 角色类型筛选
-	IsSystem           *bool        `json:"is_system,omitempty"`            // 是否系统角色
-	PermissionIDs      []int        `json:"permission_ids,omitempty"`       // 权限ID筛选
-	UserCount          *NumberRange `json:"user_count,omitempty"`           // 用户数量范围
+	NamePattern        string       `json:"name_pattern,omitempty"`         // Role name fuzzy match
+	DisplayNamePattern string       `json:"display_name_pattern,omitempty"` // Display name fuzzy match
+	DescriptionPattern string       `json:"description_pattern,omitempty"`  // Description fuzzy match
+	Types              []string     `json:"types,omitempty"`                // Role type filter
+	IsSystem           *bool        `json:"is_system,omitempty"`            // Whether system role
+	PermissionIDs      []int        `json:"permission_ids,omitempty"`       // Permission ID filter
+	UserCount          *NumberRange `json:"user_count,omitempty"`           // User count range
 }
 
 // ConvertToSearchRequest converts RoleSearchRequest to SearchRequest with role-specific filters
