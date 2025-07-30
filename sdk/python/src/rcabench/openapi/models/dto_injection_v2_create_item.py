@@ -20,20 +20,27 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_fault_injection_statistics_resp import DtoFaultInjectionStatisticsResp
+from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoGenericResponseDtoFaultInjectionStatisticsResp(BaseModel):
+class DtoInjectionV2CreateItem(BaseModel):
     """
-    DtoGenericResponseDtoFaultInjectionStatisticsResp
+    DtoInjectionV2CreateItem
     """ # noqa: E501
-    code: Optional[StrictInt] = Field(default=None, description="状态码")
-    data: Optional[DtoFaultInjectionStatisticsResp] = Field(default=None, description="泛型类型的数据")
-    message: Optional[StrictStr] = Field(default=None, description="响应消息")
-    timestamp: Optional[StrictInt] = Field(default=None, description="响应生成时间")
+    benchmark: StrictStr
+    description: Optional[StrictStr] = None
+    display_config: StrictStr
+    end_time: Optional[StrictStr] = None
+    engine_config: StrictStr
+    fault_type: StrictInt
+    injection_name: StrictStr
+    pre_duration: Annotated[int, Field(strict=True, ge=0)]
+    start_time: Optional[StrictStr] = None
+    status: Optional[StrictInt] = None
+    task_id: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["code", "data", "message", "timestamp"]
+    __properties: ClassVar[List[str]] = ["benchmark", "description", "display_config", "end_time", "engine_config", "fault_type", "injection_name", "pre_duration", "start_time", "status", "task_id"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -53,7 +60,7 @@ class DtoGenericResponseDtoFaultInjectionStatisticsResp(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoGenericResponseDtoFaultInjectionStatisticsResp from a JSON string"""
+        """Create an instance of DtoInjectionV2CreateItem from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -76,9 +83,6 @@ class DtoGenericResponseDtoFaultInjectionStatisticsResp(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of data
-        if self.data:
-            _dict['data'] = self.data.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -88,7 +92,7 @@ class DtoGenericResponseDtoFaultInjectionStatisticsResp(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoGenericResponseDtoFaultInjectionStatisticsResp from a dict"""
+        """Create an instance of DtoInjectionV2CreateItem from a dict"""
         if obj is None:
             return None
 
@@ -96,10 +100,17 @@ class DtoGenericResponseDtoFaultInjectionStatisticsResp(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "code": obj.get("code"),
-            "data": DtoFaultInjectionStatisticsResp.from_dict(obj["data"]) if obj.get("data") is not None else None,
-            "message": obj.get("message"),
-            "timestamp": obj.get("timestamp")
+            "benchmark": obj.get("benchmark"),
+            "description": obj.get("description"),
+            "display_config": obj.get("display_config"),
+            "end_time": obj.get("end_time"),
+            "engine_config": obj.get("engine_config"),
+            "fault_type": obj.get("fault_type"),
+            "injection_name": obj.get("injection_name"),
+            "pre_duration": obj.get("pre_duration"),
+            "start_time": obj.get("start_time"),
+            "status": obj.get("status"),
+            "task_id": obj.get("task_id")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

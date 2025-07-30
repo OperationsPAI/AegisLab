@@ -18,20 +18,20 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_granularity_record import DtoGranularityRecord
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Any, ClassVar, Dict, List
+from typing_extensions import Annotated
+from rcabench.openapi.models.dto_injection_v2_create_item import DtoInjectionV2CreateItem
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoExecutionRecord(BaseModel):
+class DtoInjectionV2CreateReq(BaseModel):
     """
-    DtoExecutionRecord
+    DtoInjectionV2CreateReq
     """ # noqa: E501
-    algorithm: Optional[StrictStr] = None
-    granularity_records: Optional[List[DtoGranularityRecord]] = None
+    injections: Annotated[List[DtoInjectionV2CreateItem], Field(min_length=1, max_length=100)]
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["algorithm", "granularity_records"]
+    __properties: ClassVar[List[str]] = ["injections"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -51,7 +51,7 @@ class DtoExecutionRecord(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoExecutionRecord from a JSON string"""
+        """Create an instance of DtoInjectionV2CreateReq from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -74,13 +74,13 @@ class DtoExecutionRecord(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of each item in granularity_records (list)
+        # override the default output from pydantic by calling `to_dict()` of each item in injections (list)
         _items = []
-        if self.granularity_records:
-            for _item_granularity_records in self.granularity_records:
-                if _item_granularity_records:
-                    _items.append(_item_granularity_records.to_dict())
-            _dict['granularity_records'] = _items
+        if self.injections:
+            for _item_injections in self.injections:
+                if _item_injections:
+                    _items.append(_item_injections.to_dict())
+            _dict['injections'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -90,7 +90,7 @@ class DtoExecutionRecord(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoExecutionRecord from a dict"""
+        """Create an instance of DtoInjectionV2CreateReq from a dict"""
         if obj is None:
             return None
 
@@ -98,8 +98,7 @@ class DtoExecutionRecord(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "algorithm": obj.get("algorithm"),
-            "granularity_records": [DtoGranularityRecord.from_dict(_item) for _item in obj["granularity_records"]] if obj.get("granularity_records") is not None else None
+            "injections": [DtoInjectionV2CreateItem.from_dict(_item) for _item in obj["injections"]] if obj.get("injections") is not None else None
         })
         # store additional fields in additional_properties
         for _key in obj.keys():
