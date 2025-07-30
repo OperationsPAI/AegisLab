@@ -3651,6 +3651,61 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create one or multiple injection records with automatic labeling based on task_id",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Injections"
+                ],
+                "summary": "Create injections",
+                "parameters": [
+                    {
+                        "description": "Injection creation request",
+                        "name": "injections",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.InjectionV2CreateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Injections created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionV2CreateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
             }
         },
         "/api/v2/injections/search": {
@@ -8548,6 +8603,31 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GenericResponse-dto_InjectionV2CreateResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.InjectionV2CreateResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GenericResponse-dto_InjectionV2Response": {
             "type": "object",
             "properties": {
@@ -9551,7 +9631,6 @@ const docTemplate = `{
         "dto.GranularityResultItem": {
             "type": "object",
             "required": [
-                "confidence",
                 "level",
                 "rank",
                 "result"
@@ -9623,6 +9702,20 @@ const docTemplate = `{
         },
         "dto.InjectCancelResp": {
             "type": "object"
+        },
+        "dto.InjectionCreateError": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "index": {
+                    "type": "integer"
+                },
+                "item": {
+                    "$ref": "#/definitions/dto.InjectionV2CreateItem"
+                }
+            }
         },
         "dto.InjectionDiversity": {
             "type": "object",
@@ -9784,6 +9877,95 @@ const docTemplate = `{
                 },
                 "with_issues_records": {
                     "type": "integer"
+                }
+            }
+        },
+        "dto.InjectionV2CreateItem": {
+            "type": "object",
+            "required": [
+                "benchmark",
+                "display_config",
+                "engine_config",
+                "fault_type",
+                "injection_name",
+                "pre_duration"
+            ],
+            "properties": {
+                "benchmark": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "display_config": {
+                    "type": "string"
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "engine_config": {
+                    "type": "string"
+                },
+                "fault_type": {
+                    "type": "integer"
+                },
+                "injection_name": {
+                    "type": "string"
+                },
+                "pre_duration": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "task_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.InjectionV2CreateReq": {
+            "type": "object",
+            "required": [
+                "injections"
+            ],
+            "properties": {
+                "injections": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/dto.InjectionV2CreateItem"
+                    }
+                }
+            }
+        },
+        "dto.InjectionV2CreateResponse": {
+            "type": "object",
+            "properties": {
+                "created_count": {
+                    "type": "integer"
+                },
+                "created_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.InjectionV2Response"
+                    }
+                },
+                "failed_count": {
+                    "type": "integer"
+                },
+                "failed_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.InjectionCreateError"
+                    }
+                },
+                "message": {
+                    "type": "string"
                 }
             }
         },
@@ -10981,12 +11163,15 @@ const docTemplate = `{
                     ]
                 },
                 "value": {
-                    "description": "Value"
+                    "description": "Value (can be string, number, boolean, etc.)",
+                    "type": "string"
                 },
                 "values": {
                     "description": "Multiple values (for IN operations etc.)",
                     "type": "array",
-                    "items": {}
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },

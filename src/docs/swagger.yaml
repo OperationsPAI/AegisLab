@@ -1610,6 +1610,22 @@ definitions:
         description: Response generation time
         type: integer
     type: object
+  dto.GenericResponse-dto_InjectionV2CreateResponse:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.InjectionV2CreateResponse'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
+        type: integer
+    type: object
   dto.GenericResponse-dto_InjectionV2Response:
     properties:
       code:
@@ -2272,7 +2288,6 @@ definitions:
       result:
         type: string
     required:
-    - confidence
     - level
     - rank
     - result
@@ -2310,6 +2325,15 @@ definitions:
         type: string
     type: object
   dto.InjectCancelResp:
+    type: object
+  dto.InjectionCreateError:
+    properties:
+      error:
+        type: string
+      index:
+        type: integer
+      item:
+        $ref: '#/definitions/dto.InjectionV2CreateItem'
     type: object
   dto.InjectionDiversity:
     properties:
@@ -2418,6 +2442,67 @@ definitions:
         type: integer
       with_issues_records:
         type: integer
+    type: object
+  dto.InjectionV2CreateItem:
+    properties:
+      benchmark:
+        type: string
+      description:
+        type: string
+      display_config:
+        type: string
+      end_time:
+        type: string
+      engine_config:
+        type: string
+      fault_type:
+        type: integer
+      injection_name:
+        type: string
+      pre_duration:
+        minimum: 0
+        type: integer
+      start_time:
+        type: string
+      status:
+        type: integer
+      task_id:
+        type: string
+    required:
+    - benchmark
+    - display_config
+    - engine_config
+    - fault_type
+    - injection_name
+    - pre_duration
+    type: object
+  dto.InjectionV2CreateReq:
+    properties:
+      injections:
+        items:
+          $ref: '#/definitions/dto.InjectionV2CreateItem'
+        maxItems: 100
+        minItems: 1
+        type: array
+    required:
+    - injections
+    type: object
+  dto.InjectionV2CreateResponse:
+    properties:
+      created_count:
+        type: integer
+      created_items:
+        items:
+          $ref: '#/definitions/dto.InjectionV2Response'
+        type: array
+      failed_count:
+        type: integer
+      failed_items:
+        items:
+          $ref: '#/definitions/dto.InjectionCreateError'
+        type: array
+      message:
+        type: string
     type: object
   dto.InjectionV2Response:
     properties:
@@ -3243,10 +3328,12 @@ definitions:
         - $ref: '#/definitions/dto.FilterOperator'
         description: Operator
       value:
-        description: Value
+        description: Value (can be string, number, boolean, etc.)
+        type: string
       values:
         description: Multiple values (for IN operations etc.)
-        items: {}
+        items:
+          type: string
         type: array
     required:
     - field
@@ -6739,6 +6826,42 @@ paths:
       security:
       - BearerAuth: []
       summary: List injections
+      tags:
+      - Injections
+    post:
+      consumes:
+      - application/json
+      description: Create one or multiple injection records with automatic labeling
+        based on task_id
+      parameters:
+      - description: Injection creation request
+        in: body
+        name: injections
+        required: true
+        schema:
+          $ref: '#/definitions/dto.InjectionV2CreateReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Injections created successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_InjectionV2CreateResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Create injections
       tags:
       - Injections
   /api/v2/injections/{id}:

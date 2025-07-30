@@ -174,3 +174,5 @@ temp
 ts
 containers
 .codebuddy
+sdk/python/src/rcabench/openapi
+sdk/python/src/rcabench/docs

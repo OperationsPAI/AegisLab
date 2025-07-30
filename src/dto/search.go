@@ -48,10 +48,10 @@ const (
 
 // SearchFilter represents a single filter condition
 type SearchFilter struct {
-	Field    string         `json:"field" binding:"required"`    // Field name
-	Operator FilterOperator `json:"operator" binding:"required"` // Operator
-	Value    interface{}    `json:"value"`                       // Value
-	Values   []interface{}  `json:"values,omitempty"`            // Multiple values (for IN operations etc.)
+	Field    string         `json:"field" binding:"required"`                    // Field name
+	Operator FilterOperator `json:"operator" binding:"required"`                 // Operator
+	Value    interface{}    `json:"value" swaggertype:"string"`                  // Value (can be string, number, boolean, etc.)
+	Values   []interface{}  `json:"values,omitempty" swaggertype:"array,string"` // Multiple values (for IN operations etc.)
 }
 
 // SortOption represents a sort option
