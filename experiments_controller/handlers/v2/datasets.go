@@ -1,7 +1,6 @@
 package v2
 
 import (
-	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -11,7 +10,6 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 // CreateDataset 创建数据集
@@ -218,7 +216,7 @@ func GetDataset(c *gin.Context) {
 
 	var dataset database.Dataset
 	if err := query.First(&dataset, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if strings.Contains(err.Error(), "not found") {
 			dto.ErrorResponse(c, http.StatusNotFound, "Dataset not found")
 		} else {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get dataset: "+err.Error())
