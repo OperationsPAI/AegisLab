@@ -6,7 +6,7 @@ Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**api_v2_containers_get**](ContainersApi.md#api_v2_containers_get) | **GET** /api/v2/containers | List containers
 [**api_v2_containers_id_get**](ContainersApi.md#api_v2_containers_id_get) | **GET** /api/v2/containers/{id} | Get container by ID
-[**api_v2_containers_post**](ContainersApi.md#api_v2_containers_post) | **POST** /api/v2/containers | Create container
+[**api_v2_containers_post**](ContainersApi.md#api_v2_containers_post) | **POST** /api/v2/containers | Create or update container
 [**api_v2_containers_search_post**](ContainersApi.md#api_v2_containers_search_post) | **POST** /api/v2/containers/search | Search containers
 
 
@@ -184,9 +184,9 @@ Name | Type | Description  | Notes
 # **api_v2_containers_post**
 > DtoGenericResponseDtoSubmitResp api_v2_containers_post(type, name, image, tag=tag, command=command, env_vars=env_vars, is_public=is_public, build_source_type=build_source_type, file=file, github_repository=github_repository, github_branch=github_branch, github_commit=github_commit, github_path=github_path, github_token=github_token, harbor_image=harbor_image, harbor_tag=harbor_tag, context_dir=context_dir, dockerfile_path=dockerfile_path)
 
-Create container
+Create or update container
 
-Create a new container with build configuration. Containers are associated with the authenticated user.
+Create a new container with build configuration or update existing one if it already exists. Containers are associated with the authenticated user. If a container with the same name, type, image, and tag already exists, it will be updated instead of creating a new one.
 
 ### Example
 
@@ -239,7 +239,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
     dockerfile_path = 'Dockerfile' # str | Dockerfile path relative to source root (optional) (default to 'Dockerfile')
 
     try:
-        # Create container
+        # Create or update container
         api_response = api_instance.api_v2_containers_post(type, name, image, tag=tag, command=command, env_vars=env_vars, is_public=is_public, build_source_type=build_source_type, file=file, github_repository=github_repository, github_branch=github_branch, github_commit=github_commit, github_path=github_path, github_token=github_token, harbor_image=harbor_image, harbor_tag=harbor_tag, context_dir=context_dir, dockerfile_path=dockerfile_path)
         print("The response of ContainersApi->api_v2_containers_post:\n")
         pprint(api_response)
@@ -290,7 +290,8 @@ Name | Type | Description  | Notes
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**202** | Container creation task submitted successfully |  -  |
+**200** | Container information updated successfully from Harbor |  -  |
+**202** | Container creation/update task submitted successfully |  -  |
 **400** | Invalid request |  -  |
 **403** | Permission denied |  -  |
 **500** | Internal server error |  -  |

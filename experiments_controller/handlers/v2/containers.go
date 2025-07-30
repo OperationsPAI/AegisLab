@@ -477,9 +477,17 @@ func CreateContainer(c *gin.Context) {
 			return
 		}
 	case consts.BuildSourceTypeHarbor:
-		code, err = processHarborSourceV2(&req, userID.(int))
+		code, err = processHarborSourceV2(&req)
 		if err != nil {
-			dto.ErrorResponse(c, code, err.Error())
+			// 为 Harbor 镜像检查失败提供更详细的错误信息
+			errorMsg := fmt.Sprintf("Harbor image check failed: %s", err.Error())
+			logrus.WithFields(logrus.Fields{
+				"algorithm": req.Name,
+				"image":     req.BuildSource.Harbor.Image,
+				"tag":       req.BuildSource.Harbor.Tag,
+				"error":     err.Error(),
+			}).Error(errorMsg)
+			dto.ErrorResponse(c, code, errorMsg)
 			return
 		}
 		sourcePath = ""
@@ -513,7 +521,14 @@ func CreateContainer(c *gin.Context) {
 	if req.BuildSource.Type == consts.BuildSourceTypeHarbor {
 		taskID, traceID, err := processHarborDirectUpdateV2(spanCtx, &req, userID.(int), isUpdate)
 		if err != nil {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to process harbor direct update")
+			errorMsg := fmt.Sprintf("Failed to process harbor direct update: %s", err.Error())
+			logrus.WithFields(logrus.Fields{
+				"algorithm": req.Name,
+				"image":     req.BuildSource.Harbor.Image,
+				"tag":       req.BuildSource.Harbor.Tag,
+				"error":     err.Error(),
+			}).Error(errorMsg)
+			dto.ErrorResponse(c, http.StatusInternalServerError, errorMsg)
 			return
 		}
 
@@ -521,6 +536,14 @@ func CreateContainer(c *gin.Context) {
 		if isUpdate {
 			message = "Container information updated successfully from Harbor (existing record was overwritten)"
 		}
+
+		logrus.WithFields(logrus.Fields{
+			"algorithm": req.Name,
+			"image":     req.BuildSource.Harbor.Image,
+			"tag":       req.BuildSource.Harbor.Tag,
+			"task_id":   taskID,
+			"trace_id":  traceID,
+		}).Info(message)
 
 		dto.JSONResponse(c, http.StatusOK,
 			message,
@@ -549,7 +572,14 @@ func CreateContainer(c *gin.Context) {
 
 	taskID, traceID, err := executor.SubmitTask(spanCtx, task)
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to submit container building task")
+		errorMsg := fmt.Sprintf("Failed to submit container building task: %s", err.Error())
+		logrus.WithFields(logrus.Fields{
+			"algorithm": req.Name,
+			"image":     req.Image,
+			"tag":       req.Tag,
+			"error":     err.Error(),
+		}).Error(errorMsg)
+		dto.ErrorResponse(c, http.StatusInternalServerError, errorMsg)
 		return
 	}
 
@@ -557,6 +587,14 @@ func CreateContainer(c *gin.Context) {
 	if isUpdate {
 		message = "Container building task submitted successfully (existing record will be overwritten)"
 	}
+
+	logrus.WithFields(logrus.Fields{
+		"algorithm": req.Name,
+		"image":     req.Image,
+		"tag":       req.Tag,
+		"task_id":   taskID,
+		"trace_id":  traceID,
+	}).Info(message)
 
 	dto.JSONResponse(c, http.StatusAccepted,
 		message,
@@ -697,7 +735,7 @@ func processGitHubSourceV2(req *dto.CreateContainerRequest) (int, string, error)
 	return 0, targetDir, nil
 }
 
-func processHarborSourceV2(req *dto.CreateContainerRequest, userID int) (int, error) {
+func processHarborSourceV2(req *dto.CreateContainerRequest) (int, error) {
 	harbor := req.BuildSource.Harbor
 
 	// Extract image name from full image path

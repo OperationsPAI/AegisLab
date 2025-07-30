@@ -5444,8 +5444,10 @@ paths:
     post:
       consumes:
       - multipart/form-data
-      description: Create a new container with build configuration. Containers are
-        associated with the authenticated user.
+      description: Create a new container with build configuration or update existing
+        one if it already exists. Containers are associated with the authenticated
+        user. If a container with the same name, type, image, and tag already exists,
+        it will be updated instead of creating a new one.
       parameters:
       - default: algorithm
         description: Container type
@@ -5545,8 +5547,12 @@ paths:
       produces:
       - application/json
       responses:
+        "200":
+          description: Container information updated successfully from Harbor
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SubmitResp'
         "202":
-          description: Container creation task submitted successfully
+          description: Container creation/update task submitted successfully
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_SubmitResp'
         "400":
@@ -5563,7 +5569,7 @@ paths:
             $ref: '#/definitions/dto.GenericResponse-any'
       security:
       - BearerAuth: []
-      summary: Create container
+      summary: Create or update container
       tags:
       - Containers
   /api/v2/containers/{id}:

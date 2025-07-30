@@ -2332,7 +2332,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a new container with build configuration. Containers are associated with the authenticated user.",
+                "description": "Create a new container with build configuration or update existing one if it already exists. Containers are associated with the authenticated user. If a container with the same name, type, image, and tag already exists, it will be updated instead of creating a new one.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -2342,7 +2342,7 @@ const docTemplate = `{
                 "tags": [
                     "Containers"
                 ],
-                "summary": "Create container",
+                "summary": "Create or update container",
                 "parameters": [
                     {
                         "enum": [
@@ -2479,8 +2479,14 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
+                    "200": {
+                        "description": "Container information updated successfully from Harbor",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
+                        }
+                    },
                     "202": {
-                        "description": "Container creation task submitted successfully",
+                        "description": "Container creation/update task submitted successfully",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
                         }
