@@ -462,3 +462,81 @@ func ToTaskV2Response(task *database.Task) *TaskV2Response {
 		UpdatedAt: task.UpdatedAt,
 	}
 }
+
+// InjectionV2CreateItem represents a single injection creation request
+type InjectionV2CreateItem struct {
+	TaskID        *string    `json:"task_id" binding:"omitempty"`
+	FaultType     int        `json:"fault_type" binding:"required"`
+	DisplayConfig string     `json:"display_config" binding:"required"`
+	EngineConfig  string     `json:"engine_config" binding:"required"`
+	PreDuration   int        `json:"pre_duration" binding:"required,min=0"`
+	StartTime     *time.Time `json:"start_time" binding:"omitempty"`
+	EndTime       *time.Time `json:"end_time" binding:"omitempty"`
+	Status        int        `json:"status" binding:"omitempty"`
+	Description   string     `json:"description" binding:"omitempty"`
+	Benchmark     string     `json:"benchmark" binding:"required"`
+	InjectionName string     `json:"injection_name" binding:"required"`
+}
+
+// InjectionV2CreateReq represents the batch creation request for injections
+type InjectionV2CreateReq struct {
+	Injections []InjectionV2CreateItem `json:"injections" binding:"required,min=1,max=100"`
+}
+
+// Validate validates the injection creation request
+func (req *InjectionV2CreateReq) Validate() error {
+	if len(req.Injections) == 0 {
+		return fmt.Errorf("at least one injection must be provided")
+	}
+
+	if len(req.Injections) > 100 {
+		return fmt.Errorf("cannot create more than 100 injections at once")
+	}
+
+	for i, injection := range req.Injections {
+		if injection.InjectionName == "" {
+			return fmt.Errorf("injection_name is required for injection %d", i+1)
+		}
+
+		if injection.Benchmark == "" {
+			return fmt.Errorf("benchmark is required for injection %d", i+1)
+		}
+
+		if injection.DisplayConfig == "" {
+			return fmt.Errorf("display_config is required for injection %d", i+1)
+		}
+
+		if injection.EngineConfig == "" {
+			return fmt.Errorf("engine_config is required for injection %d", i+1)
+		}
+
+		if injection.PreDuration < 0 {
+			return fmt.Errorf("pre_duration must be non-negative for injection %d", i+1)
+		}
+
+		// Validate time range if both start and end time are provided
+		if injection.StartTime != nil && injection.EndTime != nil {
+			if injection.EndTime.Before(*injection.StartTime) {
+				return fmt.Errorf("end_time must be after start_time for injection %d", i+1)
+			}
+		}
+	}
+
+	return nil
+}
+
+// InjectionV2CreateResponse represents the response for batch injection creation
+type InjectionV2CreateResponse struct {
+	CreatedCount int                    `json:"created_count"`
+	CreatedItems []InjectionV2Response  `json:"created_items"`
+	FailedCount  int                    `json:"failed_count,omitempty"`
+	FailedItems  []InjectionCreateError `json:"failed_items,omitempty"`
+	Message      string                 `json:"message"`
+}
+
+// InjectionCreateError represents an error during injection creation
+type InjectionCreateError struct {
+	Index int                   `json:"index"`
+	Error string                `json:"error"`
+	Item  InjectionV2CreateItem `json:"item"`
+}

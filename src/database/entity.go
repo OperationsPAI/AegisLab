@@ -74,7 +74,7 @@ type Container struct {
 
 type ExecutionResult struct {
 	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`                                       // Unique identifier
-	TaskID      string    `gorm:"index:idx_exec_task_status;index:idx_exec_task_algo" json:"task_id"`       // Associated task ID, add composite index
+	TaskID      *string   `gorm:"index:idx_exec_task_status;index:idx_exec_task_algo" json:"task_id"`       // Associated task ID, add composite index
 	AlgorithmID int       `gorm:"index:idx_exec_task_algo;index:idx_exec_algo_dataset" json:"container_id"` // Algorithm used, add composite index
 	DatapackID  int       `gorm:"index:idx_exec_algo_dataset" json:"datapack_id"`                           // Data package identifier, add composite index
 	Status      int       `gorm:"default:0;index:idx_exec_task_status" json:"status"`                       // Status, add composite index
@@ -343,4 +343,28 @@ type UserPermission struct {
 	User       *User       `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	Permission *Permission `gorm:"foreignKey:PermissionID" json:"permission,omitempty"`
 	Project    *Project    `gorm:"foreignKey:ProjectID" json:"project,omitempty"`
+}
+
+// ExecutionResultLabel Many-to-many relationship table between ExecutionResult and Label
+type ExecutionResultLabel struct {
+	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`                                               // Unique identifier
+	ExecutionID int       `gorm:"index:idx_exec_label_exec;index:idx_exec_label_unique,unique" json:"execution_id"` // Execution result ID
+	LabelID     int       `gorm:"index:idx_exec_label_label;index:idx_exec_label_unique,unique" json:"label_id"`    // Label ID
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`                                                 // Creation time
+
+	// Foreign key associations
+	ExecutionResult *ExecutionResult `gorm:"foreignKey:ExecutionID" json:"execution_result,omitempty"` // Associated execution result
+	Label           *Label           `gorm:"foreignKey:LabelID" json:"label,omitempty"`                // Associated label
+}
+
+// InjectionLabel Many-to-many relationship table between FaultInjectionSchedule and Label
+type InjectionLabel struct {
+	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`                                                              // Unique identifier
+	InjectionID int       `gorm:"index:idx_injection_label_injection;index:idx_injection_label_unique,unique" json:"injection_id"` // Injection ID
+	LabelID     int       `gorm:"index:idx_injection_label_label;index:idx_injection_label_unique,unique" json:"label_id"`         // Label ID
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`                                                                // Creation time
+
+	// Foreign key associations
+	Injection *FaultInjectionSchedule `gorm:"foreignKey:InjectionID" json:"injection,omitempty"` // Associated injection
+	Label     *Label                  `gorm:"foreignKey:LabelID" json:"label,omitempty"`         // Associated label
 }

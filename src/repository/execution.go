@@ -15,14 +15,35 @@ import (
 )
 
 func CreateExecutionResult(taskID string, algorithmID, datapackID int) (int, error) {
+	var taskIDPtr *string
+	if taskID != "" {
+		taskIDPtr = &taskID
+	}
+
 	executionResult := database.ExecutionResult{
-		TaskID:      taskID,
+		TaskID:      taskIDPtr,
 		AlgorithmID: algorithmID,
 		DatapackID:  datapackID,
 		Status:      consts.ExecutionInitial,
 	}
 	if err := database.DB.Create(&executionResult).Error; err != nil {
 		return 0, err
+	}
+
+	// Add label to indicate the source of this execution result
+	var labelValue, labelDescription string
+	if taskIDPtr != nil {
+		// TaskID is provided, this is system-managed
+		labelValue = consts.ExecutionSourceSystem
+		labelDescription = "System-managed execution result created by RCABench"
+	} else {
+		// TaskID is null, this is manual upload
+		labelValue = consts.ExecutionSourceManual
+		labelDescription = "Manual execution result created via API"
+	}
+
+	if err := AddExecutionResultLabel(executionResult.ID, consts.ExecutionLabelSource, labelValue, labelDescription); err != nil {
+		fmt.Printf("Warning: Failed to create execution result label: %v\n", err)
 	}
 
 	return executionResult.ID, nil
@@ -416,4 +437,111 @@ func GetRecentExecutionActivity(days int) (map[string]int64, error) {
 	stats["today"] = todayCount
 
 	return stats, nil
+}
+
+// CreateOrGetLabel creates a new label or gets existing one
+func CreateOrGetLabel(key, value, category, description string) (*database.Label, error) {
+	var label database.Label
+
+	// Use FirstOrCreate to handle both cases: find existing or create new
+	result := database.DB.Where(database.Label{
+		Key:      key,
+		Value:    value,
+		Category: category,
+	}).FirstOrCreate(&label, database.Label{
+		Key:         key,
+		Value:       value,
+		Category:    category,
+		Description: description,
+		Color:       "#1890ff", // Default color
+		IsSystem:    true,      // System-generated labels
+		Usage:       1,
+	})
+
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to create or get label: %v", result.Error)
+	}
+
+	// If label already existed, increment usage count
+	if result.RowsAffected == 0 {
+		// Label existed, increment usage count
+		database.DB.Model(&label).UpdateColumn("usage", gorm.Expr("usage + ?", 1))
+	}
+
+	return &label, nil
+}
+
+// AddExecutionResultLabel adds a label to an execution result
+func AddExecutionResultLabel(executionID int, labelKey, labelValue, description string) error {
+	// Create or get the label
+	label, err := CreateOrGetLabel(labelKey, labelValue, "execution", description)
+	if err != nil {
+		return fmt.Errorf("failed to create or get label: %v", err)
+	}
+
+	// Check if relationship already exists
+	var existingRelation database.ExecutionResultLabel
+	err = database.DB.Where("execution_id = ? AND label_id = ?", executionID, label.ID).First(&existingRelation).Error
+	if err == nil {
+		// Relationship already exists
+		return nil
+	}
+
+	// Create the relationship
+	relation := database.ExecutionResultLabel{
+		ExecutionID: executionID,
+		LabelID:     label.ID,
+	}
+
+	return database.DB.Create(&relation).Error
+}
+
+// GetExecutionResultLabels retrieves all labels for an execution result
+func GetExecutionResultLabels(executionID int) ([]database.Label, error) {
+	var labels []database.Label
+	err := database.DB.
+		Joins("JOIN execution_result_labels ON execution_result_labels.label_id = labels.id").
+		Where("execution_result_labels.execution_id = ?", executionID).
+		Find(&labels).Error
+	return labels, err
+}
+
+// RemoveExecutionResultLabel removes a specific label from an execution result
+func RemoveExecutionResultLabel(executionID int, labelKey, labelValue string) error {
+	// Find the label
+	var label database.Label
+	err := database.DB.Where("key = ? AND value = ?", labelKey, labelValue).First(&label).Error
+	if err != nil {
+		return fmt.Errorf("label not found: %v", err)
+	}
+
+	// Remove the relationship
+	return database.DB.Where("execution_id = ? AND label_id = ?", executionID, label.ID).Delete(&database.ExecutionResultLabel{}).Error
+}
+
+// InitializeExecutionLabels initializes system labels for execution results
+func InitializeExecutionLabels() error {
+	// Initialize source labels
+	sourceLabels := []struct {
+		value       string
+		description string
+	}{
+		{consts.ExecutionSourceManual, "User manually uploaded execution result via API"},
+		{consts.ExecutionSourceSystem, "System-managed execution result created by RCABench"},
+	}
+
+	for _, labelInfo := range sourceLabels {
+		_, err := CreateOrGetLabel(
+			consts.ExecutionLabelSource,
+			labelInfo.value,
+			"execution",
+			labelInfo.description,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to initialize execution label %s=%s: %v",
+				consts.ExecutionLabelSource, labelInfo.value, err)
+		}
+	}
+
+	return nil
 }

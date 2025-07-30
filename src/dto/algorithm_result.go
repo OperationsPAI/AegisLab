@@ -36,7 +36,7 @@ type GranularityResultItem struct {
 	Level      string  `json:"level" binding:"required"`
 	Result     string  `json:"result" binding:"required"`
 	Rank       int     `json:"rank" binding:"required,min=1"`
-	Confidence float64 `json:"confidence" binding:"required,min=0,max=1"`
+	Confidence float64 `json:"confidence" binding:"omitempty,min=0,max=1"`
 }
 
 // AlgorithmResultUploadResponse Algorithm result upload response
@@ -100,7 +100,7 @@ func (req *GranularityResultRequest) Validate() error {
 		if result.Rank <= 0 {
 			return fmt.Errorf("rank must be greater than 0 for result %d", i+1)
 		}
-		if result.Confidence < 0 || result.Confidence > 1 {
+		if result.Confidence != 0 && (result.Confidence < 0 || result.Confidence > 1) {
 			return fmt.Errorf("confidence must be between 0-1 for result %d", i+1)
 		}
 
@@ -147,7 +147,7 @@ func (req *GranularityResultEnhancedRequest) Validate() error {
 		if result.Rank <= 0 {
 			return fmt.Errorf("rank must be greater than 0 for result %d", i+1)
 		}
-		if result.Confidence < 0 || result.Confidence > 1 {
+		if result.Confidence != 0 && (result.Confidence < 0 || result.Confidence > 1) {
 			return fmt.Errorf("confidence must be between 0-1 for result %d", i+1)
 		}
 

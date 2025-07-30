@@ -1,6 +1,7 @@
 package v2
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -73,6 +74,81 @@ func GetInjection(c *gin.Context) {
 	}
 
 	response := dto.ToInjectionV2Response(&injection, includeTask)
+	dto.SuccessResponse(c, response)
+}
+
+// CreateInjection
+//
+//	@Summary Create injections
+//	@Description Create one or multiple injection records with automatic labeling based on task_id
+//	@Tags Injections
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param injections body dto.InjectionV2CreateReq true "Injection creation request"
+//	@Success 200 {object} dto.GenericResponse[dto.InjectionV2CreateResponse] "Injections created successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/injections [post]
+func CreateInjection(c *gin.Context) {
+	// Check permission
+	userID, exists := c.Get("user_id")
+	if !exists {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	checker := repository.NewPermissionChecker(userID.(int), nil)
+	canWrite, err := checker.CanWriteResource(consts.ResourceFaultInjection)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
+		return
+	}
+	if !canWrite {
+		dto.ErrorResponse(c, http.StatusForbidden, "No permission to create injections")
+		return
+	}
+
+	var req dto.InjectionV2CreateReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		return
+	}
+
+	// Validate request
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
+		return
+	}
+
+	// Create injections
+	createdInjections, failedItems, err := repository.CreateInjectionsV2(req.Injections)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to create injections: "+err.Error())
+		return
+	}
+
+	// Convert to response DTOs
+	createdItems := make([]dto.InjectionV2Response, len(createdInjections))
+	for i, injection := range createdInjections {
+		createdItems[i] = *dto.ToInjectionV2Response(&injection, false)
+	}
+
+	// Build response message
+	message := fmt.Sprintf("Successfully created %d injection(s)", len(createdInjections))
+	if len(failedItems) > 0 {
+		message += fmt.Sprintf(", %d failed", len(failedItems))
+	}
+
+	response := dto.InjectionV2CreateResponse{
+		CreatedCount: len(createdInjections),
+		CreatedItems: createdItems,
+		FailedCount:  len(failedItems),
+		FailedItems:  failedItems,
+		Message:      message,
+	}
+
 	dto.SuccessResponse(c, response)
 }
 

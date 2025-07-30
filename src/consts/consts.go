@@ -27,11 +27,18 @@ type ActionName string
 
 // System permission action constants
 const (
-	ActionRead    ActionName = "read"    // read permission
-	ActionWrite   ActionName = "write"   // write permission
-	ActionDelete  ActionName = "delete"  // delete permission
-	ActionExecute ActionName = "execute" // execute permission
-	ActionManage  ActionName = "manage"  // manage permission
+	ActionRead    ActionName = "read"    // read action
+	ActionWrite   ActionName = "write"   // write action
+	ActionDelete  ActionName = "delete"  // delete action
+	ActionExecute ActionName = "execute" // execute action
+	ActionManage  ActionName = "manage"  // manage action
+
+	// Execution result label keys
+	ExecutionLabelSource = "source"
+
+	// Execution result label values
+	ExecutionSourceManual = "manual" // User manually uploaded
+	ExecutionSourceSystem = "system" // RCABench internally managed
 )
 
 // String returns the string representation of the action name
