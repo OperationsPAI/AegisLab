@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/LGU-SE-Internal/rcabench/client"
 	"github.com/LGU-SE-Internal/rcabench/consts"
@@ -16,10 +17,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
-	"gorm.io/gorm"
 )
 
 // GetTask handles getting a single task by ID
+//
 //	@Summary Get task by ID
 //	@Description Get detailed information about a specific task including logs
 //	@Tags Tasks
@@ -60,7 +61,7 @@ func GetTask(c *gin.Context) {
 
 	taskItem, err := repository.FindTaskItemByID(taskID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if strings.Contains(err.Error(), "not found") {
 			message := "Task not found"
 			logEntry.Errorf("%s: %v", message, err)
 			dto.ErrorResponse(c, http.StatusNotFound, message)
@@ -98,6 +99,7 @@ func GetTask(c *gin.Context) {
 }
 
 // ListTasks handles simple task listing
+//
 //	@Summary List tasks
 //	@Description Get a simple list of tasks with basic filtering via query parameters
 //	@Tags Tasks
@@ -228,6 +230,7 @@ func ListTasks(c *gin.Context) {
 }
 
 // SearchTasks handles complex task search with advanced filtering
+//
 //	@Summary Search tasks
 //	@Description Search tasks with complex filtering, sorting and pagination
 //	@Tags Tasks
@@ -325,6 +328,7 @@ func SearchTasks(c *gin.Context) {
 }
 
 // GetQueuedTasks handles getting tasks in queue with pagination
+//
 //	@Summary Get queued tasks
 //	@Description Get tasks in queue (ready and delayed) with pagination and filtering
 //	@Tags Tasks

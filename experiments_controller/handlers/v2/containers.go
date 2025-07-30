@@ -274,7 +274,7 @@ func GetContainer(c *gin.Context) {
 
 	var container database.Container
 	if err := database.DB.First(&container, id).Error; err != nil {
-		if err.Error() == "record not found" {
+		if strings.Contains(err.Error(), "not found") {
 			dto.ErrorResponse(c, http.StatusNotFound, "Container not found")
 		} else {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get container: "+err.Error())
@@ -831,4 +831,182 @@ func processHarborDirectUpdateV2(ctx context.Context, req *dto.CreateContainerRe
 	}
 
 	return taskID, traceID, nil
+}
+
+// UpdateContainer handles container updates
+//
+//	@Summary Update container
+//	@Description Update an existing container's information
+//	@Tags Containers
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param id path int true "Container ID"
+//	@Param request body dto.UpdateContainerRequest true "Container update request"
+//	@Success 200 {object} dto.GenericResponse[dto.ContainerResponse] "Container updated successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 404 {object} dto.GenericResponse[any] "Container not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/containers/{id} [put]
+func UpdateContainer(c *gin.Context) {
+	// Check authentication
+	userID, exists := c.Get("user_id")
+	if !exists {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	// Check permission
+	checker := repository.NewPermissionChecker(userID.(int), nil)
+	canUpdate, err := checker.CanWriteResource(consts.ResourceContainer)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
+		return
+	}
+	if !canUpdate {
+		dto.ErrorResponse(c, http.StatusForbidden, "No permission to update containers")
+		return
+	}
+
+	// Parse container ID
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container ID")
+		return
+	}
+
+	// Get existing container
+	var container database.Container
+	if err := database.DB.First(&container, id).Error; err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			dto.ErrorResponse(c, http.StatusNotFound, "Container not found")
+		} else {
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get container: "+err.Error())
+		}
+		return
+	}
+
+	// Parse request body
+	var req dto.UpdateContainerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	// Update fields if provided
+	if req.Name != nil {
+		container.Name = *req.Name
+	}
+	if req.Type != nil {
+		container.Type = string(*req.Type)
+	}
+	if req.Image != nil {
+		container.Image = *req.Image
+	}
+	if req.Tag != nil {
+		container.Tag = *req.Tag
+	}
+	if req.Command != nil {
+		container.Command = *req.Command
+	}
+	if req.EnvVars != nil {
+		container.EnvVars = *req.EnvVars
+	}
+	if req.IsPublic != nil {
+		container.IsPublic = *req.IsPublic
+	}
+	if req.Status != nil {
+		container.Status = *req.Status
+	}
+
+	// Save updated container
+	if err := database.DB.Save(&container).Error; err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to update container: "+err.Error())
+		return
+	}
+
+	// Build response
+	response := dto.ContainerResponse{
+		ID:        container.ID,
+		Name:      container.Name,
+		Type:      container.Type,
+		Image:     container.Image,
+		Tag:       container.Tag,
+		Command:   container.Command,
+		EnvVars:   container.EnvVars,
+		UserID:    container.UserID,
+		IsPublic:  container.IsPublic,
+		Status:    container.Status,
+		CreatedAt: container.CreatedAt,
+		UpdatedAt: container.UpdatedAt,
+	}
+
+	dto.SuccessResponse(c, response)
+}
+
+// DeleteContainer handles container deletion
+//
+//	@Summary Delete container
+//	@Description Delete a container (soft delete by setting status to false)
+//	@Tags Containers
+//	@Produce json
+//	@Security BearerAuth
+//	@Param id path int true "Container ID"
+//	@Success 200 {object} dto.GenericResponse[any] "Container deleted successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid container ID"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 404 {object} dto.GenericResponse[any] "Container not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/containers/{id} [delete]
+func DeleteContainer(c *gin.Context) {
+	// Check authentication
+	userID, exists := c.Get("user_id")
+	if !exists {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	// Check permission
+	checker := repository.NewPermissionChecker(userID.(int), nil)
+	canDelete, err := checker.CanDeleteResource(consts.ResourceContainer)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
+		return
+	}
+	if !canDelete {
+		dto.ErrorResponse(c, http.StatusForbidden, "No permission to delete containers")
+		return
+	}
+
+	// Parse container ID
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container ID")
+		return
+	}
+
+	// Get existing container
+	var container database.Container
+	if err := database.DB.First(&container, id).Error; err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			dto.ErrorResponse(c, http.StatusNotFound, "Container not found")
+		} else {
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get container: "+err.Error())
+		}
+		return
+	}
+
+	// Soft delete by setting status to false
+	container.Status = false
+	container.UpdatedAt = time.Now()
+
+	if err := database.DB.Save(&container).Error; err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to delete container: "+err.Error())
+		return
+	}
+
+	dto.SuccessResponse(c, gin.H{"message": "Container deleted successfully"})
 }

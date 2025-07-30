@@ -386,3 +386,53 @@ func (req *CreateContainerRequest) ValidateInfoContent(sourcePath string) (int, 
 
 	return http.StatusOK, nil
 }
+
+// UpdateContainerRequest represents the request for updating a container
+// @Description Request structure for updating container information
+type UpdateContainerRequest struct {
+	// @Description Container name (optional)
+	Name *string `json:"name" binding:"omitempty"`
+	// @Description Container type (optional)
+	Type *consts.ContainerType `json:"type" binding:"omitempty,oneof=algorithm benchmark" swaggertype:"string"`
+	// @Description Docker image name (optional)
+	Image *string `json:"image" binding:"omitempty"`
+	// @Description Docker image tag (optional)
+	Tag *string `json:"tag" binding:"omitempty"`
+	// @Description Container startup command (optional)
+	Command *string `json:"command" binding:"omitempty"`
+	// @Description Environment variables (optional)
+	EnvVars *string `json:"env_vars" binding:"omitempty"`
+	// @Description Whether the container is public (optional)
+	IsPublic *bool `json:"is_public" binding:"omitempty"`
+	// @Description Container status (optional)
+	Status *bool `json:"status" binding:"omitempty"`
+}
+
+func (req *UpdateContainerRequest) Validate() error {
+	if req.Name != nil && *req.Name == "" {
+		return fmt.Errorf("container name cannot be empty")
+	}
+
+	if req.Type != nil {
+		if _, exists := ValidContainerTypes[*req.Type]; !exists {
+			return fmt.Errorf("invalid container type: %s", *req.Type)
+		}
+	}
+
+	if req.Image != nil {
+		if *req.Image == "" {
+			return fmt.Errorf("docker image cannot be empty")
+		}
+		if len(*req.Image) > 255 {
+			return fmt.Errorf("image name %s too long (max 255 characters)", *req.Image)
+		}
+	}
+
+	if req.Tag != nil && *req.Tag != "" {
+		if err := utils.IsValidDockerTag(*req.Tag); err != nil {
+			return fmt.Errorf("invalid docker tag: %s, %v", *req.Tag, err)
+		}
+	}
+
+	return nil
+}
