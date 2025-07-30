@@ -84,7 +84,6 @@ jobs:
       - name: Setup SDK configuration
         run: |
 
-          ./scripts/fix-generated-sdk.sh
           ./scripts/mv-generated-sdk.sh
 
           cd sdk/python
