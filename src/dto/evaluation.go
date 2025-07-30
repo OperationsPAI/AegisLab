@@ -2,23 +2,26 @@ package dto
 
 import (
 	"fmt"
-	"time"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"github.com/LGU-SE-Internal/rcabench/config"
 )
 
+// GroundTruthReq represents ground truth request
 type GroundTruthReq struct {
 	Datasets []string `json:"datasets" binding:"required"`
 }
 
+// GroundTruthResp represents ground truth response
 type GroundTruthResp map[string]chaos.Groundtruth
 
+// AlgorithmDatasetPair represents algorithm and dataset pair
 type AlgorithmDatasetPair struct {
 	Algorithm string
 	Dataset   string
 }
 
+// RawDataReq represents raw data request
 type RawDataReq struct {
 	Pairs        []AlgorithmDatasetPair `json:"pairs" binding:"omitempty"`
 	ExecutionIDs []int                  `json:"execution_ids" binding:"omitempty"`
@@ -78,6 +81,7 @@ func (req *RawDataReq) Validate() error {
 	return req.TimeRangeQuery.Validate()
 }
 
+// RawDataItem represents raw data item
 type RawDataItem struct {
 	Algorithm   string              `json:"algorithm"`
 	Dataset     string              `json:"dataset"`
@@ -86,33 +90,21 @@ type RawDataItem struct {
 	Entries     []GranularityRecord `json:"entries,omitempty"`
 }
 
+// RawDataResp represents raw data response
 type RawDataResp []RawDataItem
 
+// Execution represents execution data for evaluation
 type Execution struct {
 	Dataset            DatasetItem         `json:"dataset"`
 	GranularityRecords []GranularityRecord `json:"granularity_records"`
 }
 
+// Conclusion represents evaluation conclusion
 type Conclusion struct {
 	Level  string  `json:"level"`  // 例如 service level
 	Metric string  `json:"metric"` // 例如 topk
 	Rate   float64 `json:"rate"`
 }
 
+// EvaluateMetric represents evaluation metric function type
 type EvaluateMetric func([]Execution) ([]Conclusion, error)
-
-type SuccessfulExecutionItem struct {
-	ID        int       `json:"id"`         // 执行ID
-	Algorithm string    `json:"algorithm"`  // 算法名称
-	Dataset   string    `json:"dataset"`    // 数据集名称
-	CreatedAt time.Time `json:"created_at"` // 创建时间
-}
-
-type SuccessfulExecutionsResp []SuccessfulExecutionItem
-
-type SuccessfulExecutionsReq struct {
-	StartTime *time.Time `json:"start_time" form:"start_time"`
-	EndTime   *time.Time `json:"end_time" form:"end_time"`
-	Limit     *int       `json:"limit" form:"limit"`
-	Offset    *int       `json:"offset" form:"offset"`
-}

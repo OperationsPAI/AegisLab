@@ -75,23 +75,6 @@ func ErrorResponse(c *gin.Context, code int, message string) {
 	})
 }
 
-// TaskResponse represents task response for v2 API
-type TaskResponse struct {
-	ID        string    `json:"id"`
-	Type      string    `json:"type"`
-	Status    string    `json:"status"`
-	TraceID   string    `json:"trace_id"`
-	GroupID   string    `json:"group_id,omitempty"`
-	ProjectID int       `json:"project_id"`
-	Immediate bool      `json:"immediate"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Logs      []string  `json:"logs,omitempty"` // Only included when specifically requested
-
-	// Related entities (only included when specifically requested)
-	Project *ProjectResponse `json:"project,omitempty"`
-}
-
 // AlgorithmResponse represents algorithm response for v2 API
 type AlgorithmResponse struct {
 	ID        int       `json:"id"`
@@ -106,6 +89,23 @@ type AlgorithmResponse struct {
 	Status    bool      `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+
+	// Related entities (only included when specifically requested)
+	Project *ProjectResponse `json:"project,omitempty"`
+}
+
+// TaskResponse represents task response for v2 API
+type TaskResponse struct {
+	ID        string    `json:"id"`
+	Type      string    `json:"type"`
+	Status    string    `json:"status"`
+	TraceID   string    `json:"trace_id"`
+	GroupID   string    `json:"group_id,omitempty"`
+	ProjectID int       `json:"project_id"`
+	Immediate bool      `json:"immediate"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Logs      []string  `json:"logs,omitempty"` // Only included when specifically requested
 
 	// Related entities (only included when specifically requested)
 	Project *ProjectResponse `json:"project,omitempty"`

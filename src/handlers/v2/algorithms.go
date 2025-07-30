@@ -205,6 +205,297 @@ func ListAlgorithms(c *gin.Context) {
 	dto.SuccessResponse(c, response)
 }
 
+// UploadDetectorResults uploads detector algorithm results
+//
+//	@Summary Upload detector algorithm results
+//	@Description Upload detection results for detector algorithms via API instead of file collection
+//	@Tags Algorithms
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param algorithm_id path int true "Algorithm ID"
+//	@Param execution_id path int true "Execution ID"
+//	@Param request body dto.DetectorResultRequest true "Detector results"
+//	@Success 200 {object} dto.GenericResponse[dto.AlgorithmResultUploadResponse] "Results uploaded successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 404 {object} dto.GenericResponse[any] "Algorithm or execution not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/algorithms/{algorithm_id}/executions/{execution_id}/detectors [post]
+func UploadDetectorResults(c *gin.Context) {
+	// Parse path parameters
+	algorithmID, err := parseIntParam(c.Param("algorithm_id"))
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid algorithm ID: "+err.Error())
+		return
+	}
+
+	executionID, err := parseIntParam(c.Param("execution_id"))
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid execution ID: "+err.Error())
+		return
+	}
+
+	// Check permissions
+	userID, exists := c.Get("user_id")
+	if !exists {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	checker := repository.NewPermissionChecker(userID.(int), nil)
+	canWrite, err := checker.CanWriteResource(consts.ResourceContainer)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
+		return
+	}
+
+	if !canWrite {
+		dto.ErrorResponse(c, http.StatusForbidden, "No permission to upload algorithm results")
+		return
+	}
+
+	// Parse request body
+	var req dto.DetectorResultRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	// Validate request data
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Data validation failed: "+err.Error())
+		return
+	}
+
+	// Verify algorithm and execution record exist
+	var algorithm database.Container
+	if err := database.DB.Where("id = ? AND type = ?", algorithmID, consts.ContainerTypeAlgorithm).First(&algorithm).Error; err != nil {
+		dto.ErrorResponse(c, http.StatusNotFound, "Algorithm not found")
+		return
+	}
+
+	var execution database.ExecutionResult
+	if err := database.DB.Where("id = ? AND algorithm_id = ?", executionID, algorithmID).First(&execution).Error; err != nil {
+		dto.ErrorResponse(c, http.StatusNotFound, "Execution record not found")
+		return
+	}
+
+	// Check if results already exist
+	var existingCount int64
+	database.DB.Model(&database.Detector{}).Where("execution_id = ?", executionID).Count(&existingCount)
+	if existingCount > 0 {
+		dto.ErrorResponse(c, http.StatusConflict, "Detector results already exist for this execution")
+		return
+	}
+
+	// Convert to database entities
+	var detectorResults []database.Detector
+	for _, item := range req.Results {
+		detectorResult := database.Detector{
+			ExecutionID:         executionID,
+			SpanName:            item.SpanName,
+			Issues:              item.Issues,
+			AbnormalAvgDuration: item.AbnormalAvgDuration,
+			NormalAvgDuration:   item.NormalAvgDuration,
+			AbnormalSuccRate:    item.AbnormalSuccRate,
+			NormalSuccRate:      item.NormalSuccRate,
+			AbnormalP90:         item.AbnormalP90,
+			NormalP90:           item.NormalP90,
+			AbnormalP95:         item.AbnormalP95,
+			NormalP95:           item.NormalP95,
+			AbnormalP99:         item.AbnormalP99,
+			NormalP99:           item.NormalP99,
+		}
+		detectorResults = append(detectorResults, detectorResult)
+	}
+
+	// Save to database
+	if err := database.DB.Create(&detectorResults).Error; err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to save detector results: "+err.Error())
+		return
+	}
+
+	// Check for anomalies
+	hasAnomalies := req.HasAnomalies()
+
+	// Build response
+	response := dto.AlgorithmResultUploadResponse{
+		ExecutionID:  executionID,
+		AlgorithmID:  algorithmID,
+		ResultCount:  len(detectorResults),
+		UploadedAt:   detectorResults[0].CreatedAt,
+		HasAnomalies: hasAnomalies,
+		Message:      fmt.Sprintf("Successfully uploaded %d detector results", len(detectorResults)),
+	}
+
+	dto.SuccessResponse(c, response)
+}
+
+// UploadGranularityResults uploads granularity algorithm results with dual creation modes
+//
+//	@Summary Upload granularity algorithm results
+//	@Description Upload granularity results for regular algorithms. Supports two modes: 1) Use existing execution_id, 2) Auto-create execution using algorithm_id and datapack_id
+//	@Tags Algorithms
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param algorithm_id path int true "Algorithm ID"
+//	@Param execution_id path int false "Execution ID (optional - will create new if not provided)"
+//	@Param request body dto.GranularityResultEnhancedRequest true "Granularity results with optional execution creation"
+//	@Success 200 {object} dto.GenericResponse[dto.AlgorithmResultUploadResponse] "Results uploaded successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 404 {object} dto.GenericResponse[any] "Algorithm or datapack not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/algorithms/{algorithm_id}/results [post]
+//	@Router /api/v2/algorithms/{algorithm_id}/executions/{execution_id}/results [post]
+func UploadGranularityResults(c *gin.Context) {
+	// Parse algorithm_id parameter
+	algorithmID, err := parseIntParam(c.Param("algorithm_id"))
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid algorithm ID: "+err.Error())
+		return
+	}
+
+	// Parse optional execution_id parameter
+	var executionID int
+	executionIDParam := c.Param("execution_id")
+	hasExecutionID := executionIDParam != ""
+
+	if hasExecutionID {
+		executionID, err = parseIntParam(executionIDParam)
+		if err != nil {
+			dto.ErrorResponse(c, http.StatusBadRequest, "Invalid execution ID: "+err.Error())
+			return
+		}
+	}
+
+	// Check permissions
+	userID, exists := c.Get("user_id")
+	if !exists {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	checker := repository.NewPermissionChecker(userID.(int), nil)
+	canWrite, err := checker.CanWriteResource(consts.ResourceContainer)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
+		return
+	}
+
+	if !canWrite {
+		dto.ErrorResponse(c, http.StatusForbidden, "No permission to upload algorithm results")
+		return
+	}
+
+	// Parse request body
+	var req dto.GranularityResultEnhancedRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	// Validate request data
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Data validation failed: "+err.Error())
+		return
+	}
+
+	// Verify algorithm exists
+	var algorithm database.Container
+	if err := database.DB.Where("id = ? AND type = ?", algorithmID, consts.ContainerTypeAlgorithm).First(&algorithm).Error; err != nil {
+		dto.ErrorResponse(c, http.StatusNotFound, "Algorithm not found")
+		return
+	}
+
+	var execution database.ExecutionResult
+	var isNewExecution bool
+
+	if hasExecutionID {
+		// Use existing execution
+		if err := database.DB.Where("id = ? AND algorithm_id = ?", executionID, algorithmID).First(&execution).Error; err != nil {
+			dto.ErrorResponse(c, http.StatusNotFound, "Execution record not found")
+			return
+		}
+	} else {
+		// Create new execution record
+		if req.DatapackID == 0 {
+			dto.ErrorResponse(c, http.StatusBadRequest, "datapack_id is required when execution_id is not provided")
+			return
+		}
+
+		// Verify datapack exists (datapack is actually a FaultInjectionSchedule)
+		var datapack database.FaultInjectionSchedule
+		if err := database.DB.Where("id = ?", req.DatapackID).First(&datapack).Error; err != nil {
+			dto.ErrorResponse(c, http.StatusNotFound, "Datapack not found")
+			return
+		}
+
+		// Create new execution record
+		execution = database.ExecutionResult{
+			AlgorithmID: algorithmID,
+			DatapackID:  req.DatapackID,
+			Status:      1,
+		}
+
+		if err := database.DB.Create(&execution).Error; err != nil {
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to create execution record: "+err.Error())
+			return
+		}
+
+		executionID = execution.ID
+		isNewExecution = true
+	}
+
+	// Check if results already exist (only if using existing execution)
+	if !isNewExecution {
+		var existingCount int64
+		database.DB.Model(&database.GranularityResult{}).Where("execution_id = ?", executionID).Count(&existingCount)
+		if existingCount > 0 {
+			dto.ErrorResponse(c, http.StatusConflict, "Granularity results already exist for this execution")
+			return
+		}
+	}
+
+	// Convert to database entities
+	var granularityResults []database.GranularityResult
+	for _, item := range req.Results {
+		granularityResult := database.GranularityResult{
+			ExecutionID: executionID,
+			Level:       item.Level,
+			Result:      item.Result,
+			Rank:        item.Rank,
+			Confidence:  item.Confidence,
+		}
+		granularityResults = append(granularityResults, granularityResult)
+	}
+
+	// Save to database
+	if err := database.DB.Create(&granularityResults).Error; err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to save granularity results: "+err.Error())
+		return
+	}
+
+	// Build response message
+	message := fmt.Sprintf("Successfully uploaded %d granularity results", len(granularityResults))
+	if isNewExecution {
+		message += fmt.Sprintf(" (created new execution record with ID: %d)", executionID)
+	}
+
+	// Build response
+	response := dto.AlgorithmResultUploadResponse{
+		ExecutionID: executionID,
+		AlgorithmID: algorithmID,
+		ResultCount: len(granularityResults),
+		UploadedAt:  granularityResults[0].CreatedAt,
+		Message:     message,
+	}
+
+	dto.SuccessResponse(c, response)
+}
+
 // Helper function to parse integer parameters
 func parseIntParam(s string) (int, error) {
 	var result int

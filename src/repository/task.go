@@ -481,12 +481,12 @@ func ListTasks(params *dto.ListTasksReq) (int64, []database.Task, error) {
 		return query
 	}
 
-	genericQueryParams := &genericQueryParams{
-		builder:   builder,
-		sortField: fmt.Sprintf("%s %s", params.SortField, params.SortOrder),
-		limit:     params.Limit,
+	genericQueryParams := &GenericQueryParams{
+		Builder:   builder,
+		SortField: fmt.Sprintf("%s %s", params.SortField, params.SortOrder),
+		Limit:     params.Limit,
 	}
-	return genericQueryWithBuilder[database.Task](genericQueryParams)
+	return GenericQueryWithBuilder[database.Task](genericQueryParams)
 }
 
 // GetTaskStatistics returns statistics about tasks
