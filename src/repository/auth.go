@@ -197,6 +197,11 @@ func InitializeSystemData() error {
 		// 	return fmt.Errorf("failed to initialize containers: %v", err)
 		// }
 
+		// Initialize execution result labels
+		if err := InitializeExecutionLabels(); err != nil {
+			return fmt.Errorf("failed to initialize execution labels: %v", err)
+		}
+
 		return nil
 	})
 }

@@ -312,6 +312,9 @@ func SetupV2Routes(router *gin.Engine) {
 	// Other Business Entity API Group
 	injections := v2.Group("/injections", middleware.JWTAuth()) // Fault Injection Management - FaultInjectionSchedule Entity
 	{
+		// Create operations - permission checked in handler
+		injections.POST("", v2handlers.CreateInjection) // Create injections (batch supported)
+
 		// Read operations - permission checked in handler
 		injections.GET("", v2handlers.ListInjections)           // List injections
 		injections.GET("/:id", v2handlers.GetInjection)         // Get injection by ID

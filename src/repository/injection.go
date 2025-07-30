@@ -568,6 +568,147 @@ func ListInjectionsV2(page, size int, taskID string, faultType, status *int, ben
 	return injections, total, nil
 }
 
+// CreateInjectionsV2 creates multiple injections with label support
+func CreateInjectionsV2(injections []dto.InjectionV2CreateItem) ([]database.FaultInjectionSchedule, []dto.InjectionCreateError, error) {
+	var createdInjections []database.FaultInjectionSchedule
+	var failedItems []dto.InjectionCreateError
+
+	// Use transaction for batch creation
+	tx := database.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	for i, item := range injections {
+		// Create injection record
+		injection := database.FaultInjectionSchedule{
+			TaskID:        getStringValue(item.TaskID),
+			FaultType:     item.FaultType,
+			DisplayConfig: item.DisplayConfig,
+			EngineConfig:  item.EngineConfig,
+			PreDuration:   item.PreDuration,
+			StartTime:     getTimeValue(item.StartTime, time.Now()),
+			EndTime:       getTimeValue(item.EndTime, time.Now().Add(time.Hour)),
+			Status:        getIntValue(&item.Status, 0),
+			Description:   item.Description,
+			Benchmark:     item.Benchmark,
+			InjectionName: item.InjectionName,
+		}
+
+		if err := tx.Create(&injection).Error; err != nil {
+			failedItems = append(failedItems, dto.InjectionCreateError{
+				Index: i,
+				Error: fmt.Sprintf("Failed to create injection: %v", err),
+				Item:  item,
+			})
+			continue
+		}
+
+		// Add label based on TaskID
+		var labelValue string
+		if item.TaskID == nil || *item.TaskID == "" {
+			labelValue = consts.ExecutionSourceManual
+		} else {
+			labelValue = consts.ExecutionSourceSystem
+		}
+
+		// Add injection label (non-blocking)
+		if err := AddInjectionLabelWithTx(tx, injection.ID, consts.ExecutionLabelSource, labelValue); err != nil {
+			logrus.Warnf("Failed to add label to injection %d: %v", injection.ID, err)
+		}
+
+		createdInjections = append(createdInjections, injection)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, nil, fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	return createdInjections, failedItems, nil
+}
+
+// AddInjectionLabelWithTx adds a label to an injection within a transaction
+func AddInjectionLabelWithTx(tx *gorm.DB, injectionID int, key, value string) error {
+	// Create or get label
+	label, err := CreateOrGetLabel(key, value, "system", "Injection source label")
+	if err != nil {
+		return fmt.Errorf("failed to create or get label: %v", err)
+	}
+
+	// Check if association already exists
+	var count int64
+	if err := tx.Model(&database.InjectionLabel{}).
+		Where("injection_id = ? AND label_id = ?", injectionID, label.ID).
+		Count(&count).Error; err != nil {
+		return fmt.Errorf("failed to check existing association: %v", err)
+	}
+
+	if count > 0 {
+		return nil // Association already exists
+	}
+
+	// Create association
+	injectionLabel := database.InjectionLabel{
+		InjectionID: injectionID,
+		LabelID:     label.ID,
+	}
+
+	if err := tx.Create(&injectionLabel).Error; err != nil {
+		return fmt.Errorf("failed to create injection label association: %v", err)
+	}
+
+	return nil
+}
+
+// AddInjectionLabel adds a label to an injection (without transaction)
+func AddInjectionLabel(injectionID int, key, value string) error {
+	return AddInjectionLabelWithTx(database.DB, injectionID, key, value)
+}
+
+// GetInjectionLabels gets all labels for an injection
+func GetInjectionLabels(injectionID int) ([]database.Label, error) {
+	var labels []database.Label
+	if err := database.DB.
+		Joins("JOIN injection_labels ON injection_labels.label_id = labels.id").
+		Where("injection_labels.injection_id = ?", injectionID).
+		Find(&labels).Error; err != nil {
+		return nil, fmt.Errorf("failed to get injection labels: %v", err)
+	}
+	return labels, nil
+}
+
+// RemoveInjectionLabel removes a specific label from an injection
+func RemoveInjectionLabel(injectionID int, labelKey, labelValue string) error {
+	return database.DB.
+		Where("injection_id = ? AND label_id IN (SELECT id FROM labels WHERE key = ? AND value = ?)",
+			injectionID, labelKey, labelValue).
+		Delete(&database.InjectionLabel{}).Error
+}
+
+// Helper functions
+func getStringValue(ptr *string) string {
+	if ptr == nil {
+		return ""
+	}
+	return *ptr
+}
+
+func getTimeValue(ptr *time.Time, defaultValue time.Time) time.Time {
+	if ptr == nil {
+		return defaultValue
+	}
+	return *ptr
+}
+
+func getIntValue(ptr *int, defaultValue int) int {
+	if ptr == nil {
+		return defaultValue
+	}
+	return *ptr
+}
+
 // UpdateInjectionV2 updates injection by ID for V2 API
 func UpdateInjectionV2(id int, updates map[string]interface{}) error {
 	result := database.DB.Model(&database.FaultInjectionSchedule{}).Where("id = ?", id).Updates(updates)

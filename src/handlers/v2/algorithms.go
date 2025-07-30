@@ -9,6 +9,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 // SearchAlgorithms handles complex algorithm search with advanced filtering
@@ -435,6 +436,7 @@ func UploadGranularityResults(c *gin.Context) {
 
 		// Create new execution record
 		execution = database.ExecutionResult{
+			TaskID:      nil, // TaskID can be null
 			AlgorithmID: algorithmID,
 			DatapackID:  req.DatapackID,
 			Status:      1,
@@ -447,6 +449,12 @@ func UploadGranularityResults(c *gin.Context) {
 
 		executionID = execution.ID
 		isNewExecution = true
+
+		// Add label to indicate this is a manual upload (TaskID is null)
+		labelDescription := "User manually uploaded execution result via API"
+		if err := repository.AddExecutionResultLabel(executionID, consts.ExecutionLabelSource, consts.ExecutionSourceManual, labelDescription); err != nil {
+			logrus.Warnf("Warning: Failed to create execution result label: %v\n", err)
+		}
 	}
 
 	// Check if results already exist (only if using existing execution)
