@@ -28,10 +28,10 @@ class DtoGenericResponseDtoTraceStats(BaseModel):
     """
     DtoGenericResponseDtoTraceStats
     """ # noqa: E501
-    code: Optional[StrictInt] = Field(default=None, description="状态码")
-    data: Optional[DtoTraceStats] = Field(default=None, description="泛型类型的数据")
-    message: Optional[StrictStr] = Field(default=None, description="响应消息")
-    timestamp: Optional[StrictInt] = Field(default=None, description="响应生成时间")
+    code: Optional[StrictInt] = Field(default=None, description="Status code")
+    data: Optional[DtoTraceStats] = Field(default=None, description="Generic type data")
+    message: Optional[StrictStr] = Field(default=None, description="Response message")
+    timestamp: Optional[StrictInt] = Field(default=None, description="Response generation time")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["code", "data", "message", "timestamp"]
 

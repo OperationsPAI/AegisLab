@@ -5,8 +5,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**items** | [**List[DtoDatasetV2Response]**](DtoDatasetV2Response.md) | 结果列表 | [optional] 
-**pagination** | [**DtoPaginationInfo**](DtoPaginationInfo.md) | 分页信息 | [optional] 
+**items** | [**List[DtoDatasetV2Response]**](DtoDatasetV2Response.md) | Result list | [optional] 
+**pagination** | [**DtoPaginationInfo**](DtoPaginationInfo.md) | Pagination info | [optional] 
 
 ## Example
 

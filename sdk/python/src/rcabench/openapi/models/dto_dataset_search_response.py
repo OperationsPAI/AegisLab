@@ -29,8 +29,8 @@ class DtoDatasetSearchResponse(BaseModel):
     """
     DtoDatasetSearchResponse
     """ # noqa: E501
-    items: Optional[List[DtoDatasetV2Response]] = Field(default=None, description="结果列表")
-    pagination: Optional[DtoPaginationInfo] = Field(default=None, description="分页信息")
+    items: Optional[List[DtoDatasetV2Response]] = Field(default=None, description="Result list")
+    pagination: Optional[DtoPaginationInfo] = Field(default=None, description="Pagination info")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["items", "pagination"]
 

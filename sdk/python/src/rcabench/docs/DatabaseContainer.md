@@ -5,19 +5,19 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**command** | **str** | 启动命令 | [optional] 
-**created_at** | **str** | 创建时间 | [optional] 
-**env_vars** | **str** | 环境变量名称列表 | [optional] 
-**id** | **int** | 唯一标识 | [optional] 
-**image** | **str** | 镜像名 | [optional] 
-**is_public** | **bool** | 是否公开可见 | [optional] 
-**name** | **str** | 名称 | [optional] 
-**status** | **bool** | 0: 已删除 1: 活跃 | [optional] 
-**tag** | **str** | 镜像标签 | [optional] 
-**type** | **str** | 镜像类型 | [optional] 
-**updated_at** | **str** | 更新时间 | [optional] 
-**user** | [**DatabaseUser**](DatabaseUser.md) | 外键关联 | [optional] 
-**user_id** | **int** | 容器必须属于某个用户 | [optional] 
+**command** | **str** | Startup command | [optional] 
+**created_at** | **str** | Creation time | [optional] 
+**env_vars** | **str** | List of environment variable names | [optional] 
+**id** | **int** | Unique identifier | [optional] 
+**image** | **str** | Image name | [optional] 
+**is_public** | **bool** | Whether publicly visible | [optional] 
+**name** | **str** | Name | [optional] 
+**status** | **bool** | 0: deleted 1: active | [optional] 
+**tag** | **str** | Image tag | [optional] 
+**type** | **str** | Image type | [optional] 
+**updated_at** | **str** | Update time | [optional] 
+**user** | [**DatabaseUser**](DatabaseUser.md) | Foreign key association | [optional] 
+**user_id** | **int** | Container must belong to a user | [optional] 
 
 ## Example
 

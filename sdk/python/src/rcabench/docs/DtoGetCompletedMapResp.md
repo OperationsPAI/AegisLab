@@ -5,8 +5,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**has_anomaly** | **List[str]** | 检测到异常的链路ID列表 | [optional] 
-**no_anomaly** | **List[str]** | 没有异常的链路ID列表 | [optional] 
+**has_anomaly** | **List[str]** | List of trace IDs with detected anomalies | [optional] 
+**no_anomaly** | **List[str]** | List of trace IDs without anomalies | [optional] 
 
 ## Example
 

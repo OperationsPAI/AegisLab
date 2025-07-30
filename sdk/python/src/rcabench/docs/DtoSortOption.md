@@ -5,8 +5,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**direction** | [**DtoSortDirection**](DtoSortDirection.md) | 排序方向 | 
-**var_field** | **str** | 排序字段 | 
+**direction** | [**DtoSortDirection**](DtoSortDirection.md) | Sort direction | 
+**var_field** | **str** | Sort field | 
 
 ## Example
 

@@ -30,9 +30,9 @@ class DatabaseProject(BaseModel):
     created_at: Optional[StrictStr] = None
     description: Optional[StrictStr] = None
     id: Optional[StrictInt] = None
-    is_public: Optional[StrictBool] = Field(default=None, description="是否公开可见")
+    is_public: Optional[StrictBool] = Field(default=None, description="Whether publicly visible")
     name: Optional[StrictStr] = None
-    status: Optional[StrictInt] = Field(default=None, description="0:禁用 1:启用 -1:删除")
+    status: Optional[StrictInt] = Field(default=None, description="0:disabled 1:enabled -1:deleted")
     updated_at: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["created_at", "description", "id", "is_public", "name", "status", "updated_at"]

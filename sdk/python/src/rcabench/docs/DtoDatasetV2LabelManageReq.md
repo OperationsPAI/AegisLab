@@ -5,9 +5,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**add_labels** | **List[int]** | 要添加的标签ID列表 | [optional] 
-**new_labels** | [**List[DtoDatasetV2LabelCreateReq]**](DtoDatasetV2LabelCreateReq.md) | 新建标签列表 | [optional] 
-**remove_labels** | **List[int]** | 要移除的标签ID列表 | [optional] 
+**add_labels** | **List[int]** | List of label IDs to add | [optional] 
+**new_labels** | [**List[DtoDatasetV2LabelCreateReq]**](DtoDatasetV2LabelCreateReq.md) | New label list | [optional] 
+**remove_labels** | **List[int]** | List of label IDs to remove | [optional] 
 
 ## Example
 

@@ -5,8 +5,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**end_time** | **str** | 结束时间 | [optional] 
-**start_time** | **str** | 开始时间 | [optional] 
+**end_time** | **str** | End time | [optional] 
+**start_time** | **str** | Start time | [optional] 
 
 ## Example
 

@@ -19,126 +19,127 @@ definitions:
   database.Container:
     properties:
       command:
-        description: 启动命令
+        description: Startup command
         type: string
       created_at:
-        description: 创建时间
+        description: Creation time
         type: string
       env_vars:
-        description: 环境变量名称列表
+        description: List of environment variable names
         type: string
       id:
-        description: 唯一标识
+        description: Unique identifier
         type: integer
       image:
-        description: 镜像名
+        description: Image name
         type: string
       is_public:
-        description: 是否公开可见
+        description: Whether publicly visible
         type: boolean
       name:
-        description: 名称
+        description: Name
         type: string
       status:
-        description: '0: 已删除 1: 活跃'
+        description: '0: deleted 1: active'
         type: boolean
       tag:
-        description: 镜像标签
+        description: Image tag
         type: string
       type:
-        description: 镜像类型
+        description: Image type
         type: string
       updated_at:
-        description: 更新时间
+        description: Update time
         type: string
       user:
         allOf:
         - $ref: '#/definitions/database.User'
-        description: 外键关联
+        description: Foreign key association
       user_id:
-        description: 容器必须属于某个用户
+        description: Container must belong to a user
         type: integer
     type: object
   database.FaultInjectionSchedule:
     properties:
       benchmark:
-        description: 基准数据库，添加索引
+        description: Benchmark database, add index
         type: string
       created_at:
-        description: 创建时间，添加时间索引
+        description: Creation time, add time index
         type: string
       description:
-        description: 描述（可选字段）
+        description: Description (optional field)
         type: string
       display_config:
-        description: 面向用户的展示配置
+        description: User-facing display configuration
         type: string
       end_time:
-        description: 预计故障结束时间，添加时间索引
+        description: Expected fault end time, add time index
         type: string
       engine_config:
-        description: 面向系统的运行配置
+        description: System-facing runtime configuration
         type: string
       fault_type:
-        description: 故障类型，添加复合索引
+        description: Fault type, add composite index
         type: integer
       id:
-        description: 唯一标识
+        description: Unique identifier
         type: integer
       injection_name:
-        description: 在k8s资源里注入的名字
+        description: Name injected in k8s resources
         type: string
       pre_duration:
-        description: 正常数据时间
+        description: Normal data duration
         type: integer
       start_time:
-        description: 预计故障开始时间，添加时间索引
+        description: Expected fault start time, add time index
         type: string
       status:
-        description: 状态，添加复合索引
+        description: Status, add composite index
         type: integer
       task:
         allOf:
         - $ref: '#/definitions/database.Task'
-        description: 外键关联
+        description: Foreign key association
       task_id:
-        description: 从属什么 taskid，添加复合索引
+        description: Associated task ID, add composite index
         type: string
       updated_at:
-        description: 更新时间
+        description: Update time
         type: string
     type: object
   database.Label:
     properties:
       category:
-        description: 标签分类 (dataset, fault_injection, algorithm, container等)
+        description: Label category (dataset, fault_injection, algorithm, container,
+          etc.)
         type: string
       color:
-        description: 标签颜色 (hex格式)
+        description: Label color (hex format)
         type: string
       created_at:
-        description: 创建时间
+        description: Creation time
         type: string
       description:
-        description: 标签描述
+        description: Label description
         type: string
       id:
-        description: 唯一标识
+        description: Unique identifier
         type: integer
       is_system:
-        description: 是否为系统标签
+        description: Whether system label
         type: boolean
       key:
-        description: 标签键
+        description: Label key
         type: string
       updated_at:
-        description: 更新时间
+        description: Update time
         type: string
       usage:
-        description: 使用次数
+        description: Usage count
         type: integer
       value:
-        description: 标签值
+        description: Label value
         type: string
     type: object
   database.Project:
@@ -150,12 +151,12 @@ definitions:
       id:
         type: integer
       is_public:
-        description: 是否公开可见
+        description: Whether publicly visible
         type: boolean
       name:
         type: string
       status:
-        description: 0:禁用 1:启用 -1:删除
+        description: 0:disabled 1:enabled -1:deleted
         type: integer
       updated_at:
         type: string
@@ -163,15 +164,15 @@ definitions:
   database.Task:
     properties:
       created_at:
-        description: 添加时间索引
+        description: Add time index
         type: string
       cron_expr:
         type: string
       execute_time:
-        description: 添加执行时间索引
+        description: Add execution time index
         type: integer
       group_id:
-        description: 添加组ID索引
+        description: Add group ID index
         type: string
       id:
         type: string
@@ -182,18 +183,18 @@ definitions:
       project:
         allOf:
         - $ref: '#/definitions/database.Project'
-        description: 外键关联
+        description: Foreign key association
       project_id:
-        description: 任务可以属于某个项目（可选）
+        description: Task can belong to a project (optional)
         type: integer
       status:
-        description: 添加多个复合索引
+        description: Add multiple composite indexes
         type: string
       trace_id:
-        description: 添加追踪ID索引
+        description: Add trace ID index
         type: string
       type:
-        description: 添加复合索引
+        description: Add composite index
         type: string
       updated_at:
         type: string
@@ -201,37 +202,37 @@ definitions:
   database.User:
     properties:
       avatar:
-        description: 头像URL
+        description: Avatar URL
         type: string
       created_at:
-        description: 创建时间
+        description: Creation time
         type: string
       email:
-        description: 邮箱（唯一）
+        description: Email (unique)
         type: string
       full_name:
-        description: 全名
+        description: Full name
         type: string
       id:
-        description: 唯一标识
+        description: Unique identifier
         type: integer
       is_active:
-        description: 是否激活
+        description: Whether active
         type: boolean
       last_login_at:
-        description: 最后登录时间
+        description: Last login time
         type: string
       phone:
-        description: 电话号码
+        description: Phone number
         type: string
       status:
-        description: 0:禁用 1:启用 -1:删除
+        description: 0:disabled 1:enabled -1:deleted
         type: integer
       updated_at:
-        description: 更新时间
+        description: Update time
         type: string
       username:
-        description: 用户名（唯一）
+        description: Username (unique)
         type: string
     type: object
   dto.AdvancedSearchRequest:
@@ -335,6 +336,22 @@ definitions:
       type:
         type: string
       updated_at:
+        type: string
+    type: object
+  dto.AlgorithmResultUploadResponse:
+    properties:
+      algorithm_id:
+        type: integer
+      execution_id:
+        type: integer
+      has_anomalies:
+        description: Only included for detector results
+        type: boolean
+      message:
+        type: string
+      result_count:
+        type: integer
+      uploaded_at:
         type: string
     type: object
   dto.AlgorithmSearchRequest:
@@ -762,14 +779,14 @@ definitions:
   dto.DatasetSearchResponse:
     properties:
       items:
-        description: 结果列表
+        description: Result list
         items:
           $ref: '#/definitions/dto.DatasetV2Response'
         type: array
       pagination:
         allOf:
         - $ref: '#/definitions/dto.PaginationInfo'
-        description: 分页信息
+        description: Pagination info
     type: object
   dto.DatasetStatistics:
     properties:
@@ -789,49 +806,49 @@ definitions:
   dto.DatasetV2CreateReq:
     properties:
       data_source:
-        description: 数据来源描述
+        description: Data source description
         maxLength: 500
         type: string
       description:
-        description: 数据集描述
+        description: Dataset description
         maxLength: 1000
         type: string
       format:
-        description: 数据格式
+        description: Data format
         maxLength: 50
         type: string
       injection_ids:
-        description: 关联的故障注入ID列表
+        description: Associated fault injection ID list
         items:
           type: integer
         type: array
       is_public:
-        description: 是否公开，可选，默认false
+        description: Whether public, optional, defaults to false
         type: boolean
       label_ids:
-        description: 关联的标签ID列表
+        description: Associated label ID list
         items:
           type: integer
         type: array
       name:
-        description: 数据集名称
+        description: Dataset name
         maxLength: 255
         type: string
       new_labels:
-        description: 新建标签列表
+        description: New label list
         items:
           $ref: '#/definitions/dto.DatasetV2LabelCreateReq'
         type: array
       project_id:
-        description: 项目ID
+        description: Project ID
         minimum: 1
         type: integer
       type:
-        description: 数据集类型
+        description: Dataset type
         maxLength: 50
         type: string
       version:
-        description: 数据集版本，可选，默认v1.0
+        description: Dataset version, optional, defaults to v1.0
         maxLength: 50
         type: string
     required:
@@ -842,12 +859,12 @@ definitions:
   dto.DatasetV2InjectionManageReq:
     properties:
       add_injections:
-        description: 要添加的故障注入ID列表
+        description: List of fault injection IDs to add
         items:
           type: integer
         type: array
       remove_injections:
-        description: 要移除的故障注入ID列表
+        description: List of fault injection IDs to remove
         items:
           type: integer
         type: array
@@ -855,42 +872,42 @@ definitions:
   dto.DatasetV2InjectionRelationResponse:
     properties:
       created_at:
-        description: 创建时间
+        description: Creation time
         type: string
       fault_injection:
         allOf:
         - $ref: '#/definitions/database.FaultInjectionSchedule'
-        description: 故障注入详情
+        description: Fault injection details
       fault_injection_id:
-        description: 故障注入ID
+        description: Fault injection ID
         type: integer
       id:
-        description: 关联ID
+        description: Relation ID
         type: integer
       updated_at:
-        description: 更新时间
+        description: Update time
         type: string
     type: object
   dto.DatasetV2LabelCreateReq:
     properties:
       category:
-        description: 标签分类
+        description: Label category
         maxLength: 50
         type: string
       color:
-        description: 标签颜色 (hex格式)
+        description: Label color (hex format)
         maxLength: 7
         type: string
       description:
-        description: 标签描述
+        description: Label description
         maxLength: 500
         type: string
       key:
-        description: 标签键
+        description: Label key
         maxLength: 100
         type: string
       value:
-        description: 标签值
+        description: Label value
         maxLength: 255
         type: string
     required:
@@ -900,17 +917,17 @@ definitions:
   dto.DatasetV2LabelManageReq:
     properties:
       add_labels:
-        description: 要添加的标签ID列表
+        description: List of label IDs to add
         items:
           type: integer
         type: array
       new_labels:
-        description: 新建标签列表
+        description: New label list
         items:
           $ref: '#/definitions/dto.DatasetV2LabelCreateReq'
         type: array
       remove_labels:
-        description: 要移除的标签ID列表
+        description: List of label IDs to remove
         items:
           type: integer
         type: array
@@ -918,63 +935,63 @@ definitions:
   dto.DatasetV2Response:
     properties:
       checksum:
-        description: 文件校验和
+        description: File checksum
         type: string
       created_at:
-        description: 创建时间
+        description: Creation time
         type: string
       data_source:
-        description: 数据来源描述
+        description: Data source description
         type: string
       description:
-        description: 数据集描述
+        description: Dataset description
         type: string
       download_url:
-        description: 下载链接
+        description: Download URL
         type: string
       file_count:
-        description: 文件数量
+        description: File count
         type: integer
       format:
-        description: 数据格式
+        description: Data format
         type: string
       id:
-        description: 唯一标识
+        description: Unique identifier
         type: integer
       injections:
-        description: 关联的故障注入
+        description: Associated fault injections
         items:
           $ref: '#/definitions/dto.DatasetV2InjectionRelationResponse'
         type: array
       is_public:
-        description: 是否公开
+        description: Whether public
         type: boolean
       labels:
-        description: 关联的标签
+        description: Associated labels
         items:
           $ref: '#/definitions/database.Label'
         type: array
       name:
-        description: 数据集名称
+        description: Dataset name
         type: string
       project:
         allOf:
         - $ref: '#/definitions/database.Project'
-        description: 关联项目信息
+        description: Associated project info
       project_id:
-        description: 项目ID
+        description: Project ID
         type: integer
       status:
-        description: 状态
+        description: Status
         type: integer
       type:
-        description: 数据集类型
+        description: Dataset type
         type: string
       updated_at:
-        description: 更新时间
+        description: Update time
         type: string
       version:
-        description: 数据集版本
+        description: Dataset version
         type: string
     type: object
   dto.DatasetV2SearchReq:
@@ -982,59 +999,59 @@ definitions:
       date_range:
         allOf:
         - $ref: '#/definitions/dto.DateRangeFilter'
-        description: 时间范围过滤
+        description: Date range filter
       include:
-        description: 包含的关联数据
+        description: Included related data
         items:
           type: string
         type: array
       is_public:
-        description: 是否公开
+        description: Whether public
         type: boolean
       label_keys:
-        description: 按标签键过滤
+        description: Filter by label key
         items:
           type: string
         type: array
       label_values:
-        description: 按标签值过滤
+        description: Filter by label value
         items:
           type: string
         type: array
       page:
-        description: 页码
+        description: Page number
         minimum: 1
         type: integer
       project_ids:
-        description: 项目ID列表
+        description: Project ID list
         items:
           type: integer
         type: array
       search:
-        description: 搜索关键词
+        description: Search keywords
         type: string
       size:
-        description: 每页大小
+        description: Page size
         maximum: 100
         minimum: 1
         type: integer
       size_range:
         allOf:
         - $ref: '#/definitions/dto.SizeRangeFilter'
-        description: 大小范围过滤
+        description: Size range filter
       sort_by:
-        description: 排序字段
+        description: Sort field
         type: string
       sort_order:
-        description: 排序方向
+        description: Sort direction
         type: string
       statuses:
-        description: 状态列表
+        description: Status list
         items:
           type: integer
         type: array
       types:
-        description: 数据集类型列表
+        description: Dataset type list
         items:
           type: string
         type: array
@@ -1042,45 +1059,45 @@ definitions:
   dto.DatasetV2UpdateReq:
     properties:
       data_source:
-        description: 数据来源描述
+        description: Data source description
         maxLength: 500
         type: string
       description:
-        description: 数据集描述
+        description: Dataset description
         maxLength: 1000
         type: string
       format:
-        description: 数据格式
+        description: Data format
         maxLength: 50
         type: string
       injection_ids:
-        description: 更新关联的故障注入ID列表（完全替换）
+        description: Update associated fault injection ID list (complete replacement)
         items:
           type: integer
         type: array
       is_public:
-        description: 是否公开
+        description: Whether public
         type: boolean
       label_ids:
-        description: 更新关联的标签ID列表（完全替换）
+        description: Update associated label ID list (complete replacement)
         items:
           type: integer
         type: array
       name:
-        description: 数据集名称
+        description: Dataset name
         maxLength: 255
         type: string
       new_labels:
-        description: 新建标签列表
+        description: New label list
         items:
           $ref: '#/definitions/dto.DatasetV2LabelCreateReq'
         type: array
       type:
-        description: 数据集类型
+        description: Dataset type
         maxLength: 50
         type: string
       version:
-        description: 数据集版本
+        description: Dataset version
         maxLength: 50
         type: string
     type: object
@@ -1094,11 +1111,50 @@ definitions:
   dto.DateRangeFilter:
     properties:
       end_time:
-        description: 结束时间
+        description: End time
         type: string
       start_time:
-        description: 开始时间
+        description: Start time
         type: string
+    type: object
+  dto.DetectorResultItem:
+    properties:
+      abnormal_avg_duration:
+        type: number
+      abnormal_p90:
+        type: number
+      abnormal_p95:
+        type: number
+      abnormal_p99:
+        type: number
+      abnormal_succ_rate:
+        type: number
+      issues:
+        type: string
+      normal_avg_duration:
+        type: number
+      normal_p90:
+        type: number
+      normal_p95:
+        type: number
+      normal_p99:
+        type: number
+      normal_succ_rate:
+        type: number
+      span_name:
+        type: string
+    required:
+    - issues
+    - span_name
+    type: object
+  dto.DetectorResultRequest:
+    properties:
+      results:
+        items:
+          $ref: '#/definitions/dto.DetectorResultItem'
+        type: array
+    required:
+    - results
     type: object
   dto.ExecutionPayload:
     properties:
@@ -1218,899 +1274,963 @@ definitions:
   dto.GenericResponse-any:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-array_dto_FaultInjectionNoIssuesResp:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
-        description: 泛型类型的数据
+        description: Generic type data
         items:
           $ref: '#/definitions/dto.FaultInjectionNoIssuesResp'
         type: array
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-array_dto_FaultInjectionWithIssuesResp:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
-        description: 泛型类型的数据
+        description: Generic type data
         items:
           $ref: '#/definitions/dto.FaultInjectionWithIssuesResp'
         type: array
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-array_dto_PermissionResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
-        description: 泛型类型的数据
+        description: Generic type data
         items:
           $ref: '#/definitions/dto.PermissionResponse'
         type: array
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-array_dto_RoleResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
-        description: 泛型类型的数据
+        description: Generic type data
         items:
           $ref: '#/definitions/dto.RoleResponse'
         type: array
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-array_dto_UserResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
-        description: 泛型类型的数据
+        description: Generic type data
         items:
           $ref: '#/definitions/dto.UserResponse'
         type: array
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
+        type: integer
+    type: object
+  dto.GenericResponse-dto_AlgorithmResultUploadResponse:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.AlgorithmResultUploadResponse'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_AnalyzeInjectionsResp:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.AnalyzeInjectionsResp'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_AuditLogListResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.AuditLogListResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_AuditLogResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.AuditLogResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_ContainerResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.ContainerResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_DatasetDeleteResp:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.DatasetDeleteResp'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_DatasetSearchResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.DatasetSearchResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_DatasetV2Response:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.DatasetV2Response'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_GetCompletedMapResp:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.GetCompletedMapResp'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_GroundTruthResp:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.GroundTruthResp'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_HealthCheckResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.HealthCheckResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_InjectCancelResp:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.InjectCancelResp'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_InjectionFieldMappingResp:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.InjectionFieldMappingResp'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
+        type: integer
+    type: object
+  dto.GenericResponse-dto_InjectionSearchResponse:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.InjectionSearchResponse'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_InjectionStatsResp:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.InjectionStatsResp'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
+        type: integer
+    type: object
+  dto.GenericResponse-dto_InjectionV2Response:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.InjectionV2Response'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_ListAlgorithmsResp:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
-        description: 泛型类型的数据
+        description: Generic type data
         items:
           $ref: '#/definitions/database.Container'
         type: array
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_ListInjectionsResp:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.ListInjectionsResp'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_ListTasksResp:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
-        description: 泛型类型的数据
+        description: Generic type data
         items:
           $ref: '#/definitions/database.Task'
         type: array
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_LoginResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.LoginResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_MonitoringMetricsResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.MonitoringMetricsResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_NsResourcesResp:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.NsResourcesResp'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_PaginationResp-dto_UnifiedTask:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.PaginationResp-dto_UnifiedTask'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_PermissionListResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.PermissionListResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_PermissionResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.PermissionResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_QueryInjectionResp:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.QueryInjectionResp'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_RawDataResp:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
-        description: 泛型类型的数据
+        description: Generic type data
         items:
           $ref: '#/definitions/dto.RawDataItem'
         type: array
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_RelationListResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.RelationListResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_RelationStatisticsResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.RelationStatisticsResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_RoleListResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.RoleListResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_RoleResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.RoleResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_SearchResponse-dto_AlgorithmResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.SearchResponse-dto_AlgorithmResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_SearchResponse-dto_ContainerResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.SearchResponse-dto_ContainerResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_SearchResponse-dto_DatasetV2Response:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.SearchResponse-dto_DatasetV2Response'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
+        type: integer
+    type: object
+  dto.GenericResponse-dto_SearchResponse-dto_InjectionV2Response:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.SearchResponse-dto_InjectionV2Response'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_SearchResponse-dto_PermissionResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.SearchResponse-dto_PermissionResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_SearchResponse-dto_RoleResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.SearchResponse-dto_RoleResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_SearchResponse-dto_TaskResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.SearchResponse-dto_TaskResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_SearchResponse-dto_UserResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.SearchResponse-dto_UserResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_SubmitInjectionResp:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.SubmitInjectionResp'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_SubmitResp:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.SubmitResp'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_SuccessfulExecutionsResp:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
-        description: 泛型类型的数据
+        description: Generic type data
         items:
           $ref: '#/definitions/dto.SuccessfulExecutionItem'
         type: array
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_SystemInfo:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.SystemInfo'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_SystemStatisticsResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.SystemStatisticsResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_TaskDetailResp:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.TaskDetailResp'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_TaskDetailResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.TaskDetailResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_TokenRefreshResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.TokenRefreshResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_TraceStats:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.TraceStats'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_UserInfo:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.UserInfo'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_UserListResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.UserListResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-dto_UserResponse:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/dto.UserResponse'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-handler_Node:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/handler.Node'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GenericResponse-handler_Resources:
     properties:
       code:
-        description: 状态码
+        description: Status code
         type: integer
       data:
         allOf:
         - $ref: '#/definitions/handler.Resources'
-        description: 泛型类型的数据
+        description: Generic type data
       message:
-        description: 响应消息
+        description: Response message
         type: string
       timestamp:
-        description: 响应生成时间
+        description: Response generation time
         type: integer
     type: object
   dto.GetCompletedMapResp:
     properties:
       has_anomaly:
-        description: 检测到异常的链路ID列表
+        description: List of trace IDs with detected anomalies
         items:
           type: string
         type: array
       no_anomaly:
-        description: 没有异常的链路ID列表
+        description: List of trace IDs without anomalies
         items:
           type: string
         type: array
@@ -2125,6 +2245,37 @@ definitions:
         type: integer
       result:
         type: string
+    type: object
+  dto.GranularityResultEnhancedRequest:
+    properties:
+      datapack_id:
+        description: Required if no execution_id
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/dto.GranularityResultItem'
+        type: array
+    required:
+    - results
+    type: object
+  dto.GranularityResultItem:
+    properties:
+      confidence:
+        maximum: 1
+        minimum: 0
+        type: number
+      level:
+        type: string
+      rank:
+        minimum: 1
+        type: integer
+      result:
+        type: string
+    required:
+    - confidence
+    - level
+    - rank
+    - result
     type: object
   dto.GroundTruthReq:
     properties:
@@ -2225,6 +2376,15 @@ definitions:
       tag:
         type: string
     type: object
+  dto.InjectionSearchResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.InjectionV2Response'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationInfo'
+    type: object
   dto.InjectionStatistics:
     properties:
       completed:
@@ -2258,6 +2418,124 @@ definitions:
         type: integer
       with_issues_records:
         type: integer
+    type: object
+  dto.InjectionV2Response:
+    properties:
+      benchmark:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      display_config:
+        type: string
+      end_time:
+        type: string
+      engine_config:
+        type: string
+      fault_type:
+        type: integer
+      id:
+        type: integer
+      injection_name:
+        type: string
+      pre_duration:
+        type: integer
+      start_time:
+        type: string
+      status:
+        type: integer
+      task:
+        allOf:
+        - $ref: '#/definitions/dto.TaskV2Response'
+        description: Optional relations
+      task_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.InjectionV2SearchReq:
+    properties:
+      benchmarks:
+        items:
+          type: string
+        type: array
+      created_at_gte:
+        type: string
+      created_at_lte:
+        type: string
+      end_time_gte:
+        type: string
+      end_time_lte:
+        type: string
+      fault_types:
+        items:
+          type: integer
+        type: array
+      include:
+        type: string
+      page:
+        minimum: 1
+        type: integer
+      search:
+        type: string
+      size:
+        maximum: 100
+        minimum: 1
+        type: integer
+      sort_by:
+        enum:
+        - id
+        - task_id
+        - fault_type
+        - status
+        - benchmark
+        - injection_name
+        - created_at
+        - updated_at
+        type: string
+      sort_order:
+        enum:
+        - asc
+        - desc
+        type: string
+      start_time_gte:
+        type: string
+      start_time_lte:
+        type: string
+      statuses:
+        items:
+          type: integer
+        type: array
+      task_ids:
+        items:
+          type: string
+        type: array
+    type: object
+  dto.InjectionV2UpdateReq:
+    properties:
+      benchmark:
+        type: string
+      description:
+        type: string
+      display_config:
+        type: string
+      end_time:
+        type: string
+      engine_config:
+        type: string
+      fault_type:
+        type: integer
+      injection_name:
+        type: string
+      pre_duration:
+        type: integer
+      start_time:
+        type: string
+      status:
+        type: integer
+      task_id:
+        type: string
     type: object
   dto.LabelItem:
     properties:
@@ -2454,7 +2732,7 @@ definitions:
   dto.PermissionSearchRequest:
     properties:
       actions:
-        description: 操作筛选
+        description: Action filter
         items:
           type: string
         type: array
@@ -2463,10 +2741,10 @@ definitions:
         - $ref: '#/definitions/dto.DateRange'
         description: Common filters shortcuts
       description_pattern:
-        description: 描述模糊匹配
+        description: Fuzzy match for description
         type: string
       display_name_pattern:
-        description: 显示名模糊匹配
+        description: Fuzzy match for display name
         type: string
       exclude_fields:
         items:
@@ -2490,7 +2768,7 @@ definitions:
       is_active:
         type: boolean
       is_system:
-        description: 是否系统权限
+        description: Is system permission
         type: boolean
       keyword:
         description: Search keyword (for general text search)
@@ -2505,17 +2783,17 @@ definitions:
       project_id:
         type: integer
       resource_ids:
-        description: 资源ID筛选
+        description: Resource ID filter
         items:
           type: integer
         type: array
       resource_names:
-        description: 资源名称筛选
+        description: Resource name filter
         items:
           type: string
         type: array
       role_ids:
-        description: 拥有此权限的角色ID
+        description: Role IDs that have this permission
         items:
           type: integer
         type: array
@@ -2577,52 +2855,52 @@ definitions:
   dto.QueryInjectionResp:
     properties:
       benchmark:
-        description: 基准数据库，添加索引
+        description: Benchmark database, add index
         type: string
       created_at:
-        description: 创建时间，添加时间索引
+        description: Creation time, add time index
         type: string
       description:
-        description: 描述（可选字段）
+        description: Description (optional field)
         type: string
       display_config:
-        description: 面向用户的展示配置
+        description: User-facing display configuration
         type: string
       end_time:
-        description: 预计故障结束时间，添加时间索引
+        description: Expected fault end time, add time index
         type: string
       engine_config:
-        description: 面向系统的运行配置
+        description: System-facing runtime configuration
         type: string
       fault_type:
-        description: 故障类型，添加复合索引
+        description: Fault type, add composite index
         type: integer
       ground_truth:
         $ref: '#/definitions/handler.Groundtruth'
       id:
-        description: 唯一标识
+        description: Unique identifier
         type: integer
       injection_name:
-        description: 在k8s资源里注入的名字
+        description: Name injected in k8s resources
         type: string
       pre_duration:
-        description: 正常数据时间
+        description: Normal data duration
         type: integer
       start_time:
-        description: 预计故障开始时间，添加时间索引
+        description: Expected fault start time, add time index
         type: string
       status:
-        description: 状态，添加复合索引
+        description: Status, add composite index
         type: integer
       task:
         allOf:
         - $ref: '#/definitions/database.Task'
-        description: 外键关联
+        description: Foreign key association
       task_id:
-        description: 从属什么 taskid，添加复合索引
+        description: Associated task ID, add composite index
         type: string
       updated_at:
-        description: 更新时间
+        description: Update time
         type: string
     type: object
   dto.RawDataItem:
@@ -2882,10 +3160,10 @@ definitions:
         - $ref: '#/definitions/dto.DateRange'
         description: Common filters shortcuts
       description_pattern:
-        description: 描述模糊匹配
+        description: Description fuzzy match
         type: string
       display_name_pattern:
-        description: 显示名模糊匹配
+        description: Display name fuzzy match
         type: string
       exclude_fields:
         items:
@@ -2909,7 +3187,7 @@ definitions:
       is_active:
         type: boolean
       is_system:
-        description: 是否系统角色
+        description: Whether system role
         type: boolean
       keyword:
         description: Search keyword (for general text search)
@@ -2922,7 +3200,7 @@ definitions:
         minimum: 1
         type: integer
       permission_ids:
-        description: 权限ID筛选
+        description: Permission ID filter
         items:
           type: integer
         type: array
@@ -2942,7 +3220,7 @@ definitions:
           type: integer
         type: array
       types:
-        description: 角色类型筛选
+        description: Role type filter
         items:
           type: string
         type: array
@@ -2951,23 +3229,23 @@ definitions:
       user_count:
         allOf:
         - $ref: '#/definitions/dto.NumberRange'
-        description: 用户数量范围
+        description: User count range
       user_id:
         type: integer
     type: object
   dto.SearchFilter:
     properties:
       field:
-        description: 字段名
+        description: Field name
         type: string
       operator:
         allOf:
         - $ref: '#/definitions/dto.FilterOperator'
-        description: 操作符
+        description: Operator
       value:
-        description: 值
+        description: Value
       values:
-        description: 多值（用于IN操作等）
+        description: Multiple values (for IN operations etc.)
         items: {}
         type: array
     required:
@@ -3021,6 +3299,23 @@ definitions:
       items:
         items:
           $ref: '#/definitions/dto.DatasetV2Response'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationInfo'
+    type: object
+  dto.SearchResponse-dto_InjectionV2Response:
+    properties:
+      applied_filters:
+        items:
+          $ref: '#/definitions/dto.SearchFilter'
+        type: array
+      applied_sort:
+        items:
+          $ref: '#/definitions/dto.SortOption'
+        type: array
+      items:
+        items:
+          $ref: '#/definitions/dto.InjectionV2Response'
         type: array
       pagination:
         $ref: '#/definitions/dto.PaginationInfo'
@@ -3122,10 +3417,10 @@ definitions:
   dto.SizeRangeFilter:
     properties:
       max_size:
-        description: 最大大小（字节）
+        description: Maximum size (bytes)
         type: integer
       min_size:
-        description: 最小大小（字节）
+        description: Minimum size (bytes)
         type: integer
     type: object
   dto.SortDirection:
@@ -3141,9 +3436,9 @@ definitions:
       direction:
         allOf:
         - $ref: '#/definitions/dto.SortDirection'
-        description: 排序方向
+        description: Sort direction
       field:
-        description: 排序字段
+        description: Sort field
         type: string
     required:
     - direction
@@ -3229,16 +3524,16 @@ definitions:
   dto.SuccessfulExecutionItem:
     properties:
       algorithm:
-        description: 算法名称
+        description: Algorithm name
         type: string
       created_at:
-        description: 创建时间
+        description: Creation time
         type: string
       dataset:
-        description: 数据集名称
+        description: Dataset name
         type: string
       id:
-        description: 执行ID
+        description: Execution ID
         type: integer
     type: object
   dto.SystemInfo:
@@ -3439,6 +3734,17 @@ definitions:
       total:
         example: 1000
         type: integer
+    type: object
+  dto.TaskV2Response:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
     type: object
   dto.TokenRefreshRequest:
     properties:
@@ -3743,12 +4049,12 @@ definitions:
         - $ref: '#/definitions/dto.DateRange'
         description: Common filters shortcuts
       departments:
-        description: 部门筛选
+        description: Department filter
         items:
           type: string
         type: array
       email_pattern:
-        description: 邮箱模糊匹配
+        description: Email fuzzy match
         type: string
       exclude_fields:
         items:
@@ -3760,7 +4066,7 @@ definitions:
           $ref: '#/definitions/dto.SearchFilter'
         type: array
       fullname_pattern:
-        description: 全名模糊匹配
+        description: Full name fuzzy match
         type: string
       include:
         description: Include related entities
@@ -3780,7 +4086,7 @@ definitions:
       last_login_range:
         allOf:
         - $ref: '#/definitions/dto.DateRange'
-        description: 最后登录时间范围
+        description: Last login time range
       page:
         description: Pagination
         minimum: 1
@@ -3788,12 +4094,12 @@ definitions:
       project_id:
         type: integer
       project_ids:
-        description: 项目ID筛选
+        description: Project ID filter
         items:
           type: integer
         type: array
       role_ids:
-        description: 角色ID筛选
+        description: Role ID filter
         items:
           type: integer
         type: array
@@ -3939,25 +4245,29 @@ info:
 paths:
   /api/v1/algorithms:
     get:
-      description: 获取系统中所有可用的算法列表，包括算法的镜像信息、标签和更新时间。只返回状态为激活的算法容器
+      description: Get all available algorithms in the system, including image info,
+        tags, and update time. Only returns containers with active status.
       produces:
       - application/json
       responses:
         "200":
-          description: 成功返回算法列表
+          description: Successfully returned algorithm list
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_ListAlgorithmsResp'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 获取算法列表
+      summary: Get algorithm list
       tags:
       - algorithm
     post:
-      description: 批量提交算法执行任务，支持多个算法和数据集的组合执行。系统将为每个执行任务分配唯一的 TraceID 用于跟踪任务状态和结果
+      description: Batch submit algorithm execution tasks, supporting multiple algorithm
+        and dataset combinations. The system assigns a unique TraceID for each execution
+        task to track status and results.
       parameters:
-      - description: 算法执行请求列表，包含算法名称、数据集和环境变量
+      - description: Algorithm execution request list, including algorithm name, dataset,
+          and environment variables
         in: body
         name: body
         required: true
@@ -3967,42 +4277,46 @@ paths:
       - application/json
       responses:
         "202":
-          description: 成功提交算法执行任务，返回任务跟踪信息
+          description: Successfully submitted algorithm execution task, returns task
+            tracking info
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_SubmitResp'
         "400":
-          description: 请求参数错误，如JSON格式不正确、算法名称或数据集名称无效、环境变量名称不支持等
+          description: Request parameter error, such as invalid JSON format, algorithm
+            name or dataset name, unsupported environment variable name, etc.
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 提交算法执行任务
+      summary: Submit algorithm execution task
       tags:
       - algorithm
   /api/v1/analyzers/injections:
     get:
-      description: 使用多种筛选条件分析故障注入数据，返回包括效率、多样性、种子之间的距离等统计信息
+      description: Analyze fault injection data using various filtering conditions,
+        returning statistical information including efficiency, diversity, distance
+        between seeds, etc.
       parameters:
-      - description: 项目名称过滤
+      - description: Project name filter
         in: query
         name: project_name
         type: string
       - default: prod
-        description: 环境标签过滤
+        description: Environment label filter
         enum:
         - dev
         - prod
         in: query
         name: env
         type: string
-      - description: 批次标签过滤
+      - description: Batch label filter
         in: query
         name: batch
         type: string
       - default: train
-        description: 分类标签过滤
+        description: Classification label filter
         enum:
         - train
         - test
@@ -4010,32 +4324,35 @@ paths:
         name: tag
         type: string
       - default: clickhouse
-        description: 基准测试类型过滤
+        description: Benchmark type filter
         enum:
         - clickhouse
         in: query
         name: benchmark
         type: string
       - default: 0
-        description: 状态过滤，具体值参考字段映射接口(/mapping)
+        description: Status filter, refer to field mapping interface (/mapping) for
+          specific values
         in: query
         name: status
         type: integer
       - default: 0
-        description: 故障类型过滤，具体值参考字段映射接口(/mapping)
+        description: Fault type filter, refer to field mapping interface (/mapping)
+          for specific values
         in: query
         name: fault_type
         type: integer
-      - description: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+      - description: Time range query, supports custom relative time (1h/24h/7d) or
+          custom, default is not set
         in: query
         name: lookback
         type: string
-      - description: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+      - description: Custom start time, RFC3339 format, required when lookback=custom
         format: date-time
         in: query
         name: custom_start_time
         type: string
-      - description: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+      - description: Custom end time, RFC3339 format, required when lookback=custom
         format: date-time
         in: query
         name: custom_end_time
@@ -4044,38 +4361,41 @@ paths:
       - application/json
       responses:
         "200":
-          description: 返回故障注入分析统计信息
+          description: Returns fault injection analysis statistics
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_AnalyzeInjectionsResp'
         "400":
-          description: 请求参数错误，如参数格式不正确、验证失败等
+          description: Request parameter error, such as incorrect parameter format,
+            validation failure, etc.
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 分析故障注入数据
+      summary: Analyze fault injection data
       tags:
       - analyzer
   /api/v1/analyzers/traces:
     get:
-      description: 使用多种筛选条件分析链路数据，返回包括故障注入结束链路在内的统计信息
+      description: Analyze trace data using various filtering conditions, returning
+        statistical information including traces ending with fault injection
       parameters:
-      - description: 首任务类型筛选
+      - description: First task type filter
         in: query
         name: first_task_type
         type: string
-      - description: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+      - description: Time range query, supports custom relative time (1h/24h/7d) or
+          custom, default is not set
         in: query
         name: lookback
         type: string
-      - description: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+      - description: Custom start time, RFC3339 format, required when lookback=custom
         format: date-time
         in: query
         name: custom_start_time
         type: string
-      - description: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+      - description: Custom end time, RFC3339 format, required when lookback=custom
         format: date-time
         in: query
         name: custom_end_time
@@ -4084,63 +4404,72 @@ paths:
       - application/json
       responses:
         "200":
-          description: 返回链路分析统计信息
+          description: Returns trace analysis statistics
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_TraceStats'
         "400":
-          description: 请求参数错误，如参数格式不正确、验证失败等
+          description: Request parameter error, such as incorrect parameter format,
+            validation failure, etc.
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 分析链路数据
+      summary: Analyze trace data
       tags:
       - trace
   /api/v1/containers:
     post:
       consumes:
       - multipart/form-data
-      description: 通过上传文件、指定GitHub仓库或Harbor镜像来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建，或从Harbor直接获取已存在的镜像并更新数据库。系统会自动验证必需文件（Dockerfile）并设置执行权限
+      description: Build Docker images by uploading files, specifying GitHub repositories,
+        or Harbor images. Supports zip and tar.gz file uploads, or automatically pulls
+        code from GitHub for building, or directly updates the database from existing
+        Harbor images. The system automatically validates required files (Dockerfile)
+        and sets execution permissions.
       parameters:
       - default: algorithm
-        description: 容器类型，指定容器的用途
+        description: Container type, specifies the purpose of the container
         enum:
         - algorithm
         - benchmark
         in: formData
         name: type
         type: string
-      - description: 容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段
+      - description: Container name, used to identify the container, will be used
+          as the image build identifier, defaults to the name field in info.toml
         in: formData
         name: name
         type: string
-      - description: Docker镜像名称。当source_type为harbor时，指定Harbor中已存在的镜像名称；其他情况下支持以下格式：1)
-          image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）
+      - description: 'Docker image name. When source_type is harbor, specify the existing
+          image name in Harbor; otherwise, supports the following formats: 1) image-name
+          (automatically adds default Harbor address and namespace) 2) namespace/image-name
+          (automatically adds default Harbor address)'
         in: formData
         name: image
         required: true
         type: string
       - default: latest
-        description: Docker镜像标签。当source_type为harbor时，指定Harbor中已存在的镜像标签；其他情况下用于版本控制
+        description: Docker image tag. When source_type is harbor, specify the existing
+          image tag in Harbor; otherwise, used for version control
         in: formData
         name: tag
         type: string
       - default: bash /entrypoint.sh
-        description: Docker镜像启动命令，默认为bash /entrypoint.sh
+        description: Docker image startup command, defaults to bash /entrypoint.sh
         in: formData
         name: command
         type: string
       - collectionFormat: csv
-        description: 环境变量名称列表，支持多个环境变量
+        description: List of environment variable names, supports multiple variables
         in: formData
         items:
           type: string
         name: env_vars
         type: array
       - default: file
-        description: 构建源类型，指定源码来源
+        description: Build source type, specifies the source of the code
         enum:
         - file
         - github
@@ -4148,48 +4477,53 @@ paths:
         in: formData
         name: source_type
         type: string
-      - description: 源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB
+      - description: Source file (supports zip or tar.gz format), required when source_type
+          is file, file size limit 5MB
         in: formData
         name: file
         type: file
-      - description: GitHub访问令牌，用于访问私有仓库，公开仓库可不提供
+      - description: GitHub access token, used for private repositories, not required
+          for public repositories
         in: formData
         name: github_token
         type: string
-      - description: GitHub仓库地址，格式：owner/repo，当source_type为github时必需
+      - description: 'GitHub repository address, format: owner/repo, required when
+          source_type is github'
         in: formData
         name: github_repo
         type: string
       - default: main
-        description: GitHub分支名，指定要构建的分支
+        description: GitHub branch name, specifies the branch to build
         in: formData
         name: github_branch
         type: string
-      - description: GitHub commit哈希值（支持短hash），如果指定commit则忽略branch参数
+      - description: GitHub commit hash (supports short hash), if specified, branch
+          parameter is ignored
         in: formData
         name: github_commit
         type: string
       - default: .
-        description: 仓库内的子目录路径，如果源码不在根目录
+        description: Subdirectory path in the repository, if the source code is not
+          in the root directory
         in: formData
         name: github_path
         type: string
       - default: .
-        description: Docker构建上下文路径，相对于源码根目录
+        description: Docker build context path, relative to the source root directory
         in: formData
         name: context_dir
         type: string
       - default: Dockerfile
-        description: Dockerfile路径，相对于源码根目录
+        description: Dockerfile path, relative to the source root directory
         in: formData
         name: dockerfile_path
         type: string
-      - description: Dockerfile构建目标（multi-stage build时使用）
+      - description: Dockerfile build target (used for multi-stage builds)
         in: formData
         name: target
         type: string
       - default: false
-        description: 是否强制重新构建镜像，忽略缓存
+        description: Whether to force rebuild the image, ignore cache
         in: formData
         name: force_rebuild
         type: boolean
@@ -4197,30 +4531,35 @@ paths:
       - application/json
       responses:
         "202":
-          description: 成功提交容器构建任务，返回任务跟踪信息
+          description: Successfully submitted container build task, returns task tracking
+            information
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_SubmitResp'
         "400":
-          description: 请求参数错误：文件格式不支持（仅支持zip、tar.gz）、文件大小超限（5MB）、参数验证失败、GitHub仓库地址无效、Harbor镜像参数无效、force_rebuild值格式错误等
+          description: 'Request parameter error: unsupported file format (only zip,
+            tar.gz), file size exceeds limit (5MB), parameter validation failed, invalid
+            GitHub repository address, invalid Harbor image parameter, invalid force_rebuild
+            value, etc.'
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "404":
-          description: 资源不存在：构建上下文路径不存在、缺少必需文件（Dockerfile、entrypoint.sh）、Harbor中镜像不存在
+          description: 'Resource not found: build context path does not exist, missing
+            required files (Dockerfile, entrypoint.sh), image not found in Harbor'
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 提交镜像构建任务
+      summary: Submit container build task
       tags:
       - container
   /api/v1/datasets:
     delete:
-      description: 删除数据集数据
+      description: Delete dataset data
       parameters:
       - collectionFormat: csv
-        description: 数据集名称列表
+        description: Dataset name list
         in: query
         items:
           type: string
@@ -4242,15 +4581,17 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 删除数据集数据
+      summary: Delete dataset data
       tags:
       - dataset
     post:
       consumes:
       - application/json
-      description: 根据指定的时间范围和基准测试容器批量构建数据集。
+      description: Batch build datasets based on specified time range and benchmark
+        container
       parameters:
-      - description: 数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置
+      - description: List of dataset build requests; each request includes dataset
+          name, time range, benchmark, and environment variable configuration
         in: body
         name: body
         required: true
@@ -4260,34 +4601,41 @@ paths:
       - application/json
       responses:
         "202":
-          description: 成功提交数据集构建任务，返回任务组ID和跟踪信息列表
+          description: Successfully submitted dataset building tasks; returns group
+            ID and trace information list
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_SubmitResp'
         "400":
-          description: 请求参数错误：1) JSON格式不正确 2) 数据集名称为空 3) 时间范围无效 4) 基准测试不存在 5) 环境变量名称不支持
+          description: 'Bad request parameters: 1) Invalid JSON format 2) Empty dataset
+            name 3) Invalid time range 4) Benchmark does not exist 5) Unsupported
+            environment variable name'
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 批量构建数据集
+      summary: Batch build datasets
       tags:
       - dataset
   /api/v1/datasets/download:
     get:
-      description: 将指定的多个数据集打包为 ZIP 文件下载，自动排除 result.csv 和检测器结论文件。支持按组ID或数据集名称进行下载，两种方式二选一。下载文件结构：按组ID下载时为
-        datasets/{groupId}/{datasetName}/...，按名称下载时为 datasets/{datasetName}/...
+      description: 'Package specified datasets into a ZIP file for download, automatically
+        excluding result.csv and detector conclusion files. Supports downloading by
+        group ID or dataset name (mutually exclusive). Directory structure: when downloading
+        by group ID: datasets/{groupId}/{datasetName}/...; when by name: datasets/{datasetName}/...'
       parameters:
       - collectionFormat: csv
-        description: 任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids
+        description: 'List of task group IDs, format: group1,group2,group3. Mutually
+          exclusive with names parameter; group_ids takes precedence'
         in: query
         items:
           type: string
         name: group_ids
         type: array
       - collectionFormat: csv
-        description: 数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一
+        description: 'List of dataset names, format: dataset1,dataset2,dataset3. Mutually
+          exclusive with group_ids parameter'
         in: query
         items:
           type: string
@@ -4297,27 +4645,30 @@ paths:
       - application/zip
       responses:
         "200":
-          description: ZIP 文件流，Content-Disposition 头中包含文件名 datasets.zip
+          description: ZIP file stream; the Content-Disposition header contains filename
+            datasets.zip
           schema:
             type: string
         "400":
-          description: 请求参数错误：1) 参数绑定失败 2) 两个参数都为空 3) 同时提供两种参数
+          description: 'Bad request parameters: 1) Parameter binding failed 2) Both
+            parameters are empty 3) Both parameters provided'
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "403":
-          description: 权限错误：请求访问的数据集路径不在系统允许的范围内
+          description: 'Permission error: requested dataset path is not within allowed
+            scope'
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 下载数据集打包文件
+      summary: Download dataset archive file
       tags:
       - dataset
   /api/v1/debug/ns/status:
     get:
-      description: 获取命名空间锁状态信息
+      description: Get namespace lock status information
       produces:
       - application/json
       responses:
@@ -4329,26 +4680,27 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 获取命名空间锁状态
+      summary: Get namespace lock status
       tags:
       - debug
   /api/v1/evaluations/executions:
     get:
-      description: 获取所有ExecutionResult中status为ExecutionSuccess的记录，支持时间区间筛选和数量筛选
+      description: Get all records in ExecutionResult with status ExecutionSuccess,
+        supports time range filtering and quantity filtering
       parameters:
-      - description: 开始时间，格式：2006-01-02T15:04:05Z07:00
+      - description: 'Start time, format: 2006-01-02T15:04:05Z07:00'
         in: query
         name: start_time
         type: string
-      - description: 结束时间，格式：2006-01-02T15:04:05Z07:00
+      - description: 'End time, format: 2006-01-02T15:04:05Z07:00'
         in: query
         name: end_time
         type: string
-      - description: 数量限制
+      - description: Limit
         in: query
         name: limit
         type: integer
-      - description: 偏移量，用于分页
+      - description: Offset for pagination
         in: query
         name: offset
         type: integer
@@ -4356,25 +4708,28 @@ paths:
       - application/json
       responses:
         "200":
-          description: 成功返回成功执行的算法记录列表
+          description: Successfully returns the list of successful algorithm execution
+            records
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_SuccessfulExecutionsResp'
         "400":
-          description: 请求参数错误
+          description: Request parameter error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 获取成功执行的算法记录
+      summary: Get successful algorithm execution records
       tags:
       - evaluation
   /api/v1/evaluations/groundtruth:
     post:
-      description: 根据数据集数组获取对应的 ground truth 数据，用于算法评估的基准数据。支持批量查询多个数据集的真实标签信息
+      description: Get ground truth data for the given dataset array, used as benchmark
+        data for algorithm evaluation. Supports batch query for ground truth information
+        of multiple datasets
       parameters:
-      - description: Ground truth查询请求，包含数据集列表
+      - description: Ground truth query request, contains dataset list
         in: body
         name: body
         required: true
@@ -4384,25 +4739,30 @@ paths:
       - application/json
       responses:
         "200":
-          description: 成功返回数据集的ground truth信息
+          description: Successfully returns ground truth information for datasets
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_GroundTruthResp'
         "400":
-          description: 请求参数错误，如JSON格式不正确、数据集数组为空
+          description: Request parameter error, such as incorrect JSON format or empty
+            dataset array
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 获取数据集的 ground truth
+      summary: Get ground truth for datasets
       tags:
       - evaluation
   /api/v1/evaluations/raw-data:
     post:
-      description: 支持三种查询模式：1) 直接传入算法-数据集对数组进行精确查询；2) 传入算法和数据集列表进行笛卡尔积查询；3) 通过执行ID列表查询。三种模式互斥，只能选择其中一种
+      description: 'Supports three query modes: 1) Directly pass an array of algorithm-dataset
+        pairs for precise query; 2) Pass lists of algorithms and datasets for Cartesian
+        product query; 3) Query by execution ID list. The three modes are mutually
+        exclusive, only one can be selected'
       parameters:
-      - description: 原始数据查询请求，支持三种模式：pairs数组、(algorithms+datasets)笛卡尔积、或execution_ids列表
+      - description: 'Raw data query request, supports three modes: pairs array, (algorithms+datasets)
+          Cartesian product, or execution_ids list'
         in: body
         name: body
         required: true
@@ -4412,42 +4772,44 @@ paths:
       - application/json
       responses:
         "200":
-          description: 成功返回原始评估数据列表
+          description: Successfully returns the list of raw evaluation data
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_RawDataResp'
         "400":
-          description: 请求参数错误，如JSON格式不正确、查询模式冲突或参数为空
+          description: Request parameter error, such as incorrect JSON format, query
+            mode conflict or empty parameter
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 获取原始评估数据
+      summary: Get raw evaluation data
       tags:
       - evaluation
   /api/v1/injections:
     get:
-      description: 支持排序、过滤的故障注入记录查询接口。返回数据库原始记录列表，不进行数据转换。
+      description: Fault injection record query interface supporting sorting and filtering.
+        Returns the original database record list without data conversion.
       parameters:
-      - description: 项目名称过滤
+      - description: Project name filter
         in: query
         name: project_name
         type: string
       - default: prod
-        description: 环境标签过滤
+        description: Environment label filter
         enum:
         - dev
         - prod
         in: query
         name: env
         type: string
-      - description: 批次标签过滤
+      - description: Batch label filter
         in: query
         name: batch
         type: string
       - default: train
-        description: 分类标签过滤
+        description: Category label filter
         enum:
         - train
         - test
@@ -4455,29 +4817,31 @@ paths:
         name: tag
         type: string
       - default: clickhouse
-        description: 基准测试类型过滤
+        description: Benchmark type filter
         enum:
         - clickhouse
         in: query
         name: benchmark
         type: string
       - default: 0
-        description: 状态过滤，具体值参考字段映射接口(/mapping)
+        description: Status filter, refer to field mapping interface (/mapping) for
+          specific values
         in: query
         name: status
         type: integer
       - default: 0
-        description: 故障类型过滤，具体值参考字段映射接口(/mapping)
+        description: Fault type filter, refer to field mapping interface (/mapping)
+          for specific values
         in: query
         name: fault_type
         type: integer
       - default: created_at
-        description: 排序字段，默认created_at
+        description: Sort field, default created_at
         in: query
         name: sort_field
         type: string
       - default: desc
-        description: 排序方式，默认desc
+        description: Sort order, default desc
         enum:
         - asc
         - desc
@@ -4485,33 +4849,35 @@ paths:
         name: sort_order
         type: string
       - default: 0
-        description: 结果数量限制，用于控制返回记录数量
+        description: Result quantity limit, used to control the number of returned
+          records
         in: query
         minimum: 0
         name: limit
         type: integer
       - default: 0
-        description: 分页查询，页码
+        description: Pagination query, page number
         in: query
         minimum: 0
         name: page_num
         type: integer
       - default: 0
-        description: 分页查询，每页数量
+        description: Pagination query, records per page
         in: query
         minimum: 0
         name: page_size
         type: integer
-      - description: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+      - description: Time range query, supports custom relative time (1h/24h/7d) or
+          custom, default not set
         in: query
         name: lookback
         type: string
-      - description: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+      - description: Custom start time, RFC3339 format, required when lookback=custom
         format: date-time
         in: query
         name: custom_start_time
         type: string
-      - description: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+      - description: Custom end time, RFC3339 format, required when lookback=custom
         format: date-time
         in: query
         name: custom_end_time
@@ -4520,24 +4886,27 @@ paths:
       - application/json
       responses:
         "200":
-          description: 成功返回故障注入记录列表
+          description: Successfully returned fault injection record list
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_ListInjectionsResp'
         "400":
-          description: 请求参数错误，如参数格式不正确、验证失败等
+          description: Request parameter error, such as incorrect parameter format,
+            validation failure, etc.
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 获取故障注入记录列表
+      summary: Get Fault Injection Record List
       tags:
       - injection
     post:
-      description: 提交故障注入任务，支持批量提交多个故障配置，系统会自动去重并返回提交结果
+      description: Submit fault injection task, supporting batch submission of multiple
+        fault configurations, the system will automatically deduplicate and return
+        submission results
       parameters:
-      - description: 故障注入请求体
+      - description: Fault injection request body
         in: body
         name: body
         required: true
@@ -4547,25 +4916,26 @@ paths:
       - application/json
       responses:
         "202":
-          description: 成功提交故障注入任务
+          description: Successfully submitted fault injection task
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_SubmitInjectionResp'
         "400":
-          description: 请求参数错误，如JSON格式不正确、参数验证失败或算法无效等
+          description: Request parameter error, such as incorrect JSON format, parameter
+            validation failure, or invalid algorithm, etc.
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 提交故障注入任务
+      summary: Submit Fault Injection Task
       tags:
       - injection
   /api/v1/injections/{task_id}/cancel:
     put:
-      description: 取消指定的故障注入任务
+      description: Cancel the specified fault injection task
       parameters:
-      - description: 任务ID
+      - description: Task ID
         in: path
         name: task_id
         required: true
@@ -4585,31 +4955,33 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 取消故障注入任务
+      summary: Cancel Fault Injection Task
       tags:
       - injection
   /api/v1/injections/analysis/no-issues:
     get:
-      description: 根据时间范围查询所有没有问题的故障注入记录列表，返回包含配置信息的详细记录
+      description: Query all fault injection records without issues based on time
+        range, returning detailed records including configuration information
       parameters:
-      - description: 环境标签过滤
+      - description: Environment label filter
         in: query
         name: env
         type: string
-      - description: 批次标签过滤
+      - description: Batch label filter
         in: query
         name: batch
         type: string
-      - description: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+      - description: Time range query, supports custom relative time (1h/24h/7d) or
+          custom, default not set
         in: query
         name: lookback
         type: string
-      - description: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+      - description: Custom start time, RFC3339 format, required when lookback=custom
         format: date-time
         in: query
         name: custom_start_time
         type: string
-      - description: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+      - description: Custom end time, RFC3339 format, required when lookback=custom
         format: date-time
         in: query
         name: custom_end_time
@@ -4618,34 +4990,37 @@ paths:
       - application/json
       responses:
         "200":
-          description: 成功返回没有问题的故障注入记录列表
+          description: Successfully returned fault injection records without issues
           schema:
             $ref: '#/definitions/dto.GenericResponse-array_dto_FaultInjectionNoIssuesResp'
         "400":
-          description: 请求参数错误，如时间格式不正确或参数验证失败等
+          description: Request parameter error, such as incorrect time format or parameter
+            validation failure, etc.
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 查询没有问题的故障注入记录
+      summary: Query Fault Injection Records Without Issues
       tags:
       - injection
   /api/v1/injections/analysis/stats:
     get:
-      description: 获取故障注入记录的统计信息，包括有问题、没有问题和总记录数量
+      description: Get statistical information of fault injection records, including
+        counts of records with issues, without issues, and total records
       parameters:
-      - description: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+      - description: Time range query, supports custom relative time (1h/24h/7d) or
+          custom, default not set
         in: query
         name: lookback
         type: string
-      - description: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+      - description: Custom start time, RFC3339 format, required when lookback=custom
         format: date-time
         in: query
         name: custom_start_time
         type: string
-      - description: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+      - description: Custom end time, RFC3339 format, required when lookback=custom
         format: date-time
         in: query
         name: custom_end_time
@@ -4654,42 +5029,44 @@ paths:
       - application/json
       responses:
         "200":
-          description: 成功返回故障注入统计信息
+          description: Successfully returned fault injection statistics
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_InjectionStatsResp'
         "400":
-          description: 请求参数错误，如时间格式不正确或参数验证失败等
+          description: Request parameter error, such as incorrect time format or parameter
+            validation failure, etc.
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 获取故障注入统计信息
+      summary: Get Fault Injection Statistics
       tags:
       - injection
   /api/v1/injections/analysis/with-issues:
     get:
-      description: 根据时间范围查询所有有问题的故障注入记录列表
+      description: Query all fault injection records with issues based on time range
       parameters:
-      - description: 环境标签过滤
+      - description: Environment label filter
         in: query
         name: env
         type: string
-      - description: 批次标签过滤
+      - description: Batch label filter
         in: query
         name: batch
         type: string
-      - description: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+      - description: Time range query, supports custom relative time (1h/24h/7d) or
+          custom, default not set
         in: query
         name: lookback
         type: string
-      - description: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+      - description: Custom start time, RFC3339 format, required when lookback=custom
         format: date-time
         in: query
         name: custom_start_time
         type: string
-      - description: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+      - description: Custom end time, RFC3339 format, required when lookback=custom
         format: date-time
         in: query
         name: custom_end_time
@@ -4702,27 +5079,29 @@ paths:
           schema:
             $ref: '#/definitions/dto.GenericResponse-array_dto_FaultInjectionWithIssuesResp'
         "400":
-          description: 请求参数错误，如时间格式不正确或参数验证失败等
+          description: Request parameter error, such as incorrect time format or parameter
+            validation failure, etc.
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 查询有问题的故障注入记录
+      summary: Query Fault Injection Records With Issues
       tags:
       - injection
   /api/v1/injections/conf:
     get:
-      description: 获取指定命名空间的故障注入配置信息，支持不同显示模式的配置树结构
+      description: Get fault injection configuration for the specified namespace,
+        supporting different display modes for configuration tree structure
       parameters:
-      - description: 命名空间，指定要获取配置的命名空间
+      - description: Namespace, specifies the namespace to get configuration for
         in: query
         name: namespace
         required: true
         type: string
       - default: engine
-        description: 显示模式
+        description: Display mode
         enum:
         - display
         - engine
@@ -4733,26 +5112,30 @@ paths:
       - application/json
       responses:
         "200":
-          description: 成功返回配置树结构
+          description: Successfully returned configuration tree structure
           schema:
             $ref: '#/definitions/dto.GenericResponse-handler_Node'
         "400":
-          description: 请求参数错误，如命名空间或模式参数缺失
+          description: Request parameter error, such as missing namespace or mode
+            parameter
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 获取故障注入配置
+      summary: Get Fault Injection Configuration
       tags:
       - injection
   /api/v1/injections/configs:
     get:
-      description: 根据多个TraceID获取对应的故障注入配置信息，用于查看已提交的故障注入任务的配置详情
+      description: Get fault injection configuration information based on multiple
+        TraceIDs, used to view configuration details of submitted fault injection
+        tasks
       parameters:
       - collectionFormat: multi
-        description: TraceID列表，支持多个值，用于查询对应的配置信息
+        description: TraceID list, supports multiple values, used to query corresponding
+          configuration information
         in: query
         items:
           type: string
@@ -4762,42 +5145,48 @@ paths:
       - application/json
       responses:
         "200":
-          description: 成功返回配置列表
+          description: Successfully returned configuration list
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "400":
-          description: 请求参数错误，如TraceID参数缺失或格式不正确
+          description: Request parameter error, such as missing TraceID parameter
+            or incorrect format
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 获取已注入故障配置列表
+      summary: Get Injected Fault Configuration List
       tags:
       - injection
   /api/v1/injections/mapping:
     get:
-      description: 获取状态和故障类型的字符串与数字映射关系，用于前端显示和API参数验证
+      description: Get string-to-number mapping relationships for status and fault
+        types, used for frontend display and API parameter validation
       produces:
       - application/json
       responses:
         "200":
-          description: 成功返回字段映射关系
+          description: Successfully returned field mapping relationships
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_InjectionFieldMappingResp'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 获取字段映射关系
+      summary: Get Field Mapping
       tags:
       - injection
   /api/v1/injections/ns-resources:
     get:
-      description: 获取所有命名空间及其对应的资源信息映射，或查询指定命名空间的资源信息。返回命名空间到资源的映射表，用于故障注入配置和资源管理
+      description: Get mapping of all namespaces and their corresponding resource
+        information, or query resource information for a specific namespace. Returns
+        a mapping table from namespace to resources, used for fault injection configuration
+        and resource management
       parameters:
-      - description: 命名空间名称，不指定时返回所有命名空间的资源映射
+      - description: Namespace name, returns resource mappings for all namespaces
+          if not specified
         in: query
         name: namespace
         type: string
@@ -4805,29 +5194,31 @@ paths:
       - application/json
       responses:
         "200":
-          description: 指定命名空间时返回该命名空间的资源信息
+          description: Returns resource information for the specified namespace when
+            a namespace is provided
           schema:
             $ref: '#/definitions/dto.GenericResponse-handler_Resources'
         "404":
-          description: 指定的命名空间不存在
+          description: The specified namespace does not exist
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错误，无法获取资源映射
+          description: Internal server error, unable to get resource mapping
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 获取命名空间资源映射
+      summary: Get Namespace Resource Mapping
       tags:
       - injection
   /api/v1/injections/query:
     get:
-      description: 根据名称或任务ID查询故障注入记录详情，两个参数至少提供一个
+      description: Query fault injection record details by name or task ID, at least
+        one of the two parameters must be provided
       parameters:
-      - description: 故障注入名称
+      - description: Fault injection name
         in: query
         name: name
         type: string
-      - description: 任务ID
+      - description: Task ID
         in: query
         name: task_id
         type: string
@@ -4835,37 +5226,41 @@ paths:
       - application/json
       responses:
         "200":
-          description: 成功返回故障注入记录详情
+          description: Successfully returned fault injection record details
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_QueryInjectionResp'
         "400":
-          description: 请求参数错误，如参数缺失、格式不正确或验证失败等
+          description: Request parameter error, such as missing parameters, incorrect
+            format, or validation failure, etc.
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 查询单个故障注入记录
+      summary: Query Single Fault Injection Record
       tags:
       - injection
   /api/v1/tasks:
     get:
-      description: 根据多种条件分页获取任务列表。支持按任务ID、跟踪ID、组ID进行精确查询，或按任务类型、状态等进行过滤查询
+      description: Paginate and get task list by multiple conditions. Supports exact
+        query by task ID, trace ID, group ID, or filter by type, status, etc.
       parameters:
-      - description: 任务ID - 精确匹配特定任务 (与trace_id、group_id互斥)
+      - description: Task ID - exact match (mutually exclusive with trace_id, group_id)
         in: query
         name: task_id
         type: string
-      - description: 跟踪ID - 查找属于同一跟踪的所有任务 (与task_id、group_id互斥)
+      - description: Trace ID - find all tasks in the same trace (mutually exclusive
+          with task_id, group_id)
         in: query
         name: trace_id
         type: string
-      - description: 组ID - 查找属于同一组的所有任务 (与task_id、trace_id互斥)
+      - description: Group ID - find all tasks in the same group (mutually exclusive
+          with task_id, trace_id)
         in: query
         name: group_id
         type: string
-      - description: 任务类型过滤
+      - description: Task type filter
         enum:
         - RestartService
         - FaultInjection
@@ -4876,7 +5271,7 @@ paths:
         in: query
         name: task_type
         type: string
-      - description: 任务状态过滤
+      - description: Task status filter
         enum:
         - Pending
         - Running
@@ -4888,38 +5283,39 @@ paths:
         in: query
         name: status
         type: string
-      - description: 是否立即执行 - true:立即执行任务, false:延时执行任务
+      - description: 'Immediate execution - true: immediate, false: delayed'
         in: query
         name: immediate
         type: boolean
       - default: created_at
-        description: 排序字段，默认created_at
+        description: Sort field, default created_at
         in: query
         name: sort_field
         type: string
       - default: desc
-        description: 排序方式，默认desc
+        description: Sort order, default desc
         enum:
         - asc
         - desc
         in: query
         name: sort_order
         type: string
-      - description: 结果数量限制，用于控制返回记录数量
+      - description: Result limit, controls number of records returned
         in: query
         minimum: 1
         name: limit
         type: integer
-      - description: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+      - description: Time range query, supports relative time (1h/24h/7d) or custom,
+          default unset
         in: query
         name: lookback
         type: string
-      - description: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+      - description: Custom start time, RFC3339 format, required if lookback=custom
         format: date-time
         in: query
         name: custom_start_time
         type: string
-      - description: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+      - description: Custom end time, RFC3339 format, required if lookback=custom
         format: date-time
         in: query
         name: custom_end_time
@@ -4928,25 +5324,27 @@ paths:
       - application/json
       responses:
         "200":
-          description: 成功返回故障注入记录列表
+          description: Successfully returned fault injection record list
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_ListTasksResp'
         "400":
-          description: 请求参数错误，如参数格式不正确、验证失败等
+          description: Request parameter error, e.g. invalid format or validation
+            failed
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 获取任务列表
+      summary: Get task list
       tags:
       - task
   /api/v1/tasks/{task_id}:
     get:
-      description: 根据任务ID获取任务详细信息,包括任务基本信息和执行日志
+      description: Get detailed information of a task by task ID, including basic
+        info and execution logs
       parameters:
-      - description: 任务ID
+      - description: Task ID
         in: path
         name: task_id
         required: true
@@ -4959,31 +5357,31 @@ paths:
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_TaskDetailResp'
         "400":
-          description: 无效的任务ID
+          description: Invalid task ID
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "404":
-          description: 任务不存在
+          description: Task not found
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
-          description: 服务器内部错误
+          description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 获取任务详情
+      summary: Get task detail
       tags:
       - task
   /api/v1/tasks/queue:
     get:
-      description: 分页获取队列中等待执行的任务列表
+      description: Paginate and get the list of tasks waiting in the queue
       parameters:
       - default: 1
-        description: 页码
+        description: Page number
         in: query
         name: page_num
         type: integer
       - default: 10
-        description: 每页大小
+        description: Page size
         in: query
         name: page_size
         type: integer
@@ -5002,22 +5400,22 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 获取队列中的任务
+      summary: Get queued tasks
       tags:
       - task
   /api/v1/traces/completed:
     get:
-      description: 根据指定的时间范围获取完成状态的链路
+      description: Get completed traces within a specified time range
       parameters:
-      - description: 相对时间查询，如 1h, 24h, 7d或者是custom
+      - description: Relative time query, e.g. 1h, 24h, 7d or custom
         in: query
         name: lookback
         type: string
-      - description: 当lookback=custom时必需，自定义开始时间(RFC3339格式)
+      - description: Required when lookback=custom, custom start time (RFC3339 format)
         in: query
         name: custom_start_time
         type: string
-      - description: 当lookback=custom时必需，自定义结束时间(RFC3339格式)
+      - description: Required when lookback=custom, custom end time (RFC3339 format)
         in: query
         name: custom_end_time
         type: string
@@ -5036,7 +5434,7 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
-      summary: 获取完成状态的链路
+      summary: Get completed traces
       tags:
       - trace
   /api/v2/algorithms:
@@ -5075,6 +5473,155 @@ paths:
       security:
       - BearerAuth: []
       summary: List algorithms
+      tags:
+      - Algorithms
+  /api/v2/algorithms/{algorithm_id}/executions/{execution_id}/detectors:
+    post:
+      consumes:
+      - application/json
+      description: Upload detection results for detector algorithms via API instead
+        of file collection
+      parameters:
+      - description: Algorithm ID
+        in: path
+        name: algorithm_id
+        required: true
+        type: integer
+      - description: Execution ID
+        in: path
+        name: execution_id
+        required: true
+        type: integer
+      - description: Detector results
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DetectorResultRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Results uploaded successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_AlgorithmResultUploadResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Algorithm or execution not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Upload detector algorithm results
+      tags:
+      - Algorithms
+  /api/v2/algorithms/{algorithm_id}/executions/{execution_id}/results:
+    post:
+      consumes:
+      - application/json
+      description: 'Upload granularity results for regular algorithms. Supports two
+        modes: 1) Use existing execution_id, 2) Auto-create execution using algorithm_id
+        and datapack_id'
+      parameters:
+      - description: Algorithm ID
+        in: path
+        name: algorithm_id
+        required: true
+        type: integer
+      - description: Execution ID (optional - will create new if not provided)
+        in: path
+        name: execution_id
+        type: integer
+      - description: Granularity results with optional execution creation
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GranularityResultEnhancedRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Results uploaded successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_AlgorithmResultUploadResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Algorithm or datapack not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Upload granularity algorithm results
+      tags:
+      - Algorithms
+  /api/v2/algorithms/{algorithm_id}/results:
+    post:
+      consumes:
+      - application/json
+      description: 'Upload granularity results for regular algorithms. Supports two
+        modes: 1) Use existing execution_id, 2) Auto-create execution using algorithm_id
+        and datapack_id'
+      parameters:
+      - description: Algorithm ID
+        in: path
+        name: algorithm_id
+        required: true
+        type: integer
+      - description: Granularity results with optional execution creation
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GranularityResultEnhancedRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Results uploaded successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_AlgorithmResultUploadResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Algorithm or datapack not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Upload granularity algorithm results
       tags:
       - Algorithms
   /api/v2/algorithms/search:
@@ -6126,6 +6673,231 @@ paths:
       summary: System health check
       tags:
       - System
+  /api/v2/injections:
+    get:
+      description: Get a paginated list of injections with filtering and sorting
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size (default 20, max 100)
+        in: query
+        name: size
+        type: integer
+      - description: Filter by task ID
+        in: query
+        name: task_id
+        type: string
+      - description: Filter by fault type
+        in: query
+        name: fault_type
+        type: integer
+      - description: Filter by status
+        in: query
+        name: status
+        type: integer
+      - description: Filter by benchmark
+        in: query
+        name: benchmark
+        type: string
+      - description: Search in injection name and description
+        in: query
+        name: search
+        type: string
+      - description: Sort field (id,task_id,fault_type,status,benchmark,injection_name,created_at,updated_at)
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc,desc)
+        in: query
+        name: sort_order
+        type: string
+      - description: Include related data (task)
+        in: query
+        name: include
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Injections retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_InjectionSearchResponse'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: List injections
+      tags:
+      - Injections
+  /api/v2/injections/{id}:
+    delete:
+      description: Soft delete an injection (sets status to -1)
+      parameters:
+      - description: Injection ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Injection deleted successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid injection ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Injection not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Delete injection
+      tags:
+      - Injections
+    get:
+      description: Get detailed information about a specific injection
+      parameters:
+      - description: Injection ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Include related data (task)
+        in: query
+        name: include
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Injection retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_InjectionV2Response'
+        "400":
+          description: Invalid injection ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Injection not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get injection by ID
+      tags:
+      - Injections
+    put:
+      consumes:
+      - application/json
+      description: Update injection information
+      parameters:
+      - description: Injection ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Injection update request
+        in: body
+        name: injection
+        required: true
+        schema:
+          $ref: '#/definitions/dto.InjectionV2UpdateReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Injection updated successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_InjectionV2Response'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Injection not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Update injection
+      tags:
+      - Injections
+  /api/v2/injections/search:
+    post:
+      consumes:
+      - application/json
+      description: Advanced search for injections with complex filtering
+      parameters:
+      - description: Search criteria
+        in: body
+        name: search
+        required: true
+        schema:
+          $ref: '#/definitions/dto.InjectionV2SearchReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Search results
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SearchResponse-dto_InjectionV2Response'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Search injections
+      tags:
+      - Injections
   /api/v2/monitor/info:
     get:
       description: Get basic system information and status

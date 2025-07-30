@@ -4,16 +4,16 @@ All URIs are relative to *http://localhost:8080/api/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**api_v1_algorithms_get**](AlgorithmApi.md#api_v1_algorithms_get) | **GET** /api/v1/algorithms | 获取算法列表
-[**api_v1_algorithms_post**](AlgorithmApi.md#api_v1_algorithms_post) | **POST** /api/v1/algorithms | 提交算法执行任务
+[**api_v1_algorithms_get**](AlgorithmApi.md#api_v1_algorithms_get) | **GET** /api/v1/algorithms | Get algorithm list
+[**api_v1_algorithms_post**](AlgorithmApi.md#api_v1_algorithms_post) | **POST** /api/v1/algorithms | Submit algorithm execution task
 
 
 # **api_v1_algorithms_get**
 > DtoGenericResponseDtoListAlgorithmsResp api_v1_algorithms_get()
 
-获取算法列表
+Get algorithm list
 
-获取系统中所有可用的算法列表，包括算法的镜像信息、标签和更新时间。只返回状态为激活的算法容器
+Get all available algorithms in the system, including image info, tags, and update time. Only returns containers with active status.
 
 ### Example
 
@@ -37,7 +37,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
     api_instance = rcabench.openapi.AlgorithmApi(api_client)
 
     try:
-        # 获取算法列表
+        # Get algorithm list
         api_response = api_instance.api_v1_algorithms_get()
         print("The response of AlgorithmApi->api_v1_algorithms_get:\n")
         pprint(api_response)
@@ -68,17 +68,17 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | 成功返回算法列表 |  -  |
-**500** | 服务器内部错误 |  -  |
+**200** | Successfully returned algorithm list |  -  |
+**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_algorithms_post**
 > DtoGenericResponseDtoSubmitResp api_v1_algorithms_post(body)
 
-提交算法执行任务
+Submit algorithm execution task
 
-批量提交算法执行任务，支持多个算法和数据集的组合执行。系统将为每个执行任务分配唯一的 TraceID 用于跟踪任务状态和结果
+Batch submit algorithm execution tasks, supporting multiple algorithm and dataset combinations. The system assigns a unique TraceID for each execution task to track status and results.
 
 ### Example
 
@@ -101,10 +101,10 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.AlgorithmApi(api_client)
-    body = rcabench.openapi.DtoSubmitExecutionReq() # DtoSubmitExecutionReq | 算法执行请求列表，包含算法名称、数据集和环境变量
+    body = rcabench.openapi.DtoSubmitExecutionReq() # DtoSubmitExecutionReq | Algorithm execution request list, including algorithm name, dataset, and environment variables
 
     try:
-        # 提交算法执行任务
+        # Submit algorithm execution task
         api_response = api_instance.api_v1_algorithms_post(body)
         print("The response of AlgorithmApi->api_v1_algorithms_post:\n")
         pprint(api_response)
@@ -119,7 +119,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**DtoSubmitExecutionReq**](DtoSubmitExecutionReq.md)| 算法执行请求列表，包含算法名称、数据集和环境变量 | 
+ **body** | [**DtoSubmitExecutionReq**](DtoSubmitExecutionReq.md)| Algorithm execution request list, including algorithm name, dataset, and environment variables | 
 
 ### Return type
 
@@ -138,9 +138,9 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**202** | 成功提交算法执行任务，返回任务跟踪信息 |  -  |
-**400** | 请求参数错误，如JSON格式不正确、算法名称或数据集名称无效、环境变量名称不支持等 |  -  |
-**500** | 服务器内部错误 |  -  |
+**202** | Successfully submitted algorithm execution task, returns task tracking info |  -  |
+**400** | Request parameter error, such as invalid JSON format, algorithm name or dataset name, unsupported environment variable name, etc. |  -  |
+**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

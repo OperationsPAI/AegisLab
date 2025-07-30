@@ -29,22 +29,22 @@ class DtoQueryInjectionResp(BaseModel):
     """
     DtoQueryInjectionResp
     """ # noqa: E501
-    benchmark: Optional[StrictStr] = Field(default=None, description="基准数据库，添加索引")
-    created_at: Optional[StrictStr] = Field(default=None, description="创建时间，添加时间索引")
-    description: Optional[StrictStr] = Field(default=None, description="描述（可选字段）")
-    display_config: Optional[StrictStr] = Field(default=None, description="面向用户的展示配置")
-    end_time: Optional[StrictStr] = Field(default=None, description="预计故障结束时间，添加时间索引")
-    engine_config: Optional[StrictStr] = Field(default=None, description="面向系统的运行配置")
-    fault_type: Optional[StrictInt] = Field(default=None, description="故障类型，添加复合索引")
+    benchmark: Optional[StrictStr] = Field(default=None, description="Benchmark database, add index")
+    created_at: Optional[StrictStr] = Field(default=None, description="Creation time, add time index")
+    description: Optional[StrictStr] = Field(default=None, description="Description (optional field)")
+    display_config: Optional[StrictStr] = Field(default=None, description="User-facing display configuration")
+    end_time: Optional[StrictStr] = Field(default=None, description="Expected fault end time, add time index")
+    engine_config: Optional[StrictStr] = Field(default=None, description="System-facing runtime configuration")
+    fault_type: Optional[StrictInt] = Field(default=None, description="Fault type, add composite index")
     ground_truth: Optional[HandlerGroundtruth] = None
-    id: Optional[StrictInt] = Field(default=None, description="唯一标识")
-    injection_name: Optional[StrictStr] = Field(default=None, description="在k8s资源里注入的名字")
-    pre_duration: Optional[StrictInt] = Field(default=None, description="正常数据时间")
-    start_time: Optional[StrictStr] = Field(default=None, description="预计故障开始时间，添加时间索引")
-    status: Optional[StrictInt] = Field(default=None, description="状态，添加复合索引")
-    task: Optional[DatabaseTask] = Field(default=None, description="外键关联")
-    task_id: Optional[StrictStr] = Field(default=None, description="从属什么 taskid，添加复合索引")
-    updated_at: Optional[StrictStr] = Field(default=None, description="更新时间")
+    id: Optional[StrictInt] = Field(default=None, description="Unique identifier")
+    injection_name: Optional[StrictStr] = Field(default=None, description="Name injected in k8s resources")
+    pre_duration: Optional[StrictInt] = Field(default=None, description="Normal data duration")
+    start_time: Optional[StrictStr] = Field(default=None, description="Expected fault start time, add time index")
+    status: Optional[StrictInt] = Field(default=None, description="Status, add composite index")
+    task: Optional[DatabaseTask] = Field(default=None, description="Foreign key association")
+    task_id: Optional[StrictStr] = Field(default=None, description="Associated task ID, add composite index")
+    updated_at: Optional[StrictStr] = Field(default=None, description="Update time")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["benchmark", "created_at", "description", "display_config", "end_time", "engine_config", "fault_type", "ground_truth", "id", "injection_name", "pre_duration", "start_time", "status", "task", "task_id", "updated_at"]
 

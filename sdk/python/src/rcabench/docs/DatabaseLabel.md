@@ -5,16 +5,16 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**category** | **str** | 标签分类 (dataset, fault_injection, algorithm, container等) | [optional] 
-**color** | **str** | 标签颜色 (hex格式) | [optional] 
-**created_at** | **str** | 创建时间 | [optional] 
-**description** | **str** | 标签描述 | [optional] 
-**id** | **int** | 唯一标识 | [optional] 
-**is_system** | **bool** | 是否为系统标签 | [optional] 
-**key** | **str** | 标签键 | [optional] 
-**updated_at** | **str** | 更新时间 | [optional] 
-**usage** | **int** | 使用次数 | [optional] 
-**value** | **str** | 标签值 | [optional] 
+**category** | **str** | Label category (dataset, fault_injection, algorithm, container, etc.) | [optional] 
+**color** | **str** | Label color (hex format) | [optional] 
+**created_at** | **str** | Creation time | [optional] 
+**description** | **str** | Label description | [optional] 
+**id** | **int** | Unique identifier | [optional] 
+**is_system** | **bool** | Whether system label | [optional] 
+**key** | **str** | Label key | [optional] 
+**updated_at** | **str** | Update time | [optional] 
+**usage** | **int** | Usage count | [optional] 
+**value** | **str** | Label value | [optional] 
 
 ## Example
 

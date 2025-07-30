@@ -27,8 +27,8 @@ class DtoGetCompletedMapResp(BaseModel):
     """
     DtoGetCompletedMapResp
     """ # noqa: E501
-    has_anomaly: Optional[List[StrictStr]] = Field(default=None, description="检测到异常的链路ID列表")
-    no_anomaly: Optional[List[StrictStr]] = Field(default=None, description="没有异常的链路ID列表")
+    has_anomaly: Optional[List[StrictStr]] = Field(default=None, description="List of trace IDs with detected anomalies")
+    no_anomaly: Optional[List[StrictStr]] = Field(default=None, description="List of trace IDs without anomalies")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["has_anomaly", "no_anomaly"]
 

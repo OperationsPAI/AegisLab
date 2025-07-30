@@ -46,18 +46,18 @@ class TaskApi:
     @validate_call
     def api_v1_tasks_get(
         self,
-        task_id: Annotated[Optional[StrictStr], Field(description="任务ID - 精确匹配特定任务 (与trace_id、group_id互斥)")] = None,
-        trace_id: Annotated[Optional[StrictStr], Field(description="跟踪ID - 查找属于同一跟踪的所有任务 (与task_id、group_id互斥)")] = None,
-        group_id: Annotated[Optional[StrictStr], Field(description="组ID - 查找属于同一组的所有任务 (与task_id、trace_id互斥)")] = None,
-        task_type: Annotated[Optional[StrictStr], Field(description="任务类型过滤")] = None,
-        status: Annotated[Optional[StrictStr], Field(description="任务状态过滤")] = None,
-        immediate: Annotated[Optional[StrictBool], Field(description="是否立即执行 - true:立即执行任务, false:延时执行任务")] = None,
-        sort_field: Annotated[Optional[StrictStr], Field(description="排序字段，默认created_at")] = None,
-        sort_order: Annotated[Optional[StrictStr], Field(description="排序方式，默认desc")] = None,
-        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="结果数量限制，用于控制返回记录数量")] = None,
-        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
-        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
-        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
+        task_id: Annotated[Optional[StrictStr], Field(description="Task ID - exact match (mutually exclusive with trace_id, group_id)")] = None,
+        trace_id: Annotated[Optional[StrictStr], Field(description="Trace ID - find all tasks in the same trace (mutually exclusive with task_id, group_id)")] = None,
+        group_id: Annotated[Optional[StrictStr], Field(description="Group ID - find all tasks in the same group (mutually exclusive with task_id, trace_id)")] = None,
+        task_type: Annotated[Optional[StrictStr], Field(description="Task type filter")] = None,
+        status: Annotated[Optional[StrictStr], Field(description="Task status filter")] = None,
+        immediate: Annotated[Optional[StrictBool], Field(description="Immediate execution - true: immediate, false: delayed")] = None,
+        sort_field: Annotated[Optional[StrictStr], Field(description="Sort field, default created_at")] = None,
+        sort_order: Annotated[Optional[StrictStr], Field(description="Sort order, default desc")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="Result limit, controls number of records returned")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="Time range query, supports relative time (1h/24h/7d) or custom, default unset")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="Custom start time, RFC3339 format, required if lookback=custom")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="Custom end time, RFC3339 format, required if lookback=custom")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -71,33 +71,33 @@ class TaskApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseDtoListTasksResp:
-        """获取任务列表
+        """Get task list
 
-        根据多种条件分页获取任务列表。支持按任务ID、跟踪ID、组ID进行精确查询，或按任务类型、状态等进行过滤查询
+        Paginate and get task list by multiple conditions. Supports exact query by task ID, trace ID, group ID, or filter by type, status, etc.
 
-        :param task_id: 任务ID - 精确匹配特定任务 (与trace_id、group_id互斥)
+        :param task_id: Task ID - exact match (mutually exclusive with trace_id, group_id)
         :type task_id: str
-        :param trace_id: 跟踪ID - 查找属于同一跟踪的所有任务 (与task_id、group_id互斥)
+        :param trace_id: Trace ID - find all tasks in the same trace (mutually exclusive with task_id, group_id)
         :type trace_id: str
-        :param group_id: 组ID - 查找属于同一组的所有任务 (与task_id、trace_id互斥)
+        :param group_id: Group ID - find all tasks in the same group (mutually exclusive with task_id, trace_id)
         :type group_id: str
-        :param task_type: 任务类型过滤
+        :param task_type: Task type filter
         :type task_type: str
-        :param status: 任务状态过滤
+        :param status: Task status filter
         :type status: str
-        :param immediate: 是否立即执行 - true:立即执行任务, false:延时执行任务
+        :param immediate: Immediate execution - true: immediate, false: delayed
         :type immediate: bool
-        :param sort_field: 排序字段，默认created_at
+        :param sort_field: Sort field, default created_at
         :type sort_field: str
-        :param sort_order: 排序方式，默认desc
+        :param sort_order: Sort order, default desc
         :type sort_order: str
-        :param limit: 结果数量限制，用于控制返回记录数量
+        :param limit: Result limit, controls number of records returned
         :type limit: int
-        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+        :param lookback: Time range query, supports relative time (1h/24h/7d) or custom, default unset
         :type lookback: str
-        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :param custom_start_time: Custom start time, RFC3339 format, required if lookback=custom
         :type custom_start_time: datetime
-        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :param custom_end_time: Custom end time, RFC3339 format, required if lookback=custom
         :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -159,18 +159,18 @@ class TaskApi:
     @validate_call
     def api_v1_tasks_get_with_http_info(
         self,
-        task_id: Annotated[Optional[StrictStr], Field(description="任务ID - 精确匹配特定任务 (与trace_id、group_id互斥)")] = None,
-        trace_id: Annotated[Optional[StrictStr], Field(description="跟踪ID - 查找属于同一跟踪的所有任务 (与task_id、group_id互斥)")] = None,
-        group_id: Annotated[Optional[StrictStr], Field(description="组ID - 查找属于同一组的所有任务 (与task_id、trace_id互斥)")] = None,
-        task_type: Annotated[Optional[StrictStr], Field(description="任务类型过滤")] = None,
-        status: Annotated[Optional[StrictStr], Field(description="任务状态过滤")] = None,
-        immediate: Annotated[Optional[StrictBool], Field(description="是否立即执行 - true:立即执行任务, false:延时执行任务")] = None,
-        sort_field: Annotated[Optional[StrictStr], Field(description="排序字段，默认created_at")] = None,
-        sort_order: Annotated[Optional[StrictStr], Field(description="排序方式，默认desc")] = None,
-        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="结果数量限制，用于控制返回记录数量")] = None,
-        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
-        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
-        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
+        task_id: Annotated[Optional[StrictStr], Field(description="Task ID - exact match (mutually exclusive with trace_id, group_id)")] = None,
+        trace_id: Annotated[Optional[StrictStr], Field(description="Trace ID - find all tasks in the same trace (mutually exclusive with task_id, group_id)")] = None,
+        group_id: Annotated[Optional[StrictStr], Field(description="Group ID - find all tasks in the same group (mutually exclusive with task_id, trace_id)")] = None,
+        task_type: Annotated[Optional[StrictStr], Field(description="Task type filter")] = None,
+        status: Annotated[Optional[StrictStr], Field(description="Task status filter")] = None,
+        immediate: Annotated[Optional[StrictBool], Field(description="Immediate execution - true: immediate, false: delayed")] = None,
+        sort_field: Annotated[Optional[StrictStr], Field(description="Sort field, default created_at")] = None,
+        sort_order: Annotated[Optional[StrictStr], Field(description="Sort order, default desc")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="Result limit, controls number of records returned")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="Time range query, supports relative time (1h/24h/7d) or custom, default unset")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="Custom start time, RFC3339 format, required if lookback=custom")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="Custom end time, RFC3339 format, required if lookback=custom")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -184,33 +184,33 @@ class TaskApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseDtoListTasksResp]:
-        """获取任务列表
+        """Get task list
 
-        根据多种条件分页获取任务列表。支持按任务ID、跟踪ID、组ID进行精确查询，或按任务类型、状态等进行过滤查询
+        Paginate and get task list by multiple conditions. Supports exact query by task ID, trace ID, group ID, or filter by type, status, etc.
 
-        :param task_id: 任务ID - 精确匹配特定任务 (与trace_id、group_id互斥)
+        :param task_id: Task ID - exact match (mutually exclusive with trace_id, group_id)
         :type task_id: str
-        :param trace_id: 跟踪ID - 查找属于同一跟踪的所有任务 (与task_id、group_id互斥)
+        :param trace_id: Trace ID - find all tasks in the same trace (mutually exclusive with task_id, group_id)
         :type trace_id: str
-        :param group_id: 组ID - 查找属于同一组的所有任务 (与task_id、trace_id互斥)
+        :param group_id: Group ID - find all tasks in the same group (mutually exclusive with task_id, trace_id)
         :type group_id: str
-        :param task_type: 任务类型过滤
+        :param task_type: Task type filter
         :type task_type: str
-        :param status: 任务状态过滤
+        :param status: Task status filter
         :type status: str
-        :param immediate: 是否立即执行 - true:立即执行任务, false:延时执行任务
+        :param immediate: Immediate execution - true: immediate, false: delayed
         :type immediate: bool
-        :param sort_field: 排序字段，默认created_at
+        :param sort_field: Sort field, default created_at
         :type sort_field: str
-        :param sort_order: 排序方式，默认desc
+        :param sort_order: Sort order, default desc
         :type sort_order: str
-        :param limit: 结果数量限制，用于控制返回记录数量
+        :param limit: Result limit, controls number of records returned
         :type limit: int
-        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+        :param lookback: Time range query, supports relative time (1h/24h/7d) or custom, default unset
         :type lookback: str
-        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :param custom_start_time: Custom start time, RFC3339 format, required if lookback=custom
         :type custom_start_time: datetime
-        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :param custom_end_time: Custom end time, RFC3339 format, required if lookback=custom
         :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -272,18 +272,18 @@ class TaskApi:
     @validate_call
     def api_v1_tasks_get_without_preload_content(
         self,
-        task_id: Annotated[Optional[StrictStr], Field(description="任务ID - 精确匹配特定任务 (与trace_id、group_id互斥)")] = None,
-        trace_id: Annotated[Optional[StrictStr], Field(description="跟踪ID - 查找属于同一跟踪的所有任务 (与task_id、group_id互斥)")] = None,
-        group_id: Annotated[Optional[StrictStr], Field(description="组ID - 查找属于同一组的所有任务 (与task_id、trace_id互斥)")] = None,
-        task_type: Annotated[Optional[StrictStr], Field(description="任务类型过滤")] = None,
-        status: Annotated[Optional[StrictStr], Field(description="任务状态过滤")] = None,
-        immediate: Annotated[Optional[StrictBool], Field(description="是否立即执行 - true:立即执行任务, false:延时执行任务")] = None,
-        sort_field: Annotated[Optional[StrictStr], Field(description="排序字段，默认created_at")] = None,
-        sort_order: Annotated[Optional[StrictStr], Field(description="排序方式，默认desc")] = None,
-        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="结果数量限制，用于控制返回记录数量")] = None,
-        lookback: Annotated[Optional[StrictStr], Field(description="时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置")] = None,
-        custom_start_time: Annotated[Optional[datetime], Field(description="自定义开始时间，RFC3339格式，当lookback=custom时必需")] = None,
-        custom_end_time: Annotated[Optional[datetime], Field(description="自定义结束时间，RFC3339格式，当lookback=custom时必需")] = None,
+        task_id: Annotated[Optional[StrictStr], Field(description="Task ID - exact match (mutually exclusive with trace_id, group_id)")] = None,
+        trace_id: Annotated[Optional[StrictStr], Field(description="Trace ID - find all tasks in the same trace (mutually exclusive with task_id, group_id)")] = None,
+        group_id: Annotated[Optional[StrictStr], Field(description="Group ID - find all tasks in the same group (mutually exclusive with task_id, trace_id)")] = None,
+        task_type: Annotated[Optional[StrictStr], Field(description="Task type filter")] = None,
+        status: Annotated[Optional[StrictStr], Field(description="Task status filter")] = None,
+        immediate: Annotated[Optional[StrictBool], Field(description="Immediate execution - true: immediate, false: delayed")] = None,
+        sort_field: Annotated[Optional[StrictStr], Field(description="Sort field, default created_at")] = None,
+        sort_order: Annotated[Optional[StrictStr], Field(description="Sort order, default desc")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="Result limit, controls number of records returned")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="Time range query, supports relative time (1h/24h/7d) or custom, default unset")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="Custom start time, RFC3339 format, required if lookback=custom")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="Custom end time, RFC3339 format, required if lookback=custom")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -297,33 +297,33 @@ class TaskApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """获取任务列表
+        """Get task list
 
-        根据多种条件分页获取任务列表。支持按任务ID、跟踪ID、组ID进行精确查询，或按任务类型、状态等进行过滤查询
+        Paginate and get task list by multiple conditions. Supports exact query by task ID, trace ID, group ID, or filter by type, status, etc.
 
-        :param task_id: 任务ID - 精确匹配特定任务 (与trace_id、group_id互斥)
+        :param task_id: Task ID - exact match (mutually exclusive with trace_id, group_id)
         :type task_id: str
-        :param trace_id: 跟踪ID - 查找属于同一跟踪的所有任务 (与task_id、group_id互斥)
+        :param trace_id: Trace ID - find all tasks in the same trace (mutually exclusive with task_id, group_id)
         :type trace_id: str
-        :param group_id: 组ID - 查找属于同一组的所有任务 (与task_id、trace_id互斥)
+        :param group_id: Group ID - find all tasks in the same group (mutually exclusive with task_id, trace_id)
         :type group_id: str
-        :param task_type: 任务类型过滤
+        :param task_type: Task type filter
         :type task_type: str
-        :param status: 任务状态过滤
+        :param status: Task status filter
         :type status: str
-        :param immediate: 是否立即执行 - true:立即执行任务, false:延时执行任务
+        :param immediate: Immediate execution - true: immediate, false: delayed
         :type immediate: bool
-        :param sort_field: 排序字段，默认created_at
+        :param sort_field: Sort field, default created_at
         :type sort_field: str
-        :param sort_order: 排序方式，默认desc
+        :param sort_order: Sort order, default desc
         :type sort_order: str
-        :param limit: 结果数量限制，用于控制返回记录数量
+        :param limit: Result limit, controls number of records returned
         :type limit: int
-        :param lookback: 时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置
+        :param lookback: Time range query, supports relative time (1h/24h/7d) or custom, default unset
         :type lookback: str
-        :param custom_start_time: 自定义开始时间，RFC3339格式，当lookback=custom时必需
+        :param custom_start_time: Custom start time, RFC3339 format, required if lookback=custom
         :type custom_start_time: datetime
-        :param custom_end_time: 自定义结束时间，RFC3339格式，当lookback=custom时必需
+        :param custom_end_time: Custom end time, RFC3339 format, required if lookback=custom
         :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -519,8 +519,8 @@ class TaskApi:
     @validate_call
     def api_v1_tasks_queue_get(
         self,
-        page_num: Annotated[Optional[StrictInt], Field(description="页码")] = None,
-        page_size: Annotated[Optional[StrictInt], Field(description="每页大小")] = None,
+        page_num: Annotated[Optional[StrictInt], Field(description="Page number")] = None,
+        page_size: Annotated[Optional[StrictInt], Field(description="Page size")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -534,13 +534,13 @@ class TaskApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseDtoPaginationRespDtoUnifiedTask:
-        """获取队列中的任务
+        """Get queued tasks
 
-        分页获取队列中等待执行的任务列表
+        Paginate and get the list of tasks waiting in the queue
 
-        :param page_num: 页码
+        :param page_num: Page number
         :type page_num: int
-        :param page_size: 每页大小
+        :param page_size: Page size
         :type page_size: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -592,8 +592,8 @@ class TaskApi:
     @validate_call
     def api_v1_tasks_queue_get_with_http_info(
         self,
-        page_num: Annotated[Optional[StrictInt], Field(description="页码")] = None,
-        page_size: Annotated[Optional[StrictInt], Field(description="每页大小")] = None,
+        page_num: Annotated[Optional[StrictInt], Field(description="Page number")] = None,
+        page_size: Annotated[Optional[StrictInt], Field(description="Page size")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -607,13 +607,13 @@ class TaskApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseDtoPaginationRespDtoUnifiedTask]:
-        """获取队列中的任务
+        """Get queued tasks
 
-        分页获取队列中等待执行的任务列表
+        Paginate and get the list of tasks waiting in the queue
 
-        :param page_num: 页码
+        :param page_num: Page number
         :type page_num: int
-        :param page_size: 每页大小
+        :param page_size: Page size
         :type page_size: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -665,8 +665,8 @@ class TaskApi:
     @validate_call
     def api_v1_tasks_queue_get_without_preload_content(
         self,
-        page_num: Annotated[Optional[StrictInt], Field(description="页码")] = None,
-        page_size: Annotated[Optional[StrictInt], Field(description="每页大小")] = None,
+        page_num: Annotated[Optional[StrictInt], Field(description="Page number")] = None,
+        page_size: Annotated[Optional[StrictInt], Field(description="Page size")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -680,13 +680,13 @@ class TaskApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """获取队列中的任务
+        """Get queued tasks
 
-        分页获取队列中等待执行的任务列表
+        Paginate and get the list of tasks waiting in the queue
 
-        :param page_num: 页码
+        :param page_num: Page number
         :type page_num: int
-        :param page_size: 每页大小
+        :param page_size: Page size
         :type page_size: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -804,7 +804,7 @@ class TaskApi:
     @validate_call
     def api_v1_tasks_task_id_get(
         self,
-        task_id: Annotated[StrictStr, Field(description="任务ID")],
+        task_id: Annotated[StrictStr, Field(description="Task ID")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -818,11 +818,11 @@ class TaskApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseDtoTaskDetailResp:
-        """获取任务详情
+        """Get task detail
 
-        根据任务ID获取任务详细信息,包括任务基本信息和执行日志
+        Get detailed information of a task by task ID, including basic info and execution logs
 
-        :param task_id: 任务ID (required)
+        :param task_id: Task ID (required)
         :type task_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -874,7 +874,7 @@ class TaskApi:
     @validate_call
     def api_v1_tasks_task_id_get_with_http_info(
         self,
-        task_id: Annotated[StrictStr, Field(description="任务ID")],
+        task_id: Annotated[StrictStr, Field(description="Task ID")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -888,11 +888,11 @@ class TaskApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseDtoTaskDetailResp]:
-        """获取任务详情
+        """Get task detail
 
-        根据任务ID获取任务详细信息,包括任务基本信息和执行日志
+        Get detailed information of a task by task ID, including basic info and execution logs
 
-        :param task_id: 任务ID (required)
+        :param task_id: Task ID (required)
         :type task_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -944,7 +944,7 @@ class TaskApi:
     @validate_call
     def api_v1_tasks_task_id_get_without_preload_content(
         self,
-        task_id: Annotated[StrictStr, Field(description="任务ID")],
+        task_id: Annotated[StrictStr, Field(description="Task ID")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -958,11 +958,11 @@ class TaskApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """获取任务详情
+        """Get task detail
 
-        根据任务ID获取任务详细信息,包括任务基本信息和执行日志
+        Get detailed information of a task by task ID, including basic info and execution logs
 
-        :param task_id: 任务ID (required)
+        :param task_id: Task ID (required)
         :type task_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request

@@ -4,17 +4,17 @@ All URIs are relative to *http://localhost:8080/api/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**api_v1_evaluations_executions_get**](EvaluationApi.md#api_v1_evaluations_executions_get) | **GET** /api/v1/evaluations/executions | 获取成功执行的算法记录
-[**api_v1_evaluations_groundtruth_post**](EvaluationApi.md#api_v1_evaluations_groundtruth_post) | **POST** /api/v1/evaluations/groundtruth | 获取数据集的 ground truth
-[**api_v1_evaluations_raw_data_post**](EvaluationApi.md#api_v1_evaluations_raw_data_post) | **POST** /api/v1/evaluations/raw-data | 获取原始评估数据
+[**api_v1_evaluations_executions_get**](EvaluationApi.md#api_v1_evaluations_executions_get) | **GET** /api/v1/evaluations/executions | Get successful algorithm execution records
+[**api_v1_evaluations_groundtruth_post**](EvaluationApi.md#api_v1_evaluations_groundtruth_post) | **POST** /api/v1/evaluations/groundtruth | Get ground truth for datasets
+[**api_v1_evaluations_raw_data_post**](EvaluationApi.md#api_v1_evaluations_raw_data_post) | **POST** /api/v1/evaluations/raw-data | Get raw evaluation data
 
 
 # **api_v1_evaluations_executions_get**
 > DtoGenericResponseDtoSuccessfulExecutionsResp api_v1_evaluations_executions_get(start_time=start_time, end_time=end_time, limit=limit, offset=offset)
 
-获取成功执行的算法记录
+Get successful algorithm execution records
 
-获取所有ExecutionResult中status为ExecutionSuccess的记录，支持时间区间筛选和数量筛选
+Get all records in ExecutionResult with status ExecutionSuccess, supports time range filtering and quantity filtering
 
 ### Example
 
@@ -36,13 +36,13 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.EvaluationApi(api_client)
-    start_time = 'start_time_example' # str | 开始时间，格式：2006-01-02T15:04:05Z07:00 (optional)
-    end_time = 'end_time_example' # str | 结束时间，格式：2006-01-02T15:04:05Z07:00 (optional)
-    limit = 56 # int | 数量限制 (optional)
-    offset = 56 # int | 偏移量，用于分页 (optional)
+    start_time = 'start_time_example' # str | Start time, format: 2006-01-02T15:04:05Z07:00 (optional)
+    end_time = 'end_time_example' # str | End time, format: 2006-01-02T15:04:05Z07:00 (optional)
+    limit = 56 # int | Limit (optional)
+    offset = 56 # int | Offset for pagination (optional)
 
     try:
-        # 获取成功执行的算法记录
+        # Get successful algorithm execution records
         api_response = api_instance.api_v1_evaluations_executions_get(start_time=start_time, end_time=end_time, limit=limit, offset=offset)
         print("The response of EvaluationApi->api_v1_evaluations_executions_get:\n")
         pprint(api_response)
@@ -57,10 +57,10 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **start_time** | **str**| 开始时间，格式：2006-01-02T15:04:05Z07:00 | [optional] 
- **end_time** | **str**| 结束时间，格式：2006-01-02T15:04:05Z07:00 | [optional] 
- **limit** | **int**| 数量限制 | [optional] 
- **offset** | **int**| 偏移量，用于分页 | [optional] 
+ **start_time** | **str**| Start time, format: 2006-01-02T15:04:05Z07:00 | [optional] 
+ **end_time** | **str**| End time, format: 2006-01-02T15:04:05Z07:00 | [optional] 
+ **limit** | **int**| Limit | [optional] 
+ **offset** | **int**| Offset for pagination | [optional] 
 
 ### Return type
 
@@ -79,18 +79,18 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | 成功返回成功执行的算法记录列表 |  -  |
-**400** | 请求参数错误 |  -  |
-**500** | 服务器内部错误 |  -  |
+**200** | Successfully returns the list of successful algorithm execution records |  -  |
+**400** | Request parameter error |  -  |
+**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_evaluations_groundtruth_post**
 > DtoGenericResponseDtoGroundTruthResp api_v1_evaluations_groundtruth_post(body)
 
-获取数据集的 ground truth
+Get ground truth for datasets
 
-根据数据集数组获取对应的 ground truth 数据，用于算法评估的基准数据。支持批量查询多个数据集的真实标签信息
+Get ground truth data for the given dataset array, used as benchmark data for algorithm evaluation. Supports batch query for ground truth information of multiple datasets
 
 ### Example
 
@@ -113,10 +113,10 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.EvaluationApi(api_client)
-    body = rcabench.openapi.DtoGroundTruthReq() # DtoGroundTruthReq | Ground truth查询请求，包含数据集列表
+    body = rcabench.openapi.DtoGroundTruthReq() # DtoGroundTruthReq | Ground truth query request, contains dataset list
 
     try:
-        # 获取数据集的 ground truth
+        # Get ground truth for datasets
         api_response = api_instance.api_v1_evaluations_groundtruth_post(body)
         print("The response of EvaluationApi->api_v1_evaluations_groundtruth_post:\n")
         pprint(api_response)
@@ -131,7 +131,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**DtoGroundTruthReq**](DtoGroundTruthReq.md)| Ground truth查询请求，包含数据集列表 | 
+ **body** | [**DtoGroundTruthReq**](DtoGroundTruthReq.md)| Ground truth query request, contains dataset list | 
 
 ### Return type
 
@@ -150,18 +150,18 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | 成功返回数据集的ground truth信息 |  -  |
-**400** | 请求参数错误，如JSON格式不正确、数据集数组为空 |  -  |
-**500** | 服务器内部错误 |  -  |
+**200** | Successfully returns ground truth information for datasets |  -  |
+**400** | Request parameter error, such as incorrect JSON format or empty dataset array |  -  |
+**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_evaluations_raw_data_post**
 > DtoGenericResponseDtoRawDataResp api_v1_evaluations_raw_data_post(body)
 
-获取原始评估数据
+Get raw evaluation data
 
-支持三种查询模式：1) 直接传入算法-数据集对数组进行精确查询；2) 传入算法和数据集列表进行笛卡尔积查询；3) 通过执行ID列表查询。三种模式互斥，只能选择其中一种
+Supports three query modes: 1) Directly pass an array of algorithm-dataset pairs for precise query; 2) Pass lists of algorithms and datasets for Cartesian product query; 3) Query by execution ID list. The three modes are mutually exclusive, only one can be selected
 
 ### Example
 
@@ -184,10 +184,10 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.EvaluationApi(api_client)
-    body = rcabench.openapi.DtoRawDataReq() # DtoRawDataReq | 原始数据查询请求，支持三种模式：pairs数组、(algorithms+datasets)笛卡尔积、或execution_ids列表
+    body = rcabench.openapi.DtoRawDataReq() # DtoRawDataReq | Raw data query request, supports three modes: pairs array, (algorithms+datasets) Cartesian product, or execution_ids list
 
     try:
-        # 获取原始评估数据
+        # Get raw evaluation data
         api_response = api_instance.api_v1_evaluations_raw_data_post(body)
         print("The response of EvaluationApi->api_v1_evaluations_raw_data_post:\n")
         pprint(api_response)
@@ -202,7 +202,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**DtoRawDataReq**](DtoRawDataReq.md)| 原始数据查询请求，支持三种模式：pairs数组、(algorithms+datasets)笛卡尔积、或execution_ids列表 | 
+ **body** | [**DtoRawDataReq**](DtoRawDataReq.md)| Raw data query request, supports three modes: pairs array, (algorithms+datasets) Cartesian product, or execution_ids list | 
 
 ### Return type
 
@@ -221,9 +221,9 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | 成功返回原始评估数据列表 |  -  |
-**400** | 请求参数错误，如JSON格式不正确、查询模式冲突或参数为空 |  -  |
-**500** | 服务器内部错误 |  -  |
+**200** | Successfully returns the list of raw evaluation data |  -  |
+**400** | Request parameter error, such as incorrect JSON format, query mode conflict or empty parameter |  -  |
+**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

@@ -31,23 +31,23 @@ class DtoPermissionSearchRequest(BaseModel):
     """
     DtoPermissionSearchRequest
     """ # noqa: E501
-    actions: Optional[List[StrictStr]] = Field(default=None, description="操作筛选")
+    actions: Optional[List[StrictStr]] = Field(default=None, description="Action filter")
     created_at: Optional[DtoDateRange] = Field(default=None, description="Common filters shortcuts")
-    description_pattern: Optional[StrictStr] = Field(default=None, description="描述模糊匹配")
-    display_name_pattern: Optional[StrictStr] = Field(default=None, description="显示名模糊匹配")
+    description_pattern: Optional[StrictStr] = Field(default=None, description="Fuzzy match for description")
+    display_name_pattern: Optional[StrictStr] = Field(default=None, description="Fuzzy match for display name")
     exclude_fields: Optional[List[StrictStr]] = None
     filters: Optional[List[DtoSearchFilter]] = Field(default=None, description="Filters")
     include: Optional[List[StrictStr]] = Field(default=None, description="Include related entities")
     include_fields: Optional[List[StrictStr]] = Field(default=None, description="Include/Exclude fields")
     is_active: Optional[StrictBool] = None
-    is_system: Optional[StrictBool] = Field(default=None, description="是否系统权限")
+    is_system: Optional[StrictBool] = Field(default=None, description="Is system permission")
     keyword: Optional[StrictStr] = Field(default=None, description="Search keyword (for general text search)")
     name_pattern: Optional[StrictStr] = Field(default=None, description="Permission-specific filter shortcuts")
     page: Optional[Annotated[int, Field(strict=True, ge=1)]] = Field(default=None, description="Pagination")
     project_id: Optional[StrictInt] = None
-    resource_ids: Optional[List[StrictInt]] = Field(default=None, description="资源ID筛选")
-    resource_names: Optional[List[StrictStr]] = Field(default=None, description="资源名称筛选")
-    role_ids: Optional[List[StrictInt]] = Field(default=None, description="拥有此权限的角色ID")
+    resource_ids: Optional[List[StrictInt]] = Field(default=None, description="Resource ID filter")
+    resource_names: Optional[List[StrictStr]] = Field(default=None, description="Resource name filter")
+    role_ids: Optional[List[StrictInt]] = Field(default=None, description="Role IDs that have this permission")
     size: Optional[Annotated[int, Field(le=1000, strict=True, ge=1)]] = None
     sort: Optional[List[DtoSortOption]] = Field(default=None, description="Sort")
     status: Optional[List[StrictInt]] = None

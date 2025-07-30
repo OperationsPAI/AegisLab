@@ -28,8 +28,8 @@ class DtoSortOption(BaseModel):
     """
     DtoSortOption
     """ # noqa: E501
-    direction: DtoSortDirection = Field(description="排序方向")
-    var_field: StrictStr = Field(description="排序字段", alias="field")
+    direction: DtoSortDirection = Field(description="Sort direction")
+    var_field: StrictStr = Field(description="Sort field", alias="field")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["direction", "field"]
 

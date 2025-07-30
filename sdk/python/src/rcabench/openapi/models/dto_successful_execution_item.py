@@ -27,10 +27,10 @@ class DtoSuccessfulExecutionItem(BaseModel):
     """
     DtoSuccessfulExecutionItem
     """ # noqa: E501
-    algorithm: Optional[StrictStr] = Field(default=None, description="算法名称")
-    created_at: Optional[StrictStr] = Field(default=None, description="创建时间")
-    dataset: Optional[StrictStr] = Field(default=None, description="数据集名称")
-    id: Optional[StrictInt] = Field(default=None, description="执行ID")
+    algorithm: Optional[StrictStr] = Field(default=None, description="Algorithm name")
+    created_at: Optional[StrictStr] = Field(default=None, description="Creation time")
+    dataset: Optional[StrictStr] = Field(default=None, description="Dataset name")
+    id: Optional[StrictInt] = Field(default=None, description="Execution ID")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["algorithm", "created_at", "dataset", "id"]
 

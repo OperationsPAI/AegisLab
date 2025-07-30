@@ -27,17 +27,17 @@ class DatabaseUser(BaseModel):
     """
     DatabaseUser
     """ # noqa: E501
-    avatar: Optional[StrictStr] = Field(default=None, description="头像URL")
-    created_at: Optional[StrictStr] = Field(default=None, description="创建时间")
-    email: Optional[StrictStr] = Field(default=None, description="邮箱（唯一）")
-    full_name: Optional[StrictStr] = Field(default=None, description="全名")
-    id: Optional[StrictInt] = Field(default=None, description="唯一标识")
-    is_active: Optional[StrictBool] = Field(default=None, description="是否激活")
-    last_login_at: Optional[StrictStr] = Field(default=None, description="最后登录时间")
-    phone: Optional[StrictStr] = Field(default=None, description="电话号码")
-    status: Optional[StrictInt] = Field(default=None, description="0:禁用 1:启用 -1:删除")
-    updated_at: Optional[StrictStr] = Field(default=None, description="更新时间")
-    username: Optional[StrictStr] = Field(default=None, description="用户名（唯一）")
+    avatar: Optional[StrictStr] = Field(default=None, description="Avatar URL")
+    created_at: Optional[StrictStr] = Field(default=None, description="Creation time")
+    email: Optional[StrictStr] = Field(default=None, description="Email (unique)")
+    full_name: Optional[StrictStr] = Field(default=None, description="Full name")
+    id: Optional[StrictInt] = Field(default=None, description="Unique identifier")
+    is_active: Optional[StrictBool] = Field(default=None, description="Whether active")
+    last_login_at: Optional[StrictStr] = Field(default=None, description="Last login time")
+    phone: Optional[StrictStr] = Field(default=None, description="Phone number")
+    status: Optional[StrictInt] = Field(default=None, description="0:disabled 1:enabled -1:deleted")
+    updated_at: Optional[StrictStr] = Field(default=None, description="Update time")
+    username: Optional[StrictStr] = Field(default=None, description="Username (unique)")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["avatar", "created_at", "email", "full_name", "id", "is_active", "last_login_at", "phone", "status", "updated_at", "username"]
 

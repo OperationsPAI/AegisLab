@@ -5,11 +5,11 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**created_at** | **str** | 创建时间 | [optional] 
-**fault_injection** | [**DatabaseFaultInjectionSchedule**](DatabaseFaultInjectionSchedule.md) | 故障注入详情 | [optional] 
-**fault_injection_id** | **int** | 故障注入ID | [optional] 
-**id** | **int** | 关联ID | [optional] 
-**updated_at** | **str** | 更新时间 | [optional] 
+**created_at** | **str** | Creation time | [optional] 
+**fault_injection** | [**DatabaseFaultInjectionSchedule**](DatabaseFaultInjectionSchedule.md) | Fault injection details | [optional] 
+**fault_injection_id** | **int** | Fault injection ID | [optional] 
+**id** | **int** | Relation ID | [optional] 
+**updated_at** | **str** | Update time | [optional] 
 
 ## Example
 

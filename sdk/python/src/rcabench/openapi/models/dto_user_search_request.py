@@ -32,20 +32,20 @@ class DtoUserSearchRequest(BaseModel):
     DtoUserSearchRequest
     """ # noqa: E501
     created_at: Optional[DtoDateRange] = Field(default=None, description="Common filters shortcuts")
-    departments: Optional[List[StrictStr]] = Field(default=None, description="部门筛选")
-    email_pattern: Optional[StrictStr] = Field(default=None, description="邮箱模糊匹配")
+    departments: Optional[List[StrictStr]] = Field(default=None, description="Department filter")
+    email_pattern: Optional[StrictStr] = Field(default=None, description="Email fuzzy match")
     exclude_fields: Optional[List[StrictStr]] = None
     filters: Optional[List[DtoSearchFilter]] = Field(default=None, description="Filters")
-    fullname_pattern: Optional[StrictStr] = Field(default=None, description="全名模糊匹配")
+    fullname_pattern: Optional[StrictStr] = Field(default=None, description="Full name fuzzy match")
     include: Optional[List[StrictStr]] = Field(default=None, description="Include related entities")
     include_fields: Optional[List[StrictStr]] = Field(default=None, description="Include/Exclude fields")
     is_active: Optional[StrictBool] = None
     keyword: Optional[StrictStr] = Field(default=None, description="Search keyword (for general text search)")
-    last_login_range: Optional[DtoDateRange] = Field(default=None, description="最后登录时间范围")
+    last_login_range: Optional[DtoDateRange] = Field(default=None, description="Last login time range")
     page: Optional[Annotated[int, Field(strict=True, ge=1)]] = Field(default=None, description="Pagination")
     project_id: Optional[StrictInt] = None
-    project_ids: Optional[List[StrictInt]] = Field(default=None, description="项目ID筛选")
-    role_ids: Optional[List[StrictInt]] = Field(default=None, description="角色ID筛选")
+    project_ids: Optional[List[StrictInt]] = Field(default=None, description="Project ID filter")
+    role_ids: Optional[List[StrictInt]] = Field(default=None, description="Role ID filter")
     size: Optional[Annotated[int, Field(le=1000, strict=True, ge=1)]] = None
     sort: Optional[List[DtoSortOption]] = Field(default=None, description="Sort")
     status: Optional[List[StrictInt]] = None

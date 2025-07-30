@@ -28,19 +28,19 @@ class DatabaseContainer(BaseModel):
     """
     DatabaseContainer
     """ # noqa: E501
-    command: Optional[StrictStr] = Field(default=None, description="启动命令")
-    created_at: Optional[StrictStr] = Field(default=None, description="创建时间")
-    env_vars: Optional[StrictStr] = Field(default=None, description="环境变量名称列表")
-    id: Optional[StrictInt] = Field(default=None, description="唯一标识")
-    image: Optional[StrictStr] = Field(default=None, description="镜像名")
-    is_public: Optional[StrictBool] = Field(default=None, description="是否公开可见")
-    name: Optional[StrictStr] = Field(default=None, description="名称")
-    status: Optional[StrictBool] = Field(default=None, description="0: 已删除 1: 活跃")
-    tag: Optional[StrictStr] = Field(default=None, description="镜像标签")
-    type: Optional[StrictStr] = Field(default=None, description="镜像类型")
-    updated_at: Optional[StrictStr] = Field(default=None, description="更新时间")
-    user: Optional[DatabaseUser] = Field(default=None, description="外键关联")
-    user_id: Optional[StrictInt] = Field(default=None, description="容器必须属于某个用户")
+    command: Optional[StrictStr] = Field(default=None, description="Startup command")
+    created_at: Optional[StrictStr] = Field(default=None, description="Creation time")
+    env_vars: Optional[StrictStr] = Field(default=None, description="List of environment variable names")
+    id: Optional[StrictInt] = Field(default=None, description="Unique identifier")
+    image: Optional[StrictStr] = Field(default=None, description="Image name")
+    is_public: Optional[StrictBool] = Field(default=None, description="Whether publicly visible")
+    name: Optional[StrictStr] = Field(default=None, description="Name")
+    status: Optional[StrictBool] = Field(default=None, description="0: deleted 1: active")
+    tag: Optional[StrictStr] = Field(default=None, description="Image tag")
+    type: Optional[StrictStr] = Field(default=None, description="Image type")
+    updated_at: Optional[StrictStr] = Field(default=None, description="Update time")
+    user: Optional[DatabaseUser] = Field(default=None, description="Foreign key association")
+    user_id: Optional[StrictInt] = Field(default=None, description="Container must belong to a user")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["command", "created_at", "env_vars", "id", "image", "is_public", "name", "status", "tag", "type", "updated_at", "user", "user_id"]
 

@@ -45,7 +45,7 @@ class DatasetApi:
     @validate_call
     def api_v1_datasets_delete(
         self,
-        names: Annotated[List[StrictStr], Field(description="数据集名称列表")],
+        names: Annotated[List[StrictStr], Field(description="Dataset name list")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -59,11 +59,11 @@ class DatasetApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseDtoDatasetDeleteResp:
-        """删除数据集数据
+        """Delete dataset data
 
-        删除数据集数据
+        Delete dataset data
 
-        :param names: 数据集名称列表 (required)
+        :param names: Dataset name list (required)
         :type names: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -114,7 +114,7 @@ class DatasetApi:
     @validate_call
     def api_v1_datasets_delete_with_http_info(
         self,
-        names: Annotated[List[StrictStr], Field(description="数据集名称列表")],
+        names: Annotated[List[StrictStr], Field(description="Dataset name list")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -128,11 +128,11 @@ class DatasetApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseDtoDatasetDeleteResp]:
-        """删除数据集数据
+        """Delete dataset data
 
-        删除数据集数据
+        Delete dataset data
 
-        :param names: 数据集名称列表 (required)
+        :param names: Dataset name list (required)
         :type names: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -183,7 +183,7 @@ class DatasetApi:
     @validate_call
     def api_v1_datasets_delete_without_preload_content(
         self,
-        names: Annotated[List[StrictStr], Field(description="数据集名称列表")],
+        names: Annotated[List[StrictStr], Field(description="Dataset name list")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -197,11 +197,11 @@ class DatasetApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """删除数据集数据
+        """Delete dataset data
 
-        删除数据集数据
+        Delete dataset data
 
-        :param names: 数据集名称列表 (required)
+        :param names: Dataset name list (required)
         :type names: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -314,8 +314,8 @@ class DatasetApi:
     @validate_call
     def api_v1_datasets_download_get(
         self,
-        group_ids: Annotated[Optional[List[StrictStr]], Field(description="任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids")] = None,
-        names: Annotated[Optional[List[StrictStr]], Field(description="数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一")] = None,
+        group_ids: Annotated[Optional[List[StrictStr]], Field(description="List of task group IDs, format: group1,group2,group3. Mutually exclusive with names parameter; group_ids takes precedence")] = None,
+        names: Annotated[Optional[List[StrictStr]], Field(description="List of dataset names, format: dataset1,dataset2,dataset3. Mutually exclusive with group_ids parameter")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -329,13 +329,13 @@ class DatasetApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> str:
-        """下载数据集打包文件
+        """Download dataset archive file
 
-        将指定的多个数据集打包为 ZIP 文件下载，自动排除 result.csv 和检测器结论文件。支持按组ID或数据集名称进行下载，两种方式二选一。下载文件结构：按组ID下载时为 datasets/{groupId}/{datasetName}/...，按名称下载时为 datasets/{datasetName}/...
+        Package specified datasets into a ZIP file for download, automatically excluding result.csv and detector conclusion files. Supports downloading by group ID or dataset name (mutually exclusive). Directory structure: when downloading by group ID: datasets/{groupId}/{datasetName}/...; when by name: datasets/{datasetName}/...
 
-        :param group_ids: 任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids
+        :param group_ids: List of task group IDs, format: group1,group2,group3. Mutually exclusive with names parameter; group_ids takes precedence
         :type group_ids: List[str]
-        :param names: 数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一
+        :param names: List of dataset names, format: dataset1,dataset2,dataset3. Mutually exclusive with group_ids parameter
         :type names: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -388,8 +388,8 @@ class DatasetApi:
     @validate_call
     def api_v1_datasets_download_get_with_http_info(
         self,
-        group_ids: Annotated[Optional[List[StrictStr]], Field(description="任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids")] = None,
-        names: Annotated[Optional[List[StrictStr]], Field(description="数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一")] = None,
+        group_ids: Annotated[Optional[List[StrictStr]], Field(description="List of task group IDs, format: group1,group2,group3. Mutually exclusive with names parameter; group_ids takes precedence")] = None,
+        names: Annotated[Optional[List[StrictStr]], Field(description="List of dataset names, format: dataset1,dataset2,dataset3. Mutually exclusive with group_ids parameter")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -403,13 +403,13 @@ class DatasetApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[str]:
-        """下载数据集打包文件
+        """Download dataset archive file
 
-        将指定的多个数据集打包为 ZIP 文件下载，自动排除 result.csv 和检测器结论文件。支持按组ID或数据集名称进行下载，两种方式二选一。下载文件结构：按组ID下载时为 datasets/{groupId}/{datasetName}/...，按名称下载时为 datasets/{datasetName}/...
+        Package specified datasets into a ZIP file for download, automatically excluding result.csv and detector conclusion files. Supports downloading by group ID or dataset name (mutually exclusive). Directory structure: when downloading by group ID: datasets/{groupId}/{datasetName}/...; when by name: datasets/{datasetName}/...
 
-        :param group_ids: 任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids
+        :param group_ids: List of task group IDs, format: group1,group2,group3. Mutually exclusive with names parameter; group_ids takes precedence
         :type group_ids: List[str]
-        :param names: 数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一
+        :param names: List of dataset names, format: dataset1,dataset2,dataset3. Mutually exclusive with group_ids parameter
         :type names: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -462,8 +462,8 @@ class DatasetApi:
     @validate_call
     def api_v1_datasets_download_get_without_preload_content(
         self,
-        group_ids: Annotated[Optional[List[StrictStr]], Field(description="任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids")] = None,
-        names: Annotated[Optional[List[StrictStr]], Field(description="数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一")] = None,
+        group_ids: Annotated[Optional[List[StrictStr]], Field(description="List of task group IDs, format: group1,group2,group3. Mutually exclusive with names parameter; group_ids takes precedence")] = None,
+        names: Annotated[Optional[List[StrictStr]], Field(description="List of dataset names, format: dataset1,dataset2,dataset3. Mutually exclusive with group_ids parameter")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -477,13 +477,13 @@ class DatasetApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """下载数据集打包文件
+        """Download dataset archive file
 
-        将指定的多个数据集打包为 ZIP 文件下载，自动排除 result.csv 和检测器结论文件。支持按组ID或数据集名称进行下载，两种方式二选一。下载文件结构：按组ID下载时为 datasets/{groupId}/{datasetName}/...，按名称下载时为 datasets/{datasetName}/...
+        Package specified datasets into a ZIP file for download, automatically excluding result.csv and detector conclusion files. Supports downloading by group ID or dataset name (mutually exclusive). Directory structure: when downloading by group ID: datasets/{groupId}/{datasetName}/...; when by name: datasets/{datasetName}/...
 
-        :param group_ids: 任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids
+        :param group_ids: List of task group IDs, format: group1,group2,group3. Mutually exclusive with names parameter; group_ids takes precedence
         :type group_ids: List[str]
-        :param names: 数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一
+        :param names: List of dataset names, format: dataset1,dataset2,dataset3. Mutually exclusive with group_ids parameter
         :type names: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -604,7 +604,7 @@ class DatasetApi:
     @validate_call
     def api_v1_datasets_post(
         self,
-        body: Annotated[DtoSubmitDatasetBuildingReq, Field(description="数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置")],
+        body: Annotated[DtoSubmitDatasetBuildingReq, Field(description="List of dataset build requests; each request includes dataset name, time range, benchmark, and environment variable configuration")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -618,11 +618,11 @@ class DatasetApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseDtoSubmitResp:
-        """批量构建数据集
+        """Batch build datasets
 
-        根据指定的时间范围和基准测试容器批量构建数据集。
+        Batch build datasets based on specified time range and benchmark container
 
-        :param body: 数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置 (required)
+        :param body: List of dataset build requests; each request includes dataset name, time range, benchmark, and environment variable configuration (required)
         :type body: DtoSubmitDatasetBuildingReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -673,7 +673,7 @@ class DatasetApi:
     @validate_call
     def api_v1_datasets_post_with_http_info(
         self,
-        body: Annotated[DtoSubmitDatasetBuildingReq, Field(description="数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置")],
+        body: Annotated[DtoSubmitDatasetBuildingReq, Field(description="List of dataset build requests; each request includes dataset name, time range, benchmark, and environment variable configuration")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -687,11 +687,11 @@ class DatasetApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseDtoSubmitResp]:
-        """批量构建数据集
+        """Batch build datasets
 
-        根据指定的时间范围和基准测试容器批量构建数据集。
+        Batch build datasets based on specified time range and benchmark container
 
-        :param body: 数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置 (required)
+        :param body: List of dataset build requests; each request includes dataset name, time range, benchmark, and environment variable configuration (required)
         :type body: DtoSubmitDatasetBuildingReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -742,7 +742,7 @@ class DatasetApi:
     @validate_call
     def api_v1_datasets_post_without_preload_content(
         self,
-        body: Annotated[DtoSubmitDatasetBuildingReq, Field(description="数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置")],
+        body: Annotated[DtoSubmitDatasetBuildingReq, Field(description="List of dataset build requests; each request includes dataset name, time range, benchmark, and environment variable configuration")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -756,11 +756,11 @@ class DatasetApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """批量构建数据集
+        """Batch build datasets
 
-        根据指定的时间范围和基准测试容器批量构建数据集。
+        Batch build datasets based on specified time range and benchmark container
 
-        :param body: 数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置 (required)
+        :param body: List of dataset build requests; each request includes dataset name, time range, benchmark, and environment variable configuration (required)
         :type body: DtoSubmitDatasetBuildingReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request

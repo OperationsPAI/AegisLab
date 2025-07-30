@@ -27,23 +27,23 @@ const docTemplate = `{
     "paths": {
         "/api/v1/algorithms": {
             "get": {
-                "description": "获取系统中所有可用的算法列表，包括算法的镜像信息、标签和更新时间。只返回状态为激活的算法容器",
+                "description": "Get all available algorithms in the system, including image info, tags, and update time. Only returns containers with active status.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "algorithm"
                 ],
-                "summary": "获取算法列表",
+                "summary": "Get algorithm list",
                 "responses": {
                     "200": {
-                        "description": "成功返回算法列表",
+                        "description": "Successfully returned algorithm list",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_ListAlgorithmsResp"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -51,17 +51,17 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "批量提交算法执行任务，支持多个算法和数据集的组合执行。系统将为每个执行任务分配唯一的 TraceID 用于跟踪任务状态和结果",
+                "description": "Batch submit algorithm execution tasks, supporting multiple algorithm and dataset combinations. The system assigns a unique TraceID for each execution task to track status and results.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "algorithm"
                 ],
-                "summary": "提交算法执行任务",
+                "summary": "Submit algorithm execution task",
                 "parameters": [
                     {
-                        "description": "算法执行请求列表，包含算法名称、数据集和环境变量",
+                        "description": "Algorithm execution request list, including algorithm name, dataset, and environment variables",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -72,19 +72,19 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "202": {
-                        "description": "成功提交算法执行任务，返回任务跟踪信息",
+                        "description": "Successfully submitted algorithm execution task, returns task tracking info",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
                         }
                     },
                     "400": {
-                        "description": "请求参数错误，如JSON格式不正确、算法名称或数据集名称无效、环境变量名称不支持等",
+                        "description": "Request parameter error, such as invalid JSON format, algorithm name or dataset name, unsupported environment variable name, etc.",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -94,18 +94,18 @@ const docTemplate = `{
         },
         "/api/v1/analyzers/injections": {
             "get": {
-                "description": "使用多种筛选条件分析故障注入数据，返回包括效率、多样性、种子之间的距离等统计信息",
+                "description": "Analyze fault injection data using various filtering conditions, returning statistical information including efficiency, diversity, distance between seeds, etc.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "analyzer"
                 ],
-                "summary": "分析故障注入数据",
+                "summary": "Analyze fault injection data",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "项目名称过滤",
+                        "description": "Project name filter",
                         "name": "project_name",
                         "in": "query"
                     },
@@ -116,13 +116,13 @@ const docTemplate = `{
                         ],
                         "type": "string",
                         "default": "prod",
-                        "description": "环境标签过滤",
+                        "description": "Environment label filter",
                         "name": "env",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "批次标签过滤",
+                        "description": "Batch label filter",
                         "name": "batch",
                         "in": "query"
                     },
@@ -133,7 +133,7 @@ const docTemplate = `{
                         ],
                         "type": "string",
                         "default": "train",
-                        "description": "分类标签过滤",
+                        "description": "Classification label filter",
                         "name": "tag",
                         "in": "query"
                     },
@@ -143,60 +143,60 @@ const docTemplate = `{
                         ],
                         "type": "string",
                         "default": "clickhouse",
-                        "description": "基准测试类型过滤",
+                        "description": "Benchmark type filter",
                         "name": "benchmark",
                         "in": "query"
                     },
                     {
                         "type": "integer",
                         "default": 0,
-                        "description": "状态过滤，具体值参考字段映射接口(/mapping)",
+                        "description": "Status filter, refer to field mapping interface (/mapping) for specific values",
                         "name": "status",
                         "in": "query"
                     },
                     {
                         "type": "integer",
                         "default": 0,
-                        "description": "故障类型过滤，具体值参考字段映射接口(/mapping)",
+                        "description": "Fault type filter, refer to field mapping interface (/mapping) for specific values",
                         "name": "fault_type",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置",
+                        "description": "Time range query, supports custom relative time (1h/24h/7d) or custom, default is not set",
                         "name": "lookback",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "format": "date-time",
-                        "description": "自定义开始时间，RFC3339格式，当lookback=custom时必需",
+                        "description": "Custom start time, RFC3339 format, required when lookback=custom",
                         "name": "custom_start_time",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "format": "date-time",
-                        "description": "自定义结束时间，RFC3339格式，当lookback=custom时必需",
+                        "description": "Custom end time, RFC3339 format, required when lookback=custom",
                         "name": "custom_end_time",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "返回故障注入分析统计信息",
+                        "description": "Returns fault injection analysis statistics",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_AnalyzeInjectionsResp"
                         }
                     },
                     "400": {
-                        "description": "请求参数错误，如参数格式不正确、验证失败等",
+                        "description": "Request parameter error, such as incorrect parameter format, validation failure, etc.",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -206,57 +206,57 @@ const docTemplate = `{
         },
         "/api/v1/analyzers/traces": {
             "get": {
-                "description": "使用多种筛选条件分析链路数据，返回包括故障注入结束链路在内的统计信息",
+                "description": "Analyze trace data using various filtering conditions, returning statistical information including traces ending with fault injection",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "trace"
                 ],
-                "summary": "分析链路数据",
+                "summary": "Analyze trace data",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "首任务类型筛选",
+                        "description": "First task type filter",
                         "name": "first_task_type",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置",
+                        "description": "Time range query, supports custom relative time (1h/24h/7d) or custom, default is not set",
                         "name": "lookback",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "format": "date-time",
-                        "description": "自定义开始时间，RFC3339格式，当lookback=custom时必需",
+                        "description": "Custom start time, RFC3339 format, required when lookback=custom",
                         "name": "custom_start_time",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "format": "date-time",
-                        "description": "自定义结束时间，RFC3339格式，当lookback=custom时必需",
+                        "description": "Custom end time, RFC3339 format, required when lookback=custom",
                         "name": "custom_end_time",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "返回链路分析统计信息",
+                        "description": "Returns trace analysis statistics",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_TraceStats"
                         }
                     },
                     "400": {
-                        "description": "请求参数错误，如参数格式不正确、验证失败等",
+                        "description": "Request parameter error, such as incorrect parameter format, validation failure, etc.",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -266,7 +266,7 @@ const docTemplate = `{
         },
         "/api/v1/containers": {
             "post": {
-                "description": "通过上传文件、指定GitHub仓库或Harbor镜像来构建Docker镜像。支持zip和tar.gz格式的文件上传，或从GitHub仓库自动拉取代码进行构建，或从Harbor直接获取已存在的镜像并更新数据库。系统会自动验证必需文件（Dockerfile）并设置执行权限",
+                "description": "Build Docker images by uploading files, specifying GitHub repositories, or Harbor images. Supports zip and tar.gz file uploads, or automatically pulls code from GitHub for building, or directly updates the database from existing Harbor images. The system automatically validates required files (Dockerfile) and sets execution permissions.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -276,7 +276,7 @@ const docTemplate = `{
                 "tags": [
                     "container"
                 ],
-                "summary": "提交镜像构建任务",
+                "summary": "Submit container build task",
                 "parameters": [
                     {
                         "enum": [
@@ -285,19 +285,19 @@ const docTemplate = `{
                         ],
                         "type": "string",
                         "default": "algorithm",
-                        "description": "容器类型，指定容器的用途",
+                        "description": "Container type, specifies the purpose of the container",
                         "name": "type",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "容器名称，用于标识容器，将作为镜像构建的标识符，默认使用info.toml中的name字段",
+                        "description": "Container name, used to identify the container, will be used as the image build identifier, defaults to the name field in info.toml",
                         "name": "name",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "Docker镜像名称。当source_type为harbor时，指定Harbor中已存在的镜像名称；其他情况下支持以下格式：1) image-name（自动添加默认Harbor地址和命名空间）2) namespace/image-name（自动添加默认Harbor地址）",
+                        "description": "Docker image name. When source_type is harbor, specify the existing image name in Harbor; otherwise, supports the following formats: 1) image-name (automatically adds default Harbor address and namespace) 2) namespace/image-name (automatically adds default Harbor address)",
                         "name": "image",
                         "in": "formData",
                         "required": true
@@ -305,14 +305,14 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "default": "latest",
-                        "description": "Docker镜像标签。当source_type为harbor时，指定Harbor中已存在的镜像标签；其他情况下用于版本控制",
+                        "description": "Docker image tag. When source_type is harbor, specify the existing image tag in Harbor; otherwise, used for version control",
                         "name": "tag",
                         "in": "formData"
                     },
                     {
                         "type": "string",
                         "default": "bash /entrypoint.sh",
-                        "description": "Docker镜像启动命令，默认为bash /entrypoint.sh",
+                        "description": "Docker image startup command, defaults to bash /entrypoint.sh",
                         "name": "command",
                         "in": "formData"
                     },
@@ -322,7 +322,7 @@ const docTemplate = `{
                             "type": "string"
                         },
                         "collectionFormat": "csv",
-                        "description": "环境变量名称列表，支持多个环境变量",
+                        "description": "List of environment variable names, supports multiple variables",
                         "name": "env_vars",
                         "in": "formData"
                     },
@@ -334,97 +334,97 @@ const docTemplate = `{
                         ],
                         "type": "string",
                         "default": "file",
-                        "description": "构建源类型，指定源码来源",
+                        "description": "Build source type, specifies the source of the code",
                         "name": "source_type",
                         "in": "formData"
                     },
                     {
                         "type": "file",
-                        "description": "源码文件（支持zip或tar.gz格式），当source_type为file时必需，文件大小限制5MB",
+                        "description": "Source file (supports zip or tar.gz format), required when source_type is file, file size limit 5MB",
                         "name": "file",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "GitHub访问令牌，用于访问私有仓库，公开仓库可不提供",
+                        "description": "GitHub access token, used for private repositories, not required for public repositories",
                         "name": "github_token",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "GitHub仓库地址，格式：owner/repo，当source_type为github时必需",
+                        "description": "GitHub repository address, format: owner/repo, required when source_type is github",
                         "name": "github_repo",
                         "in": "formData"
                     },
                     {
                         "type": "string",
                         "default": "main",
-                        "description": "GitHub分支名，指定要构建的分支",
+                        "description": "GitHub branch name, specifies the branch to build",
                         "name": "github_branch",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "GitHub commit哈希值（支持短hash），如果指定commit则忽略branch参数",
+                        "description": "GitHub commit hash (supports short hash), if specified, branch parameter is ignored",
                         "name": "github_commit",
                         "in": "formData"
                     },
                     {
                         "type": "string",
                         "default": ".",
-                        "description": "仓库内的子目录路径，如果源码不在根目录",
+                        "description": "Subdirectory path in the repository, if the source code is not in the root directory",
                         "name": "github_path",
                         "in": "formData"
                     },
                     {
                         "type": "string",
                         "default": ".",
-                        "description": "Docker构建上下文路径，相对于源码根目录",
+                        "description": "Docker build context path, relative to the source root directory",
                         "name": "context_dir",
                         "in": "formData"
                     },
                     {
                         "type": "string",
                         "default": "Dockerfile",
-                        "description": "Dockerfile路径，相对于源码根目录",
+                        "description": "Dockerfile path, relative to the source root directory",
                         "name": "dockerfile_path",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "Dockerfile构建目标（multi-stage build时使用）",
+                        "description": "Dockerfile build target (used for multi-stage builds)",
                         "name": "target",
                         "in": "formData"
                     },
                     {
                         "type": "boolean",
                         "default": false,
-                        "description": "是否强制重新构建镜像，忽略缓存",
+                        "description": "Whether to force rebuild the image, ignore cache",
                         "name": "force_rebuild",
                         "in": "formData"
                     }
                 ],
                 "responses": {
                     "202": {
-                        "description": "成功提交容器构建任务，返回任务跟踪信息",
+                        "description": "Successfully submitted container build task, returns task tracking information",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
                         }
                     },
                     "400": {
-                        "description": "请求参数错误：文件格式不支持（仅支持zip、tar.gz）、文件大小超限（5MB）、参数验证失败、GitHub仓库地址无效、Harbor镜像参数无效、force_rebuild值格式错误等",
+                        "description": "Request parameter error: unsupported file format (only zip, tar.gz), file size exceeds limit (5MB), parameter validation failed, invalid GitHub repository address, invalid Harbor image parameter, invalid force_rebuild value, etc.",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "404": {
-                        "description": "资源不存在：构建上下文路径不存在、缺少必需文件（Dockerfile、entrypoint.sh）、Harbor中镜像不存在",
+                        "description": "Resource not found: build context path does not exist, missing required files (Dockerfile, entrypoint.sh), image not found in Harbor",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -434,7 +434,7 @@ const docTemplate = `{
         },
         "/api/v1/datasets": {
             "post": {
-                "description": "根据指定的时间范围和基准测试容器批量构建数据集。",
+                "description": "Batch build datasets based on specified time range and benchmark container",
                 "consumes": [
                     "application/json"
                 ],
@@ -444,10 +444,10 @@ const docTemplate = `{
                 "tags": [
                     "dataset"
                 ],
-                "summary": "批量构建数据集",
+                "summary": "Batch build datasets",
                 "parameters": [
                     {
-                        "description": "数据集构建请求列表，每个请求包含数据集名称、时间范围、基准测试和环境变量配置",
+                        "description": "List of dataset build requests; each request includes dataset name, time range, benchmark, and environment variable configuration",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -458,19 +458,19 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "202": {
-                        "description": "成功提交数据集构建任务，返回任务组ID和跟踪信息列表",
+                        "description": "Successfully submitted dataset building tasks; returns group ID and trace information list",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
                         }
                     },
                     "400": {
-                        "description": "请求参数错误：1) JSON格式不正确 2) 数据集名称为空 3) 时间范围无效 4) 基准测试不存在 5) 环境变量名称不支持",
+                        "description": "Bad request parameters: 1) Invalid JSON format 2) Empty dataset name 3) Invalid time range 4) Benchmark does not exist 5) Unsupported environment variable name",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -478,14 +478,14 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "删除数据集数据",
+                "description": "Delete dataset data",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "dataset"
                 ],
-                "summary": "删除数据集数据",
+                "summary": "Delete dataset data",
                 "parameters": [
                     {
                         "type": "array",
@@ -493,7 +493,7 @@ const docTemplate = `{
                             "type": "string"
                         },
                         "collectionFormat": "csv",
-                        "description": "数据集名称列表",
+                        "description": "Dataset name list",
                         "name": "names",
                         "in": "query",
                         "required": true
@@ -523,14 +523,14 @@ const docTemplate = `{
         },
         "/api/v1/datasets/download": {
             "get": {
-                "description": "将指定的多个数据集打包为 ZIP 文件下载，自动排除 result.csv 和检测器结论文件。支持按组ID或数据集名称进行下载，两种方式二选一。下载文件结构：按组ID下载时为 datasets/{groupId}/{datasetName}/...，按名称下载时为 datasets/{datasetName}/...",
+                "description": "Package specified datasets into a ZIP file for download, automatically excluding result.csv and detector conclusion files. Supports downloading by group ID or dataset name (mutually exclusive). Directory structure: when downloading by group ID: datasets/{groupId}/{datasetName}/...; when by name: datasets/{datasetName}/...",
                 "produces": [
                     "application/zip"
                 ],
                 "tags": [
                     "dataset"
                 ],
-                "summary": "下载数据集打包文件",
+                "summary": "Download dataset archive file",
                 "parameters": [
                     {
                         "type": "array",
@@ -538,7 +538,7 @@ const docTemplate = `{
                             "type": "string"
                         },
                         "collectionFormat": "csv",
-                        "description": "任务组ID列表，格式：group1,group2,group3。与names参数二选一，优先使用group_ids",
+                        "description": "List of task group IDs, format: group1,group2,group3. Mutually exclusive with names parameter; group_ids takes precedence",
                         "name": "group_ids",
                         "in": "query"
                     },
@@ -548,32 +548,32 @@ const docTemplate = `{
                             "type": "string"
                         },
                         "collectionFormat": "csv",
-                        "description": "数据集名称列表，格式：dataset1,dataset2,dataset3。与group_ids参数二选一",
+                        "description": "List of dataset names, format: dataset1,dataset2,dataset3. Mutually exclusive with group_ids parameter",
                         "name": "names",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "ZIP 文件流，Content-Disposition 头中包含文件名 datasets.zip",
+                        "description": "ZIP file stream; the Content-Disposition header contains filename datasets.zip",
                         "schema": {
                             "type": "string"
                         }
                     },
                     "400": {
-                        "description": "请求参数错误：1) 参数绑定失败 2) 两个参数都为空 3) 同时提供两种参数",
+                        "description": "Bad request parameters: 1) Parameter binding failed 2) Both parameters are empty 3) Both parameters provided",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "403": {
-                        "description": "权限错误：请求访问的数据集路径不在系统允许的范围内",
+                        "description": "Permission error: requested dataset path is not within allowed scope",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -583,14 +583,14 @@ const docTemplate = `{
         },
         "/api/v1/debug/ns/status": {
             "get": {
-                "description": "获取命名空间锁状态信息",
+                "description": "Get namespace lock status information",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "debug"
                 ],
-                "summary": "获取命名空间锁状态",
+                "summary": "Get namespace lock status",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -609,55 +609,55 @@ const docTemplate = `{
         },
         "/api/v1/evaluations/executions": {
             "get": {
-                "description": "获取所有ExecutionResult中status为ExecutionSuccess的记录，支持时间区间筛选和数量筛选",
+                "description": "Get all records in ExecutionResult with status ExecutionSuccess, supports time range filtering and quantity filtering",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "evaluation"
                 ],
-                "summary": "获取成功执行的算法记录",
+                "summary": "Get successful algorithm execution records",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "开始时间，格式：2006-01-02T15:04:05Z07:00",
+                        "description": "Start time, format: 2006-01-02T15:04:05Z07:00",
                         "name": "start_time",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "结束时间，格式：2006-01-02T15:04:05Z07:00",
+                        "description": "End time, format: 2006-01-02T15:04:05Z07:00",
                         "name": "end_time",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "数量限制",
+                        "description": "Limit",
                         "name": "limit",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "偏移量，用于分页",
+                        "description": "Offset for pagination",
                         "name": "offset",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "成功返回成功执行的算法记录列表",
+                        "description": "Successfully returns the list of successful algorithm execution records",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_SuccessfulExecutionsResp"
                         }
                     },
                     "400": {
-                        "description": "请求参数错误",
+                        "description": "Request parameter error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -667,17 +667,17 @@ const docTemplate = `{
         },
         "/api/v1/evaluations/groundtruth": {
             "post": {
-                "description": "根据数据集数组获取对应的 ground truth 数据，用于算法评估的基准数据。支持批量查询多个数据集的真实标签信息",
+                "description": "Get ground truth data for the given dataset array, used as benchmark data for algorithm evaluation. Supports batch query for ground truth information of multiple datasets",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "evaluation"
                 ],
-                "summary": "获取数据集的 ground truth",
+                "summary": "Get ground truth for datasets",
                 "parameters": [
                     {
-                        "description": "Ground truth查询请求，包含数据集列表",
+                        "description": "Ground truth query request, contains dataset list",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -688,19 +688,19 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "成功返回数据集的ground truth信息",
+                        "description": "Successfully returns ground truth information for datasets",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_GroundTruthResp"
                         }
                     },
                     "400": {
-                        "description": "请求参数错误，如JSON格式不正确、数据集数组为空",
+                        "description": "Request parameter error, such as incorrect JSON format or empty dataset array",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -710,17 +710,17 @@ const docTemplate = `{
         },
         "/api/v1/evaluations/raw-data": {
             "post": {
-                "description": "支持三种查询模式：1) 直接传入算法-数据集对数组进行精确查询；2) 传入算法和数据集列表进行笛卡尔积查询；3) 通过执行ID列表查询。三种模式互斥，只能选择其中一种",
+                "description": "Supports three query modes: 1) Directly pass an array of algorithm-dataset pairs for precise query; 2) Pass lists of algorithms and datasets for Cartesian product query; 3) Query by execution ID list. The three modes are mutually exclusive, only one can be selected",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "evaluation"
                 ],
-                "summary": "获取原始评估数据",
+                "summary": "Get raw evaluation data",
                 "parameters": [
                     {
-                        "description": "原始数据查询请求，支持三种模式：pairs数组、(algorithms+datasets)笛卡尔积、或execution_ids列表",
+                        "description": "Raw data query request, supports three modes: pairs array, (algorithms+datasets) Cartesian product, or execution_ids list",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -731,19 +731,19 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "成功返回原始评估数据列表",
+                        "description": "Successfully returns the list of raw evaluation data",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_RawDataResp"
                         }
                     },
                     "400": {
-                        "description": "请求参数错误，如JSON格式不正确、查询模式冲突或参数为空",
+                        "description": "Request parameter error, such as incorrect JSON format, query mode conflict or empty parameter",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -753,18 +753,18 @@ const docTemplate = `{
         },
         "/api/v1/injections": {
             "get": {
-                "description": "支持排序、过滤的故障注入记录查询接口。返回数据库原始记录列表，不进行数据转换。",
+                "description": "Fault injection record query interface supporting sorting and filtering. Returns the original database record list without data conversion.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "injection"
                 ],
-                "summary": "获取故障注入记录列表",
+                "summary": "Get Fault Injection Record List",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "项目名称过滤",
+                        "description": "Project name filter",
                         "name": "project_name",
                         "in": "query"
                     },
@@ -775,13 +775,13 @@ const docTemplate = `{
                         ],
                         "type": "string",
                         "default": "prod",
-                        "description": "环境标签过滤",
+                        "description": "Environment label filter",
                         "name": "env",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "批次标签过滤",
+                        "description": "Batch label filter",
                         "name": "batch",
                         "in": "query"
                     },
@@ -792,7 +792,7 @@ const docTemplate = `{
                         ],
                         "type": "string",
                         "default": "train",
-                        "description": "分类标签过滤",
+                        "description": "Category label filter",
                         "name": "tag",
                         "in": "query"
                     },
@@ -802,28 +802,28 @@ const docTemplate = `{
                         ],
                         "type": "string",
                         "default": "clickhouse",
-                        "description": "基准测试类型过滤",
+                        "description": "Benchmark type filter",
                         "name": "benchmark",
                         "in": "query"
                     },
                     {
                         "type": "integer",
                         "default": 0,
-                        "description": "状态过滤，具体值参考字段映射接口(/mapping)",
+                        "description": "Status filter, refer to field mapping interface (/mapping) for specific values",
                         "name": "status",
                         "in": "query"
                     },
                     {
                         "type": "integer",
                         "default": 0,
-                        "description": "故障类型过滤，具体值参考字段映射接口(/mapping)",
+                        "description": "Fault type filter, refer to field mapping interface (/mapping) for specific values",
                         "name": "fault_type",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "default": "created_at",
-                        "description": "排序字段，默认created_at",
+                        "description": "Sort field, default created_at",
                         "name": "sort_field",
                         "in": "query"
                     },
@@ -834,7 +834,7 @@ const docTemplate = `{
                         ],
                         "type": "string",
                         "default": "desc",
-                        "description": "排序方式，默认desc",
+                        "description": "Sort order, default desc",
                         "name": "sort_order",
                         "in": "query"
                     },
@@ -842,7 +842,7 @@ const docTemplate = `{
                         "minimum": 0,
                         "type": "integer",
                         "default": 0,
-                        "description": "结果数量限制，用于控制返回记录数量",
+                        "description": "Result quantity limit, used to control the number of returned records",
                         "name": "limit",
                         "in": "query"
                     },
@@ -850,7 +850,7 @@ const docTemplate = `{
                         "minimum": 0,
                         "type": "integer",
                         "default": 0,
-                        "description": "分页查询，页码",
+                        "description": "Pagination query, page number",
                         "name": "page_num",
                         "in": "query"
                     },
@@ -858,46 +858,46 @@ const docTemplate = `{
                         "minimum": 0,
                         "type": "integer",
                         "default": 0,
-                        "description": "分页查询，每页数量",
+                        "description": "Pagination query, records per page",
                         "name": "page_size",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置",
+                        "description": "Time range query, supports custom relative time (1h/24h/7d) or custom, default not set",
                         "name": "lookback",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "format": "date-time",
-                        "description": "自定义开始时间，RFC3339格式，当lookback=custom时必需",
+                        "description": "Custom start time, RFC3339 format, required when lookback=custom",
                         "name": "custom_start_time",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "format": "date-time",
-                        "description": "自定义结束时间，RFC3339格式，当lookback=custom时必需",
+                        "description": "Custom end time, RFC3339 format, required when lookback=custom",
                         "name": "custom_end_time",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "成功返回故障注入记录列表",
+                        "description": "Successfully returned fault injection record list",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_ListInjectionsResp"
                         }
                     },
                     "400": {
-                        "description": "请求参数错误，如参数格式不正确、验证失败等",
+                        "description": "Request parameter error, such as incorrect parameter format, validation failure, etc.",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -905,17 +905,17 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "提交故障注入任务，支持批量提交多个故障配置，系统会自动去重并返回提交结果",
+                "description": "Submit fault injection task, supporting batch submission of multiple fault configurations, the system will automatically deduplicate and return submission results",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "injection"
                 ],
-                "summary": "提交故障注入任务",
+                "summary": "Submit Fault Injection Task",
                 "parameters": [
                     {
-                        "description": "故障注入请求体",
+                        "description": "Fault injection request body",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -926,19 +926,19 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "202": {
-                        "description": "成功提交故障注入任务",
+                        "description": "Successfully submitted fault injection task",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_SubmitInjectionResp"
                         }
                     },
                     "400": {
-                        "description": "请求参数错误，如JSON格式不正确、参数验证失败或算法无效等",
+                        "description": "Request parameter error, such as incorrect JSON format, parameter validation failure, or invalid algorithm, etc.",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -948,63 +948,63 @@ const docTemplate = `{
         },
         "/api/v1/injections/analysis/no-issues": {
             "get": {
-                "description": "根据时间范围查询所有没有问题的故障注入记录列表，返回包含配置信息的详细记录",
+                "description": "Query all fault injection records without issues based on time range, returning detailed records including configuration information",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "injection"
                 ],
-                "summary": "查询没有问题的故障注入记录",
+                "summary": "Query Fault Injection Records Without Issues",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "环境标签过滤",
+                        "description": "Environment label filter",
                         "name": "env",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "批次标签过滤",
+                        "description": "Batch label filter",
                         "name": "batch",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置",
+                        "description": "Time range query, supports custom relative time (1h/24h/7d) or custom, default not set",
                         "name": "lookback",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "format": "date-time",
-                        "description": "自定义开始时间，RFC3339格式，当lookback=custom时必需",
+                        "description": "Custom start time, RFC3339 format, required when lookback=custom",
                         "name": "custom_start_time",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "format": "date-time",
-                        "description": "自定义结束时间，RFC3339格式，当lookback=custom时必需",
+                        "description": "Custom end time, RFC3339 format, required when lookback=custom",
                         "name": "custom_end_time",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "成功返回没有问题的故障注入记录列表",
+                        "description": "Successfully returned fault injection records without issues",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-array_dto_FaultInjectionNoIssuesResp"
                         }
                     },
                     "400": {
-                        "description": "请求参数错误，如时间格式不正确或参数验证失败等",
+                        "description": "Request parameter error, such as incorrect time format or parameter validation failure, etc.",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -1014,51 +1014,51 @@ const docTemplate = `{
         },
         "/api/v1/injections/analysis/stats": {
             "get": {
-                "description": "获取故障注入记录的统计信息，包括有问题、没有问题和总记录数量",
+                "description": "Get statistical information of fault injection records, including counts of records with issues, without issues, and total records",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "injection"
                 ],
-                "summary": "获取故障注入统计信息",
+                "summary": "Get Fault Injection Statistics",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置",
+                        "description": "Time range query, supports custom relative time (1h/24h/7d) or custom, default not set",
                         "name": "lookback",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "format": "date-time",
-                        "description": "自定义开始时间，RFC3339格式，当lookback=custom时必需",
+                        "description": "Custom start time, RFC3339 format, required when lookback=custom",
                         "name": "custom_start_time",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "format": "date-time",
-                        "description": "自定义结束时间，RFC3339格式，当lookback=custom时必需",
+                        "description": "Custom end time, RFC3339 format, required when lookback=custom",
                         "name": "custom_end_time",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "成功返回故障注入统计信息",
+                        "description": "Successfully returned fault injection statistics",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_InjectionStatsResp"
                         }
                     },
                     "400": {
-                        "description": "请求参数错误，如时间格式不正确或参数验证失败等",
+                        "description": "Request parameter error, such as incorrect time format or parameter validation failure, etc.",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -1068,44 +1068,44 @@ const docTemplate = `{
         },
         "/api/v1/injections/analysis/with-issues": {
             "get": {
-                "description": "根据时间范围查询所有有问题的故障注入记录列表",
+                "description": "Query all fault injection records with issues based on time range",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "injection"
                 ],
-                "summary": "查询有问题的故障注入记录",
+                "summary": "Query Fault Injection Records With Issues",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "环境标签过滤",
+                        "description": "Environment label filter",
                         "name": "env",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "批次标签过滤",
+                        "description": "Batch label filter",
                         "name": "batch",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置",
+                        "description": "Time range query, supports custom relative time (1h/24h/7d) or custom, default not set",
                         "name": "lookback",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "format": "date-time",
-                        "description": "自定义开始时间，RFC3339格式，当lookback=custom时必需",
+                        "description": "Custom start time, RFC3339 format, required when lookback=custom",
                         "name": "custom_start_time",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "format": "date-time",
-                        "description": "自定义结束时间，RFC3339格式，当lookback=custom时必需",
+                        "description": "Custom end time, RFC3339 format, required when lookback=custom",
                         "name": "custom_end_time",
                         "in": "query"
                     }
@@ -1118,13 +1118,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "请求参数错误，如时间格式不正确或参数验证失败等",
+                        "description": "Request parameter error, such as incorrect time format or parameter validation failure, etc.",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -1134,18 +1134,18 @@ const docTemplate = `{
         },
         "/api/v1/injections/conf": {
             "get": {
-                "description": "获取指定命名空间的故障注入配置信息，支持不同显示模式的配置树结构",
+                "description": "Get fault injection configuration for the specified namespace, supporting different display modes for configuration tree structure",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "injection"
                 ],
-                "summary": "获取故障注入配置",
+                "summary": "Get Fault Injection Configuration",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "命名空间，指定要获取配置的命名空间",
+                        "description": "Namespace, specifies the namespace to get configuration for",
                         "name": "namespace",
                         "in": "query",
                         "required": true
@@ -1157,26 +1157,26 @@ const docTemplate = `{
                         ],
                         "type": "string",
                         "default": "engine",
-                        "description": "显示模式",
+                        "description": "Display mode",
                         "name": "mode",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "成功返回配置树结构",
+                        "description": "Successfully returned configuration tree structure",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-handler_Node"
                         }
                     },
                     "400": {
-                        "description": "请求参数错误，如命名空间或模式参数缺失",
+                        "description": "Request parameter error, such as missing namespace or mode parameter",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -1186,14 +1186,14 @@ const docTemplate = `{
         },
         "/api/v1/injections/configs": {
             "get": {
-                "description": "根据多个TraceID获取对应的故障注入配置信息，用于查看已提交的故障注入任务的配置详情",
+                "description": "Get fault injection configuration information based on multiple TraceIDs, used to view configuration details of submitted fault injection tasks",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "injection"
                 ],
-                "summary": "获取已注入故障配置列表",
+                "summary": "Get Injected Fault Configuration List",
                 "parameters": [
                     {
                         "type": "array",
@@ -1201,26 +1201,26 @@ const docTemplate = `{
                             "type": "string"
                         },
                         "collectionFormat": "multi",
-                        "description": "TraceID列表，支持多个值，用于查询对应的配置信息",
+                        "description": "TraceID list, supports multiple values, used to query corresponding configuration information",
                         "name": "trace_ids",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "成功返回配置列表",
+                        "description": "Successfully returned configuration list",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "400": {
-                        "description": "请求参数错误，如TraceID参数缺失或格式不正确",
+                        "description": "Request parameter error, such as missing TraceID parameter or incorrect format",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -1230,23 +1230,23 @@ const docTemplate = `{
         },
         "/api/v1/injections/mapping": {
             "get": {
-                "description": "获取状态和故障类型的字符串与数字映射关系，用于前端显示和API参数验证",
+                "description": "Get string-to-number mapping relationships for status and fault types, used for frontend display and API parameter validation",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "injection"
                 ],
-                "summary": "获取字段映射关系",
+                "summary": "Get Field Mapping",
                 "responses": {
                     "200": {
-                        "description": "成功返回字段映射关系",
+                        "description": "Successfully returned field mapping relationships",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_InjectionFieldMappingResp"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -1256,37 +1256,37 @@ const docTemplate = `{
         },
         "/api/v1/injections/ns-resources": {
             "get": {
-                "description": "获取所有命名空间及其对应的资源信息映射，或查询指定命名空间的资源信息。返回命名空间到资源的映射表，用于故障注入配置和资源管理",
+                "description": "Get mapping of all namespaces and their corresponding resource information, or query resource information for a specific namespace. Returns a mapping table from namespace to resources, used for fault injection configuration and resource management",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "injection"
                 ],
-                "summary": "获取命名空间资源映射",
+                "summary": "Get Namespace Resource Mapping",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "命名空间名称，不指定时返回所有命名空间的资源映射",
+                        "description": "Namespace name, returns resource mappings for all namespaces if not specified",
                         "name": "namespace",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "指定命名空间时返回该命名空间的资源信息",
+                        "description": "Returns resource information for the specified namespace when a namespace is provided",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-handler_Resources"
                         }
                     },
                     "404": {
-                        "description": "指定的命名空间不存在",
+                        "description": "The specified namespace does not exist",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误，无法获取资源映射",
+                        "description": "Internal server error, unable to get resource mapping",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -1296,43 +1296,43 @@ const docTemplate = `{
         },
         "/api/v1/injections/query": {
             "get": {
-                "description": "根据名称或任务ID查询故障注入记录详情，两个参数至少提供一个",
+                "description": "Query fault injection record details by name or task ID, at least one of the two parameters must be provided",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "injection"
                 ],
-                "summary": "查询单个故障注入记录",
+                "summary": "Query Single Fault Injection Record",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "故障注入名称",
+                        "description": "Fault injection name",
                         "name": "name",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "任务ID",
+                        "description": "Task ID",
                         "name": "task_id",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "成功返回故障注入记录详情",
+                        "description": "Successfully returned fault injection record details",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_QueryInjectionResp"
                         }
                     },
                     "400": {
-                        "description": "请求参数错误，如参数缺失、格式不正确或验证失败等",
+                        "description": "Request parameter error, such as missing parameters, incorrect format, or validation failure, etc.",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -1342,18 +1342,18 @@ const docTemplate = `{
         },
         "/api/v1/injections/{task_id}/cancel": {
             "put": {
-                "description": "取消指定的故障注入任务",
+                "description": "Cancel the specified fault injection task",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "injection"
                 ],
-                "summary": "取消故障注入任务",
+                "summary": "Cancel Fault Injection Task",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "任务ID",
+                        "description": "Task ID",
                         "name": "task_id",
                         "in": "path",
                         "required": true
@@ -1383,30 +1383,30 @@ const docTemplate = `{
         },
         "/api/v1/tasks": {
             "get": {
-                "description": "根据多种条件分页获取任务列表。支持按任务ID、跟踪ID、组ID进行精确查询，或按任务类型、状态等进行过滤查询",
+                "description": "Paginate and get task list by multiple conditions. Supports exact query by task ID, trace ID, group ID, or filter by type, status, etc.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "task"
                 ],
-                "summary": "获取任务列表",
+                "summary": "Get task list",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "任务ID - 精确匹配特定任务 (与trace_id、group_id互斥)",
+                        "description": "Task ID - exact match (mutually exclusive with trace_id, group_id)",
                         "name": "task_id",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "跟踪ID - 查找属于同一跟踪的所有任务 (与task_id、group_id互斥)",
+                        "description": "Trace ID - find all tasks in the same trace (mutually exclusive with task_id, group_id)",
                         "name": "trace_id",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "组ID - 查找属于同一组的所有任务 (与task_id、trace_id互斥)",
+                        "description": "Group ID - find all tasks in the same group (mutually exclusive with task_id, trace_id)",
                         "name": "group_id",
                         "in": "query"
                     },
@@ -1420,7 +1420,7 @@ const docTemplate = `{
                             "BuildImage"
                         ],
                         "type": "string",
-                        "description": "任务类型过滤",
+                        "description": "Task type filter",
                         "name": "task_type",
                         "in": "query"
                     },
@@ -1435,20 +1435,20 @@ const docTemplate = `{
                             "Rescheduled"
                         ],
                         "type": "string",
-                        "description": "任务状态过滤",
+                        "description": "Task status filter",
                         "name": "status",
                         "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "description": "是否立即执行 - true:立即执行任务, false:延时执行任务",
+                        "description": "Immediate execution - true: immediate, false: delayed",
                         "name": "immediate",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "default": "created_at",
-                        "description": "排序字段，默认created_at",
+                        "description": "Sort field, default created_at",
                         "name": "sort_field",
                         "in": "query"
                     },
@@ -1459,53 +1459,53 @@ const docTemplate = `{
                         ],
                         "type": "string",
                         "default": "desc",
-                        "description": "排序方式，默认desc",
+                        "description": "Sort order, default desc",
                         "name": "sort_order",
                         "in": "query"
                     },
                     {
                         "minimum": 1,
                         "type": "integer",
-                        "description": "结果数量限制，用于控制返回记录数量",
+                        "description": "Result limit, controls number of records returned",
                         "name": "limit",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "时间范围查询，支持自定义相对时间(1h/24h/7d)或custom 默认不设置",
+                        "description": "Time range query, supports relative time (1h/24h/7d) or custom, default unset",
                         "name": "lookback",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "format": "date-time",
-                        "description": "自定义开始时间，RFC3339格式，当lookback=custom时必需",
+                        "description": "Custom start time, RFC3339 format, required if lookback=custom",
                         "name": "custom_start_time",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "format": "date-time",
-                        "description": "自定义结束时间，RFC3339格式，当lookback=custom时必需",
+                        "description": "Custom end time, RFC3339 format, required if lookback=custom",
                         "name": "custom_end_time",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "成功返回故障注入记录列表",
+                        "description": "Successfully returned fault injection record list",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_ListTasksResp"
                         }
                     },
                     "400": {
-                        "description": "请求参数错误，如参数格式不正确、验证失败等",
+                        "description": "Request parameter error, e.g. invalid format or validation failed",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -1515,26 +1515,26 @@ const docTemplate = `{
         },
         "/api/v1/tasks/queue": {
             "get": {
-                "description": "分页获取队列中等待执行的任务列表",
+                "description": "Paginate and get the list of tasks waiting in the queue",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "task"
                 ],
-                "summary": "获取队列中的任务",
+                "summary": "Get queued tasks",
                 "parameters": [
                     {
                         "type": "integer",
                         "default": 1,
-                        "description": "页码",
+                        "description": "Page number",
                         "name": "page_num",
                         "in": "query"
                     },
                     {
                         "type": "integer",
                         "default": 10,
-                        "description": "每页大小",
+                        "description": "Page size",
                         "name": "page_size",
                         "in": "query"
                     }
@@ -1563,18 +1563,18 @@ const docTemplate = `{
         },
         "/api/v1/tasks/{task_id}": {
             "get": {
-                "description": "根据任务ID获取任务详细信息,包括任务基本信息和执行日志",
+                "description": "Get detailed information of a task by task ID, including basic info and execution logs",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "task"
                 ],
-                "summary": "获取任务详情",
+                "summary": "Get task detail",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "任务ID",
+                        "description": "Task ID",
                         "name": "task_id",
                         "in": "path",
                         "required": true
@@ -1588,19 +1588,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "无效的任务ID",
+                        "description": "Invalid task ID",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "404": {
-                        "description": "任务不存在",
+                        "description": "Task not found",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -1610,30 +1610,30 @@ const docTemplate = `{
         },
         "/api/v1/traces/completed": {
             "get": {
-                "description": "根据指定的时间范围获取完成状态的链路",
+                "description": "Get completed traces within a specified time range",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "trace"
                 ],
-                "summary": "获取完成状态的链路",
+                "summary": "Get completed traces",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "相对时间查询，如 1h, 24h, 7d或者是custom",
+                        "description": "Relative time query, e.g. 1h, 24h, 7d or custom",
                         "name": "lookback",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "当lookback=custom时必需，自定义开始时间(RFC3339格式)",
+                        "description": "Required when lookback=custom, custom start time (RFC3339 format)",
                         "name": "custom_start_time",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "当lookback=custom时必需，自定义结束时间(RFC3339格式)",
+                        "description": "Required when lookback=custom, custom end time (RFC3339 format)",
                         "name": "custom_end_time",
                         "in": "query"
                     }
@@ -1763,6 +1763,229 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/algorithms/{algorithm_id}/executions/{execution_id}/detectors": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Upload detection results for detector algorithms via API instead of file collection",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Algorithms"
+                ],
+                "summary": "Upload detector algorithm results",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Algorithm ID",
+                        "name": "algorithm_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Execution ID",
+                        "name": "execution_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Detector results",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.DetectorResultRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Results uploaded successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_AlgorithmResultUploadResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Algorithm or execution not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/algorithms/{algorithm_id}/executions/{execution_id}/results": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Upload granularity results for regular algorithms. Supports two modes: 1) Use existing execution_id, 2) Auto-create execution using algorithm_id and datapack_id",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Algorithms"
+                ],
+                "summary": "Upload granularity algorithm results",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Algorithm ID",
+                        "name": "algorithm_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Execution ID (optional - will create new if not provided)",
+                        "name": "execution_id",
+                        "in": "path"
+                    },
+                    {
+                        "description": "Granularity results with optional execution creation",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.GranularityResultEnhancedRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Results uploaded successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_AlgorithmResultUploadResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Algorithm or datapack not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/algorithms/{algorithm_id}/results": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Upload granularity results for regular algorithms. Supports two modes: 1) Use existing execution_id, 2) Auto-create execution using algorithm_id and datapack_id",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Algorithms"
+                ],
+                "summary": "Upload granularity algorithm results",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Algorithm ID",
+                        "name": "algorithm_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Granularity results with optional execution creation",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.GranularityResultEnhancedRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Results uploaded successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_AlgorithmResultUploadResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Algorithm or datapack not found",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -3314,6 +3537,356 @@ const docTemplate = `{
                         "description": "Health check successful",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_HealthCheckResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/injections": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a paginated list of injections with filtering and sorting",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Injections"
+                ],
+                "summary": "List injections",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (default 20, max 100)",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by task ID",
+                        "name": "task_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by fault type",
+                        "name": "fault_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by benchmark",
+                        "name": "benchmark",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search in injection name and description",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort field (id,task_id,fault_type,status,benchmark,injection_name,created_at,updated_at)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order (asc,desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Include related data (task)",
+                        "name": "include",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Injections retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionSearchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/injections/search": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Advanced search for injections with complex filtering",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Injections"
+                ],
+                "summary": "Search injections",
+                "parameters": [
+                    {
+                        "description": "Search criteria",
+                        "name": "search",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.InjectionV2SearchReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Search results",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_InjectionV2Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/injections/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get detailed information about a specific injection",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Injections"
+                ],
+                "summary": "Get injection by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Injection ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Include related data (task)",
+                        "name": "include",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Injection retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionV2Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid injection ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Injection not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update injection information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Injections"
+                ],
+                "summary": "Update injection",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Injection ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Injection update request",
+                        "name": "injection",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.InjectionV2UpdateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Injection updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionV2Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Injection not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Soft delete an injection (sets status to -1)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Injections"
+                ],
+                "summary": "Delete injection",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Injection ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Injection deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid injection ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Injection not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
@@ -5683,51 +6256,51 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "command": {
-                    "description": "启动命令",
+                    "description": "Startup command",
                     "type": "string"
                 },
                 "created_at": {
-                    "description": "创建时间",
+                    "description": "Creation time",
                     "type": "string"
                 },
                 "env_vars": {
-                    "description": "环境变量名称列表",
+                    "description": "List of environment variable names",
                     "type": "string"
                 },
                 "id": {
-                    "description": "唯一标识",
+                    "description": "Unique identifier",
                     "type": "integer"
                 },
                 "image": {
-                    "description": "镜像名",
+                    "description": "Image name",
                     "type": "string"
                 },
                 "is_public": {
-                    "description": "是否公开可见",
+                    "description": "Whether publicly visible",
                     "type": "boolean"
                 },
                 "name": {
-                    "description": "名称",
+                    "description": "Name",
                     "type": "string"
                 },
                 "status": {
-                    "description": "0: 已删除 1: 活跃",
+                    "description": "0: deleted 1: active",
                     "type": "boolean"
                 },
                 "tag": {
-                    "description": "镜像标签",
+                    "description": "Image tag",
                     "type": "string"
                 },
                 "type": {
-                    "description": "镜像类型",
+                    "description": "Image type",
                     "type": "string"
                 },
                 "updated_at": {
-                    "description": "更新时间",
+                    "description": "Update time",
                     "type": "string"
                 },
                 "user": {
-                    "description": "外键关联",
+                    "description": "Foreign key association",
                     "allOf": [
                         {
                             "$ref": "#/definitions/database.User"
@@ -5735,7 +6308,7 @@ const docTemplate = `{
                     ]
                 },
                 "user_id": {
-                    "description": "容器必须属于某个用户",
+                    "description": "Container must belong to a user",
                     "type": "integer"
                 }
             }
@@ -5744,55 +6317,55 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "benchmark": {
-                    "description": "基准数据库，添加索引",
+                    "description": "Benchmark database, add index",
                     "type": "string"
                 },
                 "created_at": {
-                    "description": "创建时间，添加时间索引",
+                    "description": "Creation time, add time index",
                     "type": "string"
                 },
                 "description": {
-                    "description": "描述（可选字段）",
+                    "description": "Description (optional field)",
                     "type": "string"
                 },
                 "display_config": {
-                    "description": "面向用户的展示配置",
+                    "description": "User-facing display configuration",
                     "type": "string"
                 },
                 "end_time": {
-                    "description": "预计故障结束时间，添加时间索引",
+                    "description": "Expected fault end time, add time index",
                     "type": "string"
                 },
                 "engine_config": {
-                    "description": "面向系统的运行配置",
+                    "description": "System-facing runtime configuration",
                     "type": "string"
                 },
                 "fault_type": {
-                    "description": "故障类型，添加复合索引",
+                    "description": "Fault type, add composite index",
                     "type": "integer"
                 },
                 "id": {
-                    "description": "唯一标识",
+                    "description": "Unique identifier",
                     "type": "integer"
                 },
                 "injection_name": {
-                    "description": "在k8s资源里注入的名字",
+                    "description": "Name injected in k8s resources",
                     "type": "string"
                 },
                 "pre_duration": {
-                    "description": "正常数据时间",
+                    "description": "Normal data duration",
                     "type": "integer"
                 },
                 "start_time": {
-                    "description": "预计故障开始时间，添加时间索引",
+                    "description": "Expected fault start time, add time index",
                     "type": "string"
                 },
                 "status": {
-                    "description": "状态，添加复合索引",
+                    "description": "Status, add composite index",
                     "type": "integer"
                 },
                 "task": {
-                    "description": "外键关联",
+                    "description": "Foreign key association",
                     "allOf": [
                         {
                             "$ref": "#/definitions/database.Task"
@@ -5800,11 +6373,11 @@ const docTemplate = `{
                     ]
                 },
                 "task_id": {
-                    "description": "从属什么 taskid，添加复合索引",
+                    "description": "Associated task ID, add composite index",
                     "type": "string"
                 },
                 "updated_at": {
-                    "description": "更新时间",
+                    "description": "Update time",
                     "type": "string"
                 }
             }
@@ -5813,43 +6386,43 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "category": {
-                    "description": "标签分类 (dataset, fault_injection, algorithm, container等)",
+                    "description": "Label category (dataset, fault_injection, algorithm, container, etc.)",
                     "type": "string"
                 },
                 "color": {
-                    "description": "标签颜色 (hex格式)",
+                    "description": "Label color (hex format)",
                     "type": "string"
                 },
                 "created_at": {
-                    "description": "创建时间",
+                    "description": "Creation time",
                     "type": "string"
                 },
                 "description": {
-                    "description": "标签描述",
+                    "description": "Label description",
                     "type": "string"
                 },
                 "id": {
-                    "description": "唯一标识",
+                    "description": "Unique identifier",
                     "type": "integer"
                 },
                 "is_system": {
-                    "description": "是否为系统标签",
+                    "description": "Whether system label",
                     "type": "boolean"
                 },
                 "key": {
-                    "description": "标签键",
+                    "description": "Label key",
                     "type": "string"
                 },
                 "updated_at": {
-                    "description": "更新时间",
+                    "description": "Update time",
                     "type": "string"
                 },
                 "usage": {
-                    "description": "使用次数",
+                    "description": "Usage count",
                     "type": "integer"
                 },
                 "value": {
-                    "description": "标签值",
+                    "description": "Label value",
                     "type": "string"
                 }
             }
@@ -5867,14 +6440,14 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "is_public": {
-                    "description": "是否公开可见",
+                    "description": "Whether publicly visible",
                     "type": "boolean"
                 },
                 "name": {
                     "type": "string"
                 },
                 "status": {
-                    "description": "0:禁用 1:启用 -1:删除",
+                    "description": "0:disabled 1:enabled -1:deleted",
                     "type": "integer"
                 },
                 "updated_at": {
@@ -5886,18 +6459,18 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "created_at": {
-                    "description": "添加时间索引",
+                    "description": "Add time index",
                     "type": "string"
                 },
                 "cron_expr": {
                     "type": "string"
                 },
                 "execute_time": {
-                    "description": "添加执行时间索引",
+                    "description": "Add execution time index",
                     "type": "integer"
                 },
                 "group_id": {
-                    "description": "添加组ID索引",
+                    "description": "Add group ID index",
                     "type": "string"
                 },
                 "id": {
@@ -5910,7 +6483,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "project": {
-                    "description": "外键关联",
+                    "description": "Foreign key association",
                     "allOf": [
                         {
                             "$ref": "#/definitions/database.Project"
@@ -5918,19 +6491,19 @@ const docTemplate = `{
                     ]
                 },
                 "project_id": {
-                    "description": "任务可以属于某个项目（可选）",
+                    "description": "Task can belong to a project (optional)",
                     "type": "integer"
                 },
                 "status": {
-                    "description": "添加多个复合索引",
+                    "description": "Add multiple composite indexes",
                     "type": "string"
                 },
                 "trace_id": {
-                    "description": "添加追踪ID索引",
+                    "description": "Add trace ID index",
                     "type": "string"
                 },
                 "type": {
-                    "description": "添加复合索引",
+                    "description": "Add composite index",
                     "type": "string"
                 },
                 "updated_at": {
@@ -5942,47 +6515,47 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "avatar": {
-                    "description": "头像URL",
+                    "description": "Avatar URL",
                     "type": "string"
                 },
                 "created_at": {
-                    "description": "创建时间",
+                    "description": "Creation time",
                     "type": "string"
                 },
                 "email": {
-                    "description": "邮箱（唯一）",
+                    "description": "Email (unique)",
                     "type": "string"
                 },
                 "full_name": {
-                    "description": "全名",
+                    "description": "Full name",
                     "type": "string"
                 },
                 "id": {
-                    "description": "唯一标识",
+                    "description": "Unique identifier",
                     "type": "integer"
                 },
                 "is_active": {
-                    "description": "是否激活",
+                    "description": "Whether active",
                     "type": "boolean"
                 },
                 "last_login_at": {
-                    "description": "最后登录时间",
+                    "description": "Last login time",
                     "type": "string"
                 },
                 "phone": {
-                    "description": "电话号码",
+                    "description": "Phone number",
                     "type": "string"
                 },
                 "status": {
-                    "description": "0:禁用 1:启用 -1:删除",
+                    "description": "0:disabled 1:enabled -1:deleted",
                     "type": "integer"
                 },
                 "updated_at": {
-                    "description": "更新时间",
+                    "description": "Update time",
                     "type": "string"
                 },
                 "username": {
-                    "description": "用户名（唯一）",
+                    "description": "Username (unique)",
                     "type": "string"
                 }
             }
@@ -6139,6 +6712,30 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.AlgorithmResultUploadResponse": {
+            "type": "object",
+            "properties": {
+                "algorithm_id": {
+                    "type": "integer"
+                },
+                "execution_id": {
+                    "type": "integer"
+                },
+                "has_anomalies": {
+                    "description": "Only included for detector results",
+                    "type": "boolean"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "result_count": {
+                    "type": "integer"
+                },
+                "uploaded_at": {
                     "type": "string"
                 }
             }
@@ -6754,14 +7351,14 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "items": {
-                    "description": "结果列表",
+                    "description": "Result list",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/dto.DatasetV2Response"
                     }
                 },
                 "pagination": {
-                    "description": "分页信息",
+                    "description": "Pagination info",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.PaginationInfo"
@@ -6800,62 +7397,62 @@ const docTemplate = `{
             ],
             "properties": {
                 "data_source": {
-                    "description": "数据来源描述",
+                    "description": "Data source description",
                     "type": "string",
                     "maxLength": 500
                 },
                 "description": {
-                    "description": "数据集描述",
+                    "description": "Dataset description",
                     "type": "string",
                     "maxLength": 1000
                 },
                 "format": {
-                    "description": "数据格式",
+                    "description": "Data format",
                     "type": "string",
                     "maxLength": 50
                 },
                 "injection_ids": {
-                    "description": "关联的故障注入ID列表",
+                    "description": "Associated fault injection ID list",
                     "type": "array",
                     "items": {
                         "type": "integer"
                     }
                 },
                 "is_public": {
-                    "description": "是否公开，可选，默认false",
+                    "description": "Whether public, optional, defaults to false",
                     "type": "boolean"
                 },
                 "label_ids": {
-                    "description": "关联的标签ID列表",
+                    "description": "Associated label ID list",
                     "type": "array",
                     "items": {
                         "type": "integer"
                     }
                 },
                 "name": {
-                    "description": "数据集名称",
+                    "description": "Dataset name",
                     "type": "string",
                     "maxLength": 255
                 },
                 "new_labels": {
-                    "description": "新建标签列表",
+                    "description": "New label list",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/dto.DatasetV2LabelCreateReq"
                     }
                 },
                 "project_id": {
-                    "description": "项目ID",
+                    "description": "Project ID",
                     "type": "integer",
                     "minimum": 1
                 },
                 "type": {
-                    "description": "数据集类型",
+                    "description": "Dataset type",
                     "type": "string",
                     "maxLength": 50
                 },
                 "version": {
-                    "description": "数据集版本，可选，默认v1.0",
+                    "description": "Dataset version, optional, defaults to v1.0",
                     "type": "string",
                     "maxLength": 50
                 }
@@ -6865,14 +7462,14 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "add_injections": {
-                    "description": "要添加的故障注入ID列表",
+                    "description": "List of fault injection IDs to add",
                     "type": "array",
                     "items": {
                         "type": "integer"
                     }
                 },
                 "remove_injections": {
-                    "description": "要移除的故障注入ID列表",
+                    "description": "List of fault injection IDs to remove",
                     "type": "array",
                     "items": {
                         "type": "integer"
@@ -6884,11 +7481,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "created_at": {
-                    "description": "创建时间",
+                    "description": "Creation time",
                     "type": "string"
                 },
                 "fault_injection": {
-                    "description": "故障注入详情",
+                    "description": "Fault injection details",
                     "allOf": [
                         {
                             "$ref": "#/definitions/database.FaultInjectionSchedule"
@@ -6896,15 +7493,15 @@ const docTemplate = `{
                     ]
                 },
                 "fault_injection_id": {
-                    "description": "故障注入ID",
+                    "description": "Fault injection ID",
                     "type": "integer"
                 },
                 "id": {
-                    "description": "关联ID",
+                    "description": "Relation ID",
                     "type": "integer"
                 },
                 "updated_at": {
-                    "description": "更新时间",
+                    "description": "Update time",
                     "type": "string"
                 }
             }
@@ -6917,27 +7514,27 @@ const docTemplate = `{
             ],
             "properties": {
                 "category": {
-                    "description": "标签分类",
+                    "description": "Label category",
                     "type": "string",
                     "maxLength": 50
                 },
                 "color": {
-                    "description": "标签颜色 (hex格式)",
+                    "description": "Label color (hex format)",
                     "type": "string",
                     "maxLength": 7
                 },
                 "description": {
-                    "description": "标签描述",
+                    "description": "Label description",
                     "type": "string",
                     "maxLength": 500
                 },
                 "key": {
-                    "description": "标签键",
+                    "description": "Label key",
                     "type": "string",
                     "maxLength": 100
                 },
                 "value": {
-                    "description": "标签值",
+                    "description": "Label value",
                     "type": "string",
                     "maxLength": 255
                 }
@@ -6947,21 +7544,21 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "add_labels": {
-                    "description": "要添加的标签ID列表",
+                    "description": "List of label IDs to add",
                     "type": "array",
                     "items": {
                         "type": "integer"
                     }
                 },
                 "new_labels": {
-                    "description": "新建标签列表",
+                    "description": "New label list",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/dto.DatasetV2LabelCreateReq"
                     }
                 },
                 "remove_labels": {
-                    "description": "要移除的标签ID列表",
+                    "description": "List of label IDs to remove",
                     "type": "array",
                     "items": {
                         "type": "integer"
@@ -6973,61 +7570,61 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "checksum": {
-                    "description": "文件校验和",
+                    "description": "File checksum",
                     "type": "string"
                 },
                 "created_at": {
-                    "description": "创建时间",
+                    "description": "Creation time",
                     "type": "string"
                 },
                 "data_source": {
-                    "description": "数据来源描述",
+                    "description": "Data source description",
                     "type": "string"
                 },
                 "description": {
-                    "description": "数据集描述",
+                    "description": "Dataset description",
                     "type": "string"
                 },
                 "download_url": {
-                    "description": "下载链接",
+                    "description": "Download URL",
                     "type": "string"
                 },
                 "file_count": {
-                    "description": "文件数量",
+                    "description": "File count",
                     "type": "integer"
                 },
                 "format": {
-                    "description": "数据格式",
+                    "description": "Data format",
                     "type": "string"
                 },
                 "id": {
-                    "description": "唯一标识",
+                    "description": "Unique identifier",
                     "type": "integer"
                 },
                 "injections": {
-                    "description": "关联的故障注入",
+                    "description": "Associated fault injections",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/dto.DatasetV2InjectionRelationResponse"
                     }
                 },
                 "is_public": {
-                    "description": "是否公开",
+                    "description": "Whether public",
                     "type": "boolean"
                 },
                 "labels": {
-                    "description": "关联的标签",
+                    "description": "Associated labels",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/database.Label"
                     }
                 },
                 "name": {
-                    "description": "数据集名称",
+                    "description": "Dataset name",
                     "type": "string"
                 },
                 "project": {
-                    "description": "关联项目信息",
+                    "description": "Associated project info",
                     "allOf": [
                         {
                             "$ref": "#/definitions/database.Project"
@@ -7035,23 +7632,23 @@ const docTemplate = `{
                     ]
                 },
                 "project_id": {
-                    "description": "项目ID",
+                    "description": "Project ID",
                     "type": "integer"
                 },
                 "status": {
-                    "description": "状态",
+                    "description": "Status",
                     "type": "integer"
                 },
                 "type": {
-                    "description": "数据集类型",
+                    "description": "Dataset type",
                     "type": "string"
                 },
                 "updated_at": {
-                    "description": "更新时间",
+                    "description": "Update time",
                     "type": "string"
                 },
                 "version": {
-                    "description": "数据集版本",
+                    "description": "Dataset version",
                     "type": "string"
                 }
             }
@@ -7060,7 +7657,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "date_range": {
-                    "description": "时间范围过滤",
+                    "description": "Date range filter",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.DateRangeFilter"
@@ -7068,54 +7665,54 @@ const docTemplate = `{
                     ]
                 },
                 "include": {
-                    "description": "包含的关联数据",
+                    "description": "Included related data",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "is_public": {
-                    "description": "是否公开",
+                    "description": "Whether public",
                     "type": "boolean"
                 },
                 "label_keys": {
-                    "description": "按标签键过滤",
+                    "description": "Filter by label key",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "label_values": {
-                    "description": "按标签值过滤",
+                    "description": "Filter by label value",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "page": {
-                    "description": "页码",
+                    "description": "Page number",
                     "type": "integer",
                     "minimum": 1
                 },
                 "project_ids": {
-                    "description": "项目ID列表",
+                    "description": "Project ID list",
                     "type": "array",
                     "items": {
                         "type": "integer"
                     }
                 },
                 "search": {
-                    "description": "搜索关键词",
+                    "description": "Search keywords",
                     "type": "string"
                 },
                 "size": {
-                    "description": "每页大小",
+                    "description": "Page size",
                     "type": "integer",
                     "maximum": 100,
                     "minimum": 1
                 },
                 "size_range": {
-                    "description": "大小范围过滤",
+                    "description": "Size range filter",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.SizeRangeFilter"
@@ -7123,22 +7720,22 @@ const docTemplate = `{
                     ]
                 },
                 "sort_by": {
-                    "description": "排序字段",
+                    "description": "Sort field",
                     "type": "string"
                 },
                 "sort_order": {
-                    "description": "排序方向",
+                    "description": "Sort direction",
                     "type": "string"
                 },
                 "statuses": {
-                    "description": "状态列表",
+                    "description": "Status list",
                     "type": "array",
                     "items": {
                         "type": "integer"
                     }
                 },
                 "types": {
-                    "description": "数据集类型列表",
+                    "description": "Dataset type list",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -7150,57 +7747,57 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "data_source": {
-                    "description": "数据来源描述",
+                    "description": "Data source description",
                     "type": "string",
                     "maxLength": 500
                 },
                 "description": {
-                    "description": "数据集描述",
+                    "description": "Dataset description",
                     "type": "string",
                     "maxLength": 1000
                 },
                 "format": {
-                    "description": "数据格式",
+                    "description": "Data format",
                     "type": "string",
                     "maxLength": 50
                 },
                 "injection_ids": {
-                    "description": "更新关联的故障注入ID列表（完全替换）",
+                    "description": "Update associated fault injection ID list (complete replacement)",
                     "type": "array",
                     "items": {
                         "type": "integer"
                     }
                 },
                 "is_public": {
-                    "description": "是否公开",
+                    "description": "Whether public",
                     "type": "boolean"
                 },
                 "label_ids": {
-                    "description": "更新关联的标签ID列表（完全替换）",
+                    "description": "Update associated label ID list (complete replacement)",
                     "type": "array",
                     "items": {
                         "type": "integer"
                     }
                 },
                 "name": {
-                    "description": "数据集名称",
+                    "description": "Dataset name",
                     "type": "string",
                     "maxLength": 255
                 },
                 "new_labels": {
-                    "description": "新建标签列表",
+                    "description": "New label list",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/dto.DatasetV2LabelCreateReq"
                     }
                 },
                 "type": {
-                    "description": "数据集类型",
+                    "description": "Dataset type",
                     "type": "string",
                     "maxLength": 50
                 },
                 "version": {
-                    "description": "数据集版本",
+                    "description": "Dataset version",
                     "type": "string",
                     "maxLength": 50
                 }
@@ -7221,12 +7818,71 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "end_time": {
-                    "description": "结束时间",
+                    "description": "End time",
                     "type": "string"
                 },
                 "start_time": {
-                    "description": "开始时间",
+                    "description": "Start time",
                     "type": "string"
+                }
+            }
+        },
+        "dto.DetectorResultItem": {
+            "type": "object",
+            "required": [
+                "issues",
+                "span_name"
+            ],
+            "properties": {
+                "abnormal_avg_duration": {
+                    "type": "number"
+                },
+                "abnormal_p90": {
+                    "type": "number"
+                },
+                "abnormal_p95": {
+                    "type": "number"
+                },
+                "abnormal_p99": {
+                    "type": "number"
+                },
+                "abnormal_succ_rate": {
+                    "type": "number"
+                },
+                "issues": {
+                    "type": "string"
+                },
+                "normal_avg_duration": {
+                    "type": "number"
+                },
+                "normal_p90": {
+                    "type": "number"
+                },
+                "normal_p95": {
+                    "type": "number"
+                },
+                "normal_p99": {
+                    "type": "number"
+                },
+                "normal_succ_rate": {
+                    "type": "number"
+                },
+                "span_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.DetectorResultRequest": {
+            "type": "object",
+            "required": [
+                "results"
+            ],
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DetectorResultItem"
+                    }
                 }
             }
         },
@@ -7381,18 +8037,18 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据"
+                    "description": "Generic type data"
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7401,22 +8057,22 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/dto.FaultInjectionNoIssuesResp"
                     }
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7425,22 +8081,22 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/dto.FaultInjectionWithIssuesResp"
                     }
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7449,22 +8105,22 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/dto.PermissionResponse"
                     }
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7473,22 +8129,22 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/dto.RoleResponse"
                     }
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7497,22 +8153,47 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/dto.UserResponse"
                     }
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_AlgorithmResultUploadResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.AlgorithmResultUploadResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7521,11 +8202,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.AnalyzeInjectionsResp"
@@ -7533,11 +8214,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7546,11 +8227,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.AuditLogListResponse"
@@ -7558,11 +8239,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7571,11 +8252,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.AuditLogResponse"
@@ -7583,11 +8264,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7596,11 +8277,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.ContainerResponse"
@@ -7608,11 +8289,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7621,11 +8302,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.DatasetDeleteResp"
@@ -7633,11 +8314,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7646,11 +8327,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.DatasetSearchResponse"
@@ -7658,11 +8339,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7671,11 +8352,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.DatasetV2Response"
@@ -7683,11 +8364,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7696,11 +8377,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.GetCompletedMapResp"
@@ -7708,11 +8389,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7721,11 +8402,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.GroundTruthResp"
@@ -7733,11 +8414,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7746,11 +8427,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.HealthCheckResponse"
@@ -7758,11 +8439,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7771,11 +8452,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.InjectCancelResp"
@@ -7783,11 +8464,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7796,11 +8477,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.InjectionFieldMappingResp"
@@ -7808,11 +8489,36 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_InjectionSearchResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.InjectionSearchResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7821,11 +8527,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.InjectionStatsResp"
@@ -7833,11 +8539,36 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_InjectionV2Response": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.InjectionV2Response"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7846,22 +8577,22 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/database.Container"
                     }
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7870,11 +8601,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.ListInjectionsResp"
@@ -7882,11 +8613,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7895,22 +8626,22 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/database.Task"
                     }
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7919,11 +8650,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.LoginResponse"
@@ -7931,11 +8662,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7944,11 +8675,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.MonitoringMetricsResponse"
@@ -7956,11 +8687,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7969,11 +8700,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.NsResourcesResp"
@@ -7981,11 +8712,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -7994,11 +8725,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.PaginationResp-dto_UnifiedTask"
@@ -8006,11 +8737,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8019,11 +8750,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.PermissionListResponse"
@@ -8031,11 +8762,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8044,11 +8775,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.PermissionResponse"
@@ -8056,11 +8787,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8069,11 +8800,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.QueryInjectionResp"
@@ -8081,11 +8812,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8094,22 +8825,22 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/dto.RawDataItem"
                     }
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8118,11 +8849,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.RelationListResponse"
@@ -8130,11 +8861,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8143,11 +8874,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.RelationStatisticsResponse"
@@ -8155,11 +8886,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8168,11 +8899,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.RoleListResponse"
@@ -8180,11 +8911,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8193,11 +8924,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.RoleResponse"
@@ -8205,11 +8936,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8218,11 +8949,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.SearchResponse-dto_AlgorithmResponse"
@@ -8230,11 +8961,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8243,11 +8974,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.SearchResponse-dto_ContainerResponse"
@@ -8255,11 +8986,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8268,11 +8999,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.SearchResponse-dto_DatasetV2Response"
@@ -8280,11 +9011,36 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_SearchResponse-dto_InjectionV2Response": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.SearchResponse-dto_InjectionV2Response"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8293,11 +9049,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.SearchResponse-dto_PermissionResponse"
@@ -8305,11 +9061,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8318,11 +9074,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.SearchResponse-dto_RoleResponse"
@@ -8330,11 +9086,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8343,11 +9099,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.SearchResponse-dto_TaskResponse"
@@ -8355,11 +9111,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8368,11 +9124,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.SearchResponse-dto_UserResponse"
@@ -8380,11 +9136,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8393,11 +9149,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.SubmitInjectionResp"
@@ -8405,11 +9161,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8418,11 +9174,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.SubmitResp"
@@ -8430,11 +9186,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8443,22 +9199,22 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/dto.SuccessfulExecutionItem"
                     }
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8467,11 +9223,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.SystemInfo"
@@ -8479,11 +9235,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8492,11 +9248,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.SystemStatisticsResponse"
@@ -8504,11 +9260,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8517,11 +9273,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.TaskDetailResp"
@@ -8529,11 +9285,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8542,11 +9298,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.TaskDetailResponse"
@@ -8554,11 +9310,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8567,11 +9323,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.TokenRefreshResponse"
@@ -8579,11 +9335,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8592,11 +9348,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.TraceStats"
@@ -8604,11 +9360,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8617,11 +9373,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.UserInfo"
@@ -8629,11 +9385,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8642,11 +9398,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.UserListResponse"
@@ -8654,11 +9410,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8667,11 +9423,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.UserResponse"
@@ -8679,11 +9435,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8692,11 +9448,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/handler.Node"
@@ -8704,11 +9460,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8717,11 +9473,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
-                    "description": "状态码",
+                    "description": "Status code",
                     "type": "integer"
                 },
                 "data": {
-                    "description": "泛型类型的数据",
+                    "description": "Generic type data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/handler.Resources"
@@ -8729,11 +9485,11 @@ const docTemplate = `{
                     ]
                 },
                 "message": {
-                    "description": "响应消息",
+                    "description": "Response message",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "响应生成时间",
+                    "description": "Response generation time",
                     "type": "integer"
                 }
             }
@@ -8742,14 +9498,14 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "has_anomaly": {
-                    "description": "检测到异常的链路ID列表",
+                    "description": "List of trace IDs with detected anomalies",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "no_anomaly": {
-                    "description": "没有异常的链路ID列表",
+                    "description": "List of trace IDs without anomalies",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -8768,6 +9524,50 @@ const docTemplate = `{
                 },
                 "rank": {
                     "type": "integer"
+                },
+                "result": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.GranularityResultEnhancedRequest": {
+            "type": "object",
+            "required": [
+                "results"
+            ],
+            "properties": {
+                "datapack_id": {
+                    "description": "Required if no execution_id",
+                    "type": "integer"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.GranularityResultItem"
+                    }
+                }
+            }
+        },
+        "dto.GranularityResultItem": {
+            "type": "object",
+            "required": [
+                "confidence",
+                "level",
+                "rank",
+                "result"
+            ],
+            "properties": {
+                "confidence": {
+                    "type": "number",
+                    "maximum": 1,
+                    "minimum": 0
+                },
+                "level": {
+                    "type": "string"
+                },
+                "rank": {
+                    "type": "integer",
+                    "minimum": 1
                 },
                 "result": {
                     "type": "string"
@@ -8923,6 +9723,20 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.InjectionSearchResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.InjectionV2Response"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
         "dto.InjectionStatistics": {
             "type": "object",
             "properties": {
@@ -8970,6 +9784,181 @@ const docTemplate = `{
                 },
                 "with_issues_records": {
                     "type": "integer"
+                }
+            }
+        },
+        "dto.InjectionV2Response": {
+            "type": "object",
+            "properties": {
+                "benchmark": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "display_config": {
+                    "type": "string"
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "engine_config": {
+                    "type": "string"
+                },
+                "fault_type": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "injection_name": {
+                    "type": "string"
+                },
+                "pre_duration": {
+                    "type": "integer"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "task": {
+                    "description": "Optional relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.TaskV2Response"
+                        }
+                    ]
+                },
+                "task_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.InjectionV2SearchReq": {
+            "type": "object",
+            "properties": {
+                "benchmarks": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "created_at_gte": {
+                    "type": "string"
+                },
+                "created_at_lte": {
+                    "type": "string"
+                },
+                "end_time_gte": {
+                    "type": "string"
+                },
+                "end_time_lte": {
+                    "type": "string"
+                },
+                "fault_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "include": {
+                    "type": "string"
+                },
+                "page": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "search": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 1
+                },
+                "sort_by": {
+                    "type": "string",
+                    "enum": [
+                        "id",
+                        "task_id",
+                        "fault_type",
+                        "status",
+                        "benchmark",
+                        "injection_name",
+                        "created_at",
+                        "updated_at"
+                    ]
+                },
+                "sort_order": {
+                    "type": "string",
+                    "enum": [
+                        "asc",
+                        "desc"
+                    ]
+                },
+                "start_time_gte": {
+                    "type": "string"
+                },
+                "start_time_lte": {
+                    "type": "string"
+                },
+                "statuses": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "task_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "dto.InjectionV2UpdateReq": {
+            "type": "object",
+            "properties": {
+                "benchmark": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "display_config": {
+                    "type": "string"
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "engine_config": {
+                    "type": "string"
+                },
+                "fault_type": {
+                    "type": "integer"
+                },
+                "injection_name": {
+                    "type": "string"
+                },
+                "pre_duration": {
+                    "type": "integer"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "task_id": {
+                    "type": "string"
                 }
             }
         },
@@ -9256,7 +10245,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "actions": {
-                    "description": "操作筛选",
+                    "description": "Action filter",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -9271,11 +10260,11 @@ const docTemplate = `{
                     ]
                 },
                 "description_pattern": {
-                    "description": "描述模糊匹配",
+                    "description": "Fuzzy match for description",
                     "type": "string"
                 },
                 "display_name_pattern": {
-                    "description": "显示名模糊匹配",
+                    "description": "Fuzzy match for display name",
                     "type": "string"
                 },
                 "exclude_fields": {
@@ -9309,7 +10298,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "is_system": {
-                    "description": "是否系统权限",
+                    "description": "Is system permission",
                     "type": "boolean"
                 },
                 "keyword": {
@@ -9329,21 +10318,21 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "resource_ids": {
-                    "description": "资源ID筛选",
+                    "description": "Resource ID filter",
                     "type": "array",
                     "items": {
                         "type": "integer"
                     }
                 },
                 "resource_names": {
-                    "description": "资源名称筛选",
+                    "description": "Resource name filter",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "role_ids": {
-                    "description": "拥有此权限的角色ID",
+                    "description": "Role IDs that have this permission",
                     "type": "array",
                     "items": {
                         "type": "integer"
@@ -9433,58 +10422,58 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "benchmark": {
-                    "description": "基准数据库，添加索引",
+                    "description": "Benchmark database, add index",
                     "type": "string"
                 },
                 "created_at": {
-                    "description": "创建时间，添加时间索引",
+                    "description": "Creation time, add time index",
                     "type": "string"
                 },
                 "description": {
-                    "description": "描述（可选字段）",
+                    "description": "Description (optional field)",
                     "type": "string"
                 },
                 "display_config": {
-                    "description": "面向用户的展示配置",
+                    "description": "User-facing display configuration",
                     "type": "string"
                 },
                 "end_time": {
-                    "description": "预计故障结束时间，添加时间索引",
+                    "description": "Expected fault end time, add time index",
                     "type": "string"
                 },
                 "engine_config": {
-                    "description": "面向系统的运行配置",
+                    "description": "System-facing runtime configuration",
                     "type": "string"
                 },
                 "fault_type": {
-                    "description": "故障类型，添加复合索引",
+                    "description": "Fault type, add composite index",
                     "type": "integer"
                 },
                 "ground_truth": {
                     "$ref": "#/definitions/handler.Groundtruth"
                 },
                 "id": {
-                    "description": "唯一标识",
+                    "description": "Unique identifier",
                     "type": "integer"
                 },
                 "injection_name": {
-                    "description": "在k8s资源里注入的名字",
+                    "description": "Name injected in k8s resources",
                     "type": "string"
                 },
                 "pre_duration": {
-                    "description": "正常数据时间",
+                    "description": "Normal data duration",
                     "type": "integer"
                 },
                 "start_time": {
-                    "description": "预计故障开始时间，添加时间索引",
+                    "description": "Expected fault start time, add time index",
                     "type": "string"
                 },
                 "status": {
-                    "description": "状态，添加复合索引",
+                    "description": "Status, add composite index",
                     "type": "integer"
                 },
                 "task": {
-                    "description": "外键关联",
+                    "description": "Foreign key association",
                     "allOf": [
                         {
                             "$ref": "#/definitions/database.Task"
@@ -9492,11 +10481,11 @@ const docTemplate = `{
                     ]
                 },
                 "task_id": {
-                    "description": "从属什么 taskid，添加复合索引",
+                    "description": "Associated task ID, add composite index",
                     "type": "string"
                 },
                 "updated_at": {
-                    "description": "更新时间",
+                    "description": "Update time",
                     "type": "string"
                 }
             }
@@ -9867,11 +10856,11 @@ const docTemplate = `{
                     ]
                 },
                 "description_pattern": {
-                    "description": "描述模糊匹配",
+                    "description": "Description fuzzy match",
                     "type": "string"
                 },
                 "display_name_pattern": {
-                    "description": "显示名模糊匹配",
+                    "description": "Display name fuzzy match",
                     "type": "string"
                 },
                 "exclude_fields": {
@@ -9905,7 +10894,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "is_system": {
-                    "description": "是否系统角色",
+                    "description": "Whether system role",
                     "type": "boolean"
                 },
                 "keyword": {
@@ -9922,7 +10911,7 @@ const docTemplate = `{
                     "minimum": 1
                 },
                 "permission_ids": {
-                    "description": "权限ID筛选",
+                    "description": "Permission ID filter",
                     "type": "array",
                     "items": {
                         "type": "integer"
@@ -9950,7 +10939,7 @@ const docTemplate = `{
                     }
                 },
                 "types": {
-                    "description": "角色类型筛选",
+                    "description": "Role type filter",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -9960,7 +10949,7 @@ const docTemplate = `{
                     "$ref": "#/definitions/dto.DateRange"
                 },
                 "user_count": {
-                    "description": "用户数量范围",
+                    "description": "User count range",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.NumberRange"
@@ -9980,11 +10969,11 @@ const docTemplate = `{
             ],
             "properties": {
                 "field": {
-                    "description": "字段名",
+                    "description": "Field name",
                     "type": "string"
                 },
                 "operator": {
-                    "description": "操作符",
+                    "description": "Operator",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.FilterOperator"
@@ -9992,10 +10981,10 @@ const docTemplate = `{
                     ]
                 },
                 "value": {
-                    "description": "值"
+                    "description": "Value"
                 },
                 "values": {
-                    "description": "多值（用于IN操作等）",
+                    "description": "Multiple values (for IN operations etc.)",
                     "type": "array",
                     "items": {}
                 }
@@ -10072,6 +11061,32 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/dto.DatasetV2Response"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
+        "dto.SearchResponse-dto_InjectionV2Response": {
+            "type": "object",
+            "properties": {
+                "applied_filters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SearchFilter"
+                    }
+                },
+                "applied_sort": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SortOption"
+                    }
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.InjectionV2Response"
                     }
                 },
                 "pagination": {
@@ -10225,11 +11240,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "max_size": {
-                    "description": "最大大小（字节）",
+                    "description": "Maximum size (bytes)",
                     "type": "integer"
                 },
                 "min_size": {
-                    "description": "最小大小（字节）",
+                    "description": "Minimum size (bytes)",
                     "type": "integer"
                 }
             }
@@ -10253,7 +11268,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "direction": {
-                    "description": "排序方向",
+                    "description": "Sort direction",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.SortDirection"
@@ -10261,7 +11276,7 @@ const docTemplate = `{
                     ]
                 },
                 "field": {
-                    "description": "排序字段",
+                    "description": "Sort field",
                     "type": "string"
                 }
             }
@@ -10384,19 +11399,19 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "algorithm": {
-                    "description": "算法名称",
+                    "description": "Algorithm name",
                     "type": "string"
                 },
                 "created_at": {
-                    "description": "创建时间",
+                    "description": "Creation time",
                     "type": "string"
                 },
                 "dataset": {
-                    "description": "数据集名称",
+                    "description": "Dataset name",
                     "type": "string"
                 },
                 "id": {
-                    "description": "执行ID",
+                    "description": "Execution ID",
                     "type": "integer"
                 }
             }
@@ -10696,6 +11711,23 @@ const docTemplate = `{
                 "total": {
                     "type": "integer",
                     "example": 1000
+                }
+            }
+        },
+        "dto.TaskV2Response": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -11138,14 +12170,14 @@ const docTemplate = `{
                     ]
                 },
                 "departments": {
-                    "description": "部门筛选",
+                    "description": "Department filter",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "email_pattern": {
-                    "description": "邮箱模糊匹配",
+                    "description": "Email fuzzy match",
                     "type": "string"
                 },
                 "exclude_fields": {
@@ -11162,7 +12194,7 @@ const docTemplate = `{
                     }
                 },
                 "fullname_pattern": {
-                    "description": "全名模糊匹配",
+                    "description": "Full name fuzzy match",
                     "type": "string"
                 },
                 "include": {
@@ -11187,7 +12219,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "last_login_range": {
-                    "description": "最后登录时间范围",
+                    "description": "Last login time range",
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.DateRange"
@@ -11203,14 +12235,14 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "project_ids": {
-                    "description": "项目ID筛选",
+                    "description": "Project ID filter",
                     "type": "array",
                     "items": {
                         "type": "integer"
                     }
                 },
                 "role_ids": {
-                    "description": "角色ID筛选",
+                    "description": "Role ID filter",
                     "type": "array",
                     "items": {
                         "type": "integer"

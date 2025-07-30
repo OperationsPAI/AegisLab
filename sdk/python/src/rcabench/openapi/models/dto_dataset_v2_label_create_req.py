@@ -28,11 +28,11 @@ class DtoDatasetV2LabelCreateReq(BaseModel):
     """
     DtoDatasetV2LabelCreateReq
     """ # noqa: E501
-    category: Optional[Annotated[str, Field(strict=True, max_length=50)]] = Field(default=None, description="标签分类")
-    color: Optional[Annotated[str, Field(strict=True, max_length=7)]] = Field(default=None, description="标签颜色 (hex格式)")
-    description: Optional[Annotated[str, Field(strict=True, max_length=500)]] = Field(default=None, description="标签描述")
-    key: Annotated[str, Field(strict=True, max_length=100)] = Field(description="标签键")
-    value: Annotated[str, Field(strict=True, max_length=255)] = Field(description="标签值")
+    category: Optional[Annotated[str, Field(strict=True, max_length=50)]] = Field(default=None, description="Label category")
+    color: Optional[Annotated[str, Field(strict=True, max_length=7)]] = Field(default=None, description="Label color (hex format)")
+    description: Optional[Annotated[str, Field(strict=True, max_length=500)]] = Field(default=None, description="Label description")
+    key: Annotated[str, Field(strict=True, max_length=100)] = Field(description="Label key")
+    value: Annotated[str, Field(strict=True, max_length=255)] = Field(description="Label value")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["category", "color", "description", "key", "value"]
 
