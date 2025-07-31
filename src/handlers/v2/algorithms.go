@@ -583,7 +583,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 		}
 
 		// Extract datapacks from request (either single datapack or dataset)
-		datapacks, datasetID, err := extractDatapacks(execution.Datapack, execution.Dataset)
+		datapacks, datasetID, err := extractDatapacks(execution.Datapack, execution.Dataset, execution.DatasetVersion)
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
 			return
@@ -611,7 +611,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 
 // extractDatapacks extracts datapacks from either a single datapack name or dataset name
 // Returns datapacks and optional dataset ID (if from dataset)
-func extractDatapacks(datapackName *string, datasetName *string) ([]database.FaultInjectionSchedule, *int, error) {
+func extractDatapacks(datapackName *string, datasetName *string, datasetVersion *string) ([]database.FaultInjectionSchedule, *int, error) {
 	if datapackName != nil {
 		// Single datapack mode
 		var datapack database.FaultInjectionSchedule
@@ -622,8 +622,14 @@ func extractDatapacks(datapackName *string, datasetName *string) ([]database.Fau
 	} else if datasetName != nil {
 		// Dataset mode - get all datapacks in the dataset
 		var dataset database.Dataset
-		if err := database.DB.Where("name = ? AND status = ?", *datasetName, 1).First(&dataset).Error; err != nil {
-			return nil, nil, fmt.Errorf("dataset not found: %s", *datasetName)
+
+		// Use name and version to uniquely identify dataset
+		if datasetVersion == nil || *datasetVersion == "" {
+			return nil, nil, fmt.Errorf("dataset_version is required when querying by dataset name")
+		}
+
+		if err := database.DB.Where("name = ? AND version = ? AND status = ?", *datasetName, *datasetVersion, 1).First(&dataset).Error; err != nil {
+			return nil, nil, fmt.Errorf("dataset not found: %s:%s", *datasetName, *datasetVersion)
 		}
 
 		datasetFaultInjections, err := repository.GetDatasetFaultInjections(dataset.ID)
