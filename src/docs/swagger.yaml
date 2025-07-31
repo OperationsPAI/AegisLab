@@ -304,6 +304,8 @@ definitions:
         type: string
       dataset:
         type: string
+      dataset_version:
+        type: string
       env_vars:
         type: object
       project_name:
@@ -1023,13 +1025,6 @@ definitions:
       name:
         description: Dataset name
         type: string
-      project:
-        allOf:
-        - $ref: '#/definitions/database.Project'
-        description: Associated project info
-      project_id:
-        description: Project ID
-        type: integer
       status:
         description: Status
         type: integer
@@ -1071,11 +1066,6 @@ definitions:
         description: Page number
         minimum: 1
         type: integer
-      project_ids:
-        description: Project ID list
-        items:
-          type: integer
-        type: array
       search:
         description: Search keywords
         type: string
@@ -1412,22 +1402,6 @@ definitions:
         items:
           $ref: '#/definitions/dto.UserResponse'
         type: array
-      message:
-        description: Response message
-        type: string
-      timestamp:
-        description: Response generation time
-        type: integer
-    type: object
-  dto.GenericResponse-dto_AlgorithmExecutionResponse:
-    properties:
-      code:
-        description: Status code
-        type: integer
-      data:
-        allOf:
-        - $ref: '#/definitions/dto.AlgorithmExecutionResponse'
-        description: Generic type data
       message:
         description: Response message
         type: string
@@ -5805,48 +5779,6 @@ paths:
     post:
       consumes:
       - application/json
-      description: Submit algorithm execution task for a single datapack (v1 compatible)
-        or dataset (v2 feature). The system will create execution tasks and return
-        tracking information.
-      parameters:
-      - description: Algorithm execution request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/dto.AlgorithmExecutionRequest'
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Algorithm execution submitted successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_AlgorithmExecutionResponse'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "403":
-          description: Permission denied
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "404":
-          description: Project, algorithm, datapack or dataset not found
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      security:
-      - BearerAuth: []
-      summary: Submit algorithm execution
-      tags:
-      - Algorithms
-  /api/v2/algorithms/execute/batch:
-    post:
-      consumes:
-      - application/json
       description: Submit multiple algorithm execution tasks in batch. Supports mixing
         datapack (v1 compatible) and dataset (v2 feature) executions.
       parameters:
@@ -6574,10 +6506,6 @@ paths:
         in: query
         name: size
         type: integer
-      - description: Filter by project ID
-        in: query
-        name: project_id
-        type: integer
       - description: Filter by dataset type
         in: query
         name: type
@@ -6602,7 +6530,7 @@ paths:
         in: query
         name: sort_order
         type: string
-      - description: Include related data (project,injections,labels)
+      - description: Include related data (injections,labels)
         in: query
         name: include
         type: string
@@ -6714,7 +6642,7 @@ paths:
         name: id
         required: true
         type: integer
-      - description: Include related data (project,injections,labels)
+      - description: Include related data (injections,labels)
         in: query
         name: include
         type: string
