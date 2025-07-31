@@ -288,6 +288,11 @@ const (
 	LabelTimestamp   = "timestamp"
 )
 
+const (
+	JobSucceed = "succeed"
+	JobFailed  = "failed"
+)
+
 // SSE event types
 const (
 	EventEnd    = "end"

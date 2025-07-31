@@ -8,6 +8,10 @@
 # 配置变量
 # =============================================================================
 
+# 基础配置
+HASH_PATTERN := injection:algorithms
+STREAM_PATTERN := trace:*:log
+
 # 颜色定义
 BLUE    := \033[1;34m
 GREEN   := \033[1;32m
@@ -47,12 +51,17 @@ help: ## 📖 显示所有可用命令
 # 转存
 # =============================================================================
 restore-local: ## 📦 从正式环境转存到本地 Redis
+	@echo "$(BLUE)开始从正式环境转存数据到本地 Redis...$(RESET)"
+	@echo "$(BLUE)正在转存哈希数据$(RESET)"
+	uv run python cli.py restore-hashes --pattern "$(HASH_PATTERN)" --overwrite
+	@echo "$(GREEN)✅ 哈希数据转存完成$(RESET)"
+	@echo "$(BLUE)正在转存流数据$(RESET)"
 	@read -p "选择匹配方式 - 精准匹配 (y) 或 模糊匹配 (N): " choice; \
 	if [ "$$choice" = "y" ] || [ "$$choice" = "Y" ]; then \
 		echo "$(BLUE)使用精准匹配模式...$(RESET)"; \
-		uv run python cli.py restore-batch --exact_match --overwrite; \
+		uv run python cli.py restore-streams --exact_match --overwrite; \
 	else \
-		read -p "输入模糊匹配模式: " pattern; \
-		echo "$(BLUE)使用模糊匹配模式: $$pattern$(RESET)"; \
-		uv run python cli.py restore-batch --source_pattern "$$pattern" --overwrite; \
+		echo "$(BLUE)使用模糊匹配模式: $(STREAM_PATTERN)$(RESET)"; \
+		uv run python cli.py restore-streams --fuzzy_match "$(STREAM_PATTERN)" --overwrite; \
 	fi
+	@echo "$(GREEN)✅ 流数据转存完成$(RESET)"

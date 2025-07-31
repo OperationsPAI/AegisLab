@@ -55,18 +55,18 @@ type FaultInjectionSchedule struct {
 }
 
 type Container struct {
-	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`                                    // Unique identifier
-	Type      string    `gorm:"index;not null;uniqueIndex:idx_container_unique" json:"type"`           // Image type
-	Name      string    `gorm:"index;not null;uniqueIndex:idx_container_unique" json:"name"`           // Name
-	Image     string    `gorm:"not null;uniqueIndex:idx_container_unique" json:"image"`                // Image name
-	Tag       string    `gorm:"not null;default:'latest';uniqueIndex:idx_container_unique" json:"tag"` // Image tag
-	Command   string    `gorm:"type:text;default:''" json:"command"`                                   // Startup command
-	EnvVars   string    `gorm:"default:''" json:"env_vars"`                                            // List of environment variable names
-	UserID    int       `gorm:"not null;index:idx_container_user" json:"user_id"`                      // Container must belong to a user
-	IsPublic  bool      `gorm:"default:false;index:idx_container_visibility" json:"is_public"`         // Whether publicly visible
-	Status    bool      `gorm:"default:true" json:"status"`                                            // 0: deleted 1: active
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`                                      // Creation time
-	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                      // Update time
+	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`                                     // Unique identifier
+	Type      string    `gorm:"index;not null;index:idx_container_unique,unique" json:"type"`           // Image type
+	Name      string    `gorm:"index;not null;index:idx_container_unique,unique" json:"name"`           // Name
+	Image     string    `gorm:"not null;index:idx_container_unique,unique" json:"image"`                // Image name
+	Tag       string    `gorm:"not null;default:'latest';index:idx_container_unique,unqiue" json:"tag"` // Image tag
+	Command   string    `gorm:"type:text;default:''" json:"command"`                                    // Startup command
+	EnvVars   string    `gorm:"default:''" json:"env_vars"`                                             // List of environment variable names
+	UserID    int       `gorm:"not null;index:idx_container_user" json:"user_id"`                       // Container must belong to a user
+	IsPublic  bool      `gorm:"default:false;index:idx_container_visibility" json:"is_public"`          // Whether publicly visible
+	Status    bool      `gorm:"default:true" json:"status"`                                             // 0: deleted 1: active
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`                                       // Creation time
+	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                       // Update time
 
 	// Foreign key association
 	User *User `gorm:"foreignKey:UserID" json:"user,omitempty"`
@@ -125,21 +125,21 @@ type Detector struct {
 
 // Dataset table, is design to store multiple versions of a dataset(a series of datapack). Only admin can create a dataset, so there is no user id foreign key.
 type Dataset struct {
-	ID          int    `gorm:"primaryKey;autoIncrement" json:"id"`                                           // Unique identifier
-	Name        string `gorm:"not null;index:idx_dataset_name_version,unique" json:"name"`                   // Dataset name
-	Version     string `gorm:"not null;default:'v1.0';index:idx_dataset_name_version,unique" json:"version"` // Dataset version
-	Description string `gorm:"type:text" json:"description"`                                                 // Dataset description
-	Type        string `gorm:"index" json:"type"`                                                            // Dataset type (e.g., "microservice", "database", "network")
-	FileCount   int    `gorm:"default:0" json:"file_count"`                                                  // File count
-	DataSource  string `gorm:"type:text" json:"data_source"`                                                 // Data source description
-	Format      string `gorm:"default:'json'" json:"format"`                                                 // Data format (json, csv, parquet, etc.)
+	ID          int    `gorm:"primaryKey;autoIncrement" json:"id"`                                                  // Unique identifier
+	Name        string `gorm:"not null;index:idx_dataset_name_version_status,unique" json:"name"`                   // Dataset name
+	Version     string `gorm:"not null;default:'v1.0';index:idx_dataset_name_version_status,unique" json:"version"` // Dataset version
+	Description string `gorm:"type:text" json:"description"`                                                        // Dataset description
+	Type        string `gorm:"index" json:"type"`                                                                   // Dataset type (e.g., "microservice", "database", "network")
+	FileCount   int    `gorm:"default:0" json:"file_count"`                                                         // File count
+	DataSource  string `gorm:"type:text" json:"data_source"`                                                        // Data source description
+	Format      string `gorm:"default:'json'" json:"format"`                                                        // Data format (json, csv, parquet, etc.)
 
-	Status      int       `gorm:"default:1;index" json:"status"`                               // 0:disabled 1:enabled -1:deleted
-	IsPublic    bool      `gorm:"default:false;index:idx_dataset_visibility" json:"is_public"` // Whether public
-	DownloadURL string    `json:"download_url,omitempty"`                                      // Download link
-	Checksum    string    `gorm:"type:varchar(64)" json:"checksum,omitempty"`                  // File checksum
-	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`                            // Creation time
-	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`                            // Update time
+	Status      int       `gorm:"default:1;index:idx_dataset_name_version_status,unique" json:"status"` // 0:disabled 1:enabled -1:deleted
+	IsPublic    bool      `gorm:"default:false;index:idx_dataset_visibility" json:"is_public"`          // Whether public
+	DownloadURL string    `json:"download_url,omitempty"`                                               // Download link
+	Checksum    string    `gorm:"type:varchar(64)" json:"checksum,omitempty"`                           // File checksum
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`                                     // Creation time
+	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                     // Update time
 }
 
 // Label table - Unified label management

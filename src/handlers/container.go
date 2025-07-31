@@ -65,7 +65,6 @@ func SubmitContainerBuilding(c *gin.Context) {
 	logrus.Infof("SubmitContainerBuilding, groupID: %s", groupID)
 
 	req := &dto.SubmitContainerBuildingReq{
-		ProjectName:   c.PostForm("project_name"),
 		ContainerType: consts.ContainerType(c.DefaultPostForm("type", string(consts.ContainerTypeAlgorithm))),
 		Name:          c.PostForm("name"),
 		Image:         c.PostForm("image"),
@@ -171,15 +170,8 @@ func SubmitContainerBuilding(c *gin.Context) {
 	}
 	spanCtx := ctx.(context.Context)
 
-	project, err := repository.GetProject("name", req.ProjectName)
-	if err != nil {
-		logrus.Errorf("failed to get project by name %s: %v", req.ProjectName, err)
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid project name")
-		return
-	}
-
 	if req.Source.Type == consts.BuildSourceTypeHarbor {
-		taskID, traceID, err := processHarborDirectUpdate(spanCtx, req, groupID, project.ID)
+		taskID, traceID, err := processHarborDirectUpdate(spanCtx, req)
 		if err != nil {
 			logrus.Errorf("failed to process harbor direct update: %v", err)
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to process harbor direct update")
@@ -389,7 +381,7 @@ func processHarborSource(req *dto.SubmitContainerBuildingReq) (int, error) {
 	return http.StatusOK, nil
 }
 
-func processHarborDirectUpdate(ctx context.Context, req *dto.SubmitContainerBuildingReq, groupID string, projectID int) (string, string, error) {
+func processHarborDirectUpdate(ctx context.Context, req *dto.SubmitContainerBuildingReq) (string, string, error) {
 	taskID := fmt.Sprintf("harbor-%d", time.Now().UnixNano())
 	traceID := fmt.Sprintf("trace-%d", time.Now().UnixNano())
 

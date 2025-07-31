@@ -50,19 +50,22 @@ func InitDB() {
 	}
 
 	if err = DB.AutoMigrate(
+		&Label{},
+
 		&Container{},
-		&Project{},
+		&ContainerLabel{},
+		&Dataset{},
+		&DatasetLabel{},
 		&Task{},
-		&FaultInjectionSchedule{},
 		&ExecutionResult{},
+		&ExecutionResultLabel{},
 		&GranularityResult{},
 		&Detector{},
-		&Dataset{},
-		&Label{},
+		&FaultInjectionSchedule{},
 		&DatasetFaultInjection{},
-		&DatasetLabel{},
 		&FaultInjectionLabel{},
-		&ContainerLabel{},
+
+		&Project{},
 		&ProjectLabel{},
 		&User{},
 		&Role{},

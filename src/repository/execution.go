@@ -443,29 +443,30 @@ func GetRecentExecutionActivity(days int) (map[string]int64, error) {
 func CreateOrGetLabel(key, value, category, description string) (*database.Label, error) {
 	var label database.Label
 
-	// Use FirstOrCreate to handle both cases: find existing or create new
-	result := database.DB.Where(database.Label{
-		Key:      key,
-		Value:    value,
-		Category: category,
-	}).FirstOrCreate(&label, database.Label{
-		Key:         key,
-		Value:       value,
-		Category:    category,
-		Description: description,
-		Color:       "#1890ff", // Default color
-		IsSystem:    true,      // System-generated labels
-		Usage:       1,
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		err := tx.Where("key = ? AND value = ? AND category = ?", key, value, category).First(&label).Error
+		if err == nil {
+			return tx.Model(&label).UpdateColumn("usage", gorm.Expr("usage + ?", 1)).Error
+		}
+
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("failed to query label: %v", err)
+		}
+
+		label = database.Label{
+			Key:         key,
+			Value:       value,
+			Category:    category,
+			Description: description,
+			Color:       "#1890ff",
+			IsSystem:    true,
+			Usage:       1,
+		}
+		return tx.Create(&label).Error
 	})
 
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to create or get label: %v", result.Error)
-	}
-
-	// If label already existed, increment usage count
-	if result.RowsAffected == 0 {
-		// Label existed, increment usage count
-		database.DB.Model(&label).UpdateColumn("usage", gorm.Expr("usage + ?", 1))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create or get label: %v", err)
 	}
 
 	return &label, nil
@@ -531,15 +532,25 @@ func InitializeExecutionLabels() error {
 	}
 
 	for _, labelInfo := range sourceLabels {
-		_, err := CreateOrGetLabel(
-			consts.ExecutionLabelSource,
-			labelInfo.value,
-			"execution",
-			labelInfo.description,
-		)
-		if err != nil {
+		// Use FirstOrCreate to handle concurrent initialization
+		var label database.Label
+		result := database.DB.Where(database.Label{
+			Key:      consts.ExecutionLabelSource,
+			Value:    labelInfo.value,
+			Category: "execution",
+		}).FirstOrCreate(&label, database.Label{
+			Key:         consts.ExecutionLabelSource,
+			Value:       labelInfo.value,
+			Category:    "execution",
+			Description: labelInfo.description,
+			Color:       "#1890ff",
+			IsSystem:    true,
+			Usage:       1,
+		})
+
+		if result.Error != nil {
 			return fmt.Errorf("failed to initialize execution label %s=%s: %v",
-				consts.ExecutionLabelSource, labelInfo.value, err)
+				consts.ExecutionLabelSource, labelInfo.value, result.Error)
 		}
 	}
 

@@ -173,42 +173,46 @@ func (e *Executor) HandleJobAdd(annotations map[string]string, labels map[string
 	)
 }
 
-func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string, errMsg string) {
+func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string) {
 	parsedAnnotations, _ := parseAnnotations(annotations)
 	taskOptions, _ := parseTaskOptions(labels)
 	ctx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.TaskCarrier)
 	span := trace.SpanFromContext(ctx)
 
-	logs, err := k8s.GetJobPodLogs(ctx, job.Namespace, job.Name)
+	logMap, err := k8s.GetJobPodLogs(ctx, job.Namespace, job.Name)
 	if err != nil {
 		logrus.WithField("job_name", job.Name).Errorf("failed to get job logs: %v", err)
 	}
 
-	for podName, log := range logs {
+	for podName, log := range logMap {
 		logrus.WithField("pod_name", podName).Error("job logs:")
 		logrus.Error(log)
 	}
 
-	podLog := logs[job.Name]
+	jobLogBytes, err := json.Marshal(logMap)
+	if err != nil {
+		logrus.WithField("job_name", job.Name).Errorf("failed to marshal job logs: %v", err)
+	}
+
+	jobLog := string(jobLogBytes)
 	span.AddEvent("job failed", trace.WithAttributes(
 		attribute.KeyValue{
 			Key:   "logs",
-			Value: attribute.StringValue(podLog),
+			Value: attribute.StringValue(jobLog),
 		},
 	))
 
 	// Use PublishEvent to record job logs
-	if len(logs) > 0 {
+	if len(logMap) > 0 {
 		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
 			TaskID:    taskOptions.TaskID,
 			TaskType:  taskOptions.Type,
 			EventName: consts.EventJobLogsRecorded,
-			Payload: map[string]interface{}{
-				"job_name":  job.Name,
-				"namespace": job.Namespace,
-				"status":    "failed",
-				"error_msg": errMsg,
-				"logs":      logs,
+			Payload: dto.JobMessage{
+				JobName:   job.Name,
+				Namespace: job.Namespace,
+				Status:    consts.JobSucceed,
+				Logs:      logMap,
 			},
 		}, repository.WithCallerLevel(4))
 	}
@@ -217,16 +221,17 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 		"task_id":  taskOptions.TaskID,
 		"trace_id": taskOptions.TraceID,
 	})
+
 	switch taskOptions.Type {
 	case consts.TaskTypeBuildDataset:
 		options, _ := parseDatasetOptions(labels)
 
-		logEntry.Errorf("dataset build failed: %v", errMsg)
+		logEntry.Errorf("dataset build failed")
 		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
 			TaskID:    taskOptions.TaskID,
 			TaskType:  consts.TaskTypeBuildDataset,
 			EventName: consts.EventDatasetBuildFailed,
-			Payload:   options.Dataset,
+			Payload:   options,
 		}, repository.WithCallerLevel(4))
 
 		if err := repository.UpdateStatusByDataset(options.Dataset, consts.DatasetBuildFailed); err != nil {
@@ -248,19 +253,12 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 		// Release algorithm execution token
 		rateLimiter := utils.NewAlgoExecutionRateLimiter()
 		if releaseErr := rateLimiter.ReleaseToken(ctx, taskOptions.TaskID, taskOptions.TraceID); releaseErr != nil {
-			logrus.WithFields(logrus.Fields{
-				"task_id":  taskOptions.TaskID,
-				"trace_id": taskOptions.TraceID,
-				"error":    releaseErr,
-			}).Error("Failed to release algorithm execution token on job failure")
+			logEntry.Error("failed to release algorithm execution token on job failure")
 		} else {
-			logrus.WithFields(logrus.Fields{
-				"task_id":  taskOptions.TaskID,
-				"trace_id": taskOptions.TraceID,
-			}).Info("Successfully released algorithm execution token on job failure")
+			logEntry.Info("successfully released algorithm execution token on job failure")
 		}
 
-		logEntry.Errorf("algorithm execute failed: %v", errMsg) //TODO errMsg is empty
+		logEntry.Errorf("algorithm execute failed")
 		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
 			TaskID:    taskOptions.TaskID,
 			TaskType:  consts.TaskTypeRunAlgorithm,
@@ -299,21 +297,21 @@ func (e *Executor) HandleJobSucceeded(job *batchv1.Job, annotations map[string]s
 	traceCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.TraceCarrier)
 	taskSpan := trace.SpanFromContext(taskCtx)
 
-	logs, err := k8s.GetJobPodLogs(taskCtx, job.Namespace, job.Name)
+	logMap, err := k8s.GetJobPodLogs(taskCtx, job.Namespace, job.Name)
 	if err != nil {
 		logrus.WithField("job_name", job.Name).Errorf("failed to get job logs: %v", err)
 	}
 
-	if len(logs) > 0 {
+	if len(logMap) > 0 {
 		repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
 			TaskID:    taskOptions.TaskID,
 			TaskType:  taskOptions.Type,
 			EventName: consts.EventJobLogsRecorded,
-			Payload: map[string]interface{}{
-				"job_name":  job.Name,
-				"namespace": job.Namespace,
-				"status":    "succeeded",
-				"logs":      logs,
+			Payload: dto.JobMessage{
+				JobName:   job.Name,
+				Namespace: job.Namespace,
+				Status:    consts.JobFailed,
+				Logs:      logMap,
 			},
 		}, repository.WithCallerLevel(4))
 	}
@@ -353,7 +351,6 @@ func (e *Executor) HandleJobSucceeded(job *batchv1.Job, annotations map[string]s
 		task := &dto.UnifiedTask{
 			Type: consts.TaskTypeRunAlgorithm,
 			Payload: map[string]any{
-				// TODO in injection payload
 				consts.ExecuteAlgorithm: dto.AlgorithmItem{
 					Name: config.GetString("algo.detector"),
 				},
@@ -378,16 +375,9 @@ func (e *Executor) HandleJobSucceeded(job *batchv1.Job, annotations map[string]s
 		// Release algorithm execution token
 		rateLimiter := utils.NewAlgoExecutionRateLimiter()
 		if releaseErr := rateLimiter.ReleaseToken(taskCtx, taskOptions.TaskID, taskOptions.TraceID); releaseErr != nil {
-			logrus.WithFields(logrus.Fields{
-				"task_id":  taskOptions.TaskID,
-				"trace_id": taskOptions.TraceID,
-				"error":    releaseErr,
-			}).Error("Failed to release algorithm execution token on job success")
+			logEntry.Errorf("Failed to release algorithm execution token on job success: %v", releaseErr)
 		} else {
-			logrus.WithFields(logrus.Fields{
-				"task_id":  taskOptions.TaskID,
-				"trace_id": taskOptions.TraceID,
-			}).Info("Successfully released algorithm execution token on job success")
+			logEntry.Info("Successfully released algorithm execution token on job success")
 		}
 
 		logEntry.Info("algorithm execute successfully")

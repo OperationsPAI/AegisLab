@@ -47,7 +47,7 @@ type Callback interface {
 	HandleCRDFailed(name string, annotations map[string]string, labels map[string]string, errMsg string)
 	HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, annotations map[string]string, labels map[string]string)
 	HandleJobAdd(annotations map[string]string, labels map[string]string)
-	HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string, errMsg string)
+	HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string)
 	HandleJobSucceeded(job *batchv1.Job, annotations map[string]string, labels map[string]string)
 }
 
@@ -289,8 +289,7 @@ func (c *Controller) genJobEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 
 			if oldJob.Name == newJob.Name {
 				if oldJob.Status.Failed == *oldJob.Spec.BackoffLimit && newJob.Status.Failed == *newJob.Spec.BackoffLimit+1 {
-					errorMsg := extractJobError(newJob)
-					c.callback.HandleJobFailed(newJob, newJob.Annotations, newJob.Labels, errorMsg)
+					c.callback.HandleJobFailed(newJob, newJob.Annotations, newJob.Labels)
 				}
 
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {
@@ -346,8 +345,7 @@ func (c *Controller) genPodEventHandlerFuncs(ctx context.Context) cache.Resource
 						if job != nil {
 							handlePodError(ctx, newPod, job, reason)
 							// Trigger job failed callback to ensure proper cleanup (e.g., token release)
-							errorMsg := fmt.Sprintf("Pod failed with reason: %s", reason)
-							c.callback.HandleJobFailed(job, job.Annotations, job.Labels, errorMsg)
+							c.callback.HandleJobFailed(job, job.Annotations, job.Labels)
 
 							if !config.GetBool("debugging.enable") {
 								c.queue.Add(QueueItem{

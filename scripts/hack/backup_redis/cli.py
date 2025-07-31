@@ -88,6 +88,26 @@ class Client:
             console.print(f"[red]未知错误: {e}[/red]")
             raise typer.Exit(code=1)
 
+    def _read_hashes_fuzzy(self, pattern: str) -> list[str]:
+        console.print(f"[cyan]查找匹配 '{pattern}' 的哈希表...[/cyan]")
+
+        matching_keys = self.source_redis.keys(pattern)
+        if not matching_keys:
+            console.print(f"[red]没有找到匹配 '{pattern}' 的键[/red]")
+            raise typer.Exit(code=1)
+
+        hashes = []
+        for key in matching_keys:  # type: ignore
+            if self.source_redis.type(key) == "hash":
+                hashes.append(key)
+
+        if not hashes:
+            console.print("[yellow]匹配的键中没有哈希表类型的数据[/yellow]")
+            raise typer.Exit(code=1)
+
+        console.print(f"[bold blue]找到 {len(hashes)} 个匹配的哈希表[/bold blue]")
+        return hashes
+
     def _read_streams_exact(self) -> list[str]:
         console.print("[cyan]执行查询获取流名称...[/cyan]")
 
@@ -121,7 +141,6 @@ class Client:
                 console.print(
                     f"[green]从 PostgreSQL 查询到 {len(streams)} 个流名称[/green]"
                 )
-
                 return streams
 
         except psycopg2.Error as e:
@@ -150,70 +169,104 @@ class Client:
             raise typer.Exit(code=1)
 
         console.print(f"[bold blue]找到 {len(streams)} 个匹配的流:[/bold blue]")
-
         return streams
 
-    def copy_stream_one(
-        self, source_key: str, overwrite: bool = False, dry_run: bool = False
+    def copy_hashes(
+        self, pattern: str, overwrite: bool = False, dry_run: bool = False
     ) -> None:
-        target_key = source_key
-
-        if not self.source_redis.exists(source_key):
-            console.print(f"[red]源追踪流 {source_key} 不存在[/red]")
-            raise typer.Exit(code=1)
-
-        stream_length = self.source_redis.xlen(source_key)
-        if stream_length == 0:
-            console.print(f"[yellow]源流 {source_key} 为空[/yellow]")
-            raise typer.Exit(code=1)
-
-        console.print(f"[cyan]源流包含 {stream_length} 条记录[/cyan]")
-
-        # 检查目标流是否已存在
-        target_exists = self.target_redis.exists(target_key)
-        if target_exists:
-            target_length = self.target_redis.xlen(target_key)
-            console.print(f"[yellow]目标流已存在，包含 {target_length} 条记录[/yellow]")
-
-            # 询问是否覆盖
-            if not overwrite:
-                raise typer.Exit(code=0)
-
-        # 获取所有追踪事件
-        messages = self.source_redis.xrange(source_key)
-        if not messages:
-            console.print("[yellow]源追踪流为空[/yellow]")
-            raise typer.Exit(code=1)
-
-        console.print(f"[cyan]开始复制 {len(messages)} 条记录...[/cyan]")  # type: ignore
-
-        copied_count, failed_count = 0, 0
+        hashes = self._read_hashes_fuzzy(pattern)
 
         if dry_run:
             console.print("[yellow]Dry run 模式，不会实际复制数据[/yellow]")
             return
 
-        for msg_id, fields in messages:  # type: ignore
-            try:
-                # 复制事件数据
-                self.target_redis.xadd(target_key, fields)
-                copied_count += 1
+        console.print("[cyan]开始批量复制...[/cyan]")
 
-                # 每100条记录显示一次进度
-                if copied_count % 100 == 0:
-                    console.print(f"[dim]已复制 {copied_count} 条记录...[/dim]")
+        success_count = 0
+        failed_count = 0
+        skipped_count = 0
+
+        for i, source_key in enumerate(hashes, 1):
+            try:
+                target_key = source_key
+
+                # 检查源哈希表
+                if not self.source_redis.exists(source_key):
+                    console.print(
+                        f"[yellow][{i}/{len(hashes)}] 跳过不存在: {source_key}[/yellow]"
+                    )
+                    skipped_count += 1
+                    continue
+
+                hash_length = self.source_redis.hlen(source_key)
+                if hash_length == 0:
+                    console.print(
+                        f"[yellow][{i}/{len(hashes)}] 跳过空哈希表: {source_key}[/yellow]"
+                    )
+                    skipped_count += 1
+                    continue
+
+                # 检查目标哈希表
+                target_exists = self.target_redis.exists(target_key)
+                if target_exists and not overwrite:
+                    target_length = self.target_redis.hlen(target_key)
+                    console.print(
+                        f"[yellow][{i}/{len(hashes)}] 跳过已存在: {source_key} ({target_length} 个字段)[/yellow]"
+                    )
+                    skipped_count += 1
+                    continue
+
+                # 显示当前处理的哈希表
+                console.print(
+                    f"[cyan][{i}/{len(hashes)}] 复制: {source_key} ({hash_length} 个字段)[/cyan]"
+                )
+
+                # 如果需要覆盖，先删除目标哈希表
+                if target_exists and overwrite:
+                    self.target_redis.delete(target_key)
+
+                # 获取并复制哈希数据
+                all_fields = self.source_redis.hgetall(source_key)
+                if not all_fields:
+                    skipped_count += 1
+                    continue
+
+                try:
+                    # 批量设置哈希字段
+                    self.target_redis.hset(target_key, mapping=all_fields)  # type: ignore
+                    success_count += 1
+                    console.print(
+                        f"[dim]  [green]✓[/green] {len(all_fields)} 个字段[/dim]"  # type: ignore
+                    )
+                except Exception as e:
+                    failed_count += 1
+                    console.print(f"[red]  ✗ 复制失败: {e}[/red]")
+
+                # 每10个哈希表显示一次进度
+                if i % 10 == 0:
+                    console.print(
+                        f"[dim]进度: {i}/{len(hashes)} ({success_count} 成功, {failed_count} 失败, {skipped_count} 跳过)[/dim]"
+                    )
 
             except Exception as e:
                 failed_count += 1
-                console.print(f"[red]复制事件 {msg_id} 失败: {e}[/red]")
-                console.print(f"[red]失败的字段: {fields}[/red]")
+                console.print(
+                    f"[red][{i}/{len(hashes)}] 处理失败: {source_key} - {e}[/red]"
+                )
 
-        console.print("[bold]复制完成:[/bold]")
-        console.print(f"[green]✅ 成功: {copied_count} 条记录[/green]")
+        # 显示最终结果
+        console.print("\n[bold]批量复制完成[/bold]")
+        console.print(f"[green]✅ 成功: {success_count} 个哈希表[/green]")
+
         if failed_count > 0:
-            console.print(f"[red]❌ 失败: {failed_count} 条记录[/red]")
+            console.print(f"[red]❌ 失败: {failed_count} 个哈希表[/red]")
 
-    def copy_stream_batch(
+        if skipped_count > 0:
+            console.print(f"[yellow]🚫 跳过: {skipped_count} 个哈希表[/yellow]")
+
+        console.print(f"[blue]总计处理: {len(hashes)} 个哈希表[/blue]")
+
+    def copy_streams(
         self,
         exact_match: bool = False,
         fuzzy_match: str | None = None,
@@ -328,30 +381,33 @@ class Client:
 
 
 @app.command()
-def restore_one(
+def restore_hashes(
     source_url: str = typer.Option(
         DEFAULT_REMOTE_URL, "--source_url", help="源 Redis URL"
     ),
     target_url: str = typer.Option(
         DEFAULT_LOCAL_URL, "--target_url", help="目标 Redis URL"
     ),
-    source_key: Optional[str] = typer.Option(None, "--source_key", help="源 Redis 流"),
+    pattern: str = typer.Option(
+        "trace:*:log", "--pattern", help="源 Redis 哈希表匹配模式"
+    ),
     overwrite: bool = typer.Option(
-        False, "--overwrite", help="是否覆盖目标流（默认：True）"
+        False, "--overwrite", help="是否覆盖目标哈希表（默认：False）"
     ),
     dry_run: bool = typer.Option(False, "--dry_run", help="是否只显示操作而不实际执行"),
-) -> None:
-    """备份指定名称的 Stream 数据"""
-    if not source_key:
-        console.print("[red]请提供源 Redis 流名称 (--source_key)[/red]")
-        raise typer.Exit(code=1)
+):
+    """批量恢复 Redis 哈希表数据
+
+    支持模糊匹配模式，使用 Redis KEYS 命令查找匹配指定模式的哈希表。
+
+    """
 
     client = Client(source_url, target_url)
-    client.copy_stream_one(source_key, overwrite, dry_run)
+    client.copy_hashes(pattern, overwrite, dry_run)
 
 
 @app.command()
-def restore_batch(
+def restore_streams(
     source_url: str = typer.Option(
         DEFAULT_REMOTE_URL, "--source_url", help="源 Redis URL"
     ),
@@ -391,7 +447,7 @@ def restore_batch(
         raise typer.Exit(code=1)
 
     client = Client(source_url, target_url)
-    client.copy_stream_batch(exact_match, fuzzy_match, overwrite, dry_run)
+    client.copy_streams(exact_match, fuzzy_match, overwrite, dry_run)
 
 
 if __name__ == "__main__":

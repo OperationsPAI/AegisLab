@@ -139,6 +139,13 @@ type ExecutionOptions struct {
 	Timestamp   string        `json:"timestamp"`
 }
 
+type JobMessage struct {
+	JobName   string            `json:"job_name"`
+	Namespace string            `json:"namespace"`
+	Status    string            `json:"status"`
+	Logs      map[string]string `json:"logs"`
+}
+
 type StreamEvent struct {
 	TimeStamp int              `json:"timestamp,omitempty"`
 	TaskID    string           `json:"task_id"`

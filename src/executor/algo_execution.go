@@ -128,6 +128,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 				if err := rescheduleAlgoExecutionTask(childCtx, task, "failed to acquire algorithm execution token within timeout, retrying later"); err != nil {
 					return err
 				}
+
 				return nil
 			}
 		}
