@@ -187,11 +187,12 @@ func (req *SubmitBatchDatapackExecutionReq) Validate() error {
 
 // AlgorithmExecutionRequest represents v2 algorithm execution request
 type AlgorithmExecutionRequest struct {
-	ProjectName string            `json:"project_name" binding:"required"`
-	Algorithm   AlgorithmItem     `json:"algorithm" binding:"required"`
-	EnvVars     map[string]string `json:"env_vars" binding:"omitempty" swaggertype:"object"`
-	Datapack    *string           `json:"datapack,omitempty"`
-	Dataset     *string           `json:"dataset,omitempty"`
+	ProjectName    string            `json:"project_name" binding:"required"`
+	Algorithm      AlgorithmItem     `json:"algorithm" binding:"required"`
+	EnvVars        map[string]string `json:"env_vars" binding:"omitempty" swaggertype:"object"`
+	Datapack       *string           `json:"datapack,omitempty"`
+	Dataset        *string           `json:"dataset,omitempty"`
+	DatasetVersion *string           `json:"dataset_version,omitempty"`
 }
 
 func (req *AlgorithmExecutionRequest) Validate() error {
@@ -214,6 +215,15 @@ func (req *AlgorithmExecutionRequest) Validate() error {
 
 	if req.Dataset != nil && *req.Dataset == "" {
 		return fmt.Errorf("dataset name cannot be empty")
+	}
+
+	// If dataset is specified, dataset_version is required
+	if req.Dataset != nil && req.DatasetVersion == nil {
+		return fmt.Errorf("dataset_version is required when dataset is specified")
+	}
+
+	if req.DatasetVersion != nil && *req.DatasetVersion == "" {
+		return fmt.Errorf("dataset_version cannot be empty")
 	}
 
 	// Validate environment variables

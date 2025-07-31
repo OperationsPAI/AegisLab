@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"gorm.io/gorm"
 )
@@ -19,7 +20,7 @@ func CreateDataset(dataset *database.Dataset) error {
 // GetDatasetByID gets dataset by ID
 func GetDatasetByID(id int) (*database.Dataset, error) {
 	var dataset database.Dataset
-	if err := database.DB.Where("id = ? AND status != -1", id).First(&dataset).Error; err != nil {
+	if err := database.DB.Where("id = ? AND status != ?", id, consts.DatasetDeleted).First(&dataset).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("dataset with id %d not found", id)
 		}
@@ -32,7 +33,7 @@ func GetDatasetByID(id int) (*database.Dataset, error) {
 func GetDatasetByNameAndVersion(name, version string) (*database.Dataset, error) {
 	var dataset database.Dataset
 	if err := database.DB.
-		Where("name = ? AND version = ? AND status != -1", name, version).
+		Where("name = ? AND version = ? AND status != ?", name, version, consts.DatasetDeleted).
 		First(&dataset).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("dataset '%s:%s' not found", name, version)
@@ -52,7 +53,7 @@ func UpdateDataset(dataset *database.Dataset) error {
 
 // DeleteDataset soft deletes dataset (sets status to -1)
 func DeleteDataset(id int) error {
-	if err := database.DB.Model(&database.Dataset{}).Where("id = ?", id).Update("status", -1).Error; err != nil {
+	if err := database.DB.Model(&database.Dataset{}).Where("id = ?", id).Update("status", consts.DatasetDeleted).Error; err != nil {
 		return fmt.Errorf("failed to delete dataset: %v", err)
 	}
 	return nil
@@ -65,8 +66,11 @@ func ListDatasets(page, pageSize int, datasetType string, status *int, isPublic 
 
 	query := database.DB.Model(&database.Dataset{})
 
+	// Always exclude deleted datasets (status = -1) unless explicitly requested
 	if status != nil {
 		query = query.Where("status = ?", *status)
+	} else {
+		query = query.Where("status != ?", consts.DatasetDeleted)
 	}
 
 	if datasetType != "" {
@@ -94,7 +98,7 @@ func ListDatasets(page, pageSize int, datasetType string, status *int, isPublic 
 // GetDatasetVersions gets all versions of a dataset
 func GetDatasetVersions(name string) ([]database.Dataset, error) {
 	var datasets []database.Dataset
-	if err := database.DB.Where("name = ? AND status != -1", name).
+	if err := database.DB.Where("name = ? AND status != ?", name, consts.DatasetDeleted).
 		Order("created_at DESC").Find(&datasets).Error; err != nil {
 		return nil, fmt.Errorf("failed to get dataset versions: %v", err)
 	}
@@ -188,7 +192,7 @@ func SearchDatasetsByLabels(labelKeys []string, labelValues []string) ([]databas
 	query := database.DB.Model(&database.Dataset{}).
 		Joins("JOIN dataset_labels ON datasets.id = dataset_labels.dataset_id").
 		Joins("JOIN labels ON dataset_labels.label_id = labels.id").
-		Where("datasets.status != -1")
+		Where("datasets.status != ?", consts.DatasetDeleted)
 
 	if len(labelKeys) > 0 {
 		query = query.Where("labels.key IN ?", labelKeys)
@@ -218,21 +222,21 @@ func GetDatasetStatistics() (map[string]int64, error) {
 
 	// Active datasets
 	var active int64
-	if err := database.DB.Model(&database.Dataset{}).Where("status = 1").Count(&active).Error; err != nil {
+	if err := database.DB.Model(&database.Dataset{}).Where("status = ?", consts.DatasetInjectSuccess).Count(&active).Error; err != nil {
 		return nil, fmt.Errorf("failed to count active datasets: %v", err)
 	}
 	stats["active"] = active
 
 	// Disabled datasets
 	var disabled int64
-	if err := database.DB.Model(&database.Dataset{}).Where("status = 0").Count(&disabled).Error; err != nil {
+	if err := database.DB.Model(&database.Dataset{}).Where("status = ?", consts.DatasetInitial).Count(&disabled).Error; err != nil {
 		return nil, fmt.Errorf("failed to count disabled datasets: %v", err)
 	}
 	stats["disabled"] = disabled
 
 	// Deleted datasets
 	var deleted int64
-	if err := database.DB.Model(&database.Dataset{}).Where("status = -1").Count(&deleted).Error; err != nil {
+	if err := database.DB.Model(&database.Dataset{}).Where("status = ?", consts.DatasetDeleted).Count(&deleted).Error; err != nil {
 		return nil, fmt.Errorf("failed to count deleted datasets: %v", err)
 	}
 	stats["deleted"] = deleted
@@ -250,7 +254,7 @@ func GetDatasetCountByType() (map[string]int64, error) {
 	var results []TypeCount
 	err := database.DB.Model(&database.Dataset{}).
 		Select("type, COUNT(*) as count").
-		Where("status != -1").
+		Where("status != ?", consts.DatasetDeleted).
 		Group("type").
 		Find(&results).Error
 
@@ -270,7 +274,7 @@ func GetDatasetCountByType() (map[string]int64, error) {
 func GetDatasetTotalSize() (int64, error) {
 	var totalSize int64
 	if err := database.DB.Model(&database.Dataset{}).
-		Where("status != -1").
+		Where("status != ?", consts.DatasetDeleted).
 		Select("COALESCE(SUM(size), 0)").
 		Scan(&totalSize).Error; err != nil {
 		return 0, fmt.Errorf("failed to calculate dataset total size: %v", err)
@@ -319,7 +323,7 @@ func RemoveAllInjectionsFromDataset(datasetID int) error {
 func GetDeletedDatasetByNameAndVersion(name, version string) (*database.Dataset, error) {
 	var dataset database.Dataset
 	if err := database.DB.
-		Where("name = ? AND version = ? AND status = -1", name, version).
+		Where("name = ? AND version = ? AND status = ?", name, version, consts.DatasetDeleted).
 		First(&dataset).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("deleted dataset '%s:%s' not found", name, version)

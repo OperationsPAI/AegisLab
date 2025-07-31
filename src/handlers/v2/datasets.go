@@ -93,7 +93,7 @@ func CreateDataset(c *gin.Context) {
 		dataset.Type = req.Type
 		dataset.DataSource = req.DataSource
 		dataset.Format = req.Format
-		dataset.Status = 1
+		dataset.Status = consts.DatasetInjectSuccess
 		dataset.IsPublic = req.IsPublic != nil && *req.IsPublic
 
 		if err := tx.Save(dataset).Error; err != nil {
@@ -123,7 +123,7 @@ func CreateDataset(c *gin.Context) {
 			Type:        req.Type,
 			DataSource:  req.DataSource,
 			Format:      req.Format,
-			Status:      1,
+			Status:      consts.DatasetInjectSuccess,
 			IsPublic:    req.IsPublic != nil && *req.IsPublic,
 		}
 
@@ -310,11 +310,9 @@ func GetDataset(c *gin.Context) {
 	includeInjections := strings.Contains(include, "injections")
 	includeLabels := strings.Contains(include, "labels")
 
-	// Build query with preloads
-	query := database.DB.Model(&database.Dataset{})
-
-	var dataset database.Dataset
-	if err := query.First(&dataset, id).Error; err != nil {
+	// Get dataset using repository function which excludes deleted datasets
+	dataset, err := repository.GetDatasetByID(id)
+	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			dto.ErrorResponse(c, http.StatusNotFound, "Dataset not found")
 		} else {
@@ -323,7 +321,7 @@ func GetDataset(c *gin.Context) {
 		return
 	}
 
-	response := dto.ToDatasetV2Response(&dataset, false)
+	response := dto.ToDatasetV2Response(dataset, false)
 
 	// Load injection relations if requested
 	if includeInjections {
