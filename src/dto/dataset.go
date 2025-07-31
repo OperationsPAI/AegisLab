@@ -222,14 +222,12 @@ type DatasetV2Response struct {
 	FileCount   int                                  `json:"file_count"`             // File count
 	DataSource  string                               `json:"data_source"`            // Data source description
 	Format      string                               `json:"format"`                 // Data format
-	ProjectID   int                                  `json:"project_id"`             // Project ID
 	Status      int                                  `json:"status"`                 // Status
 	IsPublic    bool                                 `json:"is_public"`              // Whether public
 	DownloadURL string                               `json:"download_url,omitempty"` // Download URL
 	Checksum    string                               `json:"checksum,omitempty"`     // File checksum
 	CreatedAt   time.Time                            `json:"created_at"`             // Creation time
 	UpdatedAt   time.Time                            `json:"updated_at"`             // Update time
-	Project     *database.Project                    `json:"project,omitempty"`      // Associated project info
 	Injections  []DatasetV2InjectionRelationResponse `json:"injections,omitempty"`   // Associated fault injections
 	Labels      []database.Label                     `json:"labels,omitempty"`       // Associated labels
 }
@@ -247,21 +245,19 @@ type DatasetV2InjectionRelationResponse struct {
 type DatasetV2ListReq struct {
 	Page      int    `form:"page" binding:"omitempty,min=1"`         // Page number, defaults to 1
 	Size      int    `form:"size" binding:"omitempty,min=1,max=100"` // Page size, defaults to 20
-	ProjectID *int   `form:"project_id" binding:"omitempty,min=1"`   // Project ID filter
 	Type      string `form:"type"`                                   // Dataset type filter
 	Status    *int   `form:"status"`                                 // Status filter
 	IsPublic  *bool  `form:"is_public"`                              // Public filter
 	Search    string `form:"search"`                                 // Search keywords (name, description)
 	SortBy    string `form:"sort_by"`                                // Sort field (id, name, created_at, updated_at)
 	SortOrder string `form:"sort_order"`                             // Sort direction (asc, desc)
-	Include   string `form:"include"`                                // Included related data (project, injections, labels)
+	Include   string `form:"include"`                                // Included related data (injections, labels)
 }
 
 // DatasetV2SearchReq Dataset search request (POST method, supports complex conditions)
 type DatasetV2SearchReq struct {
 	Page        int              `json:"page" binding:"omitempty,min=1"`         // Page number
 	Size        int              `json:"size" binding:"omitempty,min=1,max=100"` // Page size
-	ProjectIDs  []int            `json:"project_ids"`                            // Project ID list
 	Types       []string         `json:"types"`                                  // Dataset type list
 	Statuses    []int            `json:"statuses"`                               // Status list
 	IsPublic    *bool            `json:"is_public"`                              // Whether public

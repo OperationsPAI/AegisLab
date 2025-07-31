@@ -68,6 +68,14 @@ func CreateDataset(c *gin.Context) {
 		return
 	}
 
+	// Check if there's a deleted dataset with same name and version (for recovery/overwrite)
+	var deletedDataset *database.Dataset
+	deletedDataset, err = repository.GetDeletedDatasetByNameAndVersion(req.Name, req.Version)
+	if err != nil && !strings.Contains(err.Error(), "not found") {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to check deleted dataset: "+err.Error())
+		return
+	}
+
 	// Start transaction
 	tx := database.DB.Begin()
 	defer func() {
@@ -76,22 +84,54 @@ func CreateDataset(c *gin.Context) {
 		}
 	}()
 
-	// Create dataset
-	dataset := &database.Dataset{
-		Name:        req.Name,
-		Version:     req.Version,
-		Description: req.Description,
-		Type:        req.Type,
-		DataSource:  req.DataSource,
-		Format:      req.Format,
-		Status:      1, // Active
-		IsPublic:    req.IsPublic != nil && *req.IsPublic,
-	}
+	var dataset *database.Dataset
 
-	if err := tx.Create(dataset).Error; err != nil {
-		tx.Rollback()
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to create dataset: "+err.Error())
-		return
+	if deletedDataset != nil {
+		// Overwrite existing deleted dataset
+		dataset = deletedDataset
+		dataset.Description = req.Description
+		dataset.Type = req.Type
+		dataset.DataSource = req.DataSource
+		dataset.Format = req.Format
+		dataset.Status = 1
+		dataset.IsPublic = req.IsPublic != nil && *req.IsPublic
+
+		if err := tx.Save(dataset).Error; err != nil {
+			tx.Rollback()
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to update deleted dataset: "+err.Error())
+			return
+		}
+
+		// Remove all existing associations for overwrite
+		if err := repository.RemoveAllLabelsFromDataset(dataset.ID); err != nil {
+			tx.Rollback()
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to remove existing labels: "+err.Error())
+			return
+		}
+
+		if err := repository.RemoveAllInjectionsFromDataset(dataset.ID); err != nil {
+			tx.Rollback()
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to remove existing injections: "+err.Error())
+			return
+		}
+	} else {
+		// Create new dataset
+		dataset = &database.Dataset{
+			Name:        req.Name,
+			Version:     req.Version,
+			Description: req.Description,
+			Type:        req.Type,
+			DataSource:  req.DataSource,
+			Format:      req.Format,
+			Status:      1,
+			IsPublic:    req.IsPublic != nil && *req.IsPublic,
+		}
+
+		if err := tx.Create(dataset).Error; err != nil {
+			tx.Rollback()
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to create dataset: "+err.Error())
+			return
+		}
 	}
 
 	// Create new labels if provided
@@ -216,7 +256,7 @@ func CreateDataset(c *gin.Context) {
 	}
 
 	// Load relations for response
-	if err := database.DB.Preload("Project").First(dataset, dataset.ID).Error; err != nil {
+	if err := database.DB.First(dataset, dataset.ID).Error; err != nil {
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load dataset: "+err.Error())
 		return
 	}
@@ -233,7 +273,7 @@ func CreateDataset(c *gin.Context) {
 //	@Produce json
 //	@Security BearerAuth
 //	@Param id path int true "Dataset ID"
-//	@Param include query string false "Include related data (project,injections,labels)"
+//	@Param include query string false "Include related data (injections,labels)"
 //	@Success 200 {object} dto.GenericResponse[dto.DatasetV2Response] "Dataset retrieved successfully"
 //	@Failure 400 {object} dto.GenericResponse[any] "Invalid dataset ID"
 //	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
@@ -272,9 +312,6 @@ func GetDataset(c *gin.Context) {
 
 	// Build query with preloads
 	query := database.DB.Model(&database.Dataset{})
-	if strings.Contains(include, "project") {
-		query = query.Preload("Project")
-	}
 
 	var dataset database.Dataset
 	if err := query.First(&dataset, id).Error; err != nil {
@@ -329,19 +366,19 @@ func GetDataset(c *gin.Context) {
 //	@Security BearerAuth
 //	@Param page query int false "Page number (default 1)"
 //	@Param size query int false "Page size (default 20, max 100)"
-//	@Param project_id query int false "Filter by project ID"
-//	@Param type query string false "Filter by dataset type"
-//	@Param status query int false "Filter by status"
-//	@Param is_public query bool false "Filter by public status"
-//	@Param search query string false "Search in name and description"
-//	@Param sort_by query string false "Sort field (id,name,created_at,updated_at)"
-//	@Param sort_order query string false "Sort order (asc,desc)"
-//	@Param include query string false "Include related data (project,injections,labels)"
-//	@Success 200 {object} dto.GenericResponse[dto.DatasetSearchResponse] "Datasets retrieved successfully"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request parameters"
-//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/datasets [get]
+
+// @Param type query string false "Filter by dataset type"
+// @Param status query int false "Filter by status"
+// @Param is_public query bool false "Filter by public status"
+// @Param search query string false "Search in name and description"
+// @Param sort_by query string false "Sort field (id,name,created_at,updated_at)"
+// @Param sort_order query string false "Sort order (asc,desc)"
+// @Param include query string false "Include related data (injections,labels)"
+// @Success 200 {object} dto.GenericResponse[dto.DatasetSearchResponse] "Datasets retrieved successfully"
+// @Failure 400 {object} dto.GenericResponse[any] "Invalid request parameters"
+// @Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+// @Router /api/v2/datasets [get]
 func ListDatasets(c *gin.Context) {
 	// Check permission
 	userID, exists := c.Get("user_id")
@@ -382,7 +419,7 @@ func ListDatasets(c *gin.Context) {
 	}
 
 	// Call repository
-	datasets, total, err := repository.ListDatasets(req.Page, req.Size, req.ProjectID, req.Type, req.Status, req.IsPublic)
+	datasets, total, err := repository.ListDatasets(req.Page, req.Size, req.Type, req.Status, req.IsPublic)
 	if err != nil {
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to list datasets: "+err.Error())
 		return
@@ -655,7 +692,7 @@ func UpdateDataset(c *gin.Context) {
 	}
 
 	// Reload dataset with relations
-	if err := database.DB.Preload("Project").First(dataset, dataset.ID).Error; err != nil {
+	if err := database.DB.First(dataset, dataset.ID).Error; err != nil {
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to reload dataset: "+err.Error())
 		return
 	}
@@ -794,12 +831,8 @@ func SearchDatasets(c *gin.Context) {
 		}
 	} else {
 		// Use regular search
-		var projectID *int
 		var datasetType string
 		var status *int
-		if len(req.ProjectIDs) > 0 {
-			projectID = &req.ProjectIDs[0]
-		}
 		if len(req.Types) > 0 {
 			datasetType = req.Types[0]
 		}
@@ -807,7 +840,7 @@ func SearchDatasets(c *gin.Context) {
 			status = &req.Statuses[0]
 		}
 
-		datasets, total, err = repository.ListDatasets(req.Page, req.Size, projectID, datasetType, status, req.IsPublic)
+		datasets, total, err = repository.ListDatasets(req.Page, req.Size, datasetType, status, req.IsPublic)
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to search datasets: "+err.Error())
 			return

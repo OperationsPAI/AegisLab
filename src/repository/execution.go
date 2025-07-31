@@ -531,15 +531,25 @@ func InitializeExecutionLabels() error {
 	}
 
 	for _, labelInfo := range sourceLabels {
-		_, err := CreateOrGetLabel(
-			consts.ExecutionLabelSource,
-			labelInfo.value,
-			"execution",
-			labelInfo.description,
-		)
-		if err != nil {
+		// Use FirstOrCreate to handle concurrent initialization
+		var label database.Label
+		result := database.DB.Where(database.Label{
+			Key:      consts.ExecutionLabelSource,
+			Value:    labelInfo.value,
+			Category: "execution",
+		}).FirstOrCreate(&label, database.Label{
+			Key:         consts.ExecutionLabelSource,
+			Value:       labelInfo.value,
+			Category:    "execution",
+			Description: labelInfo.description,
+			Color:       "#1890ff",
+			IsSystem:    true,
+			Usage:       1,
+		})
+
+		if result.Error != nil {
 			return fmt.Errorf("failed to initialize execution label %s=%s: %v",
-				consts.ExecutionLabelSource, labelInfo.value, err)
+				consts.ExecutionLabelSource, labelInfo.value, result.Error)
 		}
 	}
 

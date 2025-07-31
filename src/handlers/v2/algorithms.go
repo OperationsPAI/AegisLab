@@ -506,153 +506,6 @@ func UploadGranularityResults(c *gin.Context) {
 	dto.SuccessResponse(c, response)
 }
 
-// SubmitAlgorithmExecution submits algorithm execution for single datapack or dataset
-//
-//	@Summary Submit algorithm execution
-//	@Description Submit algorithm execution task for a single datapack (v1 compatible) or dataset (v2 feature). The system will create execution tasks and return tracking information.
-//	@Tags Algorithms
-//	@Accept json
-//	@Produce json
-//	@Security BearerAuth
-//	@Param request body dto.AlgorithmExecutionRequest true "Algorithm execution request"
-//	@Success 202 {object} dto.GenericResponse[dto.AlgorithmExecutionResponse] "Algorithm execution submitted successfully"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-//	@Failure 404 {object} dto.GenericResponse[any] "Project, algorithm, datapack or dataset not found"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/algorithms/execute [post]
-func SubmitAlgorithmExecution(c *gin.Context) {
-	// Check permissions
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canWrite, err := checker.CanWriteResource(consts.ResourceContainer)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-
-	if !canWrite {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to execute algorithms")
-		return
-	}
-
-	// Parse request body
-	var req dto.AlgorithmExecutionRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
-		return
-	}
-
-	// Validate request data
-	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Data validation failed: "+err.Error())
-		return
-	}
-
-	// Get project
-	project, err := repository.GetProject("name", req.ProjectName)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusNotFound, "Project not found: "+req.ProjectName)
-		return
-	}
-
-	// Get algorithm container
-	var algorithm database.Container
-	if err := database.DB.Where("name = ? AND type = ? AND status = ?", req.Algorithm.Name, consts.ContainerTypeAlgorithm, true).First(&algorithm).Error; err != nil {
-		dto.ErrorResponse(c, http.StatusNotFound, "Algorithm not found: "+req.Algorithm.Name)
-		return
-	}
-
-	// Create execution payload based on datapack or dataset
-	var payload map[string]any
-	var datapackID *int
-	var datasetID *int
-
-	if req.Datapack != nil {
-		// V1 compatible mode - use datapack (FaultInjectionSchedule)
-		var datapack database.FaultInjectionSchedule
-		if err := database.DB.Where("injection_name = ?", *req.Datapack).First(&datapack).Error; err != nil {
-			dto.ErrorResponse(c, http.StatusNotFound, "Datapack not found: "+*req.Datapack)
-			return
-		}
-		datapackID = &datapack.ID
-
-		// Create v1 compatible payload
-		payload = map[string]any{
-			"algorithm": map[string]any{
-				"name":  req.Algorithm.Name,
-				"image": algorithm.Image,
-				"tag":   algorithm.Tag,
-			},
-			"dataset":  *req.Datapack, // v1 uses "dataset" field for datapack name
-			"env_vars": req.EnvVars,
-		}
-	} else {
-		// V2 mode - use dataset
-		var dataset database.Dataset
-		if err := database.DB.Where("name = ? AND status = ?", *req.Dataset, 1).First(&dataset).Error; err != nil {
-			dto.ErrorResponse(c, http.StatusNotFound, "Dataset not found: "+*req.Dataset)
-			return
-		}
-		datasetID = &dataset.ID
-
-		// Create v2 payload with dataset support
-		payload = map[string]any{
-			"algorithm": map[string]any{
-				"name":  req.Algorithm.Name,
-				"image": algorithm.Image,
-				"tag":   algorithm.Tag,
-			},
-			"dataset_name": *req.Dataset, // v2 uses "dataset_name" field
-			"dataset_id":   dataset.ID,
-			"env_vars":     req.EnvVars,
-		}
-	}
-
-	// Create unified task
-	task := &dto.UnifiedTask{
-		Type:      consts.TaskTypeRunAlgorithm,
-		Payload:   payload,
-		Immediate: true,
-		GroupID:   c.GetString("groupID"),
-		ProjectID: &project.ID,
-	}
-
-	// Get span context for tracing
-	ctx, ok := c.Get("spanContext")
-	var spanCtx context.Context
-	if ok {
-		spanCtx = ctx.(context.Context)
-		task.SetGroupCtx(spanCtx)
-	} else {
-		spanCtx = context.Background()
-	}
-
-	// Submit task
-	taskID, traceID, err := executor.SubmitTask(spanCtx, task)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to submit algorithm execution task: "+err.Error())
-		return
-	}
-
-	// Build response
-	response := dto.AlgorithmExecutionResponse{
-		TraceID:     traceID,
-		TaskID:      taskID,
-		AlgorithmID: algorithm.ID,
-		DatapackID:  datapackID,
-		DatasetID:   datasetID,
-		Status:      "submitted",
-	}
-
-	dto.JSONResponse(c, http.StatusAccepted, "Algorithm execution submitted successfully", response)
-}
-
 // SubmitBatchAlgorithmExecution submits batch algorithm execution for multiple datapacks or datasets
 //
 //	@Summary Submit batch algorithm execution
@@ -667,8 +520,8 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 //	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
 //	@Failure 404 {object} dto.GenericResponse[any] "Project, algorithm, datapack or dataset not found"
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/algorithms/execute/batch [post]
-func SubmitBatchAlgorithmExecution(c *gin.Context) {
+//	@Router /api/v2/algorithms/execute [post]
+func SubmitAlgorithmExecution(c *gin.Context) {
 	// Check permissions
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -718,7 +571,7 @@ func SubmitBatchAlgorithmExecution(c *gin.Context) {
 	}
 
 	groupID := c.GetString("groupID")
-	var executions []dto.AlgorithmExecutionResponse
+	var allExecutions []dto.AlgorithmExecutionResponse
 
 	// Process each execution request
 	for _, execution := range req.Executions {
@@ -729,50 +582,86 @@ func SubmitBatchAlgorithmExecution(c *gin.Context) {
 			return
 		}
 
-		// Create execution payload based on datapack or dataset
-		var payload map[string]any
-		var datapackID *int
-		var datasetID *int
+		// Extract datapacks from request (either single datapack or dataset)
+		datapacks, datasetID, err := extractDatapacks(execution.Datapack, execution.Dataset)
+		if err != nil {
+			dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+			return
+		}
 
-		if execution.Datapack != nil {
-			// V1 compatible mode - use datapack (FaultInjectionSchedule)
-			var datapack database.FaultInjectionSchedule
-			if err := database.DB.Where("injection_name = ?", *execution.Datapack).First(&datapack).Error; err != nil {
-				dto.ErrorResponse(c, http.StatusNotFound, "Datapack not found: "+*execution.Datapack)
-				return
-			}
-			datapackID = &datapack.ID
+		// Submit tasks for all datapacks
+		executions, err := submitAlgorithmTasks(spanCtx, groupID, &project.ID, &algorithm, execution.EnvVars, datapacks, datasetID)
+		if err != nil {
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to submit algorithm execution tasks: "+err.Error())
+			return
+		}
 
-			// Create v1 compatible payload
-			payload = map[string]any{
-				"algorithm": map[string]any{
-					"name":  execution.Algorithm.Name,
-					"image": algorithm.Image,
-					"tag":   algorithm.Tag,
-				},
-				"dataset":  *execution.Datapack, // v1 uses "dataset" field for datapack name
-				"env_vars": execution.EnvVars,
-			}
-		} else {
-			// V2 mode - use dataset
-			var dataset database.Dataset
-			if err := database.DB.Where("name = ? AND status = ?", *execution.Dataset, 1).First(&dataset).Error; err != nil {
-				dto.ErrorResponse(c, http.StatusNotFound, "Dataset not found: "+*execution.Dataset)
-				return
-			}
-			datasetID = &dataset.ID
+		allExecutions = append(allExecutions, executions...)
+	}
 
-			// Create v2 payload with dataset support
-			payload = map[string]any{
-				"algorithm": map[string]any{
-					"name":  execution.Algorithm.Name,
-					"image": algorithm.Image,
-					"tag":   algorithm.Tag,
-				},
-				"dataset_name": *execution.Dataset, // v2 uses "dataset_name" field
-				"dataset_id":   dataset.ID,
-				"env_vars":     execution.EnvVars,
+	// Build response
+	response := dto.BatchAlgorithmExecutionResponse{
+		GroupID:    groupID,
+		Executions: allExecutions,
+		Message:    fmt.Sprintf("Successfully submitted %d algorithm executions", len(allExecutions)),
+	}
+
+	dto.JSONResponse(c, http.StatusAccepted, "Batch algorithm execution submitted successfully", response)
+}
+
+// extractDatapacks extracts datapacks from either a single datapack name or dataset name
+// Returns datapacks and optional dataset ID (if from dataset)
+func extractDatapacks(datapackName *string, datasetName *string) ([]database.FaultInjectionSchedule, *int, error) {
+	if datapackName != nil {
+		// Single datapack mode
+		var datapack database.FaultInjectionSchedule
+		if err := database.DB.Where("injection_name = ?", *datapackName).First(&datapack).Error; err != nil {
+			return nil, nil, fmt.Errorf("datapack not found: %s", *datapackName)
+		}
+		return []database.FaultInjectionSchedule{datapack}, nil, nil
+	} else if datasetName != nil {
+		// Dataset mode - get all datapacks in the dataset
+		var dataset database.Dataset
+		if err := database.DB.Where("name = ? AND status = ?", *datasetName, 1).First(&dataset).Error; err != nil {
+			return nil, nil, fmt.Errorf("dataset not found: %s", *datasetName)
+		}
+
+		datasetFaultInjections, err := repository.GetDatasetFaultInjections(dataset.ID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to get dataset datapacks: %s", err.Error())
+		}
+
+		if len(datasetFaultInjections) == 0 {
+			return nil, nil, fmt.Errorf("dataset contains no datapacks")
+		}
+
+		// Extract datapacks from relations
+		var datapacks []database.FaultInjectionSchedule
+		for _, relation := range datasetFaultInjections {
+			if relation.FaultInjectionSchedule != nil {
+				datapacks = append(datapacks, *relation.FaultInjectionSchedule)
 			}
+		}
+		return datapacks, &dataset.ID, nil
+	}
+
+	return nil, nil, fmt.Errorf("either datapack or dataset must be specified")
+}
+
+// submitAlgorithmTasks submits algorithm execution tasks for the given datapacks
+func submitAlgorithmTasks(ctx context.Context, groupID string, projectID *int, algorithm *database.Container, envVars map[string]string, datapacks []database.FaultInjectionSchedule, datasetID *int) ([]dto.AlgorithmExecutionResponse, error) {
+	var executions []dto.AlgorithmExecutionResponse
+
+	for _, datapack := range datapacks {
+		// Create v1 compatible payload
+		payload := map[string]any{
+			"algorithm": map[string]any{
+				"name":  algorithm.Name,
+				"image": algorithm.Image,
+				"tag":   algorithm.Tag,
+			},
+			"dataset":  datapack.InjectionName, // Use datapack name as dataset field
+			"env_vars": envVars,
 		}
 
 		// Create unified task
@@ -781,36 +670,34 @@ func SubmitBatchAlgorithmExecution(c *gin.Context) {
 			Payload:   payload,
 			Immediate: true,
 			GroupID:   groupID,
-			ProjectID: &project.ID,
+			ProjectID: projectID,
 		}
-		task.SetGroupCtx(spanCtx)
+		task.SetGroupCtx(ctx)
 
 		// Submit task
-		taskID, traceID, err := executor.SubmitTask(spanCtx, task)
+		taskID, traceID, err := executor.SubmitTask(ctx, task)
 		if err != nil {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to submit algorithm execution task: "+err.Error())
-			return
+			return nil, fmt.Errorf("failed to submit task: %s", err.Error())
 		}
 
-		// Add to executions list
-		executions = append(executions, dto.AlgorithmExecutionResponse{
+		// Build execution response
+		execution := dto.AlgorithmExecutionResponse{
 			TraceID:     traceID,
 			TaskID:      taskID,
 			AlgorithmID: algorithm.ID,
-			DatapackID:  datapackID,
-			DatasetID:   datasetID,
+			DatapackID:  &datapack.ID,
 			Status:      "submitted",
-		})
+		}
+
+		// Set DatasetID if this is from a dataset
+		if datasetID != nil {
+			execution.DatasetID = datasetID
+		}
+
+		executions = append(executions, execution)
 	}
 
-	// Build response
-	response := dto.BatchAlgorithmExecutionResponse{
-		GroupID:    groupID,
-		Executions: executions,
-		Message:    fmt.Sprintf("Successfully submitted %d algorithm executions", len(executions)),
-	}
-
-	dto.JSONResponse(c, http.StatusAccepted, "Batch algorithm execution submitted successfully", response)
+	return executions, nil
 }
 
 // Helper function to parse integer parameters

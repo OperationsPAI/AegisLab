@@ -115,8 +115,11 @@ run: check-prerequisites ## 🚀 构建并部署应用 (使用 skaffold)
 	$(MAKE) wait-for-deployment
 	@echo "$(GREEN)🎉 部署完成！$(RESET)"
 
-## 等待部署就绪
-wait-for-deployment: 
+run-sk:
+	skaffold run --default-repo=$(DEFAULT_REPO)
+
+
+wait-for-deployment: ## ⏳ 等待部署就绪
 	@echo "$(BLUE)⏳ 等待所有部署就绪...$(RESET)"
 	kubectl wait --for=condition=available --timeout=300s deployment --all -n $(NS)
 	@echo "$(GREEN)✅ 所有部署已就绪$(RESET)"
