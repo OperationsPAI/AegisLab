@@ -1726,69 +1726,6 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Submit algorithm execution task for a single datapack (v1 compatible) or dataset (v2 feature). The system will create execution tasks and return tracking information.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Algorithms"
-                ],
-                "summary": "Submit algorithm execution",
-                "parameters": [
-                    {
-                        "description": "Algorithm execution request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.AlgorithmExecutionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": "Algorithm execution submitted successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_AlgorithmExecutionResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "403": {
-                        "description": "Permission denied",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "Project, algorithm, datapack or dataset not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/algorithms/execute/batch": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "description": "Submit multiple algorithm execution tasks in batch. Supports mixing datapack (v1 compatible) and dataset (v2 feature) executions.",
                 "consumes": [
                     "application/json"
@@ -3126,12 +3063,6 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "description": "Filter by project ID",
-                        "name": "project_id",
-                        "in": "query"
-                    },
-                    {
                         "type": "string",
                         "description": "Filter by dataset type",
                         "name": "type",
@@ -3169,7 +3100,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Include related data (project,injections,labels)",
+                        "description": "Include related data (injections,labels)",
                         "name": "include",
                         "in": "query"
                     }
@@ -3345,7 +3276,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Include related data (project,injections,labels)",
+                        "description": "Include related data (injections,labels)",
                         "name": "include",
                         "in": "query"
                     }
@@ -6847,6 +6778,9 @@ const docTemplate = `{
                 "dataset": {
                     "type": "string"
                 },
+                "dataset_version": {
+                    "type": "string"
+                },
                 "env_vars": {
                     "type": "object"
                 },
@@ -7880,18 +7814,6 @@ const docTemplate = `{
                     "description": "Dataset name",
                     "type": "string"
                 },
-                "project": {
-                    "description": "Associated project info",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/database.Project"
-                        }
-                    ]
-                },
-                "project_id": {
-                    "description": "Project ID",
-                    "type": "integer"
-                },
                 "status": {
                     "description": "Status",
                     "type": "integer"
@@ -7950,13 +7872,6 @@ const docTemplate = `{
                     "description": "Page number",
                     "type": "integer",
                     "minimum": 1
-                },
-                "project_ids": {
-                    "description": "Project ID list",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
                 },
                 "search": {
                     "description": "Search keywords",
@@ -8419,31 +8334,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/dto.UserResponse"
                     }
-                },
-                "message": {
-                    "description": "Response message",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "Response generation time",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.GenericResponse-dto_AlgorithmExecutionResponse": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "Status code",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "Generic type data",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.AlgorithmExecutionResponse"
-                        }
-                    ]
                 },
                 "message": {
                     "description": "Response message",
