@@ -122,7 +122,7 @@ func (pc *PermissionChecker) CheckMultiplePermissions(permissions map[string]str
 // InitializeSystemData initializes system data (roles, permissions, resources)
 func InitializeSystemData() error {
 	return database.DB.Transaction(func(tx *gorm.DB) error {
-		             // Create system resources
+		// Create system resources
 		systemResources := []database.Resource{
 			{Name: consts.ResourceProject.String(), DisplayName: "Project", Type: "table", Category: "core", IsSystem: true, Status: 1},
 			{Name: consts.ResourceDataset.String(), DisplayName: "Dataset", Type: "table", Category: "core", IsSystem: true, Status: 1},
@@ -141,7 +141,7 @@ func InitializeSystemData() error {
 			}
 		}
 
-		             // Create system permissions
+		// Create system permissions
 		actions := []consts.ActionName{consts.ActionRead, consts.ActionWrite, consts.ActionDelete, consts.ActionExecute, consts.ActionManage}
 		for _, resource := range systemResources {
 			var resourceRecord database.Resource
@@ -166,7 +166,7 @@ func InitializeSystemData() error {
 			}
 		}
 
-		             // Create system roles
+		// Create system roles
 		systemRoles := []database.Role{
 			{Name: "super_admin", DisplayName: "Super Admin", Type: "system", IsSystem: true, Status: 1},
 			{Name: "admin", DisplayName: "Admin", Type: "system", IsSystem: true, Status: 1},
@@ -182,12 +182,12 @@ func InitializeSystemData() error {
 			}
 		}
 
-		             // Assign permissions to system roles
+		// Assign permissions to system roles
 		if err := assignSystemRolePermissions(tx); err != nil {
 			return fmt.Errorf("failed to assign system role permissions: %v", err)
 		}
 
-		             // Create super admin user and default project
+		// Create super admin user and default project
 		_, err := initializeAdminUserAndProjects(tx)
 		if err != nil {
 			return fmt.Errorf("failed to initialize admin user and projects: %v", err)

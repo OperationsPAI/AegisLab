@@ -74,7 +74,7 @@ type Container struct {
 
 type ExecutionResult struct {
 	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`                                       // Unique identifier
-	TaskID      *string   `gorm:"index:idx_exec_task_status;index:idx_exec_task_algo" json:"task_id"`       // Associated task ID, add composite index
+	TaskID      string    `gorm:"index:idx_exec_task_status;index:idx_exec_task_algo" json:"task_id"`       // Associated task ID, add composite index
 	AlgorithmID int       `gorm:"index:idx_exec_task_algo;index:idx_exec_algo_dataset" json:"container_id"` // Algorithm used, add composite index
 	DatapackID  int       `gorm:"index:idx_exec_algo_dataset" json:"datapack_id"`                           // Data package identifier, add composite index
 	Status      int       `gorm:"default:0;index:idx_exec_task_status" json:"status"`                       // Status, add composite index

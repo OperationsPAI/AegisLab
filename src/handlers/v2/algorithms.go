@@ -438,7 +438,7 @@ func UploadGranularityResults(c *gin.Context) {
 
 		// Create new execution record
 		execution = database.ExecutionResult{
-			TaskID:      nil, // TaskID can be null
+			TaskID:      "",
 			AlgorithmID: algorithmID,
 			DatapackID:  req.DatapackID,
 			Status:      1,
@@ -453,8 +453,7 @@ func UploadGranularityResults(c *gin.Context) {
 		isNewExecution = true
 
 		// Add label to indicate this is a manual upload (TaskID is null)
-		labelDescription := "User manually uploaded execution result via API"
-		if err := repository.AddExecutionResultLabel(executionID, consts.ExecutionLabelSource, consts.ExecutionSourceManual, labelDescription); err != nil {
+		if err := repository.AddExecutionResultLabel(executionID, consts.ExecutionLabelSource, consts.ExecutionSourceManual, consts.ExecutionManualDescription); err != nil {
 			logrus.Warnf("Warning: Failed to create execution result label: %v\n", err)
 		}
 	}

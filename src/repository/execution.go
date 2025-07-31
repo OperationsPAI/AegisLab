@@ -15,13 +15,8 @@ import (
 )
 
 func CreateExecutionResult(taskID string, algorithmID, datapackID int) (int, error) {
-	var taskIDPtr *string
-	if taskID != "" {
-		taskIDPtr = &taskID
-	}
-
 	executionResult := database.ExecutionResult{
-		TaskID:      taskIDPtr,
+		TaskID:      taskID,
 		AlgorithmID: algorithmID,
 		DatapackID:  datapackID,
 		Status:      consts.ExecutionInitial,
@@ -32,14 +27,14 @@ func CreateExecutionResult(taskID string, algorithmID, datapackID int) (int, err
 
 	// Add label to indicate the source of this execution result
 	var labelValue, labelDescription string
-	if taskIDPtr != nil {
+	if taskID != "" {
 		// TaskID is provided, this is system-managed
 		labelValue = consts.ExecutionSourceSystem
-		labelDescription = "System-managed execution result created by RCABench"
+		labelDescription = consts.ExecutionSystemDescription
 	} else {
-		// TaskID is null, this is manual upload
+		// TaskID is empty, this is manual upload
 		labelValue = consts.ExecutionSourceManual
-		labelDescription = "Manual execution result created via API"
+		labelDescription = consts.ExecutionManualDescription
 	}
 
 	if err := AddExecutionResultLabel(executionResult.ID, consts.ExecutionLabelSource, labelValue, labelDescription); err != nil {
@@ -439,62 +434,30 @@ func GetRecentExecutionActivity(days int) (map[string]int64, error) {
 	return stats, nil
 }
 
-// CreateOrGetLabel creates a new label or gets existing one
-func CreateOrGetLabel(key, value, category, description string) (*database.Label, error) {
-	var label database.Label
-
-	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		err := tx.Where("key = ? AND value = ? AND category = ?", key, value, category).First(&label).Error
-		if err == nil {
-			return tx.Model(&label).UpdateColumn("usage", gorm.Expr("usage + ?", 1)).Error
-		}
-
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("failed to query label: %v", err)
-		}
-
-		label = database.Label{
-			Key:         key,
-			Value:       value,
-			Category:    category,
-			Description: description,
-			Color:       "#1890ff",
-			IsSystem:    true,
-			Usage:       1,
-		}
-		return tx.Create(&label).Error
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to create or get label: %v", err)
-	}
-
-	return &label, nil
-}
-
 // AddExecutionResultLabel adds a label to an execution result
 func AddExecutionResultLabel(executionID int, labelKey, labelValue, description string) error {
 	// Create or get the label
-	label, err := CreateOrGetLabel(labelKey, labelValue, "execution", description)
+	label, err := CreateOrGetLabel(labelKey, labelValue, consts.LabelExecution, description)
 	if err != nil {
 		return fmt.Errorf("failed to create or get label: %v", err)
 	}
 
-	// Check if relationship already exists
 	var existingRelation database.ExecutionResultLabel
-	err = database.DB.Where("execution_id = ? AND label_id = ?", executionID, label.ID).First(&existingRelation).Error
-	if err == nil {
-		// Relationship already exists
-		return nil
-	}
+	return database.DB.Transaction(func(tx *gorm.DB) error {
+		err := tx.Where("execution_id = ? AND label_id = ?", executionID, label.ID).First(&existingRelation).Error
+		if err == nil {
+			return nil
+		}
 
-	// Create the relationship
-	relation := database.ExecutionResultLabel{
-		ExecutionID: executionID,
-		LabelID:     label.ID,
-	}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("failed to query relation between execution result and label: %v", err)
+		}
 
-	return database.DB.Create(&relation).Error
+		return tx.Create(&database.ExecutionResultLabel{
+			ExecutionID: executionID,
+			LabelID:     label.ID,
+		}).Error
+	})
 }
 
 // GetExecutionResultLabels retrieves all labels for an execution result
@@ -527,30 +490,15 @@ func InitializeExecutionLabels() error {
 		value       string
 		description string
 	}{
-		{consts.ExecutionSourceManual, "User manually uploaded execution result via API"},
-		{consts.ExecutionSourceSystem, "System-managed execution result created by RCABench"},
+		{consts.ExecutionSourceManual, consts.ExecutionManualDescription},
+		{consts.ExecutionSourceSystem, consts.ExecutionSystemDescription},
 	}
 
 	for _, labelInfo := range sourceLabels {
-		// Use FirstOrCreate to handle concurrent initialization
-		var label database.Label
-		result := database.DB.Where(database.Label{
-			Key:      consts.ExecutionLabelSource,
-			Value:    labelInfo.value,
-			Category: "execution",
-		}).FirstOrCreate(&label, database.Label{
-			Key:         consts.ExecutionLabelSource,
-			Value:       labelInfo.value,
-			Category:    "execution",
-			Description: labelInfo.description,
-			Color:       "#1890ff",
-			IsSystem:    true,
-			Usage:       1,
-		})
-
-		if result.Error != nil {
+		_, err := CreateOrGetLabel(consts.ExecutionLabelSource, labelInfo.value, consts.LabelExecution, labelInfo.description)
+		if err != nil {
 			return fmt.Errorf("failed to initialize execution label %s=%s: %v",
-				consts.ExecutionLabelSource, labelInfo.value, result.Error)
+				consts.ExecutionLabelSource, labelInfo.value, err)
 		}
 	}
 
