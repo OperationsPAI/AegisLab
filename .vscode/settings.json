@@ -23,9 +23,7 @@
   },
   "editor.formatOnSave": true,
   "makefile.configureOnOpen": false,
-  "python.languageServer": "None",
   "python.analysis.typeCheckingMode": "basic",
   "python.testing.pytestEnabled": true,
   "python.testing.unittestEnabled": false,
-  "cursorpyright.analysis.typeCheckingMode": "basic"
 }

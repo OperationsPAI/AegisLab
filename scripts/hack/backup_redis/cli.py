@@ -1,12 +1,20 @@
 #!/usr/bin/env -S uv run -s
 from typing import Optional
-from pathlib import Path
+from psycopg2.extras import RealDictCursor
 from rich.console import Console
 from redis import Redis
+import psycopg2
 import redis
 import typer
 
+KEY_FORMAT = "trace:{}:log"
+
 DEFAULT_LOCAL_URL = "redis://localhost:6379"
+DEFAULT_PG_HOST = "10.10.10.220"
+DEFAULT_PG_PORT = "32432"
+DEFAULT_PG_USER = "postgres"
+DEFAULT_PG_PASSWORD = "yourpassword"
+DEFAULT_PG_DB = "rcabench"
 DEFAULT_REMOTE_URL = "redis://10.10.10.220:32279"
 DEFAULT_REDIS_DB = 0
 
@@ -20,6 +28,7 @@ class Client:
         self.source_redis, self.target_redis = self._connect_redis(
             source_url, target_url
         )
+        self.pg_client = self._connect_postgres()
 
     def _connect_redis(self, source_url: str, target_url: str) -> tuple[Redis, Redis]:
         """连接到源和目标 Redis，返回连接对象"""
@@ -47,56 +56,87 @@ class Client:
             console.print(f"[red]未知错误: {e}[/red]")
             raise typer.Exit(code=1)
 
-    def _read_streams_from_file(self, file_path: str) -> list[str]:
-        """从文件读取流名称列表"""
+    def _connect_postgres(self):
+        """连接到 PostgreSQL 数据库"""
         try:
-            path = Path(file_path)
-            if not path.exists():
-                console.print(f"[red]文件不存在: {file_path}[/red]")
-                raise typer.Exit(code=1)
+            console.print(
+                f"[cyan]连接 PostgreSQL: {DEFAULT_PG_HOST}:{DEFAULT_PG_PORT}/{DEFAULT_PG_DB}[/cyan]"
+            )
 
-            console.print(f"[cyan]从文件读取流列表: {file_path}[/cyan]")
+            conn = psycopg2.connect(
+                host=DEFAULT_PG_HOST,
+                port=DEFAULT_PG_PORT,
+                user=DEFAULT_PG_USER,
+                password=DEFAULT_PG_PASSWORD,
+                database=DEFAULT_PG_DB,
+                cursor_factory=RealDictCursor,
+            )
 
-            with open(path, "r", encoding="utf-8") as f:
-                lines = f.readlines()
+            # 测试连接
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT version();")
+                version = cursor.fetchone()
+                console.print("[green]✅ PostgreSQL 连接成功[/green]")
+                console.print(f"[dim]版本: {version['version'][:50]}...[/dim]")  # type: ignore
 
-            # 处理文件内容
-            streams = []
-            for line in lines:
-                line = line.strip()
+            return conn
 
-                # 跳过空行和注释行
-                if not line or line.startswith("#"):
-                    continue
-
-                # 支持多种分隔符
-                if "," in line:
-                    # CSV 格式：stream1,stream2,stream3
-                    names = [name.strip() for name in line.split(",") if name.strip()]
-                    streams.extend(names)
-                else:
-                    # 每行一个流名称
-                    streams.append(line)
-
-            if not streams:
-                console.print(
-                    f"[yellow]文件 {file_path} 中没有找到有效的流名称[/yellow]"
-                )
-                raise typer.Exit(code=1)
-
-            console.print(f"[green]从文件读取到 {len(streams)} 个流名称[/green]")
-            return streams
-
+        except psycopg2.Error as e:
+            console.print(f"[red]PostgreSQL 连接失败: {e}[/red]")
+            raise typer.Exit(code=1)
         except Exception as e:
-            console.print(f"[red]读取文件失败: {e}[/red]")
+            console.print(f"[red]未知错误: {e}[/red]")
             raise typer.Exit(code=1)
 
-    def _read_streams_from_pattern(self, source_pattern: str) -> list[str]:
-        console.print(f"[cyan]查找匹配 '{source_pattern}' 的流...[/cyan]")
+    def _read_streams_exact(self) -> list[str]:
+        console.print("[cyan]执行查询获取流名称...[/cyan]")
 
-        matching_keys = self.source_redis.keys(source_pattern)
+        query = """
+        SELECT DISTINCT t.trace_id
+        FROM fault_injection_schedules fis
+        INNER JOIN tasks t ON fis.task_id = t.id
+        WHERE fis.task_id IS NOT NULL;
+        """
+
+        try:
+            console.print(f"[dim]SQL: {query}[/dim]")
+            with self.pg_client.cursor() as cursor:
+                cursor.execute(query)
+                results = cursor.fetchall()
+
+                if not results:
+                    console.print("[yellow]查询结果为空[/yellow]")
+                    return []
+
+                streams = []
+                for row in results:
+                    if isinstance(row, dict):
+                        trace_id = list(row.values())[0]
+                    else:
+                        trace_id = row[0]
+
+                    if trace_id:
+                        streams.append(KEY_FORMAT.format(trace_id))
+
+                console.print(
+                    f"[green]从 PostgreSQL 查询到 {len(streams)} 个流名称[/green]"
+                )
+
+                return streams
+
+        except psycopg2.Error as e:
+            console.print(f"[red]PostgreSQL 查询失败: {e}[/red]")
+            raise typer.Exit(code=1)
+        except Exception as e:
+            console.print(f"[red]查询执行错误: {e}[/red]")
+            raise typer.Exit(code=1)
+
+    def _read_streams_fuzzy(self, pattern: str) -> list[str]:
+        console.print(f"[cyan]查找匹配 '{pattern}' 的流...[/cyan]")
+
+        matching_keys = self.source_redis.keys(pattern)
         if not matching_keys:
-            console.print(f"[red]没有找到匹配 '{source_pattern}' 的流[/red]")
+            console.print(f"[red]没有找到匹配 '{pattern}' 的流[/red]")
             raise typer.Exit(code=1)
 
         # 过滤出真正的 stream 类型
@@ -114,7 +154,7 @@ class Client:
         return streams
 
     def copy_stream_one(
-        self, source_key: str, overwrite: bool = True, dry_run: bool = False
+        self, source_key: str, overwrite: bool = False, dry_run: bool = False
     ) -> None:
         target_key = source_key
 
@@ -175,16 +215,16 @@ class Client:
 
     def copy_stream_batch(
         self,
-        file_path: str | None = None,
-        source_pattern: str | None = None,
-        overwrite: bool = True,
+        exact_match: bool = False,
+        fuzzy_match: str | None = None,
+        overwrite: bool = False,
         dry_run: bool = False,
     ) -> None:
-        if file_path is not None:
-            streams = self._read_streams_from_file(file_path)
+        if exact_match:
+            streams = self._read_streams_exact()
 
-        if source_pattern is not None:
-            streams = self._read_streams_from_pattern(source_pattern)
+        if fuzzy_match is not None:
+            streams = self._read_streams_fuzzy(fuzzy_match)
 
         if dry_run:
             console.print("[yellow]Dry run 模式，不会实际复制数据[/yellow]")
@@ -297,7 +337,7 @@ def restore_one(
     ),
     source_key: Optional[str] = typer.Option(None, "--source_key", help="源 Redis 流"),
     overwrite: bool = typer.Option(
-        True, "--overwrite", help="是否覆盖目标流（默认：True）"
+        False, "--overwrite", help="是否覆盖目标流（默认：True）"
     ),
     dry_run: bool = typer.Option(False, "--dry_run", help="是否只显示操作而不实际执行"),
 ) -> None:
@@ -318,42 +358,40 @@ def restore_batch(
     target_url: str = typer.Option(
         DEFAULT_LOCAL_URL, "--target_url", help="目标 Redis URL"
     ),
-    file_path: Optional[str] = typer.Option(
-        None, "--file_path", help="包含流名称的文件路径"
+    exact_match: bool = typer.Option(
+        False, "--exact_match", help="源 Redis 流精确匹配（默认：False）"
     ),
-    source_pattern: Optional[str] = typer.Option(
-        None, "--source_pattern", help="源 Redis 流匹配模式"
+    fuzzy_match: Optional[str] = typer.Option(
+        None, "--fuzzy_match", help="源 Redis 流模糊匹配"
     ),
     overwrite: bool = typer.Option(
-        True, "--overwrite", help="是否覆盖目标流（默认：True）"
+        False, "--overwrite", help="是否覆盖目标流（默认：True）"
     ),
     dry_run: bool = typer.Option(False, "--dry_run", help="是否只显示操作而不实际执行"),
 ):
     """批量恢复 Redis Stream 数据
 
-    支持两种模式：
-    1. 文件模式：使用 --file_path 指定包含流名称的文件
-    2. 模式匹配：使用 --source_pattern 指定匹配模式
+    支持两种匹配模式：
+    1. 精确匹配：从 PostgreSQL 数据库查询 fault_injection_schedules 表获取对应的 trace_id
+    2. 模糊匹配：使用 Redis KEYS 命令查找匹配指定模式的流
 
-    示例：
-    文件模式：uv run python cli.py restore-batch --file_path streams.txt
-    模式匹配：uv run python cli.py restore-batch --source_pattern "trace:*:log"
     """
 
     # 参数验证：必须提供其中一个，且不能同时提供
-    if not file_path and not source_pattern:
-        console.print("[red]请提供以下参数之一:[/red]")
-        console.print("[red]  --file_path: 包含流名称的文件路径[/red]")
-        console.print("[red]  --source_pattern: Redis 流匹配模式[/red]")
+    if not exact_match and not fuzzy_match:
+        console.print("[red]错误：必须选择一种匹配模式[/red]")
+        console.print(
+            "[yellow]使用 --exact_match 从数据库精确匹配，或使用 --fuzzy_match 进行模糊匹配[/yellow]"
+        )
         raise typer.Exit(code=1)
 
-    if file_path and source_pattern:
-        console.print("[red]请只提供一个参数，不能同时使用:[/red]")
-        console.print("[red]  --file_path 和 --source_pattern[/red]")
+    if exact_match and fuzzy_match:
+        console.print("[red]错误：不能同时使用两种匹配模式[/red]")
+        console.print("[yellow]请选择 --exact_match 或 --fuzzy_match 其中一个[/yellow]")
         raise typer.Exit(code=1)
 
     client = Client(source_url, target_url)
-    client.copy_stream_batch(file_path, source_pattern, overwrite, dry_run)
+    client.copy_stream_batch(exact_match, fuzzy_match, overwrite, dry_run)
 
 
 if __name__ == "__main__":
