@@ -39,6 +39,14 @@ const (
 	// Execution result label values
 	ExecutionSourceManual = "manual" // User manually uploaded
 	ExecutionSourceSystem = "system" // RCABench internally managed
+
+	ExecutionManualDescription = "Manual execution result created via API"
+	ExecutionSystemDescription = "System-managed execution result created by RCABench"
+)
+
+// Database Label
+const (
+	LabelExecution = "execution"
 )
 
 // String returns the string representation of the action name

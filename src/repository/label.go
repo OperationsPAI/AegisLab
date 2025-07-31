@@ -8,12 +8,37 @@ import (
 	"gorm.io/gorm"
 )
 
-// CreateLabel creates a label
-func CreateLabel(label *database.Label) error {
-	if err := database.DB.Create(label).Error; err != nil {
-		return fmt.Errorf("failed to create label: %v", err)
+// CreateOrGetLabel creates a new label or gets existing one
+func CreateOrGetLabel(key, value, category, description string) (*database.Label, error) {
+	var label database.Label
+
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		err := tx.Where("key = ? AND value = ? AND category = ?", key, value, category).First(&label).Error
+		if err == nil {
+			return tx.Model(&label).UpdateColumn("usage", gorm.Expr("usage + ?", 1)).Error
+		}
+
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("failed to query label: %v", err)
+		}
+
+		label = database.Label{
+			Key:         key,
+			Value:       value,
+			Category:    category,
+			Description: description,
+			Color:       "#1890ff",
+			IsSystem:    true,
+			Usage:       1,
+		}
+		return tx.Create(&label).Error
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create or get label: %v", err)
 	}
-	return nil
+
+	return &label, nil
 }
 
 // GetLabelByID gets label by ID
@@ -40,35 +65,34 @@ func GetLabelByKeyValue(key, value string) (*database.Label, error) {
 	return &label, nil
 }
 
-// GetOrCreateLabel gets or creates label
-func GetOrCreateLabel(key, value, category string) (*database.Label, error) {
-	var label database.Label
-
-	     // First try to get
-	if err := database.DB.Where("key = ? AND value = ?", key, value).First(&label).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			                     // Create if not exists
-			label = database.Label{
-				Key:      key,
-				Value:    value,
-				Category: category,
-			}
-			if err := database.DB.Create(&label).Error; err != nil {
-				return nil, fmt.Errorf("failed to create label: %v", err)
-			}
-		} else {
-			return nil, fmt.Errorf("failed to get label: %v", err)
-		}
-	}
-
-	return &label, nil
-}
-
 // UpdateLabel updates label information
 func UpdateLabel(label *database.Label) error {
 	if err := database.DB.Save(label).Error; err != nil {
 		return fmt.Errorf("failed to update label: %v", err)
 	}
+	return nil
+}
+
+// UpdateLabelUsage updates the usage of a label (any increase or decrease)
+func UpdateLabelUsage(id int, increment int) error {
+	var operation string
+	if increment >= 0 {
+		operation = fmt.Sprintf("usage + %d", increment)
+	} else {
+		operation = fmt.Sprintf("GREATEST(0, usage + %d)", increment)
+	}
+
+	result := database.DB.Model(&database.Label{}).Where("id = ?", id).
+		UpdateColumn("usage", gorm.Expr(operation))
+
+	if result.Error != nil {
+		return fmt.Errorf("failed to update label usage: %v", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("label with id %d not found", id)
+	}
+
 	return nil
 }
 
