@@ -155,18 +155,24 @@ var DatasetStatusReverseMap = map[string]int{
 
 // ===================== V2 API DTOs =====================
 
+// InjectionRef represents an injection reference by ID or name
+type InjectionRef struct {
+	ID   *int    `json:"id,omitempty"`   // Injection ID
+	Name *string `json:"name,omitempty"` // Injection name
+}
+
 // DatasetV2CreateReq Create dataset request
 type DatasetV2CreateReq struct {
-	Name         string                    `json:"name" binding:"required,max=255"` // Dataset name
-	Version      string                    `json:"version" binding:"max=50"`        // Dataset version, optional, defaults to v1.0
-	Description  string                    `json:"description" binding:"max=1000"`  // Dataset description
-	Type         string                    `json:"type" binding:"required,max=50"`  // Dataset type
-	DataSource   string                    `json:"data_source" binding:"max=500"`   // Data source description
-	Format       string                    `json:"format" binding:"max=50"`         // Data format
-	IsPublic     *bool                     `json:"is_public"`                       // Whether public, optional, defaults to false
-	InjectionIDs []int                     `json:"injection_ids"`                   // Associated fault injection ID list
-	LabelIDs     []int                     `json:"label_ids"`                       // Associated label ID list
-	NewLabels    []DatasetV2LabelCreateReq `json:"new_labels"`                      // New label list
+	Name          string                    `json:"name" binding:"required,max=255"` // Dataset name
+	Version       string                    `json:"version" binding:"max=50"`        // Dataset version, optional, defaults to v1.0
+	Description   string                    `json:"description" binding:"max=1000"`  // Dataset description
+	Type          string                    `json:"type" binding:"required,max=50"`  // Dataset type
+	DataSource    string                    `json:"data_source" binding:"max=500"`   // Data source description
+	Format        string                    `json:"format" binding:"max=50"`         // Data format
+	IsPublic      *bool                     `json:"is_public"`                       // Whether public, optional, defaults to false
+	InjectionRefs []InjectionRef            `json:"injection_refs"`                  // Associated fault injection references (ID or name)
+	LabelIDs      []int                     `json:"label_ids"`                       // Associated label ID list
+	NewLabels     []DatasetV2LabelCreateReq `json:"new_labels"`                      // New label list
 }
 
 // DatasetV2LabelCreateReq Create label request
@@ -180,16 +186,16 @@ type DatasetV2LabelCreateReq struct {
 
 // DatasetV2UpdateReq Update dataset request
 type DatasetV2UpdateReq struct {
-	Name         *string                   `json:"name" binding:"omitempty,max=255"`         // Dataset name
-	Version      *string                   `json:"version" binding:"omitempty,max=50"`       // Dataset version
-	Description  *string                   `json:"description" binding:"omitempty,max=1000"` // Dataset description
-	Type         *string                   `json:"type" binding:"omitempty,max=50"`          // Dataset type
-	DataSource   *string                   `json:"data_source" binding:"omitempty,max=500"`  // Data source description
-	Format       *string                   `json:"format" binding:"omitempty,max=50"`        // Data format
-	IsPublic     *bool                     `json:"is_public"`                                // Whether public
-	InjectionIDs []int                     `json:"injection_ids"`                            // Update associated fault injection ID list (complete replacement)
-	LabelIDs     []int                     `json:"label_ids"`                                // Update associated label ID list (complete replacement)
-	NewLabels    []DatasetV2LabelCreateReq `json:"new_labels"`                               // New label list
+	Name          *string                   `json:"name" binding:"omitempty,max=255"`         // Dataset name
+	Version       *string                   `json:"version" binding:"omitempty,max=50"`       // Dataset version
+	Description   *string                   `json:"description" binding:"omitempty,max=1000"` // Dataset description
+	Type          *string                   `json:"type" binding:"omitempty,max=50"`          // Dataset type
+	DataSource    *string                   `json:"data_source" binding:"omitempty,max=500"`  // Data source description
+	Format        *string                   `json:"format" binding:"omitempty,max=50"`        // Data format
+	IsPublic      *bool                     `json:"is_public"`                                // Whether public
+	InjectionRefs []InjectionRef            `json:"injection_refs"`                           // Update associated fault injection references (complete replacement)
+	LabelIDs      []int                     `json:"label_ids"`                                // Update associated label ID list (complete replacement)
+	NewLabels     []DatasetV2LabelCreateReq `json:"new_labels"`                               // New label list
 }
 
 // DatasetV2InjectionManageReq Manage fault injections in dataset

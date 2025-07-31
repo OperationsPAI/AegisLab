@@ -1,6 +1,7 @@
 package v2
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -57,7 +58,7 @@ func CreateDataset(c *gin.Context) {
 		req.Version = "v1.0"
 	}
 	if req.Format == "" {
-		req.Format = "json"
+		req.Format = "parquet"
 	}
 
 	// Check if dataset with same name and version already exists
@@ -132,9 +133,71 @@ func CreateDataset(c *gin.Context) {
 		}
 	}
 
+	// Process injection references (ID or name) - batch query for better performance
+	var injectionIDs []int
+	if len(req.InjectionRefs) > 0 {
+		// Collect IDs and names for batch query
+		var ids []int
+		var names []string
+		for _, ref := range req.InjectionRefs {
+			if ref.ID != nil {
+				ids = append(ids, *ref.ID)
+			} else if ref.Name != nil {
+				names = append(names, *ref.Name)
+			} else {
+				tx.Rollback()
+				dto.ErrorResponse(c, http.StatusBadRequest, "Injection reference must specify either ID or name")
+				return
+			}
+		}
+
+		// Batch query injections
+		injections, err := repository.GetInjectionsByIDsAndNames(ids, names)
+		if err != nil {
+			tx.Rollback()
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to query injections: "+err.Error())
+			return
+		}
+
+		// Create maps for quick lookup
+		idMap := make(map[int]*database.FaultInjectionSchedule)
+		nameMap := make(map[string]*database.FaultInjectionSchedule)
+		for i := range injections {
+			injection := &injections[i]
+			idMap[injection.ID] = injection
+			nameMap[injection.InjectionName] = injection
+		}
+
+		// Process each reference and collect valid IDs
+		for _, ref := range req.InjectionRefs {
+			var injection *database.FaultInjectionSchedule
+			var injectionID int
+
+			if ref.ID != nil {
+				injection = idMap[*ref.ID]
+				if injection == nil {
+					tx.Rollback()
+					dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Injection with ID %d not found", *ref.ID))
+					return
+				}
+				injectionID = injection.ID
+			} else if ref.Name != nil {
+				injection = nameMap[*ref.Name]
+				if injection == nil {
+					tx.Rollback()
+					dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Injection with name '%s' not found", *ref.Name))
+					return
+				}
+				injectionID = injection.ID
+			}
+
+			injectionIDs = append(injectionIDs, injectionID)
+		}
+	}
+
 	// Associate with injections if provided
-	if len(req.InjectionIDs) > 0 {
-		for _, injectionID := range req.InjectionIDs {
+	if len(injectionIDs) > 0 {
+		for _, injectionID := range injectionIDs {
 			relation := &database.DatasetFaultInjection{
 				DatasetID:        dataset.ID,
 				FaultInjectionID: injectionID,
@@ -504,7 +567,7 @@ func UpdateDataset(c *gin.Context) {
 	}
 
 	// Update injection associations if provided
-	if req.InjectionIDs != nil {
+	if req.InjectionRefs != nil {
 		// Remove existing associations
 		if err := tx.Where("dataset_id = ?", dataset.ID).Delete(&database.DatasetFaultInjection{}).Error; err != nil {
 			tx.Rollback()
@@ -512,8 +575,68 @@ func UpdateDataset(c *gin.Context) {
 			return
 		}
 
+		// Process injection references (ID or name) - batch query for better performance
+		var injectionIDs []int
+		// Collect IDs and names for batch query
+		var ids []int
+		var names []string
+		for _, ref := range req.InjectionRefs {
+			if ref.ID != nil {
+				ids = append(ids, *ref.ID)
+			} else if ref.Name != nil {
+				names = append(names, *ref.Name)
+			} else {
+				tx.Rollback()
+				dto.ErrorResponse(c, http.StatusBadRequest, "Injection reference must specify either ID or name")
+				return
+			}
+		}
+
+		// Batch query injections
+		injections, err := repository.GetInjectionsByIDsAndNames(ids, names)
+		if err != nil {
+			tx.Rollback()
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to query injections: "+err.Error())
+			return
+		}
+
+		// Create maps for quick lookup
+		idMap := make(map[int]*database.FaultInjectionSchedule)
+		nameMap := make(map[string]*database.FaultInjectionSchedule)
+		for i := range injections {
+			injection := &injections[i]
+			idMap[injection.ID] = injection
+			nameMap[injection.InjectionName] = injection
+		}
+
+		// Process each reference and collect valid IDs
+		for _, ref := range req.InjectionRefs {
+			var injection *database.FaultInjectionSchedule
+			var injectionID int
+
+			if ref.ID != nil {
+				injection = idMap[*ref.ID]
+				if injection == nil {
+					tx.Rollback()
+					dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Injection with ID %d not found", *ref.ID))
+					return
+				}
+				injectionID = injection.ID
+			} else if ref.Name != nil {
+				injection = nameMap[*ref.Name]
+				if injection == nil {
+					tx.Rollback()
+					dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Injection with name '%s' not found", *ref.Name))
+					return
+				}
+				injectionID = injection.ID
+			}
+
+			injectionIDs = append(injectionIDs, injectionID)
+		}
+
 		// Add new associations
-		for _, injectionID := range req.InjectionIDs {
+		for _, injectionID := range injectionIDs {
 			relation := &database.DatasetFaultInjection{
 				DatasetID:        dataset.ID,
 				FaultInjectionID: injectionID,
