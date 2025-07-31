@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/LGU-SE-Internal/rcabench/consts"
@@ -526,6 +527,41 @@ func GetInjectionByIDV2(id int) (*database.FaultInjectionSchedule, error) {
 		return nil, err
 	}
 	return &injection, nil
+}
+
+// GetInjectionsByIDsAndNames gets injections by IDs and names in batch
+func GetInjectionsByIDsAndNames(ids []int, names []string) ([]database.FaultInjectionSchedule, error) {
+	var injections []database.FaultInjectionSchedule
+
+	query := database.DB.Model(&database.FaultInjectionSchedule{})
+
+	// Build OR conditions for IDs and names
+	var conditions []string
+	var args []interface{}
+
+	if len(ids) > 0 {
+		conditions = append(conditions, "id IN ?")
+		args = append(args, ids)
+	}
+
+	if len(names) > 0 {
+		conditions = append(conditions, "injection_name IN ?")
+		args = append(args, names)
+	}
+
+	if len(conditions) == 0 {
+		return injections, nil
+	}
+
+	// Combine conditions with OR
+	whereClause := strings.Join(conditions, " OR ")
+	query = query.Where(whereClause, args...)
+
+	if err := query.Find(&injections).Error; err != nil {
+		return nil, err
+	}
+
+	return injections, nil
 }
 
 // ListInjectionsV2 lists injections with pagination and filtering
