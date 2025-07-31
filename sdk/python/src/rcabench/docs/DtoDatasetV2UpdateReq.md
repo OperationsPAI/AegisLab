@@ -8,7 +8,7 @@ Name | Type | Description | Notes
 **data_source** | **str** | Data source description | [optional] 
 **description** | **str** | Dataset description | [optional] 
 **format** | **str** | Data format | [optional] 
-**injection_ids** | **List[int]** | Update associated fault injection ID list (complete replacement) | [optional] 
+**injection_refs** | [**List[DtoInjectionRef]**](DtoInjectionRef.md) | Update associated fault injection references (complete replacement) | [optional] 
 **is_public** | **bool** | Whether public | [optional] 
 **label_ids** | **List[int]** | Update associated label ID list (complete replacement) | [optional] 
 **name** | **str** | Dataset name | [optional] 

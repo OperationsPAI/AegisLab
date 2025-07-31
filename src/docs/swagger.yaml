@@ -296,6 +296,37 @@ definitions:
       dataset:
         type: string
     type: object
+  dto.AlgorithmExecutionRequest:
+    properties:
+      algorithm:
+        $ref: '#/definitions/dto.AlgorithmItem'
+      datapack:
+        type: string
+      dataset:
+        type: string
+      env_vars:
+        type: object
+      project_name:
+        type: string
+    required:
+    - algorithm
+    - project_name
+    type: object
+  dto.AlgorithmExecutionResponse:
+    properties:
+      algorithm_id:
+        type: integer
+      datapack_id:
+        type: integer
+      dataset_id:
+        type: integer
+      status:
+        type: string
+      task_id:
+        type: string
+      trace_id:
+        type: string
+    type: object
   dto.AlgorithmItem:
     properties:
       image:
@@ -549,6 +580,29 @@ definitions:
         type: integer
       username:
         example: admin
+        type: string
+    type: object
+  dto.BatchAlgorithmExecutionRequest:
+    properties:
+      executions:
+        items:
+          $ref: '#/definitions/dto.AlgorithmExecutionRequest'
+        type: array
+      project_name:
+        type: string
+    required:
+    - executions
+    - project_name
+    type: object
+  dto.BatchAlgorithmExecutionResponse:
+    properties:
+      executions:
+        items:
+          $ref: '#/definitions/dto.AlgorithmExecutionResponse'
+        type: array
+      group_id:
+        type: string
+      message:
         type: string
     type: object
   dto.BatchRelationRequest:
@@ -817,10 +871,10 @@ definitions:
         description: Data format
         maxLength: 50
         type: string
-      injection_ids:
-        description: Associated fault injection ID list
+      injection_refs:
+        description: Associated fault injection references (ID or name)
         items:
-          type: integer
+          $ref: '#/definitions/dto.InjectionRef'
         type: array
       is_public:
         description: Whether public, optional, defaults to false
@@ -839,10 +893,6 @@ definitions:
         items:
           $ref: '#/definitions/dto.DatasetV2LabelCreateReq'
         type: array
-      project_id:
-        description: Project ID
-        minimum: 1
-        type: integer
       type:
         description: Dataset type
         maxLength: 50
@@ -853,7 +903,6 @@ definitions:
         type: string
     required:
     - name
-    - project_id
     - type
     type: object
   dto.DatasetV2InjectionManageReq:
@@ -1070,10 +1119,10 @@ definitions:
         description: Data format
         maxLength: 50
         type: string
-      injection_ids:
-        description: Update associated fault injection ID list (complete replacement)
+      injection_refs:
+        description: Update associated fault injection references (complete replacement)
         items:
-          type: integer
+          $ref: '#/definitions/dto.InjectionRef'
         type: array
       is_public:
         description: Whether public
@@ -1370,6 +1419,22 @@ definitions:
         description: Response generation time
         type: integer
     type: object
+  dto.GenericResponse-dto_AlgorithmExecutionResponse:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.AlgorithmExecutionResponse'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
+        type: integer
+    type: object
   dto.GenericResponse-dto_AlgorithmResultUploadResponse:
     properties:
       code:
@@ -1426,6 +1491,22 @@ definitions:
       data:
         allOf:
         - $ref: '#/definitions/dto.AuditLogResponse'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
+        type: integer
+    type: object
+  dto.GenericResponse-dto_BatchAlgorithmExecutionResponse:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.BatchAlgorithmExecutionResponse'
         description: Generic type data
       message:
         description: Response message
@@ -2398,6 +2479,15 @@ definitions:
       status:
         type: integer
       tag:
+        type: string
+    type: object
+  dto.InjectionRef:
+    properties:
+      id:
+        description: Injection ID
+        type: integer
+      name:
+        description: Injection name
         type: string
     type: object
   dto.InjectionSearchResponse:
@@ -5709,6 +5799,89 @@ paths:
       security:
       - BearerAuth: []
       summary: Upload granularity algorithm results
+      tags:
+      - Algorithms
+  /api/v2/algorithms/execute:
+    post:
+      consumes:
+      - application/json
+      description: Submit algorithm execution task for a single datapack (v1 compatible)
+        or dataset (v2 feature). The system will create execution tasks and return
+        tracking information.
+      parameters:
+      - description: Algorithm execution request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AlgorithmExecutionRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Algorithm execution submitted successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_AlgorithmExecutionResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Project, algorithm, datapack or dataset not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Submit algorithm execution
+      tags:
+      - Algorithms
+  /api/v2/algorithms/execute/batch:
+    post:
+      consumes:
+      - application/json
+      description: Submit multiple algorithm execution tasks in batch. Supports mixing
+        datapack (v1 compatible) and dataset (v2 feature) executions.
+      parameters:
+      - description: Batch algorithm execution request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.BatchAlgorithmExecutionRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Batch algorithm execution submitted successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_BatchAlgorithmExecutionResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Project, algorithm, datapack or dataset not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Submit batch algorithm execution
       tags:
       - Algorithms
   /api/v2/algorithms/search:

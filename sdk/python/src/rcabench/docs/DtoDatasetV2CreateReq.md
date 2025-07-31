@@ -8,12 +8,11 @@ Name | Type | Description | Notes
 **data_source** | **str** | Data source description | [optional] 
 **description** | **str** | Dataset description | [optional] 
 **format** | **str** | Data format | [optional] 
-**injection_ids** | **List[int]** | Associated fault injection ID list | [optional] 
+**injection_refs** | [**List[DtoInjectionRef]**](DtoInjectionRef.md) | Associated fault injection references (ID or name) | [optional] 
 **is_public** | **bool** | Whether public, optional, defaults to false | [optional] 
 **label_ids** | **List[int]** | Associated label ID list | [optional] 
 **name** | **str** | Dataset name | 
 **new_labels** | [**List[DtoDatasetV2LabelCreateReq]**](DtoDatasetV2LabelCreateReq.md) | New label list | [optional] 
-**project_id** | **int** | Project ID | 
 **type** | **str** | Dataset type | 
 **version** | **str** | Dataset version, optional, defaults to v1.0 | [optional] 
 

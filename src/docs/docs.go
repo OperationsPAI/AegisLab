@@ -1719,6 +1719,132 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/algorithms/execute": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Submit algorithm execution task for a single datapack (v1 compatible) or dataset (v2 feature). The system will create execution tasks and return tracking information.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Algorithms"
+                ],
+                "summary": "Submit algorithm execution",
+                "parameters": [
+                    {
+                        "description": "Algorithm execution request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AlgorithmExecutionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Algorithm execution submitted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_AlgorithmExecutionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Project, algorithm, datapack or dataset not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/algorithms/execute/batch": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Submit multiple algorithm execution tasks in batch. Supports mixing datapack (v1 compatible) and dataset (v2 feature) executions.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Algorithms"
+                ],
+                "summary": "Submit batch algorithm execution",
+                "parameters": [
+                    {
+                        "description": "Batch algorithm execution request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.BatchAlgorithmExecutionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Batch algorithm execution submitted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_BatchAlgorithmExecutionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Project, algorithm, datapack or dataset not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/algorithms/search": {
             "post": {
                 "security": [
@@ -6705,6 +6831,53 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.AlgorithmExecutionRequest": {
+            "type": "object",
+            "required": [
+                "algorithm",
+                "project_name"
+            ],
+            "properties": {
+                "algorithm": {
+                    "$ref": "#/definitions/dto.AlgorithmItem"
+                },
+                "datapack": {
+                    "type": "string"
+                },
+                "dataset": {
+                    "type": "string"
+                },
+                "env_vars": {
+                    "type": "object"
+                },
+                "project_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.AlgorithmExecutionResponse": {
+            "type": "object",
+            "properties": {
+                "algorithm_id": {
+                    "type": "integer"
+                },
+                "datapack_id": {
+                    "type": "integer"
+                },
+                "dataset_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "task_id": {
+                    "type": "string"
+                },
+                "trace_id": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.AlgorithmItem": {
             "type": "object",
             "required": [
@@ -7074,6 +7247,41 @@ const docTemplate = `{
                 "username": {
                     "type": "string",
                     "example": "admin"
+                }
+            }
+        },
+        "dto.BatchAlgorithmExecutionRequest": {
+            "type": "object",
+            "required": [
+                "executions",
+                "project_name"
+            ],
+            "properties": {
+                "executions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.AlgorithmExecutionRequest"
+                    }
+                },
+                "project_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.BatchAlgorithmExecutionResponse": {
+            "type": "object",
+            "properties": {
+                "executions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.AlgorithmExecutionResponse"
+                    }
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
                 }
             }
         },
@@ -7447,7 +7655,6 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "name",
-                "project_id",
                 "type"
             ],
             "properties": {
@@ -7466,11 +7673,11 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 50
                 },
-                "injection_ids": {
-                    "description": "Associated fault injection ID list",
+                "injection_refs": {
+                    "description": "Associated fault injection references (ID or name)",
                     "type": "array",
                     "items": {
-                        "type": "integer"
+                        "$ref": "#/definitions/dto.InjectionRef"
                     }
                 },
                 "is_public": {
@@ -7495,11 +7702,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/dto.DatasetV2LabelCreateReq"
                     }
-                },
-                "project_id": {
-                    "description": "Project ID",
-                    "type": "integer",
-                    "minimum": 1
                 },
                 "type": {
                     "description": "Dataset type",
@@ -7816,11 +8018,11 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 50
                 },
-                "injection_ids": {
-                    "description": "Update associated fault injection ID list (complete replacement)",
+                "injection_refs": {
+                    "description": "Update associated fault injection references (complete replacement)",
                     "type": "array",
                     "items": {
-                        "type": "integer"
+                        "$ref": "#/definitions/dto.InjectionRef"
                     }
                 },
                 "is_public": {
@@ -8228,6 +8430,31 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GenericResponse-dto_AlgorithmExecutionResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.AlgorithmExecutionResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GenericResponse-dto_AlgorithmResultUploadResponse": {
             "type": "object",
             "properties": {
@@ -8315,6 +8542,31 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.AuditLogResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_BatchAlgorithmExecutionResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.BatchAlgorithmExecutionResponse"
                         }
                     ]
                 },
@@ -9812,6 +10064,19 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "tag": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.InjectionRef": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "description": "Injection ID",
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "Injection name",
                     "type": "string"
                 }
             }

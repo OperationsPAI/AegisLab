@@ -22,6 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
 from rcabench.openapi.models.dto_dataset_v2_label_create_req import DtoDatasetV2LabelCreateReq
+from rcabench.openapi.models.dto_injection_ref import DtoInjectionRef
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -32,16 +33,15 @@ class DtoDatasetV2CreateReq(BaseModel):
     data_source: Optional[Annotated[str, Field(strict=True, max_length=500)]] = Field(default=None, description="Data source description")
     description: Optional[Annotated[str, Field(strict=True, max_length=1000)]] = Field(default=None, description="Dataset description")
     format: Optional[Annotated[str, Field(strict=True, max_length=50)]] = Field(default=None, description="Data format")
-    injection_ids: Optional[List[StrictInt]] = Field(default=None, description="Associated fault injection ID list")
+    injection_refs: Optional[List[DtoInjectionRef]] = Field(default=None, description="Associated fault injection references (ID or name)")
     is_public: Optional[StrictBool] = Field(default=None, description="Whether public, optional, defaults to false")
     label_ids: Optional[List[StrictInt]] = Field(default=None, description="Associated label ID list")
     name: Annotated[str, Field(strict=True, max_length=255)] = Field(description="Dataset name")
     new_labels: Optional[List[DtoDatasetV2LabelCreateReq]] = Field(default=None, description="New label list")
-    project_id: Annotated[int, Field(strict=True, ge=1)] = Field(description="Project ID")
     type: Annotated[str, Field(strict=True, max_length=50)] = Field(description="Dataset type")
     version: Optional[Annotated[str, Field(strict=True, max_length=50)]] = Field(default=None, description="Dataset version, optional, defaults to v1.0")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["data_source", "description", "format", "injection_ids", "is_public", "label_ids", "name", "new_labels", "project_id", "type", "version"]
+    __properties: ClassVar[List[str]] = ["data_source", "description", "format", "injection_refs", "is_public", "label_ids", "name", "new_labels", "type", "version"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -84,6 +84,13 @@ class DtoDatasetV2CreateReq(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in injection_refs (list)
+        _items = []
+        if self.injection_refs:
+            for _item_injection_refs in self.injection_refs:
+                if _item_injection_refs:
+                    _items.append(_item_injection_refs.to_dict())
+            _dict['injection_refs'] = _items
         # override the default output from pydantic by calling `to_dict()` of each item in new_labels (list)
         _items = []
         if self.new_labels:
@@ -111,12 +118,11 @@ class DtoDatasetV2CreateReq(BaseModel):
             "data_source": obj.get("data_source"),
             "description": obj.get("description"),
             "format": obj.get("format"),
-            "injection_ids": obj.get("injection_ids"),
+            "injection_refs": [DtoInjectionRef.from_dict(_item) for _item in obj["injection_refs"]] if obj.get("injection_refs") is not None else None,
             "is_public": obj.get("is_public"),
             "label_ids": obj.get("label_ids"),
             "name": obj.get("name"),
             "new_labels": [DtoDatasetV2LabelCreateReq.from_dict(_item) for _item in obj["new_labels"]] if obj.get("new_labels") is not None else None,
-            "project_id": obj.get("project_id"),
             "type": obj.get("type"),
             "version": obj.get("version")
         })

@@ -11,11 +11,11 @@
 # 基础配置
 DEFAULT_REPO ?= 10.10.10.240/library
 NS          ?= exp
-TS_NS       ?= ts
+NS_PREFIX	?= ts
 PORT        ?= 30080
 
 # 目录配置
-CONTROLLER_DIR = src
+SRC_DIR = src
 SDK_DIR = sdk/python-gen
 
 # Chaos类型配置
@@ -33,8 +33,8 @@ RESET   := \033[0m
 # =============================================================================
 # 声明所有非文件目标
 # =============================================================================
-.PHONY: help build run debug swagger import clean-finalizer delete-chaos k8s-resources ports \
-        install-hooks git-sync upgrade-dep deploy-ts swag-init generate-sdk release \
+.PHONY: help build run debug swagger import clean-finalizers delete-all-chaos k8s-resources ports \
+        install-hooks deploy-ts swag-init generate-sdk release \
         check-prerequisites setup-dev-env clean-all status logs
 
 # =============================================================================
@@ -47,7 +47,7 @@ RESET   := \033[0m
 # =============================================================================
 help:  ## 📖 显示所有可用命令
 	@echo "$(BLUE)╔══════════════════════════════════════════════════════════════╗$(RESET)"
-	@echo "$(BLUE)║                    RCABench 项目管理工具                      ║$(RESET)"
+	@echo "$(BLUE)║                    RCABench 项目管理工具                     ║$(RESET)"
 	@echo "$(BLUE)╚══════════════════════════════════════════════════════════════╝$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)使用方法:$(RESET) make $(CYAN)<目标名称>$(RESET)"
@@ -95,8 +95,6 @@ setup-dev-env: check-prerequisites ## 🛠️ 设置开发环境
 	@echo "$(BLUE)🛠️ 设置开发环境...$(RESET)"
 	@echo "$(GRAY)安装 Git hooks...$(RESET)"
 	@$(MAKE) install-hooks
-	@echo "$(GRAY)同步 Git 子模块...$(RESET)"
-	@$(MAKE) git-sync
 	@echo "$(GREEN)✅ 开发环境设置完成！$(RESET)"
 
 # =============================================================================
@@ -117,7 +115,8 @@ run: check-prerequisites ## 🚀 构建并部署应用 (使用 skaffold)
 	$(MAKE) wait-for-deployment
 	@echo "$(GREEN)🎉 部署完成！$(RESET)"
 
-wait-for-deployment: ## ⏳ 等待部署就绪
+## 等待部署就绪
+wait-for-deployment: 
 	@echo "$(BLUE)⏳ 等待所有部署就绪...$(RESET)"
 	kubectl wait --for=condition=available --timeout=300s deployment --all -n $(NS)
 	@echo "$(GREEN)✅ 所有部署已就绪$(RESET)"
@@ -131,7 +130,8 @@ build: ## 🔨 仅构建应用 (不部署)
 # 数据库管理
 # =============================================================================
 
-check-postgres: ## 🗄️ 检查 PostgreSQL 状态
+## 检查 PostgreSQL 状态
+check-postgres: 
 	@echo "$(BLUE)🔍 检查 PostgreSQL 状态...$(RESET)"
 	@if kubectl get pods -n $(NS) -l app=rcabench-postgres --field-selector=status.phase=Running | grep -q rcabench-postgres; then \
 		echo "$(GREEN)✅ PostgreSQL 正在运行$(RESET)"; \
@@ -176,16 +176,29 @@ db-reset: ## 🗑️ 重置 PostgreSQL 数据库 (⚠️ 将删除所有数据)
 # 开发工具
 # =============================================================================
 
-local-debug: ## 🐛 启动本地调试环境 (数据库 + 控制器)
-	@echo "$(BLUE)🐛 启动本地调试环境...$(RESET)"
+local-debug: ## 🐛 启动本地调试环境
+	@echo "$(BLUE)🚀 启动基础服务...$(RESET)"
 	docker compose down && \
-	docker compose up redis postgres jaeger buildkitd -d && \
-	kubectl delete jobs --all -n $(NS) && \
-	cd $(CONTROLLER_DIR) && go run main.go both --port 8082
+	docker compose up redis postgres jaeger buildkitd -d
+	@echo "$(BLUE)🧹 清理 Kubernetes Jobs...$(RESET)"
+	kubectl delete jobs --all -n $(NS)
+	# @echo "$(BLUE)📦 从正式环境备份 Redis...$(RESET)"
+	# $(MAKE) -C scripts/hack/backup_redis restore-local
+	@echo "$(BLUE)🗄️ 从正式环境备份数据库...$(RESET)"
+	$(MAKE) -C scripts/hack/backup_psql restore-local
+	@echo "$(GREEN)✅ 环境准备完成！$(RESET)"
+	@read -p "是否现在启动本地应用 (y/N)" start_app; \
+	if [ "$$start_app" = "n" ] || [ "$$start_app" = "N" ]; then \
+		echo "$(YELLOW)⏸️  本地应用未启动，你可以稍后手动启动: $(RESET)"; \
+		echo "$(GRAY)cd $(SRC_DIR) && go run main.go both --port 8082$(RESET)"; \
+	else \
+		echo "$(BLUE)⌛️ 启动本地应用...$(RESET)"; \
+		cd $(SRC_DIR) && go run main.go both --port 8082; \
+	fi
 
 import: ## 📦 导入最新版本的 chaos-experiment 库
 	@echo "$(BLUE)📦 导入最新版本的 chaos-experiment 库...$(RESET)"
-	cd $(CONTROLLER_DIR) && \
+	cd $(SRC_DIR) && \
 	go get -u github.com/LGU-SE-Internal/chaos-experiment@injectionv2 && \
 	go mod tidy
 	@echo "$(GREEN)✅ 依赖更新完成$(RESET)"
@@ -194,22 +207,48 @@ import: ## 📦 导入最新版本的 chaos-experiment 库
 # Chaos 管理
 # =============================================================================
 
-clean-finalizer: ## 🧹 清理指定 chaos 类型的 finalizer
-	@echo "$(BLUE)🧹 清理 chaos finalizer...$(RESET)"
-	@for type in $(CHAOS_TYPES); do \
-		echo "$(GRAY)清理 $$type...$(RESET)"; \
-		kubectl get $$type -n $(NS) -o jsonpath='{range .items[*]}{.metadata.namespace}{":"}{.metadata.name}{"\n"}{end}' | \
-		while IFS=: read -r ns name; do \
-			[ -n "$$name" ] && kubectl patch $$type "$$name" -n "$$ns" --type=merge -p '{"metadata":{"finalizers":[]}}'; \
+define get_target_namespaces
+    kubectl get namespaces -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | tr ' ' '\n' | grep "^$(NS_PREFIX)[0-9]$$" | sort
+endef
+
+clean-finalizers: ## 🧹 清理所有 chaos 资源的finalizer
+	@echo "$(BLUE)🧹 清理 chaos finalizers...$(RESET)"
+	@echo "$(GRAY)动态获取以 $(NS_PREFIX) 为前缀的命名空间...$(RESET)"
+	@namespaces=$$($(call get_target_namespaces)); \
+	echo "$(CYAN)找到以下命名空间:$(RESET)"; \
+	for ns in $$namespaces; do \
+		echo "  - $$ns"; \
+	done; \
+	echo "$(GRAY)总计: $$(echo "$$namespaces" | wc -w) 个命名空间$(RESET)"; \
+	echo ""; \
+	for ns in $$namespaces; do \
+		echo "$(BLUE)🔄 处理命名空间: $$ns$(RESET)"; \
+		for type in $(CHAOS_TYPES); do \
+			echo "$(GRAY)清理 $$type...$(RESET)"; \
+			kubectl get $$type -n $$ns -o jsonpath='{range .items[*]}{.metadata.namespace}{":"}{.metadata.name}{"\n"}{end}' | \
+			while IFS=: read -r ns name; do \
+				[ -n "$$name" ] && kubectl patch $$type "$$name" -n "$$ns" --type=merge -p '{"metadata":{"finalizers":[]}}'; \
+			done; \
 		done; \
 	done
 	@echo "$(GREEN)✅ Finalizer 清理完成$(RESET)"
 
-delete-chaos: ## 🗑️ 删除指定 chaos 类型
+delete-all-chaos: ## 🗑️ 删除所有 chaos 资源
 	@echo "$(BLUE)🗑️ 删除 chaos 资源...$(RESET)"
-	@for type in $(CHAOS_TYPES); do \
-		echo "$(GRAY)删除 $$type...$(RESET)"; \
-		kubectl delete $$type --all -n $(NS); \
+	@echo "$(GRAY)动态获取以 $(NS_PREFIX) 为前缀的命名空间...$(RESET)"
+	@namespaces=$$($(call get_target_namespaces)); \
+	echo "$(CYAN)找到以下命名空间:$(RESET)"; \
+	for ns in $$namespaces; do \
+		echo "  - $$ns"; \
+	done; \
+	echo "$(GRAY)总计: $$(echo "$$namespaces" | wc -w) 个命名空间$(RESET)"; \
+	echo ""; \
+	for ns in $$namespaces; do \
+		echo "$(BLUE)🔄 处理命名空间: $$ns$(RESET)"; \
+		for type in $(CHAOS_TYPES); do \
+			echo "$(GRAY)删除 $$type...$(RESET)"; \
+			kubectl delete $$type --all -n $$ns; \
+		done; \
 	done
 	@echo "$(GREEN)✅ Chaos 资源删除完成$(RESET)"
 
@@ -257,34 +296,24 @@ install-hooks: ## 🔧 安装 pre-commit hooks
 	chmod +x .git/hooks/pre-commit
 	@echo "$(GREEN)✅ Git hooks 安装完成$(RESET)"
 
-git-sync: ## 🔄 同步 Git 子模块
-	@echo "$(BLUE)🔄 同步 Git 子模块...$(RESET)"
-	git submodule update --init --recursive --remote
-	@echo "$(GREEN)✅ Git 子模块同步完成$(RESET)"
-
-upgrade-dep: git-sync ## ⬆️ 升级 Git 子模块到最新主分支
-	@echo "$(BLUE)⬆️ 升级依赖到最新版本...$(RESET)"
-	@git submodule foreach 'branch=$$(git config -f $$toplevel/.gitmodules submodule.$$name.branch || echo main); \
-		echo "$(GRAY)更新 $$name 到分支: $$branch$(RESET)"; \
-		git checkout $$branch && git pull origin $$branch'
-	@echo "$(GREEN)✅ 依赖升级完成$(RESET)"
-
 # =============================================================================
 # SDK 生成
 # =============================================================================
 
 swagger: swag-init generate-sdk ## 📚 生成完整的 Swagger 文档和 SDK
 
-swag-init: ## 📝 初始化 Swagger 文档
+## 初始化 Swagger 文档
+swag-init:
 	@echo "$(BLUE)📝 初始化 Swagger 文档...$(RESET)"
-	swag init -d ./$(CONTROLLER_DIR) --parseDependency --parseDepth 1 --output ./$(CONTROLLER_DIR)/docs
+	swag init -d ./$(SRC_DIR) --parseDependency --parseDepth 1 --output ./$(SRC_DIR)/docs
 	@echo "$(GREEN)✅ Swagger 文档生成完成$(RESET)"
 
-generate-sdk: swag-init ## 🐍 从 Swagger 文档生成 Python SDK
+## 从 Swagger 文档生成 Python SDK
+generate-sdk: swag-init
 	@echo "$(BLUE)🐍 生成 Python SDK...$(RESET)"
 	docker run --rm -u $(shell id -u):$(shell id -g) -v $(shell pwd):/local \
 		openapitools/openapi-generator-cli:latest generate \
-		-i /local/$(CONTROLLER_DIR)/docs/swagger.json \
+		-i /local/$(SRC_DIR)/docs/swagger.json \
 		-g python \
 		-o /local/$(SDK_DIR) \
 		-c /local/.openapi-generator/config.properties \
@@ -358,13 +387,13 @@ scale: ## 📏 扩展部署 (用法: make scale DEPLOYMENT=app REPLICAS=3)
 
 info: ## ℹ️ 显示项目信息
 	@echo "$(BLUE)╔══════════════════════════════════════════════════════════════╗$(RESET)"
-	@echo "$(BLUE)║                        RCABench 项目信息                      ║$(RESET)"
+	@echo "$(BLUE)║                        RCABench 项目信息                     ║$(RESET)"
 	@echo "$(BLUE)╚══════════════════════════════════════════════════════════════╝$(RESET)"
 	@echo "$(YELLOW)配置信息:$(RESET)"
 	@echo "  $(CYAN)默认仓库:$(RESET) $(DEFAULT_REPO)"
 	@echo "  $(CYAN)命名空间:$(RESET) $(NS)"
 	@echo "  $(CYAN)端口:$(RESET) $(PORT)"
-	@echo "  $(CYAN)控制器目录:$(RESET) $(CONTROLLER_DIR)"
+	@echo "  $(CYAN)控制器目录:$(RESET) $(SRC_DIR)"
 	@echo "  $(CYAN)SDK 目录:$(RESET) $(SDK_DIR)"
 	@echo ""
 	@echo "$(YELLOW)Chaos 类型:$(RESET)"
