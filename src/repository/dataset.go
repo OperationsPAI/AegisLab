@@ -19,7 +19,7 @@ func CreateDataset(dataset *database.Dataset) error {
 // GetDatasetByID gets dataset by ID
 func GetDatasetByID(id int) (*database.Dataset, error) {
 	var dataset database.Dataset
-	if err := database.DB.Preload("Project").First(&dataset, id).Error; err != nil {
+	if err := database.DB.Where("id = ? AND status != -1", id).First(&dataset).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("dataset with id %d not found", id)
 		}
@@ -31,8 +31,8 @@ func GetDatasetByID(id int) (*database.Dataset, error) {
 // GetDatasetByNameAndVersion gets dataset by name and version
 func GetDatasetByNameAndVersion(name, version string) (*database.Dataset, error) {
 	var dataset database.Dataset
-	if err := database.DB.Preload("Project").
-		Where("name = ? AND version = ?", name, version).
+	if err := database.DB.
+		Where("name = ? AND version = ? AND status != -1", name, version).
 		First(&dataset).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("dataset '%s:%s' not found", name, version)
@@ -59,18 +59,14 @@ func DeleteDataset(id int) error {
 }
 
 // ListDatasets gets dataset list
-func ListDatasets(page, pageSize int, projectID *int, datasetType string, status *int, isPublic *bool) ([]database.Dataset, int64, error) {
+func ListDatasets(page, pageSize int, datasetType string, status *int, isPublic *bool) ([]database.Dataset, int64, error) {
 	var datasets []database.Dataset
 	var total int64
 
-	query := database.DB.Model(&database.Dataset{}).Preload("Project")
+	query := database.DB.Model(&database.Dataset{})
 
 	if status != nil {
 		query = query.Where("status = ?", *status)
-	}
-
-	if projectID != nil {
-		query = query.Where("project_id = ?", *projectID)
 	}
 
 	if datasetType != "" {
@@ -191,7 +187,8 @@ func SearchDatasetsByLabels(labelKeys []string, labelValues []string) ([]databas
 
 	query := database.DB.Model(&database.Dataset{}).
 		Joins("JOIN dataset_labels ON datasets.id = dataset_labels.dataset_id").
-		Joins("JOIN labels ON dataset_labels.label_id = labels.id")
+		Joins("JOIN labels ON dataset_labels.label_id = labels.id").
+		Where("datasets.status != -1")
 
 	if len(labelKeys) > 0 {
 		query = query.Where("labels.key IN ?", labelKeys)
@@ -279,4 +276,55 @@ func GetDatasetTotalSize() (int64, error) {
 		return 0, fmt.Errorf("failed to calculate dataset total size: %v", err)
 	}
 	return totalSize, nil
+}
+
+// RemoveAllLabelsFromDataset removes all labels from dataset
+func RemoveAllLabelsFromDataset(datasetID int) error {
+	// Get all label IDs for this dataset to update usage count
+	var labelIDs []int
+	if err := database.DB.Model(&database.DatasetLabel{}).
+		Where("dataset_id = ?", datasetID).
+		Pluck("label_id", &labelIDs).Error; err != nil {
+		return fmt.Errorf("failed to get label IDs: %v", err)
+	}
+
+	// Delete all label associations
+	if err := database.DB.Where("dataset_id = ?", datasetID).
+		Delete(&database.DatasetLabel{}).Error; err != nil {
+		return fmt.Errorf("failed to remove all labels from dataset: %v", err)
+	}
+
+	// Update usage count for all affected labels
+	if len(labelIDs) > 0 {
+		if err := database.DB.Model(&database.Label{}).
+			Where("id IN ?", labelIDs).
+			UpdateColumn("usage", gorm.Expr("usage - 1")).Error; err != nil {
+			return fmt.Errorf("failed to update label usage: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// RemoveAllInjectionsFromDataset removes all fault injections from dataset
+func RemoveAllInjectionsFromDataset(datasetID int) error {
+	if err := database.DB.Where("dataset_id = ?", datasetID).
+		Delete(&database.DatasetFaultInjection{}).Error; err != nil {
+		return fmt.Errorf("failed to remove all injections from dataset: %v", err)
+	}
+	return nil
+}
+
+// GetDeletedDatasetByNameAndVersion gets deleted dataset by name and version
+func GetDeletedDatasetByNameAndVersion(name, version string) (*database.Dataset, error) {
+	var dataset database.Dataset
+	if err := database.DB.
+		Where("name = ? AND version = ? AND status = -1", name, version).
+		First(&dataset).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("deleted dataset '%s:%s' not found", name, version)
+		}
+		return nil, fmt.Errorf("failed to get deleted dataset: %v", err)
+	}
+	return &dataset, nil
 }

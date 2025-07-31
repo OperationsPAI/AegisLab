@@ -175,7 +175,6 @@ func (opts *BuildOptions) Validate() error {
 }
 
 type SubmitContainerBuildingReq struct {
-	ProjectName   string               `json:"project_name" binding:"required"`
 	ContainerType consts.ContainerType `json:"type" binding:"required,oneof=algorithm benchmark"`
 	Name          string               `json:"name" binding:"required"`
 	Image         string               `json:"image" binding:"required"`
@@ -187,10 +186,6 @@ type SubmitContainerBuildingReq struct {
 }
 
 func (req *SubmitContainerBuildingReq) Validate() error {
-	if req.ProjectName == "" {
-		return fmt.Errorf("project_name is required")
-	}
-
 	if req.ContainerType != "" {
 		if _, exists := ValidContainerTypes[req.ContainerType]; !exists {
 			return fmt.Errorf("Invalid container type: %s", req.ContainerType)

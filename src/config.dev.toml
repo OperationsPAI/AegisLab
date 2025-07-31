@@ -17,7 +17,7 @@ benchmark = ["clickhouse"]
 target_label_key = "app"
 
 [injection.namespace_config.ts]
-count = 4
+count = 6
 port = "31%03d"
 chart_name = "trainticket"
 repo_name = "train-ticket"

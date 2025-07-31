@@ -155,16 +155,12 @@ type DatasetResponse struct {
 	FileCount   int       `json:"file_count"`
 	DataSource  string    `json:"data_source"`
 	Format      string    `json:"format"`
-	ProjectID   int       `json:"project_id"`
 	Status      int       `json:"status"`
 	IsPublic    bool      `json:"is_public"`
 	DownloadURL string    `json:"download_url,omitempty"`
 	Checksum    string    `json:"checksum,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
-
-	// Related entities (only included when specifically requested)
-	Project *ProjectResponse `json:"project,omitempty"`
 }
 
 // TaskDetailResponse represents detailed task response including logs
