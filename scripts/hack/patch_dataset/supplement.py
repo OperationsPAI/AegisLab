@@ -1,6 +1,6 @@
 #!/usr/bin/env -S uv run -s
-import psycopg
-from psycopg.rows import dict_row
+import mysql.connector
+from mysql.connector import Error
 from rcabench.rcabench import RCABenchSDK
 from rcabench.openapi.api_client import ApiClient, Configuration
 from rcabench.openapi import (
@@ -19,16 +19,17 @@ import shutil
 import json
 import uuid
 from datetime import datetime
+from typing import Dict, Any, Optional, Union
 
 app = typer.Typer()
 
 
-def connect_postgresql(host: str, user: str, password: str, dbname: str, port: int):
-    return psycopg.connect(
+def connect_mysql(host: str, user: str, password: str, dbname: str, port: int):
+    return mysql.connector.connect(
         host=host,
         user=user,
         password=password,
-        dbname=dbname,
+        database=dbname,
         port=port,
     )
 
@@ -38,11 +39,11 @@ def dataset(
     base_url: str = typer.Option(
         "http://10.10.10.220:32080", help="RCABench 服务的 base URL"
     ),
-    db_host: str = typer.Option("10.10.10.220", help="PostgreSQL 数据库主机"),
-    db_user: str = typer.Option("postgres", help="PostgreSQL 用户名"),
-    db_password: str = typer.Option("yourpassword", help="PostgreSQL 密码"),
-    db_name: str = typer.Option("rcabench", help="PostgreSQL 数据库名"),
-    db_port: int = typer.Option(32432, help="PostgreSQL 端口"),
+    db_host: str = typer.Option("10.10.10.220", help="MySQL 数据库主机"),
+    db_user: str = typer.Option("root", help="MySQL 用户名"),
+    db_password: str = typer.Option("yourpassword", help="MySQL 密码"),
+    db_name: str = typer.Option("rcabench", help="MySQL 数据库名"),
+    db_port: int = typer.Option(32206, help="MySQL 端口"),
     sleep_time: int = typer.Option(30, help="每次提交后的等待时间（秒）"),
 ):
     configuration: Configuration = Configuration(host=base_url)
@@ -50,17 +51,17 @@ def dataset(
     with ApiClient(configuration=configuration) as client:
         api = DatasetApi(api_client=client)
         try:
-            with connect_postgresql(
+            with connect_mysql(
                 db_host, db_user, db_password, db_name, db_port
             ) as connection:
-                print("✅ 成功连接到 PostgreSQL")
+                print("✅ 成功连接到 MySQL")
 
-                with connection.cursor(row_factory=dict_row) as cursor:
+                with connection.cursor(dictionary=True) as cursor:
                     # 获取版本信息
                     cursor.execute("SELECT VERSION() as version")
-                    version_info = cursor.fetchone()
-                    assert version_info, "未能获取 PostgreSQL版本信息"
-                    print(f"📋 PostgreSQL版本: {version_info['version']}")
+                    version_info: Optional[Dict[str, Any]] = cursor.fetchone()
+                    assert version_info, "未能获取 MySQL版本信息"
+                    print(f"📋 MySQL版本: {version_info['version']}")
 
                     # 执行主查询
                     query = """
@@ -77,7 +78,7 @@ def dataset(
 
                 for index, row in enumerate(rows, 1):
                     injection_id = row["id"]
-                    injection_name = row["injection_name"]
+                    injection_name = str(row["injection_name"])
 
                     print(
                         f"处理第 {index}/{len(rows)} 条：ID={injection_id}, Name={injection_name}"
@@ -112,8 +113,8 @@ def dataset(
                     print(f"  ⏳ 等待 {sleep_time} 秒...")
                     time.sleep(sleep_time)
 
-        except psycopg.Error as e:
-            print(f"❌ PostgreSQL错误：{e}")
+        except Error as e:
+            print(f"❌ MySQL错误：{e}")
             raise typer.Exit(1)
 
         except Exception as e:
@@ -126,11 +127,11 @@ def detector(
     base_url: str = typer.Option(
         "http://10.10.10.220:32080", help="RCABench 服务的 base URL"
     ),
-    db_host: str = typer.Option("10.10.10.220", help="PostgreSQL 数据库主机"),
-    db_user: str = typer.Option("postgres", help="PostgreSQL 用户名"),
-    db_password: str = typer.Option("yourpassword", help="PostgreSQL 密码"),
-    db_name: str = typer.Option("rcabench", help="PostgreSQL 数据库名"),
-    db_port: int = typer.Option(32432, help="PostgreSQL 端口"),
+    db_host: str = typer.Option("10.10.10.220", help="MySQL 数据库主机"),
+    db_user: str = typer.Option("root", help="MySQL 用户名"),
+    db_password: str = typer.Option("yourpassword", help="MySQL 密码"),
+    db_name: str = typer.Option("rcabench", help="MySQL 数据库名"),
+    db_port: int = typer.Option(32206, help="MySQL 端口"),
     sleep_time: int = typer.Option(10, help="每次提交后的等待时间（秒）"),
     detector_image: str = typer.Option("detector", help="检测器镜像名称"),
     # detector_tag: str = typer.Option("latest", help="检测器镜像标签"),
@@ -141,17 +142,17 @@ def detector(
         api = AlgorithmApi(api_client=client)
 
         try:
-            with connect_postgresql(
+            with connect_mysql(
                 db_host, db_user, db_password, db_name, db_port
             ) as connection:
-                print("✅ 成功连接到 PostgreSQL")
+                print("✅ 成功连接到 MySQL")
 
-                with connection.cursor(row_factory=dict_row) as cursor:
+                with connection.cursor(dictionary=True) as cursor:
                     # 获取版本信息
                     cursor.execute("SELECT VERSION() as version")
-                    version_info = cursor.fetchone()
-                    assert version_info, "未能获取 PostgreSQL版本信息"
-                    print(f"📋 PostgreSQL版本: {version_info['version']}")
+                    version_info: Optional[Dict[str, Any]] = cursor.fetchone()
+                    assert version_info, "未能获取 MySQL版本信息"
+                    print(f"📋 MySQL版本: {version_info['version']}")
 
                     query = """
                     SELECT id, injection_name 
@@ -172,7 +173,7 @@ def detector(
 
                 for index, row in enumerate(rows, 1):
                     injection_id = row["id"]
-                    injection_name = row["injection_name"]
+                    injection_name = str(row["injection_name"])
 
                     print(
                         f"处理第 {index}/{len(rows)} 条：ID={injection_id}, Name={injection_name}"
@@ -199,8 +200,8 @@ def detector(
                     print(f"  ⏳ 等待 {sleep_time} 秒...")
                     time.sleep(sleep_time)
 
-        except psycopg.Error as e:
-            print(f"❌ PostgreSQL错误：{e}")
+        except Error as e:
+            print(f"❌ MySQL错误：{e}")
             raise typer.Exit(1)
 
         except Exception as e:
@@ -210,11 +211,11 @@ def detector(
 
 @app.command()
 def align_db(
-    db_host: str = typer.Option("10.10.10.220", help="PostgreSQL 数据库主机"),
-    db_user: str = typer.Option("postgres", help="PostgreSQL 用户名"),
-    db_password: str = typer.Option("yourpassword", help="PostgreSQL 密码"),
-    db_name: str = typer.Option("rcabench", help="PostgreSQL 数据库名"),
-    db_port: int = typer.Option(32432, help="PostgreSQL 端口"),
+    db_host: str = typer.Option("10.10.10.220", help="MySQL 数据库主机"),
+    db_user: str = typer.Option("root", help="MySQL 用户名"),
+    db_password: str = typer.Option("yourpassword", help="MySQL 密码"),
+    db_name: str = typer.Option("rcabench", help="MySQL 数据库名"),
+    db_port: int = typer.Option(32206, help="MySQL 端口"),
 ):
     path = "/mnt/jfs/rcabench_dataset"
 
@@ -231,14 +232,12 @@ def align_db(
         print(f"⚠️ 路径不存在: {path}")
         return
 
-    with connect_postgresql(
-        db_host, db_user, db_password, db_name, db_port
-    ) as connection:
-        with connection.cursor(row_factory=dict_row) as cursor:
+    with connect_mysql(db_host, db_user, db_password, db_name, db_port) as connection:
+        with connection.cursor(dictionary=True) as cursor:
             cursor.execute("SELECT VERSION() as version")
-            version_info = cursor.fetchone()
-            assert version_info, "未能获取 PostgreSQL版本信息"
-            print(f"📋 PostgreSQL版本: {version_info['version']}")
+            version_info: Optional[Dict[str, Any]] = cursor.fetchone()
+            assert version_info, "未能获取 MySQL版本信息"
+            print(f"📋 MySQL版本: {version_info['version']}")
 
             query = """
             SELECT id, injection_name 
@@ -255,7 +254,7 @@ def align_db(
             database_datasets = []
             for row in rows:
                 injection_id = row["id"]
-                injection_name = row["injection_name"]
+                injection_name = str(row["injection_name"])
                 database_datasets.append(injection_name)
 
                 if injection_name not in local_datasets:
@@ -301,13 +300,15 @@ def align_db(
                             """
 
                             # 准备数据并进行类型转换
-                            def safe_get(data, key, default=None):
+                            def safe_get(
+                                data: Dict[str, Any], key: str, default: Any = None
+                            ) -> Any:
                                 value = data.get(key, default)
                                 if value is None:
                                     return None
                                 return value
 
-                            def parse_timestamp(timestamp_str):
+                            def parse_timestamp(timestamp_str: Any) -> Any:
                                 if timestamp_str is None:
                                     return None
                                 try:
