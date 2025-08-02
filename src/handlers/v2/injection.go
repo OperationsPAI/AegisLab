@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/repository"
@@ -29,23 +28,6 @@ import (
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/injections/{id} [get]
 func GetInjection(c *gin.Context) {
-	// Check permission
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canRead, err := checker.CanReadResource(consts.ResourceFaultInjection)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read injections")
-		return
-	}
 
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -92,23 +74,6 @@ func GetInjection(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/injections [post]
 func CreateInjection(c *gin.Context) {
-	// Check permission
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canWrite, err := checker.CanWriteResource(consts.ResourceFaultInjection)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-	if !canWrite {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to create injections")
-		return
-	}
 
 	var req dto.InjectionV2CreateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -175,23 +140,6 @@ func CreateInjection(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/injections [get]
 func ListInjections(c *gin.Context) {
-	// Check permission
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canRead, err := checker.CanReadResource(consts.ResourceFaultInjection)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read injections")
-		return
-	}
 
 	var req dto.InjectionV2ListReq
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -260,23 +208,6 @@ func ListInjections(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/injections/{id} [put]
 func UpdateInjection(c *gin.Context) {
-	// Check permission
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canUpdate, err := checker.CanWriteResource(consts.ResourceFaultInjection)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-	if !canUpdate {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to update injections")
-		return
-	}
 
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -375,23 +306,6 @@ func UpdateInjection(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/injections/{id} [delete]
 func DeleteInjection(c *gin.Context) {
-	// Check permission
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canDelete, err := checker.CanDeleteResource(consts.ResourceFaultInjection)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-	if !canDelete {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to delete injections")
-		return
-	}
 
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -434,23 +348,6 @@ func DeleteInjection(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/injections/search [post]
 func SearchInjections(c *gin.Context) {
-	// Check permission
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canRead, err := checker.CanReadResource(consts.ResourceFaultInjection)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read injections")
-		return
-	}
 
 	var req dto.InjectionV2SearchReq
 	if err := c.ShouldBindJSON(&req); err != nil {

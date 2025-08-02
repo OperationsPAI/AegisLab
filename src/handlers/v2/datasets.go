@@ -29,23 +29,6 @@ import (
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/datasets [post]
 func CreateDataset(c *gin.Context) {
-	// Check permission
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canCreate, err := checker.CanWriteResource(consts.ResourceDataset)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-	if !canCreate {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to create datasets")
-		return
-	}
 
 	var req dto.DatasetV2CreateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -281,23 +264,6 @@ func CreateDataset(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/datasets/{id} [get]
 func GetDataset(c *gin.Context) {
-	// Check permission
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canRead, err := checker.CanReadResource(consts.ResourceDataset)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read datasets")
-		return
-	}
 
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -378,23 +344,6 @@ func GetDataset(c *gin.Context) {
 // @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 // @Router /api/v2/datasets [get]
 func ListDatasets(c *gin.Context) {
-	// Check permission
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canRead, err := checker.CanReadResource(consts.ResourceDataset)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read datasets")
-		return
-	}
 
 	var req dto.DatasetV2ListReq
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -471,23 +420,6 @@ func ListDatasets(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/datasets/{id} [put]
 func UpdateDataset(c *gin.Context) {
-	// Check permission
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canUpdate, err := checker.CanWriteResource(consts.ResourceDataset)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-	if !canUpdate {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to update datasets")
-		return
-	}
 
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -714,23 +646,6 @@ func UpdateDataset(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/datasets/{id} [delete]
 func DeleteDataset(c *gin.Context) {
-	// Check permission
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canDelete, err := checker.CanDeleteResource(consts.ResourceDataset)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-	if !canDelete {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to delete datasets")
-		return
-	}
 
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -773,23 +688,6 @@ func DeleteDataset(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/datasets/search [post]
 func SearchDatasets(c *gin.Context) {
-	// Check permission
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canRead, err := checker.CanReadResource(consts.ResourceDataset)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read datasets")
-		return
-	}
 
 	var req dto.DatasetV2SearchReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -807,6 +705,7 @@ func SearchDatasets(c *gin.Context) {
 
 	var datasets []database.Dataset
 	var total int64
+	var err error
 
 	// Search by labels if provided
 	if len(req.LabelKeys) > 0 || len(req.LabelValues) > 0 {
@@ -884,23 +783,6 @@ func SearchDatasets(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/datasets/{id}/injections [patch]
 func ManageDatasetInjections(c *gin.Context) {
-	// Check permission
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canUpdate, err := checker.CanWriteResource(consts.ResourceDataset)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-	if !canUpdate {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to update datasets")
-		return
-	}
 
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -984,23 +866,6 @@ func ManageDatasetInjections(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/datasets/{id}/labels [patch]
 func ManageDatasetLabels(c *gin.Context) {
-	// Check permission
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canUpdate, err := checker.CanWriteResource(consts.ResourceDataset)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-	if !canUpdate {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to update datasets")
-		return
-	}
 
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)

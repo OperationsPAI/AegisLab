@@ -8376,7 +8376,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "tag": {
-                    "description": "用户自定义标签值",
+                    "description": "user-defined tag",
                     "type": "string"
                 }
             }

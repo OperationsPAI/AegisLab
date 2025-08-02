@@ -471,9 +471,15 @@ func GetExecutionResultLabels(executionID int) ([]database.Label, error) {
 // RemoveExecutionResultLabel removes a specific label from an execution result
 func RemoveExecutionResultLabel(executionID int, labelKey, labelValue string) error {
 
+	// First get the label ID
+	var label database.Label
+	if err := database.DB.Where("label_key = ? AND label_value = ?", labelKey, labelValue).First(&label).Error; err != nil {
+		return fmt.Errorf("label '%s:%s' not found: %v", labelKey, labelValue, err)
+	}
+
+	// Then delete the relationship
 	result := database.DB.
-		Where("execution_id = ? AND label_id IN (SELECT id FROM labels WHERE key = ? AND value = ?)",
-			executionID, labelKey, labelValue).
+		Where("execution_id = ? AND label_id = ?", executionID, label.ID).
 		Delete(&database.ExecutionResultLabel{})
 
 	if result.Error != nil {
@@ -507,6 +513,21 @@ func InitializeExecutionLabels() error {
 	}
 
 	return nil
+}
+
+// applyLabelFilters applies label filters to a GORM query using native GORM joins
+func applyLabelFilters(query *gorm.DB, labelFilters *dto.ExecutionLabelFilters) *gorm.DB {
+	if labelFilters == nil {
+		return query
+	}
+
+	labelMap := labelFilters.ToMap()
+	for labelKey, labelValue := range labelMap {
+		query = query.Joins("JOIN execution_result_labels erl ON erl.execution_id = execution_results.id").
+			Joins("JOIN labels l ON l.id = erl.label_id").
+			Where("l.label_key = ? AND l.label_value = ?", labelKey, labelValue)
+	}
+	return query
 }
 
 // GetAlgorithmDatasetEvaluation retrieves all execution results for a specific algorithm on a specific dataset
@@ -556,13 +577,8 @@ func GetAlgorithmDatasetEvaluation(req dto.AlgorithmDatasetEvaluationReq) (*dto.
 		Where("containers.name = ? AND execution_results.datapack_id IN (?) AND execution_results.status = ?",
 			req.Algorithm, faultInjectionIDs, consts.ExecutionSuccess)
 
-	// Apply label filters if provided
-	if req.LabelFilters != nil {
-		labelMap := req.LabelFilters.ToMap()
-		for labelKey, labelValue := range labelMap {
-			query = query.Where("execution_results.id IN (SELECT execution_id FROM execution_result_labels erl JOIN labels l ON erl.label_id = l.id WHERE l.key = ? AND l.value = ?)", labelKey, labelValue)
-		}
-	}
+	// Apply label filters using the helper function
+	query = applyLabelFilters(query, req.LabelFilters)
 
 	var execResults []struct {
 		database.ExecutionResult
@@ -662,13 +678,8 @@ func GetAlgorithmDatapackEvaluation(req dto.AlgorithmDatapackEvaluationReq) (*dt
 		Where("containers.name = ? AND fault_injection_schedules.injection_name = ? AND execution_results.status = ?",
 			req.Algorithm, req.Datapack, consts.ExecutionSuccess)
 
-	// Apply label filters if provided
-	if req.LabelFilters != nil {
-		labelMap := req.LabelFilters.ToMap()
-		for labelKey, labelValue := range labelMap {
-			query = query.Where("execution_results.id IN (SELECT execution_id FROM execution_result_labels erl JOIN labels l ON erl.label_id = l.id WHERE l.key = ? AND l.value = ?)", labelKey, labelValue)
-		}
-	}
+	// Apply label filters using the helper function
+	query = applyLabelFilters(query, req.LabelFilters)
 
 	// Order by created_at DESC to get the latest execution
 	query = query.Order("execution_results.created_at DESC").Limit(1)
