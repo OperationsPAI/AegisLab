@@ -442,22 +442,13 @@ func AddExecutionResultLabel(executionID int, labelKey, labelValue, description 
 		return fmt.Errorf("failed to create or get label: %v", err)
 	}
 
-	var existingRelation database.ExecutionResultLabel
-	return database.DB.Transaction(func(tx *gorm.DB) error {
-		err := tx.Where("execution_id = ? AND label_id = ?", executionID, label.ID).First(&existingRelation).Error
-		if err == nil {
-			return nil
-		}
+	relation := database.ExecutionResultLabel{
+		ExecutionID: executionID,
+		LabelID:     label.ID,
+	}
 
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("failed to query relation between execution result and label: %v", err)
-		}
-
-		return tx.Create(&database.ExecutionResultLabel{
-			ExecutionID: executionID,
-			LabelID:     label.ID,
-		}).Error
-	})
+	return database.DB.Where("execution_id = ? AND label_id = ?", executionID, label.ID).
+		FirstOrCreate(&relation).Error
 }
 
 // GetExecutionResultLabels retrieves all labels for an execution result
@@ -472,15 +463,21 @@ func GetExecutionResultLabels(executionID int) ([]database.Label, error) {
 
 // RemoveExecutionResultLabel removes a specific label from an execution result
 func RemoveExecutionResultLabel(executionID int, labelKey, labelValue string) error {
-	// Find the label
-	var label database.Label
-	err := database.DB.Where("key = ? AND value = ?", labelKey, labelValue).First(&label).Error
-	if err != nil {
-		return fmt.Errorf("label not found: %v", err)
+	// 直接通过 JOIN 删除关系，避免先查询标签
+	result := database.DB.
+		Where("execution_id = ? AND label_id IN (SELECT id FROM labels WHERE key = ? AND value = ?)",
+			executionID, labelKey, labelValue).
+		Delete(&database.ExecutionResultLabel{})
+
+	if result.Error != nil {
+		return fmt.Errorf("failed to remove execution result label: %v", result.Error)
 	}
 
-	// Remove the relationship
-	return database.DB.Where("execution_id = ? AND label_id = ?", executionID, label.ID).Delete(&database.ExecutionResultLabel{}).Error
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("label relationship '%s:%s' not found for execution %d", labelKey, labelValue, executionID)
+	}
+
+	return nil
 }
 
 // InitializeExecutionLabels initializes system labels for execution results
