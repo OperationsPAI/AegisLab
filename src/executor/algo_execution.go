@@ -164,7 +164,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			return err
 		}
 
-		record, err := repository.GetDatasetByName(payload.dataset, consts.DatasetBuildSuccess)
+		record, err := repository.GetDatasetByName(payload.dataset, consts.DatapackBuildSuccess)
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to query database for dataset")

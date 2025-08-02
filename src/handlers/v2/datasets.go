@@ -93,7 +93,7 @@ func CreateDataset(c *gin.Context) {
 		dataset.Type = req.Type
 		dataset.DataSource = req.DataSource
 		dataset.Format = req.Format
-		dataset.Status = consts.DatasetInjectSuccess
+		dataset.Status = consts.DatasetEnabled
 		dataset.IsPublic = req.IsPublic != nil && *req.IsPublic
 
 		if err := tx.Save(dataset).Error; err != nil {
@@ -123,7 +123,7 @@ func CreateDataset(c *gin.Context) {
 			Type:        req.Type,
 			DataSource:  req.DataSource,
 			Format:      req.Format,
-			Status:      consts.DatasetInjectSuccess,
+			Status:      consts.DatapackInjectSuccess,
 			IsPublic:    req.IsPublic != nil && *req.IsPublic,
 		}
 

@@ -116,7 +116,7 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			DisplayConfig: payload.displayData,
 			EngineConfig:  string(engineData),
 			PreDuration:   payload.preDuration,
-			Status:        consts.DatasetInitial,
+			Status:        consts.DatapackInitial,
 			Description:   fmt.Sprintf("Fault for task %s", task.TaskID),
 			Benchmark:     payload.benchmark,
 			InjectionName: name,

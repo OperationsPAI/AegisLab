@@ -26,7 +26,7 @@ func DeleteDatasetByName(names []string) (int64, []string, error) {
 	var existingNames []string
 	if err := tx.Model(&database.FaultInjectionSchedule{}).
 		Select("injection_name").
-		Where("injection_name IN (?) AND status != ?", names, consts.DatasetDeleted).
+		Where("injection_name IN (?) AND status != ?", names, consts.DatapackDeleted).
 		Pluck("injection_name", &existingNames).
 		Error; err != nil {
 		tx.Rollback()
@@ -41,7 +41,7 @@ func DeleteDatasetByName(names []string) (int64, []string, error) {
 
 	result := tx.Model(&database.FaultInjectionSchedule{}).
 		Where("injection_name IN (?)", existingNames).
-		Update("status", consts.DatasetDeleted)
+		Update("status", consts.DatapackDeleted)
 
 	if result.Error != nil {
 		tx.Rollback()
@@ -52,7 +52,7 @@ func DeleteDatasetByName(names []string) (int64, []string, error) {
 	var failedUpdates []string
 	if err := tx.Model(&database.FaultInjectionSchedule{}).
 		Select("injection_name").
-		Where("injection_name IN (?) AND status != ?", existingNames, consts.DatasetDeleted).
+		Where("injection_name IN (?) AND status != ?", existingNames, consts.DatapackDeleted).
 		Pluck("injection_name", &failedUpdates).
 		Error; err != nil {
 		tx.Rollback()
@@ -96,7 +96,7 @@ func GetDatasetWithGroupIDs(groupIDs []string) ([]dto.DatasetJoinedResult, error
 	if err := database.DB.
 		Model(&database.FaultInjectionSchedule{}).
 		Joins("JOIN tasks ON tasks.id	 = fault_injection_schedules.task_id").
-		Where("tasks.group_id IN ? AND fault_injection_schedules.status = ?", groupIDs, consts.DatasetBuildSuccess).
+		Where("tasks.group_id IN ? AND fault_injection_schedules.status = ?", groupIDs, consts.DatapackBuildSuccess).
 		Select("tasks.group_id, fault_injection_schedules.injection_name").
 		Scan(&results).
 		Error; err != nil {
@@ -117,7 +117,7 @@ func GetDatasetByName(name string, status ...int) (*dto.DatasetItemWithID, error
 	query := database.DB.Where("injection_name = ?", name)
 
 	if len(status) == 0 {
-		query = query.Where("status != ?", consts.DatasetDeleted)
+		query = query.Where("status != ?", consts.DatapackDeleted)
 	} else if len(status) == 1 {
 		query = query.Where("status = ?", status[0])
 	} else {
@@ -191,7 +191,7 @@ func ListExistingDisplayConfigs(configs []string) ([]string, error) {
 	query := database.DB.
 		Model(&database.FaultInjectionSchedule{}).
 		Select("display_config").
-		Where("display_config in (?) AND status = ?", configs, consts.DatasetBuildSuccess)
+		Where("display_config in (?) AND status = ?", configs, consts.DatapackBuildSuccess)
 
 	var existingEngineConfigs []string
 	if err := query.Pluck("engine_config", &existingEngineConfigs).Error; err != nil {
@@ -316,7 +316,7 @@ func UpdateTimeByInjectionName(name string, startTime, endTime time.Time) error 
 	return updateRecord(name, map[string]any{
 		"start_time": startTime,
 		"end_time":   endTime,
-		"status":     consts.DatasetInjectSuccess,
+		"status":     consts.DatapackInjectSuccess,
 	})
 }
 

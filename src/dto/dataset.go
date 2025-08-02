@@ -136,21 +136,21 @@ func (d *DatasetJoinedResult) Convert(groupID, name string) {
 }
 
 var DatasetStatusMap = map[int]string{
-	consts.DatasetInitial:       "initial",
-	consts.DatasetInjectSuccess: "inject_success",
-	consts.DatasetInjectFailed:  "inject_failed",
-	consts.DatasetBuildSuccess:  "build_success",
-	consts.DatasetBuildFailed:   "build_failed",
-	consts.DatasetDeleted:       "deleted",
+	consts.DatapackInitial:       "initial",
+	consts.DatapackInjectSuccess: "inject_success",
+	consts.DatapackInjectFailed:  "inject_failed",
+	consts.DatapackBuildSuccess:  "build_success",
+	consts.DatapackBuildFailed:   "build_failed",
+	consts.DatapackDeleted:       "deleted",
 }
 
 var DatasetStatusReverseMap = map[string]int{
-	"initial":        consts.DatasetInitial,
-	"inject_success": consts.DatasetInjectSuccess,
-	"inject_failed":  consts.DatasetInjectFailed,
-	"build_success":  consts.DatasetBuildSuccess,
-	"build_failed":   consts.DatasetBuildFailed,
-	"deleted":        consts.DatasetDeleted,
+	"initial":        consts.DatapackInitial,
+	"inject_success": consts.DatapackInjectSuccess,
+	"inject_failed":  consts.DatapackInjectFailed,
+	"build_success":  consts.DatapackBuildSuccess,
+	"build_failed":   consts.DatapackBuildFailed,
+	"deleted":        consts.DatapackDeleted,
 }
 
 // ===================== V2 API DTOs =====================

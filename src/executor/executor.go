@@ -234,7 +234,7 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 			Payload:   options,
 		}, repository.WithCallerLevel(4))
 
-		if err := repository.UpdateStatusByDataset(options.Dataset, consts.DatasetBuildFailed); err != nil {
+		if err := repository.UpdateStatusByDataset(options.Dataset, consts.DatapackBuildFailed); err != nil {
 			span.AddEvent("update dataset status failed")
 			span.RecordError(err)
 			updateTaskStatus(
@@ -342,7 +342,7 @@ func (e *Executor) HandleJobSucceeded(job *batchv1.Job, annotations map[string]s
 			taskOptions.Type,
 		)
 
-		if err := repository.UpdateStatusByDataset(options.Dataset, consts.DatasetBuildSuccess); err != nil {
+		if err := repository.UpdateStatusByDataset(options.Dataset, consts.DatapackBuildSuccess); err != nil {
 			logEntry.Errorf("update dataset status failed: %v", err)
 			taskSpan.AddEvent("update dataset status failed")
 			return
