@@ -6,6 +6,7 @@ import (
 
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 // CreateOrGetLabel creates a new label or gets existing one
@@ -13,7 +14,8 @@ func CreateOrGetLabel(key, value, category, description string) (*database.Label
 	var label database.Label
 
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		err := tx.Where("key = ? AND value = ? AND category = ?", key, value, category).First(&label).Error
+		err := tx.Session(&gorm.Session{Logger: tx.Logger.LogMode(logger.Silent)}).
+			Where("key = ? AND value = ? AND category = ?", key, value, category).First(&label).Error
 		if err == nil {
 			return tx.Model(&label).UpdateColumn("usage", gorm.Expr("usage + ?", 1)).Error
 		}
