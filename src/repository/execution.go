@@ -516,17 +516,14 @@ func InitializeExecutionLabels() error {
 }
 
 // applyLabelFilters applies label filters to a GORM query using native GORM joins
-func applyLabelFilters(query *gorm.DB, labelFilters *dto.ExecutionLabelFilters) *gorm.DB {
-	if labelFilters == nil {
+func applyLabelFilters(query *gorm.DB, tag string) *gorm.DB {
+	if tag == "" {
 		return query
 	}
 
-	labelMap := labelFilters.ToMap()
-	for labelKey, labelValue := range labelMap {
-		query = query.Joins("JOIN execution_result_labels erl ON erl.execution_id = execution_results.id").
-			Joins("JOIN labels l ON l.id = erl.label_id").
-			Where("l.label_key = ? AND l.label_value = ?", labelKey, labelValue)
-	}
+	query = query.Joins("JOIN execution_result_labels erl ON erl.execution_id = execution_results.id").
+		Joins("JOIN labels l ON l.id = erl.label_id").
+		Where("l.label_key = ? AND l.label_value = ?", consts.LabelKeyTag, tag)
 	return query
 }
 
@@ -534,7 +531,7 @@ func applyLabelFilters(query *gorm.DB, labelFilters *dto.ExecutionLabelFilters) 
 func GetAlgorithmDatasetEvaluation(req dto.AlgorithmDatasetEvaluationReq) (*dto.AlgorithmDatasetEvaluationResp, error) {
 	// First, get all fault injection schedules (datapacks) for the specified dataset
 	var datasetRecord database.Dataset
-	err := database.DB.Where("name = ? AND status = 1", req.Dataset).First(&datasetRecord).Error
+	err := database.DB.Where("name = ? AND status = ?", req.Dataset, consts.DatasetEnabled).First(&datasetRecord).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("dataset '%s' not found", req.Dataset)
@@ -568,25 +565,28 @@ func GetAlgorithmDatasetEvaluation(req dto.AlgorithmDatasetEvaluationReq) (*dto.
 		faultInjectionIDs[i] = fi.ID
 	}
 
-	// Query execution results for the specified algorithm and these datapacks
+	// Query execution results for the specified algorithm and dataset
 	query := database.DB.
 		Table("execution_results").
 		Select("execution_results.*, containers.name as algorithm, fault_injection_schedules.injection_name as datapack_name").
 		Joins("JOIN containers ON containers.id = execution_results.algorithm_id").
 		Joins("JOIN fault_injection_schedules ON fault_injection_schedules.id = execution_results.datapack_id").
-		Where("containers.name = ? AND execution_results.datapack_id IN (?) AND execution_results.status = ?",
-			req.Algorithm, faultInjectionIDs, consts.ExecutionSuccess)
+		Joins("JOIN dataset_fault_injections ON dataset_fault_injections.fault_injection_id = fault_injection_schedules.id").
+		Joins("JOIN datasets ON datasets.id = dataset_fault_injections.dataset_id").
+		Where("datasets.name = ? AND datasets.status = ? AND containers.name = ? AND execution_results.status = ?",
+			req.Dataset, consts.DatasetEnabled, req.Algorithm, consts.ExecutionSuccess)
 
-	// Apply label filters using the helper function
-	query = applyLabelFilters(query, req.LabelFilters)
+	// Apply label filters
+	queryWithLabels := applyLabelFilters(query, req.Tag)
 
+	// Query execution results with label filters
 	var execResults []struct {
 		database.ExecutionResult
 		Algorithm    string `json:"algorithm"`
 		DatapackName string `json:"datapack_name"`
 	}
 
-	if err := query.Find(&execResults).Error; err != nil {
+	if err := queryWithLabels.Find(&execResults).Error; err != nil {
 		return nil, fmt.Errorf("failed to query execution results: %v", err)
 	}
 
@@ -629,9 +629,9 @@ func GetAlgorithmDatasetEvaluation(req dto.AlgorithmDatasetEvaluationReq) (*dto.
 	}
 
 	// Get ground truth for all datapacks
-	datapackNames := make([]string, len(faultInjections))
-	for i, fi := range faultInjections {
-		datapackNames[i] = fi.InjectionName
+	datapackNames := make([]string, len(execResults))
+	for i, fi := range execResults {
+		datapackNames[i] = fi.DatapackName
 	}
 
 	groundtruthMap, err := GetGroundtruthMap(datapackNames)
@@ -679,7 +679,7 @@ func GetAlgorithmDatapackEvaluation(req dto.AlgorithmDatapackEvaluationReq) (*dt
 			req.Algorithm, req.Datapack, consts.ExecutionSuccess)
 
 	// Apply label filters using the helper function
-	query = applyLabelFilters(query, req.LabelFilters)
+	query = applyLabelFilters(query, req.Tag)
 
 	// Order by created_at DESC to get the latest execution
 	query = query.Order("execution_results.created_at DESC").Limit(1)

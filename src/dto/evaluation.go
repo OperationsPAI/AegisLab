@@ -111,9 +111,9 @@ type EvaluateMetric func([]Execution) ([]Conclusion, error)
 
 // AlgorithmDatasetEvaluationReq represents request for algorithm evaluation on a dataset
 type AlgorithmDatasetEvaluationReq struct {
-	Algorithm    string                 `json:"algorithm" binding:"required"`
-	Dataset      string                 `json:"dataset" binding:"required"`
-	LabelFilters *ExecutionLabelFilters `json:"label_filters,omitempty" form:"label_filters"` // Label filters for filtering execution results
+	Algorithm string `json:"algorithm" binding:"required"`
+	Dataset   string `json:"dataset" binding:"required"`
+	Tag       string `json:"tag,omitempty" form:"tag"` // Tag filter for filtering execution results
 }
 
 // DatapackEvaluationItem represents evaluation item for a single datapack
@@ -136,9 +136,9 @@ type AlgorithmDatasetEvaluationResp struct {
 
 // AlgorithmDatapackEvaluationReq represents request for algorithm evaluation on a single datapack
 type AlgorithmDatapackEvaluationReq struct {
-	Algorithm    string                 `json:"algorithm" binding:"required"`
-	Datapack     string                 `json:"datapack" binding:"required"`
-	LabelFilters *ExecutionLabelFilters `json:"label_filters,omitempty" form:"label_filters"` // Label filters for filtering execution results
+	Algorithm string `json:"algorithm" binding:"required"`
+	Datapack  string `json:"datapack" binding:"required"`
+	Tag       string `json:"tag,omitempty" form:"tag"` // Tag filter for filtering execution results
 }
 
 // AlgorithmDatapackEvaluationResp represents response for algorithm evaluation on a single datapack
