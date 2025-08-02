@@ -25,11 +25,11 @@ repo_url = "https://lgu-se-internal.github.io/train-ticket"
 
 [database]
 clickhouse_host = "10.10.10.58"
-postgres_user = "postgres"
-postgres_password = "yourpassword"
-postgres_host = "127.0.0.1"
-postgres_port = "5432"
-postgres_db = "rcabench"
+mysql_user = "root"
+mysql_password = "yourpassword"
+mysql_host = "127.0.0.1"
+mysql_port = "3306"
+mysql_db = "rcabench"
 
 [jaeger]
 endpoint = "localhost:4318"

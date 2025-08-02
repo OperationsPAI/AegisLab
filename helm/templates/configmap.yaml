@@ -31,11 +31,11 @@ data:
 
     [database]
     clickhouse_host = "{{ .Values.configmap.database.clickhouse_host }}"
-    postgres_user = "{{ .Values.configmap.database.postgres_user }}"
-    postgres_password = "{{ .Values.configmap.database.postgres_password }}"
-    postgres_host = "{{ .Release.Name }}-postgres"
-    postgres_port = "{{ .Values.configmap.database.postgres_port }}"
-    postgres_db = "{{ .Values.configmap.database.postgres_db }}"
+    mysql_user = "{{ .Values.configmap.database.mysql_user }}"
+    mysql_password = "{{ .Values.configmap.database.mysql_password }}"
+    mysql_host = "{{ .Release.Name }}-mysql"
+    mysql_port = "{{ .Values.configmap.database.mysql_port }}"
+    mysql_db = "{{ .Values.configmap.database.mysql_db }}"
 
 
     [jaeger]

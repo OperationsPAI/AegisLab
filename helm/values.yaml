@@ -9,9 +9,9 @@ images:
     repository: redis
     tag: 8.0-M02-alpine3.20
     pullPolicy: IfNotPresent
-  postgres:
-    repository: postgres
-    tag: 16-bullseye
+  mysql:
+    repository: mysql
+    tag: 8.0.43
     pullPolicy: IfNotPresent
   jaeger:
     repository: jaegertracing/all-in-one
@@ -47,10 +47,10 @@ configmap:
     target_label_key: "app"
   database:
     clickhouse_host: "10.10.10.58"
-    postgres_user: "postgres"
-    postgres_password: "yourpassword"
-    postgres_port: "5432"
-    postgres_db: "rcabench"
+    mysql_user: "root"
+    mysql_password: "yourpassword"
+    mysql_port: "3306"
+    mysql_db: "rcabench"
   harbor:
     host: "10.10.10.240"
     project: "library"
@@ -75,12 +75,12 @@ configmap:
     token_wait_timeout: 10
 
 persistence:
-  postgres:
+  redis:
     enabled: true
     accessMode: ReadWriteOnce
     size: 1Gi
     storageClass: ""
-  redis:
+  mysql:
     enabled: true
     accessMode: ReadWriteOnce
     size: 1Gi

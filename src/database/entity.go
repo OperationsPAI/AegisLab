@@ -60,7 +60,7 @@ type Container struct {
 	Name      string    `gorm:"index;not null;index:idx_container_unique,unique" json:"name"`           // Name
 	Image     string    `gorm:"not null;index:idx_container_unique,unique" json:"image"`                // Image name
 	Tag       string    `gorm:"not null;default:'latest';index:idx_container_unique,unqiue" json:"tag"` // Image tag
-	Command   string    `gorm:"type:text;default:''" json:"command"`                                    // Startup command
+	Command   string    `gorm:"type:text" json:"command"`                                               // Startup command
 	EnvVars   string    `gorm:"default:''" json:"env_vars"`                                             // List of environment variable names
 	UserID    int       `gorm:"not null;index:idx_container_user" json:"user_id"`                       // Container must belong to a user
 	IsPublic  bool      `gorm:"default:false;index:idx_container_visibility" json:"is_public"`          // Whether publicly visible
@@ -144,16 +144,16 @@ type Dataset struct {
 
 // Label table - Unified label management
 type Label struct {
-	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`                     // Unique identifier
-	Key         string    `gorm:"not null;index:idx_label_key_value,unique" json:"key"`   // Label key
-	Value       string    `gorm:"not null;index:idx_label_key_value,unique" json:"value"` // Label value
-	Category    string    `gorm:"index" json:"category"`                                  // Label category (dataset, fault_injection, algorithm, container, etc.)
-	Description string    `gorm:"type:text" json:"description"`                           // Label description
-	Color       string    `gorm:"type:varchar(7);default:'#1890ff'" json:"color"`         // Label color (hex format)
-	IsSystem    bool      `gorm:"default:false;index" json:"is_system"`                   // Whether system label
-	Usage       int       `gorm:"default:0;index" json:"usage"`                           // Usage count
-	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`                       // Creation time
-	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`                       // Update time
+	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`                                        // Unique identifier
+	Key         string    `gorm:"column:label_key;not null;index:idx_label_key_value,unique" json:"key"`     // Label key
+	Value       string    `gorm:"column:label_value;not null;index:idx_label_key_value,unique" json:"value"` // Label value
+	Category    string    `gorm:"index" json:"category"`                                                     // Label category (dataset, fault_injection, algorithm, container, etc.)
+	Description string    `gorm:"type:text" json:"description"`                                              // Label description
+	Color       string    `gorm:"type:varchar(7);default:'#1890ff'" json:"color"`                            // Label color (hex format)
+	IsSystem    bool      `gorm:"default:false;index" json:"is_system"`                                      // Whether system label
+	Usage       int       `gorm:"column:usage_count;default:0;index" json:"usage"`                           // Usage count
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`                                          // Creation time
+	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                          // Update time
 }
 
 // DatasetFaultInjection Many-to-many relationship table between Dataset and FaultInjectionSchedule
@@ -203,6 +203,28 @@ type ContainerLabel struct {
 	// Foreign key association
 	Container *Container `gorm:"foreignKey:ContainerID" json:"container,omitempty"`
 	Label     *Label     `gorm:"foreignKey:LabelID" json:"label,omitempty"`
+}
+
+type ProjectContanier struct {
+	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`
+	ProjectID   int       `gorm:"not null;index:idx_project_container_unique,unique" json:"project_id"`
+	ContainerID int       `gorm:"not null;index:idx_project_container_unique,unique" json:"container_id"`
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+
+	Project   *Project   `gorm:"foreignKey:ProjectID" json:"project,omitempty"`
+	Container *Container `gorm:"foreignKey:ContainerID" json:"container,omitempty"`
+}
+
+type ProjectDataset struct {
+	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`
+	ProjectID int       `gorm:"not null;index:idx_project_dataset_unique,unique" json:"project_id"`
+	DatasetID int       `gorm:"not null;index:idx_project_dataset_unique,unique" json:"dataset_id"`
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+
+	Project *Project `gorm:"foreignKey:ProjectID" json:"project,omitempty"`
+	Dataset *Dataset `gorm:"foreignKey:DatasetID" json:"dataset,omitempty"`
 }
 
 // ProjectLabel Many-to-many relationship table between Project and Label

@@ -105,9 +105,9 @@ func createDetectorViews() {
 		Select(`DISTINCT 
 		fis.id AS dataset_id, 
 		fis.engine_config, 
-		MAX(CASE WHEN l.key = 'env' THEN l.value END) AS env,
-		MAX(CASE WHEN l.key = 'batch' THEN l.value END) AS batch,
-		MAX(CASE WHEN l.key = 'tag' THEN l.value END) AS tag,
+		MAX(CASE WHEN l.label_key = 'env' THEN l.label_value END) AS env,
+		MAX(CASE WHEN l.label_key = 'batch' THEN l.label_value END) AS batch,
+		MAX(CASE WHEN l.label_key = 'tag' THEN l.label_value END) AS tag,
 		fis.injection_name, 
 		fis.created_at`).
 		Joins("LEFT JOIN fault_injection_labels fil ON fis.id = fil.fault_injection_id").
@@ -123,9 +123,9 @@ func createDetectorViews() {
 		Select(`DISTINCT 
 		fis.id AS dataset_id, 
 		fis.engine_config, 
-		MAX(CASE WHEN l.key = 'env' THEN l.value END) AS env,
-		MAX(CASE WHEN l.key = 'batch' THEN l.value END) AS batch,
-		MAX(CASE WHEN l.key = 'tag' THEN l.value END) AS tag,
+		MAX(CASE WHEN l.label_key = 'env' THEN l.label_value END) AS env,
+		MAX(CASE WHEN l.label_key = 'batch' THEN l.label_value END) AS batch,
+		MAX(CASE WHEN l.label_key = 'tag' THEN l.label_value END) AS tag,
 		fis.injection_name, 
 		fis.created_at, 
 		d.issues, 
@@ -187,9 +187,9 @@ func createFaultInjectionViews() {
 			fis.end_time,
 			fis.status,
 			fis.benchmark, 
-			MAX(CASE WHEN l.key = 'env' THEN l.value END) AS env,
-			MAX(CASE WHEN l.key = 'batch' THEN l.value END) AS batch,
-			MAX(CASE WHEN l.key = 'tag' THEN l.value END) AS tag,
+			MAX(CASE WHEN l.label_key = 'env' THEN l.label_value END) AS env,
+			MAX(CASE WHEN l.label_key = 'batch' THEN l.label_value END) AS batch,
+			MAX(CASE WHEN l.label_key = 'tag' THEN l.label_value END) AS tag,
 			fis.injection_name, 
 			fis.created_at,
 			COALESCE(p.name, 'No Project') AS project_name`).

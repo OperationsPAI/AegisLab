@@ -15,9 +15,10 @@ func CreateOrGetLabel(key, value, category, description string) (*database.Label
 
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
 		err := tx.Session(&gorm.Session{Logger: tx.Logger.LogMode(logger.Silent)}).
-			Where("key = ? AND value = ? AND category = ?", key, value, category).First(&label).Error
+			Where(&database.Label{Key: key, Value: value, Category: category}).
+			First(&label).Error
 		if err == nil {
-			return tx.Model(&label).UpdateColumn("usage", gorm.Expr("usage + ?", 1)).Error
+			return tx.Model(&label).UpdateColumn("usage_count", gorm.Expr("usage_count + ?", 1)).Error
 		}
 
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -79,16 +80,16 @@ func UpdateLabel(label *database.Label) error {
 func UpdateLabelUsage(id int, increment int) error {
 	var operation string
 	if increment >= 0 {
-		operation = fmt.Sprintf("usage + %d", increment)
+		operation = fmt.Sprintf("usage_count + %d", increment)
 	} else {
-		operation = fmt.Sprintf("GREATEST(0, usage + %d)", increment)
+		operation = fmt.Sprintf("GREATEST(0, usage_count + %d)", increment)
 	}
 
 	result := database.DB.Model(&database.Label{}).Where("id = ?", id).
-		UpdateColumn("usage", gorm.Expr(operation))
+		UpdateColumn("usage_count", gorm.Expr(operation))
 
 	if result.Error != nil {
-		return fmt.Errorf("failed to update label usage: %v", result.Error)
+		return fmt.Errorf("failed to update label usage_count: %v", result.Error)
 	}
 
 	if result.RowsAffected == 0 {
@@ -149,7 +150,7 @@ func ListLabels(page, pageSize int, category string, isSystem *bool) ([]database
 
 	// Pagination query
 	offset := (page - 1) * pageSize
-	if err := query.Offset(offset).Limit(pageSize).Order("usage DESC, created_at DESC").Find(&labels).Error; err != nil {
+	if err := query.Offset(offset).Limit(pageSize).Order("usage_count DESC, created_at DESC").Find(&labels).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to list labels: %v", err)
 	}
 
@@ -175,7 +176,7 @@ func SearchLabels(keyword string, category string, limit int) ([]database.Label,
 		query = query.Limit(limit)
 	}
 
-	if err := query.Order("usage DESC, created_at DESC").Find(&labels).Error; err != nil {
+	if err := query.Order("usage_count DESC, created_at DESC").Find(&labels).Error; err != nil {
 		return nil, fmt.Errorf("failed to search labels: %v", err)
 	}
 
@@ -186,7 +187,7 @@ func SearchLabels(keyword string, category string, limit int) ([]database.Label,
 func GetPopularLabels(category string, limit int) ([]database.Label, error) {
 	var labels []database.Label
 
-	query := database.DB.Model(&database.Label{}).Where("usage > 0")
+	query := database.DB.Model(&database.Label{}).Where("usage_count > 0")
 
 	if category != "" {
 		query = query.Where("category = ?", category)
@@ -196,7 +197,7 @@ func GetPopularLabels(category string, limit int) ([]database.Label, error) {
 		query = query.Limit(limit)
 	}
 
-	if err := query.Order("usage DESC").Find(&labels).Error; err != nil {
+	if err := query.Order("usage_count DESC").Find(&labels).Error; err != nil {
 		return nil, fmt.Errorf("failed to get popular labels: %v", err)
 	}
 
@@ -207,7 +208,7 @@ func GetPopularLabels(category string, limit int) ([]database.Label, error) {
 func GetUnusedLabels(category string) ([]database.Label, error) {
 	var labels []database.Label
 
-	query := database.DB.Model(&database.Label{}).Where("usage = 0")
+	query := database.DB.Model(&database.Label{}).Where("usage_count = 0")
 
 	if category != "" {
 		query = query.Where("category = ?", category)
@@ -225,7 +226,7 @@ func CleanupUnusedLabels(olderThanDays int) (int64, error) {
 	var count int64
 
 	query := database.DB.Model(&database.Label{}).
-		Where("usage = 0 AND is_system = false AND created_at < NOW() - INTERVAL ? DAY", olderThanDays)
+		Where("usage_count = 0 AND is_system = false AND created_at < NOW() - INTERVAL ? DAY", olderThanDays)
 
 	// First get the count to be deleted
 	if err := query.Count(&count).Error; err != nil {
@@ -244,7 +245,7 @@ func CleanupUnusedLabels(olderThanDays int) (int64, error) {
 func GetLabelsByCategory(category string) ([]database.Label, error) {
 	var labels []database.Label
 	if err := database.DB.Where("category = ?", category).
-		Order("usage DESC").Find(&labels).Error; err != nil {
+		Order("usage_count DESC").Find(&labels).Error; err != nil {
 		return nil, fmt.Errorf("failed to get labels by category: %v", err)
 	}
 	return labels, nil

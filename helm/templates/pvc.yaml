@@ -1,19 +1,19 @@
-{{- if .Values.persistence.postgres.enabled }}
+{{- if .Values.persistence.mysql.enabled }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Release.Name }}-postgres-data
+  name: {{ .Release.Name }}-mysql-data
   annotations:
     "helm.sh/resource-policy": keep
 spec:
   accessModes:
-    - {{ .Values.persistence.postgres.accessMode }}
-  {{- if .Values.persistence.postgres.storageClass }}
-  storageClassName: {{ .Values.persistence.postgres.storageClass | quote }}
+    - {{ .Values.persistence.mysql.accessMode }}
+  {{- if .Values.persistence.mysql.storageClass }}
+  storageClassName: {{ .Values.persistence.mysql.storageClass | quote }}
   {{- end }}
   resources:
     requests:
-      storage: {{ .Values.persistence.postgres.size }}
+      storage: {{ .Values.persistence.mysql.size }}
 {{- end }}
 
 {{- if .Values.persistence.redis.enabled }}
