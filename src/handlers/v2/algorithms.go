@@ -31,24 +31,6 @@ import (
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/algorithms/search [post]
 func SearchAlgorithms(c *gin.Context) {
-	// Check permission first
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canRead, err := checker.CanReadResource(consts.ResourceContainer)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-
-	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read algorithms")
-		return
-	}
 
 	var req dto.AlgorithmSearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -118,24 +100,6 @@ func SearchAlgorithms(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/algorithms [get]
 func ListAlgorithms(c *gin.Context) {
-	// Check permission first
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canRead, err := checker.CanReadResource(consts.ResourceContainer)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-
-	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read algorithms")
-		return
-	}
 
 	// Create a basic search request from query parameters
 	req := dto.AlgorithmSearchRequest{
@@ -241,24 +205,7 @@ func UploadDetectorResults(c *gin.Context) {
 		return
 	}
 
-	// Check permissions
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
 
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canWrite, err := checker.CanWriteResource(consts.ResourceContainer)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-
-	if !canWrite {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to upload algorithm results")
-		return
-	}
 
 	// Parse request body
 	var req dto.DetectorResultRequest
@@ -376,24 +323,7 @@ func UploadGranularityResults(c *gin.Context) {
 		}
 	}
 
-	// Check permissions
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
 
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canWrite, err := checker.CanWriteResource(consts.ResourceContainer)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-
-	if !canWrite {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to upload algorithm results")
-		return
-	}
 
 	// Parse request body
 	var req dto.GranularityResultEnhancedRequest
@@ -524,24 +454,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 	spanCtx := ctx.(context.Context)
 	trace.SpanFromContext(spanCtx)
 
-	// Check permissions
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
 
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canWrite, err := checker.CanWriteResource(consts.ResourceContainer)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-
-	if !canWrite {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to execute algorithms")
-		return
-	}
 
 	// Parse request body
 	var req dto.BatchAlgorithmExecutionRequest

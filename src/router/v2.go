@@ -256,15 +256,15 @@ func SetupV2Routes(router *gin.Engine) {
 	// Task Management - Task Entity
 	tasks := v2.Group("/tasks", middleware.JWTAuth())
 	{
-		// Read operations - permission checked in handler
+		// Read operations
 		// GET /api/v2/tasks?page=1&size=20&task_type=RestartService&status=Completed
-		tasks.GET("", v2handlers.ListTasks)
+		tasks.GET("", middleware.RequireTaskRead, v2handlers.ListTasks)
 
-		// GET /api/v2/tasks/{id}?include=logs - permission checked in handler
-		tasks.GET("/:id", v2handlers.GetTask)
+		// GET /api/v2/tasks/{id}?include=logs
+		tasks.GET("/:id", middleware.RequireTaskRead, v2handlers.GetTask)
 
-		// POST /api/v2/tasks/search - Advanced search with complex filters - permission checked in handler
-		tasks.POST("/search", v2handlers.SearchTasks)
+		// POST /api/v2/tasks/search - Advanced search with complex filters
+		tasks.POST("/search", middleware.RequireTaskRead, v2handlers.SearchTasks)
 
 		// POST /api/v2/tasks/queue - Get tasks in ready/delayed queues (admin only for system-wide view)
 		tasks.POST("/queue", middleware.RequireSystemRead, v2handlers.GetQueuedTasks)
@@ -273,73 +273,73 @@ func SetupV2Routes(router *gin.Engine) {
 	// Container Management - Container Entity
 	containers := v2.Group("/containers", middleware.JWTAuth())
 	{
-		// Create operation - permission checked in handler
+		// Create operation
 		// POST /api/v2/containers - Create a new container
-		containers.POST("", v2handlers.CreateContainer)
+		containers.POST("", middleware.RequireContainerWrite, v2handlers.CreateContainer)
 
-		// Read operations - permission checked in handler
+		// Read operations
 		// GET /api/v2/containers?page=1&size=20&type=algorithm&status=true
-		containers.GET("", v2handlers.ListContainers)
+		containers.GET("", middleware.RequireContainerRead, v2handlers.ListContainers)
 
-		// GET /api/v2/containers/{id} - permission checked in handler
-		containers.GET("/:id", v2handlers.GetContainer)
+		// GET /api/v2/containers/{id}
+		containers.GET("/:id", middleware.RequireContainerRead, v2handlers.GetContainer)
 
-		// POST /api/v2/containers/search - Advanced search with complex filters - permission checked in handler
-		containers.POST("/search", v2handlers.SearchContainers)
+		// POST /api/v2/containers/search - Advanced search with complex filters
+		containers.POST("/search", middleware.RequireContainerRead, v2handlers.SearchContainers)
 	}
 
 	// Algorithm Management - Algorithms (Algorithm is a special type of container)
 	algorithms := v2.Group("/algorithms", middleware.JWTAuth())
 	{
-		// Read operations - permission checked in handler
+		// Read operations
 		// GET /api/v2/algorithms?page=1&size=10 - Only active algorithms with type=algorithm
-		algorithms.GET("", v2handlers.ListAlgorithms)
+		algorithms.GET("", middleware.RequireContainerRead, v2handlers.ListAlgorithms)
 
-		// POST /api/v2/algorithms/search - Advanced search for algorithms (containers with type=algorithm) - permission checked in handler
-		algorithms.POST("/search", v2handlers.SearchAlgorithms)
+		// POST /api/v2/algorithms/search - Advanced search for algorithms (containers with type=algorithm)
+		algorithms.POST("/search", middleware.RequireContainerRead, v2handlers.SearchAlgorithms)
 
-		// Algorithm execution operations - permission checked in handler
+		// Algorithm execution operations
 		// POST /api/v2/algorithms/execute - Submit single algorithm execution (supports both datapack and dataset)
-		algorithms.POST("/execute", v2handlers.SubmitAlgorithmExecution)
+		algorithms.POST("/execute", middleware.RequireContainerWrite, v2handlers.SubmitAlgorithmExecution)
 
-		// Algorithm result upload operations - permission checked in handler
+		// Algorithm result upload operations
 		// POST /api/v2/algorithms/{algorithm_id}/executions/{execution_id}/detectors - Upload detector results
-		algorithms.POST("/:algorithm_id/executions/:execution_id/detectors", v2handlers.UploadDetectorResults)
+		algorithms.POST("/:algorithm_id/executions/:execution_id/detectors", middleware.RequireContainerWrite, v2handlers.UploadDetectorResults)
 
 		// POST /api/v2/algorithms/{algorithm_id}/results - Upload granularity results (supports auto-execution creation)
-		algorithms.POST("/:algorithm_id/results", v2handlers.UploadGranularityResults)
+		algorithms.POST("/:algorithm_id/results", middleware.RequireContainerWrite, v2handlers.UploadGranularityResults)
 
 		// POST /api/v2/algorithms/{algorithm_id}/executions/{execution_id}/results - Upload granularity results to existing execution
-		algorithms.POST("/:algorithm_id/executions/:execution_id/results", v2handlers.UploadGranularityResults)
+		algorithms.POST("/:algorithm_id/executions/:execution_id/results", middleware.RequireContainerWrite, v2handlers.UploadGranularityResults)
 	}
 
 	// Other Business Entity API Group
 	injections := v2.Group("/injections", middleware.JWTAuth()) // Fault Injection Management - FaultInjectionSchedule Entity
 	{
-		// Create operations - permission checked in handler
-		injections.POST("", v2handlers.CreateInjection) // Create injections (batch supported)
+		// Create operations
+		injections.POST("", middleware.RequireFaultInjectionWrite, v2handlers.CreateInjection) // Create injections (batch supported)
 
-		// Read operations - permission checked in handler
-		injections.GET("", v2handlers.ListInjections)           // List injections
-		injections.GET("/:id", v2handlers.GetInjection)         // Get injection by ID
-		injections.POST("/search", v2handlers.SearchInjections) // Advanced search
+		// Read operations
+		injections.GET("", middleware.RequireFaultInjectionRead, v2handlers.ListInjections)           // List injections
+		injections.GET("/:id", middleware.RequireFaultInjectionRead, v2handlers.GetInjection)         // Get injection by ID
+		injections.POST("/search", middleware.RequireFaultInjectionRead, v2handlers.SearchInjections) // Advanced search
 
-		// Write operations - permission checked in handler
-		injections.PUT("/:id", v2handlers.UpdateInjection)    // Update injection
-		injections.DELETE("/:id", v2handlers.DeleteInjection) // Delete injection (soft delete)
+		// Write operations
+		injections.PUT("/:id", middleware.RequireFaultInjectionWrite, v2handlers.UpdateInjection)     // Update injection
+		injections.DELETE("/:id", middleware.RequireFaultInjectionDelete, v2handlers.DeleteInjection) // Delete injection (soft delete)
 	}
 
 	// Dataset Management - Dataset Entity
 	datasets := v2.Group("/datasets", middleware.JWTAuth())
 	{
-		datasets.GET("", v2handlers.ListDatasets)
-		datasets.GET("/:id", v2handlers.GetDataset)
-		datasets.POST("/search", v2handlers.SearchDatasets)
-		datasets.POST("", v2handlers.CreateDataset)
-		datasets.PUT("/:id", v2handlers.UpdateDataset)
-		datasets.PATCH("/:id/injections", v2handlers.ManageDatasetInjections)
-		datasets.PATCH("/:id/labels", v2handlers.ManageDatasetLabels)
-		datasets.DELETE("/:id", v2handlers.DeleteDataset)
+		datasets.GET("", middleware.RequireDatasetRead, v2handlers.ListDatasets)
+		datasets.GET("/:id", middleware.RequireDatasetRead, v2handlers.GetDataset)
+		datasets.POST("/search", middleware.RequireDatasetRead, v2handlers.SearchDatasets)
+		datasets.POST("", middleware.RequireDatasetWrite, v2handlers.CreateDataset)
+		datasets.PUT("/:id", middleware.RequireDatasetWrite, v2handlers.UpdateDataset)
+		datasets.PATCH("/:id/injections", middleware.RequireDatasetWrite, v2handlers.ManageDatasetInjections)
+		datasets.PATCH("/:id/labels", middleware.RequireDatasetWrite, v2handlers.ManageDatasetLabels)
+		datasets.DELETE("/:id", middleware.RequireDatasetDelete, v2handlers.DeleteDataset)
 	}
 
 	executions := v2.Group("/executions") // Execution Result Management - ExecutionResult Entity
@@ -350,13 +350,13 @@ func SetupV2Routes(router *gin.Engine) {
 	evaluations := v2.Group("/evaluations", middleware.JWTAuth())
 	{
 		// GET /api/v2/evaluations/label-keys - Get available label keys for filtering (requires system read permission)
-		evaluations.GET("/label-keys", middleware.RequireSystemRead, v2handlers.GetAvailableLabelKeys)
+		evaluations.GET("/label-keys", middleware.RequireDatasetRead, v2handlers.GetAvailableLabelKeys)
 
 		// GET /api/v2/evaluations/algorithms/{algorithm}/datasets/{dataset} - Get algorithm evaluation on a dataset (requires system read permission)
-		evaluations.GET("/algorithms/:algorithm/datasets/:dataset", middleware.RequireSystemRead, v2handlers.GetAlgorithmDatasetEvaluation)
+		evaluations.GET("/algorithms/:algorithm/datasets/:dataset", middleware.RequireDatasetRead, v2handlers.GetAlgorithmDatasetEvaluation)
 
 		// GET /api/v2/evaluations/algorithms/{algorithm}/datapacks/{datapack} - Get algorithm evaluation on a single datapack (requires system read permission)
-		evaluations.GET("/algorithms/:algorithm/datapacks/:datapack", middleware.RequireSystemRead, v2handlers.GetAlgorithmDatapackEvaluation)
+		evaluations.GET("/algorithms/:algorithm/datapacks/:datapack", middleware.RequireDatasetRead, v2handlers.GetAlgorithmDatapackEvaluation)
 	}
 
 	// Analysis and Detection related API Group (for future expansion)

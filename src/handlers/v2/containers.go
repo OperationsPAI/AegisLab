@@ -39,24 +39,6 @@ import (
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/containers/search [post]
 func SearchContainers(c *gin.Context) {
-	// Check permission first
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canRead, err := checker.CanReadResource(consts.ResourceContainer)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-
-	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read containers")
-		return
-	}
 
 	var req dto.ContainerSearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -129,24 +111,6 @@ func SearchContainers(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/containers [get]
 func ListContainers(c *gin.Context) {
-	// Check permission first
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canRead, err := checker.CanReadResource(consts.ResourceContainer)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-
-	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read containers")
-		return
-	}
 
 	// Create a basic search request from query parameters
 	req := dto.ContainerSearchRequest{
@@ -246,24 +210,6 @@ func ListContainers(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/containers/{id} [get]
 func GetContainer(c *gin.Context) {
-	// Check permission first
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canRead, err := checker.CanReadResource(consts.ResourceContainer)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-
-	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read containers")
-		return
-	}
 
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -333,28 +279,15 @@ func GetContainer(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/containers [post]
 func CreateContainer(c *gin.Context) {
-	// Check authentication
+	// Get user ID from context
 	userID, exists := c.Get("user_id")
 	if !exists {
 		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
-	// Check permission
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canCreate, err := checker.CanWriteResource(consts.ResourceContainer)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-
-	if !canCreate {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to create containers")
-		return
-	}
-
 	// Parse multipart form
-	err = c.Request.ParseMultipartForm(32 << 20) // 32MB max memory
+	err := c.Request.ParseMultipartForm(32 << 20) // 32MB max memory
 	if err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Failed to parse multipart form: "+err.Error())
 		return
@@ -850,24 +783,6 @@ func processHarborDirectUpdateV2(ctx context.Context, req *dto.CreateContainerRe
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/containers/{id} [put]
 func UpdateContainer(c *gin.Context) {
-	// Check authentication
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	// Check permission
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canUpdate, err := checker.CanWriteResource(consts.ResourceContainer)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-	if !canUpdate {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to update containers")
-		return
-	}
 
 	// Parse container ID
 	idStr := c.Param("id")
@@ -961,24 +876,6 @@ func UpdateContainer(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/containers/{id} [delete]
 func DeleteContainer(c *gin.Context) {
-	// Check authentication
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	// Check permission
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canDelete, err := checker.CanDeleteResource(consts.ResourceContainer)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-	if !canDelete {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to delete containers")
-		return
-	}
 
 	// Parse container ID
 	idStr := c.Param("id")

@@ -75,12 +75,12 @@ func ListPermissions(page, pageSize int, action string, resourceID *int, status 
 		query = query.Where("resource_id = ?", *resourceID)
 	}
 
-	        // Get total count
+	// Get total count
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to count permissions: %v", err)
 	}
 
-	        // Paginated query
+	// Paginated query
 	offset := (page - 1) * pageSize
 	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&permissions).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to list permissions: %v", err)
@@ -121,7 +121,7 @@ func GetSystemPermissions() ([]database.Permission, error) {
 
 // CheckUserPermission checks if user has specific permission
 func CheckUserPermission(userID int, action string, resourceName string, projectID *int) (bool, error) {
-	       // 1. First check direct permissions
+	// 1. First check direct permissions
 	var directPermCount int64
 	directQuery := database.DB.Table("user_permissions").
 		Joins("JOIN permissions ON user_permissions.permission_id = permissions.id").
@@ -144,7 +144,7 @@ func CheckUserPermission(userID int, action string, resourceName string, project
 		return true, nil
 	}
 
-	       // 2. Check role permissions (global roles)
+	// 2. Check role permissions (global roles)
 	var globalRolePermCount int64
 	globalRoleQuery := database.DB.Table("user_roles").
 		Joins("JOIN role_permissions ON user_roles.role_id = role_permissions.role_id").
@@ -160,7 +160,7 @@ func CheckUserPermission(userID int, action string, resourceName string, project
 		return true, nil
 	}
 
-	       // 3. Check project role permissions
+	// 3. Check project role permissions
 	if projectID != nil {
 		var projectRolePermCount int64
 		projectRoleQuery := database.DB.Table("user_projects").
@@ -187,7 +187,7 @@ func CheckUserPermission(userID int, action string, resourceName string, project
 func GetUserPermissions(userID int, projectID *int) ([]database.Permission, error) {
 	var permissions []database.Permission
 
-	       // Build base query
+	// Build base query
 	baseQuery := `
 		SELECT DISTINCT p.* FROM permissions p
 		WHERE p.status = 1 AND (
@@ -211,7 +211,7 @@ func GetUserPermissions(userID int, projectID *int) ([]database.Permission, erro
 	var args []interface{}
 	args = append(args, userID)
 
-	       // Handle project-level permissions
+	// Handle project-level permissions
 	var projectCondition string
 	var projectRoleCondition string
 

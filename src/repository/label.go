@@ -59,7 +59,7 @@ func GetLabelByID(id int) (*database.Label, error) {
 // GetLabelByKeyValue gets label by key-value pair
 func GetLabelByKeyValue(key, value string) (*database.Label, error) {
 	var label database.Label
-	if err := database.DB.Where("key = ? AND value = ?", key, value).First(&label).Error; err != nil {
+	if err := database.DB.Where("label_key = ? AND label_value = ?", key, value).First(&label).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("label '%s:%s' not found", key, value)
 		}

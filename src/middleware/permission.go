@@ -235,6 +235,11 @@ var (
 	RequireProjectWrite  = RequirePermission("write", "projects")
 	RequireProjectDelete = RequirePermission("delete", "projects")
 
+	// Dataset management permissions
+	RequireDatasetRead   = RequirePermission("read", "dataset")
+	RequireDatasetWrite  = RequirePermission("write", "dataset")
+	RequireDatasetDelete = RequirePermission("delete", "dataset")
+
 	// System administration permissions
 	RequireSystemAdmin = RequirePermission("admin", "system")
 	RequireSystemRead  = RequirePermission("read", "system")
@@ -245,4 +250,19 @@ var (
 	// Resource ownership middlewares
 	RequireUserOwnership        = RequireOwnership("user", "id")
 	RequireAdminOrUserOwnership = RequireAdminOrOwnership("id")
+
+	// Container management permissions
+	RequireContainerRead   = RequirePermission("read", "container")
+	RequireContainerWrite  = RequirePermission("write", "container")
+	RequireContainerDelete = RequirePermission("delete", "container")
+
+	// Task management permissions
+	RequireTaskRead   = RequirePermission("read", "task")
+	RequireTaskWrite  = RequirePermission("write", "task")
+	RequireTaskDelete = RequirePermission("delete", "task")
+
+	// Fault injection management permissions
+	RequireFaultInjectionRead   = RequirePermission("read", "fault_injection")
+	RequireFaultInjectionWrite  = RequirePermission("write", "fault_injection")
+	RequireFaultInjectionDelete = RequirePermission("delete", "fault_injection")
 )

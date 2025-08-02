@@ -85,6 +85,9 @@ type ExecutionResult struct {
 	Task      *Task                   `gorm:"foreignKey:TaskID" json:"task,omitempty"`
 	Algorithm *Container              `gorm:"foreignKey:AlgorithmID" json:"algorithm,omitempty"`
 	Datapack  *FaultInjectionSchedule `gorm:"foreignKey:DatapackID" json:"datapack,omitempty"`
+
+	// Many-to-many relationship with labels
+	Labels []Label `gorm:"many2many:execution_result_labels;" json:"labels,omitempty"`
 }
 
 type GranularityResult struct {

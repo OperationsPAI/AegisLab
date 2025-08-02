@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/LGU-SE-Internal/rcabench/client"
-	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/repository"
@@ -35,24 +34,6 @@ import (
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/tasks/{id} [get]
 func GetTask(c *gin.Context) {
-	// Check permission first
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canRead, err := checker.CanReadResource(consts.ResourceTask)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-
-	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read tasks")
-		return
-	}
 
 	taskID := c.Param("id")
 	includeList := c.QueryArray("include")
@@ -119,24 +100,6 @@ func GetTask(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/tasks [get]
 func ListTasks(c *gin.Context) {
-	// Check permission first
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canRead, err := checker.CanReadResource(consts.ResourceTask)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-
-	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read tasks")
-		return
-	}
 
 	// Create a basic search request from query parameters
 	req := dto.TaskSearchRequest{
@@ -244,24 +207,6 @@ func ListTasks(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/tasks/search [post]
 func SearchTasks(c *gin.Context) {
-	// Check permission first
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	checker := repository.NewPermissionChecker(userID.(int), nil)
-	canRead, err := checker.CanReadResource(consts.ResourceTask)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
-		return
-	}
-
-	if !canRead {
-		dto.ErrorResponse(c, http.StatusForbidden, "No permission to read tasks")
-		return
-	}
 
 	var req dto.TaskSearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

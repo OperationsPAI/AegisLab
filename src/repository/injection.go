@@ -717,9 +717,15 @@ func GetInjectionLabels(injectionID int) ([]database.Label, error) {
 
 // RemoveInjectionLabel removes a specific label from an injection
 func RemoveInjectionLabel(injectionID int, labelKey, labelValue string) error {
+	// First get the label ID
+	var label database.Label
+	if err := database.DB.Where("label_key = ? AND label_value = ?", labelKey, labelValue).First(&label).Error; err != nil {
+		return fmt.Errorf("label '%s:%s' not found: %v", labelKey, labelValue, err)
+	}
+
+	// Then delete the relationship
 	return database.DB.
-		Where("injection_id = ? AND label_id IN (SELECT id FROM labels WHERE key = ? AND value = ?)",
-			injectionID, labelKey, labelValue).
+		Where("injection_id = ? AND label_id = ?", injectionID, label.ID).
 		Delete(&database.InjectionLabel{}).Error
 }
 
