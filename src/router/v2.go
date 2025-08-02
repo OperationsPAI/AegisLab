@@ -349,6 +349,9 @@ func SetupV2Routes(router *gin.Engine) {
 	// Evaluation API Group
 	evaluations := v2.Group("/evaluations", middleware.JWTAuth())
 	{
+		// GET /api/v2/evaluations/label-keys - Get available label keys for filtering (requires system read permission)
+		evaluations.GET("/label-keys", middleware.RequireSystemRead, v2handlers.GetAvailableLabelKeys)
+
 		// GET /api/v2/evaluations/algorithms/{algorithm}/datasets/{dataset} - Get algorithm evaluation on a dataset (requires system read permission)
 		evaluations.GET("/algorithms/:algorithm/datasets/:dataset", middleware.RequireSystemRead, v2handlers.GetAlgorithmDatasetEvaluation)
 

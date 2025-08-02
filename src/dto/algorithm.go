@@ -3,6 +3,7 @@ package dto
 import (
 	"fmt"
 
+	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/utils"
 )
@@ -240,6 +241,7 @@ func (req *AlgorithmExecutionRequest) Validate() error {
 type BatchAlgorithmExecutionRequest struct {
 	ProjectName string                      `json:"project_name" binding:"required"`
 	Executions  []AlgorithmExecutionRequest `json:"executions" binding:"required,dive,required"`
+	Labels      *ExecutionLabels            `json:"labels,omitempty"` // 预置的执行标签
 }
 
 func (req *BatchAlgorithmExecutionRequest) Validate() error {
@@ -278,4 +280,38 @@ type BatchAlgorithmExecutionResponse struct {
 	GroupID    string                       `json:"group_id"`
 	Executions []AlgorithmExecutionResponse `json:"executions"`
 	Message    string                       `json:"message"`
+}
+
+type ExecutionLabelFilters struct {
+	Tag *string `json:"tag,omitempty" form:"tag"` // user-defined tag
+}
+
+// ExecutionLabels represents execution result labels
+type ExecutionLabels struct {
+	Tag string `json:"tag,omitempty"` // user-defined tag
+}
+
+// GetAvailableLabelKeys returns available label keys
+func GetAvailableLabelKeys() []string {
+	return []string{
+		consts.LabelKeyTag,
+	}
+}
+
+// ToMap converts label filters to map[string]string
+func (f *ExecutionLabelFilters) ToMap() map[string]string {
+	result := make(map[string]string)
+
+	if f.Tag != nil {
+		result[consts.LabelKeyTag] = *f.Tag
+	}
+
+	return result
+}
+
+// FromMap creates label filters from map[string]string
+func (f *ExecutionLabelFilters) FromMap(m map[string]string) {
+	if val, exists := m[consts.LabelKeyTag]; exists {
+		f.Tag = &val
+	}
 }

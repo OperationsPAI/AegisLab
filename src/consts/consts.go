@@ -49,6 +49,11 @@ const (
 	LabelExecution = "execution"
 )
 
+// Execution result label keys
+const (
+	LabelKeyTag = "tag" // User-defined tag for execution results
+)
+
 // String returns the string representation of the action name
 func (a ActionName) String() string {
 	return string(a)

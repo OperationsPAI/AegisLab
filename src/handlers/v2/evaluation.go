@@ -17,7 +17,7 @@ import (
 // @Produce json
 // @Param algorithm path string true "Algorithm name"
 // @Param dataset path string true "Dataset name"
-// @Param label_filters query map[string]string false "Label filters as key-value pairs"
+// @Param tag query string false "Tag label filter"
 // @Success 200 {object} dto.GenericResponse[dto.AlgorithmDatasetEvaluationResp] "Algorithm dataset evaluation data"
 // @Failure 400 {object} dto.GenericResponse[any] "Bad request"
 // @Failure 401 {object} dto.GenericResponse[any] "Unauthorized"
@@ -68,6 +68,23 @@ func GetAlgorithmDatasetEvaluation(c *gin.Context) {
 	dto.SuccessResponse(c, result)
 }
 
+// GetAvailableLabelKeys returns the list of available label keys for execution filtering
+// @Summary Get Available Label Keys
+// @Description Get the list of available label keys that can be used for filtering execution results
+// @Tags evaluation
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Success 200 {object} dto.GenericResponse[[]string] "Available label keys"
+// @Failure 401 {object} dto.GenericResponse[any] "Unauthorized"
+// @Failure 403 {object} dto.GenericResponse[any] "Forbidden"
+// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+// @Router /api/v2/evaluations/label-keys [get]
+func GetAvailableLabelKeys(c *gin.Context) {
+	labelKeys := dto.GetAvailableLabelKeys()
+	dto.SuccessResponse(c, labelKeys)
+}
+
 // GetAlgorithmDatapackEvaluation retrieves evaluation data for a specific algorithm on a specific datapack
 // @Summary Get Algorithm Datapack Evaluation
 // @Description Get execution result with predictions and ground truth for a specific algorithm on a specific datapack
@@ -77,7 +94,7 @@ func GetAlgorithmDatasetEvaluation(c *gin.Context) {
 // @Produce json
 // @Param algorithm path string true "Algorithm name"
 // @Param datapack path string true "Datapack name"
-// @Param label_filters query map[string]string false "Label filters as key-value pairs"
+// @Param tag query string false "Tag label filter"
 // @Success 200 {object} dto.GenericResponse[dto.AlgorithmDatapackEvaluationResp] "Algorithm datapack evaluation data"
 // @Failure 400 {object} dto.GenericResponse[any] "Bad request"
 // @Failure 401 {object} dto.GenericResponse[any] "Unauthorized"

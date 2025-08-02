@@ -14,7 +14,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/dto"
 )
 
-func CreateExecutionResult(taskID string, algorithmID, datapackID int) (int, error) {
+func CreateExecutionResult(taskID string, algorithmID, datapackID int, labels *dto.ExecutionLabels) (int, error) {
 	executionResult := database.ExecutionResult{
 		TaskID:      taskID,
 		AlgorithmID: algorithmID,
@@ -39,6 +39,13 @@ func CreateExecutionResult(taskID string, algorithmID, datapackID int) (int, err
 
 	if err := AddExecutionResultLabel(executionResult.ID, consts.ExecutionLabelSource, labelValue, labelDescription); err != nil {
 		fmt.Printf("Warning: Failed to create execution result label: %v\n", err)
+	}
+
+	// Add user-defined labels if provided
+	if labels != nil && labels.Tag != "" {
+		if err := AddExecutionResultLabel(executionResult.ID, consts.LabelKeyTag, labels.Tag, "User-defined tag"); err != nil {
+			fmt.Printf("Warning: Failed to create tag label: %v\n", err)
+		}
 	}
 
 	return executionResult.ID, nil
@@ -550,8 +557,9 @@ func GetAlgorithmDatasetEvaluation(req dto.AlgorithmDatasetEvaluationReq) (*dto.
 			req.Algorithm, faultInjectionIDs, consts.ExecutionSuccess)
 
 	// Apply label filters if provided
-	if len(req.LabelFilters) > 0 {
-		for labelKey, labelValue := range req.LabelFilters {
+	if req.LabelFilters != nil {
+		labelMap := req.LabelFilters.ToMap()
+		for labelKey, labelValue := range labelMap {
 			query = query.Where("execution_results.id IN (SELECT execution_id FROM execution_result_labels erl JOIN labels l ON erl.label_id = l.id WHERE l.key = ? AND l.value = ?)", labelKey, labelValue)
 		}
 	}
@@ -655,8 +663,9 @@ func GetAlgorithmDatapackEvaluation(req dto.AlgorithmDatapackEvaluationReq) (*dt
 			req.Algorithm, req.Datapack, consts.ExecutionSuccess)
 
 	// Apply label filters if provided
-	if len(req.LabelFilters) > 0 {
-		for labelKey, labelValue := range req.LabelFilters {
+	if req.LabelFilters != nil {
+		labelMap := req.LabelFilters.ToMap()
+		for labelKey, labelValue := range labelMap {
 			query = query.Where("execution_results.id IN (SELECT execution_id FROM execution_result_labels erl JOIN labels l ON erl.label_id = l.id WHERE l.key = ? AND l.value = ?)", labelKey, labelValue)
 		}
 	}
