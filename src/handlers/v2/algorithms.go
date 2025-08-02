@@ -9,9 +9,11 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/executor"
+	"github.com/LGU-SE-Internal/rcabench/middleware"
 	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // SearchAlgorithms handles complex algorithm search with advanced filtering
@@ -521,6 +523,19 @@ func UploadGranularityResults(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/algorithms/execute [post]
 func SubmitAlgorithmExecution(c *gin.Context) {
+	groupID := c.GetString("groupID")
+	logrus.Infof("SubmitAlgorithmExecution called, groupID: %s", groupID)
+
+	ctx, ok := c.Get(middleware.SpanContextKey)
+	if !ok {
+		logrus.Error("failed to get span context from gin.Context")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get span context")
+		return
+	}
+
+	spanCtx := ctx.(context.Context)
+	trace.SpanFromContext(spanCtx)
+
 	// Check permissions
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -560,16 +575,6 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 		return
 	}
 
-	// Get span context for tracing
-	ctx, ok := c.Get("spanContext")
-	var spanCtx context.Context
-	if ok {
-		spanCtx = ctx.(context.Context)
-	} else {
-		spanCtx = context.Background()
-	}
-
-	groupID := c.GetString("groupID")
 	var allExecutions []dto.AlgorithmExecutionResponse
 
 	// Process each execution request
