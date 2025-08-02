@@ -51,7 +51,7 @@ type AnalyzeTracesReq struct {
 func (req *AnalyzeTracesReq) Validate() error {
 	if req.FirstTaskType != "" {
 		if _, exists := ValidFirstTaskTypes[consts.TaskType(req.FirstTaskType)]; !exists {
-			return fmt.Errorf("Invalid event name: %s", req.FirstTaskType)
+			return fmt.Errorf("invalid event name: %s", req.FirstTaskType)
 		}
 	}
 

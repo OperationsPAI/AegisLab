@@ -257,8 +257,8 @@ func getLatestExecutionMapByPair(params dto.RawDataReq) (map[int]string, error) 
 	return execIDMap, nil
 }
 
-func GetGroundtruthMap(datasets []string) (map[string]chaos.Groundtruth, error) {
-	engineConfMap, err := ListEngineConfigsByNames(datasets)
+func GetGroundtruthMap(datapacks []string) (map[string]chaos.Groundtruth, error) {
+	engineConfMap, err := ListEngineConfigsByNames(datapacks)
 	if err != nil {
 		return nil, err
 	}
@@ -463,7 +463,7 @@ func GetExecutionResultLabels(executionID int) ([]database.Label, error) {
 
 // RemoveExecutionResultLabel removes a specific label from an execution result
 func RemoveExecutionResultLabel(executionID int, labelKey, labelValue string) error {
-	// 直接通过 JOIN 删除关系，避免先查询标签
+
 	result := database.DB.
 		Where("execution_id = ? AND label_id IN (SELECT id FROM labels WHERE key = ? AND value = ?)",
 			executionID, labelKey, labelValue).
@@ -500,4 +500,235 @@ func InitializeExecutionLabels() error {
 	}
 
 	return nil
+}
+
+// GetAlgorithmDatasetEvaluation retrieves all execution results for a specific algorithm on a specific dataset
+func GetAlgorithmDatasetEvaluation(req dto.AlgorithmDatasetEvaluationReq) (*dto.AlgorithmDatasetEvaluationResp, error) {
+	// First, get all fault injection schedules (datapacks) for the specified dataset
+	var datasetRecord database.Dataset
+	err := database.DB.Where("name = ? AND status = 1", req.Dataset).First(&datasetRecord).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("dataset '%s' not found", req.Dataset)
+		}
+		return nil, fmt.Errorf("failed to query dataset: %v", err)
+	}
+
+	// Get all fault injection schedules (datapacks) in this dataset
+	var faultInjections []database.FaultInjectionSchedule
+	err = database.DB.
+		Joins("JOIN dataset_fault_injections ON dataset_fault_injections.fault_injection_id = fault_injection_schedules.id").
+		Where("dataset_fault_injections.dataset_id = ?", datasetRecord.ID).
+		Find(&faultInjections).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to query fault injections for dataset: %v", err)
+	}
+
+	if len(faultInjections) == 0 {
+		return &dto.AlgorithmDatasetEvaluationResp{
+			Algorithm:     req.Algorithm,
+			Dataset:       req.Dataset,
+			TotalCount:    0,
+			ExecutedCount: 0,
+			Items:         []dto.DatapackEvaluationItem{},
+		}, nil
+	}
+
+	// Get fault injection IDs
+	faultInjectionIDs := make([]int, len(faultInjections))
+	for i, fi := range faultInjections {
+		faultInjectionIDs[i] = fi.ID
+	}
+
+	// Query execution results for the specified algorithm and these datapacks
+	query := database.DB.
+		Table("execution_results").
+		Select("execution_results.*, containers.name as algorithm, fault_injection_schedules.injection_name as datapack_name").
+		Joins("JOIN containers ON containers.id = execution_results.algorithm_id").
+		Joins("JOIN fault_injection_schedules ON fault_injection_schedules.id = execution_results.datapack_id").
+		Where("containers.name = ? AND execution_results.datapack_id IN (?) AND execution_results.status = ?",
+			req.Algorithm, faultInjectionIDs, consts.ExecutionSuccess)
+
+	// Apply label filters if provided
+	if len(req.LabelFilters) > 0 {
+		for labelKey, labelValue := range req.LabelFilters {
+			query = query.Where("execution_results.id IN (SELECT execution_id FROM execution_result_labels erl JOIN labels l ON erl.label_id = l.id WHERE l.key = ? AND l.value = ?)", labelKey, labelValue)
+		}
+	}
+
+	var execResults []struct {
+		database.ExecutionResult
+		Algorithm    string `json:"algorithm"`
+		DatapackName string `json:"datapack_name"`
+	}
+
+	if err := query.Find(&execResults).Error; err != nil {
+		return nil, fmt.Errorf("failed to query execution results: %v", err)
+	}
+
+	// If no executions found, return empty result
+	if len(execResults) == 0 {
+		return &dto.AlgorithmDatasetEvaluationResp{
+			Algorithm:     req.Algorithm,
+			Dataset:       req.Dataset,
+			TotalCount:    len(faultInjections),
+			ExecutedCount: 0,
+			Items:         []dto.DatapackEvaluationItem{},
+		}, nil
+	}
+
+	// Get execution IDs for granularity results query
+	executionIDs := make([]int, len(execResults))
+	for i, exec := range execResults {
+		executionIDs[i] = exec.ID
+	}
+
+	// Query granularity results for these executions
+	var granularityResults []database.GranularityResult
+	if err := database.DB.
+		Where("execution_id IN (?)", executionIDs).
+		Find(&granularityResults).Error; err != nil {
+		return nil, fmt.Errorf("failed to query granularity results: %v", err)
+	}
+
+	// Group granularity results by execution ID
+	granMap := make(map[int][]dto.GranularityRecord, len(executionIDs))
+	for _, gran := range granularityResults {
+		var record dto.GranularityRecord
+		record.Convert(gran)
+
+		if _, exists := granMap[gran.ExecutionID]; !exists {
+			granMap[gran.ExecutionID] = []dto.GranularityRecord{record}
+		} else {
+			granMap[gran.ExecutionID] = append(granMap[gran.ExecutionID], record)
+		}
+	}
+
+	// Get ground truth for all datapacks
+	datapackNames := make([]string, len(faultInjections))
+	for i, fi := range faultInjections {
+		datapackNames[i] = fi.InjectionName
+	}
+
+	groundtruthMap, err := GetGroundtruthMap(datapackNames)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ground truth map: %v", err)
+	}
+
+	// Build response items
+	items := make([]dto.DatapackEvaluationItem, 0, len(execResults))
+	for _, exec := range execResults {
+		item := dto.DatapackEvaluationItem{
+			DatapackName: exec.DatapackName,
+			ExecutionID:  exec.ID,
+			Groundtruth:  groundtruthMap[exec.DatapackName],
+			Predictions:  granMap[exec.ID],
+			ExecutedAt:   exec.CreatedAt.Format("2006-01-02 15:04:05"),
+		}
+
+		// If no predictions found, set empty slice
+		if item.Predictions == nil {
+			item.Predictions = []dto.GranularityRecord{}
+		}
+
+		items = append(items, item)
+	}
+
+	return &dto.AlgorithmDatasetEvaluationResp{
+		Algorithm:     req.Algorithm,
+		Dataset:       req.Dataset,
+		TotalCount:    len(faultInjections),
+		ExecutedCount: len(items),
+		Items:         items,
+	}, nil
+}
+
+// GetAlgorithmDatapackEvaluation retrieves execution result for a specific algorithm on a specific datapack
+func GetAlgorithmDatapackEvaluation(req dto.AlgorithmDatapackEvaluationReq) (*dto.AlgorithmDatapackEvaluationResp, error) {
+	// Query execution results for the specified algorithm and datapack
+	query := database.DB.
+		Table("execution_results").
+		Select("execution_results.*, containers.name as algorithm, fault_injection_schedules.injection_name as datapack_name").
+		Joins("JOIN containers ON containers.id = execution_results.algorithm_id").
+		Joins("JOIN fault_injection_schedules ON fault_injection_schedules.id = execution_results.datapack_id").
+		Where("containers.name = ? AND fault_injection_schedules.injection_name = ? AND execution_results.status = ?",
+			req.Algorithm, req.Datapack, consts.ExecutionSuccess)
+
+	// Apply label filters if provided
+	if len(req.LabelFilters) > 0 {
+		for labelKey, labelValue := range req.LabelFilters {
+			query = query.Where("execution_results.id IN (SELECT execution_id FROM execution_result_labels erl JOIN labels l ON erl.label_id = l.id WHERE l.key = ? AND l.value = ?)", labelKey, labelValue)
+		}
+	}
+
+	// Order by created_at DESC to get the latest execution
+	query = query.Order("execution_results.created_at DESC").Limit(1)
+
+	var execResult struct {
+		database.ExecutionResult
+		Algorithm    string `json:"algorithm"`
+		DatapackName string `json:"datapack_name"`
+	}
+
+	err := query.First(&execResult).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// No execution found, but we can still get ground truth
+			groundtruthMap, err := GetGroundtruthMap([]string{req.Datapack})
+			if err != nil {
+				return nil, fmt.Errorf("failed to get ground truth for datapack '%s': %v", req.Datapack, err)
+			}
+
+			groundtruth, exists := groundtruthMap[req.Datapack]
+			if !exists {
+				return nil, fmt.Errorf("datapack '%s' not found", req.Datapack)
+			}
+
+			return &dto.AlgorithmDatapackEvaluationResp{
+				Algorithm:   req.Algorithm,
+				Datapack:    req.Datapack,
+				ExecutionID: 0,
+				Groundtruth: groundtruth,
+				Predictions: []dto.GranularityRecord{},
+				ExecutedAt:  "",
+				Found:       false,
+			}, nil
+		}
+		return nil, fmt.Errorf("failed to query execution result: %v", err)
+	}
+
+	// Query granularity results for this execution
+	var granularityResults []database.GranularityResult
+	if err := database.DB.
+		Where("execution_id = ?", execResult.ID).
+		Find(&granularityResults).Error; err != nil {
+		return nil, fmt.Errorf("failed to query granularity results: %v", err)
+	}
+
+	// Convert granularity results
+	predictions := make([]dto.GranularityRecord, len(granularityResults))
+	for i, gran := range granularityResults {
+		predictions[i].Convert(gran)
+	}
+
+	// Get ground truth for this datapack
+	groundtruthMap, err := GetGroundtruthMap([]string{req.Datapack})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ground truth map: %v", err)
+	}
+
+	groundtruth, exists := groundtruthMap[req.Datapack]
+	if !exists {
+		return nil, fmt.Errorf("ground truth not found for datapack '%s'", req.Datapack)
+	}
+
+	return &dto.AlgorithmDatapackEvaluationResp{
+		Algorithm:   req.Algorithm,
+		Datapack:    req.Datapack,
+		ExecutionID: execResult.ID,
+		Groundtruth: groundtruth,
+		Predictions: predictions,
+		ExecutedAt:  execResult.CreatedAt.Format("2006-01-02 15:04:05"),
+		Found:       true,
+	}, nil
 }

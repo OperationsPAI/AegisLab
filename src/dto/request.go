@@ -30,7 +30,7 @@ func (req *ListOptionsQuery) Validate() error {
 	req.setDefaults()
 
 	if req.Limit < 0 {
-		return fmt.Errorf("Limit must be a non-negative integer")
+		return fmt.Errorf("limit must be a non-negative integer")
 	}
 
 	return nil
@@ -58,20 +58,20 @@ type PaginationQuery struct {
 
 func (req *PaginationQuery) Validate() error {
 	if req.PageNum < 0 {
-		return fmt.Errorf("Page number must be a non-negative integer")
+		return fmt.Errorf("page number must be a non-negative integer")
 	}
 
 	if req.PageSize < 0 {
-		return fmt.Errorf("Page size must be a non-negative integer")
+		return fmt.Errorf("page size must be a non-negative integer")
 	}
 
 	if (req.PageNum == 0) != (req.PageSize == 0) {
-		return fmt.Errorf("Both page_num and page_size must be provided together or both be 0")
+		return fmt.Errorf("both page_num and page_size must be provided together or both be 0")
 	}
 
 	if req.PageSize > 0 {
 		if _, exists := ValidPageSizeMap[req.PageSize]; !exists {
-			return fmt.Errorf("Invalid page size: %d (supported: %s)", req.PageSize, getValidPageSizes())
+			return fmt.Errorf("invalid page size: %d (supported: %s)", req.PageSize, getValidPageSizes())
 		}
 	}
 
@@ -102,19 +102,19 @@ func (req *TimeRangeQuery) Convert() (*TimeFilterOptions, error) {
 	if req.Lookback != "custom" {
 		duration, err := parseLookbackDuration(req.Lookback)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid lookback value: %v", err)
+			return nil, fmt.Errorf("invalid lookback value: %v", err)
 		}
 
 		opts.Lookback = duration
 	} else {
 		customStart, err := time.Parse(time.RFC3339, req.CustomStartStr)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid custom start time: %v", err)
+			return nil, fmt.Errorf("invalid custom start time: %v", err)
 		}
 
 		customEnd, err := time.Parse(time.RFC3339, req.CustomEndStr)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid custom end time: %v", err)
+			return nil, fmt.Errorf("invalid custom end time: %v", err)
 		}
 
 		opts.UseCustomRange = true
@@ -128,25 +128,25 @@ func (req *TimeRangeQuery) Convert() (*TimeFilterOptions, error) {
 func (req *TimeRangeQuery) Validate() error {
 	if req.Lookback != "custom" {
 		if _, err := parseLookbackDuration(req.Lookback); err != nil {
-			return fmt.Errorf("Invalid lookback value: %s", req.Lookback)
+			return fmt.Errorf("invalid lookback value: %s", req.Lookback)
 		}
 	} else {
 		if req.CustomStartStr == "" || req.CustomEndStr == "" {
-			return fmt.Errorf("Custom start and end times are required for custom lookback")
+			return fmt.Errorf("custom start and end times are required for custom lookback")
 		}
 
 		startTime, err := time.Parse(time.RFC3339, req.CustomStartStr)
 		if err != nil {
-			return fmt.Errorf("Invalid custom start time: %v", err)
+			return fmt.Errorf("invalid custom start time: %v", err)
 		}
 
 		endTime, err := time.Parse(time.RFC3339, req.CustomEndStr)
 		if err != nil {
-			return fmt.Errorf("Invalid custom end time: %v", err)
+			return fmt.Errorf("invalid custom end time: %v", err)
 		}
 
 		if startTime.After(endTime) {
-			return fmt.Errorf("Custom start time cannot be after custom end time")
+			return fmt.Errorf("custom start time cannot be after custom end time")
 		}
 	}
 

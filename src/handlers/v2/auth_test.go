@@ -364,25 +364,6 @@ func TestChangePassword(t *testing.T) {
 	}
 }
 
-// Integration test helpers
-func createTestUser(t *testing.T) dto.UserInfo {
-	// This would create a test user in the database
-	// For now, return a mock user
-	return dto.UserInfo{
-		ID:       1,
-		Username: "testuser",
-		Email:    "test@example.com",
-		FullName: "Test User",
-		IsActive: true,
-	}
-}
-
-func generateTestToken(userID int, username, email string) (string, error) {
-	// This would generate a real test token
-	// For now, return a mock token
-	return "test-token-" + username, nil
-}
-
 // Benchmark tests
 func BenchmarkLogin(b *testing.B) {
 	router := setupTestRouter()

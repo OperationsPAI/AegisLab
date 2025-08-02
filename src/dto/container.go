@@ -188,12 +188,12 @@ type SubmitContainerBuildingReq struct {
 func (req *SubmitContainerBuildingReq) Validate() error {
 	if req.ContainerType != "" {
 		if _, exists := ValidContainerTypes[req.ContainerType]; !exists {
-			return fmt.Errorf("Invalid container type: %s", req.ContainerType)
+			return fmt.Errorf("invalid container type: %s", req.ContainerType)
 		}
 	}
 
 	if req.Image == "" {
-		return fmt.Errorf("Docker image cannot be empty")
+		return fmt.Errorf("docker image cannot be empty")
 	} else {
 		if len(req.Image) > 255 {
 			return fmt.Errorf("image name %s too long (max 255 characters)", req.Image)
@@ -208,24 +208,24 @@ func (req *SubmitContainerBuildingReq) Validate() error {
 
 	if req.Tag != "" {
 		if err := utils.IsValidDockerTag(req.Tag); err != nil {
-			return fmt.Errorf("Invalid Docker tag: %s, %v", req.Tag, err)
+			return fmt.Errorf("invalid docker tag: %s, %v", req.Tag, err)
 		}
 	}
 
 	if req.EnvVars != nil {
 		for i, envVar := range req.EnvVars {
 			if err := utils.IsValidEnvVar(envVar); err != nil {
-				return fmt.Errorf("Invalid environment variable %s at index %d: %v", envVar, i, err)
+				return fmt.Errorf("invalid environment variable %s at index %d: %v", envVar, i, err)
 			}
 		}
 	}
 
 	if err := req.Source.Validate(); err != nil {
-		return fmt.Errorf("Invalid build source: %v", err)
+		return fmt.Errorf("invalid build source: %v", err)
 	}
 
 	if err := req.BuildOptions.Validate(); err != nil {
-		return fmt.Errorf("Invalid build options: %v", err)
+		return fmt.Errorf("invalid build options: %v", err)
 	}
 
 	return nil
@@ -246,11 +246,11 @@ func (req *SubmitContainerBuildingReq) ValidateInfoContent(sourcePath string) (i
 	}
 
 	if req.Name == "" {
-		return http.StatusBadRequest, fmt.Errorf("Container name cannot be empty")
+		return http.StatusBadRequest, fmt.Errorf("container name cannot be empty")
 	}
 
 	if req.Name == config.GetString("algo.detector") {
-		return http.StatusBadRequest, fmt.Errorf("Name '%s' is reserved and cannot be used for building images", config.GetString("algo.detector"))
+		return http.StatusBadRequest, fmt.Errorf("name '%s' is reserved and cannot be used for building images", config.GetString("algo.detector"))
 	}
 
 	return http.StatusOK, nil
@@ -261,12 +261,12 @@ func getInfoFileContent(sourcePath string) (map[string]any, error) {
 
 	data, err := os.ReadFile(tomlPath)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read %s file: %v", InfoFileName, err)
+		return nil, fmt.Errorf("failed to read %s file: %v", InfoFileName, err)
 	}
 
 	var config map[string]any
 	if err := toml.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("Failed to parse %s file: %v", InfoFileName, err)
+		return nil, fmt.Errorf("failed to parse %s file: %v", InfoFileName, err)
 	}
 
 	return config, nil
@@ -309,16 +309,16 @@ type CreateContainerRequest struct {
 func (req *CreateContainerRequest) Validate() error {
 	if req.ContainerType != "" {
 		if _, exists := ValidContainerTypes[req.ContainerType]; !exists {
-			return fmt.Errorf("Invalid container type: %s", req.ContainerType)
+			return fmt.Errorf("invalid container type: %s", req.ContainerType)
 		}
 	}
 
 	if req.Name == "" {
-		return fmt.Errorf("Container name cannot be empty")
+		return fmt.Errorf("container name cannot be empty")
 	}
 
 	if req.Image == "" {
-		return fmt.Errorf("Docker image cannot be empty")
+		return fmt.Errorf("docker image cannot be empty")
 	} else {
 		if len(req.Image) > 255 {
 			return fmt.Errorf("image name %s too long (max 255 characters)", req.Image)
@@ -334,19 +334,19 @@ func (req *CreateContainerRequest) Validate() error {
 
 	if req.Tag != "" {
 		if err := utils.IsValidDockerTag(req.Tag); err != nil {
-			return fmt.Errorf("Invalid Docker tag: %s, %v", req.Tag, err)
+			return fmt.Errorf("invalid docker tag: %s, %v", req.Tag, err)
 		}
 	}
 
 	if req.BuildSource != nil {
 		if err := req.BuildSource.Validate(); err != nil {
-			return fmt.Errorf("Invalid build source: %v", err)
+			return fmt.Errorf("invalid build source: %v", err)
 		}
 	}
 
 	if req.BuildOptions != nil {
 		if err := req.BuildOptions.Validate(); err != nil {
-			return fmt.Errorf("Invalid build options: %v", err)
+			return fmt.Errorf("invalid build options: %v", err)
 		}
 	}
 
@@ -358,7 +358,7 @@ func (req *CreateContainerRequest) ValidateInfoContent(sourcePath string) (int, 
 	infoFilePath := filepath.Join(sourcePath, InfoFileName)
 
 	if _, err := os.Stat(infoFilePath); os.IsNotExist(err) {
-		return http.StatusNotFound, fmt.Errorf("Required %s file not found in source", InfoFileName)
+		return http.StatusNotFound, fmt.Errorf("required %s file not found in source", InfoFileName)
 	}
 
 	config, err := getInfoFileContent(sourcePath)
@@ -372,10 +372,10 @@ func (req *CreateContainerRequest) ValidateInfoContent(sourcePath string) (int, 
 			if nameStr, ok := nameValue.(string); ok && nameStr != "" {
 				req.Name = nameStr
 			} else {
-				return http.StatusBadRequest, fmt.Errorf("Invalid or empty 'name' field in %s", InfoFileName)
+				return http.StatusBadRequest, fmt.Errorf("invalid or empty 'name' field in %s", InfoFileName)
 			}
 		} else {
-			return http.StatusBadRequest, fmt.Errorf("Missing 'name' field in %s and not provided in request", InfoFileName)
+			return http.StatusBadRequest, fmt.Errorf("missing 'name' field in %s and not provided in request", InfoFileName)
 		}
 	}
 

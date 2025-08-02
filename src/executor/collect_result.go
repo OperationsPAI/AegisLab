@@ -186,18 +186,18 @@ func parseCollectPayload(payload map[string]any) (*collectionPayload, error) {
 
 	dataset, ok := payload[consts.CollectDataset].(string)
 	if !ok || dataset == "" {
-		return nil, fmt.Errorf("Missing or invalid '%s' key in payload", consts.CollectDataset)
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", consts.CollectDataset)
 	}
 
 	executionIDFloat, ok := payload[consts.CollectExecutionID].(float64)
 	if !ok || executionIDFloat == 0.0 {
-		return nil, fmt.Errorf("Missing '%s' key in payload", consts.CollectExecutionID)
+		return nil, fmt.Errorf("missing '%s' key in payload", consts.CollectExecutionID)
 	}
 	executionID := int(executionIDFloat)
 
 	timestamp, ok := payload[consts.CollectTimestamp].(string)
 	if !ok || timestamp == "" {
-		return nil, fmt.Errorf("Missing or invalid '%s' key in payload", consts.CollectTimestamp)
+		return nil, fmt.Errorf("missing or invalid '%s' key in payload", consts.CollectTimestamp)
 	}
 
 	return &collectionPayload{

@@ -33,7 +33,7 @@ func GenericQueryWithBuilder[T any](params *GenericQueryParams) (total int64, re
 	if params.PageNum > 0 && params.PageSize > 0 {
 		countQuery := params.Builder(database.DB.Model(&model))
 		if err = countQuery.Limit(-1).Offset(-1).Count(&total).Error; err != nil {
-			return 0, nil, fmt.Errorf("Count error: %v", err)
+			return 0, nil, fmt.Errorf("count error: %v", err)
 		}
 
 		query = query.Scopes(database.Paginate(params.PageNum, params.PageSize))
@@ -46,7 +46,7 @@ func GenericQueryWithBuilder[T any](params *GenericQueryParams) (total int64, re
 	}
 
 	if err = query.Find(&records).Error; err != nil {
-		return total, nil, fmt.Errorf("Failed to find records: %v", err)
+		return total, nil, fmt.Errorf("failed to find records: %v", err)
 	}
 
 	return total, records, nil
