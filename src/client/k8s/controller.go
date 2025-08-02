@@ -572,16 +572,6 @@ func parseEventTime(event map[string]any) (*time.Time, error) {
 	return nil, fmt.Errorf("parse event time failed")
 }
 
-func extractJobError(job *batchv1.Job) string {
-	for _, condition := range job.Status.Conditions {
-		if condition.Type == batchv1.JobFailed && condition.Status == "True" {
-			return fmt.Sprintf("Reason: %s, Message: %s", condition.Reason, condition.Message)
-		}
-	}
-
-	return ""
-}
-
 func checkPodReason(pod *corev1.Pod, reason string) bool {
 	for _, containerStatus := range pod.Status.ContainerStatuses {
 		// Check container Waiting status

@@ -351,7 +351,7 @@ func validateRequiredFiles(sourcePath, ContextDir string, DockerfilePath string)
 
 	buildDockerfilePath := filepath.Join(sourcePath, DockerfilePath)
 	if _, err := os.Stat(buildDockerfilePath); os.IsNotExist(err) {
-		return fmt.Errorf("Dockerfile '%s' does not exist", DockerfilePath)
+		return fmt.Errorf("dockerfile '%s' does not exist", DockerfilePath)
 	}
 
 	return nil

@@ -47,25 +47,25 @@ func (req *RawDataReq) Validate() error {
 	}
 
 	if modeCount == 0 {
-		return fmt.Errorf("One of the following must be provided: pairs, (algorithms and datasets), or execution_ids")
+		return fmt.Errorf("one of the following must be provided: pairs, (algorithms and datasets), or execution_ids")
 	}
 
 	if modeCount > 1 {
-		return fmt.Errorf("Only one query mode can be used at a time: pairs, (algorithms and datasets), or execution_ids")
+		return fmt.Errorf("only one query mode can be used at a time: pairs, (algorithms and datasets), or execution_ids")
 	}
 
 	if req.HasPairsMode() {
 		for i, pair := range req.Pairs {
 			if pair.Algorithm == "" {
-				return fmt.Errorf("Algorithm cannot be empty in pair at index %d", i)
+				return fmt.Errorf("algorithm cannot be empty in pair at index %d", i)
 			}
 
 			if pair.Algorithm == config.GetString("algo.detector") {
-				return fmt.Errorf("Algorithm '%s' is reserved and cannot be used in pairs", config.GetString("algo.detector"))
+				return fmt.Errorf("algorithm '%s' is reserved and cannot be used in pairs", config.GetString("algo.detector"))
 			}
 
 			if pair.Dataset == "" {
-				return fmt.Errorf("Dataset cannot be empty in pair at index %d", i)
+				return fmt.Errorf("dataset cannot be empty in pair at index %d", i)
 			}
 		}
 	}
@@ -73,7 +73,7 @@ func (req *RawDataReq) Validate() error {
 	if req.HasExecutionMode() {
 		for i, id := range req.ExecutionIDs {
 			if id <= 0 {
-				return fmt.Errorf("Execution ID must be greater than 0 at index %d", i)
+				return fmt.Errorf("execution ID must be greater than 0 at index %d", i)
 			}
 		}
 	}
@@ -108,3 +108,46 @@ type Conclusion struct {
 
 // EvaluateMetric represents evaluation metric function type
 type EvaluateMetric func([]Execution) ([]Conclusion, error)
+
+// AlgorithmDatasetEvaluationReq represents request for algorithm evaluation on a dataset
+type AlgorithmDatasetEvaluationReq struct {
+	Algorithm    string            `json:"algorithm" binding:"required"`
+	Dataset      string            `json:"dataset" binding:"required"`
+	LabelFilters map[string]string `json:"label_filters,omitempty" form:"label_filters"` // Label key-value pairs for filtering
+}
+
+// DatapackEvaluationItem represents evaluation item for a single datapack
+type DatapackEvaluationItem struct {
+	DatapackName string              `json:"datapack_name"` // Datapack name (from FaultInjectionSchedule)
+	ExecutionID  int                 `json:"execution_id"`  // Execution ID
+	Groundtruth  chaos.Groundtruth   `json:"groundtruth"`   // Ground truth for this datapack
+	Predictions  []GranularityRecord `json:"predictions"`   // Algorithm predictions
+	ExecutedAt   string              `json:"executed_at"`   // Execution time
+}
+
+// AlgorithmDatasetEvaluationResp represents response for algorithm evaluation on a dataset
+type AlgorithmDatasetEvaluationResp struct {
+	Algorithm     string                   `json:"algorithm"`      // Algorithm name
+	Dataset       string                   `json:"dataset"`        // Dataset name
+	TotalCount    int                      `json:"total_count"`    // Total number of datapacks in dataset
+	ExecutedCount int                      `json:"executed_count"` // Number of successfully executed datapacks
+	Items         []DatapackEvaluationItem `json:"items"`          // Evaluation items for each datapack
+}
+
+// AlgorithmDatapackEvaluationReq represents request for algorithm evaluation on a single datapack
+type AlgorithmDatapackEvaluationReq struct {
+	Algorithm    string            `json:"algorithm" binding:"required"`
+	Datapack     string            `json:"datapack" binding:"required"`
+	LabelFilters map[string]string `json:"label_filters,omitempty" form:"label_filters"` // Label key-value pairs for filtering
+}
+
+// AlgorithmDatapackEvaluationResp represents response for algorithm evaluation on a single datapack
+type AlgorithmDatapackEvaluationResp struct {
+	Algorithm   string              `json:"algorithm"`    // Algorithm name
+	Datapack    string              `json:"datapack"`     // Datapack name
+	ExecutionID int                 `json:"execution_id"` // Execution ID (0 if no execution found)
+	Groundtruth chaos.Groundtruth   `json:"groundtruth"`  // Ground truth for this datapack
+	Predictions []GranularityRecord `json:"predictions"`  // Algorithm predictions
+	ExecutedAt  string              `json:"executed_at"`  // Execution time
+	Found       bool                `json:"found"`        // Whether execution result was found
+}

@@ -346,6 +346,16 @@ func SetupV2Routes(router *gin.Engine) {
 	labels := v2.Group("/labels")         // Label Management - Label Entity
 	projects := v2.Group("/projects")     // Project Management - Project Entity
 
+	// Evaluation API Group
+	evaluations := v2.Group("/evaluations", middleware.JWTAuth())
+	{
+		// GET /api/v2/evaluations/algorithms/{algorithm}/datasets/{dataset} - Get algorithm evaluation on a dataset (requires system read permission)
+		evaluations.GET("/algorithms/:algorithm/datasets/:dataset", middleware.RequireSystemRead, v2handlers.GetAlgorithmDatasetEvaluation)
+
+		// GET /api/v2/evaluations/algorithms/{algorithm}/datapacks/{datapack} - Get algorithm evaluation on a single datapack (requires system read permission)
+		evaluations.GET("/algorithms/:algorithm/datapacks/:datapack", middleware.RequireSystemRead, v2handlers.GetAlgorithmDatapackEvaluation)
+	}
+
 	// Analysis and Detection related API Group (for future expansion)
 	detectors := v2.Group("/detectors")     // Detector Management - Detector Entity
 	granularity := v2.Group("/granularity") // Granularity Result Management - GranularityResult Entity

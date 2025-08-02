@@ -67,7 +67,7 @@ func (req *ListDisplayConfigsReq) Validate() error {
 	req.TraceIDs = utils.FilterEmptyStrings(req.TraceIDs)
 	for _, traceID := range req.TraceIDs {
 		if !utils.IsValidUUID(traceID) {
-			return fmt.Errorf("Invalid trace_id format: %s", traceID)
+			return fmt.Errorf("invalid trace_id format: %s", traceID)
 		}
 	}
 
@@ -88,24 +88,24 @@ type InjectionFilterOptions struct {
 func (opts *InjectionFilterOptions) Validate() error {
 	if opts.Benchmark != "" {
 		if _, exists := config.GetValidBenchmarkMap()[opts.Benchmark]; !exists {
-			return fmt.Errorf("Invalid benchmark: %s", opts.Benchmark)
+			return fmt.Errorf("invalid benchmark: %s", opts.Benchmark)
 		}
 	}
 
 	if opts.Status != nil {
 		status := *opts.Status
 		if status < 0 {
-			return fmt.Errorf("Status must be a non-negative integer")
+			return fmt.Errorf("status must be a non-negative integer")
 		}
 
 		if _, exists := DatasetStatusMap[status]; !exists {
-			return fmt.Errorf("Invalid status: %d", opts.Status)
+			return fmt.Errorf("invalid status: %d", opts.Status)
 		}
 	}
 
 	if opts.FaultType != nil {
 		if _, exists := chaos.ChaosTypeMap[chaos.ChaosType(*opts.FaultType)]; !exists {
-			return fmt.Errorf("Invalid fault type: %d", opts.FaultType)
+			return fmt.Errorf("invalid fault type: %d", opts.FaultType)
 		}
 	}
 
@@ -136,7 +136,7 @@ func (req *ListInjectionsReq) Validate() error {
 	hasPagination := req.PaginationQuery.PageNum > 0 && req.PaginationQuery.PageSize > 0
 
 	if hasLimit && hasPagination {
-		return fmt.Errorf("Cannot use both limit and pagination (page_num/page_size) at the same time")
+		return fmt.Errorf("cannot use both limit and pagination (page_num/page_size) at the same time")
 	}
 
 	if err := req.TimeRangeQuery.Validate(); err != nil {
@@ -153,16 +153,16 @@ type QueryInjectionReq struct {
 
 func (req *QueryInjectionReq) Validate() error {
 	if req.Name == "" && req.TaskID == "" {
-		return fmt.Errorf("Either name or task_id must be provided")
+		return fmt.Errorf("either name or task_id must be provided")
 	}
 
 	if req.Name != "" && req.TaskID != "" {
-		return fmt.Errorf("Only one of name or task_id should be provided")
+		return fmt.Errorf("only one of name or task_id should be provided")
 	}
 
 	if req.TaskID != "" {
 		if !utils.IsValidUUID(req.TaskID) {
-			return fmt.Errorf("Invalid task_id format: %s", req.TaskID)
+			return fmt.Errorf("invalid task_id format: %s", req.TaskID)
 		}
 	}
 
@@ -226,34 +226,34 @@ func (req *SubmitInjectionReq) ParseInjectionSpecs() ([]InjectionConfig, error) 
 
 func (req *SubmitInjectionReq) Validate() error {
 	if req.ProjectName == "" {
-		return fmt.Errorf("Project name must not be blank")
+		return fmt.Errorf("project name must not be blank")
 	}
 
 	if req.Interval <= req.PreDuration {
-		return fmt.Errorf("Interval must be greater than pre_duration")
+		return fmt.Errorf("interval must be greater than pre_duration")
 	}
 
 	if len(req.Specs) == 0 {
-		return fmt.Errorf("Specs must not be empty")
+		return fmt.Errorf("specs must not be empty")
 	}
 
 	if req.Benchmark == "" {
-		return fmt.Errorf("Benchmark must not be blank")
+		return fmt.Errorf("benchmark must not be blank")
 	} else {
 		if _, exists := config.GetValidBenchmarkMap()[req.Benchmark]; !exists {
-			return fmt.Errorf("Invalid benchmark: %s", req.Benchmark)
+			return fmt.Errorf("invalid benchmark: %s", req.Benchmark)
 		}
 	}
 
 	if req.Algorithms != nil {
 		for _, algorithm := range req.Algorithms {
 			if algorithm.Name == "" {
-				return fmt.Errorf("Algorithm must not be empty")
+				return fmt.Errorf("algorithm must not be empty")
 			}
 
 			detector := config.GetString("algo.detector")
 			if algorithm.Name == detector {
-				return fmt.Errorf("Algorithm %s is not allowed for fault injection", detector)
+				return fmt.Errorf("algorithm %s is not allowed for fault injection", detector)
 			}
 		}
 	}

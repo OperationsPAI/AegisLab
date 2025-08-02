@@ -133,7 +133,7 @@ func downloadByGroupIds(zipWriter *zip.Writer, groupIDs []string, excludeRules [
 			workDir := filepath.Join(config.GetString("nfs.path"), dataset)
 			if !utils.IsAllowedPath(workDir) {
 				logrus.WithField("path", workDir).Errorf("invalid path access")
-				return http.StatusInternalServerError, fmt.Errorf("Invalid path access")
+				return http.StatusInternalServerError, fmt.Errorf("invalid path access")
 			}
 		}
 	}
@@ -171,7 +171,7 @@ func downloadByGroupIds(zipWriter *zip.Writer, groupIDs []string, excludeRules [
 			})
 			if err != nil {
 				logrus.Errorf("failed to package: %v", err)
-				return http.StatusForbidden, fmt.Errorf("Failed to package")
+				return http.StatusForbidden, fmt.Errorf("failed to package")
 			}
 		}
 	}
@@ -184,7 +184,7 @@ func downloadByNames(zipWriter *zip.Writer, names []string, excludeRules []utils
 		workDir := filepath.Join(config.GetString("nfs.path"), name)
 		if !utils.IsAllowedPath(workDir) {
 			logrus.WithField("path", workDir).Errorf("invalid path access")
-			return http.StatusInternalServerError, fmt.Errorf("Invalid path access")
+			return http.StatusInternalServerError, fmt.Errorf("invalid path access")
 		}
 	}
 
@@ -220,7 +220,7 @@ func downloadByNames(zipWriter *zip.Writer, names []string, excludeRules []utils
 		})
 		if err != nil {
 			logrus.Errorf("failed to package: %v", err)
-			return http.StatusForbidden, fmt.Errorf("Failed to package")
+			return http.StatusForbidden, fmt.Errorf("failed to package")
 		}
 	}
 

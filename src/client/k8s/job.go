@@ -183,7 +183,7 @@ func deleteJob(ctx context.Context, namespace, name string) error {
 func GetJob(ctx context.Context, namespace, jobName string) (*batchv1.Job, error) {
 	job, err := k8sClient.BatchV1().Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get job: %v", err)
+		return nil, fmt.Errorf("failed to get job: %v", err)
 	}
 	return job, nil
 }

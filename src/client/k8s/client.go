@@ -24,7 +24,7 @@ func Init(ctx context.Context, callback Callback) {
 	kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
 	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
-		panic(fmt.Errorf("Failed to read Kubernetes config: %v", err))
+		panic(fmt.Errorf("failed to read Kubernetes config: %v", err))
 	}
 
 	getK8sClient(restConfig)
@@ -42,12 +42,12 @@ func GetK8sController() *Controller {
 func getK8sClient(restConfig *rest.Config) {
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
-		panic(fmt.Errorf("Failed to create Kubernetes clientset: %v", err))
+		panic(fmt.Errorf("failed to create Kubernetes clientset: %v", err))
 	}
 
 	dynamicClient, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
-		panic(fmt.Errorf("Failed to create Kubernetes dynamic clientset: %v", err))
+		panic(fmt.Errorf("failed to create Kubernetes dynamic clientset: %v", err))
 	}
 
 	k8sClient = clientset

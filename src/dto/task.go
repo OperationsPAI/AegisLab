@@ -214,7 +214,7 @@ func (req *ListTasksReq) Validate() error {
 	}
 
 	if idFieldsUsed > 1 {
-		return fmt.Errorf("Only one of task_id, trace_id, or group_id can be specified")
+		return fmt.Errorf("only one of task_id, trace_id, or group_id can be specified")
 	}
 
 	if err := req.ListOptionsQuery.Validate(); err != nil {
