@@ -97,12 +97,19 @@ const (
 )
 
 const (
-	DatasetDeleted       = -1
-	DatasetInitial       = 0
-	DatasetInjectFailed  = 1
-	DatasetInjectSuccess = 2
-	DatasetBuildFailed   = 3
-	DatasetBuildSuccess  = 4
+	DatapackDeleted       = -1
+	DatapackInitial       = 0
+	DatapackInjectFailed  = 1
+	DatapackInjectSuccess = 2
+	DatapackBuildFailed   = 3
+	DatapackBuildSuccess  = 4
+)
+
+// dataset status: 0:disabled 1:enabled -1:deleted
+const (
+	DatasetDisabled = 0
+	DatasetEnabled  = 1
+	DatasetDeleted  = -1
 )
 
 const (

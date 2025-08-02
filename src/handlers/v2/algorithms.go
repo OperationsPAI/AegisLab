@@ -632,7 +632,7 @@ func extractDatapacks(datapackName *string, datasetName *string, datasetVersion 
 			return nil, nil, fmt.Errorf("dataset_version is required when querying by dataset name")
 		}
 
-		if err := database.DB.Where("name = ? AND version = ? AND status = ?", *datasetName, *datasetVersion, 1).First(&dataset).Error; err != nil {
+		if err := database.DB.Where("name = ? AND version = ? AND status = ?", *datasetName, *datasetVersion, consts.DatasetEnabled).First(&dataset).Error; err != nil {
 			return nil, nil, fmt.Errorf("dataset not found: %s:%s", *datasetName, *datasetVersion)
 		}
 
