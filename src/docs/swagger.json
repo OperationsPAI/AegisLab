@@ -3577,6 +3577,212 @@
                 }
             }
         },
+        "/api/v2/evaluations/algorithms/{algorithm}/datapacks/{datapack}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get execution result with predictions and ground truth for a specific algorithm on a specific datapack",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "evaluation"
+                ],
+                "summary": "Get Algorithm Datapack Evaluation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Algorithm name",
+                        "name": "algorithm",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Datapack name",
+                        "name": "datapack",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tag label filter",
+                        "name": "tag",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Algorithm datapack evaluation data",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_AlgorithmDatapackEvaluationResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Algorithm or datapack not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/evaluations/algorithms/{algorithm}/datasets/{dataset}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all execution results with predictions and ground truth for a specific algorithm on a specific dataset",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "evaluation"
+                ],
+                "summary": "Get Algorithm Dataset Evaluation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Algorithm name",
+                        "name": "algorithm",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Dataset name",
+                        "name": "dataset",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tag label filter",
+                        "name": "tag",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Algorithm dataset evaluation data",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_AlgorithmDatasetEvaluationResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Algorithm or dataset not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/evaluations/label-keys": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get the list of available label keys that can be used for filtering execution results",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "evaluation"
+                ],
+                "summary": "Get Available Label Keys",
+                "responses": {
+                    "200": {
+                        "description": "Available label keys",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-array_string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/health": {
             "get": {
                 "description": "Get system health status and service information",
@@ -6749,6 +6955,74 @@
                 }
             }
         },
+        "dto.AlgorithmDatapackEvaluationResp": {
+            "type": "object",
+            "properties": {
+                "algorithm": {
+                    "description": "Algorithm name",
+                    "type": "string"
+                },
+                "datapack": {
+                    "description": "Datapack name",
+                    "type": "string"
+                },
+                "executed_at": {
+                    "description": "Execution time",
+                    "type": "string"
+                },
+                "execution_id": {
+                    "description": "Execution ID (0 if no execution found)",
+                    "type": "integer"
+                },
+                "found": {
+                    "description": "Whether execution result was found",
+                    "type": "boolean"
+                },
+                "groundtruth": {
+                    "description": "Ground truth for this datapack",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/handler.Groundtruth"
+                        }
+                    ]
+                },
+                "predictions": {
+                    "description": "Algorithm predictions",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.GranularityRecord"
+                    }
+                }
+            }
+        },
+        "dto.AlgorithmDatasetEvaluationResp": {
+            "type": "object",
+            "properties": {
+                "algorithm": {
+                    "description": "Algorithm name",
+                    "type": "string"
+                },
+                "dataset": {
+                    "description": "Dataset name",
+                    "type": "string"
+                },
+                "executed_count": {
+                    "description": "Number of successfully executed datapacks",
+                    "type": "integer"
+                },
+                "items": {
+                    "description": "Evaluation items for each datapack",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DatapackEvaluationItem"
+                    }
+                },
+                "total_count": {
+                    "description": "Total number of datapacks in dataset",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.AlgorithmDatasetPair": {
             "type": "object",
             "properties": {
@@ -7195,6 +7469,14 @@
                         "$ref": "#/definitions/dto.AlgorithmExecutionRequest"
                     }
                 },
+                "labels": {
+                    "description": "预置的执行标签",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ExecutionLabels"
+                        }
+                    ]
+                },
                 "project_name": {
                     "type": "string"
                 }
@@ -7505,6 +7787,38 @@
                 "username": {
                     "type": "string",
                     "example": "newuser"
+                }
+            }
+        },
+        "dto.DatapackEvaluationItem": {
+            "type": "object",
+            "properties": {
+                "datapack_name": {
+                    "description": "Datapack name (from FaultInjectionSchedule)",
+                    "type": "string"
+                },
+                "executed_at": {
+                    "description": "Execution time",
+                    "type": "string"
+                },
+                "execution_id": {
+                    "description": "Execution ID",
+                    "type": "integer"
+                },
+                "groundtruth": {
+                    "description": "Ground truth for this datapack",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/handler.Groundtruth"
+                        }
+                    ]
+                },
+                "predictions": {
+                    "description": "Algorithm predictions",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.GranularityRecord"
+                    }
                 }
             }
         },
@@ -8056,6 +8370,15 @@
                 }
             }
         },
+        "dto.ExecutionLabels": {
+            "type": "object",
+            "properties": {
+                "tag": {
+                    "description": "用户自定义标签值",
+                    "type": "string"
+                }
+            }
+        },
         "dto.ExecutionPayload": {
             "type": "object",
             "required": [
@@ -8332,6 +8655,80 @@
                     "items": {
                         "$ref": "#/definitions/dto.UserResponse"
                     }
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-array_string": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_AlgorithmDatapackEvaluationResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.AlgorithmDatapackEvaluationResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_AlgorithmDatasetEvaluationResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.AlgorithmDatasetEvaluationResp"
+                        }
+                    ]
                 },
                 "message": {
                     "description": "Response message",

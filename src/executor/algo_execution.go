@@ -34,6 +34,7 @@ type executionPayload struct {
 	algorithm dto.AlgorithmItem
 	dataset   string
 	envVars   map[string]string
+	labels    *dto.ExecutionLabels
 }
 
 func rescheduleAlgoExecutionTask(ctx context.Context, task *dto.UnifiedTask, reason string) error {
@@ -183,7 +184,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			return fmt.Errorf("failed to get container info for algorithm %s: %v", payload.algorithm.Name, err)
 		}
 
-		executionID, err := repository.CreateExecutionResult(task.TaskID, container.ID, record.ID)
+		executionID, err := repository.CreateExecutionResult(task.TaskID, container.ID, record.ID, payload.labels)
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to create execution result")
@@ -242,10 +243,20 @@ func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 		return nil, fmt.Errorf("failed to convert '%s' to map[string]string: %v", consts.ExecuteEnvVars, err)
 	}
 
+	// Parse labels if provided
+	var labels *dto.ExecutionLabels
+	if labelsData, exists := payload["labels"]; exists {
+		labels, err = utils.ConvertToType[*dto.ExecutionLabels](labelsData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert 'labels' to ExecutionLabels: %v", err)
+		}
+	}
+
 	return &executionPayload{
 		algorithm: algorithm,
 		dataset:   dataset,
 		envVars:   envVars,
+		labels:    labels,
 	}, nil
 }
 

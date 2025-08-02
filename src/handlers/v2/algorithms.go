@@ -438,26 +438,14 @@ func UploadGranularityResults(c *gin.Context) {
 			return
 		}
 
-		// Create new execution record
-		execution = database.ExecutionResult{
-			TaskID:      "",
-			AlgorithmID: algorithmID,
-			DatapackID:  req.DatapackID,
-			Status:      1,
-		}
-
-		if err := database.DB.Create(&execution).Error; err != nil {
+		// Create new execution record using repository function
+		executionID, err = repository.CreateExecutionResult("", algorithmID, req.DatapackID, nil)
+		if err != nil {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to create execution record: "+err.Error())
 			return
 		}
 
-		executionID = execution.ID
 		isNewExecution = true
-
-		// Add label to indicate this is a manual upload (TaskID is null)
-		if err := repository.AddExecutionResultLabel(executionID, consts.ExecutionLabelSource, consts.ExecutionSourceManual, consts.ExecutionManualDescription); err != nil {
-			logrus.Warnf("Warning: Failed to create execution result label: %v\n", err)
-		}
 	}
 
 	// Check if results already exist (only if using existing execution)
@@ -594,7 +582,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 		}
 
 		// Submit tasks for all datapacks
-		executions, err := submitAlgorithmTasks(spanCtx, groupID, &project.ID, &algorithm, execution.EnvVars, datapacks, datasetID)
+		executions, err := submitAlgorithmTasks(spanCtx, groupID, &project.ID, &algorithm, execution.EnvVars, datapacks, datasetID, req.Labels)
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to submit algorithm execution tasks: "+err.Error())
 			return
@@ -659,7 +647,7 @@ func extractDatapacks(datapackName *string, datasetName *string, datasetVersion 
 }
 
 // submitAlgorithmTasks submits algorithm execution tasks for the given datapacks
-func submitAlgorithmTasks(ctx context.Context, groupID string, projectID *int, algorithm *database.Container, envVars map[string]string, datapacks []database.FaultInjectionSchedule, datasetID *int) ([]dto.AlgorithmExecutionResponse, error) {
+func submitAlgorithmTasks(ctx context.Context, groupID string, projectID *int, algorithm *database.Container, envVars map[string]string, datapacks []database.FaultInjectionSchedule, datasetID *int, labels *dto.ExecutionLabels) ([]dto.AlgorithmExecutionResponse, error) {
 	var executions []dto.AlgorithmExecutionResponse
 
 	for _, datapack := range datapacks {
@@ -672,6 +660,11 @@ func submitAlgorithmTasks(ctx context.Context, groupID string, projectID *int, a
 			},
 			"dataset":  datapack.InjectionName, // Use datapack name as dataset field
 			"env_vars": envVars,
+		}
+
+		// Add labels to payload if provided
+		if labels != nil {
+			payload["labels"] = labels
 		}
 
 		// Create unified task

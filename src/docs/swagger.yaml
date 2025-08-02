@@ -289,6 +289,53 @@ definitions:
       user_id:
         type: integer
     type: object
+  dto.AlgorithmDatapackEvaluationResp:
+    properties:
+      algorithm:
+        description: Algorithm name
+        type: string
+      datapack:
+        description: Datapack name
+        type: string
+      executed_at:
+        description: Execution time
+        type: string
+      execution_id:
+        description: Execution ID (0 if no execution found)
+        type: integer
+      found:
+        description: Whether execution result was found
+        type: boolean
+      groundtruth:
+        allOf:
+        - $ref: '#/definitions/handler.Groundtruth'
+        description: Ground truth for this datapack
+      predictions:
+        description: Algorithm predictions
+        items:
+          $ref: '#/definitions/dto.GranularityRecord'
+        type: array
+    type: object
+  dto.AlgorithmDatasetEvaluationResp:
+    properties:
+      algorithm:
+        description: Algorithm name
+        type: string
+      dataset:
+        description: Dataset name
+        type: string
+      executed_count:
+        description: Number of successfully executed datapacks
+        type: integer
+      items:
+        description: Evaluation items for each datapack
+        items:
+          $ref: '#/definitions/dto.DatapackEvaluationItem'
+        type: array
+      total_count:
+        description: Total number of datapacks in dataset
+        type: integer
+    type: object
   dto.AlgorithmDatasetPair:
     properties:
       algorithm:
@@ -590,6 +637,10 @@ definitions:
         items:
           $ref: '#/definitions/dto.AlgorithmExecutionRequest'
         type: array
+      labels:
+        allOf:
+        - $ref: '#/definitions/dto.ExecutionLabels'
+        description: 预置的执行标签
       project_name:
         type: string
     required:
@@ -809,6 +860,27 @@ definitions:
     - full_name
     - password
     - username
+    type: object
+  dto.DatapackEvaluationItem:
+    properties:
+      datapack_name:
+        description: Datapack name (from FaultInjectionSchedule)
+        type: string
+      executed_at:
+        description: Execution time
+        type: string
+      execution_id:
+        description: Execution ID
+        type: integer
+      groundtruth:
+        allOf:
+        - $ref: '#/definitions/handler.Groundtruth'
+        description: Ground truth for this datapack
+      predictions:
+        description: Algorithm predictions
+        items:
+          $ref: '#/definitions/dto.GranularityRecord'
+        type: array
     type: object
   dto.DatasetBuildPayload:
     properties:
@@ -1195,6 +1267,12 @@ definitions:
     required:
     - results
     type: object
+  dto.ExecutionLabels:
+    properties:
+      tag:
+        description: 用户自定义标签值
+        type: string
+    type: object
   dto.ExecutionPayload:
     properties:
       algorithm:
@@ -1402,6 +1480,55 @@ definitions:
         items:
           $ref: '#/definitions/dto.UserResponse'
         type: array
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
+        type: integer
+    type: object
+  dto.GenericResponse-array_string:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        description: Generic type data
+        items:
+          type: string
+        type: array
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
+        type: integer
+    type: object
+  dto.GenericResponse-dto_AlgorithmDatapackEvaluationResp:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.AlgorithmDatapackEvaluationResp'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
+        type: integer
+    type: object
+  dto.GenericResponse-dto_AlgorithmDatasetEvaluationResp:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.AlgorithmDatasetEvaluationResp'
+        description: Generic type data
       message:
         description: Response message
         type: string
@@ -6844,6 +6971,142 @@ paths:
       summary: Search datasets
       tags:
       - Datasets
+  /api/v2/evaluations/algorithms/{algorithm}/datapacks/{datapack}:
+    get:
+      consumes:
+      - application/json
+      description: Get execution result with predictions and ground truth for a specific
+        algorithm on a specific datapack
+      parameters:
+      - description: Algorithm name
+        in: path
+        name: algorithm
+        required: true
+        type: string
+      - description: Datapack name
+        in: path
+        name: datapack
+        required: true
+        type: string
+      - description: Tag label filter
+        in: query
+        name: tag
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Algorithm datapack evaluation data
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_AlgorithmDatapackEvaluationResp'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Algorithm or datapack not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get Algorithm Datapack Evaluation
+      tags:
+      - evaluation
+  /api/v2/evaluations/algorithms/{algorithm}/datasets/{dataset}:
+    get:
+      consumes:
+      - application/json
+      description: Get all execution results with predictions and ground truth for
+        a specific algorithm on a specific dataset
+      parameters:
+      - description: Algorithm name
+        in: path
+        name: algorithm
+        required: true
+        type: string
+      - description: Dataset name
+        in: path
+        name: dataset
+        required: true
+        type: string
+      - description: Tag label filter
+        in: query
+        name: tag
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Algorithm dataset evaluation data
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_AlgorithmDatasetEvaluationResp'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Algorithm or dataset not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get Algorithm Dataset Evaluation
+      tags:
+      - evaluation
+  /api/v2/evaluations/label-keys:
+    get:
+      consumes:
+      - application/json
+      description: Get the list of available label keys that can be used for filtering
+        execution results
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Available label keys
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-array_string'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get Available Label Keys
+      tags:
+      - evaluation
   /api/v2/health:
     get:
       description: Get system health status and service information
