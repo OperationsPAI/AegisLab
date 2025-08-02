@@ -103,21 +103,17 @@ setup-dev-env: check-prerequisites ## 🛠️ 设置开发环境
 
 run: check-prerequisites ## 🚀 构建并部署应用 (使用 skaffold)
 	@echo "$(BLUE)🔄 开始部署流程...$(RESET)"
-	@if $(MAKE) check-postgres 2>/dev/null; then \
-		echo "$(YELLOW)📄 备份现有数据库...$(RESET)"; \
-		$(MAKE) -C scripts/hack/backup_psql backup; \
-	else \
-		echo "$(YELLOW)⚠️  PostgreSQL 未运行，跳过备份$(RESET)"; \
-	fi
+	# @if $(MAKE) check-database 2>/dev/null; then \
+	# 	echo "$(YELLOW)📄 备份现有数据库...$(RESET)"; \
+	# 	$(MAKE) -C scripts/hack/backup_mysql backup; \
+	# else \
+	# 	echo "$(YELLOW)⚠️  MySQL 未运行，跳过备份$(RESET)"; \
+	# fi
 	@echo "$(GRAY)使用 skaffold 部署...$(RESET)"
 	skaffold run --default-repo=$(DEFAULT_REPO)
 	@echo "$(BLUE)⏳ 等待部署稳定...$(RESET)"
 	$(MAKE) wait-for-deployment
 	@echo "$(GREEN)🎉 部署完成！$(RESET)"
-
-run-sk:
-	skaffold run --default-repo=$(DEFAULT_REPO)
-
 
 wait-for-deployment: ## ⏳ 等待部署就绪
 	@echo "$(BLUE)⏳ 等待所有部署就绪...$(RESET)"
@@ -133,15 +129,15 @@ build: ## 🔨 仅构建应用 (不部署)
 # 数据库管理
 # =============================================================================
 
-## 检查 PostgreSQL 状态
-check-postgres: 
-	@echo "$(BLUE)🔍 检查 PostgreSQL 状态...$(RESET)"
-	@if kubectl get pods -n $(NS) -l app=rcabench-postgres --field-selector=status.phase=Running | grep -q rcabench-postgres; then \
-		echo "$(GREEN)✅ PostgreSQL 正在运行$(RESET)"; \
+## 检查 数据库 状态
+check-database: 
+	@echo "$(BLUE)🔍 检查 Mysql 状态...$(RESET)"
+	@if kubectl get pods -n $(NS) -l app=rcabench-mysql --field-selector=status.phase=Running | grep -q rcabench-postgres; then \
+		echo "$(GREEN)✅ Mysql 正在运行$(RESET)"; \
 	else \
-		echo "$(RED)❌ PostgreSQL 在命名空间 $(NS) 中未运行$(RESET)"; \
+		echo "$(RED)❌ Mysql 在命名空间 $(NS) 中未运行$(RESET)"; \
 		echo "$(GRAY)可用 Pods:$(RESET)"; \
-		kubectl get pods -n $(NS) -l app=rcabench-postgres || echo "$(GRAY)未找到 PostgreSQL pods$(RESET)"; \
+		kubectl get pods -n $(NS) -l app=rcabench-mysql || echo "$(GRAY)未找到 Mysql pods$(RESET)"; \
 		exit 1; \
 	fi
 
@@ -182,7 +178,7 @@ db-reset: ## 🗑️ 重置 PostgreSQL 数据库 (⚠️ 将删除所有数据)
 local-debug: ## 🐛 启动本地调试环境
 	@echo "$(BLUE)🚀 启动基础服务...$(RESET)"
 	docker compose down && \
-	docker compose up redis postgres jaeger buildkitd -d
+	docker compose up redis mysql jaeger buildkitd -d
 	@echo "$(BLUE)🧹 清理 Kubernetes Jobs...$(RESET)"
 	kubectl delete jobs --all -n $(NS)
 	@echo "$(BLUE)📦 从正式环境备份 Redis...$(RESET)"

@@ -620,14 +620,14 @@ func CreateInjectionsV2(injections []dto.InjectionV2CreateItem) ([]database.Faul
 	for i, item := range injections {
 		// Create injection record
 		injection := database.FaultInjectionSchedule{
-			TaskID:        getStringValue(item.TaskID),
+			TaskID:        utils.GetStringValue(item.TaskID, ""),
 			FaultType:     item.FaultType,
 			DisplayConfig: item.DisplayConfig,
 			EngineConfig:  item.EngineConfig,
 			PreDuration:   item.PreDuration,
-			StartTime:     getTimeValue(item.StartTime, time.Now()),
-			EndTime:       getTimeValue(item.EndTime, time.Now().Add(time.Hour)),
-			Status:        getIntValue(&item.Status, 0),
+			StartTime:     utils.GetTimeValue(item.StartTime, time.Now()),
+			EndTime:       utils.GetTimeValue(item.EndTime, time.Now().Add(time.Hour)),
+			Status:        utils.GetIntValue(&item.Status, 0),
 			Description:   item.Description,
 			Benchmark:     item.Benchmark,
 			InjectionName: item.InjectionName,
@@ -724,26 +724,6 @@ func RemoveInjectionLabel(injectionID int, labelKey, labelValue string) error {
 }
 
 // Helper functions
-func getStringValue(ptr *string) string {
-	if ptr == nil {
-		return ""
-	}
-	return *ptr
-}
-
-func getTimeValue(ptr *time.Time, defaultValue time.Time) time.Time {
-	if ptr == nil {
-		return defaultValue
-	}
-	return *ptr
-}
-
-func getIntValue(ptr *int, defaultValue int) int {
-	if ptr == nil {
-		return defaultValue
-	}
-	return *ptr
-}
 
 // UpdateInjectionV2 updates injection by ID for V2 API
 func UpdateInjectionV2(id int, updates map[string]interface{}) error {

@@ -28,20 +28,20 @@ spec:
             claimName: {{ .Release.Name }}-redis-data
 
 ---
-# postgresql
+# mysql
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-postgres
+  name: {{ .Release.Name }}-mysql
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ .Release.Name }}-postgres
+      app: {{ .Release.Name }}-mysql
   template:
     metadata:
       labels:
-        app: {{ .Release.Name }}-postgres
+        app: {{ .Release.Name }}-mysql
     spec:
       nodeSelector:
         disk: ssd
@@ -50,36 +50,31 @@ spec:
         runAsUser: 999
         runAsGroup: 999
       containers:
-        - name: postgres
-          image: "{{ .Values.images.postgres.repository }}:{{ .Values.images.postgres.tag }}"
-          imagePullPolicy: "{{ .Values.images.postgres.pullPolicy }}"
+        - name: mysql
+          image: "{{ .Values.images.mysql.repository }}:{{ .Values.images.mysql.tag }}"
+          imagePullPolicy: "{{ .Values.images.mysql.pullPolicy }}"
           securityContext:
             runAsUser: 999
             runAsGroup: 999
             allowPrivilegeEscalation: false
           env:
-            - name: POSTGRES_DB
+            - name: MYSQL_DATABASE
               value: rcabench
-            - name: POSTGRES_USER
-              value: postgres
-            - name: POSTGRES_PASSWORD
-              value: "{{ .Values.configmap.database.postgres_password }}"
-            - name: POSTGRES_HOST_AUTH_METHOD
-              value: md5
-            - name: POSTGRES_INITDB_ARGS
-              value: "--auth-host=md5"
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
-          args: ["-c", "listen_addresses=*", "-c", "log_statement=all"]
+            - name: MYSQL_ROOT_PASSWORD
+              value: "{{ .Values.configmap.database.mysql_password }}"
+          args:
+            - --default-authentication-plugin=mysql_native_password
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_unicode_ci
           ports:
-            - containerPort: 5432
+            - containerPort: 3306
           volumeMounts:
-            - name: postgres-data
-              mountPath: /var/lib/postgresql/data
+            - name: mysql-data
+              mountPath: /var/lib/mysql
       volumes:
-        - name: postgres-data
+        - name: mysql-data
           persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-postgres-data
+            claimName: {{ .Release.Name }}-mysql-data
 
 ---
 # jaeger
@@ -143,15 +138,15 @@ spec:
                 echo "Waiting for Redis...";
                 sleep 3;
               done;
-        - name: wait-for-postgres
+        - name: wait-for-mysql
           image: "{{ .Values.images.busybox.repository }}:{{ .Values.images.busybox.tag }}"
           imagePullPolicy: "{{ .Values.images.busybox.pullPolicy }}"
           command:
             - sh
             - -c
             - >
-              while ! nc -z {{ .Release.Name }}-postgres 5432; do
-                echo "Waiting for PostgreSQL...";
+              while ! nc -z {{ .Release.Name }}-mysql 3306; do
+                echo "Waiting for MySQL...";
                 sleep 3;
               done;
         - name: wait-for-jaeger
@@ -233,15 +228,15 @@ spec:
                 echo "Waiting for Redis...";
                 sleep 3;
               done;
-        - name: wait-for-postgres
+        - name: wait-for-mysql
           image: "{{ .Values.images.busybox.repository }}:{{ .Values.images.busybox.tag }}"
           imagePullPolicy: "{{ .Values.images.busybox.pullPolicy }}"
           command:
             - sh
             - -c
             - >
-              while ! nc -z {{ .Release.Name }}-postgres 5432; do
-                echo "Waiting for PostgreSQL...";
+              while ! nc -z {{ .Release.Name }}-mysql 3306; do
+                echo "Waiting for MySQL...";
                 sleep 3;
               done;
         - name: wait-for-jaeger
