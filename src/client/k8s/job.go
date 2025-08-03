@@ -6,6 +6,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/tracing"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
@@ -25,14 +26,20 @@ type JobConfig struct {
 	Parallelism    int32
 	Completions    int32
 	Annotations    map[string]string
-	Labels         map[string]string // For custom labels
+	Labels         map[string]string
 	EnvVars        []corev1.EnvVar
 	InitContainers []corev1.Container
 }
 
-func CreateJob(ctx context.Context, jobConfig JobConfig) error {
+func CreateJob(ctx context.Context, jobConfig *JobConfig) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
+
+		jobConfig.Namespace = config.GetString("k8s.namespace")
+		jobConfig.BackoffLimit = int32(0)
+		jobConfig.Parallelism = int32(1)
+		jobConfig.Completions = int32(1)
+		jobConfig.RestartPolicy = corev1.RestartPolicyNever
 
 		volumeMounts := []corev1.VolumeMount{
 			{

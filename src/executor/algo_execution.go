@@ -212,7 +212,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			consts.LabelExecutionID: strconv.Itoa(executionID),
 		}
 
-		if err := createAlgoJob(childCtx, config.GetString("k8s.namespace"), jobName, fullImage, annotations, labels, payload, container, record); err != nil {
+		if err := createAlgoJob(childCtx, jobName, fullImage, annotations, labels, payload, container, record); err != nil {
 			// Job creation failed, token will be released by defer function
 			return err
 		}
@@ -260,13 +260,9 @@ func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 	}, nil
 }
 
-func createAlgoJob(ctx context.Context, jobNamespace, jobName, image string, annotations map[string]string, labels map[string]string, payload *executionPayload, container *database.Container, record *dto.DatasetItemWithID) error {
+func createAlgoJob(ctx context.Context, jobName, image string, annotations, labels map[string]string, payload *executionPayload, container *database.Container, record *dto.DatasetItemWithID) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
-		restartPolicy := corev1.RestartPolicyNever
-		backoffLimit := int32(2)
-		parallelism := int32(1)
-		completions := int32(1)
 
 		jobEnvVars, err := getAlgoJobEnvVars(payload, container, record)
 		if err != nil {
@@ -297,15 +293,10 @@ func createAlgoJob(ctx context.Context, jobNamespace, jobName, image string, ann
 			},
 		}
 
-		return k8s.CreateJob(ctx, k8s.JobConfig{
-			Namespace:      jobNamespace,
+		return k8s.CreateJob(ctx, &k8s.JobConfig{
 			JobName:        jobName,
 			Image:          image,
 			Command:        strings.Split(container.Command, " "),
-			RestartPolicy:  restartPolicy,
-			BackoffLimit:   backoffLimit,
-			Parallelism:    parallelism,
-			Completions:    completions,
 			Annotations:    annotations,
 			Labels:         labels,
 			EnvVars:        jobEnvVars,

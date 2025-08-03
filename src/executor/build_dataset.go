@@ -150,14 +150,9 @@ func parseTimePtrFromPayload(payload map[string]any, key string) (*time.Time, er
 	})
 }
 
-func createDatasetJob(ctx context.Context, jobName, image string, annotations map[string]string, labels map[string]string, payload *datasetPayload, container *database.Container) error {
+func createDatasetJob(ctx context.Context, jobName, image string, annotations, labels map[string]string, payload *datasetPayload, container *database.Container) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
-		restartPolicy := corev1.RestartPolicyNever
-		backoffLimit := int32(2)
-		parallelism := int32(1)
-		completions := int32(1)
-		jobNamespace := config.GetString("k8s.namespace")
 
 		jobEnvVars, err := getDatasetJobEnvVars(payload, container)
 		if err != nil {
@@ -166,18 +161,13 @@ func createDatasetJob(ctx context.Context, jobName, image string, annotations ma
 			return err
 		}
 
-		return k8s.CreateJob(ctx, k8s.JobConfig{
-			Namespace:     jobNamespace,
-			JobName:       jobName,
-			Image:         image,
-			Command:       strings.Split(container.Command, " "),
-			RestartPolicy: restartPolicy,
-			BackoffLimit:  backoffLimit,
-			Parallelism:   parallelism,
-			Completions:   completions,
-			EnvVars:       jobEnvVars,
-			Annotations:   annotations,
-			Labels:        labels,
+		return k8s.CreateJob(ctx, &k8s.JobConfig{
+			JobName:     jobName,
+			Image:       image,
+			Command:     strings.Split(container.Command, " "),
+			EnvVars:     jobEnvVars,
+			Annotations: annotations,
+			Labels:      labels,
 		})
 	})
 }
