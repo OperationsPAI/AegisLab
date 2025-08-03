@@ -10,14 +10,14 @@ import typer
 KEY_FORMAT = "trace:{}:log"
 
 DEFAULT_LOCAL_URL = "redis://localhost:6379"
-DEFAULT_PG_HOST = "10.10.10.220"
-DEFAULT_PG_PORT = "32432"
-DEFAULT_PG_USER = "postgres"
-DEFAULT_PG_PASSWORD = "yourpassword"
-DEFAULT_PG_DB = "rcabench"
 DEFAULT_REMOTE_URL = "redis://10.10.10.220:32279"
 DEFAULT_REDIS_DB = 0
 
+DEFAULT_DB_HOST = "10.10.10.220"
+DEFAULT_DB_PORT = "32206"
+DEFAULT_DB_USER = "root"
+DEFAULT_DB_PASSWORD = "yourpassword"
+DEFAULT_DB_DB = "rcabench"
 
 app = typer.Typer(help="Redis 备份工具")
 console = Console()
@@ -28,7 +28,7 @@ class Client:
         self.source_redis, self.target_redis = self._connect_redis(
             source_url, target_url
         )
-        self.pg_client = self._connect_postgres()
+        self.db_client = self._connect_database()
 
     def _connect_redis(self, source_url: str, target_url: str) -> tuple[Redis, Redis]:
         """连接到源和目标 Redis，返回连接对象"""
@@ -56,19 +56,19 @@ class Client:
             console.print(f"[red]未知错误: {e}[/red]")
             raise typer.Exit(code=1)
 
-    def _connect_postgres(self):
-        """连接到 PostgreSQL 数据库"""
+    def _connect_database(self):
+        """连接到数据库"""
         try:
             console.print(
-                f"[cyan]连接 PostgreSQL: {DEFAULT_PG_HOST}:{DEFAULT_PG_PORT}/{DEFAULT_PG_DB}[/cyan]"
+                f"[cyan]连接数据库: {DEFAULT_DB_HOST}:{DEFAULT_DB_PORT}/{DEFAULT_DB_DB}[/cyan]"
             )
 
             conn = psycopg2.connect(
-                host=DEFAULT_PG_HOST,
-                port=DEFAULT_PG_PORT,
-                user=DEFAULT_PG_USER,
-                password=DEFAULT_PG_PASSWORD,
-                database=DEFAULT_PG_DB,
+                host=DEFAULT_DB_HOST,
+                port=DEFAULT_DB_PORT,
+                user=DEFAULT_DB_USER,
+                password=DEFAULT_DB_PASSWORD,
+                database=DEFAULT_DB_DB,
                 cursor_factory=RealDictCursor,
             )
 
@@ -76,13 +76,13 @@ class Client:
             with conn.cursor() as cursor:
                 cursor.execute("SELECT version();")
                 version = cursor.fetchone()
-                console.print("[green]✅ PostgreSQL 连接成功[/green]")
+                console.print("[green]✅ 数据库连接成功[/green]")
                 console.print(f"[dim]版本: {version['version'][:50]}...[/dim]")  # type: ignore
 
             return conn
 
         except psycopg2.Error as e:
-            console.print(f"[red]PostgreSQL 连接失败: {e}[/red]")
+            console.print(f"[red]❌ 数据库连接失败: {e}[/red]")
             raise typer.Exit(code=1)
         except Exception as e:
             console.print(f"[red]未知错误: {e}[/red]")
@@ -120,7 +120,7 @@ class Client:
 
         try:
             console.print(f"[dim]SQL: {query}[/dim]")
-            with self.pg_client.cursor() as cursor:
+            with self.db_client.cursor() as cursor:
                 cursor.execute(query)
                 results = cursor.fetchall()
 
@@ -139,12 +139,12 @@ class Client:
                         streams.append(KEY_FORMAT.format(trace_id))
 
                 console.print(
-                    f"[green]从 PostgreSQL 查询到 {len(streams)} 个流名称[/green]"
+                    f"[green]✅ 从数据库查询到 {len(streams)} 个流名称[/green]"
                 )
                 return streams
 
         except psycopg2.Error as e:
-            console.print(f"[red]PostgreSQL 查询失败: {e}[/red]")
+            console.print(f"[red]❌ 数据库查询失败: {e}[/red]")
             raise typer.Exit(code=1)
         except Exception as e:
             console.print(f"[red]查询执行错误: {e}[/red]")
@@ -428,7 +428,7 @@ def restore_streams(
     """批量恢复 Redis Stream 数据
 
     支持两种匹配模式：
-    1. 精确匹配：从 PostgreSQL 数据库查询 fault_injection_schedules 表获取对应的 trace_id
+    1. 精确匹配：从数据库查询 fault_injection_schedules 表获取对应的 trace_id
     2. 模糊匹配：使用 Redis KEYS 命令查找匹配指定模式的流
 
     """

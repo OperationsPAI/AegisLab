@@ -57,10 +57,6 @@ help:  ## 📖 显示所有可用命令
 		FS = ":.*##"; \
 		printf "$(YELLOW)可用命令:$(RESET)\n"; \
 	} \
-	/^##@/ { \
-		header = substr($$0, 5); \
-		printf "\n$(GREEN)▶ %s$(RESET)\n", header; \
-	} \
 	/^[a-zA-Z_-]+:.*?##/ { \
 		printf "  $(CYAN)%-25s$(RESET) $(GRAY)%s$(RESET)\n", $$1, $$2; \
 	}' $(MAKEFILE_LIST)
@@ -103,7 +99,7 @@ setup-dev-env: check-prerequisites ## 🛠️ 设置开发环境
 
 run: check-prerequisites ## 🚀 构建并部署应用 (使用 skaffold)
 	@echo "$(BLUE)🔄 开始部署流程...$(RESET)"
-	# @if $(MAKE) check-database 2>/dev/null; then \
+	# @if $(MAKE) check-db 2>/dev/null; then \
 	# 	echo "$(YELLOW)📄 备份现有数据库...$(RESET)"; \
 	# 	$(MAKE) -C scripts/hack/backup_mysql backup; \
 	# else \
@@ -130,37 +126,37 @@ build: ## 🔨 仅构建应用 (不部署)
 # =============================================================================
 
 ## 检查 数据库 状态
-check-database: 
-	@echo "$(BLUE)🔍 检查 Mysql 状态...$(RESET)"
-	@if kubectl get pods -n $(NS) -l app=rcabench-mysql --field-selector=status.phase=Running | grep -q rcabench-postgres; then \
-		echo "$(GREEN)✅ Mysql 正在运行$(RESET)"; \
+check-db: 
+	@echo "$(BLUE)🔍 检查 MySQL 状态...$(RESET)"
+	@if kubectl get pods -n $(NS) -l app=rcabench-mysql --field-selector=status.phase=Running | grep -q rcabench-mysql; then \
+		echo "$(GREEN)✅ MySQL 正在运行$(RESET)"; \
 	else \
-		echo "$(RED)❌ Mysql 在命名空间 $(NS) 中未运行$(RESET)"; \
+		echo "$(RED)❌ MySQL 在命名空间 $(NS) 中未运行$(RESET)"; \
 		echo "$(GRAY)可用 Pods:$(RESET)"; \
-		kubectl get pods -n $(NS) -l app=rcabench-mysql || echo "$(GRAY)未找到 Mysql pods$(RESET)"; \
+		kubectl get pods -n $(NS) -l app=rcabench-mysql || echo "$(GRAY)未找到 MySQL pods$(RESET)"; \
 		exit 1; \
 	fi
 
-db-reset: ## 🗑️ 重置 PostgreSQL 数据库 (⚠️ 将删除所有数据)
+reset-db: ## 🗑️ 重置 MySQL 数据库 (⚠️ 将删除所有数据)
 	@echo "$(RED)⚠️  警告：这将删除所有数据库数据！$(RESET)"
 	@read -p "确认继续？(y/N): " confirm && [ "$$confirm" = "y" ] || exit 1
-	@if $(MAKE) check-postgres 2>/dev/null; then \
+	@if $(MAKE) check-db 2>/dev/null; then \
 		echo "$(YELLOW)📄 备份现有数据库...$(RESET)"; \
 		$(MAKE) -C scripts/hack/backup_psql backup; \
 	else \
-		echo "$(YELLOW)⚠️  PostgreSQL 未运行，跳过备份$(RESET)"; \
+		echo "$(YELLOW)⚠️  MySQL 未运行，跳过备份$(RESET)"; \
 	fi
-	@echo "$(BLUE)🗑️  重置命名空间 $(NS) 中的 PostgreSQL 数据库...$(RESET)"
+	@echo "$(BLUE)🗑️  重置命名空间 $(NS) 中的 MySQL 数据库...$(RESET)"
 	helm uninstall rcabench -n $(NS) || true
 	@echo "$(BLUE)⏳ 等待 Pods 终止...$(RESET)"
-	@while kubectl get pods -n $(NS) -l app=rcabench-postgres 2>/dev/null | grep -q .; do \
+	@while kubectl get pods -n $(NS) -l app=rcabench-mysql 2>/dev/null | grep -q .; do \
 		echo "$(GRAY)  仍在等待 Pods 终止...$(RESET)"; \
 		sleep 2; \
 	done
 	@echo "$(GREEN)✅ 所有 Pods 已终止$(RESET)"
-	kubectl delete pvc rcabench-postgres-data -n $(NS) || true
+	kubectl delete pvc rcabench-mysql-data -n $(NS) || true
 	@echo "$(BLUE)⏳ 等待 PVC 删除...$(RESET)"
-	@while kubectl get pvc -n $(NS) | grep -q rcabench-postgres-data; do \
+	@while kubectl get pvc -n $(NS) | grep -q rcabench-mysql-data; do \
 		echo "$(GRAY)  仍在等待 PVC 删除...$(RESET)"; \
 		sleep 2; \
 	done
@@ -168,7 +164,7 @@ db-reset: ## 🗑️ 重置 PostgreSQL 数据库 (⚠️ 将删除所有数据)
 	@echo "$(GREEN)✅ 数据库重置完成。重新部署中...$(RESET)"
 	$(MAKE) run
 	@echo "$(GREEN)🚀 应用重新部署成功。$(RESET)"
-	$(MAKE) -C scripts/hack/backup_psql restore-remote
+	$(MAKE) -C scripts/hack/backup_mysql migrate
 	@echo "$(GREEN)📦 从备份恢复数据库。$(RESET)"
 
 # =============================================================================
