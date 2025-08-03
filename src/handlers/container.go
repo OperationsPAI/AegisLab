@@ -392,7 +392,7 @@ func processHarborDirectUpdate(ctx context.Context, req *dto.SubmitContainerBuil
 		Tag:     req.Source.Harbor.Tag,
 		Command: req.Command,
 		EnvVars: strings.Join(req.EnvVars, ","),
-		Status:  true,
+		Status:  consts.ContainerEnabled,
 		UserID:  1, // TODO: Need to get actual user ID from authentication context
 	}
 

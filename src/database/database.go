@@ -58,8 +58,8 @@ func InitDB() {
 		&FaultInjectionLabel{},
 
 		&Project{},
-		&ProjectContanier{},
 		&ProjectDataset{},
+		&ProjectContainer{},
 		&ProjectLabel{},
 		&User{},
 		&Role{},

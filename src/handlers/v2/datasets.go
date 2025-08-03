@@ -106,7 +106,7 @@ func CreateDataset(c *gin.Context) {
 			Type:        req.Type,
 			DataSource:  req.DataSource,
 			Format:      req.Format,
-			Status:      consts.DatapackInjectSuccess,
+			Status:      consts.DatasetEnabled,
 			IsPublic:    req.IsPublic != nil && *req.IsPublic,
 		}
 

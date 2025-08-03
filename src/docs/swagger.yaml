@@ -31,19 +31,19 @@ definitions:
         description: Unique identifier
         type: integer
       image:
-        description: Image name
+        description: Image name with size limit
         type: string
       is_public:
         description: Whether publicly visible
         type: boolean
       name:
-        description: Name
+        description: Name with size limit
         type: string
       status:
-        description: '0: deleted 1: active'
-        type: boolean
+        description: 'Status: -1:deleted 0:disabled 1:active'
+        type: integer
       tag:
-        description: Image tag
+        description: Image tag with size limit
         type: string
       type:
         description: Image type
@@ -62,7 +62,7 @@ definitions:
   database.FaultInjectionSchedule:
     properties:
       benchmark:
-        description: Benchmark database, add index
+        description: Benchmark database, add index and size limit
         type: string
       created_at:
         description: Creation time, add time index
@@ -74,7 +74,7 @@ definitions:
         description: User-facing display configuration
         type: string
       end_time:
-        description: Expected fault end time, add time index
+        description: Expected fault end time, nullable
         type: string
       engine_config:
         description: System-facing runtime configuration
@@ -86,16 +86,16 @@ definitions:
         description: Unique identifier
         type: integer
       injection_name:
-        description: Name injected in k8s resources
+        description: Name injected in k8s resources with size limit
         type: string
       pre_duration:
         description: Normal data duration
         type: integer
       start_time:
-        description: Expected fault start time, add time index
+        description: Expected fault start time, nullable with validation
         type: string
       status:
-        description: Status, add composite index
+        description: 'Status: -1:deleted 0:disabled 1:enabled'
         type: integer
       task:
         allOf:
@@ -145,8 +145,10 @@ definitions:
   database.Project:
     properties:
       created_at:
+        description: Creation time
         type: string
       description:
+        description: Project description
         type: string
       id:
         type: integer
@@ -154,31 +156,37 @@ definitions:
         description: Whether publicly visible
         type: boolean
       name:
+        description: Project name with size limit
         type: string
       status:
-        description: 0:disabled 1:enabled -1:deleted
+        description: 'Status: -1:deleted 0:disabled 1:enabled'
         type: integer
       updated_at:
+        description: Update time
         type: string
     type: object
   database.Task:
     properties:
       created_at:
-        description: Add time index
+        description: Creation time with index
         type: string
       cron_expr:
+        description: Cron expression with size limit
         type: string
       execute_time:
-        description: Add execution time index
+        description: Execution time timestamp
         type: integer
       group_id:
-        description: Add group ID index
+        description: Group ID with size limit
         type: string
       id:
+        description: Task ID with size limit
         type: string
       immediate:
+        description: Whether to execute immediately
         type: boolean
       payload:
+        description: Task payload
         type: string
       project:
         allOf:
@@ -188,30 +196,31 @@ definitions:
         description: Task can belong to a project (optional)
         type: integer
       status:
-        description: Add multiple composite indexes
+        description: 'Status: Pending, Running, Completed, Error, Cancelled, Rescheduled'
         type: string
       trace_id:
-        description: Add trace ID index
+        description: Trace ID with size limit
         type: string
       type:
-        description: Add composite index
+        description: Task type with size limit
         type: string
       updated_at:
+        description: Update time
         type: string
     type: object
   database.User:
     properties:
       avatar:
-        description: Avatar URL
+        description: Avatar URL with size limit
         type: string
       created_at:
         description: Creation time
         type: string
       email:
-        description: Email (unique)
+        description: Email (unique) with size limit
         type: string
       full_name:
-        description: Full name
+        description: Full name with size limit
         type: string
       id:
         description: Unique identifier
@@ -226,13 +235,13 @@ definitions:
         description: Phone number
         type: string
       status:
-        description: 0:disabled 1:enabled -1:deleted
+        description: 'Status: -1:deleted 0:disabled 1:enabled'
         type: integer
       updated_at:
         description: Update time
         type: string
       username:
-        description: Username (unique)
+        description: Username (unique) with size limit
         type: string
     type: object
   dto.AdvancedSearchRequest:
@@ -324,6 +333,9 @@ definitions:
       dataset:
         description: Dataset name
         type: string
+      dataset_version:
+        description: Dataset version
+        type: string
       executed_count:
         description: Number of successfully executed datapacks
         type: integer
@@ -410,7 +422,7 @@ definitions:
       project_id:
         type: integer
       status:
-        type: boolean
+        type: integer
       tag:
         type: string
       type:
@@ -698,7 +710,7 @@ definitions:
       name:
         type: string
       status:
-        type: boolean
+        type: integer
       tag:
         type: string
       type:
@@ -765,9 +777,7 @@ definitions:
           $ref: '#/definitions/dto.SortOption'
         type: array
       status:
-        items:
-          type: integer
-        type: array
+        type: integer
       tag:
         type: string
       type:
@@ -2695,6 +2705,19 @@ definitions:
       message:
         type: string
     type: object
+  dto.InjectionV2LabelManageReq:
+    properties:
+      add_tags:
+        description: List of tag values to add
+        items:
+          type: string
+        type: array
+      remove_tags:
+        description: List of tag values to remove
+        items:
+          type: string
+        type: array
+    type: object
   dto.InjectionV2Response:
     properties:
       benchmark:
@@ -2715,6 +2738,11 @@ definitions:
         type: integer
       injection_name:
         type: string
+      labels:
+        description: Associated labels
+        items:
+          $ref: '#/definitions/database.Label'
+        type: array
       pre_duration:
         type: integer
       start_time:
@@ -2782,6 +2810,11 @@ definitions:
       statuses:
         items:
           type: integer
+        type: array
+      tags:
+        description: Tag values to filter by
+        items:
+          type: string
         type: array
       task_ids:
         items:
@@ -3131,7 +3164,7 @@ definitions:
   dto.QueryInjectionResp:
     properties:
       benchmark:
-        description: Benchmark database, add index
+        description: Benchmark database, add index and size limit
         type: string
       created_at:
         description: Creation time, add time index
@@ -3143,7 +3176,7 @@ definitions:
         description: User-facing display configuration
         type: string
       end_time:
-        description: Expected fault end time, add time index
+        description: Expected fault end time, nullable
         type: string
       engine_config:
         description: System-facing runtime configuration
@@ -3157,16 +3190,16 @@ definitions:
         description: Unique identifier
         type: integer
       injection_name:
-        description: Name injected in k8s resources
+        description: Name injected in k8s resources with size limit
         type: string
       pre_duration:
         description: Normal data duration
         type: integer
       start_time:
-        description: Expected fault start time, add time index
+        description: Expected fault start time, nullable with validation
         type: string
       status:
-        description: Status, add composite index
+        description: 'Status: -1:deleted 0:disabled 1:enabled'
         type: integer
       task:
         allOf:
@@ -4151,7 +4184,7 @@ definitions:
         type: string
       status:
         description: '@Description Container status (optional)'
-        type: boolean
+        type: integer
       tag:
         description: '@Description Docker image tag (optional)'
         type: string
@@ -7041,6 +7074,10 @@ paths:
         name: dataset
         required: true
         type: string
+      - description: Dataset version (optional, defaults to v1.0)
+        in: query
+        name: dataset_version
+        type: string
       - description: Tag label filter
         in: query
         name: tag
@@ -7156,6 +7193,13 @@ paths:
         in: query
         name: search
         type: string
+      - collectionFormat: csv
+        description: Filter by tags (array of tag values)
+        in: query
+        items:
+          type: string
+        name: tags
+        type: array
       - description: Sort field (id,task_id,fault_type,status,benchmark,injection_name,created_at,updated_at)
         in: query
         name: sort_by
@@ -7347,6 +7391,51 @@ paths:
       security:
       - BearerAuth: []
       summary: Update injection
+      tags:
+      - Injections
+  /api/v2/injections/{name}/labels:
+    patch:
+      consumes:
+      - application/json
+      description: Add or remove tags for an injection
+      parameters:
+      - description: Injection Name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Tag management request
+        in: body
+        name: manage
+        required: true
+        schema:
+          $ref: '#/definitions/dto.InjectionV2LabelManageReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tags managed successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_InjectionV2Response'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Injection not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Manage injection tags
       tags:
       - Injections
   /api/v2/injections/search:

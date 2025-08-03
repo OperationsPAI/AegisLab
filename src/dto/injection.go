@@ -361,21 +361,23 @@ type InjectionV2Response struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 
 	// Optional relations
-	Task *TaskV2Response `json:"task,omitempty"`
+	Task   *TaskV2Response  `json:"task,omitempty"`
+	Labels []database.Label `json:"labels,omitempty"` // Associated labels
 }
 
 // InjectionV2ListReq represents the request for listing injections
 type InjectionV2ListReq struct {
-	Page      int    `form:"page" binding:"omitempty,min=1"`
-	Size      int    `form:"size" binding:"omitempty,min=1,max=100"`
-	TaskID    string `form:"task_id" binding:"omitempty"`
-	FaultType *int   `form:"fault_type" binding:"omitempty"`
-	Status    *int   `form:"status" binding:"omitempty"`
-	Benchmark string `form:"benchmark" binding:"omitempty"`
-	Search    string `form:"search" binding:"omitempty"`
-	SortBy    string `form:"sort_by" binding:"omitempty,oneof=id task_id fault_type status benchmark injection_name created_at updated_at"`
-	SortOrder string `form:"sort_order" binding:"omitempty,oneof=asc desc"`
-	Include   string `form:"include" binding:"omitempty"`
+	Page      int      `form:"page" binding:"omitempty,min=1"`
+	Size      int      `form:"size" binding:"omitempty,min=1,max=100"`
+	TaskID    string   `form:"task_id" binding:"omitempty"`
+	FaultType *int     `form:"fault_type" binding:"omitempty"`
+	Status    *int     `form:"status" binding:"omitempty"`
+	Benchmark string   `form:"benchmark" binding:"omitempty"`
+	Search    string   `form:"search" binding:"omitempty"`
+	Tags      []string `form:"tags" binding:"omitempty"` // Tag values to filter by
+	SortBy    string   `form:"sort_by" binding:"omitempty,oneof=id task_id fault_type status benchmark injection_name created_at updated_at"`
+	SortOrder string   `form:"sort_order" binding:"omitempty,oneof=asc desc"`
+	Include   string   `form:"include" binding:"omitempty"`
 }
 
 // InjectionV2UpdateReq represents the request for updating injection
@@ -402,6 +404,7 @@ type InjectionV2SearchReq struct {
 	Statuses     []int      `json:"statuses" binding:"omitempty"`
 	Benchmarks   []string   `json:"benchmarks" binding:"omitempty"`
 	Search       string     `json:"search" binding:"omitempty"`
+	Tags         []string   `json:"tags" binding:"omitempty"` // Tag values to filter by
 	StartTimeGte *time.Time `json:"start_time_gte" binding:"omitempty"`
 	StartTimeLte *time.Time `json:"start_time_lte" binding:"omitempty"`
 	EndTimeGte   *time.Time `json:"end_time_gte" binding:"omitempty"`
@@ -428,8 +431,8 @@ func ToInjectionV2Response(injection *database.FaultInjectionSchedule, includeTa
 		DisplayConfig: injection.DisplayConfig,
 		EngineConfig:  injection.EngineConfig,
 		PreDuration:   injection.PreDuration,
-		StartTime:     injection.StartTime,
-		EndTime:       injection.EndTime,
+		StartTime:     utils.GetTimeValue(injection.StartTime, time.Time{}),
+		EndTime:       utils.GetTimeValue(injection.EndTime, time.Time{}),
 		Status:        injection.Status,
 		Description:   injection.Description,
 		Benchmark:     injection.Benchmark,
@@ -442,6 +445,13 @@ func ToInjectionV2Response(injection *database.FaultInjectionSchedule, includeTa
 		response.Task = ToTaskV2Response(injection.Task)
 	}
 
+	return response
+}
+
+// ToInjectionV2ResponseWithLabels converts database model to response DTO with labels
+func ToInjectionV2ResponseWithLabels(injection *database.FaultInjectionSchedule, includeTask bool, labels []database.Label) *InjectionV2Response {
+	response := ToInjectionV2Response(injection, includeTask)
+	response.Labels = labels
 	return response
 }
 
@@ -539,4 +549,10 @@ type InjectionCreateError struct {
 	Index int                   `json:"index"`
 	Error string                `json:"error"`
 	Item  InjectionV2CreateItem `json:"item"`
+}
+
+// InjectionV2LabelManageReq Manage labels in injection
+type InjectionV2LabelManageReq struct {
+	AddTags    []string `json:"add_tags"`    // List of tag values to add
+	RemoveTags []string `json:"remove_tags"` // List of tag values to remove
 }

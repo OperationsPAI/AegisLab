@@ -86,7 +86,7 @@ type AlgorithmResponse struct {
 	EnvVars   string    `json:"env_vars"`
 	ProjectID int       `json:"project_id"`
 	IsPublic  bool      `json:"is_public"`
-	Status    bool      `json:"status"`
+	Status    int       `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 
@@ -122,7 +122,7 @@ type ContainerResponse struct {
 	EnvVars   string    `json:"env_vars"`
 	UserID    int       `json:"user_id"`
 	IsPublic  bool      `json:"is_public"`
-	Status    bool      `json:"status"`
+	Status    int       `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 

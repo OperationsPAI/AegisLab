@@ -57,8 +57,8 @@ func (d *DatasetItem) Convert(record database.FaultInjectionSchedule) error {
 
 	d.Name = record.InjectionName
 	d.Param = param
-	d.StartTime = record.StartTime
-	d.EndTime = record.EndTime
+	d.StartTime = utils.GetTimeValue(record.StartTime, time.Time{})
+	d.EndTime = utils.GetTimeValue(record.EndTime, time.Time{})
 
 	return nil
 }
@@ -294,7 +294,6 @@ func ToDatasetV2Response(dataset *database.Dataset, includeRelations bool) *Data
 	resp := &DatasetV2Response{
 		ID:          dataset.ID,
 		Name:        dataset.Name,
-		Version:     dataset.Version,
 		Description: dataset.Description,
 		Type:        dataset.Type,
 		FileCount:   dataset.FileCount,
