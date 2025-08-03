@@ -111,9 +111,10 @@ type EvaluateMetric func([]Execution) ([]Conclusion, error)
 
 // AlgorithmDatasetEvaluationReq represents request for algorithm evaluation on a dataset
 type AlgorithmDatasetEvaluationReq struct {
-	Algorithm string `json:"algorithm" binding:"required"`
-	Dataset   string `json:"dataset" binding:"required"`
-	Tag       string `json:"tag,omitempty" form:"tag"` // Tag filter for filtering execution results
+	Algorithm      string `json:"algorithm" binding:"required"`
+	Dataset        string `json:"dataset" binding:"required"`
+	DatasetVersion string `json:"dataset_version,omitempty" form:"dataset_version"` // Dataset version (optional, defaults to "v1.0")
+	Tag            string `json:"tag,omitempty" form:"tag"`                         // Tag filter for filtering execution results
 }
 
 // DatapackEvaluationItem represents evaluation item for a single datapack
@@ -127,11 +128,12 @@ type DatapackEvaluationItem struct {
 
 // AlgorithmDatasetEvaluationResp represents response for algorithm evaluation on a dataset
 type AlgorithmDatasetEvaluationResp struct {
-	Algorithm     string                   `json:"algorithm"`      // Algorithm name
-	Dataset       string                   `json:"dataset"`        // Dataset name
-	TotalCount    int                      `json:"total_count"`    // Total number of datapacks in dataset
-	ExecutedCount int                      `json:"executed_count"` // Number of successfully executed datapacks
-	Items         []DatapackEvaluationItem `json:"items"`          // Evaluation items for each datapack
+	Algorithm      string                   `json:"algorithm"`       // Algorithm name
+	Dataset        string                   `json:"dataset"`         // Dataset name
+	DatasetVersion string                   `json:"dataset_version"` // Dataset version
+	TotalCount     int                      `json:"total_count"`     // Total number of datapacks in dataset
+	ExecutedCount  int                      `json:"executed_count"`  // Number of successfully executed datapacks
+	Items          []DatapackEvaluationItem `json:"items"`           // Evaluation items for each datapack
 }
 
 // AlgorithmDatapackEvaluationReq represents request for algorithm evaluation on a single datapack
