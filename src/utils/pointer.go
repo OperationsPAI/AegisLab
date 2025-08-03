@@ -29,3 +29,15 @@ func GetTimeValue(ptr *time.Time, defaultValue time.Time) time.Time {
 
 	return *ptr
 }
+
+func TimePtr(t time.Time) *time.Time {
+	return &t
+}
+
+func GetTimePtr(ptr *time.Time, defaultValue time.Time) *time.Time {
+	if ptr == nil {
+		return &defaultValue
+	}
+
+	return ptr
+}

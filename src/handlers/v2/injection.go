@@ -131,6 +131,7 @@ func CreateInjection(c *gin.Context) {
 //	@Param status query int false "Filter by status"
 //	@Param benchmark query string false "Filter by benchmark"
 //	@Param search query string false "Search in injection name and description"
+//	@Param tags query []string false "Filter by tags (array of tag values)"
 //	@Param sort_by query string false "Sort field (id,task_id,fault_type,status,benchmark,injection_name,created_at,updated_at)"
 //	@Param sort_order query string false "Sort order (asc,desc)"
 //	@Param include query string false "Include related data (task)"
@@ -162,7 +163,7 @@ func ListInjections(c *gin.Context) {
 	}
 
 	// Call repository
-	injections, total, err := repository.ListInjectionsV2(req.Page, req.Size, req.TaskID, req.FaultType, req.Status, req.Benchmark, req.Search)
+	injections, total, err := repository.ListInjectionsV2(req.Page, req.Size, req.TaskID, req.FaultType, req.Status, req.Benchmark, req.Search, req.Tags)
 	if err != nil {
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to list injections: "+err.Error())
 		return
@@ -388,6 +389,90 @@ func SearchInjections(c *gin.Context) {
 	response := dto.SearchResponse[dto.InjectionV2Response]{
 		Items:      items,
 		Pagination: pagination,
+	}
+
+	dto.SuccessResponse(c, response)
+}
+
+// ManageInjectionLabels manages injection tags
+//
+//	@Summary Manage injection tags
+//	@Description Add or remove tags for an injection
+//	@Tags Injections
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param name path string true "Injection Name"
+//	@Param manage body dto.InjectionV2LabelManageReq true "Tag management request"
+//	@Success 200 {object} dto.GenericResponse[dto.InjectionV2Response] "Tags managed successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 404 {object} dto.GenericResponse[any] "Injection not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/injections/{name}/labels [patch]
+func ManageInjectionLabels(c *gin.Context) {
+
+	injectionName := c.Param("name")
+	if injectionName == "" {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Injection name is required")
+		return
+	}
+
+	var req dto.InjectionV2LabelManageReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		return
+	}
+
+	// Check if injection exists
+	injection, err := repository.GetInjectionByNameV2(injectionName)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			dto.ErrorResponse(c, http.StatusNotFound, "Injection not found")
+		} else {
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get injection: "+err.Error())
+		}
+		return
+	}
+
+	// Start transaction
+	tx := database.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Remove tags
+	for _, tagValue := range req.RemoveTags {
+		if err := repository.RemoveTagFromInjection(injection.ID, tagValue); err != nil {
+			tx.Rollback()
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to remove tag: "+err.Error())
+			return
+		}
+	}
+
+	// Add tags
+	for _, tagValue := range req.AddTags {
+		if err := repository.AddTagToInjection(injection.ID, tagValue); err != nil {
+			tx.Rollback()
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to add tag: "+err.Error())
+			return
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to commit transaction: "+err.Error())
+		return
+	}
+
+	// Return updated injection with labels
+	response := dto.ToInjectionV2Response(injection, false)
+
+	// Load labels
+	labels, err := repository.GetInjectionLabels(injection.ID)
+	if err == nil {
+		response.Labels = labels
 	}
 
 	dto.SuccessResponse(c, response)

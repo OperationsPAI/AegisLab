@@ -223,33 +223,6 @@ func ListEngineConfigsByNames(names []string) (map[string]string, error) {
 	return result, nil
 }
 
-func ListDatasetByExecutionIDs(executionIDs []int) ([]dto.DatasetItemWithID, error) {
-	query := database.DB.
-		Model(&database.FaultInjectionSchedule{}).
-		Joins("JOIN execution_results ON execution_results.dataset = fault_injection_schedules.id")
-
-	if len(executionIDs) > 0 {
-		query = query.Where("execution_results.id IN (?)", executionIDs)
-	}
-
-	var injections []database.FaultInjectionSchedule
-	if err := query.Find(&injections).Error; err != nil {
-		return nil, err
-	}
-
-	items := make([]dto.DatasetItemWithID, 0, len(injections))
-	for _, injection := range injections {
-		var item dto.DatasetItemWithID
-		if err := item.Convert(injection); err != nil {
-			return nil, err
-		}
-
-		items = append(items, item)
-	}
-
-	return items, nil
-}
-
 func ListInjections(params *dto.ListInjectionsReq) (int64, []database.FaultInjectionProject, error) {
 	opts, err := params.TimeRangeQuery.Convert()
 	if err != nil {
@@ -529,6 +502,18 @@ func GetInjectionByIDV2(id int) (*database.FaultInjectionSchedule, error) {
 	return &injection, nil
 }
 
+// GetInjectionByNameV2 gets injection by name for V2 API
+func GetInjectionByNameV2(name string) (*database.FaultInjectionSchedule, error) {
+	var injection database.FaultInjectionSchedule
+	if err := database.DB.Where("injection_name = ? AND status != ?", name, consts.DatapackDeleted).First(&injection).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("injection not found")
+		}
+		return nil, err
+	}
+	return &injection, nil
+}
+
 // GetInjectionsByIDsAndNames gets injections by IDs and names in batch
 func GetInjectionsByIDsAndNames(ids []int, names []string) ([]database.FaultInjectionSchedule, error) {
 	var injections []database.FaultInjectionSchedule
@@ -565,7 +550,7 @@ func GetInjectionsByIDsAndNames(ids []int, names []string) ([]database.FaultInje
 }
 
 // ListInjectionsV2 lists injections with pagination and filtering
-func ListInjectionsV2(page, size int, taskID string, faultType, status *int, benchmark, search string) ([]database.FaultInjectionSchedule, int64, error) {
+func ListInjectionsV2(page, size int, taskID string, faultType, status *int, benchmark, search string, tags []string) ([]database.FaultInjectionSchedule, int64, error) {
 	query := database.DB.Model(&database.FaultInjectionSchedule{})
 
 	// Apply filters
@@ -583,6 +568,15 @@ func ListInjectionsV2(page, size int, taskID string, faultType, status *int, ben
 	}
 	if search != "" {
 		query = query.Where("injection_name LIKE ? OR description LIKE ?", "%"+search+"%", "%"+search+"%")
+	}
+
+	// Apply tags filter
+	if len(tags) > 0 {
+		// Join with injection_labels and labels tables to filter by tags
+		query = query.Joins("JOIN injection_labels ON injection_labels.injection_id = fault_injection_schedules.id").
+			Joins("JOIN labels ON labels.id = injection_labels.label_id").
+			Where("labels.label_key = ? AND labels.label_value IN ?", "tag", tags).
+			Group("fault_injection_schedules.id")
 	}
 
 	// Count total
@@ -625,8 +619,8 @@ func CreateInjectionsV2(injections []dto.InjectionV2CreateItem) ([]database.Faul
 			DisplayConfig: item.DisplayConfig,
 			EngineConfig:  item.EngineConfig,
 			PreDuration:   item.PreDuration,
-			StartTime:     utils.GetTimeValue(item.StartTime, time.Now()),
-			EndTime:       utils.GetTimeValue(item.EndTime, time.Now().Add(time.Hour)),
+			StartTime:     utils.GetTimePtr(item.StartTime, time.Now()),
+			EndTime:       utils.GetTimePtr(item.EndTime, time.Now().Add(time.Hour)),
 			Status:        utils.GetIntValue(&item.Status, 0),
 			Description:   item.Description,
 			Benchmark:     item.Benchmark,
@@ -715,18 +709,60 @@ func GetInjectionLabels(injectionID int) ([]database.Label, error) {
 	return labels, nil
 }
 
-// RemoveInjectionLabel removes a specific label from an injection
-func RemoveInjectionLabel(injectionID int, labelKey, labelValue string) error {
-	// First get the label ID
-	var label database.Label
-	if err := database.DB.Where("label_key = ? AND label_value = ?", labelKey, labelValue).First(&label).Error; err != nil {
-		return fmt.Errorf("label '%s:%s' not found: %v", labelKey, labelValue, err)
+// AddLabelToInjection adds a label to injection by label ID
+func AddLabelToInjection(injectionID, labelID int) error {
+	injectionLabel := &database.InjectionLabel{
+		InjectionID: injectionID,
+		LabelID:     labelID,
 	}
 
-	// Then delete the relationship
-	return database.DB.
-		Where("injection_id = ? AND label_id = ?", injectionID, label.ID).
-		Delete(&database.InjectionLabel{}).Error
+	if err := database.DB.Create(injectionLabel).Error; err != nil {
+		return fmt.Errorf("failed to add label to injection: %v", err)
+	}
+
+	// Increase label usage count
+	if err := database.DB.Model(&database.Label{}).Where("id = ?", labelID).
+		UpdateColumn("usage_count", gorm.Expr("usage_count + 1")).Error; err != nil {
+		return fmt.Errorf("failed to update label usage: %v", err)
+	}
+
+	return nil
+}
+
+// RemoveLabelFromInjection removes a label from injection by label ID
+func RemoveLabelFromInjection(injectionID, labelID int) error {
+	if err := database.DB.Where("injection_id = ? AND label_id = ?", injectionID, labelID).
+		Delete(&database.InjectionLabel{}).Error; err != nil {
+		return fmt.Errorf("failed to remove label from injection: %v", err)
+	}
+
+	if err := database.DB.Model(&database.Label{}).Where("id = ?", labelID).
+		UpdateColumn("usage_count", gorm.Expr("GREATEST(0, usage_count - 1)")).Error; err != nil {
+		return fmt.Errorf("failed to update label usage: %v", err)
+	}
+
+	return nil
+}
+
+// AddTagToInjection adds a tag to injection
+func AddTagToInjection(injectionID int, tagValue string) error {
+	// Create or get label with key "tag"
+	label, err := CreateOrGetLabel("tag", tagValue, "injection", "Injection tag")
+	if err != nil {
+		return fmt.Errorf("failed to create or get tag: %v", err)
+	}
+
+	return AddLabelToInjection(injectionID, label.ID)
+}
+
+// RemoveTagFromInjection removes a tag from injection
+func RemoveTagFromInjection(injectionID int, tagValue string) error {
+	label, err := GetLabelByKeyValue("tag", tagValue)
+	if err != nil {
+		return fmt.Errorf("failed to get tag '%s': %v", tagValue, err)
+	}
+
+	return RemoveLabelFromInjection(injectionID, label.ID)
 }
 
 // Helper functions
@@ -774,6 +810,15 @@ func SearchInjectionsV2(req *dto.InjectionV2SearchReq) ([]database.FaultInjectio
 	}
 	if req.Search != "" {
 		query = query.Where("injection_name LIKE ? OR description LIKE ?", "%"+req.Search+"%", "%"+req.Search+"%")
+	}
+
+	// Apply tags filter
+	if len(req.Tags) > 0 {
+		// Join with injection_labels and labels tables to filter by tags
+		query = query.Joins("JOIN injection_labels ON injection_labels.injection_id = fault_injection_schedules.id").
+			Joins("JOIN labels ON labels.id = injection_labels.label_id").
+			Where("labels.label_key = ? AND labels.label_value IN ?", "tag", req.Tags).
+			Group("fault_injection_schedules.id")
 	}
 
 	// Time range filters

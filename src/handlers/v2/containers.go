@@ -139,8 +139,8 @@ func ListContainers(c *gin.Context) {
 		req.Type = &containerType
 	}
 	if statusStr := c.Query("status"); statusStr != "" {
-		if status, err := strconv.ParseBool(statusStr); err == nil {
-			req.IsActive = &status
+		if status, err := strconv.Atoi(statusStr); err == nil {
+			req.Status = &status
 		}
 	}
 
@@ -736,7 +736,7 @@ func processHarborDirectUpdateV2(ctx context.Context, req *dto.CreateContainerRe
 		EnvVars:  envVarsStr,
 		UserID:   userID,
 		IsPublic: req.IsPublic,
-		Status:   true,
+		Status:   consts.ContainerEnabled,
 	}
 
 	var err error
@@ -896,8 +896,8 @@ func DeleteContainer(c *gin.Context) {
 		return
 	}
 
-	// Soft delete by setting status to false
-	container.Status = false
+	// Soft delete by setting status to disabled
+	container.Status = consts.ContainerDisabled
 	container.UpdatedAt = time.Now()
 
 	if err := database.DB.Save(&container).Error; err != nil {

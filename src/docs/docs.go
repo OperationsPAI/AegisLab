@@ -3694,6 +3694,12 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Dataset version (optional, defaults to v1.0)",
+                        "name": "dataset_version",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Tag label filter",
                         "name": "tag",
                         "in": "query"
@@ -3867,6 +3873,16 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Search in injection name and description",
                         "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Filter by tags (array of tag values)",
+                        "name": "tags",
                         "in": "query"
                     },
                     {
@@ -4191,6 +4207,76 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid injection ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Injection not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/injections/{name}/labels": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Add or remove tags for an injection",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Injections"
+                ],
+                "summary": "Manage injection tags",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Injection Name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Tag management request",
+                        "name": "manage",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.InjectionV2LabelManageReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tags managed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionV2Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -6590,7 +6676,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "image": {
-                    "description": "Image name",
+                    "description": "Image name with size limit",
                     "type": "string"
                 },
                 "is_public": {
@@ -6598,15 +6684,15 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "name": {
-                    "description": "Name",
+                    "description": "Name with size limit",
                     "type": "string"
                 },
                 "status": {
-                    "description": "0: deleted 1: active",
-                    "type": "boolean"
+                    "description": "Status: -1:deleted 0:disabled 1:active",
+                    "type": "integer"
                 },
                 "tag": {
-                    "description": "Image tag",
+                    "description": "Image tag with size limit",
                     "type": "string"
                 },
                 "type": {
@@ -6635,7 +6721,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "benchmark": {
-                    "description": "Benchmark database, add index",
+                    "description": "Benchmark database, add index and size limit",
                     "type": "string"
                 },
                 "created_at": {
@@ -6651,7 +6737,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "end_time": {
-                    "description": "Expected fault end time, add time index",
+                    "description": "Expected fault end time, nullable",
                     "type": "string"
                 },
                 "engine_config": {
@@ -6667,7 +6753,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "injection_name": {
-                    "description": "Name injected in k8s resources",
+                    "description": "Name injected in k8s resources with size limit",
                     "type": "string"
                 },
                 "pre_duration": {
@@ -6675,11 +6761,11 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "start_time": {
-                    "description": "Expected fault start time, add time index",
+                    "description": "Expected fault start time, nullable with validation",
                     "type": "string"
                 },
                 "status": {
-                    "description": "Status, add composite index",
+                    "description": "Status: -1:deleted 0:disabled 1:enabled",
                     "type": "integer"
                 },
                 "task": {
@@ -6749,9 +6835,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "created_at": {
+                    "description": "Creation time",
                     "type": "string"
                 },
                 "description": {
+                    "description": "Project description",
                     "type": "string"
                 },
                 "id": {
@@ -6762,13 +6850,15 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "name": {
+                    "description": "Project name with size limit",
                     "type": "string"
                 },
                 "status": {
-                    "description": "0:disabled 1:enabled -1:deleted",
+                    "description": "Status: -1:deleted 0:disabled 1:enabled",
                     "type": "integer"
                 },
                 "updated_at": {
+                    "description": "Update time",
                     "type": "string"
                 }
             }
@@ -6777,27 +6867,31 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "created_at": {
-                    "description": "Add time index",
+                    "description": "Creation time with index",
                     "type": "string"
                 },
                 "cron_expr": {
+                    "description": "Cron expression with size limit",
                     "type": "string"
                 },
                 "execute_time": {
-                    "description": "Add execution time index",
+                    "description": "Execution time timestamp",
                     "type": "integer"
                 },
                 "group_id": {
-                    "description": "Add group ID index",
+                    "description": "Group ID with size limit",
                     "type": "string"
                 },
                 "id": {
+                    "description": "Task ID with size limit",
                     "type": "string"
                 },
                 "immediate": {
+                    "description": "Whether to execute immediately",
                     "type": "boolean"
                 },
                 "payload": {
+                    "description": "Task payload",
                     "type": "string"
                 },
                 "project": {
@@ -6813,18 +6907,19 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "status": {
-                    "description": "Add multiple composite indexes",
+                    "description": "Status: Pending, Running, Completed, Error, Cancelled, Rescheduled",
                     "type": "string"
                 },
                 "trace_id": {
-                    "description": "Add trace ID index",
+                    "description": "Trace ID with size limit",
                     "type": "string"
                 },
                 "type": {
-                    "description": "Add composite index",
+                    "description": "Task type with size limit",
                     "type": "string"
                 },
                 "updated_at": {
+                    "description": "Update time",
                     "type": "string"
                 }
             }
@@ -6833,7 +6928,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "avatar": {
-                    "description": "Avatar URL",
+                    "description": "Avatar URL with size limit",
                     "type": "string"
                 },
                 "created_at": {
@@ -6841,11 +6936,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "email": {
-                    "description": "Email (unique)",
+                    "description": "Email (unique) with size limit",
                     "type": "string"
                 },
                 "full_name": {
-                    "description": "Full name",
+                    "description": "Full name with size limit",
                     "type": "string"
                 },
                 "id": {
@@ -6865,7 +6960,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "description": "0:disabled 1:enabled -1:deleted",
+                    "description": "Status: -1:deleted 0:disabled 1:enabled",
                     "type": "integer"
                 },
                 "updated_at": {
@@ -6873,7 +6968,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "username": {
-                    "description": "Username (unique)",
+                    "description": "Username (unique) with size limit",
                     "type": "string"
                 }
             }
@@ -7008,6 +7103,10 @@ const docTemplate = `{
                     "description": "Dataset name",
                     "type": "string"
                 },
+                "dataset_version": {
+                    "description": "Dataset version",
+                    "type": "string"
+                },
                 "executed_count": {
                     "description": "Number of successfully executed datapacks",
                     "type": "integer"
@@ -7139,7 +7238,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "status": {
-                    "type": "boolean"
+                    "type": "integer"
                 },
                 "tag": {
                     "type": "string"
@@ -7559,7 +7658,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "type": "boolean"
+                    "type": "integer"
                 },
                 "tag": {
                     "type": "string"
@@ -7659,10 +7758,7 @@ const docTemplate = `{
                     }
                 },
                 "status": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                    "type": "integer"
                 },
                 "tag": {
                     "type": "string"
@@ -10521,6 +10617,25 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.InjectionV2LabelManageReq": {
+            "type": "object",
+            "properties": {
+                "add_tags": {
+                    "description": "List of tag values to add",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "remove_tags": {
+                    "description": "List of tag values to remove",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "dto.InjectionV2Response": {
             "type": "object",
             "properties": {
@@ -10550,6 +10665,13 @@ const docTemplate = `{
                 },
                 "injection_name": {
                     "type": "string"
+                },
+                "labels": {
+                    "description": "Associated labels",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/database.Label"
+                    }
                 },
                 "pre_duration": {
                     "type": "integer"
@@ -10648,6 +10770,13 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "integer"
+                    }
+                },
+                "tags": {
+                    "description": "Tag values to filter by",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
                     }
                 },
                 "task_ids": {
@@ -11156,7 +11285,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "benchmark": {
-                    "description": "Benchmark database, add index",
+                    "description": "Benchmark database, add index and size limit",
                     "type": "string"
                 },
                 "created_at": {
@@ -11172,7 +11301,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "end_time": {
-                    "description": "Expected fault end time, add time index",
+                    "description": "Expected fault end time, nullable",
                     "type": "string"
                 },
                 "engine_config": {
@@ -11191,7 +11320,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "injection_name": {
-                    "description": "Name injected in k8s resources",
+                    "description": "Name injected in k8s resources with size limit",
                     "type": "string"
                 },
                 "pre_duration": {
@@ -11199,11 +11328,11 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "start_time": {
-                    "description": "Expected fault start time, add time index",
+                    "description": "Expected fault start time, nullable with validation",
                     "type": "string"
                 },
                 "status": {
-                    "description": "Status, add composite index",
+                    "description": "Status: -1:deleted 0:disabled 1:enabled",
                     "type": "integer"
                 },
                 "task": {
@@ -12658,7 +12787,7 @@ const docTemplate = `{
                 },
                 "status": {
                     "description": "@Description Container status (optional)",
-                    "type": "boolean"
+                    "type": "integer"
                 },
                 "tag": {
                     "description": "@Description Docker image tag (optional)",

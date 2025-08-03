@@ -351,6 +351,7 @@ type ContainerSearchRequest struct {
 	Tag     *string `json:"tag,omitempty"`
 	Type    *string `json:"type,omitempty"`
 	Command *string `json:"command,omitempty"`
+	Status  *int    `json:"status,omitempty"`
 }
 
 // ConvertToSearchRequest converts ContainerSearchRequest to SearchRequest

@@ -117,6 +117,13 @@ const (
 	DatasetDeleted  = -1
 )
 
+// container status: 0:disabled 1:enabled -1:deleted
+const (
+	ContainerDisabled = 0
+	ContainerEnabled  = 1
+	ContainerDeleted  = -1
+)
+
 const (
 	ExecutionDeleted = -1
 	ExecutionInitial = 0

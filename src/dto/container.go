@@ -400,7 +400,7 @@ type UpdateContainerRequest struct {
 	// @Description Whether the container is public (optional)
 	IsPublic *bool `json:"is_public" binding:"omitempty"`
 	// @Description Container status (optional)
-	Status *bool `json:"status" binding:"omitempty"`
+	Status *int `json:"status" binding:"omitempty"`
 }
 
 func (req *UpdateContainerRequest) Validate() error {
