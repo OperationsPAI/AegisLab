@@ -529,12 +529,18 @@ func applyLabelFilters(query *gorm.DB, tag string) *gorm.DB {
 
 // GetAlgorithmDatasetEvaluation retrieves all execution results for a specific algorithm on a specific dataset
 func GetAlgorithmDatasetEvaluation(req dto.AlgorithmDatasetEvaluationReq) (*dto.AlgorithmDatasetEvaluationResp, error) {
-	// First, get all fault injection schedules (datapacks) for the specified dataset
+	// Set default version if not provided
+	datasetVersion := req.DatasetVersion
+	if datasetVersion == "" {
+		datasetVersion = "v1.0"
+	}
+
+	// First, get all fault injection schedules (datapacks) for the specified dataset and version
 	var datasetRecord database.Dataset
-	err := database.DB.Where("name = ? AND status = ?", req.Dataset, consts.DatasetEnabled).First(&datasetRecord).Error
+	err := database.DB.Where("name = ? AND version = ? AND status = ?", req.Dataset, datasetVersion, consts.DatasetEnabled).First(&datasetRecord).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("dataset '%s' not found", req.Dataset)
+			return nil, fmt.Errorf("dataset '%s:%s' not found", req.Dataset, datasetVersion)
 		}
 		return nil, fmt.Errorf("failed to query dataset: %v", err)
 	}
@@ -551,11 +557,12 @@ func GetAlgorithmDatasetEvaluation(req dto.AlgorithmDatasetEvaluationReq) (*dto.
 
 	if len(faultInjections) == 0 {
 		return &dto.AlgorithmDatasetEvaluationResp{
-			Algorithm:     req.Algorithm,
-			Dataset:       req.Dataset,
-			TotalCount:    0,
-			ExecutedCount: 0,
-			Items:         []dto.DatapackEvaluationItem{},
+			Algorithm:      req.Algorithm,
+			Dataset:        req.Dataset,
+			DatasetVersion: datasetVersion,
+			TotalCount:     0,
+			ExecutedCount:  0,
+			Items:          []dto.DatapackEvaluationItem{},
 		}, nil
 	}
 
@@ -593,11 +600,12 @@ func GetAlgorithmDatasetEvaluation(req dto.AlgorithmDatasetEvaluationReq) (*dto.
 	// If no executions found, return empty result
 	if len(execResults) == 0 {
 		return &dto.AlgorithmDatasetEvaluationResp{
-			Algorithm:     req.Algorithm,
-			Dataset:       req.Dataset,
-			TotalCount:    len(faultInjections),
-			ExecutedCount: 0,
-			Items:         []dto.DatapackEvaluationItem{},
+			Algorithm:      req.Algorithm,
+			Dataset:        req.Dataset,
+			DatasetVersion: datasetVersion,
+			TotalCount:     len(faultInjections),
+			ExecutedCount:  0,
+			Items:          []dto.DatapackEvaluationItem{},
 		}, nil
 	}
 
@@ -659,11 +667,12 @@ func GetAlgorithmDatasetEvaluation(req dto.AlgorithmDatasetEvaluationReq) (*dto.
 	}
 
 	return &dto.AlgorithmDatasetEvaluationResp{
-		Algorithm:     req.Algorithm,
-		Dataset:       req.Dataset,
-		TotalCount:    len(faultInjections),
-		ExecutedCount: len(items),
-		Items:         items,
+		Algorithm:      req.Algorithm,
+		Dataset:        req.Dataset,
+		DatasetVersion: datasetVersion,
+		TotalCount:     len(faultInjections),
+		ExecutedCount:  len(items),
+		Items:          items,
 	}, nil
 }
 

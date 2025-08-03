@@ -17,6 +17,7 @@ import (
 // @Produce json
 // @Param algorithm path string true "Algorithm name"
 // @Param dataset path string true "Dataset name"
+// @Param dataset_version query string false "Dataset version (optional, defaults to v1.0)"
 // @Param tag query string false "Tag label filter"
 // @Success 200 {object} dto.GenericResponse[dto.AlgorithmDatasetEvaluationResp] "Algorithm dataset evaluation data"
 // @Failure 400 {object} dto.GenericResponse[any] "Bad request"
@@ -35,7 +36,7 @@ func GetAlgorithmDatasetEvaluation(c *gin.Context) {
 		Dataset:   dataset,
 	}
 
-	// Parse label filters from query parameters
+	// Parse label filters and dataset version from query parameters
 	if err := c.ShouldBindQuery(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
 		return
@@ -56,7 +57,11 @@ func GetAlgorithmDatasetEvaluation(c *gin.Context) {
 	result, err := repository.GetAlgorithmDatasetEvaluation(req)
 	if err != nil {
 		// Check if it's a not found error
-		if err.Error() == "dataset '"+req.Dataset+"' not found" {
+		datasetVersion := req.DatasetVersion
+		if datasetVersion == "" {
+			datasetVersion = "v1.0"
+		}
+		if err.Error() == "dataset '"+req.Dataset+":"+datasetVersion+"' not found" {
 			dto.ErrorResponse(c, http.StatusNotFound, "Dataset not found")
 			return
 		}
