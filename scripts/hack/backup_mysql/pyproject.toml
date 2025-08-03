@@ -1,0 +1,44 @@
+[project]
+name = "backup-mysql"
+version = "0.1.0"
+description = "A tool to backup MySQL databases"
+readme = "README.md"
+authors = [ #
+    { name = "Lincyaw", email = "814750204@qq.com" },
+    { name = "rainystevn1", email = "rainystevn1@gmail.com" },
+]
+requires-python = ">=3.13"
+dependencies = ["typer>=0.16.0"]
+
+[tool.uv]
+index-url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+
+[tool.ruff]
+cache-dir = ".cache/ruff"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E",  # https://docs.astral.sh/ruff/rules/#error-e
+    "F",  # https://docs.astral.sh/ruff/rules/#pyflakes-f
+    "I",  # https://docs.astral.sh/ruff/rules/#isort-i
+    "UP", # https://docs.astral.sh/ruff/rules/#pyupgrade-up
+]
+ignore = ["F401", "UP038"]
+
+[tool.pyright]
+exclude = [ #
+    ".git",
+    "**/__pycache__",
+    ".cache",
+    ".idea",
+    ".vscode",
+    ".venv",
+    ".devbox",
+    "db/",
+    "data/",
+    "temp/",
+    "logs/",
+    "vendor/",
+    "output/",
+]

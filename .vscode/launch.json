@@ -11,7 +11,8 @@
         "both",
         "-c ./config.dev.toml"
       ],
-      "cwd": "${workspaceFolder}/src"
+      "cwd": "${workspaceFolder}/src",
+      "console": "integratedTerminal",
     },
     {
       "name": "rcabench-producer",
@@ -23,7 +24,8 @@
         "producer",
         "-c ./config.dev.toml"
       ],
-      "cwd": "${workspaceFolder}/src"
-    }
+      "cwd": "${workspaceFolder}/src",
+      "console": "integratedTerminal",
+    },
   ]
 }
