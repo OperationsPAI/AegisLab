@@ -5,8 +5,6 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strconv"
 
 	"github.com/LGU-SE-Internal/rcabench/config"
@@ -31,6 +29,8 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 
+		logEntry := logrus.WithField("task_id", task.TaskID)
+
 		collectPayload, err := parseCollectPayload(task.Payload)
 		if err != nil {
 			return err
@@ -39,12 +39,6 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 		if collectPayload.algorithm.Name == config.GetString("algo.detector") {
 			results, err := repository.ListDetectorResultsByExecutionID(collectPayload.executionID)
 			if err != nil {
-				repository.PublishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
-					TaskID:    task.TaskID,
-					TaskType:  consts.TaskTypeCollectResult,
-					EventName: consts.EventDatasetNoDetectorData,
-				})
-
 				span.AddEvent("failed to get detector results by execution ID")
 				span.RecordError(err)
 				return fmt.Errorf("failed to get detector results by execution ID: %v", err)
@@ -57,7 +51,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 					EventName: consts.EventDatasetNoDetectorData,
 				})
 				span.AddEvent("no detector results found for the execution ID")
-				logrus.Info("no detector results found for the execution ID")
+				logEntry.Info("no detector results found for the execution ID")
 				return nil
 			}
 
@@ -77,7 +71,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				})
 
 				span.AddEvent("the detector result has no issues")
-				logrus.Info("the detector result has no issues")
+				logEntry.Info("the detector result has no issues")
 			} else {
 				repository.PublishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 					TaskID:    task.TaskID,
@@ -95,6 +89,8 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				consts.TaskStatusCompleted,
 				task.Type,
 			)
+
+			logEntry.Info("Collect detector result task completed successfully")
 
 			if hasIssues && repository.CheckCachedField(childCtx, consts.InjectionAlgorithmsKey, task.GroupID) {
 				items, err := repository.GetCachedAlgorithmItemsFromRedis(childCtx, consts.InjectionAlgorithmsKey, task.GroupID)
@@ -125,30 +121,25 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 					}
 				}
 
-				logrus.Infof("Algorithm executions submitted successfully")
+				logEntry.Infof("Algorithm executions submitted successfully")
 			}
 		} else {
-			path := config.GetString("jfs.path")
-			algorithmPath := filepath.Join(path, collectPayload.dataset, collectPayload.algorithm.Name, collectPayload.timestamp)
-			resultCSV := filepath.Join(algorithmPath, consts.ExecutionResultFile)
-			content, err := os.ReadFile(resultCSV)
+			results, err := repository.ListGranularityResultsByExecutionID(collectPayload.executionID)
 			if err != nil {
-				span.AddEvent("failed to read result.csv file")
+				span.AddEvent("failed to get detector results by execution ID")
 				span.RecordError(err)
-				return fmt.Errorf("failed to read result.csv file: %v", err)
+				return fmt.Errorf("failed to get detector results by execution ID: %v", err)
 			}
 
-			results, err := readCSVContent2Result(content, collectPayload.executionID)
-			if err != nil {
-				span.AddEvent("failed to convert result.csv to database struct")
-				span.RecordError(err)
-				return fmt.Errorf("convert result.csv to database struct failed: %v", err)
-			}
-
-			if err = database.DB.Create(&results).Error; err != nil {
-				span.AddEvent("failed to save result.csv to database")
-				span.RecordError(err)
-				return fmt.Errorf("save result.csv to database failed: %v", err)
+			if len(results) == 0 {
+				repository.PublishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+					TaskID:    task.TaskID,
+					TaskType:  consts.TaskTypeCollectResult,
+					EventName: consts.EventAlgoNoResultData,
+				})
+				span.AddEvent("no granularity results found for the execution ID")
+				logEntry.Info("no granularity results found for the execution ID")
+				return nil
 			}
 
 			repository.PublishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
@@ -168,7 +159,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 			)
 		}
 
-		logrus.WithField("task_id", task.TaskID).Info("Collect result task completed successfully")
+		logEntry.Info("Collect algorithm result task completed successfully")
 		return nil
 	})
 }

@@ -263,10 +263,11 @@ type EventType string
 
 const (
 	// when adding the consts, remember to update the consts in python sdk, const.py
-	EventAlgoRunSucceed EventType = "algorithm.run.succeed"
-	EventAlgoRunFailed  EventType = "algorithm.run.failed"
+	EventAlgoResultCollection EventType = "algorithm.result.collection"
+	EventAlgoNoResultData     EventType = "algorithm.no_result_data"
+	EventAlgoRunSucceed       EventType = "algorithm.run.succeed"
+	EventAlgoRunFailed        EventType = "algorithm.run.failed"
 
-	EventAlgoResultCollection    EventType = "algorithm.collect_result"
 	EventDatasetResultCollection EventType = "dataset.result.collection"
 	EventDatasetNoAnomaly        EventType = "dataset.no_anomaly"
 	EventDatasetNoDetectorData   EventType = "dataset.no_detector_data"
