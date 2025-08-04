@@ -25,20 +25,3 @@ select = [
     "UP", # https://docs.astral.sh/ruff/rules/#pyupgrade-up
 ]
 ignore = ["F401", "UP038"]
-
-[tool.pyright]
-exclude = [ #
-    ".git",
-    "**/__pycache__",
-    ".cache",
-    ".idea",
-    ".vscode",
-    ".venv",
-    ".devbox",
-    "db/",
-    "data/",
-    "temp/",
-    "logs/",
-    "vendor/",
-    "output/",
-]
