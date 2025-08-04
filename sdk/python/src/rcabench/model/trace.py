@@ -30,6 +30,8 @@ class GetTraceEventsReq(BaseModel):
 class AlgorithmItem(BaseModel):
     """Algorithm item model"""
 
+    model_config = ConfigDict(extra="ignore", validate_by_name=True)
+
     name: str = Field(..., description="Algorithm name")
     image: str = Field(..., description="Algorithm image")
     tag: str = Field(..., description="Algorithm image tag")
@@ -37,6 +39,8 @@ class AlgorithmItem(BaseModel):
 
 class DatasetOptions(BaseModel):
     """Dataset options model"""
+
+    model_config = ConfigDict(extra="ignore", validate_by_name=True)
 
     dataset: str = Field(..., description="Dataset name")
 
@@ -64,6 +68,16 @@ class DetectorRecord(BaseModel):
                 return {}
 
         return v if isinstance(v, dict) else {}
+
+
+class ExecutionOptions(BaseModel):
+    """Execution options model"""
+
+    model_config = ConfigDict(extra="ignore", validate_by_name=True)
+
+    algorithm: AlgorithmItem = Field(..., description="Algorithm item")
+    dataset: str = Field(..., description="dataset")
+    execution_id: int = Field(..., description="Execution ID")
 
 
 class InfoPayload(BaseModel):
