@@ -297,7 +297,6 @@ func initializeContainers(tx *gorm.DB, userID int) error {
 			Image:    "10.10.10.240/library/detector",
 			Tag:      "latest",
 			Command:  "bash /entrypoint.sh",
-			EnvVars:  "ALGORITHM_ID,EXECUTION_ID",
 			UserID:   userID,
 			IsPublic: isPublic,
 		},

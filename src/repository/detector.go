@@ -11,7 +11,7 @@ func ListDetectorResultsByExecutionID(executionID int) ([]database.Detector, err
 	if err := database.DB.Model(&database.Detector{}).
 		Where("execution_id = ?", executionID).
 		Find(&results).Error; err != nil {
-		return nil, fmt.Errorf("failed to check detector result by execution ID: %v", err)
+		return nil, fmt.Errorf("failed to list detector results by execution ID: %v", err)
 	}
 
 	return results, nil

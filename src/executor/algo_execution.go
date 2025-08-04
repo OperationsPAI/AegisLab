@@ -296,7 +296,7 @@ func createAlgoJob(ctx context.Context, jobName, image string, annotations, labe
 		return k8s.CreateJob(ctx, &k8s.JobConfig{
 			JobName:        jobName,
 			Image:          image,
-			Command:        strings.Split(container.Command, " "),
+			Command:        []string{"bash", "-c", fmt.Sprintf("%s && sleep 600", container.Command)},
 			Annotations:    annotations,
 			Labels:         labels,
 			EnvVars:        jobEnvVars,
@@ -335,12 +335,10 @@ func getAlgoJobEnvVars(executionID int, payload *executionPayload, container *da
 		{Name: "WORKSPACE", Value: "/app"},
 		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.dataset)},
 		{Name: "OUTPUT_PATH", Value: outputPath},
-	}
-
-	if container.Name == config.GetString("algo.detector") {
-		jobEnvVars = append(jobEnvVars, corev1.EnvVar{Name: "ALGORITHM_ID", Value: strconv.Itoa(container.ID)})
-		jobEnvVars = append(jobEnvVars, corev1.EnvVar{Name: "EXECUTION_ID", Value: strconv.Itoa(executionID)})
-		return jobEnvVars, nil
+		{Name: "RCABENCH_USERNAME", Value: "admin"},
+		{Name: "RCABENCH_PASSWORD", Value: "admin123"},
+		{Name: "ALGORITHM_ID", Value: strconv.Itoa(container.ID)},
+		{Name: "EXECUTION_ID", Value: strconv.Itoa(executionID)},
 	}
 
 	envNameIndexMap := make(map[string]int, len(jobEnvVars))

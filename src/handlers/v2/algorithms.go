@@ -205,8 +205,6 @@ func UploadDetectorResults(c *gin.Context) {
 		return
 	}
 
-
-
 	// Parse request body
 	var req dto.DetectorResultRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -322,8 +320,6 @@ func UploadGranularityResults(c *gin.Context) {
 			return
 		}
 	}
-
-
 
 	// Parse request body
 	var req dto.GranularityResultEnhancedRequest
@@ -453,8 +449,6 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 
 	spanCtx := ctx.(context.Context)
 	trace.SpanFromContext(spanCtx)
-
-
 
 	// Parse request body
 	var req dto.BatchAlgorithmExecutionRequest
