@@ -22,7 +22,7 @@ func TestCreateGetDeleteK8sJob(t *testing.T) {
 	}
 
 	// Step 1: Create Job
-	if err := CreateJob(context.Background(), JobConfig{
+	if err := CreateJob(context.Background(), &JobConfig{
 		Namespace:     namespace,
 		JobName:       jobName,
 		Image:         image,
