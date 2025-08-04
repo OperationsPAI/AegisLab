@@ -325,6 +325,7 @@ func getAlgoJobEnvVars(executionID int, payload *executionPayload, container *da
 	}
 
 	jobEnvVars := []corev1.EnvVar{
+		{Name: "ENV_MODE", Value: config.GetString("system.env_mode")},
 		{Name: "TIMEZONE", Value: tz},
 		{Name: "TIMESTAMP", Value: timestamp},
 		{Name: "NORMAL_START", Value: strconv.FormatInt(record.StartTime.Add(-time.Duration(preDuration)*time.Minute).Unix(), 10)},

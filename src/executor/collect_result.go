@@ -36,27 +36,29 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 			return err
 		}
 
-		path := config.GetString("jfs.path")
 		if collectPayload.algorithm.Name == config.GetString("algo.detector") {
-			conclusionCSV := filepath.Join(path, collectPayload.dataset, consts.DetectorConclusionFile)
-			content, err := os.ReadFile(conclusionCSV)
-			if err != nil {
-				span.AddEvent("failed to read conclusion.csv file")
-				span.RecordError(err)
-				return fmt.Errorf("failed to read conclusion.csv file: %v", err)
-			}
-
-			results, err := readDetectorCSV(content, collectPayload.executionID)
+			results, err := repository.ListDetectorResultsByExecutionID(collectPayload.executionID)
 			if err != nil {
 				repository.PublishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 					TaskID:    task.TaskID,
 					TaskType:  consts.TaskTypeCollectResult,
-					EventName: consts.EventDatasetNoConclusionFile,
-					Payload:   results,
+					EventName: consts.EventDatasetNoDetectorData,
 				})
-				span.AddEvent("failed to convert conclusion.csv to database struct")
+
+				span.AddEvent("failed to get detector results by execution ID")
 				span.RecordError(err)
-				return fmt.Errorf("failed to convert conclusion.csv to database struct: %v", err)
+				return fmt.Errorf("failed to get detector results by execution ID: %v", err)
+			}
+
+			if len(results) == 0 {
+				repository.PublishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+					TaskID:    task.TaskID,
+					TaskType:  consts.TaskTypeCollectResult,
+					EventName: consts.EventDatasetNoDetectorData,
+				})
+				span.AddEvent("no detector results found for the execution ID")
+				logrus.Info("no detector results found for the execution ID")
+				return nil
 			}
 
 			hasIssues := false
@@ -74,8 +76,8 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 					Payload:   results,
 				})
 
-				span.AddEvent("the detector result is empty")
-				logrus.Info("the detector result is empty")
+				span.AddEvent("the detector result has no issues")
+				logrus.Info("the detector result has no issues")
 			} else {
 				repository.PublishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 					TaskID:    task.TaskID,
@@ -83,14 +85,6 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 					EventName: consts.EventDatasetResultCollection,
 					Payload:   results,
 				})
-			}
-
-			if len(results) != 0 {
-				if err = database.DB.Create(&results).Error; err != nil {
-					span.AddEvent("failed to save conclusion.csv to database")
-					span.RecordError(err)
-					return fmt.Errorf("failed to save conclusion.csv to database: %v", err)
-				}
 			}
 
 			updateTaskStatus(
@@ -134,6 +128,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				logrus.Infof("Algorithm executions submitted successfully")
 			}
 		} else {
+			path := config.GetString("jfs.path")
 			algorithmPath := filepath.Join(path, collectPayload.dataset, collectPayload.algorithm.Name, collectPayload.timestamp)
 			resultCSV := filepath.Join(algorithmPath, consts.ExecutionResultFile)
 			content, err := os.ReadFile(resultCSV)

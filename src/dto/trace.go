@@ -11,7 +11,7 @@ var ValidTaskEventMap = map[consts.TaskType][]consts.EventType{
 	consts.TaskTypeCollectResult: {
 		consts.EventDatasetResultCollection,
 		consts.EventDatasetNoAnomaly,
-		consts.EventDatasetNoConclusionFile,
+		consts.EventDatasetNoDetectorData,
 	},
 	consts.TaskTypeFaultInjection: {
 		consts.EventFaultInjectionStarted,
