@@ -212,7 +212,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			consts.LabelExecutionID: strconv.Itoa(executionID),
 		}
 
-		if err := createAlgoJob(childCtx, jobName, fullImage, annotations, labels, payload, container, record); err != nil {
+		if err := createAlgoJob(childCtx, jobName, fullImage, annotations, labels, executionID, payload, container, record); err != nil {
 			// Job creation failed, token will be released by defer function
 			return err
 		}
@@ -260,11 +260,11 @@ func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 	}, nil
 }
 
-func createAlgoJob(ctx context.Context, jobName, image string, annotations, labels map[string]string, payload *executionPayload, container *database.Container, record *dto.DatasetItemWithID) error {
+func createAlgoJob(ctx context.Context, jobName, image string, annotations, labels map[string]string, executionID int, payload *executionPayload, container *database.Container, record *dto.DatasetItemWithID) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
 
-		jobEnvVars, err := getAlgoJobEnvVars(payload, container, record)
+		jobEnvVars, err := getAlgoJobEnvVars(executionID, payload, container, record)
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to get job environment variables")
@@ -305,7 +305,7 @@ func createAlgoJob(ctx context.Context, jobName, image string, annotations, labe
 	})
 }
 
-func getAlgoJobEnvVars(payload *executionPayload, container *database.Container, record *dto.DatasetItemWithID) ([]corev1.EnvVar, error) {
+func getAlgoJobEnvVars(executionID int, payload *executionPayload, container *database.Container, record *dto.DatasetItemWithID) ([]corev1.EnvVar, error) {
 	tz := config.GetString("system.timezone")
 	if tz == "" {
 		tz = "Asia/Shanghai"
@@ -334,6 +334,12 @@ func getAlgoJobEnvVars(payload *executionPayload, container *database.Container,
 		{Name: "WORKSPACE", Value: "/app"},
 		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.dataset)},
 		{Name: "OUTPUT_PATH", Value: outputPath},
+	}
+
+	if container.Name == config.GetString("algo.detector") {
+		jobEnvVars = append(jobEnvVars, corev1.EnvVar{Name: "ALGORITHM_ID", Value: strconv.Itoa(container.ID)})
+		jobEnvVars = append(jobEnvVars, corev1.EnvVar{Name: "EXECUTION_ID", Value: strconv.Itoa(executionID)})
+		return jobEnvVars, nil
 	}
 
 	envNameIndexMap := make(map[string]int, len(jobEnvVars))

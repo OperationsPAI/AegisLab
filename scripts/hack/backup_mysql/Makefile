@@ -57,38 +57,38 @@ help: ## 📖 Show all available commands
 # =============================================================================
 
 status: ## 📊 Show backup status and disk usage
-	@echo "$(BLUE)Backup Directory Status:$(RESET)"
-	@ls -la ./temp/backup_mysql/ 2>/dev/null || echo "$(YELLOW)No backup directory found$(RESET)"
-	@echo ""
-	@echo "$(BLUE)Disk Usage:$(RESET)"
-	@du -sh ./temp/backup_mysql/ 2>/dev/null || echo "$(YELLOW)No backup files found$(RESET)"
+	@printf "$(BLUE)Backup Directory Status:$(RESET)\n"
+	@ls -la ./temp/backup_mysql/ 2>/dev/null || printf "$(YELLOW)No backup directory found$(RESET)\n"
+	@printf ""
+	@printf "$(BLUE)Disk Usage:$(RESET)\n"
+	@du -sh ./temp/backup_mysql/ 2>/dev/null || printf "$(YELLOW)No backup files found$(RESET)\n"
 
 config: ## ⚙️ Show current configuration
-	@echo "$(BLUE)Current Local MySQL Configuration:$(RESET)"
-	@echo "$(CYAN)Local Host:$(RESET)     $(Local_HOST) $(RESET)"
-	@echo "$(CYAN)Local Port:$(RESET)     $(Local_PORT)"
-	@echo "$(CYAN)Local User:$(RESET)     $(Local_USER)"
-	@echo "$(CYAN)Local Database:$(RESET) $(Local_DB)"
-	@echo "$(CYAN)Local Password:$(RESET) $(shell echo $(Local_PASSWORD) | sed 's/./*/g')"
+	@printf "$(BLUE)Current Local MySQL Configuration:$(RESET)\n"
+	@printf "$(CYAN)Local Host:     $(Local_HOST) $(RESET)\n"
+	@printf "$(CYAN)Local Port:     $(Local_PORT) $(RESET)\n"
+	@printf "$(CYAN)Local User:     $(Local_USER) $(RESET)\n"
+	@printf "$(CYAN)Local Database: $(Local_DB) $(RESET)\n"
+	@printf "$(CYAN)Local Password: $(shell printf $(Local_PASSWORD) | sed 's/./*/g') $(RESET)\n"
 
-	@echo "$(BLUE)Current MySQL Configuration:$(RESET)"
-	@echo "$(CYAN)Remote Host:$(RESET)     $(Remote_HOST)"
-	@echo "$(CYAN)Remote Port:$(RESET)     $(Remote_PORT)"
-	@echo "$(CYAN)Remote User:$(RESET)     $(Remote_USER)"
-	@echo "$(CYAN)Remote Database:$(RESET) $(Remote_DB)"
-	@echo "$(CYAN)Remote Password:$(RESET) $(shell echo $(Remote_PASSWORD) | sed 's/./*/g')"
+	@printf "$(BLUE)Current MySQL Configuration:$(RESET)\n"
+	@printf "$(CYAN)Remote Host:     $(Remote_HOST) $(RESET)\n"
+	@printf "$(CYAN)Remote Port:     $(Remote_PORT) $(RESET)\n"
+	@printf "$(CYAN)Remote User:     $(Remote_USER) $(RESET)\n"
+	@printf "$(CYAN)Remote Database: $(Remote_DB) $(RESET)\n"
+	@printf "$(CYAN)Remote Password: $(shell printf $(Remote_PASSWORD) | sed 's/./*/g') $(RESET)\n"
 
 # =============================================================================
 # Setup and Installation
 # =============================================================================
 
 install: ## 🔧 Install MySQL client tools
-	@echo "$(BLUE)Installing MySQL client tools...$(RESET)"
+	@printf "$(BLUE)Installing MySQL client tools...$(RESET)\n"
 	uv run python cli.py install-tools
-	@echo "$(GREEN)✅ Installation completed$(RESET)"
+	@printf "$(GREEN)✅ Installation completed$(RESET)\n"
 
 check-local: ## 🔍 Check MySQL local server version and connectivity
-	@echo "$(BLUE)Checking MySQL server connection...$(RESET)"
+	@printf "$(BLUE)Checking MySQL server connection...$(RESET)\n"
 	uv run python cli.py check-version \
 		--host $(LOCAL_HOST) \
 		--port $(LOCAL_PORT) \
@@ -97,7 +97,7 @@ check-local: ## 🔍 Check MySQL local server version and connectivity
 		--database $(LOCAL_DB)
 
 check-remote: ## 🔍 Check MySQL remote server version and connectivity
-	@echo "$(BLUE)Checking MySQL server connection...$(RESET)"
+	@printf "$(BLUE)Checking MySQL server connection...$(RESET)\n"
 	uv run python cli.py check-version \
 		--host $(REMOTE_HOST) \
 		--port $(REMOTE_PORT) \
@@ -110,21 +110,21 @@ check-remote: ## 🔍 Check MySQL remote server version and connectivity
 # =============================================================================
 
 list: ## 📄 List all available backup files
-	@echo "$(BLUE)Listing available backup files...$(RESET)"
+	@printf "$(BLUE)Listing available backup files...$(RESET)\n"
 	uv run python cli.py list
 
 clean: ## 🧹 Clean old backup files (older than 7 days)
-	@echo "$(BLUE)Cleaning old backup files...$(RESET)"
+	@printf "$(BLUE)Cleaning old backup files...$(RESET)\n"
 	@find ./temp/backup_mysql -name "*_mysql_backup_*" -type f -mtime +7 -delete 2>/dev/null || true
-	@echo "$(GREEN)✅ Cleanup completed$(RESET)"
+	@printf "$(GREEN)✅ Cleanup completed$(RESET)\n"
 
 # =============================================================================
 # Backup Operations
 # =============================================================================
 
 backup: ## 💾 Create database backup from remote with compression
-	@echo "$(BLUE)Starting database backup...$(RESET)"
-	@echo "$(BLUE)Host: $(REMOTE_HOST):$(REMOTE_PORT) | Database: $(REMOTE_DB)$(RESET)"
+	@printf "$(BLUE)Starting database backup...$(RESET)\n"
+	@printf "$(BLUE)Host: $(REMOTE_HOST):$(REMOTE_PORT) | Database: $(REMOTE_DB)$(RESET)\n"
 	uv run python cli.py backup \
 		--host $(REMOTE_HOST) \
 		--port $(REMOTE_PORT) \
@@ -135,14 +135,14 @@ backup: ## 💾 Create database backup from remote with compression
 		--single-transaction \
 		--routines \
 		--triggers
-	@echo "$(GREEN)✅ Backup completed successfully$(RESET)"
+	@printf "$(GREEN)✅ Backup completed successfully$(RESET)\n"
 
 # =============================================================================
 # Restore Operations
 # =============================================================================
 
 restore-local: ## 📥 Restore latest backup to local MySQL from remote
-	@echo "$(BLUE)Starting database restore to local MySQL...$(RESET)"
+	@printf "$(BLUE)Starting database restore to local MySQL...$(RESET)\n"
 	uv run python cli.py restore \
 		--host $(LOCAL_HOST) \
 		--port $(LOCAL_PORT) \
@@ -150,10 +150,10 @@ restore-local: ## 📥 Restore latest backup to local MySQL from remote
 		--password $(LOCAL_PASSWORD) \
 		--database $(LOCAL_DB) \
 		--force
-	@echo "$(GREEN)✅ Local restore completed$(RESET)"
+	@printf "$(GREEN)✅ Local restore completed$(RESET)\n"
 
 restore-remote: ## 📥 Restore latest backup to remote MySQL from local
-	@echo "$(BLUE)Starting database restore to remote MySQL...$(RESET)"
+	@printf "$(BLUE)Starting database restore to remote MySQL...$(RESET)\n"
 	uv run python cli.py restore \
 		--host $(REMOTE_HOST) \
 		--port $(REMOTE_PORT) \
@@ -161,16 +161,16 @@ restore-remote: ## 📥 Restore latest backup to remote MySQL from local
 		--password $(REMOTE_PASSWORD) \
 		--database $(REMOTE_DB) \
 		--force
-	@echo "$(GREEN)✅ Remote restore completed$(RESET)"
+	@printf "$(GREEN)✅ Remote restore completed$(RESET)\n"
 
 # =============================================================================
 # Quick Actions
 # =============================================================================
 
 migrate: ## 🔀 Database migration (backup from remote → restore to local)
-	@echo "$(BLUE)Starting database migration...$(RESET)"
-	@echo "$(BLUE)Step 1: Creating backup from remote server...$(RESET)"
+	@printf "$(BLUE)Starting database migration...$(RESET)\n"
+	@printf "$(BLUE)Step 1: Creating backup from remote server...$(RESET)\n"
 	@$(MAKE) backup
-	@echo "$(BLUE)Step 2: Restoring to local database...$(RESET)"
+	@printf "$(BLUE)Step 2: Restoring to local database...$(RESET)\n"
 	@$(MAKE) restore-local
-	@echo "$(GREEN)✅ Database migration completed$(RESET)"
+	@printf "$(GREEN)✅ Database migration completed$(RESET)\n"

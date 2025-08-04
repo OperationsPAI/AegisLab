@@ -355,6 +355,7 @@ func (e *Executor) HandleJobSucceeded(job *batchv1.Job, annotations map[string]s
 					Name: config.GetString("algo.detector"),
 				},
 				consts.ExecuteDataset: options.Dataset,
+				consts.ExecuteEnvVars: map[string]string{},
 			},
 			Immediate: true,
 			TraceID:   taskOptions.TraceID,

@@ -78,14 +78,14 @@ func InitializeSystemData() error {
 		}
 
 		// Create super admin user and default project
-		_, err := initializeAdminUserAndProjects(tx)
+		adminUser, err := initializeAdminUserAndProjects(tx)
 		if err != nil {
 			return fmt.Errorf("failed to initialize admin user and projects: %v", err)
 		}
 
-		// if err := initializeContainers(tx, adminUser.ID); err != nil {
-		// 	return fmt.Errorf("failed to initialize containers: %v", err)
-		// }
+		if err := initializeContainers(tx, adminUser.ID); err != nil {
+			return fmt.Errorf("failed to initialize containers: %v", err)
+		}
 
 		// Initialize execution result labels
 		if err := InitializeExecutionLabels(); err != nil {
@@ -295,8 +295,9 @@ func initializeContainers(tx *gorm.DB, userID int) error {
 			Type:     "algorithm",
 			Name:     config.GetString("algo.detector"),
 			Image:    "10.10.10.240/library/detector",
-			Tag:      "d3bc0bf",
+			Tag:      "06f0a86",
 			Command:  "bash /entrypoint.sh",
+			EnvVars:  "ALGORITHM_ID,EXECUTION_ID",
 			UserID:   userID,
 			IsPublic: isPublic,
 		},
@@ -312,8 +313,8 @@ func initializeContainers(tx *gorm.DB, userID int) error {
 		{
 			Type:     "benchmark",
 			Name:     "clickhouse",
-			Image:    "10.10.10.240/library/detector",
-			Tag:      "d3bc0bf",
+			Image:    "10.10.10.240/library/clickhouse_dataset",
+			Tag:      "06f0a86",
 			Command:  "bash /entrypoint.sh",
 			UserID:   userID,
 			IsPublic: isPublic,
@@ -322,7 +323,7 @@ func initializeContainers(tx *gorm.DB, userID int) error {
 			Type:     "namespace",
 			Name:     "ts",
 			Image:    "10.10.10.240/library/ts-train-service",
-			Tag:      "2ad833a2",
+			Tag:      "v1.0.0-207-g305d0588",
 			UserID:   userID,
 			IsPublic: isPublic,
 		},
