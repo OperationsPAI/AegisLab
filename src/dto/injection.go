@@ -170,7 +170,7 @@ func (req *QueryInjectionReq) Validate() error {
 }
 
 type LabelItem struct {
-	Key   string `json:"key" binding:"required,oneof=env batch tag"`
+	Key   string `json:"key" binding:"required`
 	Value string `json:"value" binding:"required"`
 }
 
