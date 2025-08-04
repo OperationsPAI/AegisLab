@@ -114,15 +114,9 @@ func SetupV2Routes(router *gin.Engine) {
 	middleware.StartCleanupRoutine()
 
 	v2 := router.Group("/api/v2")
-	{
-		// Apply general rate limiting to all v2 routes
-		v2.Use(middleware.GeneralRateLimit)
-	}
-
 	// Authentication routes (with auth rate limiting)
 	auth := v2.Group("/auth")
 	{
-		auth.Use(middleware.AuthRateLimit)             // Special rate limiting for auth
 		auth.POST("/login", v2handlers.Login)          // User login
 		auth.POST("/register", v2handlers.Register)    // User registration
 		auth.POST("/refresh", v2handlers.RefreshToken) // Token refresh

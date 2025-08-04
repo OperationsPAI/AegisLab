@@ -377,15 +377,3 @@ type ExecutionResultLabel struct {
 	ExecutionResult *ExecutionResult `gorm:"foreignKey:ExecutionID" json:"execution_result,omitempty"` // Associated execution result
 	Label           *Label           `gorm:"foreignKey:LabelID" json:"label,omitempty"`                // Associated label
 }
-
-// InjectionLabel Many-to-many relationship table between FaultInjectionSchedule and Label
-type InjectionLabel struct {
-	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`                                                              // Unique identifier
-	InjectionID int       `gorm:"index:idx_injection_label_injection;index:idx_injection_label_unique,unique" json:"injection_id"` // Injection ID
-	LabelID     int       `gorm:"index:idx_injection_label_label;index:idx_injection_label_unique,unique" json:"label_id"`         // Label ID
-	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`                                                                // Creation time
-
-	// Foreign key associations with constraints
-	Injection *FaultInjectionSchedule `gorm:"foreignKey:InjectionID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"injection,omitempty"` // Associated injection
-	Label     *Label                  `gorm:"foreignKey:LabelID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"label,omitempty"`         // Associated label
-}
