@@ -458,14 +458,13 @@ func AddExecutionResultLabel(executionID int, labelKey, labelValue, description 
 		FirstOrCreate(&relation).Error
 }
 
-// GetExecutionResultLabels retrieves all labels for an execution result
+// GetExecutionResultLabels retrieves all labels for an execution result (optimized)
 func GetExecutionResultLabels(executionID int) ([]database.Label, error) {
-	var labels []database.Label
-	err := database.DB.
-		Joins("JOIN execution_result_labels ON execution_result_labels.label_id = labels.id").
-		Where("execution_result_labels.execution_id = ?", executionID).
-		Find(&labels).Error
-	return labels, err
+	labelsMap, err := GetExecutionLabelsMap([]int{executionID})
+	if err != nil {
+		return nil, err
+	}
+	return labelsMap[executionID], nil
 }
 
 // RemoveExecutionResultLabel removes a specific label from an execution result

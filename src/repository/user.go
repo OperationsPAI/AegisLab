@@ -102,16 +102,13 @@ func UpdateUserLoginTime(userID int) error {
 	return nil
 }
 
-// GetUserRoles gets user's global roles
+// GetUserRoles gets user's global roles (optimized)
 func GetUserRoles(userID int) ([]database.Role, error) {
-	var roles []database.Role
-	if err := database.DB.Table("roles").
-		Joins("JOIN user_roles ON roles.id = user_roles.role_id").
-		Where("user_roles.user_id = ? AND roles.status = 1", userID).
-		Find(&roles).Error; err != nil {
-		return nil, fmt.Errorf("failed to get user roles: %v", err)
+	rolesMap, err := GetUserRolesMap([]int{userID})
+	if err != nil {
+		return nil, err
 	}
-	return roles, nil
+	return rolesMap[userID], nil
 }
 
 // GetUserProjectRoles gets user's roles in a specific project
@@ -126,15 +123,20 @@ func GetUserProjectRoles(userID, projectID int) ([]database.Role, error) {
 	return roles, nil
 }
 
-// GetUserProjects gets projects the user participates in
+// GetUserProjects gets projects the user participates in (optimized)
 func GetUserProjects(userID int) ([]database.UserProject, error) {
-	var userProjects []database.UserProject
-	if err := database.DB.Preload("Project").Preload("Role").
-		Where("user_id = ? AND status = 1", userID).
-		Find(&userProjects).Error; err != nil {
-		return nil, fmt.Errorf("failed to get user projects: %v", err)
+	projectsMap, err := GetUserProjectsMap([]int{userID})
+	if err != nil {
+		return nil, err
 	}
-	return userProjects, nil
+	// Filter active projects
+	var activeProjects []database.UserProject
+	for _, project := range projectsMap[userID] {
+		if project.Status == 1 {
+			activeProjects = append(activeProjects, project)
+		}
+	}
+	return activeProjects, nil
 }
 
 // AddUserToProject adds a user to a project

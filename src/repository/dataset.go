@@ -138,16 +138,13 @@ func RemoveDatasetFromFaultInjection(datasetID, faultInjectionID int) error {
 	return nil
 }
 
-// GetDatasetLabels gets dataset labels
+// GetDatasetLabels gets dataset labels (optimized)
 func GetDatasetLabels(datasetID int) ([]database.Label, error) {
-	var labels []database.Label
-	if err := database.DB.Table("labels").
-		Joins("JOIN dataset_labels ON labels.id = dataset_labels.label_id").
-		Where("dataset_labels.dataset_id = ?", datasetID).
-		Find(&labels).Error; err != nil {
-		return nil, fmt.Errorf("failed to get dataset labels: %v", err)
+	labelsMap, err := GetDatasetLabelsMap([]int{datasetID})
+	if err != nil {
+		return nil, err
 	}
-	return labels, nil
+	return labelsMap[datasetID], nil
 }
 
 // AddLabelToDataset adds label to dataset
