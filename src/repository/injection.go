@@ -575,7 +575,7 @@ func ListInjectionsV2(page, size int, taskID string, faultType, status *int, ben
 		// Join with injection_labels and labels tables to filter by tags
 		query = query.Joins("JOIN injection_labels ON injection_labels.injection_id = fault_injection_schedules.id").
 			Joins("JOIN labels ON labels.id = injection_labels.label_id").
-			Where("labels.label_key = ? AND labels.label_value IN ?", "tag", tags).
+			Where("labels.label_key = ? AND labels.label_value IN ?", consts.LabelKeyTag, tags).
 			Group("fault_injection_schedules.id")
 	}
 
@@ -662,7 +662,7 @@ func CreateInjectionsV2(injections []dto.InjectionV2CreateItem) ([]database.Faul
 // AddInjectionLabelWithTx adds a label to an injection within a transaction
 func AddInjectionLabelWithTx(tx *gorm.DB, injectionID int, key, value string) error {
 	// Create or get label
-	label, err := CreateOrGetLabel(key, value, "system", "Injection source label")
+	label, err := CreateOrGetLabel(key, value, consts.LabelSystem, "Injection source label")
 	if err != nil {
 		return fmt.Errorf("failed to create or get label: %v", err)
 	}
@@ -747,7 +747,7 @@ func RemoveLabelFromInjection(injectionID, labelID int) error {
 // AddTagToInjection adds a tag to injection
 func AddTagToInjection(injectionID int, tagValue string) error {
 	// Create or get label with key "tag"
-	label, err := CreateOrGetLabel("tag", tagValue, "injection", "Injection tag")
+	label, err := CreateOrGetLabel(consts.LabelKeyTag, tagValue, consts.LabelInjection, "Injection tag")
 	if err != nil {
 		return fmt.Errorf("failed to create or get tag: %v", err)
 	}
@@ -757,7 +757,7 @@ func AddTagToInjection(injectionID int, tagValue string) error {
 
 // RemoveTagFromInjection removes a tag from injection
 func RemoveTagFromInjection(injectionID int, tagValue string) error {
-	label, err := GetLabelByKeyValue("tag", tagValue)
+	label, err := GetLabelByKeyValue(consts.LabelKeyTag, tagValue)
 	if err != nil {
 		return fmt.Errorf("failed to get tag '%s': %v", tagValue, err)
 	}
@@ -817,8 +817,25 @@ func SearchInjectionsV2(req *dto.InjectionV2SearchReq) ([]database.FaultInjectio
 		// Join with injection_labels and labels tables to filter by tags
 		query = query.Joins("JOIN injection_labels ON injection_labels.injection_id = fault_injection_schedules.id").
 			Joins("JOIN labels ON labels.id = injection_labels.label_id").
-			Where("labels.label_key = ? AND labels.label_value IN ?", "tag", req.Tags).
+			Where("labels.label_key = ? AND labels.label_value IN ?", consts.LabelKeyTag, req.Tags).
 			Group("fault_injection_schedules.id")
+	}
+
+	// Apply custom labels filter
+	if len(req.Labels) > 0 {
+		// Build subquery for custom labels
+		for i, labelItem := range req.Labels {
+			subQuery := database.DB.Table("injection_labels il"+fmt.Sprintf("%d", i)).
+				Select("il"+fmt.Sprintf("%d", i)+".injection_id").
+				Joins("JOIN labels l"+fmt.Sprintf("%d", i)+" ON l"+fmt.Sprintf("%d", i)+".id = il"+fmt.Sprintf("%d", i)+".label_id").
+				Where("l"+fmt.Sprintf("%d", i)+".label_key = ?", labelItem.Key)
+
+			if labelItem.Value != "" {
+				subQuery = subQuery.Where("l"+fmt.Sprintf("%d", i)+".label_value = ?", labelItem.Value)
+			}
+
+			query = query.Where("fault_injection_schedules.id IN (?)", subQuery)
+		}
 	}
 
 	// Time range filters
@@ -867,4 +884,51 @@ func SearchInjectionsV2(req *dto.InjectionV2SearchReq) ([]database.FaultInjectio
 	}
 
 	return injections, total, nil
+}
+
+// AddCustomLabelToInjection adds a custom label to injection
+func AddCustomLabelToInjection(injectionID int, key, value string) error {
+	// Generate color based on key
+	color := utils.GenerateColorFromKey(key)
+
+	// Generate description with creation info
+	description := fmt.Sprintf(consts.CustomLabelDescriptionTemplate, key)
+
+	// Create or get custom label with injection category
+	label, err := CreateOrGetLabel(key, value, consts.LabelInjection, description)
+	if err != nil {
+		return fmt.Errorf("failed to create or get custom label: %v", err)
+	}
+
+	// Update color for the label
+	if err := database.DB.Model(&database.Label{}).Where("id = ?", label.ID).Update("color", color).Error; err != nil {
+		return fmt.Errorf("failed to update label color: %v", err)
+	}
+
+	return AddLabelToInjection(injectionID, label.ID)
+}
+
+// RemoveCustomLabelFromInjection removes a custom label from injection by key
+func RemoveCustomLabelFromInjection(injectionID int, key string) error {
+	// Find all labels with the given key for this injection
+	var labels []database.Label
+	if err := database.DB.
+		Joins("JOIN injection_labels ON injection_labels.label_id = labels.id").
+		Where("injection_labels.injection_id = ? AND labels.label_key = ?", injectionID, key).
+		Find(&labels).Error; err != nil {
+		return fmt.Errorf("failed to find labels with key '%s': %v", key, err)
+	}
+
+	if len(labels) == 0 {
+		return fmt.Errorf("no label found with key '%s' for injection %d", key, injectionID)
+	}
+
+	// Remove all labels with this key (in case there are multiple with same key but different values)
+	for _, label := range labels {
+		if err := RemoveLabelFromInjection(injectionID, label.ID); err != nil {
+			return fmt.Errorf("failed to remove label %d: %v", label.ID, err)
+		}
+	}
+
+	return nil
 }

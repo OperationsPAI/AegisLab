@@ -130,3 +130,36 @@ func ToSnakeCase(s string) string {
 	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
 	return strings.ToLower(snake)
 }
+
+// GenerateColorFromKey generates a consistent color based on a key string
+func GenerateColorFromKey(key string) string {
+	// Predefined color palette with good visibility and contrast
+	colors := []string{
+		"#f44336", // Red
+		"#e91e63", // Pink
+		"#9c27b0", // Purple
+		"#673ab7", // Deep Purple
+		"#3f51b5", // Indigo
+		"#2196f3", // Blue
+		"#03a9f4", // Light Blue
+		"#00bcd4", // Cyan
+		"#009688", // Teal
+		"#4caf50", // Green
+		"#8bc34a", // Light Green
+		"#cddc39", // Lime
+		"#ffeb3b", // Yellow
+		"#ffc107", // Amber
+		"#ff9800", // Orange
+		"#ff5722", // Deep Orange
+		"#795548", // Brown
+		"#607d8b", // Blue Grey
+	}
+
+	// Simple hash function to get consistent color for same key
+	hash := 0
+	for _, char := range key {
+		hash = (hash*31 + int(char)) % len(colors)
+	}
+
+	return colors[hash]
+}

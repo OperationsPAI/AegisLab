@@ -337,7 +337,7 @@ func DeleteInjection(c *gin.Context) {
 // SearchInjection
 //
 //	@Summary Search injections
-//	@Description Advanced search for injections with complex filtering
+//	@Description Advanced search for injections with complex filtering including custom labels
 //	@Tags Injections
 //	@Accept json
 //	@Produce json
@@ -394,7 +394,7 @@ func SearchInjections(c *gin.Context) {
 	dto.SuccessResponse(c, response)
 }
 
-// ManageInjectionLabels manages injection tags
+// ManageInjectionTags manages injection tags
 //
 //	@Summary Manage injection tags
 //	@Description Add or remove tags for an injection
@@ -409,8 +409,8 @@ func SearchInjections(c *gin.Context) {
 //	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
 //	@Failure 404 {object} dto.GenericResponse[any] "Injection not found"
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/injections/{name}/labels [patch]
-func ManageInjectionLabels(c *gin.Context) {
+//	@Router /api/v2/injections/{name}/tags [patch]
+func ManageInjectionTags(c *gin.Context) {
 
 	injectionName := c.Param("name")
 	if injectionName == "" {
@@ -457,6 +457,95 @@ func ManageInjectionLabels(c *gin.Context) {
 		if err := repository.AddTagToInjection(injection.ID, tagValue); err != nil {
 			tx.Rollback()
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to add tag: "+err.Error())
+			return
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to commit transaction: "+err.Error())
+		return
+	}
+
+	// Return updated injection with labels
+	response := dto.ToInjectionV2Response(injection, false)
+
+	// Load labels
+	labels, err := repository.GetInjectionLabels(injection.ID)
+	if err == nil {
+		response.Labels = labels
+	}
+
+	dto.SuccessResponse(c, response)
+}
+
+// ManageInjectionCustomLabels manages injection custom labels (key-value pairs)
+//
+//	@Summary Manage injection custom labels
+//	@Description Add or remove custom labels (key-value pairs) for an injection
+//	@Tags Injections
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param name path string true "Injection Name"
+//	@Param manage body dto.InjectionV2CustomLabelManageReq true "Custom label management request"
+//	@Success 200 {object} dto.GenericResponse[dto.InjectionV2Response] "Custom labels managed successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 404 {object} dto.GenericResponse[any] "Injection not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/injections/{name}/labels [patch]
+func ManageInjectionCustomLabels(c *gin.Context) {
+	injectionName := c.Param("name")
+	if injectionName == "" {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Injection name is required")
+		return
+	}
+
+	var req dto.InjectionV2CustomLabelManageReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		return
+	}
+
+	// Validate request
+	if len(req.AddLabels) == 0 && len(req.RemoveLabels) == 0 {
+		dto.ErrorResponse(c, http.StatusBadRequest, "At least one operation (add or remove) must be specified")
+		return
+	}
+
+	// Check if injection exists
+	injection, err := repository.GetInjectionByNameV2(injectionName)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			dto.ErrorResponse(c, http.StatusNotFound, "Injection not found")
+		} else {
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get injection: "+err.Error())
+		}
+		return
+	}
+
+	// Start transaction
+	tx := database.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Remove custom labels by key
+	for _, key := range req.RemoveLabels {
+		if err := repository.RemoveCustomLabelFromInjection(injection.ID, key); err != nil {
+			tx.Rollback()
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to remove custom label with key '"+key+"': "+err.Error())
+			return
+		}
+	}
+
+	// Add custom labels
+	for _, labelItem := range req.AddLabels {
+		if err := repository.AddCustomLabelToInjection(injection.ID, labelItem.Key, labelItem.Value); err != nil {
+			tx.Rollback()
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to add custom label '"+labelItem.Key+"': "+err.Error())
 			return
 		}
 	}

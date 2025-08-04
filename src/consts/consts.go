@@ -47,11 +47,20 @@ const (
 // Database Label
 const (
 	LabelExecution = "execution"
+	LabelInjection = "injection"
+	LabelSystem    = "system"
 )
 
-// Execution result label keys
+// Injection label keys
 const (
-	LabelKeyTag = "tag" // User-defined tag for execution results
+	LabelKeyTag   = "tag"   // User-defined tag for injection
+	LabelKeyEnv   = "env"   // Environment label key
+	LabelKeyBatch = "batch" // Batch label key
+)
+
+// Custom label description templates
+const (
+	CustomLabelDescriptionTemplate = "Custom label '%s' created for injection"
 )
 
 // String returns the string representation of the action name

@@ -325,9 +325,10 @@ func SetupV2Routes(router *gin.Engine) {
 		injections.POST("/search", middleware.RequireFaultInjectionRead, v2handlers.SearchInjections) // Advanced search
 
 		// Write operations
-		injections.PUT("/:id", middleware.RequireFaultInjectionWrite, v2handlers.UpdateInjection)                  // Update injection
-		injections.PATCH("/:name/labels", middleware.RequireFaultInjectionWrite, v2handlers.ManageInjectionLabels) // Manage injection labels
-		injections.DELETE("/:id", middleware.RequireFaultInjectionDelete, v2handlers.DeleteInjection)              // Delete injection (soft delete)
+		injections.PUT("/:id", middleware.RequireFaultInjectionWrite, v2handlers.UpdateInjection)                        // Update injection
+		injections.PATCH("/:name/tags", middleware.RequireFaultInjectionWrite, v2handlers.ManageInjectionTags)           // Manage injection labels
+		injections.PATCH("/:name/labels", middleware.RequireFaultInjectionWrite, v2handlers.ManageInjectionCustomLabels) // Manage injection custom labels
+		injections.DELETE("/:id", middleware.RequireFaultInjectionDelete, v2handlers.DeleteInjection)                    // Delete injection (soft delete)
 	}
 
 	// Dataset Management - Dataset Entity
