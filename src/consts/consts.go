@@ -269,7 +269,7 @@ const (
 	EventAlgoResultCollection    EventType = "algorithm.collect_result"
 	EventDatasetResultCollection EventType = "dataset.result.collection"
 	EventDatasetNoAnomaly        EventType = "dataset.no_anomaly"
-	EventDatasetNoConclusionFile EventType = "dataset.no_conclusion_file"
+	EventDatasetNoDetectorData   EventType = "dataset.no_detector_data"
 	EventDatasetBuildSucceed     EventType = "dataset.build.succeed"
 	EventDatasetBuildFailed      EventType = "dataset.build.failed"
 

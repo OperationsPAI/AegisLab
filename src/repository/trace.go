@@ -22,7 +22,7 @@ type TraceStatistic struct {
 	DetectAnomaly      bool
 
 	CurrentTaskType consts.TaskType
-	     LastEndEvent    consts.EventType // Add last end event type
+	LastEndEvent    consts.EventType // Add last end event type
 
 	TotalDuration float64
 	StatusTimeMap map[consts.TaskType]float64
@@ -100,7 +100,7 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 			taskStartTime = eventTime
 			stat.CurrentTaskType = event.TaskType
 
-		            // Restart service related events
+			// Restart service related events
 		case consts.EventNoNamespaceAvailable:
 			restartWaitTimes++
 		case consts.EventRestartServiceStarted:
@@ -113,7 +113,7 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 			stat.IntermediateFailed = true
 			endTime = eventTime
 
-		            // Fault injection related events
+			// Fault injection related events
 		case consts.EventFaultInjectionStarted:
 			stageStartTime = eventTime
 		case consts.EventFaultInjectionCompleted:
@@ -128,15 +128,15 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 			stat.LastEndEvent = consts.EventFaultInjectionFailed
 			endTime = eventTime
 
-		            // Dataset building related events
+			// Dataset building related events
 		case consts.EventDatasetBuildSucceed:
 			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(taskStartTime).Seconds()
 
-		            // Algorithm execution related events
+			// Algorithm execution related events
 		case consts.EventAlgoRunSucceed:
 			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(taskStartTime).Seconds()
 
-		            // Result collection related events
+			// Result collection related events
 		case consts.EventDatasetNoAnomaly:
 			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(taskStartTime).Seconds()
 			stat.Finished = true
@@ -149,10 +149,10 @@ func GetTraceStatistic(ctx context.Context, events []*dto.StreamEvent) (*TraceSt
 			stat.DetectAnomaly = true
 			stat.LastEndEvent = consts.EventDatasetResultCollection
 			endTime = eventTime
-		case consts.EventDatasetNoConclusionFile:
+		case consts.EventDatasetNoDetectorData:
 			stat.StatusTimeMap[event.TaskType] = eventTime.Sub(taskStartTime).Seconds()
 			stat.IntermediateFailed = true
-			stat.LastEndEvent = consts.EventDatasetNoConclusionFile
+			stat.LastEndEvent = consts.EventDatasetNoDetectorData
 			endTime = eventTime
 		case consts.EventTaskStatusUpdate:
 			if payload, ok := event.Payload.(string); ok {
