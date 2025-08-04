@@ -397,23 +397,24 @@ type InjectionV2UpdateReq struct {
 
 // InjectionV2SearchReq represents the request for advanced search
 type InjectionV2SearchReq struct {
-	Page         int        `json:"page" binding:"omitempty,min=1"`
-	Size         int        `json:"size" binding:"omitempty,min=1,max=100"`
-	TaskIDs      []string   `json:"task_ids" binding:"omitempty"`
-	FaultTypes   []int      `json:"fault_types" binding:"omitempty"`
-	Statuses     []int      `json:"statuses" binding:"omitempty"`
-	Benchmarks   []string   `json:"benchmarks" binding:"omitempty"`
-	Search       string     `json:"search" binding:"omitempty"`
-	Tags         []string   `json:"tags" binding:"omitempty"` // Tag values to filter by
-	StartTimeGte *time.Time `json:"start_time_gte" binding:"omitempty"`
-	StartTimeLte *time.Time `json:"start_time_lte" binding:"omitempty"`
-	EndTimeGte   *time.Time `json:"end_time_gte" binding:"omitempty"`
-	EndTimeLte   *time.Time `json:"end_time_lte" binding:"omitempty"`
-	CreatedAtGte *time.Time `json:"created_at_gte" binding:"omitempty"`
-	CreatedAtLte *time.Time `json:"created_at_lte" binding:"omitempty"`
-	SortBy       string     `json:"sort_by" binding:"omitempty,oneof=id task_id fault_type status benchmark injection_name created_at updated_at"`
-	SortOrder    string     `json:"sort_order" binding:"omitempty,oneof=asc desc"`
-	Include      string     `json:"include" binding:"omitempty"`
+	Page         int         `json:"page" binding:"omitempty,min=1"`
+	Size         int         `json:"size" binding:"omitempty,min=1,max=100"`
+	TaskIDs      []string    `json:"task_ids" binding:"omitempty"`
+	FaultTypes   []int       `json:"fault_types" binding:"omitempty"`
+	Statuses     []int       `json:"statuses" binding:"omitempty"`
+	Benchmarks   []string    `json:"benchmarks" binding:"omitempty"`
+	Search       string      `json:"search" binding:"omitempty"`
+	Tags         []string    `json:"tags" binding:"omitempty"`   // Tag values to filter by
+	Labels       []LabelItem `json:"labels" binding:"omitempty"` // Custom labels to filter by
+	StartTimeGte *time.Time  `json:"start_time_gte" binding:"omitempty"`
+	StartTimeLte *time.Time  `json:"start_time_lte" binding:"omitempty"`
+	EndTimeGte   *time.Time  `json:"end_time_gte" binding:"omitempty"`
+	EndTimeLte   *time.Time  `json:"end_time_lte" binding:"omitempty"`
+	CreatedAtGte *time.Time  `json:"created_at_gte" binding:"omitempty"`
+	CreatedAtLte *time.Time  `json:"created_at_lte" binding:"omitempty"`
+	SortBy       string      `json:"sort_by" binding:"omitempty,oneof=id task_id fault_type status benchmark injection_name created_at updated_at"`
+	SortOrder    string      `json:"sort_order" binding:"omitempty,oneof=asc desc"`
+	Include      string      `json:"include" binding:"omitempty"`
 }
 
 // InjectionSearchResponse represents the search response
@@ -555,4 +556,10 @@ type InjectionCreateError struct {
 type InjectionV2LabelManageReq struct {
 	AddTags    []string `json:"add_tags"`    // List of tag values to add
 	RemoveTags []string `json:"remove_tags"` // List of tag values to remove
+}
+
+// InjectionV2CustomLabelManageReq Manage custom labels (key-value pairs) in injection
+type InjectionV2CustomLabelManageReq struct {
+	AddLabels    []LabelItem `json:"add_labels"`    // List of labels to add
+	RemoveLabels []string    `json:"remove_labels"` // List of label keys to remove
 }
