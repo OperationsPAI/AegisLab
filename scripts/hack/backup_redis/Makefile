@@ -1,18 +1,18 @@
 # =============================================================================
 # Backup-redis Makefile
 # =============================================================================
-# 这个Makefile提供了Backup-redis工具的快捷命令
-# 使用 'make help' 查看所有可用命令
+# This Makefile provides shortcuts for Backup-redis tool commands
+# Use 'make help' to see all available commands
 
 # =============================================================================
-# 配置变量
+# Configuration Variables
 # =============================================================================
 
-# 基础配置
+# Basic Configuration
 HASH_PATTERN := injection:algorithms
 STREAM_PATTERN := trace:*:log
 
-# 颜色定义
+# Color Definitions
 BLUE    := \033[1;34m
 GREEN   := \033[1;32m
 YELLOW  := \033[1;33m
@@ -22,46 +22,42 @@ GRAY    := \033[90m
 RESET   := \033[0m
 
 # =============================================================================
-# 声明所有非文件目标
+# Declare all non-file targets
 # =============================================================================
 .PHONY: help restore-loacl
 
 # =============================================================================
-# 默认目标
+# Default Target
 # =============================================================================
 .DEFAULT_GOAL := help
 
 # =============================================================================
-# 帮助信息
+# Help Information
 # =============================================================================
-help: ## 📖 显示所有可用命令
+help: ## 📖 Show all available commands
 	@awk 'BEGIN { \
 		FS = ":.*##"; \
-		printf "$(YELLOW)可用命令:$(RESET)\n"; \
-	} \
-	/^##@/ { \
-		header = substr($$0, 5); \
-		printf "\n$(GREEN)▶ %s$(RESET)\n", header; \
+		printf "$(YELLOW)Available Commands:$(RESET)\n"; \
 	} \
 	/^[a-zA-Z_-]+:.*?##/ { \
 		printf "  $(CYAN)%-25s$(RESET) $(GRAY)%s$(RESET)\n", $$1, $$2; \
 	}' $(MAKEFILE_LIST)
 
 # =============================================================================
-# 转存
+# Data Restoration
 # =============================================================================
-restore-local: ## 📦 从正式环境转存到本地 Redis
-	@echo "$(BLUE)开始从正式环境转存数据到本地 Redis...$(RESET)"
-	@echo "$(BLUE)正在转存哈希数据$(RESET)"
+restore-local: ## 📦 Restore data from remote to local Redis
+	@printf "$(BLUE)Starting data restoration from remote to local Redis...$(RESET)\n"
+	@printf "$(BLUE)Restoring hash data$(RESET)\n"
 	uv run python cli.py restore-hashes --pattern "$(HASH_PATTERN)" --overwrite
-	@echo "$(GREEN)✅ 哈希数据转存完成$(RESET)"
-	@echo "$(BLUE)正在转存流数据$(RESET)"
-	@read -p "选择匹配方式 - 精准匹配 (y) 或 模糊匹配 (N): " choice; \
+	@printf "$(GREEN)✅ Hash data restoration completed$(RESET)\n"
+	@printf "$(BLUE)Restoring stream data$(RESET)\n"
+	@read -p "Choose matching method - Exact match (y) or Fuzzy match (N): " choice; \
 	if [ "$$choice" = "y" ] || [ "$$choice" = "Y" ]; then \
-		echo "$(BLUE)使用精准匹配模式...$(RESET)"; \
+		printf "$(BLUE)Using exact match mode...$(RESET)\n"; \
 		uv run python cli.py restore-streams --exact_match --overwrite; \
 	else \
-		echo "$(BLUE)使用模糊匹配模式: $(STREAM_PATTERN)$(RESET)"; \
+		printf "$(BLUE)Using fuzzy match mode: $(STREAM_PATTERN)$(RESET)\n"; \
 		uv run python cli.py restore-streams --fuzzy_match "$(STREAM_PATTERN)" --overwrite; \
 	fi
-	@echo "$(GREEN)✅ 流数据转存完成$(RESET)"
+	@printf "$(GREEN)✅ Stream data restoration completed$(RESET)\n"

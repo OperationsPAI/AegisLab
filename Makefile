@@ -99,12 +99,12 @@ setup-dev-env: check-prerequisites ## 🛠️ 设置开发环境
 
 run: check-prerequisites ## 🚀 构建并部署应用 (使用 skaffold)
 	@echo "$(BLUE)🔄 开始部署流程...$(RESET)"
-	# @if $(MAKE) check-db 2>/dev/null; then \
-	# 	echo "$(YELLOW)📄 备份现有数据库...$(RESET)"; \
-	# 	$(MAKE) -C scripts/hack/backup_mysql backup; \
-	# else \
-	# 	echo "$(YELLOW)⚠️  MySQL 未运行，跳过备份$(RESET)"; \
-	# fi
+	@if $(MAKE) check-db 2>/dev/null; then \
+		echo "$(YELLOW)📄 备份现有数据库...$(RESET)"; \
+		$(MAKE) -C scripts/hack/backup_mysql backup; \
+	else \
+		echo "$(YELLOW)⚠️ 数据库未运行，跳过备份$(RESET)"; \
+	fi
 	@echo "$(GRAY)使用 skaffold 部署...$(RESET)"
 	skaffold run --default-repo=$(DEFAULT_REPO)
 	@echo "$(BLUE)⏳ 等待部署稳定...$(RESET)"
@@ -125,28 +125,28 @@ build: ## 🔨 仅构建应用 (不部署)
 # 数据库管理
 # =============================================================================
 
-## 检查 数据库 状态
+## 检查数据库状态
 check-db: 
-	@echo "$(BLUE)🔍 检查 MySQL 状态...$(RESET)"
+	@echo "$(BLUE)🔍 检查数据库状态...$(RESET)"
 	@if kubectl get pods -n $(NS) -l app=rcabench-mysql --field-selector=status.phase=Running | grep -q rcabench-mysql; then \
-		echo "$(GREEN)✅ MySQL 正在运行$(RESET)"; \
+		echo "$(GREEN)✅ 数据库正在运行$(RESET)"; \
 	else \
-		echo "$(RED)❌ MySQL 在命名空间 $(NS) 中未运行$(RESET)"; \
+		echo "$(RED)❌ 数据库在命名空间 $(NS) 中未运行$(RESET)"; \
 		echo "$(GRAY)可用 Pods:$(RESET)"; \
-		kubectl get pods -n $(NS) -l app=rcabench-mysql || echo "$(GRAY)未找到 MySQL pods$(RESET)"; \
+		kubectl get pods -n $(NS) -l app=rcabench-mysql || echo "$(GRAY)未找到数据库 pods$(RESET)"; \
 		exit 1; \
 	fi
 
-reset-db: ## 🗑️ 重置 MySQL 数据库 (⚠️ 将删除所有数据)
+reset-db: ## 🗑️ 重置数据库 (⚠️ 将删除所有数据)
 	@echo "$(RED)⚠️  警告：这将删除所有数据库数据！$(RESET)"
 	@read -p "确认继续？(y/N): " confirm && [ "$$confirm" = "y" ] || exit 1
 	@if $(MAKE) check-db 2>/dev/null; then \
 		echo "$(YELLOW)📄 备份现有数据库...$(RESET)"; \
 		$(MAKE) -C scripts/hack/backup_psql backup; \
 	else \
-		echo "$(YELLOW)⚠️  MySQL 未运行，跳过备份$(RESET)"; \
+		echo "$(YELLOW)⚠️ 数据库未运行，跳过备份$(RESET)"; \
 	fi
-	@echo "$(BLUE)🗑️  重置命名空间 $(NS) 中的 MySQL 数据库...$(RESET)"
+	@echo "$(BLUE)🗑️  重置命名空间 $(NS) 中的数据库...$(RESET)"
 	helm uninstall rcabench -n $(NS) || true
 	@echo "$(BLUE)⏳ 等待 Pods 终止...$(RESET)"
 	@while kubectl get pods -n $(NS) -l app=rcabench-mysql 2>/dev/null | grep -q .; do \
@@ -180,7 +180,7 @@ local-debug: ## 🐛 启动本地调试环境
 	@echo "$(BLUE)📦 从正式环境备份 Redis...$(RESET)"
 	$(MAKE) -C scripts/hack/backup_redis restore-local
 	@echo "$(BLUE)🗄️ 从正式环境备份数据库...$(RESET)"
-	$(MAKE) -C scripts/hack/backup_psql restore-local
+	$(MAKE) -C scripts/hack/backup_mysql restore-local
 	@echo "$(GREEN)✅ 环境准备完成！$(RESET)"
 	@read -p "是否现在启动本地应用 (y/N)" start_app; \
 	if [ "$$start_app" = "n" ] || [ "$$start_app" = "N" ]; then \

@@ -1,11 +1,13 @@
 #!/usr/bin/env -S uv run -s
 from typing import Optional
-from psycopg2.extras import RealDictCursor
-from rich.console import Console
-from redis import Redis
-import psycopg2
+
 import redis
+import sqlalchemy
 import typer
+from redis import Redis
+from rich.console import Console
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session, sessionmaker
 
 KEY_FORMAT = "trace:{}:log"
 
@@ -24,76 +26,122 @@ console = Console()
 
 
 class Client:
+    """
+    Redis backup client for handling data transfer between Redis instances.
+
+    This class manages connections to source and target Redis instances,
+    as well as database connections for exact matching queries.
+
+    Attributes:
+        source_redis: Connection to the source Redis instance
+        target_redis: Connection to the target Redis instance
+        db_client: Database session for executing queries
+    """
+
     def __init__(self, source_url: str, target_url: str) -> None:
-        self.source_redis, self.target_redis = self._connect_redis(
-            source_url, target_url
-        )
+        """
+        Initialize Redis backup client with source and target URLs.
+
+        Args:
+            source_url: URL of the source Redis instance
+            target_url: URL of the target Redis instance
+
+        Raises:
+            typer.Exit: If connection to Redis or database fails
+        """
+        self.source_redis, self.target_redis = self._connect_redis(source_url, target_url)
         self.db_client = self._connect_database()
 
     def _connect_redis(self, source_url: str, target_url: str) -> tuple[Redis, Redis]:
-        """连接到源和目标 Redis，返回连接对象"""
-        console.print(f"[cyan]连接源 Redis: {source_url}[/cyan]")
-        console.print(f"[cyan]连接目标 Redis: {target_url}[/cyan]")
+        """
+        Connect to source and target Redis instances.
+
+        Args:
+            source_url: URL of the source Redis instance
+            target_url: URL of the target Redis instance
+
+        Returns:
+            Tuple containing source and target Redis connection objects
+
+        Raises:
+            typer.Exit: If connection fails
+        """
+        console.print(f"[cyan]Connecting to source Redis: {source_url}[/cyan]")
+        console.print(f"[cyan]Connecting to target Redis: {target_url}[/cyan]")
 
         try:
             source_redis: Redis = redis.from_url(source_url, decode_responses=True)
             target_redis: Redis = redis.from_url(target_url, decode_responses=True)
 
-            console.print("[cyan]测试源 Redis 连接...[/cyan]")
+            console.print("[cyan]Testing source Redis connection...[/cyan]")
             source_redis.ping()
-            console.print("[green]✅ 源 Redis 连接成功[/green]")
+            console.print("[green]✅ Source Redis connection successful[/green]")
 
-            console.print("[cyan]测试目标 Redis 连接...[/cyan]")
+            console.print("[cyan]Testing target Redis connection...[/cyan]")
             target_redis.ping()
-            console.print("[green]✅ 目标 Redis 连接成功[/green]")
+            console.print("[green]✅ Target Redis connection successful[/green]")
 
             return source_redis, target_redis
 
         except redis.ConnectionError as e:
-            console.print(f"[red]Redis 连接失败: {e}[/red]")
+            console.print(f"[red]Redis connection failed: {e}[/red]")
             raise typer.Exit(code=1)
         except Exception as e:
-            console.print(f"[red]未知错误: {e}[/red]")
+            console.print(f"[red]Unknown error: {e}[/red]")
             raise typer.Exit(code=1)
 
-    def _connect_database(self):
-        """连接到数据库"""
+    def _connect_database(self) -> Session:
+        """
+        Connect to the MySQL database.
+
+        Returns:
+            SQLAlchemy session object for database operations
+
+        Raises:
+            typer.Exit: If database connection fails
+        """
         try:
-            console.print(
-                f"[cyan]连接数据库: {DEFAULT_DB_HOST}:{DEFAULT_DB_PORT}/{DEFAULT_DB_DB}[/cyan]"
-            )
+            console.print(f"[cyan]Connecting to database: {DEFAULT_DB_HOST}:{DEFAULT_DB_PORT}/{DEFAULT_DB_DB}[/cyan]")
 
-            conn = psycopg2.connect(
-                host=DEFAULT_DB_HOST,
-                port=DEFAULT_DB_PORT,
-                user=DEFAULT_DB_USER,
-                password=DEFAULT_DB_PASSWORD,
-                database=DEFAULT_DB_DB,
-                cursor_factory=RealDictCursor,
-            )
+            db_url = f"mysql+pymysql://{DEFAULT_DB_USER}:{DEFAULT_DB_PASSWORD}@{DEFAULT_DB_HOST}:{DEFAULT_DB_PORT}/{DEFAULT_DB_DB}"
+            engine = create_engine(db_url, echo=False, pool_pre_ping=True)
 
-            # 测试连接
-            with conn.cursor() as cursor:
-                cursor.execute("SELECT version();")
-                version = cursor.fetchone()
-                console.print("[green]✅ 数据库连接成功[/green]")
-                console.print(f"[dim]版本: {version['version'][:50]}...[/dim]")  # type: ignore
+            Session = sessionmaker(bind=engine)
+            session = Session()
 
-            return conn
+            # Test connection
+            result = session.execute(text("SELECT version()"))
+            version = result.scalar()
+            console.print("[green]✅ Database connection successful[/green]")
+            console.print(f"[dim]Version: {version[:50]}...[/dim]")  # type: ignore
 
-        except psycopg2.Error as e:
-            console.print(f"[red]❌ 数据库连接失败: {e}[/red]")
+            return session
+
+        except sqlalchemy.except_all.SQLAlchemyError as e:
+            console.print(f"[red]❌ Database connection failed: {e}[/red]")
             raise typer.Exit(code=1)
         except Exception as e:
-            console.print(f"[red]未知错误: {e}[/red]")
+            console.print(f"[red]Unknown error: {e}[/red]")
             raise typer.Exit(code=1)
 
     def _read_hashes_fuzzy(self, pattern: str) -> list[str]:
-        console.print(f"[cyan]查找匹配 '{pattern}' 的哈希表...[/cyan]")
+        """
+        Find hash tables matching the given pattern using fuzzy matching.
+
+        Args:
+            pattern: Redis key pattern to match (e.g., "trace:*:log")
+
+        Returns:
+            List of hash table keys that match the pattern
+
+        Raises:
+            typer.Exit: If no matching keys are found
+        """
+        console.print(f"[cyan]Searching for hash tables matching '{pattern}'...[/cyan]")
 
         matching_keys = self.source_redis.keys(pattern)
         if not matching_keys:
-            console.print(f"[red]没有找到匹配 '{pattern}' 的键[/red]")
+            console.print(f"[red]No keys found matching '{pattern}'[/red]")
             raise typer.Exit(code=1)
 
         hashes = []
@@ -102,14 +150,26 @@ class Client:
                 hashes.append(key)
 
         if not hashes:
-            console.print("[yellow]匹配的键中没有哈希表类型的数据[/yellow]")
+            console.print("[yellow]No hash table data found among matching keys[/yellow]")
             raise typer.Exit(code=1)
 
-        console.print(f"[bold blue]找到 {len(hashes)} 个匹配的哈希表[/bold blue]")
+        console.print(f"[bold blue]Found {len(hashes)} matching hash tables[/bold blue]")
         return hashes
 
     def _read_streams_exact(self) -> list[str]:
-        console.print("[cyan]执行查询获取流名称...[/cyan]")
+        """
+        Get stream names by querying the database for exact matches.
+
+        Queries the fault_injection_schedules table to get trace_ids and
+        constructs Redis stream keys from them.
+
+        Returns:
+            List of Redis stream keys
+
+        Raises:
+            typer.Exit: If database query fails
+        """
+        console.print("[cyan]Executing query to get stream names...[/cyan]")
 
         query = """
         SELECT DISTINCT t.trace_id
@@ -120,67 +180,81 @@ class Client:
 
         try:
             console.print(f"[dim]SQL: {query}[/dim]")
-            with self.db_client.cursor() as cursor:
-                cursor.execute(query)
-                results = cursor.fetchall()
 
-                if not results:
-                    console.print("[yellow]查询结果为空[/yellow]")
-                    return []
+            result = self.db_client.execute(text(query))
+            results = result.fetchall()
+            if not results:
+                console.print("[yellow]Query returned no results[/yellow]")
+                return []
 
-                streams = []
-                for row in results:
-                    if isinstance(row, dict):
-                        trace_id = list(row.values())[0]
-                    else:
-                        trace_id = row[0]
+            streams = []
+            for row in results:
+                trace_id = row[0]  # SQLAlchemy result is in tuple format
+                if trace_id:
+                    streams.append(KEY_FORMAT.format(trace_id))
 
-                    if trace_id:
-                        streams.append(KEY_FORMAT.format(trace_id))
+            console.print(f"[green]✅ Retrieved {len(streams)} stream names from database[/green]")
+            return streams
 
-                console.print(
-                    f"[green]✅ 从数据库查询到 {len(streams)} 个流名称[/green]"
-                )
-                return streams
-
-        except psycopg2.Error as e:
-            console.print(f"[red]❌ 数据库查询失败: {e}[/red]")
+        except sqlalchemy.except_all.SQLAlchemyError as e:
+            console.print(f"[red]❌ Database query failed: {e}[/red]")
             raise typer.Exit(code=1)
         except Exception as e:
-            console.print(f"[red]查询执行错误: {e}[/red]")
+            console.print(f"[red]Query execution error: {e}[/red]")
             raise typer.Exit(code=1)
 
     def _read_streams_fuzzy(self, pattern: str) -> list[str]:
-        console.print(f"[cyan]查找匹配 '{pattern}' 的流...[/cyan]")
+        """Find streams matching the given pattern using fuzzy matching.
+
+        Args:
+            pattern: Redis key pattern to match
+
+        Returns:
+            List of stream keys that match the pattern
+
+        Raises:
+            typer.Exit: If no matching streams are found
+        """
+        console.print(f"[cyan]Searching for streams matching '{pattern}'...[/cyan]")
 
         matching_keys = self.source_redis.keys(pattern)
         if not matching_keys:
-            console.print(f"[red]没有找到匹配 '{pattern}' 的流[/red]")
+            console.print(f"[red]No streams found matching '{pattern}'[/red]")
             raise typer.Exit(code=1)
 
-        # 过滤出真正的 stream 类型
+        # Filter for actual stream type
         streams = []
         for key in matching_keys:  # type: ignore
             if self.source_redis.type(key) == "stream":
                 streams.append(key)
 
         if not streams:
-            console.print("[yellow]匹配的键中没有 stream 类型的数据[/yellow]")
+            console.print("[yellow]No stream type data found among matching keys[/yellow]")
             raise typer.Exit(code=1)
 
-        console.print(f"[bold blue]找到 {len(streams)} 个匹配的流:[/bold blue]")
+        console.print(f"[bold blue]Found {len(streams)} matching streams[/bold blue]")
         return streams
 
-    def copy_hashes(
-        self, pattern: str, overwrite: bool = False, dry_run: bool = False
-    ) -> None:
+    def copy_hashes(self, pattern: str, overwrite: bool = False, dry_run: bool = False) -> None:
+        """
+        Copy hash tables from source to target Redis instance.
+
+        Args:
+            pattern: Redis key pattern to match hash tables
+            overwrite: Whether to overwrite existing hash tables in target
+            dry_run: If True, show operations without executing them
+
+        This method finds hash tables matching the pattern, then copies each one
+        from the source Redis to the target Redis. It provides detailed progress
+        information and handles errors gracefully.
+        """
         hashes = self._read_hashes_fuzzy(pattern)
 
         if dry_run:
-            console.print("[yellow]Dry run 模式，不会实际复制数据[/yellow]")
+            console.print("[yellow]Dry run mode, no data will be actually copied[/yellow]")
             return
 
-        console.print("[cyan]开始批量复制...[/cyan]")
+        console.print("[cyan]Starting batch copy...[/cyan]")
 
         success_count = 0
         failed_count = 0
@@ -190,81 +264,73 @@ class Client:
             try:
                 target_key = source_key
 
-                # 检查源哈希表
+                # Check source hash table
                 if not self.source_redis.exists(source_key):
-                    console.print(
-                        f"[yellow][{i}/{len(hashes)}] 跳过不存在: {source_key}[/yellow]"
-                    )
+                    console.print(f"[yellow][{i}/{len(hashes)}] Skipping non-existent: {source_key}[/yellow]")
                     skipped_count += 1
                     continue
 
                 hash_length = self.source_redis.hlen(source_key)
                 if hash_length == 0:
-                    console.print(
-                        f"[yellow][{i}/{len(hashes)}] 跳过空哈希表: {source_key}[/yellow]"
-                    )
+                    console.print(f"[yellow][{i}/{len(hashes)}] Skipping empty hash table: {source_key}[/yellow]")
                     skipped_count += 1
                     continue
 
-                # 检查目标哈希表
+                # Check target hash table
                 target_exists = self.target_redis.exists(target_key)
                 if target_exists and not overwrite:
                     target_length = self.target_redis.hlen(target_key)
                     console.print(
-                        f"[yellow][{i}/{len(hashes)}] 跳过已存在: {source_key} ({target_length} 个字段)[/yellow]"
+                        f"[yellow][{i}/{len(hashes)}] Skipping existing: {source_key} ({target_length} fields)[/yellow]"
                     )
                     skipped_count += 1
                     continue
 
-                # 显示当前处理的哈希表
-                console.print(
-                    f"[cyan][{i}/{len(hashes)}] 复制: {source_key} ({hash_length} 个字段)[/cyan]"
-                )
+                # Display current hash table being processed
+                console.print(f"[cyan][{i}/{len(hashes)}] Copying: {source_key} ({hash_length} fields)[/cyan]")
 
-                # 如果需要覆盖，先删除目标哈希表
+                # Delete target hash table if overwrite is needed
                 if target_exists and overwrite:
                     self.target_redis.delete(target_key)
 
-                # 获取并复制哈希数据
+                # Get and copy hash data
                 all_fields = self.source_redis.hgetall(source_key)
                 if not all_fields:
                     skipped_count += 1
                     continue
 
                 try:
-                    # 批量设置哈希字段
+                    # Batch set hash fields
                     self.target_redis.hset(target_key, mapping=all_fields)  # type: ignore
                     success_count += 1
                     console.print(
-                        f"[dim]  [green]✓[/green] {len(all_fields)} 个字段[/dim]"  # type: ignore
+                        f"[dim]  [green]✓[/green] {len(all_fields)} fields[/dim]"  # type: ignore
                     )
                 except Exception as e:
                     failed_count += 1
-                    console.print(f"[red]  ✗ 复制失败: {e}[/red]")
+                    console.print(f"[red]  ✗ Copy failed: {e}[/red]")
 
-                # 每10个哈希表显示一次进度
+                # Show progress every 10 hash tables
                 if i % 10 == 0:
                     console.print(
-                        f"[dim]进度: {i}/{len(hashes)} ({success_count} 成功, {failed_count} 失败, {skipped_count} 跳过)[/dim]"
+                        f"[dim]Progress: {i}/{len(hashes)} ({success_count} success, {failed_count} failed, {skipped_count} skipped)[/dim]"  # noqa: E501
                     )
 
             except Exception as e:
                 failed_count += 1
-                console.print(
-                    f"[red][{i}/{len(hashes)}] 处理失败: {source_key} - {e}[/red]"
-                )
+                console.print(f"[red][{i}/{len(hashes)}] Processing failed: {source_key} - {e}[/red]")
 
-        # 显示最终结果
-        console.print("\n[bold]批量复制完成[/bold]")
-        console.print(f"[green]✅ 成功: {success_count} 个哈希表[/green]")
+        # Display final results
+        console.print("\n[bold]Batch copy completed[/bold]")
+        console.print(f"[green]✅ Success: {success_count} hash tables[/green]")
 
         if failed_count > 0:
-            console.print(f"[red]❌ 失败: {failed_count} 个哈希表[/red]")
+            console.print(f"[red]❌ Failed: {failed_count} hash tables[/red]")
 
         if skipped_count > 0:
-            console.print(f"[yellow]🚫 跳过: {skipped_count} 个哈希表[/yellow]")
+            console.print(f"[yellow]🚫 Skipped: {skipped_count} hash tables[/yellow]")
 
-        console.print(f"[blue]总计处理: {len(hashes)} 个哈希表[/blue]")
+        console.print(f"[blue]Total processed: {len(hashes)} hash tables[/blue]")
 
     def copy_streams(
         self,
@@ -273,6 +339,19 @@ class Client:
         overwrite: bool = False,
         dry_run: bool = False,
     ) -> None:
+        """
+        Copy Redis streams from source to target instance.
+
+        Args:
+            exact_match: Use database query for exact stream matching
+            fuzzy_match: Pattern for fuzzy stream matching
+            overwrite: Whether to overwrite existing streams in target
+            dry_run: If True, show operations without executing them
+
+        This method supports two modes of operation:
+        1. Exact match: Query database to find specific trace IDs
+        2. Fuzzy match: Use Redis KEYS command with pattern matching
+        """
         if exact_match:
             streams = self._read_streams_exact()
 
@@ -280,10 +359,10 @@ class Client:
             streams = self._read_streams_fuzzy(fuzzy_match)
 
         if dry_run:
-            console.print("[yellow]Dry run 模式，不会实际复制数据[/yellow]")
+            console.print("[yellow]Dry run mode, no data will be actually copied[/yellow]")
             return
 
-        console.print("[cyan]开始批量复制...[/cyan]")
+        console.print("[cyan]Starting batch copy...[/cyan]")
 
         success_count = 0
         failed_count = 0
@@ -293,42 +372,36 @@ class Client:
             try:
                 target_key = source_key
 
-                # 检查源流
+                # Check source stream
                 if not self.source_redis.exists(source_key):
-                    console.print(
-                        f"[yellow][{i}/{len(streams)}] 跳过不存在: {source_key}[/yellow]"
-                    )
+                    console.print(f"[yellow][{i}/{len(streams)}] Skipping non-existent: {source_key}[/yellow]")
                     skipped_count += 1
                     continue
 
                 stream_length = self.source_redis.xlen(source_key)
                 if stream_length == 0:
-                    console.print(
-                        f"[yellow][{i}/{len(streams)}] 跳过空流: {source_key}[/yellow]"
-                    )
+                    console.print(f"[yellow][{i}/{len(streams)}] Skipping empty stream: {source_key}[/yellow]")
                     skipped_count += 1
                     continue
 
-                # 检查目标流
+                # Check target stream
                 target_exists = self.target_redis.exists(target_key)
                 if target_exists and not overwrite:
                     target_length = self.target_redis.xlen(target_key)
                     console.print(
-                        f"[yellow][{i}/{len(streams)}] 跳过已存在: {source_key} ({target_length} 条记录)[/yellow]"
+                        f"[yellow][{i}/{len(streams)}] Skipping existing: {source_key} ({target_length} records)[/yellow]"  # noqa: E501
                     )
                     skipped_count += 1
                     continue
 
-                # 显示当前处理的流
-                console.print(
-                    f"[cyan][{i}/{len(streams)}] 复制: {source_key} ({stream_length} 条记录)[/cyan]"
-                )
+                # Display current stream being processed
+                console.print(f"[cyan][{i}/{len(streams)}] Copying: {source_key} ({stream_length} records)[/cyan]")
 
-                # 如果需要覆盖，先删除目标流
+                # Delete target stream if overwrite is needed
                 if target_exists and overwrite:
                     self.target_redis.delete(target_key)
 
-                # 获取并复制消息
+                # Get and copy messages
                 messages = self.source_redis.xrange(source_key)
                 if not messages:
                     skipped_count += 1
@@ -346,104 +419,87 @@ class Client:
 
                 if copied_count > 0:
                     success_count += 1
-                    status_msg = "[green]✓[/green]"
+                    status_msg = "[green]✅[/green]"
                     if message_failed_count > 0:
-                        status_msg += f" [yellow]({message_failed_count} 失败)[/yellow]"
+                        status_msg += f" [yellow]({message_failed_count} failed)[/yellow]"
 
-                    console.print(f"[dim]  {status_msg} {copied_count} 条记录[/dim]")
+                    console.print(f"[dim]  {status_msg} {copied_count} records[/dim]")
                 else:
                     failed_count += 1
-                    console.print("[red]  ✗ 复制失败[/red]")
+                    console.print("[red]❌ Copy failed[/red]")
 
-                # 每10个流显示一次进度
+                # Show progress every 10 streams
                 if i % 10 == 0:
                     console.print(
-                        f"[dim]进度: {i}/{len(streams)} ({success_count} 成功, {failed_count} 失败, {skipped_count} 跳过)[/dim]"
+                        f"[dim]Progress: {i}/{len(streams)} ({success_count} success, {failed_count} failed, {skipped_count} skipped)[/dim]"  # noqa: E501
                     )
 
             except Exception as e:
                 failed_count += 1
-                console.print(
-                    f"[red][{i}/{len(streams)}] 处理失败: {source_key} - {e}[/red]"
-                )
+                console.print(f"[red][{i}/{len(streams)}] Processing failed: {source_key} - {e}[/red]")
 
-        # 显示最终结果
-        console.print("\n[bold]批量复制完成[/bold]")
-        console.print(f"[green]✅ 成功: {success_count} 个流[/green]")
+        # Display final results
+        console.print("\n[bold]Batch copy completed[/bold]")
+        console.print(f"[green]✅ Success: {success_count} streams[/green]")
 
         if failed_count > 0:
-            console.print(f"[red]❌ 失败: {failed_count} 个流[/red]")
+            console.print(f"[red]❌ Failed: {failed_count} streams[/red]")
 
         if skipped_count > 0:
-            console.print(f"[yellow]🚫 跳过: {skipped_count} 个流[/yellow]")
+            console.print(f"[yellow]🚫 Skipped: {skipped_count} streams[/yellow]")
 
-        console.print(f"[blue]总计处理: {len(streams)} 个流[/blue]")
+        console.print(f"[blue]Total processed: {len(streams)} streams[/blue]")
 
 
 @app.command()
 def restore_hashes(
-    source_url: str = typer.Option(
-        DEFAULT_REMOTE_URL, "--source_url", help="源 Redis URL"
-    ),
-    target_url: str = typer.Option(
-        DEFAULT_LOCAL_URL, "--target_url", help="目标 Redis URL"
-    ),
-    pattern: str = typer.Option(
-        "trace:*:log", "--pattern", help="源 Redis 哈希表匹配模式"
-    ),
+    source_url: str = typer.Option(DEFAULT_REMOTE_URL, "--source_url", help="Source Redis URL"),
+    target_url: str = typer.Option(DEFAULT_LOCAL_URL, "--target_url", help="Target Redis URL"),
+    pattern: str = typer.Option("trace:*:log", "--pattern", help="Source Redis hash table matching pattern"),
     overwrite: bool = typer.Option(
-        False, "--overwrite", help="是否覆盖目标哈希表（默认：False）"
+        False, "--overwrite", help="Whether to overwrite target hash tables (default: False)"
     ),
-    dry_run: bool = typer.Option(False, "--dry_run", help="是否只显示操作而不实际执行"),
+    dry_run: bool = typer.Option(False, "--dry_run", help="Show operations without actually executing them"),
 ):
-    """批量恢复 Redis 哈希表数据
-
-    支持模糊匹配模式，使用 Redis KEYS 命令查找匹配指定模式的哈希表。
-
     """
+    Batch restore Redis hash table data.
 
+    Supports fuzzy matching mode, using Redis KEYS command to find hash tables
+    matching the specified pattern.
+    """
     client = Client(source_url, target_url)
     client.copy_hashes(pattern, overwrite, dry_run)
 
 
 @app.command()
 def restore_streams(
-    source_url: str = typer.Option(
-        DEFAULT_REMOTE_URL, "--source_url", help="源 Redis URL"
-    ),
-    target_url: str = typer.Option(
-        DEFAULT_LOCAL_URL, "--target_url", help="目标 Redis URL"
-    ),
+    source_url: str = typer.Option(DEFAULT_REMOTE_URL, "--source_url", help="Source Redis URL"),
+    target_url: str = typer.Option(DEFAULT_LOCAL_URL, "--target_url", help="Target Redis URL"),
     exact_match: bool = typer.Option(
-        False, "--exact_match", help="源 Redis 流精确匹配（默认：False）"
+        False, "--exact_match", help="Source Redis stream exact matching (default: False)"
     ),
-    fuzzy_match: Optional[str] = typer.Option(
-        None, "--fuzzy_match", help="源 Redis 流模糊匹配"
-    ),
-    overwrite: bool = typer.Option(
-        False, "--overwrite", help="是否覆盖目标流（默认：True）"
-    ),
-    dry_run: bool = typer.Option(False, "--dry_run", help="是否只显示操作而不实际执行"),
+    fuzzy_match: str | None = typer.Option(None, "--fuzzy_match", help="Source Redis stream fuzzy matching pattern"),
+    overwrite: bool = typer.Option(False, "--overwrite", help="Whether to overwrite target streams (default: False)"),
+    dry_run: bool = typer.Option(False, "--dry_run", help="Show operations without actually executing them"),
 ):
-    """批量恢复 Redis Stream 数据
-
-    支持两种匹配模式：
-    1. 精确匹配：从数据库查询 fault_injection_schedules 表获取对应的 trace_id
-    2. 模糊匹配：使用 Redis KEYS 命令查找匹配指定模式的流
-
     """
+    Batch restore Redis Stream data.
 
-    # 参数验证：必须提供其中一个，且不能同时提供
+    Supports two matching modes:
+    1. Exact match: Query fault_injection_schedules table from database to get corresponding trace_id
+    2. Fuzzy match: Use Redis KEYS command to find streams matching specified pattern
+    """
+    # Parameter validation: must provide one, and cannot provide both
     if not exact_match and not fuzzy_match:
-        console.print("[red]错误：必须选择一种匹配模式[/red]")
+        console.print("[red]Error: Must select one matching mode[/red]")
         console.print(
-            "[yellow]使用 --exact_match 从数据库精确匹配，或使用 --fuzzy_match 进行模糊匹配[/yellow]"
+            "[yellow]Use --exact_match for database exact matching, or --fuzzy_match for fuzzy matching[/yellow]"
         )
         raise typer.Exit(code=1)
 
     if exact_match and fuzzy_match:
-        console.print("[red]错误：不能同时使用两种匹配模式[/red]")
-        console.print("[yellow]请选择 --exact_match 或 --fuzzy_match 其中一个[/yellow]")
+        console.print("[red]Error: Cannot use both matching modes simultaneously[/red]")
+        console.print("[yellow]Please choose either --exact_match or --fuzzy_match[/yellow]")
         raise typer.Exit(code=1)
 
     client = Client(source_url, target_url)
