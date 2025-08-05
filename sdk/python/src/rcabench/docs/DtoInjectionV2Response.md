@@ -14,6 +14,7 @@ Name | Type | Description | Notes
 **fault_type** | **int** |  | [optional] 
 **id** | **int** |  | [optional] 
 **injection_name** | **str** |  | [optional] 
+**labels** | [**List[DatabaseLabel]**](DatabaseLabel.md) | Associated labels | [optional] 
 **pre_duration** | **int** |  | [optional] 
 **start_time** | **str** |  | [optional] 
 **status** | **int** |  | [optional] 

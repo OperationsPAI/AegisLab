@@ -21,6 +21,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
+from rcabench.openapi.models.dto_label_item import DtoLabelItem
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -35,6 +36,7 @@ class DtoInjectionV2SearchReq(BaseModel):
     end_time_lte: Optional[StrictStr] = None
     fault_types: Optional[List[StrictInt]] = None
     include: Optional[StrictStr] = None
+    labels: Optional[List[DtoLabelItem]] = Field(default=None, description="Custom labels to filter by")
     page: Optional[Annotated[int, Field(strict=True, ge=1)]] = None
     search: Optional[StrictStr] = None
     size: Optional[Annotated[int, Field(le=100, strict=True, ge=1)]] = None
@@ -43,9 +45,10 @@ class DtoInjectionV2SearchReq(BaseModel):
     start_time_gte: Optional[StrictStr] = None
     start_time_lte: Optional[StrictStr] = None
     statuses: Optional[List[StrictInt]] = None
+    tags: Optional[List[StrictStr]] = Field(default=None, description="Tag values to filter by")
     task_ids: Optional[List[StrictStr]] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["benchmarks", "created_at_gte", "created_at_lte", "end_time_gte", "end_time_lte", "fault_types", "include", "page", "search", "size", "sort_by", "sort_order", "start_time_gte", "start_time_lte", "statuses", "task_ids"]
+    __properties: ClassVar[List[str]] = ["benchmarks", "created_at_gte", "created_at_lte", "end_time_gte", "end_time_lte", "fault_types", "include", "labels", "page", "search", "size", "sort_by", "sort_order", "start_time_gte", "start_time_lte", "statuses", "tags", "task_ids"]
 
     @field_validator('sort_by')
     def sort_by_validate_enum(cls, value):
@@ -108,6 +111,13 @@ class DtoInjectionV2SearchReq(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in labels (list)
+        _items = []
+        if self.labels:
+            for _item_labels in self.labels:
+                if _item_labels:
+                    _items.append(_item_labels.to_dict())
+            _dict['labels'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -132,6 +142,7 @@ class DtoInjectionV2SearchReq(BaseModel):
             "end_time_lte": obj.get("end_time_lte"),
             "fault_types": obj.get("fault_types"),
             "include": obj.get("include"),
+            "labels": [DtoLabelItem.from_dict(_item) for _item in obj["labels"]] if obj.get("labels") is not None else None,
             "page": obj.get("page"),
             "search": obj.get("search"),
             "size": obj.get("size"),
@@ -140,6 +151,7 @@ class DtoInjectionV2SearchReq(BaseModel):
             "start_time_gte": obj.get("start_time_gte"),
             "start_time_lte": obj.get("start_time_lte"),
             "statuses": obj.get("statuses"),
+            "tags": obj.get("tags"),
             "task_ids": obj.get("task_ids")
         })
         # store additional fields in additional_properties

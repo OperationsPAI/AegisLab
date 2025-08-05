@@ -37,7 +37,7 @@ class DtoAlgorithmResponse(BaseModel):
     name: Optional[StrictStr] = None
     project: Optional[DtoProjectResponse] = Field(default=None, description="Related entities (only included when specifically requested)")
     project_id: Optional[StrictInt] = None
-    status: Optional[StrictBool] = None
+    status: Optional[StrictInt] = None
     tag: Optional[StrictStr] = None
     type: Optional[StrictStr] = None
     updated_at: Optional[StrictStr] = None

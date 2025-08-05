@@ -296,7 +296,7 @@ func createAlgoJob(ctx context.Context, jobName, image string, annotations, labe
 		return k8s.CreateJob(ctx, &k8s.JobConfig{
 			JobName:        jobName,
 			Image:          image,
-			Command:        []string{"bash", "-c", fmt.Sprintf("%s && sleep 600", container.Command)},
+			Command:        strings.Split(container.Command, " "),
 			Annotations:    annotations,
 			Labels:         labels,
 			EnvVars:        jobEnvVars,

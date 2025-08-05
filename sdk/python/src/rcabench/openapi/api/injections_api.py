@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
 from pydantic import Field, StrictInt, StrictStr
-from typing import Optional
+from typing import List, Optional
 from typing_extensions import Annotated
 from rcabench.openapi.models.dto_generic_response_any import DtoGenericResponseAny
 from rcabench.openapi.models.dto_generic_response_dto_injection_search_response import DtoGenericResponseDtoInjectionSearchResponse
@@ -26,6 +26,8 @@ from rcabench.openapi.models.dto_generic_response_dto_injection_v2_create_respon
 from rcabench.openapi.models.dto_generic_response_dto_injection_v2_response import DtoGenericResponseDtoInjectionV2Response
 from rcabench.openapi.models.dto_generic_response_dto_search_response_dto_injection_v2_response import DtoGenericResponseDtoSearchResponseDtoInjectionV2Response
 from rcabench.openapi.models.dto_injection_v2_create_req import DtoInjectionV2CreateReq
+from rcabench.openapi.models.dto_injection_v2_custom_label_manage_req import DtoInjectionV2CustomLabelManageReq
+from rcabench.openapi.models.dto_injection_v2_label_manage_req import DtoInjectionV2LabelManageReq
 from rcabench.openapi.models.dto_injection_v2_search_req import DtoInjectionV2SearchReq
 from rcabench.openapi.models.dto_injection_v2_update_req import DtoInjectionV2UpdateReq
 
@@ -57,6 +59,7 @@ class InjectionsApi:
         status: Annotated[Optional[StrictInt], Field(description="Filter by status")] = None,
         benchmark: Annotated[Optional[StrictStr], Field(description="Filter by benchmark")] = None,
         search: Annotated[Optional[StrictStr], Field(description="Search in injection name and description")] = None,
+        tags: Annotated[Optional[List[StrictStr]], Field(description="Filter by tags (array of tag values)")] = None,
         sort_by: Annotated[Optional[StrictStr], Field(description="Sort field (id,task_id,fault_type,status,benchmark,injection_name,created_at,updated_at)")] = None,
         sort_order: Annotated[Optional[StrictStr], Field(description="Sort order (asc,desc)")] = None,
         include: Annotated[Optional[StrictStr], Field(description="Include related data (task)")] = None,
@@ -91,6 +94,8 @@ class InjectionsApi:
         :type benchmark: str
         :param search: Search in injection name and description
         :type search: str
+        :param tags: Filter by tags (array of tag values)
+        :type tags: List[str]
         :param sort_by: Sort field (id,task_id,fault_type,status,benchmark,injection_name,created_at,updated_at)
         :type sort_by: str
         :param sort_order: Sort order (asc,desc)
@@ -127,6 +132,7 @@ class InjectionsApi:
             status=status,
             benchmark=benchmark,
             search=search,
+            tags=tags,
             sort_by=sort_by,
             sort_order=sort_order,
             include=include,
@@ -163,6 +169,7 @@ class InjectionsApi:
         status: Annotated[Optional[StrictInt], Field(description="Filter by status")] = None,
         benchmark: Annotated[Optional[StrictStr], Field(description="Filter by benchmark")] = None,
         search: Annotated[Optional[StrictStr], Field(description="Search in injection name and description")] = None,
+        tags: Annotated[Optional[List[StrictStr]], Field(description="Filter by tags (array of tag values)")] = None,
         sort_by: Annotated[Optional[StrictStr], Field(description="Sort field (id,task_id,fault_type,status,benchmark,injection_name,created_at,updated_at)")] = None,
         sort_order: Annotated[Optional[StrictStr], Field(description="Sort order (asc,desc)")] = None,
         include: Annotated[Optional[StrictStr], Field(description="Include related data (task)")] = None,
@@ -197,6 +204,8 @@ class InjectionsApi:
         :type benchmark: str
         :param search: Search in injection name and description
         :type search: str
+        :param tags: Filter by tags (array of tag values)
+        :type tags: List[str]
         :param sort_by: Sort field (id,task_id,fault_type,status,benchmark,injection_name,created_at,updated_at)
         :type sort_by: str
         :param sort_order: Sort order (asc,desc)
@@ -233,6 +242,7 @@ class InjectionsApi:
             status=status,
             benchmark=benchmark,
             search=search,
+            tags=tags,
             sort_by=sort_by,
             sort_order=sort_order,
             include=include,
@@ -269,6 +279,7 @@ class InjectionsApi:
         status: Annotated[Optional[StrictInt], Field(description="Filter by status")] = None,
         benchmark: Annotated[Optional[StrictStr], Field(description="Filter by benchmark")] = None,
         search: Annotated[Optional[StrictStr], Field(description="Search in injection name and description")] = None,
+        tags: Annotated[Optional[List[StrictStr]], Field(description="Filter by tags (array of tag values)")] = None,
         sort_by: Annotated[Optional[StrictStr], Field(description="Sort field (id,task_id,fault_type,status,benchmark,injection_name,created_at,updated_at)")] = None,
         sort_order: Annotated[Optional[StrictStr], Field(description="Sort order (asc,desc)")] = None,
         include: Annotated[Optional[StrictStr], Field(description="Include related data (task)")] = None,
@@ -303,6 +314,8 @@ class InjectionsApi:
         :type benchmark: str
         :param search: Search in injection name and description
         :type search: str
+        :param tags: Filter by tags (array of tag values)
+        :type tags: List[str]
         :param sort_by: Sort field (id,task_id,fault_type,status,benchmark,injection_name,created_at,updated_at)
         :type sort_by: str
         :param sort_order: Sort order (asc,desc)
@@ -339,6 +352,7 @@ class InjectionsApi:
             status=status,
             benchmark=benchmark,
             search=search,
+            tags=tags,
             sort_by=sort_by,
             sort_order=sort_order,
             include=include,
@@ -370,6 +384,7 @@ class InjectionsApi:
         status,
         benchmark,
         search,
+        tags,
         sort_by,
         sort_order,
         include,
@@ -382,6 +397,7 @@ class InjectionsApi:
         _host = None
 
         _collection_formats: Dict[str, str] = {
+            'tags': 'csv',
         }
 
         _path_params: Dict[str, str] = {}
@@ -422,6 +438,10 @@ class InjectionsApi:
         if search is not None:
             
             _query_params.append(('search', search))
+            
+        if tags is not None:
+            
+            _query_params.append(('tags', tags))
             
         if sort_by is not None:
             
@@ -1337,6 +1357,608 @@ class InjectionsApi:
 
 
     @validate_call
+    def api_v2_injections_name_labels_patch(
+        self,
+        name: Annotated[StrictStr, Field(description="Injection Name")],
+        manage: Annotated[DtoInjectionV2CustomLabelManageReq, Field(description="Custom label management request")],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> DtoGenericResponseDtoInjectionV2Response:
+        """Manage injection custom labels
+
+        Add or remove custom labels (key-value pairs) for an injection
+
+        :param name: Injection Name (required)
+        :type name: str
+        :param manage: Custom label management request (required)
+        :type manage: DtoInjectionV2CustomLabelManageReq
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_injections_name_labels_patch_serialize(
+            name=name,
+            manage=manage,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseDtoInjectionV2Response",
+            '400': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '404': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def api_v2_injections_name_labels_patch_with_http_info(
+        self,
+        name: Annotated[StrictStr, Field(description="Injection Name")],
+        manage: Annotated[DtoInjectionV2CustomLabelManageReq, Field(description="Custom label management request")],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[DtoGenericResponseDtoInjectionV2Response]:
+        """Manage injection custom labels
+
+        Add or remove custom labels (key-value pairs) for an injection
+
+        :param name: Injection Name (required)
+        :type name: str
+        :param manage: Custom label management request (required)
+        :type manage: DtoInjectionV2CustomLabelManageReq
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_injections_name_labels_patch_serialize(
+            name=name,
+            manage=manage,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseDtoInjectionV2Response",
+            '400': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '404': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def api_v2_injections_name_labels_patch_without_preload_content(
+        self,
+        name: Annotated[StrictStr, Field(description="Injection Name")],
+        manage: Annotated[DtoInjectionV2CustomLabelManageReq, Field(description="Custom label management request")],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Manage injection custom labels
+
+        Add or remove custom labels (key-value pairs) for an injection
+
+        :param name: Injection Name (required)
+        :type name: str
+        :param manage: Custom label management request (required)
+        :type manage: DtoInjectionV2CustomLabelManageReq
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_injections_name_labels_patch_serialize(
+            name=name,
+            manage=manage,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseDtoInjectionV2Response",
+            '400': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '404': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _api_v2_injections_name_labels_patch_serialize(
+        self,
+        name,
+        manage,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if name is not None:
+            _path_params['name'] = name
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+        if manage is not None:
+            _body_params = manage
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'BearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='PATCH',
+            resource_path='/api/v2/injections/{name}/labels',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def api_v2_injections_name_tags_patch(
+        self,
+        name: Annotated[StrictStr, Field(description="Injection Name")],
+        manage: Annotated[DtoInjectionV2LabelManageReq, Field(description="Tag management request")],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> DtoGenericResponseDtoInjectionV2Response:
+        """Manage injection tags
+
+        Add or remove tags for an injection
+
+        :param name: Injection Name (required)
+        :type name: str
+        :param manage: Tag management request (required)
+        :type manage: DtoInjectionV2LabelManageReq
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_injections_name_tags_patch_serialize(
+            name=name,
+            manage=manage,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseDtoInjectionV2Response",
+            '400': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '404': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def api_v2_injections_name_tags_patch_with_http_info(
+        self,
+        name: Annotated[StrictStr, Field(description="Injection Name")],
+        manage: Annotated[DtoInjectionV2LabelManageReq, Field(description="Tag management request")],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[DtoGenericResponseDtoInjectionV2Response]:
+        """Manage injection tags
+
+        Add or remove tags for an injection
+
+        :param name: Injection Name (required)
+        :type name: str
+        :param manage: Tag management request (required)
+        :type manage: DtoInjectionV2LabelManageReq
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_injections_name_tags_patch_serialize(
+            name=name,
+            manage=manage,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseDtoInjectionV2Response",
+            '400': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '404': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def api_v2_injections_name_tags_patch_without_preload_content(
+        self,
+        name: Annotated[StrictStr, Field(description="Injection Name")],
+        manage: Annotated[DtoInjectionV2LabelManageReq, Field(description="Tag management request")],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Manage injection tags
+
+        Add or remove tags for an injection
+
+        :param name: Injection Name (required)
+        :type name: str
+        :param manage: Tag management request (required)
+        :type manage: DtoInjectionV2LabelManageReq
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_injections_name_tags_patch_serialize(
+            name=name,
+            manage=manage,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseDtoInjectionV2Response",
+            '400': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '404': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _api_v2_injections_name_tags_patch_serialize(
+        self,
+        name,
+        manage,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if name is not None:
+            _path_params['name'] = name
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+        if manage is not None:
+            _body_params = manage
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'BearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='PATCH',
+            resource_path='/api/v2/injections/{name}/tags',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
     def api_v2_injections_post(
         self,
         injections: Annotated[DtoInjectionV2CreateReq, Field(description="Injection creation request")],
@@ -1638,7 +2260,7 @@ class InjectionsApi:
     ) -> DtoGenericResponseDtoSearchResponseDtoInjectionV2Response:
         """Search injections
 
-        Advanced search for injections with complex filtering
+        Advanced search for injections with complex filtering including custom labels
 
         :param search: Search criteria (required)
         :type search: DtoInjectionV2SearchReq
@@ -1708,7 +2330,7 @@ class InjectionsApi:
     ) -> ApiResponse[DtoGenericResponseDtoSearchResponseDtoInjectionV2Response]:
         """Search injections
 
-        Advanced search for injections with complex filtering
+        Advanced search for injections with complex filtering including custom labels
 
         :param search: Search criteria (required)
         :type search: DtoInjectionV2SearchReq
@@ -1778,7 +2400,7 @@ class InjectionsApi:
     ) -> RESTResponseType:
         """Search injections
 
-        Advanced search for injections with complex filtering
+        Advanced search for injections with complex filtering including custom labels
 
         :param search: Search criteria (required)
         :type search: DtoInjectionV2SearchReq

@@ -45,7 +45,7 @@ class DtoContainerSearchRequest(BaseModel):
     project_id: Optional[StrictInt] = None
     size: Optional[Annotated[int, Field(le=1000, strict=True, ge=1)]] = None
     sort: Optional[List[DtoSortOption]] = Field(default=None, description="Sort")
-    status: Optional[List[StrictInt]] = None
+    status: Optional[StrictInt] = None
     tag: Optional[StrictStr] = None
     type: Optional[StrictStr] = None
     updated_at: Optional[DtoDateRange] = None

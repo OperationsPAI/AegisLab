@@ -14,7 +14,7 @@ Name | Type | Description | Notes
 **name** | **str** |  | [optional] 
 **project** | [**DtoProjectResponse**](DtoProjectResponse.md) | Related entities (only included when specifically requested) | [optional] 
 **project_id** | **int** |  | [optional] 
-**status** | **bool** |  | [optional] 
+**status** | **int** |  | [optional] 
 **tag** | **str** |  | [optional] 
 **type** | **str** |  | [optional] 
 **updated_at** | **str** |  | [optional] 

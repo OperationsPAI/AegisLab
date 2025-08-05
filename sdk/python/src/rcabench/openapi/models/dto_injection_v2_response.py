@@ -20,6 +20,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from rcabench.openapi.models.database_label import DatabaseLabel
 from rcabench.openapi.models.dto_task_v2_response import DtoTaskV2Response
 from typing import Optional, Set
 from typing_extensions import Self
@@ -37,6 +38,7 @@ class DtoInjectionV2Response(BaseModel):
     fault_type: Optional[StrictInt] = None
     id: Optional[StrictInt] = None
     injection_name: Optional[StrictStr] = None
+    labels: Optional[List[DatabaseLabel]] = Field(default=None, description="Associated labels")
     pre_duration: Optional[StrictInt] = None
     start_time: Optional[StrictStr] = None
     status: Optional[StrictInt] = None
@@ -44,7 +46,7 @@ class DtoInjectionV2Response(BaseModel):
     task_id: Optional[StrictStr] = None
     updated_at: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["benchmark", "created_at", "description", "display_config", "end_time", "engine_config", "fault_type", "id", "injection_name", "pre_duration", "start_time", "status", "task", "task_id", "updated_at"]
+    __properties: ClassVar[List[str]] = ["benchmark", "created_at", "description", "display_config", "end_time", "engine_config", "fault_type", "id", "injection_name", "labels", "pre_duration", "start_time", "status", "task", "task_id", "updated_at"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -87,6 +89,13 @@ class DtoInjectionV2Response(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in labels (list)
+        _items = []
+        if self.labels:
+            for _item_labels in self.labels:
+                if _item_labels:
+                    _items.append(_item_labels.to_dict())
+            _dict['labels'] = _items
         # override the default output from pydantic by calling `to_dict()` of task
         if self.task:
             _dict['task'] = self.task.to_dict()
@@ -116,6 +125,7 @@ class DtoInjectionV2Response(BaseModel):
             "fault_type": obj.get("fault_type"),
             "id": obj.get("id"),
             "injection_name": obj.get("injection_name"),
+            "labels": [DatabaseLabel.from_dict(_item) for _item in obj["labels"]] if obj.get("labels") is not None else None,
             "pre_duration": obj.get("pre_duration"),
             "start_time": obj.get("start_time"),
             "status": obj.get("status"),

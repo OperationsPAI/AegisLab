@@ -6,6 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **executions** | [**List[DtoAlgorithmExecutionRequest]**](DtoAlgorithmExecutionRequest.md) |  | 
+**labels** | [**DtoExecutionLabels**](DtoExecutionLabels.md) | 预置的执行标签 | [optional] 
 **project_name** | **str** |  | 
 
 ## Example

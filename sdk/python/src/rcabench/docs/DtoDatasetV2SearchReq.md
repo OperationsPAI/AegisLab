@@ -11,7 +11,6 @@ Name | Type | Description | Notes
 **label_keys** | **List[str]** | Filter by label key | [optional] 
 **label_values** | **List[str]** | Filter by label value | [optional] 
 **page** | **int** | Page number | [optional] 
-**project_ids** | **List[int]** | Project ID list | [optional] 
 **search** | **str** | Search keywords | [optional] 
 **size** | **int** | Page size | [optional] 
 **size_range** | [**DtoSizeRangeFilter**](DtoSizeRangeFilter.md) | Size range filter | [optional] 

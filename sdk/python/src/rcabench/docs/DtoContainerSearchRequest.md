@@ -19,7 +19,7 @@ Name | Type | Description | Notes
 **project_id** | **int** |  | [optional] 
 **size** | **int** |  | [optional] 
 **sort** | [**List[DtoSortOption]**](DtoSortOption.md) | Sort | [optional] 
-**status** | **List[int]** |  | [optional] 
+**status** | **int** |  | [optional] 
 **tag** | **str** |  | [optional] 
 **type** | **str** |  | [optional] 
 **updated_at** | [**DtoDateRange**](DtoDateRange.md) |  | [optional] 

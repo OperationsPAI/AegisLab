@@ -17,8 +17,6 @@ Name | Type | Description | Notes
 **is_public** | **bool** | Whether public | [optional] 
 **labels** | [**List[DatabaseLabel]**](DatabaseLabel.md) | Associated labels | [optional] 
 **name** | **str** | Dataset name | [optional] 
-**project** | [**DatabaseProject**](DatabaseProject.md) | Associated project info | [optional] 
-**project_id** | **int** | Project ID | [optional] 
 **status** | **int** | Status | [optional] 
 **type** | **str** | Dataset type | [optional] 
 **updated_at** | **str** | Update time | [optional] 

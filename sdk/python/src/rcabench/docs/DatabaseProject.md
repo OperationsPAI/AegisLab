@@ -5,13 +5,13 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**created_at** | **str** |  | [optional] 
-**description** | **str** |  | [optional] 
+**created_at** | **str** | Creation time | [optional] 
+**description** | **str** | Project description | [optional] 
 **id** | **int** |  | [optional] 
 **is_public** | **bool** | Whether publicly visible | [optional] 
-**name** | **str** |  | [optional] 
-**status** | **int** | 0:disabled 1:enabled -1:deleted | [optional] 
-**updated_at** | **str** |  | [optional] 
+**name** | **str** | Project name with size limit | [optional] 
+**status** | **int** | Status: -1:deleted 0:disabled 1:enabled | [optional] 
+**updated_at** | **str** | Update time | [optional] 
 
 ## Example
 

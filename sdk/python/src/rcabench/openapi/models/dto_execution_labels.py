@@ -18,24 +18,18 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_algorithm_item import DtoAlgorithmItem
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoAlgorithmExecutionRequest(BaseModel):
+class DtoExecutionLabels(BaseModel):
     """
-    DtoAlgorithmExecutionRequest
+    DtoExecutionLabels
     """ # noqa: E501
-    algorithm: DtoAlgorithmItem
-    datapack: Optional[StrictStr] = None
-    dataset: Optional[StrictStr] = None
-    dataset_version: Optional[StrictStr] = None
-    env_vars: Optional[Dict[str, Any]] = None
-    project_name: StrictStr
+    tag: Optional[StrictStr] = Field(default=None, description="user-defined tag")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["algorithm", "datapack", "dataset", "dataset_version", "env_vars", "project_name"]
+    __properties: ClassVar[List[str]] = ["tag"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -55,7 +49,7 @@ class DtoAlgorithmExecutionRequest(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoAlgorithmExecutionRequest from a JSON string"""
+        """Create an instance of DtoExecutionLabels from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -78,9 +72,6 @@ class DtoAlgorithmExecutionRequest(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of algorithm
-        if self.algorithm:
-            _dict['algorithm'] = self.algorithm.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -90,7 +81,7 @@ class DtoAlgorithmExecutionRequest(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoAlgorithmExecutionRequest from a dict"""
+        """Create an instance of DtoExecutionLabels from a dict"""
         if obj is None:
             return None
 
@@ -98,12 +89,7 @@ class DtoAlgorithmExecutionRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "algorithm": DtoAlgorithmItem.from_dict(obj["algorithm"]) if obj.get("algorithm") is not None else None,
-            "datapack": obj.get("datapack"),
-            "dataset": obj.get("dataset"),
-            "dataset_version": obj.get("dataset_version"),
-            "env_vars": obj.get("env_vars"),
-            "project_name": obj.get("project_name")
+            "tag": obj.get("tag")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

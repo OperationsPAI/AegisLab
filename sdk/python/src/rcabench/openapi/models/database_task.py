@@ -28,19 +28,19 @@ class DatabaseTask(BaseModel):
     """
     DatabaseTask
     """ # noqa: E501
-    created_at: Optional[StrictStr] = Field(default=None, description="Add time index")
-    cron_expr: Optional[StrictStr] = None
-    execute_time: Optional[StrictInt] = Field(default=None, description="Add execution time index")
-    group_id: Optional[StrictStr] = Field(default=None, description="Add group ID index")
-    id: Optional[StrictStr] = None
-    immediate: Optional[StrictBool] = None
-    payload: Optional[StrictStr] = None
+    created_at: Optional[StrictStr] = Field(default=None, description="Creation time with index")
+    cron_expr: Optional[StrictStr] = Field(default=None, description="Cron expression with size limit")
+    execute_time: Optional[StrictInt] = Field(default=None, description="Execution time timestamp")
+    group_id: Optional[StrictStr] = Field(default=None, description="Group ID with size limit")
+    id: Optional[StrictStr] = Field(default=None, description="Task ID with size limit")
+    immediate: Optional[StrictBool] = Field(default=None, description="Whether to execute immediately")
+    payload: Optional[StrictStr] = Field(default=None, description="Task payload")
     project: Optional[DatabaseProject] = Field(default=None, description="Foreign key association")
     project_id: Optional[StrictInt] = Field(default=None, description="Task can belong to a project (optional)")
-    status: Optional[StrictStr] = Field(default=None, description="Add multiple composite indexes")
-    trace_id: Optional[StrictStr] = Field(default=None, description="Add trace ID index")
-    type: Optional[StrictStr] = Field(default=None, description="Add composite index")
-    updated_at: Optional[StrictStr] = None
+    status: Optional[StrictStr] = Field(default=None, description="Status: Pending, Running, Completed, Error, Cancelled, Rescheduled")
+    trace_id: Optional[StrictStr] = Field(default=None, description="Trace ID with size limit")
+    type: Optional[StrictStr] = Field(default=None, description="Task type with size limit")
+    updated_at: Optional[StrictStr] = Field(default=None, description="Update time")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["created_at", "cron_expr", "execute_time", "group_id", "id", "immediate", "payload", "project", "project_id", "status", "trace_id", "type", "updated_at"]
 

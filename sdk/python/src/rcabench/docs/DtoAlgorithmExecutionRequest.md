@@ -8,6 +8,7 @@ Name | Type | Description | Notes
 **algorithm** | [**DtoAlgorithmItem**](DtoAlgorithmItem.md) |  | 
 **datapack** | **str** |  | [optional] 
 **dataset** | **str** |  | [optional] 
+**dataset_version** | **str** |  | [optional] 
 **env_vars** | **object** |  | [optional] 
 **project_name** | **str** |  | 
 
