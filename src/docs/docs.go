@@ -3745,6 +3745,69 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/evaluations/datapacks/detector": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get detector analysis results for multiple datapacks. If a datapack has multiple executions, returns the latest one.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "evaluation"
+                ],
+                "summary": "Get Datapack Detector Results",
+                "parameters": [
+                    {
+                        "description": "Datapack detector request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.DatapackDetectorReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Datapack detector results",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_DatapackDetectorResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/evaluations/label-keys": {
             "get": {
                 "security": [
@@ -7958,6 +8021,77 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.DatapackDetectorItem": {
+            "type": "object",
+            "properties": {
+                "datapack": {
+                    "description": "Datapack name (from FaultInjectionSchedule)",
+                    "type": "string"
+                },
+                "executed_at": {
+                    "description": "Execution time",
+                    "type": "string"
+                },
+                "execution_id": {
+                    "description": "Execution ID (0 if no execution found)",
+                    "type": "integer"
+                },
+                "found": {
+                    "description": "Whether detector result was found",
+                    "type": "boolean"
+                },
+                "results": {
+                    "description": "Detector analysis results",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DetectorRecord"
+                    }
+                }
+            }
+        },
+        "dto.DatapackDetectorReq": {
+            "type": "object",
+            "required": [
+                "datapacks"
+            ],
+            "properties": {
+                "datapacks": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "tag": {
+                    "description": "Tag filter for filtering execution results",
+                    "type": "string"
+                }
+            }
+        },
+        "dto.DatapackDetectorResp": {
+            "type": "object",
+            "properties": {
+                "found_count": {
+                    "description": "Number of datapacks with detector results",
+                    "type": "integer"
+                },
+                "items": {
+                    "description": "Detector results for each datapack",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DatapackDetectorItem"
+                    }
+                },
+                "not_found_count": {
+                    "description": "Number of datapacks without detector results",
+                    "type": "integer"
+                },
+                "total_count": {
+                    "description": "Total number of requested datapacks",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.DatapackEvaluationItem": {
             "type": "object",
             "properties": {
@@ -8475,6 +8609,57 @@ const docTemplate = `{
                 },
                 "start_time": {
                     "description": "Start time",
+                    "type": "string"
+                }
+            }
+        },
+        "dto.DetectorRecord": {
+            "type": "object",
+            "properties": {
+                "abnormal_avg_duration": {
+                    "type": "number",
+                    "example": 0.5
+                },
+                "abnormal_p90": {
+                    "type": "number",
+                    "example": 1.2
+                },
+                "abnormal_p95": {
+                    "type": "number",
+                    "example": 1.5
+                },
+                "abnormal_p99": {
+                    "type": "number",
+                    "example": 2
+                },
+                "abnormal_succ_rate": {
+                    "type": "number",
+                    "example": 0.8
+                },
+                "issue": {
+                    "type": "string"
+                },
+                "normal_avg_duration": {
+                    "type": "number",
+                    "example": 0.3
+                },
+                "normal_p90": {
+                    "type": "number",
+                    "example": 0.8
+                },
+                "normal_p95": {
+                    "type": "number",
+                    "example": 1
+                },
+                "normal_p99": {
+                    "type": "number",
+                    "example": 1.3
+                },
+                "normal_succ_rate": {
+                    "type": "number",
+                    "example": 0.95
+                },
+                "span_name": {
                     "type": "string"
                 }
             }
@@ -9045,6 +9230,31 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.ContainerResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_DatapackDetectorResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.DatapackDetectorResp"
                         }
                     ]
                 },

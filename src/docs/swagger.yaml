@@ -871,6 +871,56 @@ definitions:
     - password
     - username
     type: object
+  dto.DatapackDetectorItem:
+    properties:
+      datapack:
+        description: Datapack name (from FaultInjectionSchedule)
+        type: string
+      executed_at:
+        description: Execution time
+        type: string
+      execution_id:
+        description: Execution ID (0 if no execution found)
+        type: integer
+      found:
+        description: Whether detector result was found
+        type: boolean
+      results:
+        description: Detector analysis results
+        items:
+          $ref: '#/definitions/dto.DetectorRecord'
+        type: array
+    type: object
+  dto.DatapackDetectorReq:
+    properties:
+      datapacks:
+        items:
+          type: string
+        minItems: 1
+        type: array
+      tag:
+        description: Tag filter for filtering execution results
+        type: string
+    required:
+    - datapacks
+    type: object
+  dto.DatapackDetectorResp:
+    properties:
+      found_count:
+        description: Number of datapacks with detector results
+        type: integer
+      items:
+        description: Detector results for each datapack
+        items:
+          $ref: '#/definitions/dto.DatapackDetectorItem'
+        type: array
+      not_found_count:
+        description: Number of datapacks without detector results
+        type: integer
+      total_count:
+        description: Total number of requested datapacks
+        type: integer
+    type: object
   dto.DatapackEvaluationItem:
     properties:
       datapack_name:
@@ -1236,6 +1286,43 @@ definitions:
         type: string
       start_time:
         description: Start time
+        type: string
+    type: object
+  dto.DetectorRecord:
+    properties:
+      abnormal_avg_duration:
+        example: 0.5
+        type: number
+      abnormal_p90:
+        example: 1.2
+        type: number
+      abnormal_p95:
+        example: 1.5
+        type: number
+      abnormal_p99:
+        example: 2
+        type: number
+      abnormal_succ_rate:
+        example: 0.8
+        type: number
+      issue:
+        type: string
+      normal_avg_duration:
+        example: 0.3
+        type: number
+      normal_p90:
+        example: 0.8
+        type: number
+      normal_p95:
+        example: 1
+        type: number
+      normal_p99:
+        example: 1.3
+        type: number
+      normal_succ_rate:
+        example: 0.95
+        type: number
+      span_name:
         type: string
     type: object
   dto.DetectorResultItem:
@@ -1634,6 +1721,22 @@ definitions:
       data:
         allOf:
         - $ref: '#/definitions/dto.ContainerResponse'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
+        type: integer
+    type: object
+  dto.GenericResponse-dto_DatapackDetectorResp:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.DatapackDetectorResp'
         description: Generic type data
       message:
         description: Response message
@@ -7125,6 +7228,47 @@ paths:
       security:
       - BearerAuth: []
       summary: Get Algorithm Dataset Evaluation
+      tags:
+      - evaluation
+  /api/v2/evaluations/datapacks/detector:
+    post:
+      consumes:
+      - application/json
+      description: Get detector analysis results for multiple datapacks. If a datapack
+        has multiple executions, returns the latest one.
+      parameters:
+      - description: Datapack detector request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DatapackDetectorReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Datapack detector results
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_DatapackDetectorResp'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get Datapack Detector Results
       tags:
       - evaluation
   /api/v2/evaluations/label-keys:

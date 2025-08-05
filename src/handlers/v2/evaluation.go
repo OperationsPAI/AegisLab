@@ -1,6 +1,7 @@
 package v2
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/LGU-SE-Internal/rcabench/dto"
@@ -144,6 +145,53 @@ func GetAlgorithmDatapackEvaluation(c *gin.Context) {
 		}
 
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to retrieve evaluation data")
+		return
+	}
+
+	dto.SuccessResponse(c, result)
+}
+
+// GetDatapackDetectorResults retrieves detector results for multiple datapacks
+// @Summary Get Datapack Detector Results
+// @Description Get detector analysis results for multiple datapacks. If a datapack has multiple executions, returns the latest one.
+// @Tags evaluation
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param request body dto.DatapackDetectorReq true "Datapack detector request"
+// @Success 200 {object} dto.GenericResponse[dto.DatapackDetectorResp] "Datapack detector results"
+// @Failure 400 {object} dto.GenericResponse[any] "Bad request"
+// @Failure 401 {object} dto.GenericResponse[any] "Unauthorized"
+// @Failure 403 {object} dto.GenericResponse[any] "Forbidden"
+// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+// @Router /api/v2/evaluations/datapacks/detector [post]
+func GetDatapackDetectorResults(c *gin.Context) {
+	var req dto.DatapackDetectorReq
+
+	// Parse request body
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Validate request
+	if len(req.Datapacks) == 0 {
+		dto.ErrorResponse(c, http.StatusBadRequest, "At least one datapack is required")
+		return
+	}
+
+	// Validate datapack names
+	for i, datapack := range req.Datapacks {
+		if datapack == "" {
+			dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Datapack name cannot be empty at index %d", i))
+			return
+		}
+	}
+
+	// Get detector results from repository
+	result, err := repository.GetDatapackDetectorResults(req)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to retrieve detector results")
 		return
 	}
 
