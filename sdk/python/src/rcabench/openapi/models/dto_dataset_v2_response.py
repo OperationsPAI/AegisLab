@@ -21,7 +21,6 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from rcabench.openapi.models.database_label import DatabaseLabel
-from rcabench.openapi.models.database_project import DatabaseProject
 from rcabench.openapi.models.dto_dataset_v2_injection_relation_response import DtoDatasetV2InjectionRelationResponse
 from typing import Optional, Set
 from typing_extensions import Self
@@ -42,14 +41,12 @@ class DtoDatasetV2Response(BaseModel):
     is_public: Optional[StrictBool] = Field(default=None, description="Whether public")
     labels: Optional[List[DatabaseLabel]] = Field(default=None, description="Associated labels")
     name: Optional[StrictStr] = Field(default=None, description="Dataset name")
-    project: Optional[DatabaseProject] = Field(default=None, description="Associated project info")
-    project_id: Optional[StrictInt] = Field(default=None, description="Project ID")
     status: Optional[StrictInt] = Field(default=None, description="Status")
     type: Optional[StrictStr] = Field(default=None, description="Dataset type")
     updated_at: Optional[StrictStr] = Field(default=None, description="Update time")
     version: Optional[StrictStr] = Field(default=None, description="Dataset version")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["checksum", "created_at", "data_source", "description", "download_url", "file_count", "format", "id", "injections", "is_public", "labels", "name", "project", "project_id", "status", "type", "updated_at", "version"]
+    __properties: ClassVar[List[str]] = ["checksum", "created_at", "data_source", "description", "download_url", "file_count", "format", "id", "injections", "is_public", "labels", "name", "status", "type", "updated_at", "version"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -106,9 +103,6 @@ class DtoDatasetV2Response(BaseModel):
                 if _item_labels:
                     _items.append(_item_labels.to_dict())
             _dict['labels'] = _items
-        # override the default output from pydantic by calling `to_dict()` of project
-        if self.project:
-            _dict['project'] = self.project.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -138,8 +132,6 @@ class DtoDatasetV2Response(BaseModel):
             "is_public": obj.get("is_public"),
             "labels": [DatabaseLabel.from_dict(_item) for _item in obj["labels"]] if obj.get("labels") is not None else None,
             "name": obj.get("name"),
-            "project": DatabaseProject.from_dict(obj["project"]) if obj.get("project") is not None else None,
-            "project_id": obj.get("project_id"),
             "status": obj.get("status"),
             "type": obj.get("type"),
             "updated_at": obj.get("updated_at"),

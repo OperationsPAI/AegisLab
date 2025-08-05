@@ -12,7 +12,7 @@ Name | Type | Description | Notes
 **image** | **str** |  | [optional] 
 **is_public** | **bool** |  | [optional] 
 **name** | **str** |  | [optional] 
-**status** | **bool** |  | [optional] 
+**status** | **int** |  | [optional] 
 **tag** | **str** |  | [optional] 
 **type** | **str** |  | [optional] 
 **updated_at** | **str** |  | [optional] 

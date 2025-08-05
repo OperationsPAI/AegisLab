@@ -11,7 +11,7 @@ Name | Type | Description | Notes
 **image** | **str** | @Description Docker image name (optional) | [optional] 
 **is_public** | **bool** | @Description Whether the container is public (optional) | [optional] 
 **name** | **str** | @Description Container name (optional) | [optional] 
-**status** | **bool** | @Description Container status (optional) | [optional] 
+**status** | **int** | @Description Container status (optional) | [optional] 
 **tag** | **str** | @Description Docker image tag (optional) | [optional] 
 **type** | **str** | @Description Container type (optional) | [optional] 
 

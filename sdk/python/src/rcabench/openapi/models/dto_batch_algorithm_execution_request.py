@@ -18,9 +18,10 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
 from rcabench.openapi.models.dto_algorithm_execution_request import DtoAlgorithmExecutionRequest
+from rcabench.openapi.models.dto_execution_labels import DtoExecutionLabels
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -29,9 +30,10 @@ class DtoBatchAlgorithmExecutionRequest(BaseModel):
     DtoBatchAlgorithmExecutionRequest
     """ # noqa: E501
     executions: List[DtoAlgorithmExecutionRequest]
+    labels: Optional[DtoExecutionLabels] = Field(default=None, description="预置的执行标签")
     project_name: StrictStr
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["executions", "project_name"]
+    __properties: ClassVar[List[str]] = ["executions", "labels", "project_name"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -81,6 +83,9 @@ class DtoBatchAlgorithmExecutionRequest(BaseModel):
                 if _item_executions:
                     _items.append(_item_executions.to_dict())
             _dict['executions'] = _items
+        # override the default output from pydantic by calling `to_dict()` of labels
+        if self.labels:
+            _dict['labels'] = self.labels.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -99,6 +104,7 @@ class DtoBatchAlgorithmExecutionRequest(BaseModel):
 
         _obj = cls.model_validate({
             "executions": [DtoAlgorithmExecutionRequest.from_dict(_item) for _item in obj["executions"]] if obj.get("executions") is not None else None,
+            "labels": DtoExecutionLabels.from_dict(obj["labels"]) if obj.get("labels") is not None else None,
             "project_name": obj.get("project_name")
         })
         # store additional fields in additional_properties

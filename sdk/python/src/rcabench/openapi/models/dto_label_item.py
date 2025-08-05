@@ -18,8 +18,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -27,17 +27,10 @@ class DtoLabelItem(BaseModel):
     """
     DtoLabelItem
     """ # noqa: E501
-    key: StrictStr
+    key: Optional[StrictStr] = None
     value: StrictStr
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["key", "value"]
-
-    @field_validator('key')
-    def key_validate_enum(cls, value):
-        """Validates the enum"""
-        if value not in set(['env', 'batch', 'tag']):
-            raise ValueError("must be one of enum values ('env', 'batch', 'tag')")
-        return value
 
     model_config = ConfigDict(
         populate_by_name=True,

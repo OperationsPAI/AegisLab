@@ -15,7 +15,7 @@ Method | HTTP request | Description
 
 
 # **api_v2_datasets_get**
-> DtoGenericResponseDtoDatasetSearchResponse api_v2_datasets_get(page=page, size=size, project_id=project_id, type=type, status=status, is_public=is_public, search=search, sort_by=sort_by, sort_order=sort_order, include=include)
+> DtoGenericResponseDtoDatasetSearchResponse api_v2_datasets_get(page=page, size=size, type=type, status=status, is_public=is_public, search=search, sort_by=sort_by, sort_order=sort_order, include=include)
 
 List datasets
 
@@ -54,18 +54,17 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
     api_instance = rcabench.openapi.DatasetsApi(api_client)
     page = 56 # int | Page number (default 1) (optional)
     size = 56 # int | Page size (default 20, max 100) (optional)
-    project_id = 56 # int | Filter by project ID (optional)
     type = 'type_example' # str | Filter by dataset type (optional)
     status = 56 # int | Filter by status (optional)
     is_public = True # bool | Filter by public status (optional)
     search = 'search_example' # str | Search in name and description (optional)
     sort_by = 'sort_by_example' # str | Sort field (id,name,created_at,updated_at) (optional)
     sort_order = 'sort_order_example' # str | Sort order (asc,desc) (optional)
-    include = 'include_example' # str | Include related data (project,injections,labels) (optional)
+    include = 'include_example' # str | Include related data (injections,labels) (optional)
 
     try:
         # List datasets
-        api_response = api_instance.api_v2_datasets_get(page=page, size=size, project_id=project_id, type=type, status=status, is_public=is_public, search=search, sort_by=sort_by, sort_order=sort_order, include=include)
+        api_response = api_instance.api_v2_datasets_get(page=page, size=size, type=type, status=status, is_public=is_public, search=search, sort_by=sort_by, sort_order=sort_order, include=include)
         print("The response of DatasetsApi->api_v2_datasets_get:\n")
         pprint(api_response)
     except Exception as e:
@@ -81,14 +80,13 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **page** | **int**| Page number (default 1) | [optional] 
  **size** | **int**| Page size (default 20, max 100) | [optional] 
- **project_id** | **int**| Filter by project ID | [optional] 
  **type** | **str**| Filter by dataset type | [optional] 
  **status** | **int**| Filter by status | [optional] 
  **is_public** | **bool**| Filter by public status | [optional] 
  **search** | **str**| Search in name and description | [optional] 
  **sort_by** | **str**| Sort field (id,name,created_at,updated_at) | [optional] 
  **sort_order** | **str**| Sort order (asc,desc) | [optional] 
- **include** | **str**| Include related data (project,injections,labels) | [optional] 
+ **include** | **str**| Include related data (injections,labels) | [optional] 
 
 ### Return type
 
@@ -236,7 +234,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.DatasetsApi(api_client)
     id = 56 # int | Dataset ID
-    include = 'include_example' # str | Include related data (project,injections,labels) (optional)
+    include = 'include_example' # str | Include related data (injections,labels) (optional)
 
     try:
         # Get dataset by ID
@@ -255,7 +253,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **id** | **int**| Dataset ID | 
- **include** | **str**| Include related data (project,injections,labels) | [optional] 
+ **include** | **str**| Include related data (injections,labels) | [optional] 
 
 ### Return type
 

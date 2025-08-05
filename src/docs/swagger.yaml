@@ -2705,6 +2705,19 @@ definitions:
       message:
         type: string
     type: object
+  dto.InjectionV2CustomLabelManageReq:
+    properties:
+      add_labels:
+        description: List of labels to add
+        items:
+          $ref: '#/definitions/dto.LabelItem'
+        type: array
+      remove_labels:
+        description: List of label keys to remove
+        items:
+          type: string
+        type: array
+    type: object
   dto.InjectionV2LabelManageReq:
     properties:
       add_tags:
@@ -2778,6 +2791,11 @@ definitions:
         type: array
       include:
         type: string
+      labels:
+        description: Custom labels to filter by
+        items:
+          $ref: '#/definitions/dto.LabelItem'
+        type: array
       page:
         minimum: 1
         type: integer
@@ -2849,15 +2867,10 @@ definitions:
   dto.LabelItem:
     properties:
       key:
-        enum:
-        - env
-        - batch
-        - tag
         type: string
       value:
         type: string
     required:
-    - key
     - value
     type: object
   dto.ListInjectionsResp:
@@ -7397,6 +7410,51 @@ paths:
     patch:
       consumes:
       - application/json
+      description: Add or remove custom labels (key-value pairs) for an injection
+      parameters:
+      - description: Injection Name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Custom label management request
+        in: body
+        name: manage
+        required: true
+        schema:
+          $ref: '#/definitions/dto.InjectionV2CustomLabelManageReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Custom labels managed successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_InjectionV2Response'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Injection not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Manage injection custom labels
+      tags:
+      - Injections
+  /api/v2/injections/{name}/tags:
+    patch:
+      consumes:
+      - application/json
       description: Add or remove tags for an injection
       parameters:
       - description: Injection Name
@@ -7442,7 +7500,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Advanced search for injections with complex filtering
+      description: Advanced search for injections with complex filtering including
+        custom labels
       parameters:
       - description: Search criteria
         in: body

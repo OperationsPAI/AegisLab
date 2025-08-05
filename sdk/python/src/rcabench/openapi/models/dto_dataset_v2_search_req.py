@@ -36,7 +36,6 @@ class DtoDatasetV2SearchReq(BaseModel):
     label_keys: Optional[List[StrictStr]] = Field(default=None, description="Filter by label key")
     label_values: Optional[List[StrictStr]] = Field(default=None, description="Filter by label value")
     page: Optional[Annotated[int, Field(strict=True, ge=1)]] = Field(default=None, description="Page number")
-    project_ids: Optional[List[StrictInt]] = Field(default=None, description="Project ID list")
     search: Optional[StrictStr] = Field(default=None, description="Search keywords")
     size: Optional[Annotated[int, Field(le=100, strict=True, ge=1)]] = Field(default=None, description="Page size")
     size_range: Optional[DtoSizeRangeFilter] = Field(default=None, description="Size range filter")
@@ -45,7 +44,7 @@ class DtoDatasetV2SearchReq(BaseModel):
     statuses: Optional[List[StrictInt]] = Field(default=None, description="Status list")
     types: Optional[List[StrictStr]] = Field(default=None, description="Dataset type list")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["date_range", "include", "is_public", "label_keys", "label_values", "page", "project_ids", "search", "size", "size_range", "sort_by", "sort_order", "statuses", "types"]
+    __properties: ClassVar[List[str]] = ["date_range", "include", "is_public", "label_keys", "label_values", "page", "search", "size", "size_range", "sort_by", "sort_order", "statuses", "types"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -117,7 +116,6 @@ class DtoDatasetV2SearchReq(BaseModel):
             "label_keys": obj.get("label_keys"),
             "label_values": obj.get("label_values"),
             "page": obj.get("page"),
-            "project_ids": obj.get("project_ids"),
             "search": obj.get("search"),
             "size": obj.get("size"),
             "size_range": DtoSizeRangeFilter.from_dict(obj["size_range"]) if obj.get("size_range") is not None else None,

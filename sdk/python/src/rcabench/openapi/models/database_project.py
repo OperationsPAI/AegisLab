@@ -27,13 +27,13 @@ class DatabaseProject(BaseModel):
     """
     DatabaseProject
     """ # noqa: E501
-    created_at: Optional[StrictStr] = None
-    description: Optional[StrictStr] = None
+    created_at: Optional[StrictStr] = Field(default=None, description="Creation time")
+    description: Optional[StrictStr] = Field(default=None, description="Project description")
     id: Optional[StrictInt] = None
     is_public: Optional[StrictBool] = Field(default=None, description="Whether publicly visible")
-    name: Optional[StrictStr] = None
-    status: Optional[StrictInt] = Field(default=None, description="0:disabled 1:enabled -1:deleted")
-    updated_at: Optional[StrictStr] = None
+    name: Optional[StrictStr] = Field(default=None, description="Project name with size limit")
+    status: Optional[StrictInt] = Field(default=None, description="Status: -1:deleted 0:disabled 1:enabled")
+    updated_at: Optional[StrictStr] = Field(default=None, description="Update time")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["created_at", "description", "id", "is_public", "name", "status", "updated_at"]
 

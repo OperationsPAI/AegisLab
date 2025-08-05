@@ -5,17 +5,17 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**avatar** | **str** | Avatar URL | [optional] 
+**avatar** | **str** | Avatar URL with size limit | [optional] 
 **created_at** | **str** | Creation time | [optional] 
-**email** | **str** | Email (unique) | [optional] 
-**full_name** | **str** | Full name | [optional] 
+**email** | **str** | Email (unique) with size limit | [optional] 
+**full_name** | **str** | Full name with size limit | [optional] 
 **id** | **int** | Unique identifier | [optional] 
 **is_active** | **bool** | Whether active | [optional] 
 **last_login_at** | **str** | Last login time | [optional] 
 **phone** | **str** | Phone number | [optional] 
-**status** | **int** | 0:disabled 1:enabled -1:deleted | [optional] 
+**status** | **int** | Status: -1:deleted 0:disabled 1:enabled | [optional] 
 **updated_at** | **str** | Update time | [optional] 
-**username** | **str** | Username (unique) | [optional] 
+**username** | **str** | Username (unique) with size limit | [optional] 
 
 ## Example
 

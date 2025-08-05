@@ -29,19 +29,19 @@ class DtoQueryInjectionResp(BaseModel):
     """
     DtoQueryInjectionResp
     """ # noqa: E501
-    benchmark: Optional[StrictStr] = Field(default=None, description="Benchmark database, add index")
+    benchmark: Optional[StrictStr] = Field(default=None, description="Benchmark database, add index and size limit")
     created_at: Optional[StrictStr] = Field(default=None, description="Creation time, add time index")
     description: Optional[StrictStr] = Field(default=None, description="Description (optional field)")
     display_config: Optional[StrictStr] = Field(default=None, description="User-facing display configuration")
-    end_time: Optional[StrictStr] = Field(default=None, description="Expected fault end time, add time index")
+    end_time: Optional[StrictStr] = Field(default=None, description="Expected fault end time, nullable")
     engine_config: Optional[StrictStr] = Field(default=None, description="System-facing runtime configuration")
     fault_type: Optional[StrictInt] = Field(default=None, description="Fault type, add composite index")
     ground_truth: Optional[HandlerGroundtruth] = None
     id: Optional[StrictInt] = Field(default=None, description="Unique identifier")
-    injection_name: Optional[StrictStr] = Field(default=None, description="Name injected in k8s resources")
+    injection_name: Optional[StrictStr] = Field(default=None, description="Name injected in k8s resources with size limit")
     pre_duration: Optional[StrictInt] = Field(default=None, description="Normal data duration")
-    start_time: Optional[StrictStr] = Field(default=None, description="Expected fault start time, add time index")
-    status: Optional[StrictInt] = Field(default=None, description="Status, add composite index")
+    start_time: Optional[StrictStr] = Field(default=None, description="Expected fault start time, nullable with validation")
+    status: Optional[StrictInt] = Field(default=None, description="Status: -1:deleted 0:disabled 1:enabled")
     task: Optional[DatabaseTask] = Field(default=None, description="Foreign key association")
     task_id: Optional[StrictStr] = Field(default=None, description="Associated task ID, add composite index")
     updated_at: Optional[StrictStr] = Field(default=None, description="Update time")

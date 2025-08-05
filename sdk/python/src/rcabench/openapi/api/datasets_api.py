@@ -53,14 +53,13 @@ class DatasetsApi:
         self,
         page: Annotated[Optional[StrictInt], Field(description="Page number (default 1)")] = None,
         size: Annotated[Optional[StrictInt], Field(description="Page size (default 20, max 100)")] = None,
-        project_id: Annotated[Optional[StrictInt], Field(description="Filter by project ID")] = None,
         type: Annotated[Optional[StrictStr], Field(description="Filter by dataset type")] = None,
         status: Annotated[Optional[StrictInt], Field(description="Filter by status")] = None,
         is_public: Annotated[Optional[StrictBool], Field(description="Filter by public status")] = None,
         search: Annotated[Optional[StrictStr], Field(description="Search in name and description")] = None,
         sort_by: Annotated[Optional[StrictStr], Field(description="Sort field (id,name,created_at,updated_at)")] = None,
         sort_order: Annotated[Optional[StrictStr], Field(description="Sort order (asc,desc)")] = None,
-        include: Annotated[Optional[StrictStr], Field(description="Include related data (project,injections,labels)")] = None,
+        include: Annotated[Optional[StrictStr], Field(description="Include related data (injections,labels)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -82,8 +81,6 @@ class DatasetsApi:
         :type page: int
         :param size: Page size (default 20, max 100)
         :type size: int
-        :param project_id: Filter by project ID
-        :type project_id: int
         :param type: Filter by dataset type
         :type type: str
         :param status: Filter by status
@@ -96,7 +93,7 @@ class DatasetsApi:
         :type sort_by: str
         :param sort_order: Sort order (asc,desc)
         :type sort_order: str
-        :param include: Include related data (project,injections,labels)
+        :param include: Include related data (injections,labels)
         :type include: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -123,7 +120,6 @@ class DatasetsApi:
         _param = self._api_v2_datasets_get_serialize(
             page=page,
             size=size,
-            project_id=project_id,
             type=type,
             status=status,
             is_public=is_public,
@@ -159,14 +155,13 @@ class DatasetsApi:
         self,
         page: Annotated[Optional[StrictInt], Field(description="Page number (default 1)")] = None,
         size: Annotated[Optional[StrictInt], Field(description="Page size (default 20, max 100)")] = None,
-        project_id: Annotated[Optional[StrictInt], Field(description="Filter by project ID")] = None,
         type: Annotated[Optional[StrictStr], Field(description="Filter by dataset type")] = None,
         status: Annotated[Optional[StrictInt], Field(description="Filter by status")] = None,
         is_public: Annotated[Optional[StrictBool], Field(description="Filter by public status")] = None,
         search: Annotated[Optional[StrictStr], Field(description="Search in name and description")] = None,
         sort_by: Annotated[Optional[StrictStr], Field(description="Sort field (id,name,created_at,updated_at)")] = None,
         sort_order: Annotated[Optional[StrictStr], Field(description="Sort order (asc,desc)")] = None,
-        include: Annotated[Optional[StrictStr], Field(description="Include related data (project,injections,labels)")] = None,
+        include: Annotated[Optional[StrictStr], Field(description="Include related data (injections,labels)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -188,8 +183,6 @@ class DatasetsApi:
         :type page: int
         :param size: Page size (default 20, max 100)
         :type size: int
-        :param project_id: Filter by project ID
-        :type project_id: int
         :param type: Filter by dataset type
         :type type: str
         :param status: Filter by status
@@ -202,7 +195,7 @@ class DatasetsApi:
         :type sort_by: str
         :param sort_order: Sort order (asc,desc)
         :type sort_order: str
-        :param include: Include related data (project,injections,labels)
+        :param include: Include related data (injections,labels)
         :type include: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -229,7 +222,6 @@ class DatasetsApi:
         _param = self._api_v2_datasets_get_serialize(
             page=page,
             size=size,
-            project_id=project_id,
             type=type,
             status=status,
             is_public=is_public,
@@ -265,14 +257,13 @@ class DatasetsApi:
         self,
         page: Annotated[Optional[StrictInt], Field(description="Page number (default 1)")] = None,
         size: Annotated[Optional[StrictInt], Field(description="Page size (default 20, max 100)")] = None,
-        project_id: Annotated[Optional[StrictInt], Field(description="Filter by project ID")] = None,
         type: Annotated[Optional[StrictStr], Field(description="Filter by dataset type")] = None,
         status: Annotated[Optional[StrictInt], Field(description="Filter by status")] = None,
         is_public: Annotated[Optional[StrictBool], Field(description="Filter by public status")] = None,
         search: Annotated[Optional[StrictStr], Field(description="Search in name and description")] = None,
         sort_by: Annotated[Optional[StrictStr], Field(description="Sort field (id,name,created_at,updated_at)")] = None,
         sort_order: Annotated[Optional[StrictStr], Field(description="Sort order (asc,desc)")] = None,
-        include: Annotated[Optional[StrictStr], Field(description="Include related data (project,injections,labels)")] = None,
+        include: Annotated[Optional[StrictStr], Field(description="Include related data (injections,labels)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -294,8 +285,6 @@ class DatasetsApi:
         :type page: int
         :param size: Page size (default 20, max 100)
         :type size: int
-        :param project_id: Filter by project ID
-        :type project_id: int
         :param type: Filter by dataset type
         :type type: str
         :param status: Filter by status
@@ -308,7 +297,7 @@ class DatasetsApi:
         :type sort_by: str
         :param sort_order: Sort order (asc,desc)
         :type sort_order: str
-        :param include: Include related data (project,injections,labels)
+        :param include: Include related data (injections,labels)
         :type include: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -335,7 +324,6 @@ class DatasetsApi:
         _param = self._api_v2_datasets_get_serialize(
             page=page,
             size=size,
-            project_id=project_id,
             type=type,
             status=status,
             is_public=is_public,
@@ -366,7 +354,6 @@ class DatasetsApi:
         self,
         page,
         size,
-        project_id,
         type,
         status,
         is_public,
@@ -403,10 +390,6 @@ class DatasetsApi:
         if size is not None:
             
             _query_params.append(('size', size))
-            
-        if project_id is not None:
-            
-            _query_params.append(('project_id', project_id))
             
         if type is not None:
             
@@ -750,7 +733,7 @@ class DatasetsApi:
     def api_v2_datasets_id_get(
         self,
         id: Annotated[StrictInt, Field(description="Dataset ID")],
-        include: Annotated[Optional[StrictStr], Field(description="Include related data (project,injections,labels)")] = None,
+        include: Annotated[Optional[StrictStr], Field(description="Include related data (injections,labels)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -770,7 +753,7 @@ class DatasetsApi:
 
         :param id: Dataset ID (required)
         :type id: int
-        :param include: Include related data (project,injections,labels)
+        :param include: Include related data (injections,labels)
         :type include: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -825,7 +808,7 @@ class DatasetsApi:
     def api_v2_datasets_id_get_with_http_info(
         self,
         id: Annotated[StrictInt, Field(description="Dataset ID")],
-        include: Annotated[Optional[StrictStr], Field(description="Include related data (project,injections,labels)")] = None,
+        include: Annotated[Optional[StrictStr], Field(description="Include related data (injections,labels)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -845,7 +828,7 @@ class DatasetsApi:
 
         :param id: Dataset ID (required)
         :type id: int
-        :param include: Include related data (project,injections,labels)
+        :param include: Include related data (injections,labels)
         :type include: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -900,7 +883,7 @@ class DatasetsApi:
     def api_v2_datasets_id_get_without_preload_content(
         self,
         id: Annotated[StrictInt, Field(description="Dataset ID")],
-        include: Annotated[Optional[StrictStr], Field(description="Include related data (project,injections,labels)")] = None,
+        include: Annotated[Optional[StrictStr], Field(description="Include related data (injections,labels)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -920,7 +903,7 @@ class DatasetsApi:
 
         :param id: Dataset ID (required)
         :type id: int
-        :param include: Include related data (project,injections,labels)
+        :param include: Include related data (injections,labels)
         :type include: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request

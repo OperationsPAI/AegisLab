@@ -18,7 +18,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
@@ -32,7 +32,7 @@ class DtoUpdateContainerRequest(BaseModel):
     image: Optional[StrictStr] = Field(default=None, description="@Description Docker image name (optional)")
     is_public: Optional[StrictBool] = Field(default=None, description="@Description Whether the container is public (optional)")
     name: Optional[StrictStr] = Field(default=None, description="@Description Container name (optional)")
-    status: Optional[StrictBool] = Field(default=None, description="@Description Container status (optional)")
+    status: Optional[StrictInt] = Field(default=None, description="@Description Container status (optional)")
     tag: Optional[StrictStr] = Field(default=None, description="@Description Docker image tag (optional)")
     type: Optional[StrictStr] = Field(default=None, description="@Description Container type (optional)")
     additional_properties: Dict[str, Any] = {}

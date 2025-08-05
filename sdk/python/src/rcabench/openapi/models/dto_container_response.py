@@ -35,7 +35,7 @@ class DtoContainerResponse(BaseModel):
     image: Optional[StrictStr] = None
     is_public: Optional[StrictBool] = None
     name: Optional[StrictStr] = None
-    status: Optional[StrictBool] = None
+    status: Optional[StrictInt] = None
     tag: Optional[StrictStr] = None
     type: Optional[StrictStr] = None
     updated_at: Optional[StrictStr] = None

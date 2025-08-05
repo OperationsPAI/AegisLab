@@ -18,24 +18,20 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_algorithm_item import DtoAlgorithmItem
+from rcabench.openapi.models.dto_label_item import DtoLabelItem
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoAlgorithmExecutionRequest(BaseModel):
+class DtoInjectionV2CustomLabelManageReq(BaseModel):
     """
-    DtoAlgorithmExecutionRequest
+    DtoInjectionV2CustomLabelManageReq
     """ # noqa: E501
-    algorithm: DtoAlgorithmItem
-    datapack: Optional[StrictStr] = None
-    dataset: Optional[StrictStr] = None
-    dataset_version: Optional[StrictStr] = None
-    env_vars: Optional[Dict[str, Any]] = None
-    project_name: StrictStr
+    add_labels: Optional[List[DtoLabelItem]] = Field(default=None, description="List of labels to add")
+    remove_labels: Optional[List[StrictStr]] = Field(default=None, description="List of label keys to remove")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["algorithm", "datapack", "dataset", "dataset_version", "env_vars", "project_name"]
+    __properties: ClassVar[List[str]] = ["add_labels", "remove_labels"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -55,7 +51,7 @@ class DtoAlgorithmExecutionRequest(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoAlgorithmExecutionRequest from a JSON string"""
+        """Create an instance of DtoInjectionV2CustomLabelManageReq from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -78,9 +74,13 @@ class DtoAlgorithmExecutionRequest(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of algorithm
-        if self.algorithm:
-            _dict['algorithm'] = self.algorithm.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of each item in add_labels (list)
+        _items = []
+        if self.add_labels:
+            for _item_add_labels in self.add_labels:
+                if _item_add_labels:
+                    _items.append(_item_add_labels.to_dict())
+            _dict['add_labels'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -90,7 +90,7 @@ class DtoAlgorithmExecutionRequest(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoAlgorithmExecutionRequest from a dict"""
+        """Create an instance of DtoInjectionV2CustomLabelManageReq from a dict"""
         if obj is None:
             return None
 
@@ -98,12 +98,8 @@ class DtoAlgorithmExecutionRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "algorithm": DtoAlgorithmItem.from_dict(obj["algorithm"]) if obj.get("algorithm") is not None else None,
-            "datapack": obj.get("datapack"),
-            "dataset": obj.get("dataset"),
-            "dataset_version": obj.get("dataset_version"),
-            "env_vars": obj.get("env_vars"),
-            "project_name": obj.get("project_name")
+            "add_labels": [DtoLabelItem.from_dict(_item) for _item in obj["add_labels"]] if obj.get("add_labels") is not None else None,
+            "remove_labels": obj.get("remove_labels")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

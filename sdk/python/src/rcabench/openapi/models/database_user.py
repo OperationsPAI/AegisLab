@@ -27,17 +27,17 @@ class DatabaseUser(BaseModel):
     """
     DatabaseUser
     """ # noqa: E501
-    avatar: Optional[StrictStr] = Field(default=None, description="Avatar URL")
+    avatar: Optional[StrictStr] = Field(default=None, description="Avatar URL with size limit")
     created_at: Optional[StrictStr] = Field(default=None, description="Creation time")
-    email: Optional[StrictStr] = Field(default=None, description="Email (unique)")
-    full_name: Optional[StrictStr] = Field(default=None, description="Full name")
+    email: Optional[StrictStr] = Field(default=None, description="Email (unique) with size limit")
+    full_name: Optional[StrictStr] = Field(default=None, description="Full name with size limit")
     id: Optional[StrictInt] = Field(default=None, description="Unique identifier")
     is_active: Optional[StrictBool] = Field(default=None, description="Whether active")
     last_login_at: Optional[StrictStr] = Field(default=None, description="Last login time")
     phone: Optional[StrictStr] = Field(default=None, description="Phone number")
-    status: Optional[StrictInt] = Field(default=None, description="0:disabled 1:enabled -1:deleted")
+    status: Optional[StrictInt] = Field(default=None, description="Status: -1:deleted 0:disabled 1:enabled")
     updated_at: Optional[StrictStr] = Field(default=None, description="Update time")
-    username: Optional[StrictStr] = Field(default=None, description="Username (unique)")
+    username: Optional[StrictStr] = Field(default=None, description="Username (unique) with size limit")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["avatar", "created_at", "email", "full_name", "id", "is_active", "last_login_at", "phone", "status", "updated_at", "username"]
 

@@ -12,6 +12,7 @@ Name | Type | Description | Notes
 **end_time_lte** | **str** |  | [optional] 
 **fault_types** | **List[int]** |  | [optional] 
 **include** | **str** |  | [optional] 
+**labels** | [**List[DtoLabelItem]**](DtoLabelItem.md) | Custom labels to filter by | [optional] 
 **page** | **int** |  | [optional] 
 **search** | **str** |  | [optional] 
 **size** | **int** |  | [optional] 
@@ -20,6 +21,7 @@ Name | Type | Description | Notes
 **start_time_gte** | **str** |  | [optional] 
 **start_time_lte** | **str** |  | [optional] 
 **statuses** | **List[int]** |  | [optional] 
+**tags** | **List[str]** | Tag values to filter by | [optional] 
 **task_ids** | **List[str]** |  | [optional] 
 
 ## Example

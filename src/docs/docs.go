@@ -3994,7 +3994,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Advanced search for injections with complex filtering",
+                "description": "Advanced search for injections with complex filtering including custom labels",
                 "consumes": [
                     "application/json"
                 ],
@@ -4233,6 +4233,76 @@ const docTemplate = `{
             }
         },
         "/api/v2/injections/{name}/labels": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Add or remove custom labels (key-value pairs) for an injection",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Injections"
+                ],
+                "summary": "Manage injection custom labels",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Injection Name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Custom label management request",
+                        "name": "manage",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.InjectionV2CustomLabelManageReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Custom labels managed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionV2Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Injection not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/injections/{name}/tags": {
             "patch": {
                 "security": [
                     {
@@ -10617,6 +10687,25 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.InjectionV2CustomLabelManageReq": {
+            "type": "object",
+            "properties": {
+                "add_labels": {
+                    "description": "List of labels to add",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelItem"
+                    }
+                },
+                "remove_labels": {
+                    "description": "List of label keys to remove",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "dto.InjectionV2LabelManageReq": {
             "type": "object",
             "properties": {
@@ -10728,6 +10817,13 @@ const docTemplate = `{
                 "include": {
                     "type": "string"
                 },
+                "labels": {
+                    "description": "Custom labels to filter by",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelItem"
+                    }
+                },
                 "page": {
                     "type": "integer",
                     "minimum": 1
@@ -10828,17 +10924,11 @@ const docTemplate = `{
         "dto.LabelItem": {
             "type": "object",
             "required": [
-                "key",
                 "value"
             ],
             "properties": {
                 "key": {
-                    "type": "string",
-                    "enum": [
-                        "env",
-                        "batch",
-                        "tag"
-                    ]
+                    "type": "string"
                 },
                 "value": {
                     "type": "string"
