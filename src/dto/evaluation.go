@@ -153,3 +153,42 @@ type AlgorithmDatapackEvaluationResp struct {
 	ExecutedAt  string              `json:"executed_at"`  // Execution time
 	Found       bool                `json:"found"`        // Whether execution result was found
 }
+
+// DetectorRecord represents detector analysis result
+type DetectorRecord struct {
+	SpanName            string   `json:"span_name"`
+	Issues              string   `json:"issue"`
+	AbnormalAvgDuration *float64 `json:"abnormal_avg_duration" swaggertype:"number" example:"0.5"`
+	NormalAvgDuration   *float64 `json:"normal_avg_duration" swaggertype:"number" example:"0.3"`
+	AbnormalSuccRate    *float64 `json:"abnormal_succ_rate" swaggertype:"number" example:"0.8"`
+	NormalSuccRate      *float64 `json:"normal_succ_rate" swaggertype:"number" example:"0.95"`
+	AbnormalP90         *float64 `json:"abnormal_p90" swaggertype:"number" example:"1.2"`
+	NormalP90           *float64 `json:"normal_p90" swaggertype:"number" example:"0.8"`
+	AbnormalP95         *float64 `json:"abnormal_p95" swaggertype:"number" example:"1.5"`
+	NormalP95           *float64 `json:"normal_p95" swaggertype:"number" example:"1.0"`
+	AbnormalP99         *float64 `json:"abnormal_p99" swaggertype:"number" example:"2.0"`
+	NormalP99           *float64 `json:"normal_p99" swaggertype:"number" example:"1.3"`
+}
+
+// DatapackDetectorReq represents request for detector results on datapacks
+type DatapackDetectorReq struct {
+	Datapacks []string `json:"datapacks" binding:"required,min=1"`
+	Tag       string   `json:"tag,omitempty" form:"tag"` // Tag filter for filtering execution results
+}
+
+// DatapackDetectorItem represents detector results for a single datapack
+type DatapackDetectorItem struct {
+	Datapack    string           `json:"datapack"`     // Datapack name (from FaultInjectionSchedule)
+	ExecutionID int              `json:"execution_id"` // Execution ID (0 if no execution found)
+	Found       bool             `json:"found"`        // Whether detector result was found
+	ExecutedAt  string           `json:"executed_at"`  // Execution time
+	Results     []DetectorRecord `json:"results"`      // Detector analysis results
+}
+
+// DatapackDetectorResp represents response for detector results on datapacks
+type DatapackDetectorResp struct {
+	TotalCount    int                    `json:"total_count"`     // Total number of requested datapacks
+	FoundCount    int                    `json:"found_count"`     // Number of datapacks with detector results
+	NotFoundCount int                    `json:"not_found_count"` // Number of datapacks without detector results
+	Items         []DatapackDetectorItem `json:"items"`           // Detector results for each datapack
+}

@@ -353,6 +353,9 @@ func SetupV2Routes(router *gin.Engine) {
 
 		// GET /api/v2/evaluations/algorithms/{algorithm}/datapacks/{datapack} - Get algorithm evaluation on a single datapack (requires system read permission)
 		evaluations.GET("/algorithms/:algorithm/datapacks/:datapack", middleware.RequireDatasetRead, v2handlers.GetAlgorithmDatapackEvaluation)
+
+		// POST /api/v2/evaluations/datapacks/detector - Get detector results for multiple datapacks (requires system read permission)
+		evaluations.POST("/datapacks/detector", middleware.RequireDatasetRead, v2handlers.GetDatapackDetectorResults)
 	}
 
 	// Analysis and Detection related API Group (for future expansion)
