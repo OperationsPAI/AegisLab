@@ -20,33 +20,30 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from rcabench.openapi.models.database_container import DatabaseContainer
+from rcabench.openapi.models.database_dataset import DatabaseDataset
 from rcabench.openapi.models.database_label import DatabaseLabel
 from rcabench.openapi.models.dto_injection_v2_response import DtoInjectionV2Response
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoDatasetV2Response(BaseModel):
+class DtoProjectV2Response(BaseModel):
     """
-    DtoDatasetV2Response
+    DtoProjectV2Response
     """ # noqa: E501
-    checksum: Optional[StrictStr] = Field(default=None, description="File checksum")
+    containers: Optional[List[DatabaseContainer]] = Field(default=None, description="Associated containers")
     created_at: Optional[StrictStr] = Field(default=None, description="Creation time")
-    data_source: Optional[StrictStr] = Field(default=None, description="Data source description")
-    description: Optional[StrictStr] = Field(default=None, description="Dataset description")
-    download_url: Optional[StrictStr] = Field(default=None, description="Download URL")
-    file_count: Optional[StrictInt] = Field(default=None, description="File count")
-    format: Optional[StrictStr] = Field(default=None, description="Data format")
+    datasets: Optional[List[DatabaseDataset]] = Field(default=None, description="Associated datasets")
+    description: Optional[StrictStr] = Field(default=None, description="Project description")
     id: Optional[StrictInt] = Field(default=None, description="Unique identifier")
     injections: Optional[List[DtoInjectionV2Response]] = Field(default=None, description="Associated fault injections")
     is_public: Optional[StrictBool] = Field(default=None, description="Whether public")
     labels: Optional[List[DatabaseLabel]] = Field(default=None, description="Associated labels")
-    name: Optional[StrictStr] = Field(default=None, description="Dataset name")
+    name: Optional[StrictStr] = Field(default=None, description="Project name")
     status: Optional[StrictInt] = Field(default=None, description="Status")
-    type: Optional[StrictStr] = Field(default=None, description="Dataset type")
     updated_at: Optional[StrictStr] = Field(default=None, description="Update time")
-    version: Optional[StrictStr] = Field(default=None, description="Dataset version")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["checksum", "created_at", "data_source", "description", "download_url", "file_count", "format", "id", "injections", "is_public", "labels", "name", "status", "type", "updated_at", "version"]
+    __properties: ClassVar[List[str]] = ["containers", "created_at", "datasets", "description", "id", "injections", "is_public", "labels", "name", "status", "updated_at"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -66,7 +63,7 @@ class DtoDatasetV2Response(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoDatasetV2Response from a JSON string"""
+        """Create an instance of DtoProjectV2Response from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -89,6 +86,20 @@ class DtoDatasetV2Response(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in containers (list)
+        _items = []
+        if self.containers:
+            for _item_containers in self.containers:
+                if _item_containers:
+                    _items.append(_item_containers.to_dict())
+            _dict['containers'] = _items
+        # override the default output from pydantic by calling `to_dict()` of each item in datasets (list)
+        _items = []
+        if self.datasets:
+            for _item_datasets in self.datasets:
+                if _item_datasets:
+                    _items.append(_item_datasets.to_dict())
+            _dict['datasets'] = _items
         # override the default output from pydantic by calling `to_dict()` of each item in injections (list)
         _items = []
         if self.injections:
@@ -112,7 +123,7 @@ class DtoDatasetV2Response(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoDatasetV2Response from a dict"""
+        """Create an instance of DtoProjectV2Response from a dict"""
         if obj is None:
             return None
 
@@ -120,22 +131,17 @@ class DtoDatasetV2Response(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "checksum": obj.get("checksum"),
+            "containers": [DatabaseContainer.from_dict(_item) for _item in obj["containers"]] if obj.get("containers") is not None else None,
             "created_at": obj.get("created_at"),
-            "data_source": obj.get("data_source"),
+            "datasets": [DatabaseDataset.from_dict(_item) for _item in obj["datasets"]] if obj.get("datasets") is not None else None,
             "description": obj.get("description"),
-            "download_url": obj.get("download_url"),
-            "file_count": obj.get("file_count"),
-            "format": obj.get("format"),
             "id": obj.get("id"),
             "injections": [DtoInjectionV2Response.from_dict(_item) for _item in obj["injections"]] if obj.get("injections") is not None else None,
             "is_public": obj.get("is_public"),
             "labels": [DatabaseLabel.from_dict(_item) for _item in obj["labels"]] if obj.get("labels") is not None else None,
             "name": obj.get("name"),
             "status": obj.get("status"),
-            "type": obj.get("type"),
-            "updated_at": obj.get("updated_at"),
-            "version": obj.get("version")
+            "updated_at": obj.get("updated_at")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

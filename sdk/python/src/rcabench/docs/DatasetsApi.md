@@ -196,7 +196,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v2_datasets_id_get**
-> DtoGenericResponseDtoDatasetV2Response api_v2_datasets_id_get(id, include=include)
+> DtoGenericResponseDtoDatasetV2Response api_v2_datasets_id_get(id, include_injections=include_injections, include_labels=include_labels)
 
 Get dataset by ID
 
@@ -234,11 +234,12 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.DatasetsApi(api_client)
     id = 56 # int | Dataset ID
-    include = 'include_example' # str | Include related data (injections,labels) (optional)
+    include_injections = True # bool | Include related fault injections (optional)
+    include_labels = True # bool | Include related labels (optional)
 
     try:
         # Get dataset by ID
-        api_response = api_instance.api_v2_datasets_id_get(id, include=include)
+        api_response = api_instance.api_v2_datasets_id_get(id, include_injections=include_injections, include_labels=include_labels)
         print("The response of DatasetsApi->api_v2_datasets_id_get:\n")
         pprint(api_response)
     except Exception as e:
@@ -253,7 +254,8 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **id** | **int**| Dataset ID | 
- **include** | **str**| Include related data (injections,labels) | [optional] 
+ **include_injections** | **bool**| Include related fault injections | [optional] 
+ **include_labels** | **bool**| Include related labels | [optional] 
 
 ### Return type
 

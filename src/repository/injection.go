@@ -787,7 +787,7 @@ func RemoveTagFromInjection(injectionID int, tagValue string) error {
 // Helper functions
 
 // UpdateInjectionV2 updates injection by ID for V2 API
-func UpdateInjectionV2(id int, updates map[string]interface{}) error {
+func UpdateInjectionV2(id int, updates map[string]any) error {
 	result := database.DB.Model(&database.FaultInjectionSchedule{}).Where("id = ?", id).Updates(updates)
 	if result.Error != nil {
 		return result.Error

@@ -18,19 +18,23 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
+from rcabench.openapi.models.dto_detector_record import DtoDetectorRecord
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoLabelItem(BaseModel):
+class DtoDatapackDetectorItem(BaseModel):
     """
-    DtoLabelItem
+    DtoDatapackDetectorItem
     """ # noqa: E501
-    key: StrictStr
-    value: StrictStr
+    datapack: Optional[StrictStr] = Field(default=None, description="Datapack name (from FaultInjectionSchedule)")
+    executed_at: Optional[StrictStr] = Field(default=None, description="Execution time")
+    execution_id: Optional[StrictInt] = Field(default=None, description="Execution ID (0 if no execution found)")
+    found: Optional[StrictBool] = Field(default=None, description="Whether detector result was found")
+    results: Optional[List[DtoDetectorRecord]] = Field(default=None, description="Detector analysis results")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["key", "value"]
+    __properties: ClassVar[List[str]] = ["datapack", "executed_at", "execution_id", "found", "results"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -50,7 +54,7 @@ class DtoLabelItem(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoLabelItem from a JSON string"""
+        """Create an instance of DtoDatapackDetectorItem from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -73,6 +77,13 @@ class DtoLabelItem(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in results (list)
+        _items = []
+        if self.results:
+            for _item_results in self.results:
+                if _item_results:
+                    _items.append(_item_results.to_dict())
+            _dict['results'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -82,7 +93,7 @@ class DtoLabelItem(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoLabelItem from a dict"""
+        """Create an instance of DtoDatapackDetectorItem from a dict"""
         if obj is None:
             return None
 
@@ -90,8 +101,11 @@ class DtoLabelItem(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "key": obj.get("key"),
-            "value": obj.get("value")
+            "datapack": obj.get("datapack"),
+            "executed_at": obj.get("executed_at"),
+            "execution_id": obj.get("execution_id"),
+            "found": obj.get("found"),
+            "results": [DtoDetectorRecord.from_dict(_item) for _item in obj["results"]] if obj.get("results") is not None else None
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

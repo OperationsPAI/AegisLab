@@ -15,11 +15,9 @@ from rcabench.openapi.models.dto_dataset_build_payload import DtoDatasetBuildPay
 import time
 import typer
 import os
-import shutil
 import json
-import uuid
 from datetime import datetime
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional
 
 app = typer.Typer()
 
@@ -59,7 +57,7 @@ def dataset(
                 with connection.cursor(dictionary=True) as cursor:
                     # 获取版本信息
                     cursor.execute("SELECT VERSION() as version")
-                    version_info: Optional[Dict[str, Any]] = cursor.fetchone()
+                    version_info: Optional[Dict[str, Any]] = cursor.fetchone()  # type: ignore
                     assert version_info, "未能获取 MySQL版本信息"
                     print(f"📋 MySQL版本: {version_info['version']}")
 
@@ -77,8 +75,8 @@ def dataset(
                 print(f"📋 查询结果：找到 {len(rows)} 条记录")
 
                 for index, row in enumerate(rows, 1):
-                    injection_id = row["id"]
-                    injection_name = str(row["injection_name"])
+                    injection_id = row["id"]  # type: ignore
+                    injection_name = str(row["injection_name"])  # type: ignore
 
                     print(
                         f"处理第 {index}/{len(rows)} 条：ID={injection_id}, Name={injection_name}"
@@ -150,7 +148,7 @@ def detector(
                 with connection.cursor(dictionary=True) as cursor:
                     # 获取版本信息
                     cursor.execute("SELECT VERSION() as version")
-                    version_info: Optional[Dict[str, Any]] = cursor.fetchone()
+                    version_info: Optional[Dict[str, Any]] = cursor.fetchone()  # type: ignore
                     assert version_info, "未能获取 MySQL版本信息"
                     print(f"📋 MySQL版本: {version_info['version']}")
 
@@ -172,8 +170,8 @@ def detector(
                 print(f"📋 查询结果：找到 {len(rows)} 条记录")
 
                 for index, row in enumerate(rows, 1):
-                    injection_id = row["id"]
-                    injection_name = str(row["injection_name"])
+                    injection_id = row["id"]  # type: ignore
+                    injection_name = str(row["injection_name"])  # type: ignore
 
                     print(
                         f"处理第 {index}/{len(rows)} 条：ID={injection_id}, Name={injection_name}"

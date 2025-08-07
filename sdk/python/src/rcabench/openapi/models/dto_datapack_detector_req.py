@@ -18,19 +18,20 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoLabelItem(BaseModel):
+class DtoDatapackDetectorReq(BaseModel):
     """
-    DtoLabelItem
+    DtoDatapackDetectorReq
     """ # noqa: E501
-    key: StrictStr
-    value: StrictStr
+    datapacks: Annotated[List[StrictStr], Field(min_length=1)]
+    tag: Optional[StrictStr] = Field(default=None, description="Tag filter for filtering execution results")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["key", "value"]
+    __properties: ClassVar[List[str]] = ["datapacks", "tag"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -50,7 +51,7 @@ class DtoLabelItem(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoLabelItem from a JSON string"""
+        """Create an instance of DtoDatapackDetectorReq from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -82,7 +83,7 @@ class DtoLabelItem(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoLabelItem from a dict"""
+        """Create an instance of DtoDatapackDetectorReq from a dict"""
         if obj is None:
             return None
 
@@ -90,8 +91,8 @@ class DtoLabelItem(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "key": obj.get("key"),
-            "value": obj.get("value")
+            "datapacks": obj.get("datapacks"),
+            "tag": obj.get("tag")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

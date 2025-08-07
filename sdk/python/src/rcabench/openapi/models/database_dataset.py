@@ -18,19 +18,31 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoLabelItem(BaseModel):
+class DatabaseDataset(BaseModel):
     """
-    DtoLabelItem
+    DatabaseDataset
     """ # noqa: E501
-    key: StrictStr
-    value: StrictStr
+    checksum: Optional[StrictStr] = Field(default=None, description="File checksum")
+    created_at: Optional[StrictStr] = Field(default=None, description="Creation time")
+    data_source: Optional[StrictStr] = Field(default=None, description="Data source description")
+    dataset_version: Optional[StrictStr] = Field(default=None, description="Dataset version with size limit")
+    description: Optional[StrictStr] = Field(default=None, description="Dataset description")
+    download_url: Optional[StrictStr] = Field(default=None, description="Download link with size limit")
+    file_count: Optional[StrictInt] = Field(default=None, description="File count with validation")
+    format: Optional[StrictStr] = Field(default=None, description="Data format (json, csv, parquet, etc.)")
+    id: Optional[StrictInt] = Field(default=None, description="Unique identifier")
+    is_public: Optional[StrictBool] = Field(default=None, description="Whether public")
+    name: Optional[StrictStr] = Field(default=None, description="Dataset name with size limit")
+    status: Optional[StrictInt] = Field(default=None, description="Status: -1:deleted 0:disabled 1:enabled")
+    type: Optional[StrictStr] = Field(default=None, description="Dataset type (e.g., \"microservice\", \"database\", \"network\")")
+    updated_at: Optional[StrictStr] = Field(default=None, description="Update time")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["key", "value"]
+    __properties: ClassVar[List[str]] = ["checksum", "created_at", "data_source", "dataset_version", "description", "download_url", "file_count", "format", "id", "is_public", "name", "status", "type", "updated_at"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -50,7 +62,7 @@ class DtoLabelItem(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoLabelItem from a JSON string"""
+        """Create an instance of DatabaseDataset from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -82,7 +94,7 @@ class DtoLabelItem(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoLabelItem from a dict"""
+        """Create an instance of DatabaseDataset from a dict"""
         if obj is None:
             return None
 
@@ -90,8 +102,20 @@ class DtoLabelItem(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "key": obj.get("key"),
-            "value": obj.get("value")
+            "checksum": obj.get("checksum"),
+            "created_at": obj.get("created_at"),
+            "data_source": obj.get("data_source"),
+            "dataset_version": obj.get("dataset_version"),
+            "description": obj.get("description"),
+            "download_url": obj.get("download_url"),
+            "file_count": obj.get("file_count"),
+            "format": obj.get("format"),
+            "id": obj.get("id"),
+            "is_public": obj.get("is_public"),
+            "name": obj.get("name"),
+            "status": obj.get("status"),
+            "type": obj.get("type"),
+            "updated_at": obj.get("updated_at")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

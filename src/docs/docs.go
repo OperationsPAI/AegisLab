@@ -3275,9 +3275,15 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "type": "string",
-                        "description": "Include related data (injections,labels)",
-                        "name": "include",
+                        "type": "boolean",
+                        "description": "Include related fault injections",
+                        "name": "include_injections",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include related labels",
+                        "name": "include_labels",
                         "in": "query"
                     }
                 ],
@@ -4951,6 +4957,88 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Permission not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get detailed information about a specific project",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Get project by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Project ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include related containers",
+                        "name": "include_containers",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include related datasets",
+                        "name": "include_datasets",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include related fault injections",
+                        "name": "include_injections",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include related labels",
+                        "name": "include_labels",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Project retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ProjectV2Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid project ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Project not found",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -6850,67 +6938,59 @@ const docTemplate = `{
                 }
             }
         },
-        "database.FaultInjectionSchedule": {
+        "database.Dataset": {
             "type": "object",
             "properties": {
-                "benchmark": {
-                    "description": "Benchmark database, add index and size limit",
+                "checksum": {
+                    "description": "File checksum",
                     "type": "string"
                 },
                 "created_at": {
-                    "description": "Creation time, add time index",
+                    "description": "Creation time",
+                    "type": "string"
+                },
+                "data_source": {
+                    "description": "Data source description",
+                    "type": "string"
+                },
+                "dataset_version": {
+                    "description": "Dataset version with size limit",
                     "type": "string"
                 },
                 "description": {
-                    "description": "Description (optional field)",
+                    "description": "Dataset description",
                     "type": "string"
                 },
-                "display_config": {
-                    "description": "User-facing display configuration",
+                "download_url": {
+                    "description": "Download link with size limit",
                     "type": "string"
                 },
-                "end_time": {
-                    "description": "Expected fault end time, nullable",
-                    "type": "string"
-                },
-                "engine_config": {
-                    "description": "System-facing runtime configuration",
-                    "type": "string"
-                },
-                "fault_type": {
-                    "description": "Fault type, add composite index",
+                "file_count": {
+                    "description": "File count with validation",
                     "type": "integer"
+                },
+                "format": {
+                    "description": "Data format (json, csv, parquet, etc.)",
+                    "type": "string"
                 },
                 "id": {
                     "description": "Unique identifier",
                     "type": "integer"
                 },
-                "injection_name": {
-                    "description": "Name injected in k8s resources with size limit",
-                    "type": "string"
+                "is_public": {
+                    "description": "Whether public",
+                    "type": "boolean"
                 },
-                "pre_duration": {
-                    "description": "Normal data duration",
-                    "type": "integer"
-                },
-                "start_time": {
-                    "description": "Expected fault start time, nullable with validation",
+                "name": {
+                    "description": "Dataset name with size limit",
                     "type": "string"
                 },
                 "status": {
                     "description": "Status: -1:deleted 0:disabled 1:enabled",
                     "type": "integer"
                 },
-                "task": {
-                    "description": "Foreign key association",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/database.Task"
-                        }
-                    ]
-                },
-                "task_id": {
-                    "description": "Associated task ID, add composite index",
+                "type": {
+                    "description": "Dataset type (e.g., \"microservice\", \"database\", \"network\")",
                     "type": "string"
                 },
                 "updated_at": {
@@ -8282,35 +8362,6 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.DatasetV2InjectionRelationResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "description": "Creation time",
-                    "type": "string"
-                },
-                "fault_injection": {
-                    "description": "Fault injection details",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/database.FaultInjectionSchedule"
-                        }
-                    ]
-                },
-                "fault_injection_id": {
-                    "description": "Fault injection ID",
-                    "type": "integer"
-                },
-                "id": {
-                    "description": "Relation ID",
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "description": "Update time",
-                    "type": "string"
-                }
-            }
-        },
         "dto.DatasetV2LabelCreateReq": {
             "type": "object",
             "required": [
@@ -8410,7 +8461,7 @@ const docTemplate = `{
                     "description": "Associated fault injections",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.DatasetV2InjectionRelationResponse"
+                        "$ref": "#/definitions/dto.InjectionV2Response"
                     }
                 },
                 "is_public": {
@@ -9791,6 +9842,31 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GenericResponse-dto_ProjectV2Response": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ProjectV2Response"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GenericResponse-dto_QueryInjectionResp": {
             "type": "object",
             "properties": {
@@ -11134,6 +11210,7 @@ const docTemplate = `{
         "dto.LabelItem": {
             "type": "object",
             "required": [
+                "key",
                 "value"
             ],
             "properties": {
@@ -11578,6 +11655,67 @@ const docTemplate = `{
                 "total": {
                     "type": "integer",
                     "example": 50
+                }
+            }
+        },
+        "dto.ProjectV2Response": {
+            "type": "object",
+            "properties": {
+                "containers": {
+                    "description": "Associated containers",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/database.Container"
+                    }
+                },
+                "created_at": {
+                    "description": "Creation time",
+                    "type": "string"
+                },
+                "datasets": {
+                    "description": "Associated datasets",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/database.Dataset"
+                    }
+                },
+                "description": {
+                    "description": "Project description",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "Unique identifier",
+                    "type": "integer"
+                },
+                "injections": {
+                    "description": "Associated fault injections",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.InjectionV2Response"
+                    }
+                },
+                "is_public": {
+                    "description": "Whether public",
+                    "type": "boolean"
+                },
+                "labels": {
+                    "description": "Associated labels",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/database.Label"
+                    }
+                },
+                "name": {
+                    "description": "Project name",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status",
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "description": "Update time",
+                    "type": "string"
                 }
             }
         },
