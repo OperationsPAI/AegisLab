@@ -300,6 +300,7 @@ func ToDatasetV2Response(dataset *database.Dataset, includeRelations bool) *Data
 	resp := &DatasetV2Response{
 		ID:          dataset.ID,
 		Name:        dataset.Name,
+		Version:     dataset.Version,
 		Description: dataset.Description,
 		Type:        dataset.Type,
 		FileCount:   dataset.FileCount,
