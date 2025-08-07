@@ -555,3 +555,34 @@ func GetProjectDatasetsMap(projectIDs []int) (map[int][]database.Dataset, error)
 
 	return datasetsMap, nil
 }
+
+func GetProjectInjetionMap(projectIDs []int) (map[int][]database.FaultInjectionSchedule, error) {
+	if len(projectIDs) == 0 {
+		return make(map[int][]database.FaultInjectionSchedule), nil
+	}
+
+	var injections []database.FaultInjectionSchedule
+	if err := database.DB.
+		Joins("JOIN tasks ON fault_injection_schedules.task_id = tasks.id").
+		Where("tasks.project_id IN ?", projectIDs).
+		Preload("Task").
+		Find(&injections).Error; err != nil {
+		return nil, fmt.Errorf("failed to get project fault injection relations: %v", err)
+	}
+
+	injectionsMap := make(map[int][]database.FaultInjectionSchedule)
+	for _, injection := range injections {
+		if injection.Task != nil {
+			projectID := *injection.Task.ProjectID
+			injectionsMap[projectID] = append(injectionsMap[projectID], injection)
+		}
+	}
+
+	for _, id := range projectIDs {
+		if _, exists := injectionsMap[id]; !exists {
+			injectionsMap[id] = []database.FaultInjectionSchedule{}
+		}
+	}
+
+	return injectionsMap, nil
+}

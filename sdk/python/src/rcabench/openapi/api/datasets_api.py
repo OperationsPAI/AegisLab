@@ -733,7 +733,8 @@ class DatasetsApi:
     def api_v2_datasets_id_get(
         self,
         id: Annotated[StrictInt, Field(description="Dataset ID")],
-        include: Annotated[Optional[StrictStr], Field(description="Include related data (injections,labels)")] = None,
+        include_injections: Annotated[Optional[StrictBool], Field(description="Include related fault injections")] = None,
+        include_labels: Annotated[Optional[StrictBool], Field(description="Include related labels")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -753,8 +754,10 @@ class DatasetsApi:
 
         :param id: Dataset ID (required)
         :type id: int
-        :param include: Include related data (injections,labels)
-        :type include: str
+        :param include_injections: Include related fault injections
+        :type include_injections: bool
+        :param include_labels: Include related labels
+        :type include_labels: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -779,7 +782,8 @@ class DatasetsApi:
 
         _param = self._api_v2_datasets_id_get_serialize(
             id=id,
-            include=include,
+            include_injections=include_injections,
+            include_labels=include_labels,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -808,7 +812,8 @@ class DatasetsApi:
     def api_v2_datasets_id_get_with_http_info(
         self,
         id: Annotated[StrictInt, Field(description="Dataset ID")],
-        include: Annotated[Optional[StrictStr], Field(description="Include related data (injections,labels)")] = None,
+        include_injections: Annotated[Optional[StrictBool], Field(description="Include related fault injections")] = None,
+        include_labels: Annotated[Optional[StrictBool], Field(description="Include related labels")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -828,8 +833,10 @@ class DatasetsApi:
 
         :param id: Dataset ID (required)
         :type id: int
-        :param include: Include related data (injections,labels)
-        :type include: str
+        :param include_injections: Include related fault injections
+        :type include_injections: bool
+        :param include_labels: Include related labels
+        :type include_labels: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -854,7 +861,8 @@ class DatasetsApi:
 
         _param = self._api_v2_datasets_id_get_serialize(
             id=id,
-            include=include,
+            include_injections=include_injections,
+            include_labels=include_labels,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -883,7 +891,8 @@ class DatasetsApi:
     def api_v2_datasets_id_get_without_preload_content(
         self,
         id: Annotated[StrictInt, Field(description="Dataset ID")],
-        include: Annotated[Optional[StrictStr], Field(description="Include related data (injections,labels)")] = None,
+        include_injections: Annotated[Optional[StrictBool], Field(description="Include related fault injections")] = None,
+        include_labels: Annotated[Optional[StrictBool], Field(description="Include related labels")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -903,8 +912,10 @@ class DatasetsApi:
 
         :param id: Dataset ID (required)
         :type id: int
-        :param include: Include related data (injections,labels)
-        :type include: str
+        :param include_injections: Include related fault injections
+        :type include_injections: bool
+        :param include_labels: Include related labels
+        :type include_labels: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -929,7 +940,8 @@ class DatasetsApi:
 
         _param = self._api_v2_datasets_id_get_serialize(
             id=id,
-            include=include,
+            include_injections=include_injections,
+            include_labels=include_labels,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -953,7 +965,8 @@ class DatasetsApi:
     def _api_v2_datasets_id_get_serialize(
         self,
         id,
-        include,
+        include_injections,
+        include_labels,
         _request_auth,
         _content_type,
         _headers,
@@ -978,9 +991,13 @@ class DatasetsApi:
         if id is not None:
             _path_params['id'] = id
         # process the query parameters
-        if include is not None:
+        if include_injections is not None:
             
-            _query_params.append(('include', include))
+            _query_params.append(('include_injections', include_injections))
+            
+        if include_labels is not None:
+            
+            _query_params.append(('include_labels', include_labels))
             
         # process the header parameters
         # process the form parameters

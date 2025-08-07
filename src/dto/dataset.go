@@ -175,6 +175,11 @@ type DatasetV2CreateReq struct {
 	NewLabels     []DatasetV2LabelCreateReq `json:"new_labels"`                      // New label list
 }
 
+type DatasetV2GetReq struct {
+	IncludeInjections bool `form:"include_injections"` // Include related fault injections
+	IncludeLabels     bool `form:"include_labels"`     // Include related labels
+}
+
 // DatasetV2LabelCreateReq Create label request
 type DatasetV2LabelCreateReq struct {
 	Key         string `json:"key" binding:"required,max=100"`   // Label key
@@ -219,17 +224,18 @@ type DatasetV2Response struct {
 	Description string `json:"description"` // Dataset description
 	Type        string `json:"type"`        // Dataset type
 
-	FileCount   int                                  `json:"file_count"`             // File count
-	DataSource  string                               `json:"data_source"`            // Data source description
-	Format      string                               `json:"format"`                 // Data format
-	Status      int                                  `json:"status"`                 // Status
-	IsPublic    bool                                 `json:"is_public"`              // Whether public
-	DownloadURL string                               `json:"download_url,omitempty"` // Download URL
-	Checksum    string                               `json:"checksum,omitempty"`     // File checksum
-	CreatedAt   time.Time                            `json:"created_at"`             // Creation time
-	UpdatedAt   time.Time                            `json:"updated_at"`             // Update time
-	Injections  []DatasetV2InjectionRelationResponse `json:"injections,omitempty"`   // Associated fault injections
-	Labels      []database.Label                     `json:"labels,omitempty"`       // Associated labels
+	FileCount   int       `json:"file_count"`             // File count
+	DataSource  string    `json:"data_source"`            // Data source description
+	Format      string    `json:"format"`                 // Data format
+	Status      int       `json:"status"`                 // Status
+	IsPublic    bool      `json:"is_public"`              // Whether public
+	DownloadURL string    `json:"download_url,omitempty"` // Download URL
+	Checksum    string    `json:"checksum,omitempty"`     // File checksum
+	CreatedAt   time.Time `json:"created_at"`             // Creation time
+	UpdatedAt   time.Time `json:"updated_at"`             // Update time
+
+	Injections []InjectionV2Response `json:"injections,omitempty"` // Associated fault injections
+	Labels     []database.Label      `json:"labels,omitempty"`     // Associated labels
 }
 
 // DatasetV2InjectionRelationResponse Dataset fault injection relation response

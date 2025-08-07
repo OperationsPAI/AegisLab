@@ -9,6 +9,7 @@ Method | HTTP request | Description
 [**api_v1_evaluations_raw_data_post**](EvaluationApi.md#api_v1_evaluations_raw_data_post) | **POST** /api/v1/evaluations/raw-data | Get raw evaluation data
 [**api_v2_evaluations_algorithms_algorithm_datapacks_datapack_get**](EvaluationApi.md#api_v2_evaluations_algorithms_algorithm_datapacks_datapack_get) | **GET** /api/v2/evaluations/algorithms/{algorithm}/datapacks/{datapack} | Get Algorithm Datapack Evaluation
 [**api_v2_evaluations_algorithms_algorithm_datasets_dataset_get**](EvaluationApi.md#api_v2_evaluations_algorithms_algorithm_datasets_dataset_get) | **GET** /api/v2/evaluations/algorithms/{algorithm}/datasets/{dataset} | Get Algorithm Dataset Evaluation
+[**api_v2_evaluations_datapacks_detector_post**](EvaluationApi.md#api_v2_evaluations_datapacks_detector_post) | **POST** /api/v2/evaluations/datapacks/detector | Get Datapack Detector Results
 [**api_v2_evaluations_label_keys_get**](EvaluationApi.md#api_v2_evaluations_label_keys_get) | **GET** /api/v2/evaluations/label-keys | Get Available Label Keys
 
 
@@ -404,6 +405,90 @@ Name | Type | Description  | Notes
 **401** | Unauthorized |  -  |
 **403** | Forbidden |  -  |
 **404** | Algorithm or dataset not found |  -  |
+**500** | Internal server error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **api_v2_evaluations_datapacks_detector_post**
+> DtoGenericResponseDtoDatapackDetectorResp api_v2_evaluations_datapacks_detector_post(request)
+
+Get Datapack Detector Results
+
+Get detector analysis results for multiple datapacks. If a datapack has multiple executions, returns the latest one.
+
+### Example
+
+* Api Key Authentication (BearerAuth):
+
+```python
+import rcabench.openapi
+from rcabench.openapi.models.dto_datapack_detector_req import DtoDatapackDetectorReq
+from rcabench.openapi.models.dto_generic_response_dto_datapack_detector_resp import DtoGenericResponseDtoDatapackDetectorResp
+from rcabench.openapi.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = rcabench.openapi.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: BearerAuth
+configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with rcabench.openapi.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = rcabench.openapi.EvaluationApi(api_client)
+    request = rcabench.openapi.DtoDatapackDetectorReq() # DtoDatapackDetectorReq | Datapack detector request
+
+    try:
+        # Get Datapack Detector Results
+        api_response = api_instance.api_v2_evaluations_datapacks_detector_post(request)
+        print("The response of EvaluationApi->api_v2_evaluations_datapacks_detector_post:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling EvaluationApi->api_v2_evaluations_datapacks_detector_post: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **request** | [**DtoDatapackDetectorReq**](DtoDatapackDetectorReq.md)| Datapack detector request | 
+
+### Return type
+
+[**DtoGenericResponseDtoDatapackDetectorResp**](DtoGenericResponseDtoDatapackDetectorResp.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Datapack detector results |  -  |
+**400** | Bad request |  -  |
+**401** | Unauthorized |  -  |
+**403** | Forbidden |  -  |
 **500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

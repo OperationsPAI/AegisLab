@@ -59,50 +59,46 @@ definitions:
         description: Container must belong to a user
         type: integer
     type: object
-  database.FaultInjectionSchedule:
+  database.Dataset:
     properties:
-      benchmark:
-        description: Benchmark database, add index and size limit
+      checksum:
+        description: File checksum
         type: string
       created_at:
-        description: Creation time, add time index
+        description: Creation time
+        type: string
+      data_source:
+        description: Data source description
+        type: string
+      dataset_version:
+        description: Dataset version with size limit
         type: string
       description:
-        description: Description (optional field)
+        description: Dataset description
         type: string
-      display_config:
-        description: User-facing display configuration
+      download_url:
+        description: Download link with size limit
         type: string
-      end_time:
-        description: Expected fault end time, nullable
-        type: string
-      engine_config:
-        description: System-facing runtime configuration
-        type: string
-      fault_type:
-        description: Fault type, add composite index
+      file_count:
+        description: File count with validation
         type: integer
+      format:
+        description: Data format (json, csv, parquet, etc.)
+        type: string
       id:
         description: Unique identifier
         type: integer
-      injection_name:
-        description: Name injected in k8s resources with size limit
-        type: string
-      pre_duration:
-        description: Normal data duration
-        type: integer
-      start_time:
-        description: Expected fault start time, nullable with validation
+      is_public:
+        description: Whether public
+        type: boolean
+      name:
+        description: Dataset name with size limit
         type: string
       status:
         description: 'Status: -1:deleted 0:disabled 1:enabled'
         type: integer
-      task:
-        allOf:
-        - $ref: '#/definitions/database.Task'
-        description: Foreign key association
-      task_id:
-        description: Associated task ID, add composite index
+      type:
+        description: Dataset type (e.g., "microservice", "database", "network")
         type: string
       updated_at:
         description: Update time
@@ -1052,25 +1048,6 @@ definitions:
           type: integer
         type: array
     type: object
-  dto.DatasetV2InjectionRelationResponse:
-    properties:
-      created_at:
-        description: Creation time
-        type: string
-      fault_injection:
-        allOf:
-        - $ref: '#/definitions/database.FaultInjectionSchedule'
-        description: Fault injection details
-      fault_injection_id:
-        description: Fault injection ID
-        type: integer
-      id:
-        description: Relation ID
-        type: integer
-      updated_at:
-        description: Update time
-        type: string
-    type: object
   dto.DatasetV2LabelCreateReq:
     properties:
       category:
@@ -1144,7 +1121,7 @@ definitions:
       injections:
         description: Associated fault injections
         items:
-          $ref: '#/definitions/dto.DatasetV2InjectionRelationResponse'
+          $ref: '#/definitions/dto.InjectionV2Response'
         type: array
       is_public:
         description: Whether public
@@ -2083,6 +2060,22 @@ definitions:
         description: Response generation time
         type: integer
     type: object
+  dto.GenericResponse-dto_ProjectV2Response:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.ProjectV2Response'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
+        type: integer
+    type: object
   dto.GenericResponse-dto_QueryInjectionResp:
     properties:
       code:
@@ -2974,6 +2967,7 @@ definitions:
       value:
         type: string
     required:
+    - key
     - value
     type: object
   dto.ListInjectionsResp:
@@ -3276,6 +3270,50 @@ definitions:
       total:
         example: 50
         type: integer
+    type: object
+  dto.ProjectV2Response:
+    properties:
+      containers:
+        description: Associated containers
+        items:
+          $ref: '#/definitions/database.Container'
+        type: array
+      created_at:
+        description: Creation time
+        type: string
+      datasets:
+        description: Associated datasets
+        items:
+          $ref: '#/definitions/database.Dataset'
+        type: array
+      description:
+        description: Project description
+        type: string
+      id:
+        description: Unique identifier
+        type: integer
+      injections:
+        description: Associated fault injections
+        items:
+          $ref: '#/definitions/dto.InjectionV2Response'
+        type: array
+      is_public:
+        description: Whether public
+        type: boolean
+      labels:
+        description: Associated labels
+        items:
+          $ref: '#/definitions/database.Label'
+        type: array
+      name:
+        description: Project name
+        type: string
+      status:
+        description: Status
+        type: integer
+      updated_at:
+        description: Update time
+        type: string
     type: object
   dto.QueryInjectionResp:
     properties:
@@ -6918,10 +6956,14 @@ paths:
         name: id
         required: true
         type: integer
-      - description: Include related data (injections,labels)
+      - description: Include related fault injections
         in: query
-        name: include
-        type: string
+        name: include_injections
+        type: boolean
+      - description: Include related labels
+        in: query
+        name: include_labels
+        type: boolean
       produces:
       - application/json
       responses:
@@ -8016,6 +8058,59 @@ paths:
       summary: Search permissions
       tags:
       - Permissions
+  /api/v2/projects/{id}:
+    get:
+      description: Get detailed information about a specific project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Include related containers
+        in: query
+        name: include_containers
+        type: boolean
+      - description: Include related datasets
+        in: query
+        name: include_datasets
+        type: boolean
+      - description: Include related fault injections
+        in: query
+        name: include_injections
+        type: boolean
+      - description: Include related labels
+        in: query
+        name: include_labels
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Project retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_ProjectV2Response'
+        "400":
+          description: Invalid project ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Project not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get project by ID
+      tags:
+      - Projects
   /api/v2/relations:
     get:
       description: Get paginated list of relationships with optional filtering

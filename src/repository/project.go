@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
 )
 
@@ -16,6 +17,17 @@ func GetProject(column, param string) (*database.Project, error) {
 	}
 
 	return &record, nil
+}
+
+func GetProjectByID(id int) (*database.Project, error) {
+	var project database.Project
+	if err := database.DB.
+		Where("id = ? AND status != ?", id, consts.ProjectDeleted).
+		First(&project).Error; err != nil {
+		return nil, fmt.Errorf("project not found: %w", err)
+	}
+
+	return &project, nil
 }
 
 // GetProjectStatistics returns project statistics

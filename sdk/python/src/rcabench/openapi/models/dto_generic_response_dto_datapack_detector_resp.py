@@ -18,19 +18,22 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
+from rcabench.openapi.models.dto_datapack_detector_resp import DtoDatapackDetectorResp
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoLabelItem(BaseModel):
+class DtoGenericResponseDtoDatapackDetectorResp(BaseModel):
     """
-    DtoLabelItem
+    DtoGenericResponseDtoDatapackDetectorResp
     """ # noqa: E501
-    key: StrictStr
-    value: StrictStr
+    code: Optional[StrictInt] = Field(default=None, description="Status code")
+    data: Optional[DtoDatapackDetectorResp] = Field(default=None, description="Generic type data")
+    message: Optional[StrictStr] = Field(default=None, description="Response message")
+    timestamp: Optional[StrictInt] = Field(default=None, description="Response generation time")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["key", "value"]
+    __properties: ClassVar[List[str]] = ["code", "data", "message", "timestamp"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -50,7 +53,7 @@ class DtoLabelItem(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoLabelItem from a JSON string"""
+        """Create an instance of DtoGenericResponseDtoDatapackDetectorResp from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -73,6 +76,9 @@ class DtoLabelItem(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of data
+        if self.data:
+            _dict['data'] = self.data.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -82,7 +88,7 @@ class DtoLabelItem(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoLabelItem from a dict"""
+        """Create an instance of DtoGenericResponseDtoDatapackDetectorResp from a dict"""
         if obj is None:
             return None
 
@@ -90,8 +96,10 @@ class DtoLabelItem(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "key": obj.get("key"),
-            "value": obj.get("value")
+            "code": obj.get("code"),
+            "data": DtoDatapackDetectorResp.from_dict(obj["data"]) if obj.get("data") is not None else None,
+            "message": obj.get("message"),
+            "timestamp": obj.get("timestamp")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

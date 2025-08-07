@@ -338,9 +338,12 @@ func SetupV2Routes(router *gin.Engine) {
 		datasets.DELETE("/:id", middleware.RequireDatasetDelete, v2handlers.DeleteDataset)
 	}
 
-	executions := v2.Group("/executions") // Execution Result Management - ExecutionResult Entity
-	labels := v2.Group("/labels")         // Label Management - Label Entity
-	projects := v2.Group("/projects")     // Project Management - Project Entity
+	executions := v2.Group("/executions")                   // Execution Result Management - ExecutionResult Entity
+	labels := v2.Group("/labels")                           // Label Management - Label Entity
+	projects := v2.Group("/projects", middleware.JWTAuth()) // Project Management - Project Entity
+	{
+		projects.GET("/:id", v2handlers.GetProject)
+	}
 
 	// Evaluation API Group
 	evaluations := v2.Group("/evaluations", middleware.JWTAuth())

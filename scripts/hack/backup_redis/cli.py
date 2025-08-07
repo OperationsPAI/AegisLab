@@ -1,6 +1,4 @@
 #!/usr/bin/env -S uv run -s
-from typing import Optional
-
 import redis
 import sqlalchemy
 import typer

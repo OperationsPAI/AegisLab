@@ -105,6 +105,35 @@ func GetDatasetVersions(name string) ([]database.Dataset, error) {
 	return datasets, nil
 }
 
+// GetDatasetInjectionsMap gets all injections for multiple datasets in batch (optimized)
+func GetDatasetInjectionsMap(datasetIDs []int) (map[int][]database.FaultInjectionSchedule, error) {
+	if len(datasetIDs) == 0 {
+		return make(map[int][]database.FaultInjectionSchedule), nil
+	}
+
+	var relations []database.DatasetFaultInjection
+	if err := database.DB.Preload("FaultInjectionSchedule").
+		Where("dataset_id IN ?", datasetIDs).
+		Find(&relations).Error; err != nil {
+		return nil, fmt.Errorf("failed to get dataset injection relations: %v", err)
+	}
+
+	injectionsMap := make(map[int][]database.FaultInjectionSchedule)
+	for _, relation := range relations {
+		if relation.Dataset != nil {
+			injectionsMap[relation.DatasetID] = append(injectionsMap[relation.DatasetID], *relation.FaultInjectionSchedule)
+		}
+	}
+
+	for _, id := range datasetIDs {
+		if _, exists := injectionsMap[id]; !exists {
+			injectionsMap[id] = []database.FaultInjectionSchedule{}
+		}
+	}
+
+	return injectionsMap, nil
+}
+
 // GetDatasetFaultInjections gets fault injections associated with dataset
 func GetDatasetFaultInjections(datasetID int) ([]database.DatasetFaultInjection, error) {
 	var relations []database.DatasetFaultInjection

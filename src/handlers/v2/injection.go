@@ -169,25 +169,11 @@ func ListInjections(c *gin.Context) {
 		return
 	}
 
-	// Get injection IDs for batch label loading
-	injectionIDs := make([]int, len(injections))
-	for i, injection := range injections {
-		injectionIDs[i] = injection.ID
-	}
-
-	// Batch load labels using optimized method (LIST)
-	labelsMap, err := repository.GetInjectionsLabels(injectionIDs)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load injection labels: "+err.Error())
-		return
-	}
-
-	// Convert to response
-	items := make([]dto.InjectionV2Response, len(injections))
 	includeTask := strings.Contains(req.Include, "task")
-	for i, injection := range injections {
-		labels := labelsMap[injection.ID]
-		items[i] = *dto.ToInjectionV2ResponseWithLabels(&injection, includeTask, labels)
+	items, err := toInjectionV2ResponsesWithLabels(injections, includeTask)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to convert injections: "+err.Error())
+		return
 	}
 
 	// Create pagination info
@@ -363,7 +349,6 @@ func DeleteInjection(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/injections/search [post]
 func SearchInjections(c *gin.Context) {
-
 	var req dto.InjectionV2SearchReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
@@ -385,25 +370,11 @@ func SearchInjections(c *gin.Context) {
 		return
 	}
 
-	// Get injection IDs for batch label loading
-	injectionIDs := make([]int, len(injections))
-	for i, injection := range injections {
-		injectionIDs[i] = injection.ID
-	}
-
-	// Batch load labels using optimized method (SEARCH)
-	labelsMap, err := repository.GetInjectionsLabels(injectionIDs)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load injection labels: "+err.Error())
-		return
-	}
-
-	// Convert to response
-	items := make([]dto.InjectionV2Response, len(injections))
 	includeTask := strings.Contains(req.Include, "task")
-	for i, injection := range injections {
-		labels := labelsMap[injection.ID]
-		items[i] = *dto.ToInjectionV2ResponseWithLabels(&injection, includeTask, labels)
+	items, err := toInjectionV2ResponsesWithLabels(injections, includeTask)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to convert injections: "+err.Error())
+		return
 	}
 
 	// Create response using existing SearchResponse
@@ -439,7 +410,6 @@ func SearchInjections(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/injections/{name}/tags [patch]
 func ManageInjectionTags(c *gin.Context) {
-
 	injectionName := c.Param("name")
 	if injectionName == "" {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Injection name is required")
@@ -593,4 +563,26 @@ func ManageInjectionCustomLabels(c *gin.Context) {
 	}
 
 	dto.SuccessResponse(c, response)
+}
+
+func toInjectionV2ResponsesWithLabels(injections []database.FaultInjectionSchedule, includeTask bool) ([]dto.InjectionV2Response, error) {
+	injectionIDs := make([]int, len(injections))
+	for i, injection := range injections {
+		injectionIDs[i] = injection.ID
+	}
+
+	// Batch load labels using optimized method (SEARCH)
+	labelsMap, err := repository.GetInjectionsLabels(injectionIDs)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to load injection labels: %v", err)
+	}
+
+	// Convert to response
+	items := make([]dto.InjectionV2Response, len(injections))
+	for i, injection := range injections {
+		labels := labelsMap[injection.ID]
+		items[i] = *dto.ToInjectionV2ResponseWithLabels(&injection, includeTask, labels)
+	}
+
+	return items, nil
 }

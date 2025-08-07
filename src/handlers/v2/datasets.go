@@ -29,7 +29,6 @@ import (
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/datasets [post]
 func CreateDataset(c *gin.Context) {
-
 	var req dto.DatasetV2CreateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
@@ -256,7 +255,8 @@ func CreateDataset(c *gin.Context) {
 //	@Produce json
 //	@Security BearerAuth
 //	@Param id path int true "Dataset ID"
-//	@Param include query string false "Include related data (injections,labels)"
+//	@Param include_injections query bool false "Include related fault injections"
+//	@Param include_labels query bool false "Include related labels"
 //	@Success 200 {object} dto.GenericResponse[dto.DatasetV2Response] "Dataset retrieved successfully"
 //	@Failure 400 {object} dto.GenericResponse[any] "Invalid dataset ID"
 //	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
@@ -264,7 +264,6 @@ func CreateDataset(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/datasets/{id} [get]
 func GetDataset(c *gin.Context) {
-
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -272,9 +271,11 @@ func GetDataset(c *gin.Context) {
 		return
 	}
 
-	include := c.Query("include")
-	includeInjections := strings.Contains(include, "injections")
-	includeLabels := strings.Contains(include, "labels")
+	var req dto.DatasetV2GetReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters: "+err.Error())
+		return
+	}
 
 	// Get dataset using repository function which excludes deleted datasets
 	dataset, err := repository.GetDatasetByID(id)
@@ -290,26 +291,30 @@ func GetDataset(c *gin.Context) {
 	response := dto.ToDatasetV2Response(dataset, false)
 
 	// Load injection relations if requested
-	if includeInjections {
-		relations, err := repository.GetDatasetFaultInjections(dataset.ID)
+	if req.IncludeInjections {
+		relationMap, err := repository.GetDatasetInjectionsMap([]int{dataset.ID})
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load injections: "+err.Error())
 			return
 		}
 
-		response.Injections = make([]dto.DatasetV2InjectionRelationResponse, len(relations))
-		for i, rel := range relations {
-			response.Injections[i] = dto.DatasetV2InjectionRelationResponse{
-				ID:               rel.ID,
-				FaultInjectionID: rel.FaultInjectionID,
-				CreatedAt:        rel.CreatedAt,
-				UpdatedAt:        rel.UpdatedAt,
-			}
+		injections, ok := relationMap[dataset.ID]
+		if !ok {
+			dto.ErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("No injection found for dataset %d", dataset.ID))
+			return
 		}
+
+		items, err := toInjectionV2ResponsesWithLabels(injections, false)
+		if err != nil {
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to convert injections: "+err.Error())
+			return
+		}
+
+		response.Injections = items
 	}
 
 	// Load label relations if requested
-	if includeLabels {
+	if req.IncludeLabels {
 		labels, err := repository.GetDatasetLabels(dataset.ID)
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load labels: "+err.Error())
@@ -330,21 +335,19 @@ func GetDataset(c *gin.Context) {
 //	@Security BearerAuth
 //	@Param page query int false "Page number (default 1)"
 //	@Param size query int false "Page size (default 20, max 100)"
-//
-// @Param type query string false "Filter by dataset type"
-// @Param status query int false "Filter by status"
-// @Param is_public query bool false "Filter by public status"
-// @Param search query string false "Search in name and description"
-// @Param sort_by query string false "Sort field (id,name,created_at,updated_at)"
-// @Param sort_order query string false "Sort order (asc,desc)"
-// @Param include query string false "Include related data (injections,labels)"
-// @Success 200 {object} dto.GenericResponse[dto.DatasetSearchResponse] "Datasets retrieved successfully"
-// @Failure 400 {object} dto.GenericResponse[any] "Invalid request parameters"
-// @Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/datasets [get]
+//	@Param type query string false "Filter by dataset type"
+//	@Param status query int false "Filter by status"
+//	@Param is_public query bool false "Filter by public status"
+//	@Param search query string false "Search in name and description"
+//	@Param sort_by query string false "Sort field (id,name,created_at,updated_at)"
+//	@Param sort_order query string false "Sort order (asc,desc)"
+//	@Param include query string false "Include related data (injections,labels)"
+//	@Success 200 {object} dto.GenericResponse[dto.DatasetSearchResponse] "Datasets retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request parameters"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/datasets [get]
 func ListDatasets(c *gin.Context) {
-
 	var req dto.DatasetV2ListReq
 	if err := c.ShouldBindQuery(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters: "+err.Error())
@@ -420,7 +423,6 @@ func ListDatasets(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/datasets/{id} [put]
 func UpdateDataset(c *gin.Context) {
-
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -688,7 +690,6 @@ func DeleteDataset(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/datasets/search [post]
 func SearchDatasets(c *gin.Context) {
-
 	var req dto.DatasetV2SearchReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
@@ -783,7 +784,6 @@ func SearchDatasets(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/datasets/{id}/injections [patch]
 func ManageDatasetInjections(c *gin.Context) {
-
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {

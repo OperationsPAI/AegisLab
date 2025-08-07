@@ -119,6 +119,13 @@ const (
 	DatapackBuildSuccess  = 4
 )
 
+// project status: 0:disabled 1:enabled -1:deleted
+const (
+	ProjectDisabled = 0
+	ProjectEnabled  = 1
+	ProjectDeleted  = -1
+)
+
 // dataset status: 0:disabled 1:enabled -1:deleted
 const (
 	DatasetDisabled = 0

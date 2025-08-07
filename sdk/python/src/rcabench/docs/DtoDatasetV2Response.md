@@ -13,7 +13,7 @@ Name | Type | Description | Notes
 **file_count** | **int** | File count | [optional] 
 **format** | **str** | Data format | [optional] 
 **id** | **int** | Unique identifier | [optional] 
-**injections** | [**List[DtoDatasetV2InjectionRelationResponse]**](DtoDatasetV2InjectionRelationResponse.md) | Associated fault injections | [optional] 
+**injections** | [**List[DtoInjectionV2Response]**](DtoInjectionV2Response.md) | Associated fault injections | [optional] 
 **is_public** | **bool** | Whether public | [optional] 
 **labels** | [**List[DatabaseLabel]**](DatabaseLabel.md) | Associated labels | [optional] 
 **name** | **str** | Dataset name | [optional] 
