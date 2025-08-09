@@ -300,11 +300,8 @@ func SetupV2Routes(router *gin.Engine) {
 		// POST /api/v2/algorithms/{algorithm_id}/executions/{execution_id}/detectors - Upload detector results
 		algorithms.POST("/:algorithm_id/executions/:execution_id/detectors", middleware.RequireContainerWrite, v2handlers.UploadDetectorResults)
 
-		// POST /api/v2/algorithms/{algorithm_id}/results - Upload granularity results (supports auto-execution creation)
+		// POST /api/v2/algorithms/{algorithm_id}/results - Upload granularity results (supports auto-execution creation via query param)
 		algorithms.POST("/:algorithm_id/results", middleware.RequireContainerWrite, v2handlers.UploadGranularityResults)
-
-		// POST /api/v2/algorithms/{algorithm_id}/executions/{execution_id}/results - Upload granularity results to existing execution
-		algorithms.POST("/:algorithm_id/executions/:execution_id/results", middleware.RequireContainerWrite, v2handlers.UploadGranularityResults)
 	}
 
 	// Other Business Entity API Group

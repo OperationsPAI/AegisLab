@@ -102,6 +102,7 @@ func SearchAlgorithms(c *gin.Context) {
 func ListAlgorithms(c *gin.Context) {
 
 	// Create a basic search request from query parameters
+	tp := string(consts.ContainerTypeAlgorithm)
 	req := dto.AlgorithmSearchRequest{
 		AdvancedSearchRequest: dto.AdvancedSearchRequest{
 			SearchRequest: dto.SearchRequest{
@@ -109,6 +110,7 @@ func ListAlgorithms(c *gin.Context) {
 				Size: 20,
 			},
 		},
+		Type: &tp,
 	}
 
 	// Parse pagination from query parameters
@@ -125,8 +127,8 @@ func ListAlgorithms(c *gin.Context) {
 
 	// Convert to SearchRequest and ensure algorithm type filter and active status
 	searchReq := req.ConvertToSearchRequest()
-	searchReq.AddFilter("type", dto.OpEqual, string(consts.ContainerTypeAlgorithm))
-	searchReq.AddFilter("status", dto.OpEqual, true)
+	// searchReq.AddFilter("type", dto.OpEqual, string(consts.ContainerTypeAlgorithm))
+	// searchReq.AddFilter("status", dto.OpEqual, true)
 
 	// Add default sorting by name
 	searchReq.AddSort("name", dto.SortASC)
@@ -285,13 +287,13 @@ func UploadDetectorResults(c *gin.Context) {
 // UploadGranularityResults uploads granularity algorithm results with dual creation modes
 //
 //	@Summary Upload granularity algorithm results
-//	@Description Upload granularity results for regular algorithms. Supports two modes: 1) Use existing execution_id, 2) Auto-create execution using algorithm_id and datapack_id
+//	@Description Upload granularity results for regular algorithms. Supports two modes: 1) Create new execution with algorithm_id and datapack_id, 2) Use existing execution_id via query parameter
 //	@Tags Algorithms
 //	@Accept json
 //	@Produce json
 //	@Security BearerAuth
 //	@Param algorithm_id path int true "Algorithm ID"
-//	@Param execution_id path int false "Execution ID (optional - will create new if not provided)"
+//	@Param execution_id query int false "Execution ID (optional, will create new if not provided)"
 //	@Param request body dto.GranularityResultEnhancedRequest true "Granularity results with optional execution creation"
 //	@Success 200 {object} dto.GenericResponse[dto.AlgorithmResultUploadResponse] "Results uploaded successfully"
 //	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
@@ -299,7 +301,6 @@ func UploadDetectorResults(c *gin.Context) {
 //	@Failure 404 {object} dto.GenericResponse[any] "Algorithm or datapack not found"
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/algorithms/{algorithm_id}/results [post]
-//	@Router /api/v2/algorithms/{algorithm_id}/executions/{execution_id}/results [post]
 func UploadGranularityResults(c *gin.Context) {
 	// Parse algorithm_id parameter
 	algorithmID, err := parseIntParam(c.Param("algorithm_id"))
@@ -308,9 +309,9 @@ func UploadGranularityResults(c *gin.Context) {
 		return
 	}
 
-	// Parse optional execution_id parameter
+	// Parse optional execution_id query parameter
 	var executionID int
-	executionIDParam := c.Param("execution_id")
+	executionIDParam := c.Query("execution_id")
 	hasExecutionID := executionIDParam != ""
 
 	if hasExecutionID {
