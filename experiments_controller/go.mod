@@ -13,7 +13,6 @@ require (
 	github.com/go-logr/stdr v1.2.2
 	github.com/go-playground/validator/v10 v10.24.0
 	github.com/google/uuid v1.6.0
-	github.com/k0kubun/pp v3.0.1+incompatible
 	github.com/moby/buildkit v0.18.2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.20.5
