@@ -3,6 +3,8 @@ package dto
 import (
 	"fmt"
 	"time"
+
+	"github.com/LGU-SE-Internal/rcabench/consts"
 )
 
 // SortDirection represents sort direction
@@ -335,7 +337,7 @@ func (asr *AlgorithmSearchRequest) ConvertToSearchRequest() *SearchRequest {
 
 	// Default to only active algorithms
 	if !sr.HasFilter("status") {
-		sr.AddFilter("status", OpEqual, true)
+		sr.AddFilter("status", OpEqual, consts.ContainerEnabled)
 	}
 
 	return sr
