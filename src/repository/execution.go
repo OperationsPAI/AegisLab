@@ -16,11 +16,16 @@ import (
 
 func CreateExecutionResult(taskID string, algorithmID, datapackID int, labels *dto.ExecutionLabels) (int, error) {
 	executionResult := database.ExecutionResult{
-		TaskID:      taskID,
 		AlgorithmID: algorithmID,
 		DatapackID:  datapackID,
 		Status:      consts.ExecutionInitial,
 	}
+
+	// Set TaskID to nil if it's empty, otherwise set the value
+	if taskID != "" {
+		executionResult.TaskID = &taskID
+	}
+
 	if err := database.DB.Create(&executionResult).Error; err != nil {
 		return 0, err
 	}
