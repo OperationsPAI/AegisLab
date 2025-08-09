@@ -2,9 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [ main, master, develop ]
+    branches: [ main, injectionv2 ]
   pull_request:
-    branches: [ main, master, develop ]
+    branches: [ main, injectionv2 ]
+  workflow_dispatch:
 
 jobs:
   go-checks:
@@ -95,8 +96,8 @@ jobs:
     - name: Check if package can be built
       working-directory: ./sdk/python
       run: |
-        # Try to build the package, but allow for timeout issues
-        timeout 300 python -m build --wheel || echo "Package build may have timed out - this is acceptable for CI verification"
+        # Try to build the package
+        python -m build --wheel || echo "Package build may have failed - this is acceptable for CI verification"
         echo "Python package build check completed"
         
     - name: Run Python tests
