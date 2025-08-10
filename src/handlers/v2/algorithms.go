@@ -475,9 +475,24 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 
 	// Process each execution request
 	for _, execution := range req.Executions {
-		// Get algorithm container
+		// Get algorithm container with conditional filtering
 		var algorithm database.Container
-		if err := database.DB.Where("name = ? AND type = ? AND status = ?", execution.Algorithm.Name, consts.ContainerTypeAlgorithm, true).First(&algorithm).Error; err != nil {
+		query := database.DB.Where("name = ? AND type = ? AND status = ?", execution.Algorithm.Name, consts.ContainerTypeAlgorithm, consts.ContainerEnabled)
+
+		// Add image and tag filters if specified
+		if execution.Algorithm.Image != "" {
+			query = query.Where("image = ?", execution.Algorithm.Image)
+		}
+		if execution.Algorithm.Tag != "" {
+			query = query.Where("tag = ?", execution.Algorithm.Tag)
+		}
+
+		// If neither image nor tag specified, get the latest one (most recent)
+		if execution.Algorithm.Image == "" && execution.Algorithm.Tag == "" {
+			query = query.Order("created_at DESC")
+		}
+
+		if err := query.First(&algorithm).Error; err != nil {
 			dto.ErrorResponse(c, http.StatusNotFound, "Algorithm not found: "+execution.Algorithm.Name)
 			return
 		}
