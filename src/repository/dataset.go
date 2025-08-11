@@ -29,6 +29,28 @@ func GetDatasetByID(id int) (*database.Dataset, error) {
 	return &dataset, nil
 }
 
+// GetDatasetByIDWithRelations gets dataset by ID with preloaded relations using GORM associations
+func GetDatasetByIDWithRelations(id int, includeLabels, includeInjections bool) (*database.Dataset, error) {
+	var dataset database.Dataset
+	query := database.DB.Where("id = ? AND status != ?", id, consts.DatasetDeleted)
+
+	// Preload relations based on request
+	if includeLabels {
+		query = query.Preload("Labels")
+	}
+	if includeInjections {
+		query = query.Preload("FaultInjections")
+	}
+
+	if err := query.First(&dataset).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("dataset with id %d not found", id)
+		}
+		return nil, fmt.Errorf("failed to get dataset: %v", err)
+	}
+	return &dataset, nil
+}
+
 // GetDatasetByNameAndVersion gets dataset by name and version
 func GetDatasetByNameAndVersion(name, version string) (*database.Dataset, error) {
 	var dataset database.Dataset
@@ -120,7 +142,7 @@ func GetDatasetInjectionsMap(datasetIDs []int) (map[int][]database.FaultInjectio
 
 	injectionsMap := make(map[int][]database.FaultInjectionSchedule)
 	for _, relation := range relations {
-		if relation.Dataset != nil {
+		if relation.FaultInjectionSchedule != nil {
 			injectionsMap[relation.DatasetID] = append(injectionsMap[relation.DatasetID], *relation.FaultInjectionSchedule)
 		}
 	}

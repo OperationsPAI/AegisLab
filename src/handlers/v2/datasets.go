@@ -277,8 +277,8 @@ func GetDataset(c *gin.Context) {
 		return
 	}
 
-	// Get dataset using repository function which excludes deleted datasets
-	dataset, err := repository.GetDatasetByID(id)
+	// Use GORM preloading for simplicity and better performance in single dataset queries
+	dataset, err := repository.GetDatasetByIDWithRelations(id, req.IncludeLabels, req.IncludeInjections)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			dto.ErrorResponse(c, http.StatusNotFound, "Dataset not found")
@@ -290,37 +290,18 @@ func GetDataset(c *gin.Context) {
 
 	response := dto.ToDatasetV2Response(dataset, false)
 
-	// Load injection relations if requested
-	if req.IncludeInjections {
-		relationMap, err := repository.GetDatasetInjectionsMap([]int{dataset.ID})
-		if err != nil {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load injections: "+err.Error())
-			return
-		}
+	// Convert GORM associations to response format if loaded
+	if req.IncludeLabels && len(dataset.Labels) > 0 {
+		response.Labels = dataset.Labels
+	}
 
-		injections, ok := relationMap[dataset.ID]
-		if !ok {
-			dto.ErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("No injection found for dataset %d", dataset.ID))
-			return
-		}
-
-		items, err := toInjectionV2ResponsesWithLabels(injections, false)
+	if req.IncludeInjections && len(dataset.FaultInjections) > 0 {
+		items, err := toInjectionV2ResponsesWithLabels(dataset.FaultInjections, false)
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to convert injections: "+err.Error())
 			return
 		}
-
 		response.Injections = items
-	}
-
-	// Load label relations if requested
-	if req.IncludeLabels {
-		labels, err := repository.GetDatasetLabels(dataset.ID)
-		if err != nil {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load labels: "+err.Error())
-			return
-		}
-		response.Labels = labels
 	}
 
 	dto.SuccessResponse(c, response)
@@ -378,14 +359,54 @@ func ListDatasets(c *gin.Context) {
 	// Convert to response
 	items := make([]dto.DatasetV2Response, len(datasets))
 	includeLabels := strings.Contains(req.Include, "labels")
+	includeInjections := strings.Contains(req.Include, "injections")
+
+	// Batch load related data if requested for better performance
+	var labelsMap map[int][]database.Label
+	var injectionsMap map[int][]database.FaultInjectionSchedule
+
+	if includeLabels || includeInjections {
+		datasetIDs := make([]int, len(datasets))
+		for i, dataset := range datasets {
+			datasetIDs[i] = dataset.ID
+		}
+
+		// Load labels in batch if requested
+		if includeLabels {
+			labelsMap, err = repository.GetDatasetLabelsMap(datasetIDs)
+			if err != nil {
+				dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load labels: "+err.Error())
+				return
+			}
+		}
+
+		// Load injections in batch if requested
+		if includeInjections {
+			injectionsMap, err = repository.GetDatasetInjectionsMap(datasetIDs)
+			if err != nil {
+				dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load injections: "+err.Error())
+				return
+			}
+		}
+	}
+
 	for i, dataset := range datasets {
 		items[i] = *dto.ToDatasetV2Response(&dataset, false)
 
-		// Load labels if requested
+		// Add labels if requested and available
 		if includeLabels {
-			labels, err := repository.GetDatasetLabels(dataset.ID)
-			if err == nil {
+			if labels, ok := labelsMap[dataset.ID]; ok {
 				items[i].Labels = labels
+			}
+		}
+
+		// Add injections if requested and available
+		if includeInjections {
+			if injections, ok := injectionsMap[dataset.ID]; ok {
+				injectionItems, err := toInjectionV2ResponsesWithLabels(injections, false)
+				if err == nil {
+					items[i].Injections = injectionItems
+				}
 			}
 		}
 	}
