@@ -143,6 +143,10 @@ type Dataset struct {
 	Checksum    string    `gorm:"type:varchar(64)" json:"checksum,omitempty"`                           // File checksum
 	CreatedAt   time.Time `gorm:"autoCreateTime;index" json:"created_at"`                               // Creation time
 	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                     // Update time
+
+	// Many-to-many relationships - use explicit intermediate tables for better control
+	Labels          []Label                  `gorm:"many2many:dataset_labels;" json:"labels,omitempty"`
+	FaultInjections []FaultInjectionSchedule `gorm:"many2many:dataset_fault_injections;foreignKey:ID;joinForeignKey:DatasetID;References:ID;joinReferences:FaultInjectionID" json:"fault_injections,omitempty"`
 }
 
 // Label table - Unified label management
@@ -167,7 +171,7 @@ type DatasetFaultInjection struct {
 	CreatedAt        time.Time `gorm:"autoCreateTime" json:"created_at"`                                         // Creation time
 	UpdatedAt        time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                         // Update time
 
-	// Foreign key association
+	// Foreign key association - keep explicit associations for manual queries
 	Dataset                *Dataset                `gorm:"foreignKey:DatasetID" json:"dataset,omitempty"`
 	FaultInjectionSchedule *FaultInjectionSchedule `gorm:"foreignKey:FaultInjectionID" json:"fault_injection,omitempty"`
 }
@@ -178,8 +182,9 @@ type DatasetLabel struct {
 	DatasetID int       `gorm:"not null;index:idx_dataset_label_unique,unique" json:"dataset_id"` // Dataset ID
 	LabelID   int       `gorm:"not null;index:idx_dataset_label_unique,unique" json:"label_id"`   // Label ID
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`                                 // Creation time
+	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                 // Update time
 
-	// Foreign key association
+	// Foreign key association - keep explicit associations for manual queries
 	Dataset *Dataset `gorm:"foreignKey:DatasetID" json:"dataset,omitempty"`
 	Label   *Label   `gorm:"foreignKey:LabelID" json:"label,omitempty"`
 }
