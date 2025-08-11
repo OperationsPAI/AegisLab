@@ -294,6 +294,7 @@ func UploadDetectorResults(c *gin.Context) {
 //	@Security BearerAuth
 //	@Param algorithm_id path int true "Algorithm ID"
 //	@Param execution_id query int false "Execution ID (optional, will create new if not provided)"
+//	@Param label query string false "Label tag (optional, only used when creating new execution)"
 //	@Param request body dto.GranularityResultEnhancedRequest true "Granularity results with optional execution creation"
 //	@Success 200 {object} dto.GenericResponse[dto.AlgorithmResultUploadResponse] "Results uploaded successfully"
 //	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
@@ -319,6 +320,15 @@ func UploadGranularityResults(c *gin.Context) {
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusBadRequest, "Invalid execution ID: "+err.Error())
 			return
+		}
+	}
+
+	// Parse optional label query parameter
+	labelParam := c.Query("label")
+	var labels *dto.ExecutionLabels
+	if labelParam != "" {
+		labels = &dto.ExecutionLabels{
+			Tag: labelParam,
 		}
 	}
 
@@ -366,7 +376,7 @@ func UploadGranularityResults(c *gin.Context) {
 		}
 
 		// Create new execution record using repository function
-		executionID, err = repository.CreateExecutionResult("", algorithmID, req.DatapackID, nil)
+		executionID, err = repository.CreateExecutionResult("", algorithmID, req.DatapackID, labels)
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to create execution record: "+err.Error())
 			return
