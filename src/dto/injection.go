@@ -368,7 +368,7 @@ type InjectionV2Response struct {
 // InjectionV2ListReq represents the request for listing injections
 type InjectionV2ListReq struct {
 	Page      int      `form:"page" binding:"omitempty,min=1"`
-	Size      int      `form:"size" binding:"omitempty,min=1,max=100"`
+	Size      int      `form:"size" binding:"omitempty,min=1"`
 	TaskID    string   `form:"task_id" binding:"omitempty"`
 	FaultType *int     `form:"fault_type" binding:"omitempty"`
 	Status    *int     `form:"status" binding:"omitempty"`
