@@ -3445,6 +3445,64 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/datasets/{id}/download": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Download dataset file by ID",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "Datasets"
+                ],
+                "summary": "Download dataset",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Dataset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dataset file",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid dataset ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Dataset not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/datasets/{id}/injections": {
             "patch": {
                 "security": [
@@ -4428,6 +4486,63 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Injection not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/labels": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new label with key-value pair. If a deleted label with same key-value exists, it will be restored and updated.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Labels"
+                ],
+                "summary": "Create label",
+                "parameters": [
+                    {
+                        "description": "Label creation request",
+                        "name": "label",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.LabelCreateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Label created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_LabelResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "409": {
+                        "description": "Label already exists",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -7030,6 +7145,10 @@ const docTemplate = `{
                     "description": "Label key",
                     "type": "string"
                 },
+                "status": {
+                    "description": "Status: -1:deleted 0:disabled 1:enabled",
+                    "type": "integer"
+                },
                 "updated_at": {
                     "description": "Update time",
                     "type": "string"
@@ -9619,6 +9738,31 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GenericResponse-dto_LabelResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.LabelResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GenericResponse-dto_ListAlgorithmsResp": {
             "type": "object",
             "properties": {
@@ -11207,6 +11351,34 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.LabelCreateReq": {
+            "type": "object",
+            "required": [
+                "key",
+                "value"
+            ],
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "color": {
+                    "type": "string",
+                    "maxLength": 10
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000
+                },
+                "key": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "value": {
+                    "type": "string",
+                    "maxLength": 255
+                }
+            }
+        },
         "dto.LabelItem": {
             "type": "object",
             "required": [
@@ -11216,6 +11388,41 @@ const docTemplate = `{
             "properties": {
                 "key": {
                     "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.LabelResponse": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "color": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_system": {
+                    "type": "boolean"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "usage": {
+                    "type": "integer"
                 },
                 "value": {
                     "type": "string"

@@ -126,6 +126,13 @@ const (
 	ProjectDeleted  = -1
 )
 
+// label status: 0:disabled 1:enabled -1:deleted
+const (
+	LabelDisabled = 0
+	LabelEnabled  = 1
+	LabelDeleted  = -1
+)
+
 // dataset status: 0:disabled 1:enabled -1:deleted
 const (
 	DatasetDisabled = 0

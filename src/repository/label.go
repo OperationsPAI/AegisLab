@@ -4,10 +4,21 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
+
+type RemoveRelationsFromId func(int) error
+
+var RemoveRelationsFromLabel = map[string]RemoveRelationsFromId{
+	"container": RemoveAllContainersFromLabel,
+	"dataset":   RemoveAllDatasetsFromLabel,
+	"execution": RemoveAllExecutionsFromLabel,
+	"injection": RemoveAllInjectionsFromLabel,
+	"project":   RemoveAllProjectsFromLabel,
+}
 
 // CreateOrGetLabel creates a new label or gets existing one
 func CreateOrGetLabel(key, value, category, description string) (*database.Label, error) {
@@ -57,14 +68,25 @@ func GetLabelByID(id int) (*database.Label, error) {
 }
 
 // GetLabelByKeyValue gets label by key-value pair
-func GetLabelByKeyValue(key, value string) (*database.Label, error) {
+func GetLabelByKeyandValue(key, value string, status ...int) (*database.Label, error) {
+	query := database.DB.Where("label_key = ? AND label_value = ?", key, value)
+
+	if len(status) == 0 {
+		query = query.Where("status != ?", consts.LabelDeleted)
+	} else if len(status) == 1 {
+		query = query.Where("status = ?", status[0])
+	} else {
+		query = query.Where("status IN ?", status)
+	}
+
 	var label database.Label
-	if err := database.DB.Where("label_key = ? AND label_value = ?", key, value).First(&label).Error; err != nil {
+	if err := query.First(&label).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("label '%s:%s' not found", key, value)
 		}
 		return nil, fmt.Errorf("failed to get label: %v", err)
 	}
+
 	return &label, nil
 }
 
@@ -556,7 +578,7 @@ func GetProjectDatasetsMap(projectIDs []int) (map[int][]database.Dataset, error)
 	return datasetsMap, nil
 }
 
-func GetProjectInjetionMap(projectIDs []int) (map[int][]database.FaultInjectionSchedule, error) {
+func GetProjectInjetionsMap(projectIDs []int) (map[int][]database.FaultInjectionSchedule, error) {
 	if len(projectIDs) == 0 {
 		return make(map[int][]database.FaultInjectionSchedule), nil
 	}
@@ -585,4 +607,44 @@ func GetProjectInjetionMap(projectIDs []int) (map[int][]database.FaultInjectionS
 	}
 
 	return injectionsMap, nil
+}
+
+func RemoveAllContainersFromLabel(labelID int) error {
+	if err := database.DB.Where("label_id = ?", labelID).
+		Delete(&database.ContainerLabel{}).Error; err != nil {
+		return fmt.Errorf("failed to remove all containers from dataset: %v", err)
+	}
+	return nil
+}
+
+func RemoveAllDatasetsFromLabel(labelID int) error {
+	if err := database.DB.Where("label_id = ?", labelID).
+		Delete(&database.DatasetLabel{}).Error; err != nil {
+		return fmt.Errorf("failed to remove all datasets from label: %v", err)
+	}
+	return nil
+}
+
+func RemoveAllExecutionsFromLabel(labelID int) error {
+	if err := database.DB.Where("label_id = ?", labelID).
+		Delete(&database.ExecutionResultLabel{}).Error; err != nil {
+		return fmt.Errorf("failed to remove all executions from label: %v", err)
+	}
+	return nil
+}
+
+func RemoveAllInjectionsFromLabel(labelID int) error {
+	if err := database.DB.Where("label_id = ?", labelID).
+		Delete(&database.FaultInjectionLabel{}).Error; err != nil {
+		return fmt.Errorf("failed to remove all injections from label: %v", err)
+	}
+	return nil
+}
+
+func RemoveAllProjectsFromLabel(labelID int) error {
+	if err := database.DB.Where("label_id = ?", labelID).
+		Delete(&database.ProjectLabel{}).Error; err != nil {
+		return fmt.Errorf("failed to remove all projects from label: %v", err)
+	}
+	return nil
 }

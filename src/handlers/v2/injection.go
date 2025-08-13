@@ -74,7 +74,6 @@ func GetInjection(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/injections [post]
 func CreateInjection(c *gin.Context) {
-
 	var req dto.InjectionV2CreateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())

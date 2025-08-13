@@ -68,7 +68,7 @@ func GetAllSubDirectories(root string) ([]string, error) {
 }
 
 func IsAllowedPath(path string) bool {
-	allowedRoot := config.GetString("nfs.path")
+	allowedRoot := config.GetString("jfs.path")
 	rel, err := filepath.Rel(allowedRoot, path)
 	return err == nil && !strings.Contains(rel, "..")
 }

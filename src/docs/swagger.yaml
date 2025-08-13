@@ -128,6 +128,9 @@ definitions:
       key:
         description: Label key
         type: string
+      status:
+        description: 'Status: -1:deleted 0:disabled 1:enabled'
+        type: integer
       updated_at:
         description: Update time
         type: string
@@ -1914,6 +1917,22 @@ definitions:
         description: Response generation time
         type: integer
     type: object
+  dto.GenericResponse-dto_LabelResponse:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.LabelResponse'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
+        type: integer
+    type: object
   dto.GenericResponse-dto_ListAlgorithmsResp:
     properties:
       code:
@@ -2960,6 +2979,26 @@ definitions:
       task_id:
         type: string
     type: object
+  dto.LabelCreateReq:
+    properties:
+      category:
+        type: string
+      color:
+        maxLength: 10
+        type: string
+      description:
+        maxLength: 1000
+        type: string
+      key:
+        maxLength: 255
+        type: string
+      value:
+        maxLength: 255
+        type: string
+    required:
+    - key
+    - value
+    type: object
   dto.LabelItem:
     properties:
       key:
@@ -2969,6 +3008,29 @@ definitions:
     required:
     - key
     - value
+    type: object
+  dto.LabelResponse:
+    properties:
+      category:
+        type: string
+      color:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      is_system:
+        type: boolean
+      key:
+        type: string
+      updated_at:
+        type: string
+      usage:
+        type: integer
+      value:
+        type: string
     type: object
   dto.ListInjectionsResp:
     properties:
@@ -7036,6 +7098,43 @@ paths:
       summary: Update dataset
       tags:
       - Datasets
+  /api/v2/datasets/{id}/download:
+    get:
+      description: Download dataset file by ID
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: Dataset file
+          schema:
+            type: file
+        "400":
+          description: Invalid dataset ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Dataset not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Download dataset
+      tags:
+      - Datasets
   /api/v2/datasets/{id}/injections:
     patch:
       consumes:
@@ -7719,6 +7818,43 @@ paths:
       summary: Search injections
       tags:
       - Injections
+  /api/v2/labels:
+    post:
+      consumes:
+      - application/json
+      description: Create a new label with key-value pair. If a deleted label with
+        same key-value exists, it will be restored and updated.
+      parameters:
+      - description: Label creation request
+        in: body
+        name: label
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LabelCreateReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Label created successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_LabelResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "409":
+          description: Label already exists
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Create label
+      tags:
+      - Labels
   /api/v2/monitor/info:
     get:
       description: Get basic system information and status

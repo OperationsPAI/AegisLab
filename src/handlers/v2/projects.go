@@ -92,7 +92,7 @@ func GetProject(c *gin.Context) {
 
 	// Load injections if requested
 	if req.IncludeInjections {
-		relationMap, err := repository.GetProjectInjetionMap([]int{project.ID})
+		relationMap, err := repository.GetProjectInjetionsMap([]int{project.ID})
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load injections: "+err.Error())
 			return

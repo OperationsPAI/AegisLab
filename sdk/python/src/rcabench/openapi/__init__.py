@@ -24,6 +24,7 @@ __all__ = [
     "ContainersApi",
     "DatasetsApi",
     "InjectionsApi",
+    "LabelsApi",
     "PermissionsApi",
     "ProjectsApi",
     "RelationsApi",
@@ -138,6 +139,7 @@ __all__ = [
     "DtoGenericResponseDtoInjectionStatsResp",
     "DtoGenericResponseDtoInjectionV2CreateResponse",
     "DtoGenericResponseDtoInjectionV2Response",
+    "DtoGenericResponseDtoLabelResponse",
     "DtoGenericResponseDtoListAlgorithmsResp",
     "DtoGenericResponseDtoListInjectionsResp",
     "DtoGenericResponseDtoListTasksResp",
@@ -199,7 +201,9 @@ __all__ = [
     "DtoInjectionV2Response",
     "DtoInjectionV2SearchReq",
     "DtoInjectionV2UpdateReq",
+    "DtoLabelCreateReq",
     "DtoLabelItem",
+    "DtoLabelResponse",
     "DtoListInjectionsResp",
     "DtoLoginRequest",
     "DtoLoginResponse",
@@ -289,6 +293,7 @@ from rcabench.openapi.api.authentication_api import AuthenticationApi as Authent
 from rcabench.openapi.api.containers_api import ContainersApi as ContainersApi
 from rcabench.openapi.api.datasets_api import DatasetsApi as DatasetsApi
 from rcabench.openapi.api.injections_api import InjectionsApi as InjectionsApi
+from rcabench.openapi.api.labels_api import LabelsApi as LabelsApi
 from rcabench.openapi.api.permissions_api import PermissionsApi as PermissionsApi
 from rcabench.openapi.api.projects_api import ProjectsApi as ProjectsApi
 from rcabench.openapi.api.relations_api import RelationsApi as RelationsApi
@@ -407,6 +412,7 @@ from rcabench.openapi.models.dto_generic_response_dto_injection_search_response 
 from rcabench.openapi.models.dto_generic_response_dto_injection_stats_resp import DtoGenericResponseDtoInjectionStatsResp as DtoGenericResponseDtoInjectionStatsResp
 from rcabench.openapi.models.dto_generic_response_dto_injection_v2_create_response import DtoGenericResponseDtoInjectionV2CreateResponse as DtoGenericResponseDtoInjectionV2CreateResponse
 from rcabench.openapi.models.dto_generic_response_dto_injection_v2_response import DtoGenericResponseDtoInjectionV2Response as DtoGenericResponseDtoInjectionV2Response
+from rcabench.openapi.models.dto_generic_response_dto_label_response import DtoGenericResponseDtoLabelResponse as DtoGenericResponseDtoLabelResponse
 from rcabench.openapi.models.dto_generic_response_dto_list_algorithms_resp import DtoGenericResponseDtoListAlgorithmsResp as DtoGenericResponseDtoListAlgorithmsResp
 from rcabench.openapi.models.dto_generic_response_dto_list_injections_resp import DtoGenericResponseDtoListInjectionsResp as DtoGenericResponseDtoListInjectionsResp
 from rcabench.openapi.models.dto_generic_response_dto_list_tasks_resp import DtoGenericResponseDtoListTasksResp as DtoGenericResponseDtoListTasksResp
@@ -468,7 +474,9 @@ from rcabench.openapi.models.dto_injection_v2_label_manage_req import DtoInjecti
 from rcabench.openapi.models.dto_injection_v2_response import DtoInjectionV2Response as DtoInjectionV2Response
 from rcabench.openapi.models.dto_injection_v2_search_req import DtoInjectionV2SearchReq as DtoInjectionV2SearchReq
 from rcabench.openapi.models.dto_injection_v2_update_req import DtoInjectionV2UpdateReq as DtoInjectionV2UpdateReq
+from rcabench.openapi.models.dto_label_create_req import DtoLabelCreateReq as DtoLabelCreateReq
 from rcabench.openapi.models.dto_label_item import DtoLabelItem as DtoLabelItem
+from rcabench.openapi.models.dto_label_response import DtoLabelResponse as DtoLabelResponse
 from rcabench.openapi.models.dto_list_injections_resp import DtoListInjectionsResp as DtoListInjectionsResp
 from rcabench.openapi.models.dto_login_request import DtoLoginRequest as DtoLoginRequest
 from rcabench.openapi.models.dto_login_response import DtoLoginResponse as DtoLoginResponse

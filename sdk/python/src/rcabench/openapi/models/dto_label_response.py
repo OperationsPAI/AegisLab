@@ -18,28 +18,27 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DatabaseLabel(BaseModel):
+class DtoLabelResponse(BaseModel):
     """
-    DatabaseLabel
+    DtoLabelResponse
     """ # noqa: E501
-    category: Optional[StrictStr] = Field(default=None, description="Label category (dataset, fault_injection, algorithm, container, etc.)")
-    color: Optional[StrictStr] = Field(default=None, description="Label color (hex format)")
-    created_at: Optional[StrictStr] = Field(default=None, description="Creation time")
-    description: Optional[StrictStr] = Field(default=None, description="Label description")
-    id: Optional[StrictInt] = Field(default=None, description="Unique identifier")
-    is_system: Optional[StrictBool] = Field(default=None, description="Whether system label")
-    key: Optional[StrictStr] = Field(default=None, description="Label key")
-    status: Optional[StrictInt] = Field(default=None, description="Status: -1:deleted 0:disabled 1:enabled")
-    updated_at: Optional[StrictStr] = Field(default=None, description="Update time")
-    usage: Optional[StrictInt] = Field(default=None, description="Usage count")
-    value: Optional[StrictStr] = Field(default=None, description="Label value")
+    category: Optional[StrictStr] = None
+    color: Optional[StrictStr] = None
+    created_at: Optional[StrictStr] = None
+    description: Optional[StrictStr] = None
+    id: Optional[StrictInt] = None
+    is_system: Optional[StrictBool] = None
+    key: Optional[StrictStr] = None
+    updated_at: Optional[StrictStr] = None
+    usage: Optional[StrictInt] = None
+    value: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["category", "color", "created_at", "description", "id", "is_system", "key", "status", "updated_at", "usage", "value"]
+    __properties: ClassVar[List[str]] = ["category", "color", "created_at", "description", "id", "is_system", "key", "updated_at", "usage", "value"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -59,7 +58,7 @@ class DatabaseLabel(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DatabaseLabel from a JSON string"""
+        """Create an instance of DtoLabelResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -91,7 +90,7 @@ class DatabaseLabel(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DatabaseLabel from a dict"""
+        """Create an instance of DtoLabelResponse from a dict"""
         if obj is None:
             return None
 
@@ -106,7 +105,6 @@ class DatabaseLabel(BaseModel):
             "id": obj.get("id"),
             "is_system": obj.get("is_system"),
             "key": obj.get("key"),
-            "status": obj.get("status"),
             "updated_at": obj.get("updated_at"),
             "usage": obj.get("usage"),
             "value": obj.get("value")

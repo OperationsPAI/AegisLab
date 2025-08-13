@@ -6,6 +6,7 @@ from rcabench.openapi.api.authentication_api import AuthenticationApi
 from rcabench.openapi.api.containers_api import ContainersApi
 from rcabench.openapi.api.datasets_api import DatasetsApi
 from rcabench.openapi.api.injections_api import InjectionsApi
+from rcabench.openapi.api.labels_api import LabelsApi
 from rcabench.openapi.api.permissions_api import PermissionsApi
 from rcabench.openapi.api.projects_api import ProjectsApi
 from rcabench.openapi.api.relations_api import RelationsApi

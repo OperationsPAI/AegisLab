@@ -175,6 +175,19 @@ type DatasetV2CreateReq struct {
 	NewLabels     []DatasetV2LabelCreateReq `json:"new_labels"`                      // New label list
 }
 
+func (req *DatasetV2CreateReq) ToEntity() *database.Dataset {
+	return &database.Dataset{
+		Name:        req.Name,
+		Version:     req.Version,
+		Description: req.Description,
+		Type:        req.Type,
+		DataSource:  req.DataSource,
+		Format:      req.Format,
+		Status:      consts.DatasetEnabled,
+		IsPublic:    utils.GetBoolValue(req.IsPublic, false),
+	}
+}
+
 type DatasetV2GetReq struct {
 	IncludeInjections bool `form:"include_injections"` // Include related fault injections
 	IncludeLabels     bool `form:"include_labels"`     // Include related labels

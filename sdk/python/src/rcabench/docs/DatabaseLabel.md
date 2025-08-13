@@ -12,6 +12,7 @@ Name | Type | Description | Notes
 **id** | **int** | Unique identifier | [optional] 
 **is_system** | **bool** | Whether system label | [optional] 
 **key** | **str** | Label key | [optional] 
+**status** | **int** | Status: -1:deleted 0:disabled 1:enabled | [optional] 
 **updated_at** | **str** | Update time | [optional] 
 **usage** | **int** | Usage count | [optional] 
 **value** | **str** | Label value | [optional] 

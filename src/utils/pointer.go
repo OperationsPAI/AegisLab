@@ -6,6 +6,14 @@ func BoolPtr(b bool) *bool {
 	return &b
 }
 
+func GetBoolValue(ptr *bool, defaultValue bool) bool {
+	if ptr == nil {
+		return defaultValue
+	}
+
+	return *ptr
+}
+
 func GetIntValue(ptr *int, defaultValue int) int {
 	if ptr == nil {
 		return defaultValue
