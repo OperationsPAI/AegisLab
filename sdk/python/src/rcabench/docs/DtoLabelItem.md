@@ -6,7 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **key** | **str** |  | 
-**value** | **str** |  | 
+**value** | **str** |  | [optional] 
 
 ## Example
 
