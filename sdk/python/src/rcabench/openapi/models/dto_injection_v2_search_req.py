@@ -18,9 +18,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
-from typing_extensions import Annotated
 from rcabench.openapi.models.dto_label_item import DtoLabelItem
 from typing import Optional, Set
 from typing_extensions import Self
@@ -35,11 +34,12 @@ class DtoInjectionV2SearchReq(BaseModel):
     end_time_gte: Optional[StrictStr] = None
     end_time_lte: Optional[StrictStr] = None
     fault_types: Optional[List[StrictInt]] = None
-    include: Optional[StrictStr] = None
+    include_labels: Optional[StrictBool] = Field(default=None, description="Whether to include labels in the response")
+    include_task: Optional[StrictBool] = Field(default=None, description="Whether to include task details in the response")
     labels: Optional[List[DtoLabelItem]] = Field(default=None, description="Custom labels to filter by")
-    page: Optional[Annotated[int, Field(strict=True, ge=1)]] = None
+    page: Optional[StrictInt] = None
     search: Optional[StrictStr] = None
-    size: Optional[Annotated[int, Field(le=100, strict=True, ge=1)]] = None
+    size: Optional[StrictInt] = None
     sort_by: Optional[StrictStr] = None
     sort_order: Optional[StrictStr] = None
     start_time_gte: Optional[StrictStr] = None
@@ -48,7 +48,7 @@ class DtoInjectionV2SearchReq(BaseModel):
     tags: Optional[List[StrictStr]] = Field(default=None, description="Tag values to filter by")
     task_ids: Optional[List[StrictStr]] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["benchmarks", "created_at_gte", "created_at_lte", "end_time_gte", "end_time_lte", "fault_types", "include", "labels", "page", "search", "size", "sort_by", "sort_order", "start_time_gte", "start_time_lte", "statuses", "tags", "task_ids"]
+    __properties: ClassVar[List[str]] = ["benchmarks", "created_at_gte", "created_at_lte", "end_time_gte", "end_time_lte", "fault_types", "include_labels", "include_task", "labels", "page", "search", "size", "sort_by", "sort_order", "start_time_gte", "start_time_lte", "statuses", "tags", "task_ids"]
 
     @field_validator('sort_by')
     def sort_by_validate_enum(cls, value):
@@ -141,7 +141,8 @@ class DtoInjectionV2SearchReq(BaseModel):
             "end_time_gte": obj.get("end_time_gte"),
             "end_time_lte": obj.get("end_time_lte"),
             "fault_types": obj.get("fault_types"),
-            "include": obj.get("include"),
+            "include_labels": obj.get("include_labels"),
+            "include_task": obj.get("include_task"),
             "labels": [DtoLabelItem.from_dict(_item) for _item in obj["labels"]] if obj.get("labels") is not None else None,
             "page": obj.get("page"),
             "search": obj.get("search"),

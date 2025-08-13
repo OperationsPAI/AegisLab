@@ -242,7 +242,7 @@ func BuildSearchResponse[T any](items []T, totalCount int64, searchReq *dto.Sear
 
 	return dto.SearchResponse[T]{
 		Items: items,
-		Pagination: dto.PaginationInfo{
+		Pagination: &dto.PaginationInfo{
 			Page:       searchReq.Page,
 			Size:       searchReq.Size,
 			Total:      totalCount,

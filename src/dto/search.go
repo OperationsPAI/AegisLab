@@ -112,10 +112,10 @@ type AdvancedSearchRequest struct {
 
 // SearchResponse represents the response for search operations
 type SearchResponse[T any] struct {
-	Items      []T            `json:"items"`
-	Pagination PaginationInfo `json:"pagination"`
-	Filters    []SearchFilter `json:"applied_filters,omitempty"`
-	Sort       []SortOption   `json:"applied_sort,omitempty"`
+	Items      []T             `json:"items"`
+	Pagination *PaginationInfo `json:"pagination"`
+	Filters    []SearchFilter  `json:"applied_filters,omitempty"`
+	Sort       []SortOption    `json:"applied_sort,omitempty"`
 }
 
 // ValidateSearchRequest validates the search request

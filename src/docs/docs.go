@@ -4050,71 +4050,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/injections/by-label": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get all injections that have a specific label key-value pair",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Injections"
-                ],
-                "summary": "List injections by label",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Label key",
-                        "name": "key",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Label value",
-                        "name": "value",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Include related task",
-                        "name": "include_task",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Injections retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionSearchResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid parameters",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "Label not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v2/injections/search": {
             "post": {
                 "security": [
@@ -11327,8 +11262,13 @@ const docTemplate = `{
                         "type": "integer"
                     }
                 },
-                "include": {
-                    "type": "string"
+                "include_labels": {
+                    "description": "Whether to include labels in the response",
+                    "type": "boolean"
+                },
+                "include_task": {
+                    "description": "Whether to include task details in the response",
+                    "type": "boolean"
                 },
                 "labels": {
                     "description": "Custom labels to filter by",
@@ -11338,16 +11278,13 @@ const docTemplate = `{
                     }
                 },
                 "page": {
-                    "type": "integer",
-                    "minimum": 1
+                    "type": "integer"
                 },
                 "search": {
                     "type": "string"
                 },
                 "size": {
-                    "type": "integer",
-                    "maximum": 100,
-                    "minimum": 1
+                    "type": "integer"
                 },
                 "sort_by": {
                     "type": "string",

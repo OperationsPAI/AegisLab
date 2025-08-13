@@ -2963,21 +2963,22 @@ definitions:
         items:
           type: integer
         type: array
-      include:
-        type: string
+      include_labels:
+        description: Whether to include labels in the response
+        type: boolean
+      include_task:
+        description: Whether to include task details in the response
+        type: boolean
       labels:
         description: Custom labels to filter by
         items:
           $ref: '#/definitions/dto.LabelItem'
         type: array
       page:
-        minimum: 1
         type: integer
       search:
         type: string
       size:
-        maximum: 100
-        minimum: 1
         type: integer
       sort_by:
         enum:
@@ -7795,48 +7796,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Manage injection tags
-      tags:
-      - Injections
-  /api/v2/injections/by-label:
-    get:
-      description: Get all injections that have a specific label key-value pair
-      parameters:
-      - description: Label key
-        in: query
-        name: key
-        required: true
-        type: string
-      - description: Label value
-        in: query
-        name: value
-        required: true
-        type: string
-      - description: Include related task
-        in: query
-        name: include_task
-        type: boolean
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Injections retrieved successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_InjectionSearchResponse'
-        "400":
-          description: Invalid parameters
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "404":
-          description: Label not found
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      security:
-      - BearerAuth: []
-      summary: List injections by label
       tags:
       - Injections
   /api/v2/injections/search:

@@ -397,24 +397,46 @@ type InjectionV2UpdateReq struct {
 
 // InjectionV2SearchReq represents the request for advanced search
 type InjectionV2SearchReq struct {
-	Page         int         `json:"page" binding:"omitempty,min=1"`
-	Size         int         `json:"size" binding:"omitempty,min=1,max=100"`
-	TaskIDs      []string    `json:"task_ids" binding:"omitempty"`
-	FaultTypes   []int       `json:"fault_types" binding:"omitempty"`
-	Statuses     []int       `json:"statuses" binding:"omitempty"`
-	Benchmarks   []string    `json:"benchmarks" binding:"omitempty"`
-	Search       string      `json:"search" binding:"omitempty"`
-	Tags         []string    `json:"tags" binding:"omitempty"`   // Tag values to filter by
-	Labels       []LabelItem `json:"labels" binding:"omitempty"` // Custom labels to filter by
-	StartTimeGte *time.Time  `json:"start_time_gte" binding:"omitempty"`
-	StartTimeLte *time.Time  `json:"start_time_lte" binding:"omitempty"`
-	EndTimeGte   *time.Time  `json:"end_time_gte" binding:"omitempty"`
-	EndTimeLte   *time.Time  `json:"end_time_lte" binding:"omitempty"`
-	CreatedAtGte *time.Time  `json:"created_at_gte" binding:"omitempty"`
-	CreatedAtLte *time.Time  `json:"created_at_lte" binding:"omitempty"`
-	SortBy       string      `json:"sort_by" binding:"omitempty,oneof=id task_id fault_type status benchmark injection_name created_at updated_at"`
-	SortOrder    string      `json:"sort_order" binding:"omitempty,oneof=asc desc"`
-	Include      string      `json:"include" binding:"omitempty"`
+	Page          *int        `json:"page" binding:"omitempty"`
+	Size          *int        `json:"size" binding:"omitempty"`
+	TaskIDs       []string    `json:"task_ids" binding:"omitempty"`
+	FaultTypes    []int       `json:"fault_types" binding:"omitempty"`
+	Statuses      []int       `json:"statuses" binding:"omitempty"`
+	Benchmarks    []string    `json:"benchmarks" binding:"omitempty"`
+	Search        string      `json:"search" binding:"omitempty"`
+	Tags          []string    `json:"tags" binding:"omitempty"`   // Tag values to filter by
+	Labels        []LabelItem `json:"labels" binding:"omitempty"` // Custom labels to filter by
+	StartTimeGte  *time.Time  `json:"start_time_gte" binding:"omitempty"`
+	StartTimeLte  *time.Time  `json:"start_time_lte" binding:"omitempty"`
+	EndTimeGte    *time.Time  `json:"end_time_gte" binding:"omitempty"`
+	EndTimeLte    *time.Time  `json:"end_time_lte" binding:"omitempty"`
+	CreatedAtGte  *time.Time  `json:"created_at_gte" binding:"omitempty"`
+	CreatedAtLte  *time.Time  `json:"created_at_lte" binding:"omitempty"`
+	SortBy        string      `json:"sort_by" binding:"omitempty,oneof=id task_id fault_type status benchmark injection_name created_at updated_at"`
+	SortOrder     string      `json:"sort_order" binding:"omitempty,oneof=asc desc"`
+	IncludeLabels bool        `json:"include_labels" binding:"omitempty"` // Whether to include labels in the response
+	IncludeTask   bool        `json:"include_task" binding:"omitempty"`   // Whether to include task details in the response
+}
+
+func (req *InjectionV2SearchReq) Validate() error {
+	if req.Page != nil && *req.Page < 1 {
+		return fmt.Errorf("page must be greater than 0")
+	}
+	if req.Size != nil && *req.Size < 1 {
+		return fmt.Errorf("size must be greater than 0")
+	}
+
+	if req.StartTimeGte != nil && req.StartTimeLte != nil && req.StartTimeGte.After(*req.StartTimeLte) {
+		return fmt.Errorf("start_time_gte must be before start_time_lte")
+	}
+	if req.EndTimeGte != nil && req.EndTimeLte != nil && req.EndTimeGte.After(*req.EndTimeLte) {
+		return fmt.Errorf("end_time_gte must be before end_time_lte")
+	}
+	if req.CreatedAtGte != nil && req.CreatedAtLte != nil && req.CreatedAtGte.After(*req.CreatedAtLte) {
+		return fmt.Errorf("created_at_gte must be before created_at_lte")
+	}
+
+	return nil
 }
 
 // InjectionSearchResponse represents the search response

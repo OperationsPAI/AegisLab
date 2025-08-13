@@ -844,7 +844,7 @@ func SearchDatasets(c *gin.Context) {
 
 	response := dto.SearchResponse[dto.DatasetV2Response]{
 		Items:      items,
-		Pagination: pagination,
+		Pagination: &pagination,
 	}
 
 	dto.SuccessResponse(c, response)
