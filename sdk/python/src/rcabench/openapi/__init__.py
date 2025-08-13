@@ -53,6 +53,7 @@ __all__ = [
     "ConstsTaskType",
     "DatabaseContainer",
     "DatabaseDataset",
+    "DatabaseFaultInjectionSchedule",
     "DatabaseLabel",
     "DatabaseProject",
     "DatabaseTask",
@@ -326,6 +327,7 @@ from rcabench.openapi.exceptions import ApiException as ApiException
 from rcabench.openapi.models.consts_task_type import ConstsTaskType as ConstsTaskType
 from rcabench.openapi.models.database_container import DatabaseContainer as DatabaseContainer
 from rcabench.openapi.models.database_dataset import DatabaseDataset as DatabaseDataset
+from rcabench.openapi.models.database_fault_injection_schedule import DatabaseFaultInjectionSchedule as DatabaseFaultInjectionSchedule
 from rcabench.openapi.models.database_label import DatabaseLabel as DatabaseLabel
 from rcabench.openapi.models.database_project import DatabaseProject as DatabaseProject
 from rcabench.openapi.models.database_task import DatabaseTask as DatabaseTask

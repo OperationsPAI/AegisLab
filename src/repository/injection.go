@@ -938,10 +938,36 @@ func RemoveCustomLabelFromInjection(injectionID int, key string) error {
 	return nil
 }
 
-// GetInjectionsLabels gets all labels for multiple injections in batch
-// This method is deprecated, use GetInjectionLabelsMap from label.go instead
-func GetInjectionsLabels(injectionIDs []int) (map[int][]database.Label, error) {
-	return GetInjectionLabelsMap(injectionIDs)
+// GetInjectionLabelsMap gets all labels for multiple injections in batch (optimized)
+func GetInjectionLabelsMap(injectionIDs []int) (map[int][]database.Label, error) {
+	if len(injectionIDs) == 0 {
+		return make(map[int][]database.Label), nil
+	}
+
+	// Method 1: Use single query with direct model association
+	var relations []database.FaultInjectionLabel
+	if err := database.DB.Preload("Label").
+		Where("fault_injection_id IN ?", injectionIDs).
+		Find(&relations).Error; err != nil {
+		return nil, fmt.Errorf("failed to get injection label relations: %v", err)
+	}
+
+	// Group labels by injection ID
+	labelsMap := make(map[int][]database.Label)
+	for _, relation := range relations {
+		if relation.Label != nil {
+			labelsMap[relation.FaultInjectionID] = append(labelsMap[relation.FaultInjectionID], *relation.Label)
+		}
+	}
+
+	// Initialize empty slices for injections with no labels
+	for _, id := range injectionIDs {
+		if _, exists := labelsMap[id]; !exists {
+			labelsMap[id] = []database.Label{}
+		}
+	}
+
+	return labelsMap, nil
 }
 
 // AddCustomLabelToInjectionWithOverride adds a custom label to injection with override behavior

@@ -167,6 +167,35 @@ func GetDatasetFaultInjections(datasetID int) ([]database.DatasetFaultInjection,
 	return relations, nil
 }
 
+// GetDatasetLabelsMap gets all labels for multiple datasets in batch (optimized)
+func GetDatasetLabelsMap(datasetIDs []int) (map[int][]database.Label, error) {
+	if len(datasetIDs) == 0 {
+		return make(map[int][]database.Label), nil
+	}
+
+	var relations []database.DatasetLabel
+	if err := database.DB.Preload("Label").
+		Where("dataset_id IN ?", datasetIDs).
+		Find(&relations).Error; err != nil {
+		return nil, fmt.Errorf("failed to get dataset label relations: %v", err)
+	}
+
+	labelsMap := make(map[int][]database.Label)
+	for _, relation := range relations {
+		if relation.Label != nil {
+			labelsMap[relation.DatasetID] = append(labelsMap[relation.DatasetID], *relation.Label)
+		}
+	}
+
+	for _, id := range datasetIDs {
+		if _, exists := labelsMap[id]; !exists {
+			labelsMap[id] = []database.Label{}
+		}
+	}
+
+	return labelsMap, nil
+}
+
 // AddDatasetToFaultInjection associates dataset with fault injection
 func AddDatasetToFaultInjection(datasetID, faultInjectionID int, relationType string, isGroundTruth bool) error {
 	relation := &database.DatasetFaultInjection{
@@ -176,15 +205,6 @@ func AddDatasetToFaultInjection(datasetID, faultInjectionID int, relationType st
 
 	if err := database.DB.Create(relation).Error; err != nil {
 		return fmt.Errorf("failed to add dataset to fault injection: %v", err)
-	}
-	return nil
-}
-
-// RemoveDatasetFromFaultInjection removes association between dataset and fault injection
-func RemoveDatasetFromFaultInjection(datasetID, faultInjectionID int) error {
-	if err := database.DB.Where("dataset_id = ? AND fault_injection_id = ?", datasetID, faultInjectionID).
-		Delete(&database.DatasetFaultInjection{}).Error; err != nil {
-		return fmt.Errorf("failed to remove dataset from fault injection: %v", err)
 	}
 	return nil
 }

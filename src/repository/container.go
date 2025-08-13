@@ -91,6 +91,35 @@ func ListContainers(opts *dto.ListContainersFilterOptions) ([]database.Container
 	return containers, nil
 }
 
+// GetContainerLabelsMap gets all labels for multiple containers in batch (optimized)
+func GetContainerLabelsMap(containerIDs []int) (map[int][]database.Label, error) {
+	if len(containerIDs) == 0 {
+		return make(map[int][]database.Label), nil
+	}
+
+	var relations []database.ContainerLabel
+	if err := database.DB.Preload("Label").
+		Where("container_id IN ?", containerIDs).
+		Find(&relations).Error; err != nil {
+		return nil, fmt.Errorf("failed to get container label relations: %v", err)
+	}
+
+	labelsMap := make(map[int][]database.Label)
+	for _, relation := range relations {
+		if relation.Label != nil {
+			labelsMap[relation.ContainerID] = append(labelsMap[relation.ContainerID], *relation.Label)
+		}
+	}
+
+	for _, id := range containerIDs {
+		if _, exists := labelsMap[id]; !exists {
+			labelsMap[id] = []database.Label{}
+		}
+	}
+
+	return labelsMap, nil
+}
+
 // GetContainerStatistics returns statistics about containers
 func GetContainerStatistics() (map[string]int64, error) {
 	stats := make(map[string]int64)

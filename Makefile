@@ -30,6 +30,9 @@ CYAN    := \033[1;36m
 GRAY    := \033[90m
 RESET   := \033[0m
 
+BACKUP_DATA ?= $(shell [ -t 0 ] && echo "ask" || echo "no")
+START_APP   ?= $(shell [ -t 0 ] && echo "ask" || echo "yes")
+
 # =============================================================================
 # 声明所有非文件目标
 # =============================================================================
@@ -173,23 +176,51 @@ reset-db: ## 🗑️  重置数据库 (⚠️ 将删除所有数据)
 
 local-debug: ## 🐛 启动本地调试环境
 	@printf "$(BLUE)🚀 启动基础服务...$(RESET)\n"
-	docker compose down && \
-	docker compose up redis mysql jaeger buildkitd -d
+	@if ! docker compose down; then \
+		printf "$(RED)❌ Docker Compose 停止失败$(RESET)\n"; \
+		exit 1; \
+	fi
+	@if ! docker compose up redis mysql jaeger buildkitd -d; then \
+		printf "$(RED)❌ Docker Compose 启动失败$(RESET)\n"; \
+		exit 1; \
+	fi
 	@printf "$(BLUE)🧹 清理 Kubernetes Jobs...$(RESET)\n"
-	kubectl delete jobs --all -n $(NS)
-	@printf "$(BLUE)📦 从正式环境备份 Redis...$(RESET)\n"
-	$(MAKE) -C scripts/hack/backup_redis restore-local
-	@printf "$(BLUE)🗄️ 从正式环境备份数据库...$(RESET)\n"
-	$(MAKE) -C scripts/hack/backup_mysql migrate
-	@printf "$(GREEN)✅ 环境准备完成！$(RESET)\n"
-	@read -p "是否现在启动本地应用 (y/N)" start_app; \
+	@kubectl delete jobs --all -n $(NS) || printf "$(YELLOW)⚠️  清理 Jobs 失败或无 Jobs 需要清理$(RESET)\n"
+	@set -e; \
+	if [ "$(BACKUP_DATA)" = "ask" ]; then \
+		read -p "是否备份数据 (y/n)? " use_backup; \
+	elif [ "$(BACKUP_DATA)" = "yes" ]; then \
+		use_backup="y"; \
+	else \
+		use_backup="n"; \
+	fi; \
+	if [ "$$use_backup" = "y" ] || [ "$$use_backup" = "Y" ]; then \
+		printf "$(BLUE)📦 从正式环境备份 Redis...$(RESET)\n"; \
+		$(MAKE) -C scripts/hack/backup_redis restore-local; \
+		printf "$(BLUE)🗄️ 从正式环境备份数据库...$(RESET)\n"; \
+		$(MAKE) -C scripts/hack/backup_mysql migrate; \
+		printf "$(GREEN)✅ 环境准备完成！$(RESET)\n"; \
+	fi; \
+	if [ "$(START_APP)" = "ask" ]; then \
+		read -p "是否现在启动本地应用 (y/n)? " start_app; \
+	elif [ "$(START_APP)" = "yes" ]; then \
+		start_app="y"; \
+	else \
+		start_app="n"; \
+	fi; \
 	if [ "$$start_app" = "n" ] || [ "$$start_app" = "N" ]; then \
-		printf "$(YELLOW)⏸️  本地应用未启动，你可以稍后手动启动: $(RESET)\n"; \
+		printf "$(YELLOW)⏸️  本地应用未启动，你可以稍后手动启动:$(RESET)\n"; \
 		printf "$(GRAY)cd $(SRC_DIR) && go run main.go both --port 8082$(RESET)\n"; \
 	else \
 		printf "$(BLUE)⌛️ 启动本地应用...$(RESET)\n"; \
 		cd $(SRC_DIR) && go run main.go both --port 8082; \
 	fi
+
+local-debug-auto: ## 🤖 启动本地调试环境 (自动模式，无交互)
+	@$(MAKE) local-debug BACKUP_DATA=yes START_APP=yes
+
+local-debug-minimal: ## 🚀 启动本地调试环境 (最小模式，无备份无自动启动)
+	@$(MAKE) local-debug BACKUP_DATA=no START_APP=no
 
 import: ## 📦 导入最新版本的 chaos-experiment 库
 	@printf "$(BLUE)📦 导入最新版本的 chaos-experiment 库...$(RESET)\n"

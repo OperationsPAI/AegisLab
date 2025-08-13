@@ -1916,82 +1916,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/algorithms/{algorithm_id}/executions/{execution_id}/results": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Upload granularity results for regular algorithms. Supports two modes: 1) Use existing execution_id, 2) Auto-create execution using algorithm_id and datapack_id",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Algorithms"
-                ],
-                "summary": "Upload granularity algorithm results",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Algorithm ID",
-                        "name": "algorithm_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Execution ID (optional - will create new if not provided)",
-                        "name": "execution_id",
-                        "in": "path"
-                    },
-                    {
-                        "description": "Granularity results with optional execution creation",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.GranularityResultEnhancedRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Results uploaded successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_AlgorithmResultUploadResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "403": {
-                        "description": "Permission denied",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "Algorithm or datapack not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v2/algorithms/{algorithm_id}/results": {
             "post": {
                 "security": [
@@ -1999,7 +1923,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Upload granularity results for regular algorithms. Supports two modes: 1) Use existing execution_id, 2) Auto-create execution using algorithm_id and datapack_id",
+                "description": "Upload granularity results for regular algorithms. Supports two modes: 1) Create new execution with algorithm_id and datapack_id, 2) Use existing execution_id via query parameter",
                 "consumes": [
                     "application/json"
                 ],
@@ -2017,6 +1941,18 @@ const docTemplate = `{
                         "name": "algorithm_id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Execution ID (optional, will create new if not provided)",
+                        "name": "execution_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Label tag (optional, only used when creating new execution)",
+                        "name": "label",
+                        "in": "query"
                     },
                     {
                         "description": "Granularity results with optional execution creation",
@@ -4101,6 +4037,71 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/injections/by-label": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all injections that have a specific label key-value pair",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Injections"
+                ],
+                "summary": "List injections by label",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Label key",
+                        "name": "key",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Label value",
+                        "name": "value",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include related task",
+                        "name": "include_task",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Injections retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionSearchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Label not found",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -7080,6 +7081,12 @@ const docTemplate = `{
                     "description": "Download link with size limit",
                     "type": "string"
                 },
+                "fault_injections": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/database.FaultInjectionSchedule"
+                    }
+                },
                 "file_count": {
                     "description": "File count with validation",
                     "type": "integer"
@@ -7096,6 +7103,13 @@ const docTemplate = `{
                     "description": "Whether public",
                     "type": "boolean"
                 },
+                "labels": {
+                    "description": "Many-to-many relationships - use explicit intermediate tables for better control",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/database.Label"
+                    }
+                },
                 "name": {
                     "description": "Dataset name with size limit",
                     "type": "string"
@@ -7106,6 +7120,75 @@ const docTemplate = `{
                 },
                 "type": {
                     "description": "Dataset type (e.g., \"microservice\", \"database\", \"network\")",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "description": "Update time",
+                    "type": "string"
+                }
+            }
+        },
+        "database.FaultInjectionSchedule": {
+            "type": "object",
+            "properties": {
+                "benchmark": {
+                    "description": "Benchmark database, add index and size limit",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "Creation time, add time index",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "Description (optional field)",
+                    "type": "string"
+                },
+                "display_config": {
+                    "description": "User-facing display configuration",
+                    "type": "string"
+                },
+                "end_time": {
+                    "description": "Expected fault end time, nullable",
+                    "type": "string"
+                },
+                "engine_config": {
+                    "description": "System-facing runtime configuration",
+                    "type": "string"
+                },
+                "fault_type": {
+                    "description": "Fault type, add composite index",
+                    "type": "integer"
+                },
+                "id": {
+                    "description": "Unique identifier",
+                    "type": "integer"
+                },
+                "injection_name": {
+                    "description": "Name injected in k8s resources with size limit",
+                    "type": "string"
+                },
+                "pre_duration": {
+                    "description": "Normal data duration",
+                    "type": "integer"
+                },
+                "start_time": {
+                    "description": "Expected fault start time, nullable with validation",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status: -1:deleted 0:disabled 1:enabled",
+                    "type": "integer"
+                },
+                "task": {
+                    "description": "Foreign key association",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/database.Task"
+                        }
+                    ]
+                },
+                "task_id": {
+                    "description": "Associated task ID, add composite index",
                     "type": "string"
                 },
                 "updated_at": {
