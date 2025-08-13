@@ -539,9 +539,9 @@ func ManageInjectionCustomLabels(c *gin.Context) {
 		}
 	}
 
-	// Add custom labels
+	// Add custom labels with override behavior
 	for _, labelItem := range req.AddLabels {
-		if err := repository.AddCustomLabelToInjection(injection.ID, labelItem.Key, labelItem.Value); err != nil {
+		if err := repository.AddCustomLabelToInjectionWithOverride(injection.ID, labelItem.Key, labelItem.Value); err != nil {
 			tx.Rollback()
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to add custom label '"+labelItem.Key+"': "+err.Error())
 			return

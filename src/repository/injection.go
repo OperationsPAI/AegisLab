@@ -957,3 +957,34 @@ func RemoveCustomLabelFromInjection(injectionID int, key string) error {
 func GetInjectionsLabels(injectionIDs []int) (map[int][]database.Label, error) {
 	return GetInjectionLabelsMap(injectionIDs)
 }
+
+// AddCustomLabelToInjectionWithOverride adds a custom label to injection with override behavior
+// If a label with the same key already exists, it will be removed first, then the new label will be added
+func AddCustomLabelToInjectionWithOverride(injectionID int, key, value string) error {
+	// First, remove any existing labels with the same key
+	if err := RemoveCustomLabelFromInjection(injectionID, key); err != nil {
+		// If no label found, that's fine - we can proceed
+		if !strings.Contains(err.Error(), "no label found") {
+			return fmt.Errorf("failed to remove existing label with key '%s': %v", key, err)
+		}
+	}
+
+	// Generate color based on key
+	color := utils.GenerateColorFromKey(key)
+
+	// Generate description with creation info
+	description := fmt.Sprintf(consts.CustomLabelDescriptionTemplate, key)
+
+	// Create or get custom label with injection category
+	label, err := CreateOrGetLabel(key, value, consts.LabelInjection, description)
+	if err != nil {
+		return fmt.Errorf("failed to create or get custom label: %v", err)
+	}
+
+	// Update color for the label
+	if err := database.DB.Model(&database.Label{}).Where("id = ?", label.ID).Update("color", color).Error; err != nil {
+		return fmt.Errorf("failed to update label color: %v", err)
+	}
+
+	return AddLabelToInjection(injectionID, label.ID)
+}
