@@ -423,6 +423,24 @@ type InjectionSearchResponse struct {
 	Pagination PaginationInfo        `json:"pagination"`
 }
 
+type LabelInjectionListReq struct {
+	Key         string `form:"key" binding:"required,max=255"`
+	Value       string `form:"value" binding:"required,max=255"`
+	IncludeTask bool   `form:"include_task" binding:"omitempty"`
+}
+
+func (req *LabelInjectionListReq) Validate() error {
+	if req.Key == "" {
+		return fmt.Errorf("key must not be empty")
+	}
+
+	if req.Value == "" {
+		return fmt.Errorf("value must not be empty")
+	}
+
+	return nil
+}
+
 // ToInjectionV2Response converts database model to response DTO
 func ToInjectionV2Response(injection *database.FaultInjectionSchedule, includeTask bool) *InjectionV2Response {
 	response := &InjectionV2Response{

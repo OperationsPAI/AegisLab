@@ -18,6 +18,7 @@
 from rcabench.openapi.models.consts_task_type import ConstsTaskType
 from rcabench.openapi.models.database_container import DatabaseContainer
 from rcabench.openapi.models.database_dataset import DatabaseDataset
+from rcabench.openapi.models.database_fault_injection_schedule import DatabaseFaultInjectionSchedule
 from rcabench.openapi.models.database_label import DatabaseLabel
 from rcabench.openapi.models.database_project import DatabaseProject
 from rcabench.openapi.models.database_task import DatabaseTask

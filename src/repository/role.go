@@ -40,6 +40,35 @@ func GetRoleByName(name string) (*database.Role, error) {
 	return &role, nil
 }
 
+// GetRolePermissionsMap gets all permissions for multiple roles in batch (optimized)
+func GetRolePermissionsMap(roleIDs []int) (map[int][]database.Permission, error) {
+	if len(roleIDs) == 0 {
+		return make(map[int][]database.Permission), nil
+	}
+
+	var relations []database.RolePermission
+	if err := database.DB.Preload("Permission").
+		Where("role_id IN ?", roleIDs).
+		Find(&relations).Error; err != nil {
+		return nil, fmt.Errorf("failed to get role permission relations: %v", err)
+	}
+
+	permissionsMap := make(map[int][]database.Permission)
+	for _, relation := range relations {
+		if relation.Permission != nil {
+			permissionsMap[relation.RoleID] = append(permissionsMap[relation.RoleID], *relation.Permission)
+		}
+	}
+
+	for _, id := range roleIDs {
+		if _, exists := permissionsMap[id]; !exists {
+			permissionsMap[id] = []database.Permission{}
+		}
+	}
+
+	return permissionsMap, nil
+}
+
 // UpdateRole updates role information
 func UpdateRole(role *database.Role) error {
 	if err := database.DB.Save(role).Error; err != nil {
@@ -71,12 +100,12 @@ func ListRoles(page, pageSize int, roleType string, status *int) ([]database.Rol
 		query = query.Where("type = ?", roleType)
 	}
 
-	      // Get total count
+	// Get total count
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to count roles: %v", err)
 	}
 
-	      // Paginated query
+	// Paginated query
 	offset := (page - 1) * pageSize
 	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&roles).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to list roles: %v", err)

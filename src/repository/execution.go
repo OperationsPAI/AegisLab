@@ -446,6 +446,35 @@ func GetRecentExecutionActivity(days int) (map[string]int64, error) {
 	return stats, nil
 }
 
+// GetExecutionLabelsMap gets all labels for multiple execution results in batch (optimized)
+func GetExecutionLabelsMap(executionIDs []int) (map[int][]database.Label, error) {
+	if len(executionIDs) == 0 {
+		return make(map[int][]database.Label), nil
+	}
+
+	var relations []database.ExecutionResultLabel
+	if err := database.DB.Preload("Label").
+		Where("execution_id IN ?", executionIDs).
+		Find(&relations).Error; err != nil {
+		return nil, fmt.Errorf("failed to get execution label relations: %v", err)
+	}
+
+	labelsMap := make(map[int][]database.Label)
+	for _, relation := range relations {
+		if relation.Label != nil {
+			labelsMap[relation.ExecutionID] = append(labelsMap[relation.ExecutionID], *relation.Label)
+		}
+	}
+
+	for _, id := range executionIDs {
+		if _, exists := labelsMap[id]; !exists {
+			labelsMap[id] = []database.Label{}
+		}
+	}
+
+	return labelsMap, nil
+}
+
 // AddExecutionResultLabel adds a label to an execution result
 func AddExecutionResultLabel(executionID int, labelKey, labelValue, description string) error {
 	// Create or get the label

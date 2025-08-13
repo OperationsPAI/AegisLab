@@ -52,6 +52,62 @@ func GetUserByEmail(email string) (*database.User, error) {
 	return &user, nil
 }
 
+// GetUserProjectsMap gets all projects for multiple users in batch (optimized)
+func GetUserProjectsMap(userIDs []int) (map[int][]database.UserProject, error) {
+	if len(userIDs) == 0 {
+		return make(map[int][]database.UserProject), nil
+	}
+
+	var relations []database.UserProject
+	if err := database.DB.Preload("Project").Preload("Role").
+		Where("user_id IN ?", userIDs).
+		Find(&relations).Error; err != nil {
+		return nil, fmt.Errorf("failed to get user project relations: %v", err)
+	}
+
+	projectsMap := make(map[int][]database.UserProject)
+	for _, relation := range relations {
+		projectsMap[relation.UserID] = append(projectsMap[relation.UserID], relation)
+	}
+
+	for _, id := range userIDs {
+		if _, exists := projectsMap[id]; !exists {
+			projectsMap[id] = []database.UserProject{}
+		}
+	}
+
+	return projectsMap, nil
+}
+
+// GetUserRolesMap gets all roles for multiple users in batch (optimized)
+func GetUserRolesMap(userIDs []int) (map[int][]database.Role, error) {
+	if len(userIDs) == 0 {
+		return make(map[int][]database.Role), nil
+	}
+
+	var relations []database.UserRole
+	if err := database.DB.Preload("Role").
+		Where("user_id IN ?", userIDs).
+		Find(&relations).Error; err != nil {
+		return nil, fmt.Errorf("failed to get user role relations: %v", err)
+	}
+
+	rolesMap := make(map[int][]database.Role)
+	for _, relation := range relations {
+		if relation.Role != nil {
+			rolesMap[relation.UserID] = append(rolesMap[relation.UserID], *relation.Role)
+		}
+	}
+
+	for _, id := range userIDs {
+		if _, exists := rolesMap[id]; !exists {
+			rolesMap[id] = []database.Role{}
+		}
+	}
+
+	return rolesMap, nil
+}
+
 // UpdateUser updates user information
 func UpdateUser(user *database.User) error {
 	if err := database.DB.Save(user).Error; err != nil {

@@ -140,7 +140,6 @@ func CreateInjection(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/injections [get]
 func ListInjections(c *gin.Context) {
-
 	var req dto.InjectionV2ListReq
 	if err := c.ShouldBindQuery(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters: "+err.Error())
@@ -191,6 +190,54 @@ func ListInjections(c *gin.Context) {
 	dto.SuccessResponse(c, response)
 }
 
+// ListInjectionsByLabel gets injections by label key-value pair
+//
+//	@Summary List injections by label
+//	@Description Get all injections that have a specific label key-value pair
+//	@Tags Injections
+//	@Produce json
+//	@Security BearerAuth
+//	@Param key query string true "Label key"
+//	@Param value query string true "Label value"
+//	@Param include_task query bool false "Include related task"
+//	@Success 200 {object} dto.GenericResponse[dto.InjectionSearchResponse] "Injections retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid parameters"
+//	@Failure 404 {object} dto.GenericResponse[any] "Label not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/injections/by-label [get]
+func ListLabelInjections(c *gin.Context) {
+	var req dto.LabelInjectionListReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		return
+	}
+
+	label, err := repository.GetLabelByKeyandValue(req.Key, req.Value)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			dto.ErrorResponse(c, http.StatusNotFound, "Label not found")
+		} else {
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get label: "+err.Error())
+		}
+		return
+	}
+
+	relations, err := repository.ListLabelInjections(label.ID)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to list relations: "+err.Error())
+		return
+	}
+
+	items := make([]dto.InjectionV2Response, 0, len(relations))
+	for _, relation := range relations {
+		items = append(items, *dto.ToInjectionV2Response(relation.FaultInjectionSchedule, false))
+	}
+
+	dto.SuccessResponse(c, dto.InjectionSearchResponse{
+		Items: items,
+	})
+}
+
 // UpdateInjection
 //
 //	@Summary Update injection
@@ -208,7 +255,6 @@ func ListInjections(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/injections/{id} [put]
 func UpdateInjection(c *gin.Context) {
-
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -306,7 +352,6 @@ func UpdateInjection(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/injections/{id} [delete]
 func DeleteInjection(c *gin.Context) {
-
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -571,7 +616,7 @@ func toInjectionV2ResponsesWithLabels(injections []database.FaultInjectionSchedu
 	}
 
 	// Batch load labels using optimized method (SEARCH)
-	labelsMap, err := repository.GetInjectionsLabels(injectionIDs)
+	labelsMap, err := repository.GetInjectionLabelsMap(injectionIDs)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to load injection labels: %v", err)
 	}

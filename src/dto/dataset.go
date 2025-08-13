@@ -189,8 +189,8 @@ func (req *DatasetV2CreateReq) ToEntity() *database.Dataset {
 }
 
 type DatasetV2GetReq struct {
-	IncludeInjections bool `form:"include_injections"` // Include related fault injections
-	IncludeLabels     bool `form:"include_labels"`     // Include related labels
+	IncludeInjections bool `form:"include_injections" binding:"omitempty"` // Include related fault injections
+	IncludeLabels     bool `form:"include_labels" binding:"omitempty"`     // Include related labels
 }
 
 // DatasetV2LabelCreateReq Create label request

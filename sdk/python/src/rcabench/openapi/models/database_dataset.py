@@ -20,6 +20,8 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from rcabench.openapi.models.database_fault_injection_schedule import DatabaseFaultInjectionSchedule
+from rcabench.openapi.models.database_label import DatabaseLabel
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -33,16 +35,18 @@ class DatabaseDataset(BaseModel):
     dataset_version: Optional[StrictStr] = Field(default=None, description="Dataset version with size limit")
     description: Optional[StrictStr] = Field(default=None, description="Dataset description")
     download_url: Optional[StrictStr] = Field(default=None, description="Download link with size limit")
+    fault_injections: Optional[List[DatabaseFaultInjectionSchedule]] = None
     file_count: Optional[StrictInt] = Field(default=None, description="File count with validation")
     format: Optional[StrictStr] = Field(default=None, description="Data format (json, csv, parquet, etc.)")
     id: Optional[StrictInt] = Field(default=None, description="Unique identifier")
     is_public: Optional[StrictBool] = Field(default=None, description="Whether public")
+    labels: Optional[List[DatabaseLabel]] = Field(default=None, description="Many-to-many relationships - use explicit intermediate tables for better control")
     name: Optional[StrictStr] = Field(default=None, description="Dataset name with size limit")
     status: Optional[StrictInt] = Field(default=None, description="Status: -1:deleted 0:disabled 1:enabled")
     type: Optional[StrictStr] = Field(default=None, description="Dataset type (e.g., \"microservice\", \"database\", \"network\")")
     updated_at: Optional[StrictStr] = Field(default=None, description="Update time")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["checksum", "created_at", "data_source", "dataset_version", "description", "download_url", "file_count", "format", "id", "is_public", "name", "status", "type", "updated_at"]
+    __properties: ClassVar[List[str]] = ["checksum", "created_at", "data_source", "dataset_version", "description", "download_url", "fault_injections", "file_count", "format", "id", "is_public", "labels", "name", "status", "type", "updated_at"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -85,6 +89,20 @@ class DatabaseDataset(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in fault_injections (list)
+        _items = []
+        if self.fault_injections:
+            for _item_fault_injections in self.fault_injections:
+                if _item_fault_injections:
+                    _items.append(_item_fault_injections.to_dict())
+            _dict['fault_injections'] = _items
+        # override the default output from pydantic by calling `to_dict()` of each item in labels (list)
+        _items = []
+        if self.labels:
+            for _item_labels in self.labels:
+                if _item_labels:
+                    _items.append(_item_labels.to_dict())
+            _dict['labels'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -108,10 +126,12 @@ class DatabaseDataset(BaseModel):
             "dataset_version": obj.get("dataset_version"),
             "description": obj.get("description"),
             "download_url": obj.get("download_url"),
+            "fault_injections": [DatabaseFaultInjectionSchedule.from_dict(_item) for _item in obj["fault_injections"]] if obj.get("fault_injections") is not None else None,
             "file_count": obj.get("file_count"),
             "format": obj.get("format"),
             "id": obj.get("id"),
             "is_public": obj.get("is_public"),
+            "labels": [DatabaseLabel.from_dict(_item) for _item in obj["labels"]] if obj.get("labels") is not None else None,
             "name": obj.get("name"),
             "status": obj.get("status"),
             "type": obj.get("type"),

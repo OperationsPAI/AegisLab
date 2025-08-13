@@ -79,6 +79,10 @@ definitions:
       download_url:
         description: Download link with size limit
         type: string
+      fault_injections:
+        items:
+          $ref: '#/definitions/database.FaultInjectionSchedule'
+        type: array
       file_count:
         description: File count with validation
         type: integer
@@ -91,6 +95,12 @@ definitions:
       is_public:
         description: Whether public
         type: boolean
+      labels:
+        description: Many-to-many relationships - use explicit intermediate tables
+          for better control
+        items:
+          $ref: '#/definitions/database.Label'
+        type: array
       name:
         description: Dataset name with size limit
         type: string
@@ -99,6 +109,55 @@ definitions:
         type: integer
       type:
         description: Dataset type (e.g., "microservice", "database", "network")
+        type: string
+      updated_at:
+        description: Update time
+        type: string
+    type: object
+  database.FaultInjectionSchedule:
+    properties:
+      benchmark:
+        description: Benchmark database, add index and size limit
+        type: string
+      created_at:
+        description: Creation time, add time index
+        type: string
+      description:
+        description: Description (optional field)
+        type: string
+      display_config:
+        description: User-facing display configuration
+        type: string
+      end_time:
+        description: Expected fault end time, nullable
+        type: string
+      engine_config:
+        description: System-facing runtime configuration
+        type: string
+      fault_type:
+        description: Fault type, add composite index
+        type: integer
+      id:
+        description: Unique identifier
+        type: integer
+      injection_name:
+        description: Name injected in k8s resources with size limit
+        type: string
+      pre_duration:
+        description: Normal data duration
+        type: integer
+      start_time:
+        description: Expected fault start time, nullable with validation
+        type: string
+      status:
+        description: 'Status: -1:deleted 0:disabled 1:enabled'
+        type: integer
+      task:
+        allOf:
+        - $ref: '#/definitions/database.Task'
+        description: Foreign key association
+      task_id:
+        description: Associated task ID, add composite index
         type: string
       updated_at:
         description: Update time
@@ -6053,70 +6112,27 @@ paths:
       summary: Upload detector algorithm results
       tags:
       - Algorithms
-  /api/v2/algorithms/{algorithm_id}/executions/{execution_id}/results:
-    post:
-      consumes:
-      - application/json
-      description: 'Upload granularity results for regular algorithms. Supports two
-        modes: 1) Use existing execution_id, 2) Auto-create execution using algorithm_id
-        and datapack_id'
-      parameters:
-      - description: Algorithm ID
-        in: path
-        name: algorithm_id
-        required: true
-        type: integer
-      - description: Execution ID (optional - will create new if not provided)
-        in: path
-        name: execution_id
-        type: integer
-      - description: Granularity results with optional execution creation
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/dto.GranularityResultEnhancedRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Results uploaded successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_AlgorithmResultUploadResponse'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "403":
-          description: Permission denied
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "404":
-          description: Algorithm or datapack not found
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      security:
-      - BearerAuth: []
-      summary: Upload granularity algorithm results
-      tags:
-      - Algorithms
   /api/v2/algorithms/{algorithm_id}/results:
     post:
       consumes:
       - application/json
       description: 'Upload granularity results for regular algorithms. Supports two
-        modes: 1) Use existing execution_id, 2) Auto-create execution using algorithm_id
-        and datapack_id'
+        modes: 1) Create new execution with algorithm_id and datapack_id, 2) Use existing
+        execution_id via query parameter'
       parameters:
       - description: Algorithm ID
         in: path
         name: algorithm_id
         required: true
         type: integer
+      - description: Execution ID (optional, will create new if not provided)
+        in: query
+        name: execution_id
+        type: integer
+      - description: Label tag (optional, only used when creating new execution)
+        in: query
+        name: label
+        type: string
       - description: Granularity results with optional execution creation
         in: body
         name: request
@@ -7779,6 +7795,48 @@ paths:
       security:
       - BearerAuth: []
       summary: Manage injection tags
+      tags:
+      - Injections
+  /api/v2/injections/by-label:
+    get:
+      description: Get all injections that have a specific label key-value pair
+      parameters:
+      - description: Label key
+        in: query
+        name: key
+        required: true
+        type: string
+      - description: Label value
+        in: query
+        name: value
+        required: true
+        type: string
+      - description: Include related task
+        in: query
+        name: include_task
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Injections retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_InjectionSearchResponse'
+        "400":
+          description: Invalid parameters
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Label not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: List injections by label
       tags:
       - Injections
   /api/v2/injections/search:
