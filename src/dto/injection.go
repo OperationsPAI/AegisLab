@@ -489,6 +489,22 @@ type InjectionV2CreateItem struct {
 	InjectionName string     `json:"injection_name" binding:"required"`
 }
 
+func (item *InjectionV2CreateItem) ToEntity() database.FaultInjectionSchedule {
+	return database.FaultInjectionSchedule{
+		TaskID:        utils.GetStringValue(item.TaskID, ""),
+		FaultType:     item.FaultType,
+		DisplayConfig: item.DisplayConfig,
+		EngineConfig:  item.EngineConfig,
+		PreDuration:   item.PreDuration,
+		StartTime:     utils.GetTimePtr(item.StartTime, time.Now()),
+		EndTime:       utils.GetTimePtr(item.EndTime, time.Now().Add(time.Hour)),
+		Status:        utils.GetIntValue(&item.Status, 0),
+		Description:   item.Description,
+		Benchmark:     item.Benchmark,
+		InjectionName: item.InjectionName,
+	}
+}
+
 // InjectionV2CreateReq represents the batch creation request for injections
 type InjectionV2CreateReq struct {
 	Injections []InjectionV2CreateItem `json:"injections" binding:"required,min=1,max=100"`

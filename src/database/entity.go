@@ -151,16 +151,18 @@ type Dataset struct {
 
 // Label table - Unified label management
 type Label struct {
-	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`                                        // Unique identifier
-	Key         string    `gorm:"column:label_key;not null;index:idx_label_key_value,unique" json:"key"`     // Label key
-	Value       string    `gorm:"column:label_value;not null;index:idx_label_key_value,unique" json:"value"` // Label value
-	Category    string    `gorm:"index" json:"category"`                                                     // Label category (dataset, fault_injection, algorithm, container, etc.)
-	Description string    `gorm:"type:text" json:"description"`                                              // Label description
-	Color       string    `gorm:"type:varchar(7);default:'#1890ff'" json:"color"`                            // Label color (hex format)
-	IsSystem    bool      `gorm:"default:false;index" json:"is_system"`                                      // Whether system label
-	Usage       int       `gorm:"column:usage_count;default:0;index" json:"usage"`                           // Usage count
-	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`                                          // Creation time
-	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                          // Update time
+	ID          int    `gorm:"primaryKey;autoIncrement" json:"id"`                                               // Unique identifier
+	Key         string `gorm:"column:label_key;not null;index:idx_label_key_value_status,unique" json:"key"`     // Label key
+	Value       string `gorm:"column:label_value;not null;index:idx_label_key_value_status,unique" json:"value"` // Label value
+	Category    string `gorm:"index" json:"category"`                                                            // Label category (dataset, fault_injection, algorithm, container, etc.)
+	Description string `gorm:"type:text" json:"description"`                                                     // Label description
+	Color       string `gorm:"type:varchar(7);default:'#1890ff'" json:"color"`                                   // Label color (hex format)
+	IsSystem    bool   `gorm:"default:false;index" json:"is_system"`                                             // Whether system label
+	Usage       int    `gorm:"column:usage_count;default:0;index" json:"usage"`                                  // Usage count
+
+	Status    int       `gorm:"default:1;index:idx_label_key_value_status,unique" json:"status"` // Status: -1:deleted 0:disabled 1:enabled
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`                                // Creation time
+	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                // Update time
 }
 
 // DatasetFaultInjection Many-to-many relationship table between Dataset and FaultInjectionSchedule

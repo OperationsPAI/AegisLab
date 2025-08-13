@@ -230,6 +230,11 @@ var (
 	RequirePermissionWrite  = RequirePermission("write", "permissions")
 	RequirePermissionDelete = RequirePermission("delete", "permissions")
 
+	// Label management permissions
+	RequireLabelRead   = RequirePermission("read", "labels")
+	RequireLabelWrite  = RequirePermission("write", "labels")
+	RequireLabelDelete = RequirePermission("delete", "labels")
+
 	// Project management permissions
 	RequireProjectRead   = RequirePermission("read", "projects")
 	RequireProjectWrite  = RequirePermission("write", "projects")

@@ -14,6 +14,14 @@ type GenericResponse[T any] struct {
 	Timestamp int64  `json:"timestamp,omitempty"` // Response generation time
 }
 
+type GenericCreateResponse[T, E any] struct {
+	CreatedCount int    `json:"created_count"`
+	CreatedItems []T    `json:"created_items"`
+	FailedCount  int    `json:"failed_count,omitempty"`
+	FailedItems  []E    `json:"failed_items,omitempty"`
+	Message      string `json:"message"`
+}
+
 type ListResp[T any] struct {
 	Total int64 `json:"total"`
 	Items []T   `json:"items"`

@@ -327,6 +327,7 @@ func SetupV2Routes(router *gin.Engine) {
 	{
 		datasets.GET("", middleware.RequireDatasetRead, v2handlers.ListDatasets)
 		datasets.GET("/:id", middleware.RequireDatasetRead, v2handlers.GetDataset)
+		datasets.GET("/:id/download", middleware.RequireDatasetRead, v2handlers.DownloadDataset)
 		datasets.POST("/search", middleware.RequireDatasetRead, v2handlers.SearchDatasets)
 		datasets.POST("", middleware.RequireDatasetWrite, v2handlers.CreateDataset)
 		datasets.PUT("/:id", middleware.RequireDatasetWrite, v2handlers.UpdateDataset)
@@ -335,8 +336,12 @@ func SetupV2Routes(router *gin.Engine) {
 		datasets.DELETE("/:id", middleware.RequireDatasetDelete, v2handlers.DeleteDataset)
 	}
 
-	executions := v2.Group("/executions")                   // Execution Result Management - ExecutionResult Entity
-	labels := v2.Group("/labels")                           // Label Management - Label Entity
+	executions := v2.Group("/executions") // Execution Result Management - ExecutionResult Entity
+	labels := v2.Group("/labels")         // Label Management - Label Entity
+	{
+		labels.POST("", v2handlers.CreateLabels)
+	}
+
 	projects := v2.Group("/projects", middleware.JWTAuth()) // Project Management - Project Entity
 	{
 		projects.GET("/:id", v2handlers.GetProject)

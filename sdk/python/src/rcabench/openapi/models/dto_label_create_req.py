@@ -18,28 +18,23 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DatabaseLabel(BaseModel):
+class DtoLabelCreateReq(BaseModel):
     """
-    DatabaseLabel
+    DtoLabelCreateReq
     """ # noqa: E501
-    category: Optional[StrictStr] = Field(default=None, description="Label category (dataset, fault_injection, algorithm, container, etc.)")
-    color: Optional[StrictStr] = Field(default=None, description="Label color (hex format)")
-    created_at: Optional[StrictStr] = Field(default=None, description="Creation time")
-    description: Optional[StrictStr] = Field(default=None, description="Label description")
-    id: Optional[StrictInt] = Field(default=None, description="Unique identifier")
-    is_system: Optional[StrictBool] = Field(default=None, description="Whether system label")
-    key: Optional[StrictStr] = Field(default=None, description="Label key")
-    status: Optional[StrictInt] = Field(default=None, description="Status: -1:deleted 0:disabled 1:enabled")
-    updated_at: Optional[StrictStr] = Field(default=None, description="Update time")
-    usage: Optional[StrictInt] = Field(default=None, description="Usage count")
-    value: Optional[StrictStr] = Field(default=None, description="Label value")
+    category: Optional[StrictStr] = None
+    color: Optional[Annotated[str, Field(strict=True, max_length=10)]] = None
+    description: Optional[Annotated[str, Field(strict=True, max_length=1000)]] = None
+    key: Annotated[str, Field(strict=True, max_length=255)]
+    value: Annotated[str, Field(strict=True, max_length=255)]
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["category", "color", "created_at", "description", "id", "is_system", "key", "status", "updated_at", "usage", "value"]
+    __properties: ClassVar[List[str]] = ["category", "color", "description", "key", "value"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -59,7 +54,7 @@ class DatabaseLabel(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DatabaseLabel from a JSON string"""
+        """Create an instance of DtoLabelCreateReq from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -91,7 +86,7 @@ class DatabaseLabel(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DatabaseLabel from a dict"""
+        """Create an instance of DtoLabelCreateReq from a dict"""
         if obj is None:
             return None
 
@@ -101,14 +96,8 @@ class DatabaseLabel(BaseModel):
         _obj = cls.model_validate({
             "category": obj.get("category"),
             "color": obj.get("color"),
-            "created_at": obj.get("created_at"),
             "description": obj.get("description"),
-            "id": obj.get("id"),
-            "is_system": obj.get("is_system"),
             "key": obj.get("key"),
-            "status": obj.get("status"),
-            "updated_at": obj.get("updated_at"),
-            "usage": obj.get("usage"),
             "value": obj.get("value")
         })
         # store additional fields in additional_properties

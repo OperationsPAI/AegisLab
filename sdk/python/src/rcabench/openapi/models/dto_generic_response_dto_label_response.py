@@ -18,28 +18,22 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from rcabench.openapi.models.dto_label_response import DtoLabelResponse
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DatabaseLabel(BaseModel):
+class DtoGenericResponseDtoLabelResponse(BaseModel):
     """
-    DatabaseLabel
+    DtoGenericResponseDtoLabelResponse
     """ # noqa: E501
-    category: Optional[StrictStr] = Field(default=None, description="Label category (dataset, fault_injection, algorithm, container, etc.)")
-    color: Optional[StrictStr] = Field(default=None, description="Label color (hex format)")
-    created_at: Optional[StrictStr] = Field(default=None, description="Creation time")
-    description: Optional[StrictStr] = Field(default=None, description="Label description")
-    id: Optional[StrictInt] = Field(default=None, description="Unique identifier")
-    is_system: Optional[StrictBool] = Field(default=None, description="Whether system label")
-    key: Optional[StrictStr] = Field(default=None, description="Label key")
-    status: Optional[StrictInt] = Field(default=None, description="Status: -1:deleted 0:disabled 1:enabled")
-    updated_at: Optional[StrictStr] = Field(default=None, description="Update time")
-    usage: Optional[StrictInt] = Field(default=None, description="Usage count")
-    value: Optional[StrictStr] = Field(default=None, description="Label value")
+    code: Optional[StrictInt] = Field(default=None, description="Status code")
+    data: Optional[DtoLabelResponse] = Field(default=None, description="Generic type data")
+    message: Optional[StrictStr] = Field(default=None, description="Response message")
+    timestamp: Optional[StrictInt] = Field(default=None, description="Response generation time")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["category", "color", "created_at", "description", "id", "is_system", "key", "status", "updated_at", "usage", "value"]
+    __properties: ClassVar[List[str]] = ["code", "data", "message", "timestamp"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -59,7 +53,7 @@ class DatabaseLabel(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DatabaseLabel from a JSON string"""
+        """Create an instance of DtoGenericResponseDtoLabelResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -82,6 +76,9 @@ class DatabaseLabel(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of data
+        if self.data:
+            _dict['data'] = self.data.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -91,7 +88,7 @@ class DatabaseLabel(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DatabaseLabel from a dict"""
+        """Create an instance of DtoGenericResponseDtoLabelResponse from a dict"""
         if obj is None:
             return None
 
@@ -99,17 +96,10 @@ class DatabaseLabel(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "category": obj.get("category"),
-            "color": obj.get("color"),
-            "created_at": obj.get("created_at"),
-            "description": obj.get("description"),
-            "id": obj.get("id"),
-            "is_system": obj.get("is_system"),
-            "key": obj.get("key"),
-            "status": obj.get("status"),
-            "updated_at": obj.get("updated_at"),
-            "usage": obj.get("usage"),
-            "value": obj.get("value")
+            "code": obj.get("code"),
+            "data": DtoLabelResponse.from_dict(obj["data"]) if obj.get("data") is not None else None,
+            "message": obj.get("message"),
+            "timestamp": obj.get("timestamp")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

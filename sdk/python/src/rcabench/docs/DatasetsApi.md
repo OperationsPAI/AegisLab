@@ -6,6 +6,7 @@ Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**api_v2_datasets_get**](DatasetsApi.md#api_v2_datasets_get) | **GET** /api/v2/datasets | List datasets
 [**api_v2_datasets_id_delete**](DatasetsApi.md#api_v2_datasets_id_delete) | **DELETE** /api/v2/datasets/{id} | Delete dataset
+[**api_v2_datasets_id_download_get**](DatasetsApi.md#api_v2_datasets_id_download_get) | **GET** /api/v2/datasets/{id}/download | Download dataset
 [**api_v2_datasets_id_get**](DatasetsApi.md#api_v2_datasets_id_get) | **GET** /api/v2/datasets/{id} | Get dataset by ID
 [**api_v2_datasets_id_injections_patch**](DatasetsApi.md#api_v2_datasets_id_injections_patch) | **PATCH** /api/v2/datasets/{id}/injections | Manage dataset injections
 [**api_v2_datasets_id_labels_patch**](DatasetsApi.md#api_v2_datasets_id_labels_patch) | **PATCH** /api/v2/datasets/{id}/labels | Manage dataset labels
@@ -188,6 +189,88 @@ Name | Type | Description  | Notes
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 **200** | Dataset deleted successfully |  -  |
+**400** | Invalid dataset ID |  -  |
+**403** | Permission denied |  -  |
+**404** | Dataset not found |  -  |
+**500** | Internal server error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **api_v2_datasets_id_download_get**
+> bytearray api_v2_datasets_id_download_get(id)
+
+Download dataset
+
+Download dataset file by ID
+
+### Example
+
+* Api Key Authentication (BearerAuth):
+
+```python
+import rcabench.openapi
+from rcabench.openapi.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = rcabench.openapi.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: BearerAuth
+configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with rcabench.openapi.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = rcabench.openapi.DatasetsApi(api_client)
+    id = 56 # int | Dataset ID
+
+    try:
+        # Download dataset
+        api_response = api_instance.api_v2_datasets_id_download_get(id)
+        print("The response of DatasetsApi->api_v2_datasets_id_download_get:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling DatasetsApi->api_v2_datasets_id_download_get: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **id** | **int**| Dataset ID | 
+
+### Return type
+
+**bytearray**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/octet-stream
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Dataset file |  -  |
 **400** | Invalid dataset ID |  -  |
 **403** | Permission denied |  -  |
 **404** | Dataset not found |  -  |

@@ -612,21 +612,7 @@ func CreateInjectionsV2(injections []dto.InjectionV2CreateItem) ([]database.Faul
 	}()
 
 	for i, item := range injections {
-		// Create injection record
-		injection := database.FaultInjectionSchedule{
-			TaskID:        utils.GetStringValue(item.TaskID, ""),
-			FaultType:     item.FaultType,
-			DisplayConfig: item.DisplayConfig,
-			EngineConfig:  item.EngineConfig,
-			PreDuration:   item.PreDuration,
-			StartTime:     utils.GetTimePtr(item.StartTime, time.Now()),
-			EndTime:       utils.GetTimePtr(item.EndTime, time.Now().Add(time.Hour)),
-			Status:        utils.GetIntValue(&item.Status, 0),
-			Description:   item.Description,
-			Benchmark:     item.Benchmark,
-			InjectionName: item.InjectionName,
-		}
-
+		injection := item.ToEntity()
 		if err := tx.Create(&injection).Error; err != nil {
 			failedItems = append(failedItems, dto.InjectionCreateError{
 				Index: i,
@@ -776,7 +762,7 @@ func AddTagToInjection(injectionID int, tagValue string) error {
 
 // RemoveTagFromInjection removes a tag from injection
 func RemoveTagFromInjection(injectionID int, tagValue string) error {
-	label, err := GetLabelByKeyValue(consts.LabelKeyTag, tagValue)
+	label, err := GetLabelByKeyandValue(consts.LabelKeyTag, tagValue)
 	if err != nil {
 		return fmt.Errorf("failed to get tag '%s': %v", tagValue, err)
 	}

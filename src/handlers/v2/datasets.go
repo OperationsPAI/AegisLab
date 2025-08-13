@@ -1,15 +1,20 @@
 package v2
 
 import (
+	"archive/zip"
 	"fmt"
+	"io/fs"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/LGU-SE-Internal/rcabench/config"
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/repository"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -45,14 +50,18 @@ func CreateDataset(c *gin.Context) {
 
 	// Check if dataset with same name and version already exists
 	existing, err := repository.GetDatasetByNameAndVersion(req.Name, req.Version)
-	if err == nil && existing != nil {
+	if err != nil && !strings.Contains(err.Error(), "not found") {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to check existing dataset: "+err.Error())
+		return
+	}
+
+	if existing != nil {
 		dto.ErrorResponse(c, http.StatusConflict, "Dataset with same name and version already exists")
 		return
 	}
 
 	// Check if there's a deleted dataset with same name and version (for recovery/overwrite)
-	var deletedDataset *database.Dataset
-	deletedDataset, err = repository.GetDeletedDatasetByNameAndVersion(req.Name, req.Version)
+	deletedDataset, err := repository.GetDeletedDatasetByNameAndVersion(req.Name, req.Version)
 	if err != nil && !strings.Contains(err.Error(), "not found") {
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to check deleted dataset: "+err.Error())
 		return
@@ -97,18 +106,7 @@ func CreateDataset(c *gin.Context) {
 			return
 		}
 	} else {
-		// Create new dataset
-		dataset = &database.Dataset{
-			Name:        req.Name,
-			Version:     req.Version,
-			Description: req.Description,
-			Type:        req.Type,
-			DataSource:  req.DataSource,
-			Format:      req.Format,
-			Status:      consts.DatasetEnabled,
-			IsPublic:    req.IsPublic != nil && *req.IsPublic,
-		}
-
+		dataset = req.ToEntity()
 		if err := tx.Create(dataset).Error; err != nil {
 			tx.Rollback()
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to create dataset: "+err.Error())
@@ -305,6 +303,70 @@ func GetDataset(c *gin.Context) {
 	}
 
 	dto.SuccessResponse(c, response)
+}
+
+// DownloadDataset downloads a single dataset file
+//
+//	@Summary Download dataset
+//	@Description Download dataset file by ID
+//	@Tags Datasets
+//	@Produce application/octet-stream
+//	@Security BearerAuth
+//	@Param id path int true "Dataset ID"
+//	@Success 200 {file} binary "Dataset file"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid dataset ID"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 404 {object} dto.GenericResponse[any] "Dataset not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/datasets/{id}/download [get]
+func DownloadDataset(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid dataset ID")
+		return
+	}
+
+	// Get dataset
+	dataset, err := repository.GetDatasetByID(id)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			dto.ErrorResponse(c, http.StatusNotFound, "Dataset not found")
+		} else {
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get dataset: "+err.Error())
+		}
+		return
+	}
+
+	relationMap, err := repository.GetDatasetInjectionsMap([]int{dataset.ID})
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load injections: "+err.Error())
+		return
+	}
+
+	injections, ok := relationMap[dataset.ID]
+	if !ok {
+		dto.ErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("No injection found for dataset %d", dataset.ID))
+		return
+	}
+
+	datapackNames := make([]string, 0, len(injections))
+	for _, injection := range injections {
+		datapackNames = append(datapackNames, injection.InjectionName)
+	}
+
+	c.Header("Content-Type", "application/zip")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.zip", consts.DownloadFilename))
+
+	zipWriter := zip.NewWriter(c.Writer)
+	defer zipWriter.Close()
+
+	if err := packageDatasetToZip(zipWriter, datapackNames, []utils.ExculdeRule{}); err != nil {
+		delete(c.Writer.Header(), "Content-Disposition")
+		c.Header("Content-Type", "application/json; charset=utf-8")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to compress dataset: "+err.Error())
+		return
+	}
 }
 
 // ListDatasets gets the dataset list
@@ -887,7 +949,6 @@ func ManageDatasetInjections(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/datasets/{id}/labels [patch]
 func ManageDatasetLabels(c *gin.Context) {
-
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -981,4 +1042,45 @@ func ManageDatasetLabels(c *gin.Context) {
 	}
 
 	dto.SuccessResponse(c, response)
+}
+
+func packageDatasetToZip(zipWriter *zip.Writer, datapackNames []string, excludeRules []utils.ExculdeRule) error {
+	for _, name := range datapackNames {
+		workDir := filepath.Join(config.GetString("jfs.path"), name)
+		if !utils.IsAllowedPath(workDir) {
+			return fmt.Errorf("Invalid path access to %s", workDir)
+		}
+
+		err := filepath.WalkDir(workDir, func(path string, dir fs.DirEntry, err error) error {
+			if err != nil || dir.IsDir() {
+				return err
+			}
+
+			relPath, _ := filepath.Rel(workDir, path)
+			fullRelPath := filepath.Join(consts.DownloadFilename, filepath.Base(workDir), relPath)
+			fileName := filepath.Base(path)
+
+			// Apply exclusion rules
+			for _, rule := range excludeRules {
+				if utils.MatchFile(fileName, rule) {
+					return nil
+				}
+			}
+
+			// Get file info to read modification time
+			fileInfo, err := dir.Info()
+			if err != nil {
+				return err
+			}
+
+			// Convert path separators to "/"
+			zipPath := filepath.ToSlash(fullRelPath)
+			return utils.AddToZip(zipWriter, fileInfo, path, zipPath)
+		})
+		if err != nil {
+			return fmt.Errorf("Failed to package" + err.Error())
+		}
+	}
+
+	return nil
 }
