@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/LGU-SE-Internal/rcabench/dto"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
@@ -82,8 +83,8 @@ func TestSearchInjections(t *testing.T) {
 	router.POST("/injections/search", SearchInjections)
 
 	searchReq := dto.InjectionV2SearchReq{
-		Page:   1,
-		Size:   10,
+		Page:   utils.IntPtr(1),
+		Size:   utils.IntPtr(20),
 		Search: "test",
 	}
 	jsonData, _ := json.Marshal(searchReq)

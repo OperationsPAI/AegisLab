@@ -381,7 +381,7 @@ func GetQueuedTasks(c *gin.Context) {
 
 	// Calculate pagination info
 	totalPages := int((totalTasks + int64(searchReq.Size) - 1) / int64(searchReq.Size))
-	pagination := dto.PaginationInfo{
+	pagination := &dto.PaginationInfo{
 		Page:       searchReq.Page,
 		Size:       searchReq.Size,
 		Total:      totalTasks,
@@ -394,7 +394,6 @@ func GetQueuedTasks(c *gin.Context) {
 		Filters:    searchReq.Filters,
 		Sort:       searchReq.Sort,
 	}
-
 	dto.SuccessResponse(c, response)
 }
 

@@ -283,17 +283,6 @@ func GetSystemLabels() ([]database.Label, error) {
 	return labels, nil
 }
 
-// ListLabelInjections gets fault injections associated with label
-func ListLabelInjections(labelID int) ([]database.FaultInjectionLabel, error) {
-	var relations []database.FaultInjectionLabel
-	if err := database.DB.Preload("FaultInjectionSchedule").
-		Where("label_id = ?", labelID).
-		Find(&relations).Error; err != nil {
-		return nil, fmt.Errorf("failed to get label fault injections: %v", err)
-	}
-	return relations, nil
-}
-
 func RemoveAllContainersFromLabel(labelID int) error {
 	if err := database.DB.Where("label_id = ?", labelID).
 		Delete(&database.ContainerLabel{}).Error; err != nil {

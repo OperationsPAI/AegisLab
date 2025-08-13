@@ -9,6 +9,7 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 	"github.com/LGU-SE-Internal/rcabench/repository"
+	"github.com/LGU-SE-Internal/rcabench/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -190,54 +191,6 @@ func ListInjections(c *gin.Context) {
 	dto.SuccessResponse(c, response)
 }
 
-// ListInjectionsByLabel gets injections by label key-value pair
-//
-//	@Summary List injections by label
-//	@Description Get all injections that have a specific label key-value pair
-//	@Tags Injections
-//	@Produce json
-//	@Security BearerAuth
-//	@Param key query string true "Label key"
-//	@Param value query string true "Label value"
-//	@Param include_task query bool false "Include related task"
-//	@Success 200 {object} dto.GenericResponse[dto.InjectionSearchResponse] "Injections retrieved successfully"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid parameters"
-//	@Failure 404 {object} dto.GenericResponse[any] "Label not found"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/injections/by-label [get]
-func ListLabelInjections(c *gin.Context) {
-	var req dto.LabelInjectionListReq
-	if err := c.ShouldBindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
-		return
-	}
-
-	label, err := repository.GetLabelByKeyandValue(req.Key, req.Value)
-	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			dto.ErrorResponse(c, http.StatusNotFound, "Label not found")
-		} else {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get label: "+err.Error())
-		}
-		return
-	}
-
-	relations, err := repository.ListLabelInjections(label.ID)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to list relations: "+err.Error())
-		return
-	}
-
-	items := make([]dto.InjectionV2Response, 0, len(relations))
-	for _, relation := range relations {
-		items = append(items, *dto.ToInjectionV2Response(relation.FaultInjectionSchedule, false))
-	}
-
-	dto.SuccessResponse(c, dto.InjectionSearchResponse{
-		Items: items,
-	})
-}
-
 // UpdateInjection
 //
 //	@Summary Update injection
@@ -399,12 +352,19 @@ func SearchInjections(c *gin.Context) {
 		return
 	}
 
-	// Set defaults
-	if req.Page == 0 {
-		req.Page = 1
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
+		return
 	}
-	if req.Size == 0 {
-		req.Size = 20
+
+	withPagination := req.Page != nil && req.Size != nil
+	if withPagination {
+		if *req.Page == 0 {
+			req.Page = utils.IntPtr(1)
+		}
+		if *req.Size == 0 {
+			req.Size = utils.IntPtr(20)
+		}
 	}
 
 	// Call repository
@@ -414,24 +374,29 @@ func SearchInjections(c *gin.Context) {
 		return
 	}
 
-	includeTask := strings.Contains(req.Include, "task")
-	items, err := toInjectionV2ResponsesWithLabels(injections, includeTask)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to convert injections: "+err.Error())
-		return
-	}
-
-	// Create response using existing SearchResponse
-	pagination := dto.PaginationInfo{
-		Page:       req.Page,
-		Size:       req.Size,
-		Total:      total,
-		TotalPages: int((total + int64(req.Size) - 1) / int64(req.Size)),
+	var items []dto.InjectionV2Response
+	if req.IncludeLabels {
+		items, err = toInjectionV2ResponsesWithLabels(injections, req.IncludeTask)
+		if err != nil {
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to convert injections: "+err.Error())
+			return
+		}
+	} else {
+		for _, injection := range injections {
+			items = append(items, *dto.ToInjectionV2Response(&injection, req.IncludeTask))
+		}
 	}
 
 	response := dto.SearchResponse[dto.InjectionV2Response]{
-		Items:      items,
-		Pagination: pagination,
+		Items: items,
+	}
+	if withPagination {
+		response.Pagination = &dto.PaginationInfo{
+			Page:       *req.Page,
+			Size:       *req.Size,
+			Total:      total,
+			TotalPages: int((total + int64(*req.Size) - 1) / int64(*req.Size)),
+		}
 	}
 
 	dto.SuccessResponse(c, response)

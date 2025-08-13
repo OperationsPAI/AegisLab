@@ -877,9 +877,13 @@ func SearchInjectionsV2(req *dto.InjectionV2SearchReq) ([]database.FaultInjectio
 	}
 
 	// Apply pagination
-	if req.Page > 0 && req.Size > 0 {
-		offset := (req.Page - 1) * req.Size
-		query = query.Offset(offset).Limit(req.Size)
+	if req.Page != nil && req.Size != nil {
+		page := *req.Page
+		size := *req.Size
+		if page > 0 && size > 0 {
+			offset := (page - 1) * size
+			query = query.Offset(offset).Limit(size)
+		}
 	}
 
 	// Execute query

@@ -6,6 +6,10 @@ func BoolPtr(b bool) *bool {
 	return &b
 }
 
+func IntPtr(i int) *int {
+	return &i
+}
+
 func GetBoolValue(ptr *bool, defaultValue bool) bool {
 	if ptr == nil {
 		return defaultValue

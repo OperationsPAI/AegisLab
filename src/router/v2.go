@@ -311,10 +311,9 @@ func SetupV2Routes(router *gin.Engine) {
 		injections.POST("", middleware.RequireFaultInjectionWrite, v2handlers.CreateInjection) // Create injections (batch supported)
 
 		// Read operations
-		injections.GET("", middleware.RequireFaultInjectionRead, v2handlers.ListInjections)               // List injections
-		injections.GET("/:id", middleware.RequireFaultInjectionRead, v2handlers.GetInjection)             // Get injection by ID
-		injections.GET("/by-label", middleware.RequireFaultInjectionRead, v2handlers.ListLabelInjections) // List injections by label key-value pair
-		injections.POST("/search", middleware.RequireFaultInjectionRead, v2handlers.SearchInjections)     // Advanced search
+		injections.GET("", middleware.RequireFaultInjectionRead, v2handlers.ListInjections)           // List injections
+		injections.GET("/:id", middleware.RequireFaultInjectionRead, v2handlers.GetInjection)         // Get injection by ID
+		injections.POST("/search", middleware.RequireFaultInjectionRead, v2handlers.SearchInjections) // Advanced search
 
 		// Write operations
 		injections.PUT("/:id", middleware.RequireFaultInjectionWrite, v2handlers.UpdateInjection)                        // Update injection
