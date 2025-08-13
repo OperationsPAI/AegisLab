@@ -11402,8 +11402,7 @@ const docTemplate = `{
         "dto.LabelItem": {
             "type": "object",
             "required": [
-                "key",
-                "value"
+                "key"
             ],
             "properties": {
                 "key": {
