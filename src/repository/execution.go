@@ -18,7 +18,7 @@ func CreateExecutionResult(taskID string, algorithmID, datapackID int, labels *d
 	executionResult := database.ExecutionResult{
 		AlgorithmID: algorithmID,
 		DatapackID:  datapackID,
-		Status:      consts.ExecutionInitial,
+		Status:      consts.ExecutionSuccess,
 	}
 
 	// Set TaskID to nil if it's empty, otherwise set the value
