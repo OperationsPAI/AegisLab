@@ -606,15 +606,14 @@ func GetAlgorithmDatasetEvaluation(req dto.AlgorithmDatasetEvaluationReq) (*dto.
 	}
 
 	// Query execution results for the specified algorithm and dataset
+	// Use the fault injection IDs we already have to avoid complex JOINs
 	query := database.DB.
 		Table("execution_results").
 		Select("execution_results.*, containers.name as algorithm, fault_injection_schedules.injection_name as datapack_name").
 		Joins("JOIN containers ON containers.id = execution_results.algorithm_id").
 		Joins("JOIN fault_injection_schedules ON fault_injection_schedules.id = execution_results.datapack_id").
-		Joins("JOIN dataset_fault_injections ON dataset_fault_injections.fault_injection_id = fault_injection_schedules.id").
-		Joins("JOIN datasets ON datasets.id = dataset_fault_injections.dataset_id").
-		Where("datasets.name = ? AND datasets.status = ? AND containers.name = ? AND execution_results.status = ?",
-			req.Dataset, consts.DatasetEnabled, req.Algorithm, consts.ExecutionSuccess)
+		Where("execution_results.datapack_id IN (?) AND containers.name = ? AND execution_results.status = ?",
+			faultInjectionIDs, req.Algorithm, consts.ExecutionSuccess)
 
 	// Apply label filters
 	queryWithLabels := applyLabelFilters(query, req.Tag)
