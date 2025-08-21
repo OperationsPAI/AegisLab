@@ -27,8 +27,8 @@ repo_url = "https://lgu-se-internal.github.io/train-ticket"
 clickhouse_host = "10.10.10.58"
 mysql_user = "root"
 mysql_password = "yourpassword"
-mysql_host = "127.0.0.1"
-mysql_port = "3306"
+mysql_host = "10.10.10.220"
+mysql_port = "32206"
 mysql_db = "rcabench"
 
 [jaeger]

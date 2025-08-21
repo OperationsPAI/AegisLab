@@ -552,6 +552,7 @@ func GetInjectionsByIDsAndNames(ids []int, names []string) ([]database.FaultInje
 // ListInjectionsV2 lists injections with pagination and filtering
 func ListInjectionsV2(page, size int, taskID string, faultType, status *int, benchmark, search string, tags []string) ([]database.FaultInjectionSchedule, int64, error) {
 	query := database.DB.Model(&database.FaultInjectionSchedule{})
+	tags = append(tags, "valid")
 
 	// Apply filters
 	if taskID != "" {
@@ -572,11 +573,16 @@ func ListInjectionsV2(page, size int, taskID string, faultType, status *int, ben
 
 	// Apply tags filter
 	if len(tags) > 0 {
-		// Join with fault_injection_labels and labels tables to filter by tags
-		query = query.Joins("JOIN fault_injection_labels ON fault_injection_labels.fault_injection_id = fault_injection_schedules.id").
-			Joins("JOIN labels ON labels.id = fault_injection_labels.label_id").
-			Where("labels.label_key = ? AND labels.label_value IN ?", consts.LabelKeyTag, tags).
-			Group("fault_injection_schedules.id")
+		// For each tag, add a condition that the injection must have that tag
+		// This creates an AND condition - injection must have ALL specified tags
+		for _, tag := range tags {
+			subQuery := database.DB.Table("fault_injection_labels").
+				Select("fault_injection_id").
+				Joins("JOIN labels ON labels.id = fault_injection_labels.label_id").
+				Where("labels.label_key = ? AND labels.label_value = ?", consts.LabelKeyTag, tag)
+
+			query = query.Where("fault_injection_schedules.id IN (?)", subQuery)
+		}
 	}
 
 	// Count total
@@ -587,7 +593,7 @@ func ListInjectionsV2(page, size int, taskID string, faultType, status *int, ben
 
 	// Apply pagination
 	offset := (page - 1) * size
-	query = query.Offset(offset).Limit(size)
+	query = query.Offset(offset).Limit(size).Order("id desc")
 
 	// Execute query
 	var injections []database.FaultInjectionSchedule

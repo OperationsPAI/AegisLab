@@ -26,7 +26,7 @@ func CreateOrGetLabel(key, value, category, description string) (*database.Label
 
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
 		err := tx.Session(&gorm.Session{Logger: tx.Logger.LogMode(logger.Silent)}).
-			Where(&database.Label{Key: key, Value: value, Category: category}).
+			Where("label_key = ? AND label_value = ?", key, value).
 			First(&label).Error
 		if err == nil {
 			return tx.Model(&label).UpdateColumn("usage_count", gorm.Expr("usage_count + ?", 1)).Error
