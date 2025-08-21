@@ -2,6 +2,7 @@ package dto
 
 import (
 	"fmt"
+	"time"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"github.com/LGU-SE-Internal/rcabench/config"
@@ -109,12 +110,38 @@ type Conclusion struct {
 // EvaluateMetric represents evaluation metric function type
 type EvaluateMetric func([]Execution) ([]Conclusion, error)
 
-// AlgorithmDatasetEvaluationReq represents request for algorithm evaluation on a dataset
-type AlgorithmDatasetEvaluationReq struct {
+type AlgorithmDatasetReq struct {
 	Algorithm      string `json:"algorithm" binding:"required"`
 	Dataset        string `json:"dataset" binding:"required"`
 	DatasetVersion string `json:"dataset_version,omitempty" form:"dataset_version"` // Dataset version (optional, defaults to "v1.0")
-	Tag            string `json:"tag,omitempty" form:"tag"`                         // Tag filter for filtering execution results
+	Tag            string `json:"tag,omitempty" form:"tag"`
+}
+
+// DatasetEvaluationBatchReq represents request for algorithm evaluation on datasets
+type DatasetEvaluationBatchReq struct {
+	Items []AlgorithmDatasetReq `json:"items" binding:"required"`
+}
+
+func (req *DatasetEvaluationBatchReq) Validate() error {
+	if len(req.Items) == 0 {
+		return fmt.Errorf("at least one algorithm-dataset pair is required")
+	}
+
+	for i, item := range req.Items {
+		if item.Algorithm == "" {
+			return fmt.Errorf("algorithm cannot be empty in item at index %d", i)
+		}
+
+		if item.Dataset == "" {
+			return fmt.Errorf("dataset cannot be empty in item at index %d", i)
+		}
+
+		if item.DatasetVersion == "" {
+			item.DatasetVersion = "v1.0"
+		}
+	}
+
+	return nil
 }
 
 // DatapackEvaluationItem represents evaluation item for a single datapack
@@ -123,11 +150,11 @@ type DatapackEvaluationItem struct {
 	ExecutionID  int                 `json:"execution_id"`  // Execution ID
 	Groundtruth  chaos.Groundtruth   `json:"groundtruth"`   // Ground truth for this datapack
 	Predictions  []GranularityRecord `json:"predictions"`   // Algorithm predictions
-	ExecutedAt   string              `json:"executed_at"`   // Execution time
+	ExecutedAt   time.Time           `json:"executed_at"`   // Execution time
 }
 
-// AlgorithmDatasetEvaluationResp represents response for algorithm evaluation on a dataset
-type AlgorithmDatasetEvaluationResp struct {
+// AlgorithmDatasetResp represents response for algorithm evaluation on a dataset
+type AlgorithmDatasetResp struct {
 	Algorithm      string                   `json:"algorithm"`       // Algorithm name
 	Dataset        string                   `json:"dataset"`         // Dataset name
 	DatasetVersion string                   `json:"dataset_version"` // Dataset version
@@ -136,23 +163,52 @@ type AlgorithmDatasetEvaluationResp struct {
 	Items          []DatapackEvaluationItem `json:"items"`           // Evaluation items for each datapack
 }
 
-// AlgorithmDatapackEvaluationReq represents request for algorithm evaluation on a single datapack
-type AlgorithmDatapackEvaluationReq struct {
+// DatasetEvaluationBatchResp represents response for algorithm evaluation on datasets
+type DatasetEvaluationBatchResp []AlgorithmDatasetResp
+
+// AlgorithmDatapackReq represents request for algorithm evaluation on a single datapack
+type AlgorithmDatapackReq struct {
 	Algorithm string `json:"algorithm" binding:"required"`
 	Datapack  string `json:"datapack" binding:"required"`
 	Tag       string `json:"tag,omitempty" form:"tag"` // Tag filter for filtering execution results
 }
 
-// AlgorithmDatapackEvaluationResp represents response for algorithm evaluation on a single datapack
-type AlgorithmDatapackEvaluationResp struct {
+// DatapackEvaluationBatchReq represents request for algorithm evaluation on datapacks
+type DatapackEvaluationBatchReq struct {
+	Items []AlgorithmDatapackReq `json:"items" binding:"required"`
+}
+
+func (req *DatapackEvaluationBatchReq) Validate() error {
+	if len(req.Items) == 0 {
+		return fmt.Errorf("at least one algorithm-datapack pair is required")
+	}
+
+	for i, item := range req.Items {
+		if item.Algorithm == "" {
+			return fmt.Errorf("algorithm cannot be empty in item at index %d", i)
+		}
+
+		if item.Datapack == "" {
+			return fmt.Errorf("datapack cannot be empty in item at index %d", i)
+		}
+	}
+
+	return nil
+}
+
+// AlgorithmDatapackResp represents response for algorithm evaluation on a single datapack
+type AlgorithmDatapackResp struct {
 	Algorithm   string              `json:"algorithm"`    // Algorithm name
 	Datapack    string              `json:"datapack"`     // Datapack name
 	ExecutionID int                 `json:"execution_id"` // Execution ID (0 if no execution found)
 	Groundtruth chaos.Groundtruth   `json:"groundtruth"`  // Ground truth for this datapack
 	Predictions []GranularityRecord `json:"predictions"`  // Algorithm predictions
-	ExecutedAt  string              `json:"executed_at"`  // Execution time
+	ExecutedAt  time.Time           `json:"executed_at"`  // Execution time
 	Found       bool                `json:"found"`        // Whether execution result was found
 }
+
+// DatapackEvaluationBatchResp represents response for algorithm evaluation on datapacks
+type DatapackEvaluationBatchResp []AlgorithmDatapackResp
 
 // DetectorRecord represents detector analysis result
 type DetectorRecord struct {

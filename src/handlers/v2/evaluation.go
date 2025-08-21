@@ -9,71 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GetAlgorithmDatasetEvaluation retrieves evaluation data for a specific algorithm on a specific dataset
-// @Summary Get Algorithm Dataset Evaluation
-// @Description Get all execution results with predictions and ground truth for a specific algorithm on a specific dataset
-// @Tags evaluation
-// @Security BearerAuth
-// @Accept json
-// @Produce json
-// @Param algorithm path string true "Algorithm name"
-// @Param dataset path string true "Dataset name"
-// @Param dataset_version query string false "Dataset version (optional, defaults to v1.0)"
-// @Param tag query string false "Tag label filter"
-// @Success 200 {object} dto.GenericResponse[dto.AlgorithmDatasetEvaluationResp] "Algorithm dataset evaluation data"
-// @Failure 400 {object} dto.GenericResponse[any] "Bad request"
-// @Failure 401 {object} dto.GenericResponse[any] "Unauthorized"
-// @Failure 403 {object} dto.GenericResponse[any] "Forbidden"
-// @Failure 404 {object} dto.GenericResponse[any] "Algorithm or dataset not found"
-// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/evaluations/algorithms/{algorithm}/datasets/{dataset} [get]
-func GetAlgorithmDatasetEvaluation(c *gin.Context) {
-	algorithm := c.Param("algorithm")
-	dataset := c.Param("dataset")
-
-	// Build request with path parameters and query parameters
-	req := dto.AlgorithmDatasetEvaluationReq{
-		Algorithm: algorithm,
-		Dataset:   dataset,
-	}
-
-	// Parse label filters and dataset version from query parameters
-	if err := c.ShouldBindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
-		return
-	}
-
-	// Validate request
-	if req.Algorithm == "" {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Algorithm parameter is required")
-		return
-	}
-
-	if req.Dataset == "" {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Dataset parameter is required")
-		return
-	}
-
-	// Get evaluation data from repository
-	result, err := repository.GetAlgorithmDatasetEvaluation(req)
-	if err != nil {
-		// Check if it's a not found error
-		datasetVersion := req.DatasetVersion
-		if datasetVersion == "" {
-			datasetVersion = "v1.0"
-		}
-		if err.Error() == "dataset '"+req.Dataset+":"+datasetVersion+"' not found" {
-			dto.ErrorResponse(c, http.StatusNotFound, "Dataset not found")
-			return
-		}
-
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to retrieve evaluation data")
-		return
-	}
-
-	dto.SuccessResponse(c, result)
-}
-
 // GetAvailableLabelKeys returns the list of available label keys for execution filtering
 // @Summary Get Available Label Keys
 // @Description Get the list of available label keys that can be used for filtering execution results
@@ -91,64 +26,75 @@ func GetAvailableLabelKeys(c *gin.Context) {
 	dto.SuccessResponse(c, labelKeys)
 }
 
-// GetAlgorithmDatapackEvaluation retrieves evaluation data for a specific algorithm on a specific datapack
-// @Summary Get Algorithm Datapack Evaluation
-// @Description Get execution result with predictions and ground truth for a specific algorithm on a specific datapack
+// GetDatasetEvaluationResults retrieves evaluation data for multiple algorithm-dataset pairs
+// @Summary Get Batch Algorithm Dataset Evaluation
+// @Description Get execution results with predictions and ground truth for multiple algorithm-dataset pairs in a single request
 // @Tags evaluation
 // @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param algorithm path string true "Algorithm name"
-// @Param datapack path string true "Datapack name"
-// @Param tag query string false "Tag label filter"
-// @Success 200 {object} dto.GenericResponse[dto.AlgorithmDatapackEvaluationResp] "Algorithm datapack evaluation data"
+// @Param request body dto.DatasetEvaluationBatchReq true "Batch evaluation request containing multiple algorithm-dataset pairs"
+// @Success 200 {object} dto.GenericResponse[dto.DatasetEvaluationBatchResp] "Batch algorithm dataset evaluation data"
 // @Failure 400 {object} dto.GenericResponse[any] "Bad request"
 // @Failure 401 {object} dto.GenericResponse[any] "Unauthorized"
 // @Failure 403 {object} dto.GenericResponse[any] "Forbidden"
-// @Failure 404 {object} dto.GenericResponse[any] "Algorithm or datapack not found"
 // @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-// @Router /api/v2/evaluations/algorithms/{algorithm}/datapacks/{datapack} [get]
-func GetAlgorithmDatapackEvaluation(c *gin.Context) {
-	algorithm := c.Param("algorithm")
-	datapack := c.Param("datapack")
-
-	// Build request with path parameters and query parameters
-	req := dto.AlgorithmDatapackEvaluationReq{
-		Algorithm: algorithm,
-		Datapack:  datapack,
-	}
-
-	// Parse label filters from query parameters
-	if err := c.ShouldBindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
+// @Router /api/v2/evaluations/datasets [post]
+func GetDatasetEvaluationResults(c *gin.Context) {
+	var req dto.DatasetEvaluationBatchReq
+	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	// Validate request
-	if req.Algorithm == "" {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Algorithm parameter is required")
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if req.Datapack == "" {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Datapack parameter is required")
-		return
-	}
-
-	// Get evaluation data from repository
-	result, err := repository.GetAlgorithmDatapackEvaluation(req)
+	results, err := repository.GetDatasetEvaluationBatch(req)
 	if err != nil {
-		// Check if it's a not found error
-		if err.Error() == "datapack '"+req.Datapack+"' not found" {
-			dto.ErrorResponse(c, http.StatusNotFound, "Datapack not found")
-			return
-		}
-
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to retrieve evaluation data")
 		return
 	}
 
-	dto.SuccessResponse(c, result)
+	dto.SuccessResponse(c, results)
+}
+
+// GetDatapackEvaluationResults retrieves evaluation data for multiple algorithm-datapack pairs
+// @Summary Get Batch Algorithm Datapack Evaluation
+// @Description Get execution results with predictions and ground truth for multiple algorithm-datapack pairs in a single request. Returns the latest execution for each pair if multiple executions exist.
+// @Tags evaluation
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param request body dto.DatapackEvaluationBatchReq true "Batch evaluation request containing multiple algorithm-datapack pairs"
+// @Success 200 {object} dto.GenericResponse[dto.DatapackEvaluationBatchResp] "Batch algorithm datapack evaluation data"
+// @Failure 400 {object} dto.GenericResponse[any] "Bad request"
+// @Failure 401 {object} dto.GenericResponse[any] "Unauthorized"
+// @Failure 403 {object} dto.GenericResponse[any] "Forbidden"
+// @Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+// @Router /api/v2/evaluations/datapacks [post]
+func GetDatapackEvaluationResults(c *gin.Context) {
+	var req dto.DatapackEvaluationBatchReq
+	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Get evaluation data from repository
+	results, err := repository.GetDatapackEvaluationBatch(req)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to retrieve evaluation data")
+		return
+	}
+
+	dto.SuccessResponse(c, results)
 }
 
 // GetDatapackDetectorResults retrieves detector results for multiple datapacks
