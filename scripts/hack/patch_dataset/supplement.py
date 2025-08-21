@@ -212,6 +212,31 @@ def detector(
 
 
 @app.command()
+def detector_single(
+    injection_name: str,
+    base_url: str = typer.Option(
+        "http://10.10.10.220:32080", help="Base URL of RCABench service"
+    ),
+    detector_image: str = typer.Option("detector", help="Detector image name"),
+):
+    configuration: Configuration = Configuration(host=base_url)
+
+    with ApiClient(configuration=configuration) as client:
+        api = AlgorithmApi(api_client=client)
+        resp = api.api_v1_algorithms_post(
+            body=DtoSubmitExecutionReq(
+                project_name="pair_diagnosis",
+                payloads=[
+                    DtoExecutionPayload(
+                        algorithm=DtoAlgorithmItem(name=detector_image),
+                        dataset=injection_name,
+                    )
+                ],
+            ),
+        )
+
+
+@app.command()
 def align_db(
     db_host: str = typer.Option("10.10.10.220", help="MySQL database host"),
     db_user: str = typer.Option("root", help="MySQL username"),
