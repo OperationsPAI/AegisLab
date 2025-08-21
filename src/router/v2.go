@@ -353,11 +353,11 @@ func SetupV2Routes(router *gin.Engine) {
 		// GET /api/v2/evaluations/label-keys - Get available label keys for filtering (requires system read permission)
 		evaluations.GET("/label-keys", middleware.RequireDatasetRead, v2handlers.GetAvailableLabelKeys)
 
-		// GET /api/v2/evaluations/algorithms/{algorithm}/datasets/{dataset} - Get algorithm evaluation on a dataset (requires system read permission)
-		evaluations.GET("/algorithms/:algorithm/datasets/:dataset", middleware.RequireDatasetRead, v2handlers.GetAlgorithmDatasetEvaluation)
+		// POST /api/v2/evaluations/datasets - Get algorithm evaluations on multiple datasets (requires system read permission)
+		evaluations.POST("/datasets", middleware.RequireDatasetRead, v2handlers.GetDatasetEvaluationResults)
 
-		// GET /api/v2/evaluations/algorithms/{algorithm}/datapacks/{datapack} - Get algorithm evaluation on a single datapack (requires system read permission)
-		evaluations.GET("/algorithms/:algorithm/datapacks/:datapack", middleware.RequireDatasetRead, v2handlers.GetAlgorithmDatapackEvaluation)
+		// POST /api/v2/evaluations/datapacks - Get algorithm evaluations on multiple datapacks (requires system read permission)
+		evaluations.POST("/datapacks", middleware.RequireDatasetRead, v2handlers.GetDatapackEvaluationResults)
 
 		// POST /api/v2/evaluations/datapacks/detector - Get detector results for multiple datapacks (requires system read permission)
 		evaluations.POST("/datapacks/detector", middleware.RequireDatasetRead, v2handlers.GetDatapackDetectorResults)

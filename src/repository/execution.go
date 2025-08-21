@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
@@ -13,6 +14,8 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/database"
 	"github.com/LGU-SE-Internal/rcabench/dto"
 )
+
+const BATCH_SIZE = 500 // 服务器端分批大小
 
 func CreateExecutionResult(taskID string, algorithmID, datapackID int, labels *dto.ExecutionLabels) (int, error) {
 	executionResult := database.ExecutionResult{
@@ -560,236 +563,495 @@ func applyLabelFilters(query *gorm.DB, tag string) *gorm.DB {
 	return query
 }
 
-// GetAlgorithmDatasetEvaluation retrieves all execution results for a specific algorithm on a specific dataset
-func GetAlgorithmDatasetEvaluation(req dto.AlgorithmDatasetEvaluationReq) (*dto.AlgorithmDatasetEvaluationResp, error) {
-	// Set default version if not provided
-	datasetVersion := req.DatasetVersion
-	if datasetVersion == "" {
-		datasetVersion = "v1.0"
+// GetDatasetEvaluationBatch retrieves evaluation results for multiple algorithm-dataset pairs in batch
+// Optimized for datasets with large number of execution records (10000+ executions, 50000+ results)
+func GetDatasetEvaluationBatch(req dto.DatasetEvaluationBatchReq) (dto.DatasetEvaluationBatchResp, error) {
+	if len(req.Items) == 0 {
+		return dto.DatasetEvaluationBatchResp{}, nil
 	}
 
-	// First, get all fault injection schedules (datapacks) for the specified dataset and version
-	var datasetRecord database.Dataset
-	err := database.DB.Where("name = ? AND version = ? AND status = ?", req.Dataset, datasetVersion, consts.DatasetEnabled).First(&datasetRecord).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("dataset '%s:%s' not found", req.Dataset, datasetVersion)
+	// Set default dataset versions
+	for i := range req.Items {
+		if req.Items[i].DatasetVersion == "" {
+			req.Items[i].DatasetVersion = "v1.0"
 		}
-		return nil, fmt.Errorf("failed to query dataset: %v", err)
 	}
 
-	// Get all fault injection schedules (datapacks) in this dataset
-	var faultInjections []database.FaultInjectionSchedule
-	err = database.DB.
-		Joins("JOIN dataset_fault_injections ON dataset_fault_injections.fault_injection_id = fault_injection_schedules.id").
-		Where("dataset_fault_injections.dataset_id = ?", datasetRecord.ID).
-		Find(&faultInjections).Error
-	if err != nil {
-		return nil, fmt.Errorf("failed to query fault injections for dataset: %v", err)
+	// 1. Batch query all required datasets
+	datasetMap := make(map[string]string) // dataset_name -> version
+	for _, item := range req.Items {
+		datasetMap[item.Dataset] = item.DatasetVersion
 	}
 
-	if len(faultInjections) == 0 {
-		return &dto.AlgorithmDatasetEvaluationResp{
-			Algorithm:      req.Algorithm,
-			Dataset:        req.Dataset,
-			DatasetVersion: datasetVersion,
-			TotalCount:     0,
-			ExecutedCount:  0,
-			Items:          []dto.DatapackEvaluationItem{},
-		}, nil
+	var datasetConditions []string
+	var datasetArgs []any
+	for name, version := range datasetMap {
+		datasetConditions = append(datasetConditions, "(name = ? AND version = ?)")
+		datasetArgs = append(datasetArgs, name, version)
 	}
 
-	// Get fault injection IDs
-	faultInjectionIDs := make([]int, len(faultInjections))
-	for i, fi := range faultInjections {
-		faultInjectionIDs[i] = fi.ID
+	var datasetRecords []database.Dataset
+	if err := database.DB.
+		Where(strings.Join(datasetConditions, " OR "), datasetArgs...).
+		Where("status = ?", consts.DatasetEnabled).
+		Find(&datasetRecords).Error; err != nil {
+		return nil, fmt.Errorf("failed to query datasets: %v", err)
 	}
 
-	// Query execution results for the specified algorithm and dataset
-	// Use the fault injection IDs we already have to avoid complex JOINs
-	query := database.DB.
-		Table("execution_results").
-		Select("execution_results.*, containers.name as algorithm, fault_injection_schedules.injection_name as datapack_name").
-		Joins("JOIN containers ON containers.id = execution_results.algorithm_id").
-		Joins("JOIN fault_injection_schedules ON fault_injection_schedules.id = execution_results.datapack_id").
-		Where("execution_results.datapack_id IN (?) AND containers.name = ? AND execution_results.status = ?",
-			faultInjectionIDs, req.Algorithm, consts.ExecutionSuccess)
+	datasetLookup := make(map[string]database.Dataset)
+	for _, dataset := range datasetRecords {
+		key := fmt.Sprintf("%s:%s", dataset.Name, dataset.Version)
+		datasetLookup[key] = dataset
+	}
 
-	// Apply label filters
-	queryWithLabels := applyLabelFilters(query, req.Tag)
+	// 2. Collect all unique algorithms for batch processing
+	algorithmSet := make(map[string]bool)
+	datasetIDSet := make(map[int]bool)
+	tagSet := make(map[string]bool)
 
-	// Query execution results with label filters
-	var execResults []struct {
+	for _, item := range req.Items {
+		algorithmSet[item.Algorithm] = true
+		if item.Tag != "" {
+			tagSet[item.Tag] = true
+		}
+
+		datasetKey := fmt.Sprintf("%s:%s", item.Dataset, item.DatasetVersion)
+		if dataset, exists := datasetLookup[datasetKey]; exists {
+			datasetIDSet[dataset.ID] = true
+		}
+	}
+
+	algorithms := make([]string, 0, len(algorithmSet))
+	datasetIDs := make([]int, 0, len(datasetIDSet))
+	tags := make([]string, 0, len(tagSet))
+
+	for algorithm := range algorithmSet {
+		algorithms = append(algorithms, algorithm)
+	}
+	for datasetID := range datasetIDSet {
+		datasetIDs = append(datasetIDs, datasetID)
+	}
+	for tag := range tagSet {
+		tags = append(tags, tag)
+	}
+
+	// 3. Batch query fault injections for all datasets
+	var allFaultInjections []struct {
+		DatasetID        int    `json:"dataset_id"`
+		FaultInjectionID int    `json:"fault_injection_id"`
+		InjectionName    string `json:"injection_name"`
+	}
+
+	if err := database.DB.
+		Table("dataset_fault_injections dfi").
+		Select("dfi.dataset_id, dfi.fault_injection_id, fis.injection_name").
+		Joins("JOIN fault_injection_schedules fis ON fis.id = dfi.fault_injection_id").
+		Where("dfi.dataset_id IN ?", datasetIDs).
+		Find(&allFaultInjections).Error; err != nil {
+		return nil, fmt.Errorf("failed to batch query fault injections: %v", err)
+	}
+
+	// Group fault injections by dataset ID
+	datasetFaultMap := make(map[int][]string)
+	for _, fi := range allFaultInjections {
+		datasetFaultMap[fi.DatasetID] = append(datasetFaultMap[fi.DatasetID], fi.InjectionName)
+	}
+
+	// 4. Batch query all execution results with optimized query
+	var allExecResults []struct {
 		database.ExecutionResult
 		Algorithm    string `json:"algorithm"`
 		DatapackName string `json:"datapack_name"`
+		DatasetID    int    `json:"dataset_id"`
 	}
 
-	if err := queryWithLabels.Find(&execResults).Error; err != nil {
-		return nil, fmt.Errorf("failed to query execution results: %v", err)
+	baseQuery := database.DB.
+		Table("execution_results er").
+		Select("er.*, c.name as algorithm, fis.injection_name as datapack_name, dfi.dataset_id").
+		Joins("JOIN containers c ON c.id = er.algorithm_id").
+		Joins("JOIN fault_injection_schedules fis ON fis.id = er.datapack_id").
+		Joins("JOIN dataset_fault_injections dfi ON dfi.fault_injection_id = fis.id").
+		Where("c.name IN ? AND dfi.dataset_id IN ? AND er.status = ?",
+			algorithms, datasetIDs, consts.ExecutionSuccess)
+
+	if err := baseQuery.Find(&allExecResults).Error; err != nil {
+		return nil, fmt.Errorf("failed to batch query execution results: %v", err)
 	}
 
-	// If no executions found, return empty result
-	if len(execResults) == 0 {
-		return &dto.AlgorithmDatasetEvaluationResp{
-			Algorithm:      req.Algorithm,
-			Dataset:        req.Dataset,
-			DatasetVersion: datasetVersion,
-			TotalCount:     len(faultInjections),
-			ExecutedCount:  0,
-			Items:          []dto.DatapackEvaluationItem{},
-		}, nil
+	// 5. Handle tag filtering if needed
+	var filteredExecResults []struct {
+		database.ExecutionResult
+		Algorithm    string `json:"algorithm"`
+		DatapackName string `json:"datapack_name"`
+		DatasetID    int    `json:"dataset_id"`
 	}
 
-	// Get execution IDs for granularity results query
-	executionIDs := make([]int, len(execResults))
-	for i, exec := range execResults {
+	if len(tags) > 0 {
+		// Get execution IDs for tag filtering
+		executionIDs := make([]int, len(allExecResults))
+		for i, exec := range allExecResults {
+			executionIDs[i] = exec.ID
+		}
+
+		// Batch query tag labels
+		var tagLabels []struct {
+			ExecutionID int    `json:"execution_id"`
+			LabelValue  string `json:"label_value"`
+		}
+		if err := database.DB.
+			Table("execution_result_labels erl").
+			Select("erl.execution_id, l.label_value").
+			Joins("JOIN labels l ON l.id = erl.label_id").
+			Where("erl.execution_id IN ? AND l.label_key = ? AND l.label_value IN ?",
+				executionIDs, consts.LabelKeyTag, tags).
+			Find(&tagLabels).Error; err != nil {
+			return nil, fmt.Errorf("failed to query tag labels: %v", err)
+		}
+
+		execTagMap := make(map[int]string)
+		for _, tagLabel := range tagLabels {
+			execTagMap[tagLabel.ExecutionID] = tagLabel.LabelValue
+		}
+
+		// Filter based on request requirements
+		for _, exec := range allExecResults {
+			for _, item := range req.Items {
+				datasetKey := fmt.Sprintf("%s:%s", item.Dataset, item.DatasetVersion)
+				dataset, exists := datasetLookup[datasetKey]
+				if !exists {
+					continue
+				}
+
+				if exec.Algorithm == item.Algorithm && exec.DatasetID == dataset.ID {
+					if item.Tag == "" || execTagMap[exec.ID] == item.Tag {
+						filteredExecResults = append(filteredExecResults, exec)
+						break
+					}
+				}
+			}
+		}
+	} else {
+		filteredExecResults = allExecResults
+	}
+
+	// 6. Collect all unique datapack names for ground truth batch query
+	datapackSet := make(map[string]bool)
+	for _, exec := range filteredExecResults {
+		datapackSet[exec.DatapackName] = true
+	}
+
+	datapacks := make([]string, 0, len(datapackSet))
+	for datapack := range datapackSet {
+		datapacks = append(datapacks, datapack)
+	}
+
+	// 7. Batch query ground truth for all datapacks
+	groundtruthMap, err := GetGroundtruthMap(datapacks)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ground truth map: %v", err)
+	}
+
+	// 8. Batch query granularity results for all executions
+	executionIDs := make([]int, len(filteredExecResults))
+	for i, exec := range filteredExecResults {
 		executionIDs[i] = exec.ID
 	}
 
-	// Query granularity results for these executions
-	var granularityResults []database.GranularityResult
-	if err := database.DB.
-		Where("execution_id IN (?)", executionIDs).
-		Find(&granularityResults).Error; err != nil {
-		return nil, fmt.Errorf("failed to query granularity results: %v", err)
+	var allGranularityResults []database.GranularityResult
+	if len(executionIDs) > 0 {
+		if err := database.DB.
+			Where("execution_id IN ?", executionIDs).
+			Find(&allGranularityResults).Error; err != nil {
+			return nil, fmt.Errorf("failed to batch query granularity results: %v", err)
+		}
 	}
 
 	// Group granularity results by execution ID
-	granMap := make(map[int][]dto.GranularityRecord, len(executionIDs))
-	for _, gran := range granularityResults {
+	granMap := make(map[int][]dto.GranularityRecord)
+	for _, gran := range allGranularityResults {
 		var record dto.GranularityRecord
 		record.Convert(gran)
+		granMap[gran.ExecutionID] = append(granMap[gran.ExecutionID], record)
+	}
 
-		if _, exists := granMap[gran.ExecutionID]; !exists {
-			granMap[gran.ExecutionID] = []dto.GranularityRecord{record}
-		} else {
-			granMap[gran.ExecutionID] = append(granMap[gran.ExecutionID], record)
+	// 9. Build response for each request item
+	response := make(dto.DatasetEvaluationBatchResp, len(req.Items))
+
+	for i, item := range req.Items {
+		datasetKey := fmt.Sprintf("%s:%s", item.Dataset, item.DatasetVersion)
+		dataset, exists := datasetLookup[datasetKey]
+
+		if !exists {
+			return nil, fmt.Errorf("dataset %s with version %s not found at index %d", item.Dataset, item.DatasetVersion, i)
+		}
+
+		// Get fault injections count for this dataset
+		totalCount := len(datasetFaultMap[dataset.ID])
+
+		// Find matching execution results for this specific request
+		var matchingExecs []struct {
+			database.ExecutionResult
+			Algorithm    string `json:"algorithm"`
+			DatapackName string `json:"datapack_name"`
+			DatasetID    int    `json:"dataset_id"`
+		}
+
+		for _, exec := range filteredExecResults {
+			if exec.Algorithm == item.Algorithm && exec.DatasetID == dataset.ID {
+				matchingExecs = append(matchingExecs, exec)
+			}
+		}
+
+		// Build evaluation items
+		evaluationItems := make([]dto.DatapackEvaluationItem, len(matchingExecs))
+		for j, exec := range matchingExecs {
+			predictions := granMap[exec.ID]
+			if predictions == nil {
+				predictions = []dto.GranularityRecord{}
+			}
+
+			evaluationItems[j] = dto.DatapackEvaluationItem{
+				DatapackName: exec.DatapackName,
+				ExecutionID:  exec.ID,
+				Groundtruth:  groundtruthMap[exec.DatapackName],
+				Predictions:  predictions,
+				ExecutedAt:   exec.CreatedAt,
+			}
+		}
+
+		response[i] = dto.AlgorithmDatasetResp{
+			Algorithm:      item.Algorithm,
+			Dataset:        item.Dataset,
+			DatasetVersion: item.DatasetVersion,
+			TotalCount:     totalCount,
+			ExecutedCount:  len(evaluationItems),
+			Items:          evaluationItems,
 		}
 	}
 
-	// Get ground truth for all datapacks
-	datapackNames := make([]string, len(execResults))
-	for i, fi := range execResults {
-		datapackNames[i] = fi.DatapackName
-	}
-
-	groundtruthMap, err := GetGroundtruthMap(datapackNames)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get ground truth map: %v", err)
-	}
-
-	// Build response items
-	items := make([]dto.DatapackEvaluationItem, 0, len(execResults))
-	for _, exec := range execResults {
-		item := dto.DatapackEvaluationItem{
-			DatapackName: exec.DatapackName,
-			ExecutionID:  exec.ID,
-			Groundtruth:  groundtruthMap[exec.DatapackName],
-			Predictions:  granMap[exec.ID],
-			ExecutedAt:   exec.CreatedAt.Format("2006-01-02 15:04:05"),
-		}
-
-		// If no predictions found, set empty slice
-		if item.Predictions == nil {
-			item.Predictions = []dto.GranularityRecord{}
-		}
-
-		items = append(items, item)
-	}
-
-	return &dto.AlgorithmDatasetEvaluationResp{
-		Algorithm:      req.Algorithm,
-		Dataset:        req.Dataset,
-		DatasetVersion: datasetVersion,
-		TotalCount:     len(faultInjections),
-		ExecutedCount:  len(items),
-		Items:          items,
-	}, nil
+	return response, nil
 }
 
-// GetAlgorithmDatapackEvaluation retrieves execution result for a specific algorithm on a specific datapack
-func GetAlgorithmDatapackEvaluation(req dto.AlgorithmDatapackEvaluationReq) (*dto.AlgorithmDatapackEvaluationResp, error) {
-	// Query execution results for the specified algorithm and datapack
-	query := database.DB.
-		Table("execution_results").
-		Select("execution_results.*, containers.name as algorithm, fault_injection_schedules.injection_name as datapack_name").
-		Joins("JOIN containers ON containers.id = execution_results.algorithm_id").
-		Joins("JOIN fault_injection_schedules ON fault_injection_schedules.id = execution_results.datapack_id").
-		Where("containers.name = ? AND fault_injection_schedules.injection_name = ? AND execution_results.status = ?",
-			req.Algorithm, req.Datapack, consts.ExecutionSuccess)
+// GetDatapackEvaluationBatch retrieves the latest execution results for multiple algorithm-datapack pairs in batch
+// Optimized for large batch requests (10000+ items) with server-side chunking
+// GetDatapackEvaluationBatch retrieves the latest execution results for multiple algorithm-datapack pairs in batch
+// Optimized for large batch requests (10000+ items) with server-side chunking
+func GetDatapackEvaluationBatch(req dto.DatapackEvaluationBatchReq) (dto.DatapackEvaluationBatchResp, error) {
+	if len(req.Items) == 0 {
+		return dto.DatapackEvaluationBatchResp{}, nil
+	}
 
-	// Apply label filters using the helper function
-	query = applyLabelFilters(query, req.Tag)
+	response := make(dto.DatapackEvaluationBatchResp, len(req.Items))
 
-	// Order by created_at DESC to get the latest execution
-	query = query.Order("execution_results.created_at DESC").Limit(1)
+	for i := 0; i < len(req.Items); i += BATCH_SIZE {
+		end := min(i+BATCH_SIZE, len(req.Items))
 
-	var execResult struct {
+		// Process current batch
+		batchReq := dto.DatapackEvaluationBatchReq{
+			Items: req.Items[i:end],
+		}
+
+		batchResponse, err := processDatapackBatch(batchReq)
+		if err != nil {
+			return nil, fmt.Errorf("failed to process batch %d-%d: %v", i, end-1, err)
+		}
+
+		for j, item := range batchResponse {
+			response[i+j] = item
+		}
+	}
+
+	return response, nil
+}
+
+// processDatapackBatch processes a single batch of datapack evaluations
+func processDatapackBatch(req dto.DatapackEvaluationBatchReq) (dto.DatapackEvaluationBatchResp, error) {
+	// 1. Collect unique algorithms, datapacks and tags
+	algorithmSet := make(map[string]bool)
+	datapackSet := make(map[string]bool)
+	tagSet := make(map[string]bool)
+
+	for _, item := range req.Items {
+		algorithmSet[item.Algorithm] = true
+		datapackSet[item.Datapack] = true
+		if item.Tag != "" {
+			tagSet[item.Tag] = true
+		}
+	}
+
+	algorithms := make([]string, 0, len(algorithmSet))
+	datapacks := make([]string, 0, len(datapackSet))
+	tags := make([]string, 0, len(tagSet))
+
+	for algorithm := range algorithmSet {
+		algorithms = append(algorithms, algorithm)
+	}
+	for datapack := range datapackSet {
+		datapacks = append(datapacks, datapack)
+	}
+	for tag := range tagSet {
+		tags = append(tags, tag)
+	}
+
+	// 2. Batch query execution results
+	var allExecResults []struct {
 		database.ExecutionResult
 		Algorithm    string `json:"algorithm"`
 		DatapackName string `json:"datapack_name"`
 	}
 
-	err := query.First(&execResult).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// No execution found, but we can still get ground truth
-			groundtruthMap, err := GetGroundtruthMap([]string{req.Datapack})
-			if err != nil {
-				return nil, fmt.Errorf("failed to get ground truth for datapack '%s': %v", req.Datapack, err)
-			}
+	baseQuery := database.DB.
+		Table("execution_results").
+		Select("execution_results.*, containers.name as algorithm, fault_injection_schedules.injection_name as datapack_name").
+		Joins("JOIN containers ON containers.id = execution_results.algorithm_id").
+		Joins("JOIN fault_injection_schedules ON fault_injection_schedules.id = execution_results.datapack_id").
+		Where("containers.name IN ? AND fault_injection_schedules.injection_name IN ? AND execution_results.status = ?",
+			algorithms, datapacks, consts.ExecutionSuccess)
 
-			groundtruth, exists := groundtruthMap[req.Datapack]
-			if !exists {
-				return nil, fmt.Errorf("datapack '%s' not found", req.Datapack)
-			}
+	if err := baseQuery.Find(&allExecResults).Error; err != nil {
+		return nil, fmt.Errorf("failed to batch query execution results: %v", err)
+	}
 
-			return &dto.AlgorithmDatapackEvaluationResp{
-				Algorithm:   req.Algorithm,
-				Datapack:    req.Datapack,
-				ExecutionID: 0,
-				Groundtruth: groundtruth,
-				Predictions: []dto.GranularityRecord{},
-				ExecutedAt:  "",
-				Found:       false,
-			}, nil
+	// 3. Process tag filtering (if needed)
+	if len(tags) > 0 {
+		executionIDs := make([]int, len(allExecResults))
+		for i, exec := range allExecResults {
+			executionIDs[i] = exec.ID
 		}
-		return nil, fmt.Errorf("failed to query execution result: %v", err)
+
+		var tagLabels []struct {
+			ExecutionID int    `json:"execution_id"`
+			LabelValue  string `json:"label_value"`
+		}
+		if err := database.DB.
+			Table("execution_result_labels erl").
+			Select("erl.execution_id, l.label_value").
+			Joins("JOIN labels l ON l.id = erl.label_id").
+			Where("erl.execution_id IN ? AND l.label_key = ? AND l.label_value IN ?",
+				executionIDs, consts.LabelKeyTag, tags).
+			Find(&tagLabels).Error; err != nil {
+			return nil, fmt.Errorf("failed to query tag labels: %v", err)
+		}
+
+		execTagMap := make(map[int]string)
+		for _, tagLabel := range tagLabels {
+			execTagMap[tagLabel.ExecutionID] = tagLabel.LabelValue
+		}
+
+		// Apply tag filtering
+		var filteredResults []struct {
+			database.ExecutionResult
+			Algorithm    string `json:"algorithm"`
+			DatapackName string `json:"datapack_name"`
+		}
+
+		for _, exec := range allExecResults {
+			for _, item := range req.Items {
+				if exec.Algorithm == item.Algorithm && exec.DatapackName == item.Datapack {
+					if item.Tag == "" || execTagMap[exec.ID] == item.Tag {
+						filteredResults = append(filteredResults, exec)
+						break
+					}
+				}
+			}
+		}
+		allExecResults = filteredResults
 	}
 
-	// Query granularity results for this execution
-	var granularityResults []database.GranularityResult
-	if err := database.DB.
-		Where("execution_id = ?", execResult.ID).
-		Find(&granularityResults).Error; err != nil {
-		return nil, fmt.Errorf("failed to query granularity results: %v", err)
+	// 4. Find the latest execution for each algorithm-datapack pair
+	type ExecKey struct {
+		Algorithm string
+		Datapack  string
+		Tag       string
 	}
 
-	// Convert granularity results
-	predictions := make([]dto.GranularityRecord, len(granularityResults))
-	for i, gran := range granularityResults {
-		predictions[i].Convert(gran)
+	latestExecMap := make(map[ExecKey]struct {
+		database.ExecutionResult
+		Algorithm    string `json:"algorithm"`
+		DatapackName string `json:"datapack_name"`
+	})
+
+	for _, exec := range allExecResults {
+		for _, item := range req.Items {
+			if exec.Algorithm == item.Algorithm && exec.DatapackName == item.Datapack {
+				key := ExecKey{
+					Algorithm: item.Algorithm,
+					Datapack:  item.Datapack,
+					Tag:       item.Tag,
+				}
+
+				if existing, exists := latestExecMap[key]; !exists || exec.CreatedAt.After(existing.CreatedAt) {
+					latestExecMap[key] = exec
+				}
+			}
+		}
 	}
 
-	// Get ground truth for this datapack
-	groundtruthMap, err := GetGroundtruthMap([]string{req.Datapack})
+	// 5. Batch query ground truth
+	groundtruthMap, err := GetGroundtruthMap(datapacks)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ground truth map: %v", err)
 	}
 
-	groundtruth, exists := groundtruthMap[req.Datapack]
-	if !exists {
-		return nil, fmt.Errorf("ground truth not found for datapack '%s'", req.Datapack)
+	// 6. Batch query granularity results
+	var latestExecutionIDs []int
+	for _, exec := range latestExecMap {
+		latestExecutionIDs = append(latestExecutionIDs, exec.ID)
 	}
 
-	return &dto.AlgorithmDatapackEvaluationResp{
-		Algorithm:   req.Algorithm,
-		Datapack:    req.Datapack,
-		ExecutionID: execResult.ID,
-		Groundtruth: groundtruth,
-		Predictions: predictions,
-		ExecutedAt:  execResult.CreatedAt.Format("2006-01-02 15:04:05"),
-		Found:       true,
-	}, nil
+	var allGranularityResults []database.GranularityResult
+	if len(latestExecutionIDs) > 0 {
+		if err := database.DB.
+			Where("execution_id IN ?", latestExecutionIDs).
+			Find(&allGranularityResults).Error; err != nil {
+			return nil, fmt.Errorf("failed to batch query granularity results: %v", err)
+		}
+	}
+
+	granMap := make(map[int][]dto.GranularityRecord)
+	for _, gran := range allGranularityResults {
+		var record dto.GranularityRecord
+		record.Convert(gran)
+		granMap[gran.ExecutionID] = append(granMap[gran.ExecutionID], record)
+	}
+
+	// 7. Build response
+	response := make(dto.DatapackEvaluationBatchResp, len(req.Items))
+
+	for i, item := range req.Items {
+		key := ExecKey{
+			Algorithm: item.Algorithm,
+			Datapack:  item.Datapack,
+			Tag:       item.Tag,
+		}
+
+		if exec, found := latestExecMap[key]; found {
+			predictions := granMap[exec.ID]
+			if predictions == nil {
+				predictions = []dto.GranularityRecord{}
+			}
+
+			response[i] = dto.AlgorithmDatapackResp{
+				Algorithm:   item.Algorithm,
+				Datapack:    item.Datapack,
+				ExecutionID: exec.ID,
+				Groundtruth: groundtruthMap[item.Datapack],
+				Predictions: predictions,
+				ExecutedAt:  exec.CreatedAt,
+				Found:       true,
+			}
+		} else {
+			response[i] = dto.AlgorithmDatapackResp{
+				Algorithm:   item.Algorithm,
+				Datapack:    item.Datapack,
+				ExecutionID: 0,
+				Groundtruth: groundtruthMap[item.Datapack],
+				Predictions: []dto.GranularityRecord{},
+				ExecutedAt:  time.Time{},
+				Found:       false,
+			}
+		}
+	}
+
+	return response, nil
 }

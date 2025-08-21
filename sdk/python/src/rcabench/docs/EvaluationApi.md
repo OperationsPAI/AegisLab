@@ -7,9 +7,9 @@ Method | HTTP request | Description
 [**api_v1_evaluations_executions_get**](EvaluationApi.md#api_v1_evaluations_executions_get) | **GET** /api/v1/evaluations/executions | Get successful algorithm execution records
 [**api_v1_evaluations_groundtruth_post**](EvaluationApi.md#api_v1_evaluations_groundtruth_post) | **POST** /api/v1/evaluations/groundtruth | Get ground truth for datasets
 [**api_v1_evaluations_raw_data_post**](EvaluationApi.md#api_v1_evaluations_raw_data_post) | **POST** /api/v1/evaluations/raw-data | Get raw evaluation data
-[**api_v2_evaluations_algorithms_algorithm_datapacks_datapack_get**](EvaluationApi.md#api_v2_evaluations_algorithms_algorithm_datapacks_datapack_get) | **GET** /api/v2/evaluations/algorithms/{algorithm}/datapacks/{datapack} | Get Algorithm Datapack Evaluation
-[**api_v2_evaluations_algorithms_algorithm_datasets_dataset_get**](EvaluationApi.md#api_v2_evaluations_algorithms_algorithm_datasets_dataset_get) | **GET** /api/v2/evaluations/algorithms/{algorithm}/datasets/{dataset} | Get Algorithm Dataset Evaluation
 [**api_v2_evaluations_datapacks_detector_post**](EvaluationApi.md#api_v2_evaluations_datapacks_detector_post) | **POST** /api/v2/evaluations/datapacks/detector | Get Datapack Detector Results
+[**api_v2_evaluations_datapacks_post**](EvaluationApi.md#api_v2_evaluations_datapacks_post) | **POST** /api/v2/evaluations/datapacks | Get Batch Algorithm Datapack Evaluation
+[**api_v2_evaluations_datasets_post**](EvaluationApi.md#api_v2_evaluations_datasets_post) | **POST** /api/v2/evaluations/datasets | Get Batch Algorithm Dataset Evaluation
 [**api_v2_evaluations_label_keys_get**](EvaluationApi.md#api_v2_evaluations_label_keys_get) | **GET** /api/v2/evaluations/label-keys | Get Available Label Keys
 
 
@@ -231,184 +231,6 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **api_v2_evaluations_algorithms_algorithm_datapacks_datapack_get**
-> DtoGenericResponseDtoAlgorithmDatapackEvaluationResp api_v2_evaluations_algorithms_algorithm_datapacks_datapack_get(algorithm, datapack, tag=tag)
-
-Get Algorithm Datapack Evaluation
-
-Get execution result with predictions and ground truth for a specific algorithm on a specific datapack
-
-### Example
-
-* Api Key Authentication (BearerAuth):
-
-```python
-import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_dto_algorithm_datapack_evaluation_resp import DtoGenericResponseDtoAlgorithmDatapackEvaluationResp
-from rcabench.openapi.rest import ApiException
-from pprint import pprint
-
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
-# See configuration.py for a list of all supported configuration parameters.
-configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
-)
-
-# The client must configure the authentication and authorization parameters
-# in accordance with the API server security policy.
-# Examples for each auth method are provided below, use the example that
-# satisfies your auth use case.
-
-# Configure API key authorization: BearerAuth
-configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
-
-# Enter a context with an instance of the API client
-with rcabench.openapi.ApiClient(configuration) as api_client:
-    # Create an instance of the API class
-    api_instance = rcabench.openapi.EvaluationApi(api_client)
-    algorithm = 'algorithm_example' # str | Algorithm name
-    datapack = 'datapack_example' # str | Datapack name
-    tag = 'tag_example' # str | Tag label filter (optional)
-
-    try:
-        # Get Algorithm Datapack Evaluation
-        api_response = api_instance.api_v2_evaluations_algorithms_algorithm_datapacks_datapack_get(algorithm, datapack, tag=tag)
-        print("The response of EvaluationApi->api_v2_evaluations_algorithms_algorithm_datapacks_datapack_get:\n")
-        pprint(api_response)
-    except Exception as e:
-        print("Exception when calling EvaluationApi->api_v2_evaluations_algorithms_algorithm_datapacks_datapack_get: %s\n" % e)
-```
-
-
-
-### Parameters
-
-
-Name | Type | Description  | Notes
-------------- | ------------- | ------------- | -------------
- **algorithm** | **str**| Algorithm name | 
- **datapack** | **str**| Datapack name | 
- **tag** | **str**| Tag label filter | [optional] 
-
-### Return type
-
-[**DtoGenericResponseDtoAlgorithmDatapackEvaluationResp**](DtoGenericResponseDtoAlgorithmDatapackEvaluationResp.md)
-
-### Authorization
-
-[BearerAuth](../README.md#BearerAuth)
-
-### HTTP request headers
-
- - **Content-Type**: Not defined
- - **Accept**: application/json
-
-### HTTP response details
-
-| Status code | Description | Response headers |
-|-------------|-------------|------------------|
-**200** | Algorithm datapack evaluation data |  -  |
-**400** | Bad request |  -  |
-**401** | Unauthorized |  -  |
-**403** | Forbidden |  -  |
-**404** | Algorithm or datapack not found |  -  |
-**500** | Internal server error |  -  |
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
-# **api_v2_evaluations_algorithms_algorithm_datasets_dataset_get**
-> DtoGenericResponseDtoAlgorithmDatasetEvaluationResp api_v2_evaluations_algorithms_algorithm_datasets_dataset_get(algorithm, dataset, dataset_version=dataset_version, tag=tag)
-
-Get Algorithm Dataset Evaluation
-
-Get all execution results with predictions and ground truth for a specific algorithm on a specific dataset
-
-### Example
-
-* Api Key Authentication (BearerAuth):
-
-```python
-import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_dto_algorithm_dataset_evaluation_resp import DtoGenericResponseDtoAlgorithmDatasetEvaluationResp
-from rcabench.openapi.rest import ApiException
-from pprint import pprint
-
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
-# See configuration.py for a list of all supported configuration parameters.
-configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
-)
-
-# The client must configure the authentication and authorization parameters
-# in accordance with the API server security policy.
-# Examples for each auth method are provided below, use the example that
-# satisfies your auth use case.
-
-# Configure API key authorization: BearerAuth
-configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
-
-# Enter a context with an instance of the API client
-with rcabench.openapi.ApiClient(configuration) as api_client:
-    # Create an instance of the API class
-    api_instance = rcabench.openapi.EvaluationApi(api_client)
-    algorithm = 'algorithm_example' # str | Algorithm name
-    dataset = 'dataset_example' # str | Dataset name
-    dataset_version = 'dataset_version_example' # str | Dataset version (optional, defaults to v1.0) (optional)
-    tag = 'tag_example' # str | Tag label filter (optional)
-
-    try:
-        # Get Algorithm Dataset Evaluation
-        api_response = api_instance.api_v2_evaluations_algorithms_algorithm_datasets_dataset_get(algorithm, dataset, dataset_version=dataset_version, tag=tag)
-        print("The response of EvaluationApi->api_v2_evaluations_algorithms_algorithm_datasets_dataset_get:\n")
-        pprint(api_response)
-    except Exception as e:
-        print("Exception when calling EvaluationApi->api_v2_evaluations_algorithms_algorithm_datasets_dataset_get: %s\n" % e)
-```
-
-
-
-### Parameters
-
-
-Name | Type | Description  | Notes
-------------- | ------------- | ------------- | -------------
- **algorithm** | **str**| Algorithm name | 
- **dataset** | **str**| Dataset name | 
- **dataset_version** | **str**| Dataset version (optional, defaults to v1.0) | [optional] 
- **tag** | **str**| Tag label filter | [optional] 
-
-### Return type
-
-[**DtoGenericResponseDtoAlgorithmDatasetEvaluationResp**](DtoGenericResponseDtoAlgorithmDatasetEvaluationResp.md)
-
-### Authorization
-
-[BearerAuth](../README.md#BearerAuth)
-
-### HTTP request headers
-
- - **Content-Type**: Not defined
- - **Accept**: application/json
-
-### HTTP response details
-
-| Status code | Description | Response headers |
-|-------------|-------------|------------------|
-**200** | Algorithm dataset evaluation data |  -  |
-**400** | Bad request |  -  |
-**401** | Unauthorized |  -  |
-**403** | Forbidden |  -  |
-**404** | Algorithm or dataset not found |  -  |
-**500** | Internal server error |  -  |
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
 # **api_v2_evaluations_datapacks_detector_post**
 > DtoGenericResponseDtoDatapackDetectorResp api_v2_evaluations_datapacks_detector_post(request)
 
@@ -486,6 +308,174 @@ Name | Type | Description  | Notes
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 **200** | Datapack detector results |  -  |
+**400** | Bad request |  -  |
+**401** | Unauthorized |  -  |
+**403** | Forbidden |  -  |
+**500** | Internal server error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **api_v2_evaluations_datapacks_post**
+> DtoGenericResponseDtoDatapackEvaluationBatchResp api_v2_evaluations_datapacks_post(request)
+
+Get Batch Algorithm Datapack Evaluation
+
+Get execution results with predictions and ground truth for multiple algorithm-datapack pairs in a single request. Returns the latest execution for each pair if multiple executions exist.
+
+### Example
+
+* Api Key Authentication (BearerAuth):
+
+```python
+import rcabench.openapi
+from rcabench.openapi.models.dto_datapack_evaluation_batch_req import DtoDatapackEvaluationBatchReq
+from rcabench.openapi.models.dto_generic_response_dto_datapack_evaluation_batch_resp import DtoGenericResponseDtoDatapackEvaluationBatchResp
+from rcabench.openapi.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = rcabench.openapi.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: BearerAuth
+configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with rcabench.openapi.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = rcabench.openapi.EvaluationApi(api_client)
+    request = rcabench.openapi.DtoDatapackEvaluationBatchReq() # DtoDatapackEvaluationBatchReq | Batch evaluation request containing multiple algorithm-datapack pairs
+
+    try:
+        # Get Batch Algorithm Datapack Evaluation
+        api_response = api_instance.api_v2_evaluations_datapacks_post(request)
+        print("The response of EvaluationApi->api_v2_evaluations_datapacks_post:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling EvaluationApi->api_v2_evaluations_datapacks_post: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **request** | [**DtoDatapackEvaluationBatchReq**](DtoDatapackEvaluationBatchReq.md)| Batch evaluation request containing multiple algorithm-datapack pairs | 
+
+### Return type
+
+[**DtoGenericResponseDtoDatapackEvaluationBatchResp**](DtoGenericResponseDtoDatapackEvaluationBatchResp.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Batch algorithm datapack evaluation data |  -  |
+**400** | Bad request |  -  |
+**401** | Unauthorized |  -  |
+**403** | Forbidden |  -  |
+**500** | Internal server error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **api_v2_evaluations_datasets_post**
+> DtoGenericResponseDtoDatasetEvaluationBatchResp api_v2_evaluations_datasets_post(request)
+
+Get Batch Algorithm Dataset Evaluation
+
+Get execution results with predictions and ground truth for multiple algorithm-dataset pairs in a single request
+
+### Example
+
+* Api Key Authentication (BearerAuth):
+
+```python
+import rcabench.openapi
+from rcabench.openapi.models.dto_dataset_evaluation_batch_req import DtoDatasetEvaluationBatchReq
+from rcabench.openapi.models.dto_generic_response_dto_dataset_evaluation_batch_resp import DtoGenericResponseDtoDatasetEvaluationBatchResp
+from rcabench.openapi.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = rcabench.openapi.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: BearerAuth
+configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with rcabench.openapi.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = rcabench.openapi.EvaluationApi(api_client)
+    request = rcabench.openapi.DtoDatasetEvaluationBatchReq() # DtoDatasetEvaluationBatchReq | Batch evaluation request containing multiple algorithm-dataset pairs
+
+    try:
+        # Get Batch Algorithm Dataset Evaluation
+        api_response = api_instance.api_v2_evaluations_datasets_post(request)
+        print("The response of EvaluationApi->api_v2_evaluations_datasets_post:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling EvaluationApi->api_v2_evaluations_datasets_post: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **request** | [**DtoDatasetEvaluationBatchReq**](DtoDatasetEvaluationBatchReq.md)| Batch evaluation request containing multiple algorithm-dataset pairs | 
+
+### Return type
+
+[**DtoGenericResponseDtoDatasetEvaluationBatchResp**](DtoGenericResponseDtoDatasetEvaluationBatchResp.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Batch algorithm dataset evaluation data |  -  |
 **400** | Bad request |  -  |
 **401** | Unauthorized |  -  |
 **403** | Forbidden |  -  |
