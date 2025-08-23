@@ -32,12 +32,13 @@ class DtoAlgorithmDatapackResp(BaseModel):
     algorithm: Optional[StrictStr] = Field(default=None, description="Algorithm name")
     datapack: Optional[StrictStr] = Field(default=None, description="Datapack name")
     executed_at: Optional[StrictStr] = Field(default=None, description="Execution time")
+    execution_duration: Optional[StrictInt] = Field(default=None, description="Execution duration in seconds")
     execution_id: Optional[StrictInt] = Field(default=None, description="Execution ID (0 if no execution found)")
     found: Optional[StrictBool] = Field(default=None, description="Whether execution result was found")
     groundtruth: Optional[HandlerGroundtruth] = Field(default=None, description="Ground truth for this datapack")
     predictions: Optional[List[DtoGranularityRecord]] = Field(default=None, description="Algorithm predictions")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["algorithm", "datapack", "executed_at", "execution_id", "found", "groundtruth", "predictions"]
+    __properties: ClassVar[List[str]] = ["algorithm", "datapack", "executed_at", "execution_duration", "execution_id", "found", "groundtruth", "predictions"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -110,6 +111,7 @@ class DtoAlgorithmDatapackResp(BaseModel):
             "algorithm": obj.get("algorithm"),
             "datapack": obj.get("datapack"),
             "executed_at": obj.get("executed_at"),
+            "execution_duration": obj.get("execution_duration"),
             "execution_id": obj.get("execution_id"),
             "found": obj.get("found"),
             "groundtruth": HandlerGroundtruth.from_dict(obj["groundtruth"]) if obj.get("groundtruth") is not None else None,

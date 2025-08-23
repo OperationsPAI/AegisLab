@@ -221,23 +221,35 @@ func UploadDetectorResults(c *gin.Context) {
 	}
 
 	// Verify algorithm and execution record exist
-	var algorithm database.Container
-	if err := database.DB.Where("id = ? AND type = ?", algorithmID, consts.ContainerTypeAlgorithm).First(&algorithm).Error; err != nil {
+	if exists, err := repository.CheckContainerExists(algorithmID); err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to verify algorithm: "+err.Error())
+		return
+	} else if !exists {
 		dto.ErrorResponse(c, http.StatusNotFound, "Algorithm not found")
 		return
 	}
 
-	var execution database.ExecutionResult
-	if err := database.DB.Where("id = ? AND algorithm_id = ?", executionID, algorithmID).First(&execution).Error; err != nil {
+	if exists, err := repository.CheckExecutionResultExists(executionID); err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to verify execution record: "+err.Error())
+		return
+	} else if !exists {
 		dto.ErrorResponse(c, http.StatusNotFound, "Execution record not found")
 		return
 	}
 
 	// Check if results already exist
-	var existingCount int64
-	database.DB.Model(&database.Detector{}).Where("execution_id = ?", executionID).Count(&existingCount)
-	if existingCount > 0 {
+	if exists, err := repository.CheckDetectorResultsByExecutionID(executionID); err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to check existing detector results: "+err.Error())
+		return
+	} else if exists {
 		dto.ErrorResponse(c, http.StatusConflict, "Detector results already exist for this execution")
+		return
+	}
+
+	if err := repository.UpdateExecutionResult(executionID, map[string]any{
+		"duration": req.Duration,
+	}); err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to update execution duration: "+err.Error())
 		return
 	}
 
@@ -263,7 +275,7 @@ func UploadDetectorResults(c *gin.Context) {
 	}
 
 	// Save to database
-	if err := database.DB.Create(&detectorResults).Error; err != nil {
+	if err := repository.SaveDetectorResults(detectorResults); err != nil {
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to save detector results: "+err.Error())
 		return
 	}
@@ -346,22 +358,17 @@ func UploadGranularityResults(c *gin.Context) {
 	}
 
 	// Verify algorithm exists
-	var algorithm database.Container
-	if err := database.DB.Where("id = ? AND type = ?", algorithmID, consts.ContainerTypeAlgorithm).First(&algorithm).Error; err != nil {
+	if exists, err := repository.CheckContainerExists(algorithmID); err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to verify algorithm: "+err.Error())
+		return
+	} else if !exists {
 		dto.ErrorResponse(c, http.StatusNotFound, "Algorithm not found")
 		return
 	}
 
-	var execution database.ExecutionResult
-	var isNewExecution bool
+	isNewExecution := false
 
-	if hasExecutionID {
-		// Use existing execution
-		if err := database.DB.Where("id = ? AND algorithm_id = ?", executionID, algorithmID).First(&execution).Error; err != nil {
-			dto.ErrorResponse(c, http.StatusNotFound, "Execution record not found")
-			return
-		}
-	} else {
+	if !hasExecutionID {
 		// Create new execution record
 		if req.DatapackID == 0 {
 			dto.ErrorResponse(c, http.StatusBadRequest, "datapack_id is required when execution_id is not provided")
@@ -369,14 +376,16 @@ func UploadGranularityResults(c *gin.Context) {
 		}
 
 		// Verify datapack exists (datapack is actually a FaultInjectionSchedule)
-		var datapack database.FaultInjectionSchedule
-		if err := database.DB.Where("id = ?", req.DatapackID).First(&datapack).Error; err != nil {
+		if exists, err := repository.CheckInjectionExists(algorithmID); err != nil {
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to verify datapack: "+err.Error())
+			return
+		} else if !exists {
 			dto.ErrorResponse(c, http.StatusNotFound, "Datapack not found")
 			return
 		}
 
 		// Create new execution record using repository function
-		executionID, err = repository.CreateExecutionResult("", algorithmID, req.DatapackID, labels)
+		executionID, err = repository.CreateExecutionResult("", algorithmID, req.DatapackID, req.Duration, labels)
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to create execution record: "+err.Error())
 			return
@@ -387,12 +396,20 @@ func UploadGranularityResults(c *gin.Context) {
 
 	// Check if results already exist (only if using existing execution)
 	if !isNewExecution {
-		var existingCount int64
-		database.DB.Model(&database.GranularityResult{}).Where("execution_id = ?", executionID).Count(&existingCount)
-		if existingCount > 0 {
+		if exists, err := repository.CheckGranularityResultsByExecutionID(executionID); err != nil {
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to check existing granularity results: "+err.Error())
+			return
+		} else if exists {
 			dto.ErrorResponse(c, http.StatusConflict, "Granularity results already exist for this execution")
 			return
 		}
+	}
+
+	if err := repository.UpdateExecutionResult(executionID, map[string]any{
+		"duration": req.Duration,
+	}); err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to update execution duration: "+err.Error())
+		return
 	}
 
 	// Convert to database entities
@@ -409,7 +426,7 @@ func UploadGranularityResults(c *gin.Context) {
 	}
 
 	// Save to database
-	if err := database.DB.Create(&granularityResults).Error; err != nil {
+	if err := repository.SaveGranularityResults(granularityResults); err != nil {
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to save granularity results: "+err.Error())
 		return
 	}

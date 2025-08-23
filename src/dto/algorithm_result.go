@@ -7,7 +7,8 @@ import (
 
 // DetectorResultRequest Detector result upload request
 type DetectorResultRequest struct {
-	Results []DetectorResultItem `json:"results" binding:"required,dive,required"`
+	Duration int                  `json:"duration" binding:"required"` // Execution duration in seconds
+	Results  []DetectorResultItem `json:"results" binding:"required,dive,required"`
 }
 
 // DetectorResultItem Single detector result item
@@ -126,12 +127,17 @@ func (req *DetectorResultRequest) HasAnomalies() bool {
 
 // GranularityResultEnhancedRequest Enhanced granularity result upload request
 type GranularityResultEnhancedRequest struct {
-	DatapackID int                     `json:"datapack_id,omitempty"` // Required if no execution_id
+	DatapackID int                     `json:"datapack_id,omitempty" binding:"omitempty"` // Required if no execution_id
+	Duration   int                     `json:"duration" binding:"required"`               // Execution duration in seconds
 	Results    []GranularityResultItem `json:"results" binding:"required,dive,required"`
 }
 
 // Validate validates the enhanced granularity result request
 func (req *GranularityResultEnhancedRequest) Validate() error {
+	if req.Duration < 0 {
+		return fmt.Errorf("duration cannot be negative")
+	}
+
 	if len(req.Results) == 0 {
 		return fmt.Errorf("at least one granularity result is required")
 	}

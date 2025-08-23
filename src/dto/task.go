@@ -189,7 +189,6 @@ func (s *StreamEvent) ToSSE() (string, error) {
 }
 
 type ListTasksReq struct {
-	TaskID  string `form:"task_id"`
 	TraceID string `form:"trace_id"`
 	GroupID string `form:"group_id"`
 
@@ -203,9 +202,6 @@ type ListTasksReq struct {
 
 func (req *ListTasksReq) Validate() error {
 	idFieldsUsed := 0
-	if req.TaskID != "" {
-		idFieldsUsed++
-	}
 	if req.TraceID != "" {
 		idFieldsUsed++
 	}

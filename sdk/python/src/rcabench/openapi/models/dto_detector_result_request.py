@@ -18,7 +18,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
 from typing import Any, ClassVar, Dict, List
 from rcabench.openapi.models.dto_detector_result_item import DtoDetectorResultItem
 from typing import Optional, Set
@@ -28,9 +28,10 @@ class DtoDetectorResultRequest(BaseModel):
     """
     DtoDetectorResultRequest
     """ # noqa: E501
+    duration: StrictInt = Field(description="Execution duration in seconds")
     results: List[DtoDetectorResultItem]
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["results"]
+    __properties: ClassVar[List[str]] = ["duration", "results"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -97,6 +98,7 @@ class DtoDetectorResultRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "duration": obj.get("duration"),
             "results": [DtoDetectorResultItem.from_dict(_item) for _item in obj["results"]] if obj.get("results") is not None else None
         })
         # store additional fields in additional_properties

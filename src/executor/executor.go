@@ -230,7 +230,7 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
 			TaskID:    taskOptions.TaskID,
 			TaskType:  consts.TaskTypeBuildDataset,
-			EventName: consts.EventDatasetBuildFailed,
+			EventName: consts.EventDatapackBuildFailed,
 			Payload:   options,
 		}, repository.WithCallerLevel(4))
 
@@ -266,7 +266,9 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 			Payload:   options,
 		}, repository.WithCallerLevel(4))
 
-		if err := repository.UpdateStatusByExecID(options.ExecutionID, consts.ExecutionFailed); err != nil {
+		if err := repository.UpdateExecutionResult(options.ExecutionID, map[string]any{
+			"status": consts.ExecutionFailed,
+		}); err != nil {
 			span.AddEvent("update execution status failed")
 			span.RecordError(err)
 			updateTaskStatus(
@@ -329,7 +331,7 @@ func (e *Executor) HandleJobSucceeded(job *batchv1.Job, annotations map[string]s
 		repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
 			TaskID:    taskOptions.TaskID,
 			TaskType:  consts.TaskTypeBuildDataset,
-			EventName: consts.EventDatasetBuildSucceed,
+			EventName: consts.EventDatapackBuildSucceed,
 			Payload:   options.Dataset,
 		}, repository.WithCallerLevel(4))
 
@@ -398,7 +400,9 @@ func (e *Executor) HandleJobSucceeded(job *batchv1.Job, annotations map[string]s
 			taskOptions.Type,
 		)
 
-		if err := repository.UpdateStatusByExecID(options.ExecutionID, consts.ExecutionSuccess); err != nil {
+		if err := repository.UpdateExecutionResult(options.ExecutionID, map[string]any{
+			"status": consts.ExecutionSuccess,
+		}); err != nil {
 			logEntry.Errorf("update execution status failed: %v", err)
 			taskSpan.AddEvent("update execution status failed")
 			return

@@ -29,9 +29,10 @@ class DtoGranularityResultEnhancedRequest(BaseModel):
     DtoGranularityResultEnhancedRequest
     """ # noqa: E501
     datapack_id: Optional[StrictInt] = Field(default=None, description="Required if no execution_id")
+    duration: StrictInt = Field(description="Execution duration in seconds")
     results: List[DtoGranularityResultItem]
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["datapack_id", "results"]
+    __properties: ClassVar[List[str]] = ["datapack_id", "duration", "results"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -99,6 +100,7 @@ class DtoGranularityResultEnhancedRequest(BaseModel):
 
         _obj = cls.model_validate({
             "datapack_id": obj.get("datapack_id"),
+            "duration": obj.get("duration"),
             "results": [DtoGranularityResultItem.from_dict(_item) for _item in obj["results"]] if obj.get("results") is not None else None
         })
         # store additional fields in additional_properties

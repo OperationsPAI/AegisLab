@@ -84,8 +84,6 @@ func SetupV1Routes(router *gin.Engine) {
 
 	traces := r.Group("/traces")
 	{
-		traces.GET("/completed", handlers.GetCompletedMap)
-
 		tracesWithID := traces.Group("/:trace_id")
 		{
 			tracesWithID.GET("/stream", handlers.GetTraceStream)

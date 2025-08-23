@@ -317,11 +317,11 @@ func (sp *StreamProcessor) ProcessMessageForSSE(msg redis.XMessage) (string, str
 	case consts.EventImageBuildSucceed:
 		sp.isCompleted = true
 
-	case consts.EventDatasetNoAnomaly, consts.EventDatasetNoDetectorData:
+	case consts.EventDatapackNoAnomaly, consts.EventDatapackNoDetectorData:
 		sp.detectorTaskID = streamEvent.TaskID
 		sp.hasIssues = false
 
-	case consts.EventDatasetResultCollection:
+	case consts.EventDatapackResultCollection:
 		sp.detectorTaskID = streamEvent.TaskID
 		sp.hasIssues = true
 
@@ -452,10 +452,6 @@ func ListTasks(params *dto.ListTasksReq) (int64, []database.Task, error) {
 
 	builder := func(db *gorm.DB) *gorm.DB {
 		query := db
-
-		if params.TaskID != "" {
-			query = query.Where("id = ?", params.TaskID)
-		}
 
 		if params.TaskType != "" {
 			query = query.Where("type = ?", params.TaskType)

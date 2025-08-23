@@ -9,15 +9,15 @@ import (
 	"github.com/LGU-SE-Internal/rcabench/dto"
 )
 
-func ListDetectorResultsByExecutionID(executionID int) ([]database.Detector, error) {
-	var results []database.Detector
+func CheckDetectorResultsByExecutionID(executionID int) (bool, error) {
+	var count int64
 	if err := database.DB.Model(&database.Detector{}).
 		Where("execution_id = ?", executionID).
-		Find(&results).Error; err != nil {
-		return nil, fmt.Errorf("failed to list detector results by execution ID: %v", err)
+		Count(&count).Error; err != nil {
+		return false, fmt.Errorf("failed to check detector results by execution ID: %v", err)
 	}
 
-	return results, nil
+	return count > 0, nil
 }
 
 // GetDatapackDetectorResults retrieves detector results for multiple datapacks
@@ -96,4 +96,23 @@ func GetDatapackDetectorResults(req dto.DatapackDetectorReq) (*dto.DatapackDetec
 	}
 
 	return resp, nil
+}
+
+func ListDetectorResultsByExecutionID(executionID int) ([]database.Detector, error) {
+	var results []database.Detector
+	if err := database.DB.Model(&database.Detector{}).
+		Where("execution_id = ?", executionID).
+		Find(&results).Error; err != nil {
+		return nil, fmt.Errorf("failed to list detector results by execution ID: %v", err)
+	}
+
+	return results, nil
+}
+
+func SaveDetectorResults(results []database.Detector) error {
+	if len(results) == 0 {
+		return fmt.Errorf("no detector results to save")
+	}
+
+	return database.DB.Create(&results).Error
 }

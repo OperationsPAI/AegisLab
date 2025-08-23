@@ -6,12 +6,12 @@ import (
 
 var ValidTaskEventMap = map[consts.TaskType][]consts.EventType{
 	consts.TaskTypeBuildDataset: {
-		consts.EventDatasetBuildSucceed,
+		consts.EventDatapackBuildSucceed,
 	},
 	consts.TaskTypeCollectResult: {
-		consts.EventDatasetResultCollection,
-		consts.EventDatasetNoAnomaly,
-		consts.EventDatasetNoDetectorData,
+		consts.EventDatapackResultCollection,
+		consts.EventDatapackNoAnomaly,
+		consts.EventDatapackNoDetectorData,
 	},
 	consts.TaskTypeFaultInjection: {
 		consts.EventFaultInjectionStarted,

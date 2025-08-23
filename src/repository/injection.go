@@ -15,6 +15,21 @@ import (
 	"gorm.io/gorm"
 )
 
+func CheckInjectionExists(id int) (bool, error) {
+	var injection database.FaultInjectionSchedule
+	if err := database.DB.
+		Where("id = ?", id).
+		First(&injection).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("failed to check injection: %v", err)
+	}
+
+	return true, nil
+}
+
 func DeleteDatasetByName(names []string) (int64, []string, error) {
 	tx := database.DB.Begin()
 	defer func() {

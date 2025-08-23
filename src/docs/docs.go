@@ -1608,58 +1608,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/traces/completed": {
-            "get": {
-                "description": "Get completed traces within a specified time range",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "trace"
-                ],
-                "summary": "Get completed traces",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Relative time query, e.g. 1h, 24h, 7d or custom",
-                        "name": "lookback",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Required when lookback=custom, custom start time (RFC3339 format)",
-                        "name": "custom_start_time",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Required when lookback=custom, custom end time (RFC3339 format)",
-                        "name": "custom_end_time",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_GetCompletedMapResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v2/algorithms": {
             "get": {
                 "security": [
@@ -7396,6 +7344,10 @@ const docTemplate = `{
                     "description": "Execution time",
                     "type": "string"
                 },
+                "execution_duration": {
+                    "description": "Execution duration in seconds",
+                    "type": "integer"
+                },
                 "execution_id": {
                     "description": "Execution ID (0 if no execution found)",
                     "type": "integer"
@@ -8335,6 +8287,10 @@ const docTemplate = `{
                     "description": "Execution time",
                     "type": "string"
                 },
+                "execution_duration": {
+                    "description": "Execution duration in seconds",
+                    "type": "integer"
+                },
                 "execution_id": {
                     "description": "Execution ID",
                     "type": "integer"
@@ -8929,9 +8885,14 @@ const docTemplate = `{
         "dto.DetectorResultRequest": {
             "type": "object",
             "required": [
+                "duration",
                 "results"
             ],
             "properties": {
+                "duration": {
+                    "description": "Execution duration in seconds",
+                    "type": "integer"
+                },
                 "results": {
                     "type": "array",
                     "items": {
@@ -9545,31 +9506,6 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.DatasetV2Response"
-                        }
-                    ]
-                },
-                "message": {
-                    "description": "Response message",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "Response generation time",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.GenericResponse-dto_GetCompletedMapResp": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "Status code",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "Generic type data",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.GetCompletedMapResp"
                         }
                     ]
                 },
@@ -10754,25 +10690,6 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GetCompletedMapResp": {
-            "type": "object",
-            "properties": {
-                "has_anomaly": {
-                    "description": "List of trace IDs with detected anomalies",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "no_anomaly": {
-                    "description": "List of trace IDs without anomalies",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
         "dto.GranularityRecord": {
             "type": "object",
             "properties": {
@@ -10793,11 +10710,16 @@ const docTemplate = `{
         "dto.GranularityResultEnhancedRequest": {
             "type": "object",
             "required": [
+                "duration",
                 "results"
             ],
             "properties": {
                 "datapack_id": {
                     "description": "Required if no execution_id",
+                    "type": "integer"
+                },
+                "duration": {
+                    "description": "Execution duration in seconds",
                     "type": "integer"
                 },
                 "results": {

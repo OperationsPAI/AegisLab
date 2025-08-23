@@ -135,7 +135,6 @@ __all__ = [
     "DtoGenericResponseDtoDatasetEvaluationBatchResp",
     "DtoGenericResponseDtoDatasetSearchResponse",
     "DtoGenericResponseDtoDatasetV2Response",
-    "DtoGenericResponseDtoGetCompletedMapResp",
     "DtoGenericResponseDtoGroundTruthResp",
     "DtoGenericResponseDtoHealthCheckResponse",
     "DtoGenericResponseDtoInjectCancelResp",
@@ -183,7 +182,6 @@ __all__ = [
     "DtoGenericResponseDtoUserResponse",
     "DtoGenericResponseHandlerNode",
     "DtoGenericResponseHandlerResources",
-    "DtoGetCompletedMapResp",
     "DtoGranularityRecord",
     "DtoGranularityResultEnhancedRequest",
     "DtoGranularityResultItem",
@@ -414,7 +412,6 @@ if __import__("typing").TYPE_CHECKING:
     from rcabench.openapi.models.dto_generic_response_dto_dataset_evaluation_batch_resp import DtoGenericResponseDtoDatasetEvaluationBatchResp as DtoGenericResponseDtoDatasetEvaluationBatchResp
     from rcabench.openapi.models.dto_generic_response_dto_dataset_search_response import DtoGenericResponseDtoDatasetSearchResponse as DtoGenericResponseDtoDatasetSearchResponse
     from rcabench.openapi.models.dto_generic_response_dto_dataset_v2_response import DtoGenericResponseDtoDatasetV2Response as DtoGenericResponseDtoDatasetV2Response
-    from rcabench.openapi.models.dto_generic_response_dto_get_completed_map_resp import DtoGenericResponseDtoGetCompletedMapResp as DtoGenericResponseDtoGetCompletedMapResp
     from rcabench.openapi.models.dto_generic_response_dto_ground_truth_resp import DtoGenericResponseDtoGroundTruthResp as DtoGenericResponseDtoGroundTruthResp
     from rcabench.openapi.models.dto_generic_response_dto_health_check_response import DtoGenericResponseDtoHealthCheckResponse as DtoGenericResponseDtoHealthCheckResponse
     from rcabench.openapi.models.dto_generic_response_dto_inject_cancel_resp import DtoGenericResponseDtoInjectCancelResp as DtoGenericResponseDtoInjectCancelResp
@@ -462,7 +459,6 @@ if __import__("typing").TYPE_CHECKING:
     from rcabench.openapi.models.dto_generic_response_dto_user_response import DtoGenericResponseDtoUserResponse as DtoGenericResponseDtoUserResponse
     from rcabench.openapi.models.dto_generic_response_handler_node import DtoGenericResponseHandlerNode as DtoGenericResponseHandlerNode
     from rcabench.openapi.models.dto_generic_response_handler_resources import DtoGenericResponseHandlerResources as DtoGenericResponseHandlerResources
-    from rcabench.openapi.models.dto_get_completed_map_resp import DtoGetCompletedMapResp as DtoGetCompletedMapResp
     from rcabench.openapi.models.dto_granularity_record import DtoGranularityRecord as DtoGranularityRecord
     from rcabench.openapi.models.dto_granularity_result_enhanced_request import DtoGranularityResultEnhancedRequest as DtoGranularityResultEnhancedRequest
     from rcabench.openapi.models.dto_granularity_result_item import DtoGranularityResultItem as DtoGranularityResultItem
@@ -699,7 +695,6 @@ from rcabench.openapi.models.dto_generic_response_dto_dataset_delete_resp import
 from rcabench.openapi.models.dto_generic_response_dto_dataset_evaluation_batch_resp import DtoGenericResponseDtoDatasetEvaluationBatchResp as DtoGenericResponseDtoDatasetEvaluationBatchResp
 from rcabench.openapi.models.dto_generic_response_dto_dataset_search_response import DtoGenericResponseDtoDatasetSearchResponse as DtoGenericResponseDtoDatasetSearchResponse
 from rcabench.openapi.models.dto_generic_response_dto_dataset_v2_response import DtoGenericResponseDtoDatasetV2Response as DtoGenericResponseDtoDatasetV2Response
-from rcabench.openapi.models.dto_generic_response_dto_get_completed_map_resp import DtoGenericResponseDtoGetCompletedMapResp as DtoGenericResponseDtoGetCompletedMapResp
 from rcabench.openapi.models.dto_generic_response_dto_ground_truth_resp import DtoGenericResponseDtoGroundTruthResp as DtoGenericResponseDtoGroundTruthResp
 from rcabench.openapi.models.dto_generic_response_dto_health_check_response import DtoGenericResponseDtoHealthCheckResponse as DtoGenericResponseDtoHealthCheckResponse
 from rcabench.openapi.models.dto_generic_response_dto_inject_cancel_resp import DtoGenericResponseDtoInjectCancelResp as DtoGenericResponseDtoInjectCancelResp
@@ -747,7 +742,6 @@ from rcabench.openapi.models.dto_generic_response_dto_user_list_response import 
 from rcabench.openapi.models.dto_generic_response_dto_user_response import DtoGenericResponseDtoUserResponse as DtoGenericResponseDtoUserResponse
 from rcabench.openapi.models.dto_generic_response_handler_node import DtoGenericResponseHandlerNode as DtoGenericResponseHandlerNode
 from rcabench.openapi.models.dto_generic_response_handler_resources import DtoGenericResponseHandlerResources as DtoGenericResponseHandlerResources
-from rcabench.openapi.models.dto_get_completed_map_resp import DtoGetCompletedMapResp as DtoGetCompletedMapResp
 from rcabench.openapi.models.dto_granularity_record import DtoGranularityRecord as DtoGranularityRecord
 from rcabench.openapi.models.dto_granularity_result_enhanced_request import DtoGranularityResultEnhancedRequest as DtoGranularityResultEnhancedRequest
 from rcabench.openapi.models.dto_granularity_result_item import DtoGranularityResultItem as DtoGranularityResultItem
