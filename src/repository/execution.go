@@ -2,7 +2,6 @@ package repository
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -17,10 +16,23 @@ import (
 
 const BATCH_SIZE = 500 // 服务器端分批大小
 
-func CreateExecutionResult(taskID string, algorithmID, datapackID int, labels *dto.ExecutionLabels) (int, error) {
+func CheckExecutionResultExists(id int) (bool, error) {
+	var execution database.ExecutionResult
+	if err := database.DB.Where("id = ?", id).First(&execution).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to check execution result: %v", err)
+	}
+
+	return true, nil
+}
+
+func CreateExecutionResult(taskID string, algorithmID, datapackID, duration int, labels *dto.ExecutionLabels) (int, error) {
 	executionResult := database.ExecutionResult{
 		AlgorithmID: algorithmID,
 		DatapackID:  datapackID,
+		Duration:    duration,
 		Status:      consts.ExecutionSuccess,
 	}
 
@@ -57,6 +69,17 @@ func CreateExecutionResult(taskID string, algorithmID, datapackID int, labels *d
 	}
 
 	return executionResult.ID, nil
+}
+
+func UpdateExecutionResult(id int, updates map[string]any) error {
+	result := database.DB.Model(&database.FaultInjectionSchedule{}).Where("id = ?", id).Updates(updates)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("injection not found or no changes made")
+	}
+	return nil
 }
 
 func ListExecutionRawDataByIds(params dto.RawDataReq) ([]dto.RawDataItem, error) {
@@ -198,34 +221,6 @@ func ListExecutionRawDatasByPairs(params dto.RawDataReq) ([]dto.RawDataItem, err
 	}
 
 	return items, nil
-}
-
-func UpdateStatusByExecID(executionID int, status int) error {
-	var record database.ExecutionResult
-	err := database.DB.
-		Where("id = ?", executionID).
-		First(&record).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("record with id %d not found", executionID)
-		}
-
-		return fmt.Errorf("failed to query record: %v", err)
-	}
-
-	result := database.DB.
-		Model(&record).
-		Updates(map[string]any{"status": status})
-
-	if result.Error != nil {
-		return fmt.Errorf("failed to update record: %v", result.Error)
-	}
-
-	if result.RowsAffected == 0 {
-		return fmt.Errorf("record found but no fields were updated, possibly because values are unchanged")
-	}
-
-	return nil
 }
 
 func getLatestExecutionMapByPair(params dto.RawDataReq) (map[int]string, error) {
@@ -811,11 +806,12 @@ func GetDatasetEvaluationBatch(req dto.DatasetEvaluationBatchReq) (dto.DatasetEv
 			}
 
 			evaluationItems[j] = dto.DatapackEvaluationItem{
-				DatapackName: exec.DatapackName,
-				ExecutionID:  exec.ID,
-				Groundtruth:  groundtruthMap[exec.DatapackName],
-				Predictions:  predictions,
-				ExecutedAt:   exec.CreatedAt,
+				DatapackName:      exec.DatapackName,
+				ExecutionID:       exec.ID,
+				ExecutionDuration: exec.Duration,
+				Groundtruth:       groundtruthMap[exec.DatapackName],
+				Predictions:       predictions,
+				ExecutedAt:        exec.CreatedAt,
 			}
 		}
 
@@ -1025,30 +1021,32 @@ func processDatapackBatch(req dto.DatapackEvaluationBatchReq) (dto.DatapackEvalu
 			Tag:       item.Tag,
 		}
 
-		if exec, found := latestExecMap[key]; found {
+		if exec, exists := latestExecMap[key]; exists {
 			predictions := granMap[exec.ID]
 			if predictions == nil {
 				predictions = []dto.GranularityRecord{}
 			}
 
 			response[i] = dto.AlgorithmDatapackResp{
-				Algorithm:   item.Algorithm,
-				Datapack:    item.Datapack,
-				ExecutionID: exec.ID,
-				Groundtruth: groundtruthMap[item.Datapack],
-				Predictions: predictions,
-				ExecutedAt:  exec.CreatedAt,
-				Found:       true,
+				Algorithm:         item.Algorithm,
+				Datapack:          item.Datapack,
+				ExecutionID:       exec.ID,
+				ExecutionDuration: exec.Duration,
+				Groundtruth:       groundtruthMap[item.Datapack],
+				Predictions:       predictions,
+				ExecutedAt:        exec.CreatedAt,
+				Found:             exists,
 			}
 		} else {
 			response[i] = dto.AlgorithmDatapackResp{
-				Algorithm:   item.Algorithm,
-				Datapack:    item.Datapack,
-				ExecutionID: 0,
-				Groundtruth: groundtruthMap[item.Datapack],
-				Predictions: []dto.GranularityRecord{},
-				ExecutedAt:  time.Time{},
-				Found:       false,
+				Algorithm:         item.Algorithm,
+				Datapack:          item.Datapack,
+				ExecutionID:       0,
+				ExecutionDuration: 0,
+				Groundtruth:       groundtruthMap[item.Datapack],
+				Predictions:       []dto.GranularityRecord{},
+				ExecutedAt:        time.Time{},
+				Found:             exists,
 			}
 		}
 	}

@@ -146,11 +146,12 @@ func (req *DatasetEvaluationBatchReq) Validate() error {
 
 // DatapackEvaluationItem represents evaluation item for a single datapack
 type DatapackEvaluationItem struct {
-	DatapackName string              `json:"datapack_name"` // Datapack name (from FaultInjectionSchedule)
-	ExecutionID  int                 `json:"execution_id"`  // Execution ID
-	Groundtruth  chaos.Groundtruth   `json:"groundtruth"`   // Ground truth for this datapack
-	Predictions  []GranularityRecord `json:"predictions"`   // Algorithm predictions
-	ExecutedAt   time.Time           `json:"executed_at"`   // Execution time
+	DatapackName      string              `json:"datapack_name"`      // Datapack name (from FaultInjectionSchedule)
+	ExecutionID       int                 `json:"execution_id"`       // Execution ID
+	ExecutionDuration int                 `json:"execution_duration"` // Execution duration in seconds
+	Groundtruth       chaos.Groundtruth   `json:"groundtruth"`        // Ground truth for this datapack
+	Predictions       []GranularityRecord `json:"predictions"`        // Algorithm predictions
+	ExecutedAt        time.Time           `json:"executed_at"`        // Execution time
 }
 
 // AlgorithmDatasetResp represents response for algorithm evaluation on a dataset
@@ -198,13 +199,14 @@ func (req *DatapackEvaluationBatchReq) Validate() error {
 
 // AlgorithmDatapackResp represents response for algorithm evaluation on a single datapack
 type AlgorithmDatapackResp struct {
-	Algorithm   string              `json:"algorithm"`    // Algorithm name
-	Datapack    string              `json:"datapack"`     // Datapack name
-	ExecutionID int                 `json:"execution_id"` // Execution ID (0 if no execution found)
-	Groundtruth chaos.Groundtruth   `json:"groundtruth"`  // Ground truth for this datapack
-	Predictions []GranularityRecord `json:"predictions"`  // Algorithm predictions
-	ExecutedAt  time.Time           `json:"executed_at"`  // Execution time
-	Found       bool                `json:"found"`        // Whether execution result was found
+	Algorithm         string              `json:"algorithm"`          // Algorithm name
+	Datapack          string              `json:"datapack"`           // Datapack name
+	ExecutionID       int                 `json:"execution_id"`       // Execution ID (0 if no execution found)
+	ExecutionDuration int                 `json:"execution_duration"` // Execution duration in seconds
+	Groundtruth       chaos.Groundtruth   `json:"groundtruth"`        // Ground truth for this datapack
+	Predictions       []GranularityRecord `json:"predictions"`        // Algorithm predictions
+	ExecutedAt        time.Time           `json:"executed_at"`        // Execution time
+	Found             bool                `json:"found"`              // Whether execution result was found
 }
 
 // DatapackEvaluationBatchResp represents response for algorithm evaluation on datapacks

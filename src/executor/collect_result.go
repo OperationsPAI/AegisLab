@@ -48,7 +48,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				repository.PublishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 					TaskID:    task.TaskID,
 					TaskType:  consts.TaskTypeCollectResult,
-					EventName: consts.EventDatasetNoDetectorData,
+					EventName: consts.EventDatapackNoDetectorData,
 				})
 				span.AddEvent("no detector results found for the execution ID")
 				logEntry.Info("no detector results found for the execution ID")
@@ -66,7 +66,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				repository.PublishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 					TaskID:    task.TaskID,
 					TaskType:  consts.TaskTypeCollectResult,
-					EventName: consts.EventDatasetNoAnomaly,
+					EventName: consts.EventDatapackNoAnomaly,
 					Payload:   results,
 				})
 
@@ -76,7 +76,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				repository.PublishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 					TaskID:    task.TaskID,
 					TaskType:  consts.TaskTypeCollectResult,
-					EventName: consts.EventDatasetResultCollection,
+					EventName: consts.EventDatapackResultCollection,
 					Payload:   results,
 				})
 			}

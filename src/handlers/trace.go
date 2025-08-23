@@ -9,7 +9,6 @@ import (
 
 	"github.com/LGU-SE-Internal/rcabench/consts"
 	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/executor/analyzer"
 	"github.com/LGU-SE-Internal/rcabench/repository"
 	"github.com/gin-contrib/sse"
 	"github.com/gin-gonic/gin"
@@ -159,37 +158,4 @@ func GetTaskEventMap(c *gin.Context) {
 
 func GetValidTaskTypes(c *gin.Context) {
 	dto.SuccessResponse(c, dto.ValidFirstTaskTypes)
-}
-
-// GetCompletedMap Get completed traces
-// @Summary     Get completed traces
-// @Description Get completed traces within a specified time range
-// @Tags        trace
-// @Produce     json
-// @Param		lookback			query		string	false	"Relative time query, e.g. 1h, 24h, 7d or custom"
-// @Param       custom_start_time 	query   string   false "Required when lookback=custom, custom start time (RFC3339 format)"
-// @Param       custom_end_time  	query   string   false "Required when lookback=custom, custom end time (RFC3339 format)"
-// @Success     200 {object}     	dto.GenericResponse[dto.GetCompletedMapResp]
-// @Failure     400 {object}     	dto.GenericResponse[any]
-// @Failure     500 {object}     	dto.GenericResponse[any]
-// @Router      /api/v1/traces/completed [get]
-func GetCompletedMap(c *gin.Context) {
-	var req dto.GetCompletedMapReq
-	if err := c.BindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid Parameters")
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid request: %v", err))
-		return
-	}
-
-	result, err := analyzer.GetCompletedMap(c.Request.Context(), &req)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to analyze trace")
-		return
-	}
-
-	dto.SuccessResponse(c, result)
 }

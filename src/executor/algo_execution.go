@@ -184,7 +184,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			return fmt.Errorf("failed to get container info for algorithm %s: %v", payload.algorithm.Name, err)
 		}
 
-		executionID, err := repository.CreateExecutionResult(task.TaskID, container.ID, record.ID, payload.labels)
+		executionID, err := repository.CreateExecutionResult(task.TaskID, container.ID, record.ID, 0, payload.labels)
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to create execution result")

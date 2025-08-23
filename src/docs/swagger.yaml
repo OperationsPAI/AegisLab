@@ -380,6 +380,9 @@ definitions:
       executed_at:
         description: Execution time
         type: string
+      execution_duration:
+        description: Execution duration in seconds
+        type: integer
       execution_id:
         description: Execution ID (0 if no execution found)
         type: integer
@@ -1024,6 +1027,9 @@ definitions:
       executed_at:
         description: Execution time
         type: string
+      execution_duration:
+        description: Execution duration in seconds
+        type: integer
       execution_id:
         description: Execution ID
         type: integer
@@ -1442,11 +1448,15 @@ definitions:
     type: object
   dto.DetectorResultRequest:
     properties:
+      duration:
+        description: Execution duration in seconds
+        type: integer
       results:
         items:
           $ref: '#/definitions/dto.DetectorResultItem'
         type: array
     required:
+    - duration
     - results
     type: object
   dto.ExecutionLabels:
@@ -1872,22 +1882,6 @@ definitions:
       data:
         allOf:
         - $ref: '#/definitions/dto.DatasetV2Response'
-        description: Generic type data
-      message:
-        description: Response message
-        type: string
-      timestamp:
-        description: Response generation time
-        type: integer
-    type: object
-  dto.GenericResponse-dto_GetCompletedMapResp:
-    properties:
-      code:
-        description: Status code
-        type: integer
-      data:
-        allOf:
-        - $ref: '#/definitions/dto.GetCompletedMapResp'
         description: Generic type data
       message:
         description: Response message
@@ -2652,19 +2646,6 @@ definitions:
         description: Response generation time
         type: integer
     type: object
-  dto.GetCompletedMapResp:
-    properties:
-      has_anomaly:
-        description: List of trace IDs with detected anomalies
-        items:
-          type: string
-        type: array
-      no_anomaly:
-        description: List of trace IDs without anomalies
-        items:
-          type: string
-        type: array
-    type: object
   dto.GranularityRecord:
     properties:
       confidence:
@@ -2681,11 +2662,15 @@ definitions:
       datapack_id:
         description: Required if no execution_id
         type: integer
+      duration:
+        description: Execution duration in seconds
+        type: integer
       results:
         items:
           $ref: '#/definitions/dto.GranularityResultItem'
         type: array
     required:
+    - duration
     - results
     type: object
   dto.GranularityResultItem:
@@ -6037,40 +6022,6 @@ paths:
       summary: Get queued tasks
       tags:
       - task
-  /api/v1/traces/completed:
-    get:
-      description: Get completed traces within a specified time range
-      parameters:
-      - description: Relative time query, e.g. 1h, 24h, 7d or custom
-        in: query
-        name: lookback
-        type: string
-      - description: Required when lookback=custom, custom start time (RFC3339 format)
-        in: query
-        name: custom_start_time
-        type: string
-      - description: Required when lookback=custom, custom end time (RFC3339 format)
-        in: query
-        name: custom_end_time
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_GetCompletedMapResp'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      summary: Get completed traces
-      tags:
-      - trace
   /api/v2/algorithms:
     get:
       description: Get a simple list of all active algorithms without complex filtering

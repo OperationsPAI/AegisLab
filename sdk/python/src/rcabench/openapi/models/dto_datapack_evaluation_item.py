@@ -31,11 +31,12 @@ class DtoDatapackEvaluationItem(BaseModel):
     """ # noqa: E501
     datapack_name: Optional[StrictStr] = Field(default=None, description="Datapack name (from FaultInjectionSchedule)")
     executed_at: Optional[StrictStr] = Field(default=None, description="Execution time")
+    execution_duration: Optional[StrictInt] = Field(default=None, description="Execution duration in seconds")
     execution_id: Optional[StrictInt] = Field(default=None, description="Execution ID")
     groundtruth: Optional[HandlerGroundtruth] = Field(default=None, description="Ground truth for this datapack")
     predictions: Optional[List[DtoGranularityRecord]] = Field(default=None, description="Algorithm predictions")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["datapack_name", "executed_at", "execution_id", "groundtruth", "predictions"]
+    __properties: ClassVar[List[str]] = ["datapack_name", "executed_at", "execution_duration", "execution_id", "groundtruth", "predictions"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -107,6 +108,7 @@ class DtoDatapackEvaluationItem(BaseModel):
         _obj = cls.model_validate({
             "datapack_name": obj.get("datapack_name"),
             "executed_at": obj.get("executed_at"),
+            "execution_duration": obj.get("execution_duration"),
             "execution_id": obj.get("execution_id"),
             "groundtruth": HandlerGroundtruth.from_dict(obj["groundtruth"]) if obj.get("groundtruth") is not None else None,
             "predictions": [DtoGranularityRecord.from_dict(_item) for _item in obj["predictions"]] if obj.get("predictions") is not None else None

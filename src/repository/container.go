@@ -9,6 +9,21 @@ import (
 	"gorm.io/gorm"
 )
 
+func CheckContainerExists(id int) (bool, error) {
+	var container database.Container
+	if err := database.DB.
+		Where("id = ?", id).
+		First(&container).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("failed to check container: %v", err)
+	}
+
+	return true, nil
+}
+
 func CreateContainer(container *database.Container) error {
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
 		var existingContainer database.Container

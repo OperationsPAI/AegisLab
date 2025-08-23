@@ -7,6 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **datapack_name** | **str** | Datapack name (from FaultInjectionSchedule) | [optional] 
 **executed_at** | **str** | Execution time | [optional] 
+**execution_duration** | **int** | Execution duration in seconds | [optional] 
 **execution_id** | **int** | Execution ID | [optional] 
 **groundtruth** | [**HandlerGroundtruth**](HandlerGroundtruth.md) | Ground truth for this datapack | [optional] 
 **predictions** | [**List[DtoGranularityRecord]**](DtoGranularityRecord.md) | Algorithm predictions | [optional] 
