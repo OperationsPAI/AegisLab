@@ -907,3 +907,54 @@ func DeleteContainer(c *gin.Context) {
 
 	dto.SuccessResponse(c, gin.H{"message": "Container deleted successfully"})
 }
+
+// GetLatestContainerByName handles getting the latest container by algorithm name
+//
+//	@Summary Get latest container by name
+//	@Description Get the most recently updated container record for a given algorithm name
+//	@Tags Containers
+//	@Produce json
+//	@Security BearerAuth
+//	@Param name path string true "Container/Algorithm name"
+//	@Success 200 {object} dto.GenericResponse[dto.ContainerResponse] "Latest container retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid container name"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 404 {object} dto.GenericResponse[any] "Container not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/containers/name/{name}/latest [get]
+func GetLatestContainerByName(c *gin.Context) {
+	name := c.Param("name")
+	if name == "" {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Container name cannot be empty")
+		return
+	}
+
+	var container database.Container
+	if err := database.DB.Where("name = ? AND status = ?", name, consts.ContainerEnabled).
+		Order("updated_at DESC").
+		First(&container).Error; err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			dto.ErrorResponse(c, http.StatusNotFound, "Container not found")
+		} else {
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get container: "+err.Error())
+		}
+		return
+	}
+
+	response := dto.ContainerResponse{
+		ID:        container.ID,
+		Name:      container.Name,
+		Type:      container.Type,
+		Image:     container.Image,
+		Tag:       container.Tag,
+		Command:   container.Command,
+		EnvVars:   container.EnvVars,
+		UserID:    container.UserID,
+		IsPublic:  container.IsPublic,
+		Status:    container.Status,
+		CreatedAt: container.CreatedAt,
+		UpdatedAt: container.UpdatedAt,
+	}
+
+	dto.SuccessResponse(c, response)
+}
