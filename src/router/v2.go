@@ -278,8 +278,19 @@ func SetupV2Routes(router *gin.Engine) {
 		// GET /api/v2/containers/{id}
 		containers.GET("/:id", middleware.RequireContainerRead, v2handlers.GetContainer)
 
+		// GET /api/v2/containers/name/{name}/latest - Get latest container by name
+		containers.GET("/name/:name/latest", middleware.RequireContainerRead, v2handlers.GetLatestContainerByName)
+
 		// POST /api/v2/containers/search - Advanced search with complex filters
 		containers.POST("/search", middleware.RequireContainerRead, v2handlers.SearchContainers)
+
+		// Update operation
+		// PUT /api/v2/containers/{id} - Update container
+		containers.PUT("/:id", middleware.RequireContainerWrite, v2handlers.UpdateContainer)
+
+		// Delete operation
+		// DELETE /api/v2/containers/{id} - Delete container (soft delete)
+		containers.DELETE("/:id", middleware.RequireContainerDelete, v2handlers.DeleteContainer)
 	}
 
 	// Algorithm Management - Algorithms (Algorithm is a special type of container)
