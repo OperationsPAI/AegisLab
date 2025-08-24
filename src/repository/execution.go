@@ -72,7 +72,7 @@ func CreateExecutionResult(taskID string, algorithmID, datapackID int, duration 
 }
 
 func UpdateExecutionResult(id int, updates map[string]any) error {
-	result := database.DB.Model(&database.FaultInjectionSchedule{}).Where("id = ?", id).Updates(updates)
+	result := database.DB.Model(&database.ExecutionResult{}).Where("id = ?", id).Updates(updates)
 	if result.Error != nil {
 		return result.Error
 	}
