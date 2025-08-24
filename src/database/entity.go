@@ -77,7 +77,7 @@ type ExecutionResult struct {
 	TaskID      *string   `gorm:"index:idx_exec_task_status;index:idx_exec_task_algo;size:64" json:"task_id"` // Associated task ID, add composite index, nullable
 	AlgorithmID int       `gorm:"index:idx_exec_task_algo;index:idx_exec_algo_dataset" json:"algorithm_id"`   // Algorithm used, add composite index
 	DatapackID  int       `gorm:"index:idx_exec_algo_dataset" json:"datapack_id"`                             // Data package identifier, add composite index
-	Duration    int       `gorm:"default:0;index:idx_exec_duration" json:"duration"`                          // Execution duration
+	Duration    float64   `gorm:"default:0;index:idx_exec_duration" json:"duration"`                          // Execution duration
 	Status      int       `gorm:"default:0;index:idx_exec_task_status" json:"status"`                         // Status: -1:deleted 0:initial 1:failed 2:success
 	CreatedAt   time.Time `gorm:"autoCreateTime;index:idx_exec_created_at" json:"created_at"`                 // Creation time, add time index for partitioning
 	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                           // Update time

@@ -1,6 +1,10 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.13"
+resolution-markers = [
+    "python_full_version >= '3.14'",
+    "python_full_version < '3.14'",
+]
 
 [[package]]
 name = "aiohappyeyeballs"
@@ -641,7 +645,7 @@ wheels = [
 
 [[package]]
 name = "rcabench"
-version = "1.1.26"
+version = "1.1.36"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -659,9 +663,9 @@ dependencies = [
     { name = "urllib3" },
     { name = "wheel" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5d/98/d1dc9aff284aeaa35982707f05b950ba75b532154dd9713ce06c31667364/rcabench-1.1.26.tar.gz", hash = "sha256:113e205743abe4685f28871646720e33420102c2cad75a69da4272da187ac1a2", size = 256600, upload-time = "2025-08-05T04:06:05.877Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/44/43/c7831888a43aec98486d6025a3072bcba6e769267db62714fd75bd847ba1/rcabench-1.1.36.tar.gz", hash = "sha256:f86450ab41f8f938b5bc7cd851d9e906647878b4218c319c273041aaf705ade4", size = 261457, upload-time = "2025-08-21T11:14:25.155Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/64/81/bf79cb64b5d5567e67db0563f4cd21df84b0b2ff4314a7a97bb1bdb5d6fd/rcabench-1.1.26-py3-none-any.whl", hash = "sha256:dd65d719c97f8eff7e8ef03dbf079364fb5aae19e7faa707a286387a24584934", size = 686184, upload-time = "2025-08-05T04:06:04.71Z" },
+    { url = "https://files.pythonhosted.org/packages/05/5a/31095602d551a617aa8e74232ae70c37f555ba7cc771a43e54364bf96bc4/rcabench-1.1.36-py3-none-any.whl", hash = "sha256:b115e6f44ee7d16732343d74a7f529d4e655e11609ab1c73adf3d240bc6f89c4", size = 714529, upload-time = "2025-08-21T11:14:23.931Z" },
 ]
 
 [[package]]

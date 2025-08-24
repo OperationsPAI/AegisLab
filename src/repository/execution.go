@@ -28,7 +28,7 @@ func CheckExecutionResultExists(id int) (bool, error) {
 	return true, nil
 }
 
-func CreateExecutionResult(taskID string, algorithmID, datapackID, duration int, labels *dto.ExecutionLabels) (int, error) {
+func CreateExecutionResult(taskID string, algorithmID, datapackID int, duration float64, labels *dto.ExecutionLabels) (int, error) {
 	executionResult := database.ExecutionResult{
 		AlgorithmID: algorithmID,
 		DatapackID:  datapackID,

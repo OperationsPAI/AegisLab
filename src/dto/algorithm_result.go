@@ -7,7 +7,7 @@ import (
 
 // DetectorResultRequest Detector result upload request
 type DetectorResultRequest struct {
-	Duration int                  `json:"duration" binding:"required"` // Execution duration in seconds
+	Duration float64              `json:"duration" binding:"required"` // Execution duration in seconds
 	Results  []DetectorResultItem `json:"results" binding:"required,dive,required"`
 }
 
@@ -128,7 +128,7 @@ func (req *DetectorResultRequest) HasAnomalies() bool {
 // GranularityResultEnhancedRequest Enhanced granularity result upload request
 type GranularityResultEnhancedRequest struct {
 	DatapackID int                     `json:"datapack_id,omitempty" binding:"omitempty"` // Required if no execution_id
-	Duration   int                     `json:"duration" binding:"required"`               // Execution duration in seconds
+	Duration   float64                 `json:"duration" binding:"required"`               // Execution duration in seconds
 	Results    []GranularityResultItem `json:"results" binding:"required,dive,required"`
 }
 

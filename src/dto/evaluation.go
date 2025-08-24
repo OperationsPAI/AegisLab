@@ -148,7 +148,7 @@ func (req *DatasetEvaluationBatchReq) Validate() error {
 type DatapackEvaluationItem struct {
 	DatapackName      string              `json:"datapack_name"`      // Datapack name (from FaultInjectionSchedule)
 	ExecutionID       int                 `json:"execution_id"`       // Execution ID
-	ExecutionDuration int                 `json:"execution_duration"` // Execution duration in seconds
+	ExecutionDuration float64             `json:"execution_duration"` // Execution duration in seconds
 	Groundtruth       chaos.Groundtruth   `json:"groundtruth"`        // Ground truth for this datapack
 	Predictions       []GranularityRecord `json:"predictions"`        // Algorithm predictions
 	ExecutedAt        time.Time           `json:"executed_at"`        // Execution time
@@ -202,7 +202,7 @@ type AlgorithmDatapackResp struct {
 	Algorithm         string              `json:"algorithm"`          // Algorithm name
 	Datapack          string              `json:"datapack"`           // Datapack name
 	ExecutionID       int                 `json:"execution_id"`       // Execution ID (0 if no execution found)
-	ExecutionDuration int                 `json:"execution_duration"` // Execution duration in seconds
+	ExecutionDuration float64             `json:"execution_duration"` // Execution duration in seconds
 	Groundtruth       chaos.Groundtruth   `json:"groundtruth"`        // Ground truth for this datapack
 	Predictions       []GranularityRecord `json:"predictions"`        // Algorithm predictions
 	ExecutedAt        time.Time           `json:"executed_at"`        // Execution time
