@@ -229,7 +229,6 @@ func ConsumeTasks() {
 
 	for {
 		if !repository.AcquireConcurrencyLock(ctx) {
-			logrus.Info("no lock")
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
