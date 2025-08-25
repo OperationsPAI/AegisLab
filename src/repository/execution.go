@@ -797,22 +797,36 @@ func GetDatasetEvaluationBatch(req dto.DatasetEvaluationBatchReq) (dto.DatasetEv
 			}
 		}
 
-		// Build evaluation items
-		evaluationItems := make([]dto.DatapackEvaluationItem, len(matchingExecs))
-		for j, exec := range matchingExecs {
+		// Find the latest execution for each datapack to avoid duplicates
+		latestDatapackExecs := make(map[string]struct {
+			database.ExecutionResult
+			Algorithm    string `json:"algorithm"`
+			DatapackName string `json:"datapack_name"`
+			DatasetID    int    `json:"dataset_id"`
+		})
+
+		for _, exec := range matchingExecs {
+			if existing, exists := latestDatapackExecs[exec.DatapackName]; !exists || exec.CreatedAt.After(existing.CreatedAt) {
+				latestDatapackExecs[exec.DatapackName] = exec
+			}
+		}
+
+		// Build evaluation items from latest executions only
+		evaluationItems := make([]dto.DatapackEvaluationItem, 0, len(latestDatapackExecs))
+		for _, exec := range latestDatapackExecs {
 			predictions := granMap[exec.ID]
 			if predictions == nil {
 				predictions = []dto.GranularityRecord{}
 			}
 
-			evaluationItems[j] = dto.DatapackEvaluationItem{
+			evaluationItems = append(evaluationItems, dto.DatapackEvaluationItem{
 				DatapackName:      exec.DatapackName,
 				ExecutionID:       exec.ID,
 				ExecutionDuration: exec.Duration,
 				Groundtruth:       groundtruthMap[exec.DatapackName],
 				Predictions:       predictions,
 				ExecutedAt:        exec.CreatedAt,
-			}
+			})
 		}
 
 		response[i] = dto.AlgorithmDatasetResp{
