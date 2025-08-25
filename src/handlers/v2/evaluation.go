@@ -28,7 +28,7 @@ func GetAvailableLabelKeys(c *gin.Context) {
 
 // GetDatasetEvaluationResults retrieves evaluation data for multiple algorithm-dataset pairs
 // @Summary Get Batch Algorithm Dataset Evaluation
-// @Description Get execution results with predictions and ground truth for multiple algorithm-dataset pairs in a single request
+// @Description Get execution results with predictions and ground truth for multiple algorithm-dataset pairs in a single request. Returns the latest execution for each datapack if multiple executions exist.
 // @Tags evaluation
 // @Security BearerAuth
 // @Accept json
