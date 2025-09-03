@@ -201,12 +201,17 @@ func ListDisplayConfigsByTraceIDs(traceIDs []string) (map[string]any, error) {
 	return result, nil
 }
 
-// TODO
-func ListExistingDisplayConfigs(configs []string) ([]string, error) {
+// ListExistingEngineConfigs lists engine_config strings that already exist in DB and are considered completed builds.
+// This is used to de-duplicate incoming injection requests by their engine configuration.
+func ListExistingEngineConfigs(configs []string) ([]string, error) {
+	if len(configs) == 0 {
+		return []string{}, nil
+	}
+
 	query := database.DB.
 		Model(&database.FaultInjectionSchedule{}).
-		Select("display_config").
-		Where("display_config in (?) AND status = ?", configs, consts.DatapackBuildSuccess)
+		Select("engine_config").
+		Where("engine_config in (?) AND status = ?", configs, consts.DatapackBuildSuccess)
 
 	var existingEngineConfigs []string
 	if err := query.Pluck("engine_config", &existingEngineConfigs).Error; err != nil {
