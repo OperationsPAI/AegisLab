@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"runtime/debug"
 	"time"
@@ -350,7 +349,7 @@ func SubmitFaultInjection(c *gin.Context) {
 	newConfigs, err := removeDuplicated(configs)
 	if err != nil {
 		logrus.Errorf("failed to remove duplicated configs: %v", err)
-		span.SetStatus(codes.Error, "panic in SubmitFaultInjection")
+		span.SetStatus(codes.Error, "failed in SubmitFaultInjection - removeDuplicated")
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to remove duplicated configs")
 		return
 	}
@@ -424,56 +423,80 @@ func SubmitFaultInjection(c *gin.Context) {
 }
 
 func removeDuplicated(configs []dto.InjectionConfig) ([]dto.InjectionConfig, error) {
-
-	displayDatas := []string{}
-	for _, config := range configs {
-		displayDatas = append(displayDatas, config.DisplayData)
+	// Goal: filter out items that already exist in DB, using engine_config as uniqueness key,
+	// and drop duplicates within the incoming request while preserving order.
+	if len(configs) == 0 {
+		return nil, nil
 	}
 
-	missingIndices, err := findMissingIndices(displayDatas, 10)
-	if err != nil {
-		return nil, err
+	// Build engine_config JSON string for each item from cfg.Node, because DB stores EngineConfig as JSON string.
+	engineStrings := make([]string, len(configs))
+	for i, cfg := range configs {
+		if cfg.Node == nil {
+			engineStrings[i] = "" // cannot dedup without engine config; keep it later
+			continue
+		}
+		b, err := json.Marshal(cfg.Node)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal engine config at index %d: %w", i, err)
+		}
+		engineStrings[i] = string(b)
 	}
 
-	newConfigs := make([]dto.InjectionConfig, 0)
-	for _, idx := range missingIndices {
-		conf := configs[idx]
-		conf.ExecuteTime = time.Now().Add(time.Second * time.Duration(rand.Int()%120))
-		newConfigs = append(newConfigs, conf)
+	orderedUniqueIdx := make([]int, 0, len(configs))
+	seen := make(map[string]struct{}, len(configs))
+	for i, key := range engineStrings {
+		if key == "" {
+			orderedUniqueIdx = append(orderedUniqueIdx, i)
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		orderedUniqueIdx = append(orderedUniqueIdx, i)
 	}
 
-	return newConfigs, nil
-}
-
-// TODO When fixing container, since pods are always different, repeated injections are possible
-func findMissingIndices(confs []string, batch_size int) ([]int, error) {
-	var missingIndices []int
-	existingMap := make(map[string]struct{})
-
-	for i := 0; i < len(confs); i += batch_size {
-		end := min(i+batch_size, len(confs))
-		batch := confs[i:end]
-
-		existingBatch, err := repository.ListExistingDisplayConfigs(batch)
+	// Query DB for existing engine_config values in batches
+	const batchSize = 100
+	existed := make(map[string]struct{})
+	// Collect unique keys to query to avoid excessive IN list
+	keys := make([]string, 0, len(seen))
+	for k := range seen {
+		if k != "" {
+			keys = append(keys, k)
+		}
+	}
+	for start := 0; start < len(keys); start += batchSize {
+		end := start + batchSize
+		if end > len(keys) {
+			end = len(keys)
+		}
+		batch := keys[start:end]
+		existing, err := repository.ListExistingEngineConfigs(batch)
 		if err != nil {
 			return nil, err
 		}
-
-		for _, s := range existingBatch {
-			existingMap[s] = struct{}{}
+		for _, v := range existing {
+			existed[v] = struct{}{}
 		}
 	}
 
-	for idx, s := range confs {
-		if _, exists := existingMap[s]; !exists {
-			missingIndices = append(missingIndices, idx)
+	out := make([]dto.InjectionConfig, 0, len(orderedUniqueIdx))
+	for _, idx := range orderedUniqueIdx {
+		key := engineStrings[idx]
+		if key == "" {
+			out = append(out, configs[idx])
+			continue
 		}
+		if _, ok := existed[key]; ok {
+			continue
+		}
+		configs[idx].ExecuteTime = time.Now().Add(time.Duration(idx*2) * time.Second) // ensure unique execute_time
+		out = append(out, configs[idx])
 	}
-
-	return missingIndices, nil
+	return out, nil
 }
-
-// analysis
 
 // GetFaultInjectionNoIssues
 //
