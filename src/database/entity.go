@@ -85,7 +85,7 @@ type ExecutionResult struct {
 	// Foreign key association
 	Task      *Task                   `gorm:"foreignKey:TaskID" json:"task,omitempty"`
 	Algorithm *Container              `gorm:"foreignKey:AlgorithmID" json:"algorithm,omitempty"`
-	Datapack  *FaultInjectionSchedule `gorm:"foreignKey:DatapackID" json:"datapack,omitempty"`
+	Datapack  *FaultInjectionSchedule `gorm:"foreignKey:DatapackID;constraint:OnDelete:CASCADE" json:"datapack,omitempty"`
 
 	// Many-to-many relationship with labels
 	Labels []Label `gorm:"many2many:execution_result_labels;" json:"labels,omitempty"`
@@ -176,7 +176,7 @@ type DatasetFaultInjection struct {
 
 	// Foreign key association - keep explicit associations for manual queries
 	Dataset                *Dataset                `gorm:"foreignKey:DatasetID" json:"dataset,omitempty"`
-	FaultInjectionSchedule *FaultInjectionSchedule `gorm:"foreignKey:FaultInjectionID" json:"fault_injection,omitempty"`
+	FaultInjectionSchedule *FaultInjectionSchedule `gorm:"foreignKey:FaultInjectionID;constraint:OnDelete:CASCADE" json:"fault_injection,omitempty"`
 }
 
 // DatasetLabel Many-to-many relationship table between Dataset and Label
@@ -200,7 +200,7 @@ type FaultInjectionLabel struct {
 	CreatedAt        time.Time `gorm:"autoCreateTime" json:"created_at"`                                       // Creation time
 
 	// Foreign key association
-	FaultInjectionSchedule *FaultInjectionSchedule `gorm:"foreignKey:FaultInjectionID" json:"fault_injection,omitempty"`
+	FaultInjectionSchedule *FaultInjectionSchedule `gorm:"foreignKey:FaultInjectionID;constraint:OnDelete:CASCADE" json:"fault_injection,omitempty"`
 	Label                  *Label                  `gorm:"foreignKey:LabelID" json:"label,omitempty"`
 }
 

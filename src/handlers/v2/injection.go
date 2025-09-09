@@ -331,6 +331,51 @@ func DeleteInjection(c *gin.Context) {
 	dto.SuccessResponse(c, gin.H{"message": "Injection deleted successfully"})
 }
 
+// BatchDeleteInjections
+//
+//	@Summary Batch delete injections
+//	@Description Batch delete injections by IDs or labels with cascading deletion of related records
+//	@Tags Injections
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param batch_delete body dto.InjectionV2BatchDeleteReq true "Batch delete request"
+//	@Success 200 {object} dto.GenericResponse[dto.InjectionV2BatchDeleteResponse] "Injections deleted successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/injections/batch-delete [post]
+func BatchDeleteInjections(c *gin.Context) {
+	var req dto.InjectionV2BatchDeleteReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		return
+	}
+
+	// Validate request
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
+		return
+	}
+
+	var response dto.InjectionV2BatchDeleteResponse
+	var err error
+
+	// Delete by IDs or by labels
+	if len(req.IDs) > 0 {
+		response, err = repository.BatchDeleteInjectionsV2(req.IDs)
+	} else {
+		response, err = repository.BatchDeleteInjectionsByLabelsV2(req.Labels)
+	}
+
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to delete injections: "+err.Error())
+		return
+	}
+
+	dto.SuccessResponse(c, response)
+}
+
 // SearchInjection
 //
 //	@Summary Search injections

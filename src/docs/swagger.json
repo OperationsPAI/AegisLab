@@ -2680,6 +2680,64 @@
                 }
             }
         },
+        "/api/v2/containers/name/{name}/latest": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get the most recently updated container record for a given algorithm name",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Containers"
+                ],
+                "summary": "Get latest container by name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Container/Algorithm name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Latest container retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid container name",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Container not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/containers/search": {
             "post": {
                 "security": [
@@ -3658,7 +3716,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get execution results with predictions and ground truth for multiple algorithm-dataset pairs in a single request",
+                "description": "Get execution results with predictions and ground truth for multiple algorithm-dataset pairs in a single request. Returns the latest execution for each datapack if multiple executions exist.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3933,6 +3991,63 @@
                         "description": "Injections created successfully",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_InjectionV2CreateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/injections/batch-delete": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Batch delete injections by IDs or labels with cascading deletion of related records",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Injections"
+                ],
+                "summary": "Batch delete injections",
+                "parameters": [
+                    {
+                        "description": "Batch delete request",
+                        "name": "batch_delete",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.InjectionV2BatchDeleteReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Injections deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionV2BatchDeleteResponse"
                         }
                     },
                     "400": {
@@ -7344,7 +7459,7 @@
                 },
                 "execution_duration": {
                     "description": "Execution duration in seconds",
-                    "type": "integer"
+                    "type": "number"
                 },
                 "execution_id": {
                     "description": "Execution ID (0 if no execution found)",
@@ -8287,7 +8402,7 @@
                 },
                 "execution_duration": {
                     "description": "Execution duration in seconds",
-                    "type": "integer"
+                    "type": "number"
                 },
                 "execution_id": {
                     "description": "Execution ID",
@@ -8889,7 +9004,7 @@
             "properties": {
                 "duration": {
                     "description": "Execution duration in seconds",
-                    "type": "integer"
+                    "type": "number"
                 },
                 "results": {
                     "type": "array",
@@ -9654,6 +9769,31 @@
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.InjectionStatsResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_InjectionV2BatchDeleteResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.InjectionV2BatchDeleteResponse"
                         }
                     ]
                 },
@@ -10718,7 +10858,7 @@
                 },
                 "duration": {
                     "description": "Execution duration in seconds",
-                    "type": "integer"
+                    "type": "number"
                 },
                 "results": {
                     "type": "array",
@@ -10993,6 +11133,71 @@
                 }
             }
         },
+        "dto.InjectionV2BatchDeleteReq": {
+            "type": "object",
+            "properties": {
+                "ids": {
+                    "description": "List of injection IDs to delete",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "labels": {
+                    "description": "List of label keys to match for deletion (key1:value1,key2:value2)",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "dto.InjectionV2BatchDeleteResponse": {
+            "type": "object",
+            "properties": {
+                "cascade_deleted": {
+                    "$ref": "#/definitions/dto.InjectionV2CascadeDeleteStats"
+                },
+                "failed_count": {
+                    "type": "integer"
+                },
+                "failed_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.InjectionV2DeleteError"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "success_count": {
+                    "type": "integer"
+                },
+                "success_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.InjectionV2DeletedItem"
+                    }
+                }
+            }
+        },
+        "dto.InjectionV2CascadeDeleteStats": {
+            "type": "object",
+            "properties": {
+                "dataset_fault_injections": {
+                    "type": "integer"
+                },
+                "execution_results": {
+                    "type": "integer"
+                },
+                "fault_injection_labels": {
+                    "type": "integer"
+                },
+                "granularity_results": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.InjectionV2CreateItem": {
             "type": "object",
             "required": [
@@ -11098,6 +11303,34 @@
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "dto.InjectionV2DeleteError": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "injection_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.InjectionV2DeletedItem": {
+            "type": "object",
+            "properties": {
+                "benchmark": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "injection_name": {
+                    "type": "string"
                 }
             }
         },

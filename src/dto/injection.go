@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
@@ -618,4 +619,129 @@ type InjectionV2LabelManageReq struct {
 type InjectionV2CustomLabelManageReq struct {
 	AddLabels    []LabelItem `json:"add_labels"`    // List of labels to add
 	RemoveLabels []string    `json:"remove_labels"` // List of label keys to remove
+}
+
+// TriggerDatasetBuildItemResponse represents the response for a single injection in batch trigger
+type TriggerDatasetBuildItemResponse struct {
+	TaskID        string `json:"task_id"`
+	TraceID       string `json:"trace_id"`
+	InjectionName string `json:"injection_name"`
+	Benchmark     string `json:"benchmark"`
+	Namespace     string `json:"namespace"`
+	Message       string `json:"message"`
+}
+
+// TriggerDatasetBuildError represents an error during dataset build trigger
+type TriggerDatasetBuildError struct {
+	InjectionName string `json:"injection_name"`
+	Error         string `json:"error"`
+}
+
+// TriggerFailedDatapackRebuildRequest represents the request for triggering rebuild of failed datapacks
+type TriggerFailedDatapackRebuildRequest struct {
+	Namespace string `json:"namespace,omitempty"` // Optional namespace, defaults to "ts"
+	Days      *int   `json:"days,omitempty"`      // Number of days to look back, defaults to 3
+}
+
+// TriggerFailedDatapackRebuildResponse represents the response for triggering rebuild of failed datapacks
+type TriggerFailedDatapackRebuildResponse struct {
+	SuccessCount int                               `json:"success_count"`
+	SuccessItems []TriggerDatasetBuildItemResponse `json:"success_items"`
+	FailedCount  int                               `json:"failed_count"`
+	FailedItems  []TriggerDatasetBuildError        `json:"failed_items,omitempty"`
+	TotalFound   int                               `json:"total_found"`   // Total number of failed datapacks found
+	DaysSearched int                               `json:"days_searched"` // Number of days searched
+	SearchCutoff string                            `json:"search_cutoff"` // ISO timestamp of search cutoff
+	Message      string                            `json:"message"`
+}
+
+// TriggerFailedDatapackRebuildProgressEvent represents a single progress event for SSE
+type TriggerFailedDatapackRebuildProgressEvent struct {
+	Type          string                                `json:"type"`                     // "start", "progress", "item_success", "item_error", "complete", "error"
+	Message       string                                `json:"message"`                  // Human readable message
+	TotalFound    int                                   `json:"total_found"`              // Total number of failed datapacks found
+	CurrentIndex  int                                   `json:"current_index"`            // Current processing index (0-based)
+	Progress      float64                               `json:"progress"`                 // Progress percentage (0-100)
+	SuccessCount  int                                   `json:"success_count"`            // Number of successful triggers so far
+	FailedCount   int                                   `json:"failed_count"`             // Number of failed triggers so far
+	CurrentItem   *TriggerDatasetBuildItemResponse      `json:"current_item,omitempty"`   // Current successful item
+	CurrentError  *TriggerDatasetBuildError             `json:"current_error,omitempty"`  // Current error item
+	EstimatedTime *time.Duration                        `json:"estimated_time,omitempty"` // Estimated remaining time
+	FinalResponse *TriggerFailedDatapackRebuildResponse `json:"final_response,omitempty"` // Final response (only for "complete" type)
+}
+
+// InjectionV2BatchDeleteReq represents the request for batch deletion of injections
+type InjectionV2BatchDeleteReq struct {
+	IDs    []int    `json:"ids,omitempty"`    // List of injection IDs to delete
+	Labels []string `json:"labels,omitempty"` // List of label keys to match for deletion (key1:value1,key2:value2)
+}
+
+// Validate validates the batch delete request
+func (req *InjectionV2BatchDeleteReq) Validate() error {
+	hasIDs := len(req.IDs) > 0
+	hasLabels := len(req.Labels) > 0
+
+	if !hasIDs && !hasLabels {
+		return fmt.Errorf("either ids or labels must be provided")
+	}
+
+	if hasIDs && hasLabels {
+		return fmt.Errorf("cannot specify both ids and labels, choose one")
+	}
+
+	if hasIDs {
+		for i, id := range req.IDs {
+			if id <= 0 {
+				return fmt.Errorf("invalid id at index %d: %d", i, id)
+			}
+		}
+	}
+
+	if hasLabels {
+		for i, label := range req.Labels {
+			if label == "" {
+				return fmt.Errorf("empty label at index %d", i)
+			}
+			// Validate label format (key:value)
+			if !strings.Contains(label, ":") {
+				return fmt.Errorf("invalid label format at index %d: %s, expected format 'key:value'", i, label)
+			}
+		}
+	}
+
+	return nil
+}
+
+// InjectionV2BatchDeleteResponse represents the response for batch deletion
+type InjectionV2BatchDeleteResponse struct {
+	SuccessCount   int                           `json:"success_count"`
+	SuccessItems   []InjectionV2DeletedItem      `json:"success_items"`
+	FailedCount    int                           `json:"failed_count"`
+	FailedItems    []InjectionV2DeleteError      `json:"failed_items,omitempty"`
+	CascadeDeleted InjectionV2CascadeDeleteStats `json:"cascade_deleted"`
+	Message        string                        `json:"message"`
+}
+
+// InjectionV2DeletedItem represents a successfully deleted injection
+type InjectionV2DeletedItem struct {
+	ID            int    `json:"id"`
+	InjectionName string `json:"injection_name"`
+	Benchmark     string `json:"benchmark"`
+}
+
+// InjectionV2DeleteError represents an error during injection deletion
+type InjectionV2DeleteError struct {
+	ID            int    `json:"id,omitempty"`
+	InjectionName string `json:"injection_name,omitempty"`
+	Error         string `json:"error"`
+}
+
+// InjectionV2CascadeDeleteStats represents statistics of cascade deleted records
+type InjectionV2CascadeDeleteStats struct {
+	ExecutionResults       int `json:"execution_results"`
+	ExecutionResultLabels  int `json:"execution_result_labels"`
+	GranularityResults     int `json:"granularity_results"`
+	FaultInjectionLabels   int `json:"fault_injection_labels"`
+	DatasetFaultInjections int `json:"dataset_fault_injections"`
+	Detectors              int `json:"detectors"`
 }

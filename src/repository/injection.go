@@ -203,6 +203,7 @@ func ListDisplayConfigsByTraceIDs(traceIDs []string) (map[string]any, error) {
 
 // ListExistingEngineConfigs lists engine_config strings that already exist in DB and are considered completed builds.
 // This is used to de-duplicate incoming injection requests by their engine configuration.
+// Excludes records that have the "invalid" label.
 func ListExistingEngineConfigs(configs []string) ([]string, error) {
 	if len(configs) == 0 {
 		return []string{}, nil
@@ -212,6 +213,14 @@ func ListExistingEngineConfigs(configs []string) ([]string, error) {
 		Model(&database.FaultInjectionSchedule{}).
 		Select("engine_config").
 		Where("engine_config in (?) AND status = ?", configs, consts.DatapackBuildSuccess)
+
+	// Exclude records that have the "invalid" label
+	invalidLabelSubQuery := database.DB.Table("fault_injection_labels").
+		Select("fault_injection_id").
+		Joins("JOIN labels ON labels.id = fault_injection_labels.label_id").
+		Where("labels.label_key = ? AND labels.label_value = ?", consts.LabelKeyTag, "invalid")
+
+	query = query.Where("fault_injection_schedules.id NOT IN (?)", invalidLabelSubQuery)
 
 	var existingEngineConfigs []string
 	if err := query.Pluck("engine_config", &existingEngineConfigs).Error; err != nil {
@@ -468,7 +477,7 @@ func GetInjectionDetailedStats() (map[string]int64, error) {
 	// Total injections (exclude deleted)
 	var total int64
 	if err := database.DB.Model(&database.FaultInjectionSchedule{}).
-		Where("status != -1").Count(&total).Error; err != nil {
+		Where("status != ?", consts.DatapackDeleted).Count(&total).Error; err != nil {
 		return nil, fmt.Errorf("failed to count total injections: %v", err)
 	}
 	stats["total"] = total
@@ -476,7 +485,7 @@ func GetInjectionDetailedStats() (map[string]int64, error) {
 	// Running injections (status = 1)
 	var running int64
 	if err := database.DB.Model(&database.FaultInjectionSchedule{}).
-		Where("status = 1").Count(&running).Error; err != nil {
+		Where("status = ?", consts.DatapackInitial).Count(&running).Error; err != nil {
 		return nil, fmt.Errorf("failed to count running injections: %v", err)
 	}
 	stats["running"] = running
@@ -484,7 +493,7 @@ func GetInjectionDetailedStats() (map[string]int64, error) {
 	// Completed injections (status = 2)
 	var completed int64
 	if err := database.DB.Model(&database.FaultInjectionSchedule{}).
-		Where("status = 2").Count(&completed).Error; err != nil {
+		Where("status = ?", consts.DatapackInjectSuccess).Count(&completed).Error; err != nil {
 		return nil, fmt.Errorf("failed to count completed injections: %v", err)
 	}
 	stats["completed"] = completed
@@ -492,18 +501,10 @@ func GetInjectionDetailedStats() (map[string]int64, error) {
 	// Failed injections (status = 3)
 	var failed int64
 	if err := database.DB.Model(&database.FaultInjectionSchedule{}).
-		Where("status = 3").Count(&failed).Error; err != nil {
+		Where("status = ?", consts.DatapackInjectFailed).Count(&failed).Error; err != nil {
 		return nil, fmt.Errorf("failed to count failed injections: %v", err)
 	}
 	stats["failed"] = failed
-
-	// Scheduled injections (status = 0)
-	var scheduled int64
-	if err := database.DB.Model(&database.FaultInjectionSchedule{}).
-		Where("status = 0").Count(&scheduled).Error; err != nil {
-		return nil, fmt.Errorf("failed to count scheduled injections: %v", err)
-	}
-	stats["scheduled"] = scheduled
 
 	return stats, nil
 }
@@ -812,7 +813,7 @@ func UpdateInjectionV2(id int, updates map[string]any) error {
 
 // DeleteInjectionV2 soft deletes injection by ID for V2 API
 func DeleteInjectionV2(id int) error {
-	result := database.DB.Model(&database.FaultInjectionSchedule{}).Where("id = ?", id).Update("status", -1)
+	result := database.DB.Model(&database.FaultInjectionSchedule{}).Where("id = ?", id).Update("status", consts.DatapackDeleted)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -1029,4 +1030,223 @@ func AddCustomLabelToInjectionWithOverride(injectionID int, key, value string) e
 	}
 
 	return AddLabelToInjection(injectionID, label.ID)
+}
+
+// BatchDeleteInjectionsV2 performs batch deletion of injections with cascading deletes
+func BatchDeleteInjectionsV2(injectionIDs []int) (dto.InjectionV2BatchDeleteResponse, error) {
+	var response dto.InjectionV2BatchDeleteResponse
+	var successItems []dto.InjectionV2DeletedItem
+	var failedItems []dto.InjectionV2DeleteError
+
+	// Start transaction
+	tx := database.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Track cascade delete statistics
+	var cascadeStats dto.InjectionV2CascadeDeleteStats
+
+	for _, injectionID := range injectionIDs {
+		// Get injection details before deletion
+		var injection database.FaultInjectionSchedule
+		if err := tx.First(&injection, injectionID).Error; err != nil {
+			failedItems = append(failedItems, dto.InjectionV2DeleteError{
+				ID:    injectionID,
+				Error: fmt.Sprintf("injection not found: %v", err),
+			})
+			continue
+		}
+
+		// Perform cascading deletes
+		if err := performCascadeDelete(tx, injectionID, &cascadeStats); err != nil {
+			failedItems = append(failedItems, dto.InjectionV2DeleteError{
+				ID:            injectionID,
+				InjectionName: injection.InjectionName,
+				Error:         fmt.Sprintf("cascade delete failed: %v", err),
+			})
+			continue
+		}
+
+		// Soft delete the injection itself
+		if err := tx.Model(&database.FaultInjectionSchedule{}).
+			Where("id = ?", injectionID).
+			Update("status", consts.DatapackDeleted).Error; err != nil {
+			failedItems = append(failedItems, dto.InjectionV2DeleteError{
+				ID:            injectionID,
+				InjectionName: injection.InjectionName,
+				Error:         fmt.Sprintf("failed to delete injection: %v", err),
+			})
+			continue
+		}
+
+		successItems = append(successItems, dto.InjectionV2DeletedItem{
+			ID:            injectionID,
+			InjectionName: injection.InjectionName,
+			Benchmark:     injection.Benchmark,
+		})
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return response, fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	// Build response
+	message := fmt.Sprintf("Successfully deleted %d injection(s)", len(successItems))
+	if len(failedItems) > 0 {
+		message += fmt.Sprintf(", %d failed", len(failedItems))
+	}
+
+	response = dto.InjectionV2BatchDeleteResponse{
+		SuccessCount:   len(successItems),
+		SuccessItems:   successItems,
+		FailedCount:    len(failedItems),
+		FailedItems:    failedItems,
+		CascadeDeleted: cascadeStats,
+		Message:        message,
+	}
+
+	return response, nil
+}
+
+// BatchDeleteInjectionsByLabelsV2 performs batch deletion of injections by labels with cascading deletes
+func BatchDeleteInjectionsByLabelsV2(labelFilters []string) (dto.InjectionV2BatchDeleteResponse, error) {
+	var response dto.InjectionV2BatchDeleteResponse
+
+	// Parse label filters
+	var labelConditions []map[string]string
+	for _, labelFilter := range labelFilters {
+		parts := strings.SplitN(labelFilter, ":", 2)
+		if len(parts) != 2 {
+			return response, fmt.Errorf("invalid label format: %s, expected 'key:value'", labelFilter)
+		}
+		labelConditions = append(labelConditions, map[string]string{
+			"key":   parts[0],
+			"value": parts[1],
+		})
+	}
+
+	// Find injections matching the labels
+	var injectionIDs []int
+	query := database.DB.Model(&database.FaultInjectionSchedule{}).
+		Select("DISTINCT fault_injection_schedules.id").
+		Joins("JOIN fault_injection_labels ON fault_injection_labels.fault_injection_id = fault_injection_schedules.id").
+		Joins("JOIN labels ON labels.id = fault_injection_labels.label_id").
+		Where("fault_injection_schedules.status != ?", consts.DatapackDeleted) // Exclude already deleted
+
+	// Build WHERE condition for labels
+	var whereClauses []string
+	var whereArgs []interface{}
+
+	for _, condition := range labelConditions {
+		whereClauses = append(whereClauses, "(labels.label_key = ? AND labels.label_value = ?)")
+		whereArgs = append(whereArgs, condition["key"], condition["value"])
+	}
+
+	if len(whereClauses) > 0 {
+		whereClause := strings.Join(whereClauses, " OR ")
+		query = query.Where(whereClause, whereArgs...)
+	}
+
+	if err := query.Pluck("fault_injection_schedules.id", &injectionIDs).Error; err != nil {
+		return response, fmt.Errorf("failed to find injections by labels: %v", err)
+	}
+
+	if len(injectionIDs) == 0 {
+		response.Message = "No injections found matching the specified labels"
+		return response, nil
+	}
+
+	// Perform batch deletion
+	return BatchDeleteInjectionsV2(injectionIDs)
+}
+
+// performCascadeDelete handles cascade deletion of related records
+func performCascadeDelete(tx *gorm.DB, injectionID int, stats *dto.InjectionV2CascadeDeleteStats) error {
+	// First, get all execution_result IDs that belong to this injection
+	var executionResultIDs []int
+	if err := tx.Model(&database.ExecutionResult{}).
+		Where("datapack_id = ?", injectionID).
+		Pluck("id", &executionResultIDs).Error; err != nil {
+		return fmt.Errorf("failed to get execution result IDs: %v", err)
+	}
+
+	if len(executionResultIDs) == 0 {
+		result := tx.Where("fault_injection_id = ?", injectionID).Delete(&database.FaultInjectionLabel{})
+		if result.Error != nil {
+			return fmt.Errorf("failed to delete fault_injection_labels: %v", result.Error)
+		}
+		stats.FaultInjectionLabels += int(result.RowsAffected)
+
+		// Delete dataset_fault_injections
+		result = tx.Where("fault_injection_id = ?", injectionID).Delete(&database.DatasetFaultInjection{})
+		if result.Error != nil {
+			return fmt.Errorf("failed to delete dataset_fault_injections: %v", result.Error)
+		}
+		stats.DatasetFaultInjections += int(result.RowsAffected)
+
+		return nil
+	}
+
+	// Count what will be deleted before actual deletion for accurate counting
+	var granularityCount int64
+	tx.Model(&database.GranularityResult{}).
+		Where("execution_id IN ?", executionResultIDs).
+		Count(&granularityCount)
+	stats.GranularityResults += int(granularityCount)
+
+	var executionResultLabelsCount int64
+	tx.Table("execution_result_labels").
+		Where("execution_id IN ?", executionResultIDs).
+		Count(&executionResultLabelsCount)
+	stats.ExecutionResultLabels += int(executionResultLabelsCount)
+
+	var detectorsCount int64
+	tx.Model(&database.Detector{}).
+		Where("execution_id IN ?", executionResultIDs).
+		Count(&detectorsCount)
+	stats.Detectors += int(detectorsCount)
+
+	// Step 1: Delete granularity_results (child table)
+	if err := tx.Where("execution_id IN ?", executionResultIDs).Delete(&database.GranularityResult{}).Error; err != nil {
+		return fmt.Errorf("failed to delete granularity_results: %v", err)
+	}
+
+	// Step 2: Delete detectors (child table)
+	if err := tx.Where("execution_id IN ?", executionResultIDs).Delete(&database.Detector{}).Error; err != nil {
+		return fmt.Errorf("failed to delete detectors: %v", err)
+	}
+
+	// Step 3: Delete execution_result_labels (many-to-many relationship table)
+	if err := tx.Table("execution_result_labels").
+		Where("execution_id IN ?", executionResultIDs).
+		Delete(nil).Error; err != nil {
+		return fmt.Errorf("failed to delete execution_result_labels: %v", err)
+	}
+
+	// Step 4: Now we can safely delete execution_results
+	result := tx.Where("datapack_id = ?", injectionID).Delete(&database.ExecutionResult{})
+	if result.Error != nil {
+		return fmt.Errorf("failed to delete execution_results: %v", result.Error)
+	}
+	stats.ExecutionResults += int(result.RowsAffected)
+
+	// Step 5: Delete fault_injection_labels
+	result = tx.Where("fault_injection_id = ?", injectionID).Delete(&database.FaultInjectionLabel{})
+	if result.Error != nil {
+		return fmt.Errorf("failed to delete fault_injection_labels: %v", result.Error)
+	}
+	stats.FaultInjectionLabels += int(result.RowsAffected)
+
+	// Step 6: Delete dataset_fault_injections
+	result = tx.Where("fault_injection_id = ?", injectionID).Delete(&database.DatasetFaultInjection{})
+	if result.Error != nil {
+		return fmt.Errorf("failed to delete dataset_fault_injections: %v", result.Error)
+	}
+	stats.DatasetFaultInjections += int(result.RowsAffected)
+
+	return nil
 }
