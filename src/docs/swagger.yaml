@@ -382,7 +382,7 @@ definitions:
         type: string
       execution_duration:
         description: Execution duration in seconds
-        type: integer
+        type: number
       execution_id:
         description: Execution ID (0 if no execution found)
         type: integer
@@ -1029,7 +1029,7 @@ definitions:
         type: string
       execution_duration:
         description: Execution duration in seconds
-        type: integer
+        type: number
       execution_id:
         description: Execution ID
         type: integer
@@ -1450,7 +1450,7 @@ definitions:
     properties:
       duration:
         description: Execution duration in seconds
-        type: integer
+        type: number
       results:
         items:
           $ref: '#/definitions/dto.DetectorResultItem'
@@ -1978,6 +1978,22 @@ definitions:
       data:
         allOf:
         - $ref: '#/definitions/dto.InjectionStatsResp'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
+        type: integer
+    type: object
+  dto.GenericResponse-dto_InjectionV2BatchDeleteResponse:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.InjectionV2BatchDeleteResponse'
         description: Generic type data
       message:
         description: Response message
@@ -2664,7 +2680,7 @@ definitions:
         type: integer
       duration:
         description: Execution duration in seconds
-        type: integer
+        type: number
       results:
         items:
           $ref: '#/definitions/dto.GranularityResultItem'
@@ -2851,6 +2867,49 @@ definitions:
       with_issues_records:
         type: integer
     type: object
+  dto.InjectionV2BatchDeleteReq:
+    properties:
+      ids:
+        description: List of injection IDs to delete
+        items:
+          type: integer
+        type: array
+      labels:
+        description: List of label keys to match for deletion (key1:value1,key2:value2)
+        items:
+          type: string
+        type: array
+    type: object
+  dto.InjectionV2BatchDeleteResponse:
+    properties:
+      cascade_deleted:
+        $ref: '#/definitions/dto.InjectionV2CascadeDeleteStats'
+      failed_count:
+        type: integer
+      failed_items:
+        items:
+          $ref: '#/definitions/dto.InjectionV2DeleteError'
+        type: array
+      message:
+        type: string
+      success_count:
+        type: integer
+      success_items:
+        items:
+          $ref: '#/definitions/dto.InjectionV2DeletedItem'
+        type: array
+    type: object
+  dto.InjectionV2CascadeDeleteStats:
+    properties:
+      dataset_fault_injections:
+        type: integer
+      execution_results:
+        type: integer
+      fault_injection_labels:
+        type: integer
+      granularity_results:
+        type: integer
+    type: object
   dto.InjectionV2CreateItem:
     properties:
       benchmark:
@@ -2924,6 +2983,24 @@ definitions:
         items:
           type: string
         type: array
+    type: object
+  dto.InjectionV2DeleteError:
+    properties:
+      error:
+        type: string
+      id:
+        type: integer
+      injection_name:
+        type: string
+    type: object
+  dto.InjectionV2DeletedItem:
+    properties:
+      benchmark:
+        type: string
+      id:
+        type: integer
+      injection_name:
+        type: string
     type: object
   dto.InjectionV2LabelManageReq:
     properties:
@@ -6850,6 +6927,44 @@ paths:
       summary: Update container
       tags:
       - Containers
+  /api/v2/containers/name/{name}/latest:
+    get:
+      description: Get the most recently updated container record for a given algorithm
+        name
+      parameters:
+      - description: Container/Algorithm name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Latest container retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_ContainerResponse'
+        "400":
+          description: Invalid container name
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Container not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get latest container by name
+      tags:
+      - Containers
   /api/v2/containers/search:
     post:
       description: Search containers with complex filtering, sorting and pagination.
@@ -7365,7 +7480,8 @@ paths:
       consumes:
       - application/json
       description: Get execution results with predictions and ground truth for multiple
-        algorithm-dataset pairs in a single request
+        algorithm-dataset pairs in a single request. Returns the latest execution
+        for each datapack if multiple executions exist.
       parameters:
       - description: Batch evaluation request containing multiple algorithm-dataset
           pairs
@@ -7769,6 +7885,43 @@ paths:
       security:
       - BearerAuth: []
       summary: Manage injection tags
+      tags:
+      - Injections
+  /api/v2/injections/batch-delete:
+    post:
+      consumes:
+      - application/json
+      description: Batch delete injections by IDs or labels with cascading deletion
+        of related records
+      parameters:
+      - description: Batch delete request
+        in: body
+        name: batch_delete
+        required: true
+        schema:
+          $ref: '#/definitions/dto.InjectionV2BatchDeleteReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Injections deleted successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_InjectionV2BatchDeleteResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Batch delete injections
       tags:
       - Injections
   /api/v2/injections/search:

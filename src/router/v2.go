@@ -331,6 +331,8 @@ func SetupV2Routes(router *gin.Engine) {
 		injections.PATCH("/:name/tags", middleware.RequireFaultInjectionWrite, v2handlers.ManageInjectionTags)           // Manage injection labels
 		injections.PATCH("/:name/labels", middleware.RequireFaultInjectionWrite, v2handlers.ManageInjectionCustomLabels) // Manage injection custom labels
 		injections.DELETE("/:id", middleware.RequireFaultInjectionDelete, v2handlers.DeleteInjection)                    // Delete injection (soft delete)
+		injections.POST("/batch-delete", middleware.RequireFaultInjectionDelete, v2handlers.BatchDeleteInjections)       // Batch delete injections
+
 	}
 
 	// Dataset Management - Dataset Entity
