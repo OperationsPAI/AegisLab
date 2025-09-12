@@ -663,6 +663,7 @@ definitions:
   dto.AttributeCoverageItem:
     properties:
       coverage:
+        format: float64
         type: number
       num:
         type: integer
@@ -1561,6 +1562,25 @@ definitions:
       OpNotIn: NOT IN (value1, value2, ...)
       OpNotLike: NOT LIKE %value%
       OpStartsWith: LIKE value%
+    x-enum-descriptions:
+    - ==
+    - '!='
+    - '>'
+    - '>='
+    - <
+    - <=
+    - LIKE %value%
+    - LIKE value%
+    - LIKE %value
+    - NOT LIKE %value%
+    - IN (value1, value2, ...)
+    - NOT IN (value1, value2, ...)
+    - IS NULL
+    - IS NOT NULL
+    - DATE(field) = DATE(value)
+    - DATE(field) > DATE(value)
+    - DATE(field) < DATE(value)
+    - DATE(field) BETWEEN date1 AND date2
     x-enum-varnames:
     - OpEqual
     - OpNotEqual
@@ -2903,6 +2923,10 @@ definitions:
     properties:
       dataset_fault_injections:
         type: integer
+      detectors:
+        type: integer
+      execution_result_labels:
+        type: integer
       execution_results:
         type: integer
       fault_injection_labels:
@@ -4087,6 +4111,7 @@ definitions:
   dto.ServiceCoverageItem:
     properties:
       coverage:
+        format: float64
         type: number
       notCovered:
         items:
@@ -4496,6 +4521,7 @@ definitions:
       trace_status_time_map:
         additionalProperties:
           additionalProperties:
+            format: float64
             type: number
           type: object
         type: object
