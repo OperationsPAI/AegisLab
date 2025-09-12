@@ -1,0 +1,107 @@
+name: Publish Python SDK
+
+on:
+  push:
+    tags:
+      - v*
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          # Install swag for generating Swagger documentation
+          go install github.com/swaggo/swag/cmd/swag@latest
+
+          # Install OpenAPI Generator
+          wget https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/7.2.0/openapi-generator-cli-7.2.0.jar -O openapi-generator-cli.jar
+          sudo mv openapi-generator-cli.jar /usr/local/bin/
+          echo '#!/bin/bash' | sudo tee /usr/local/bin/openapi-generator > /dev/null
+          echo 'java -jar /usr/local/bin/openapi-generator-cli.jar "$@"' | sudo tee -a /usr/local/bin/openapi-generator > /dev/null
+          sudo chmod +x /usr/local/bin/openapi-generator
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Generate Swagger documentation
+        run: |
+          echo "📝 Generating Swagger documentation..."
+          cd src
+          go mod tidy
+          swag init --parseDependency --parseDepth 1 --output ./docs
+
+          # Verify generated files
+          if [ ! -f docs/swagger.json ]; then
+            echo "❌ Failed to generate Swagger documentation"
+            exit 1
+          fi
+
+          echo "✅ Swagger documentation generated successfully"
+
+      - name: Generate Python SDK
+        run: |
+          echo "🔧 Generating Python SDK..."
+          mkdir -p sdk/python-gen
+
+          # Use the generated swagger.json file
+          openapi-generator generate \
+            -i src/docs/swagger.json \
+            -g python \
+            -o sdk/python-gen \
+            --additional-properties=packageName=openapi,projectName=rcabench
+
+          echo "✅ Python SDK generated successfully"
+
+      - name: Setup SDK configuration
+        run: |
+
+          ./scripts/mv-generated-sdk.sh
+
+          cd sdk/python
+
+          sed -i 's/version = "[^"]*"/version = "${{ steps.version.outputs.version }}"/' pyproject.toml
+
+          echo "Updated version information:"
+          grep "version = " pyproject.toml
+
+          echo "✅ Python SDK post-processing completed"
+
+      - name: Build and publish
+        run: |
+          cd sdk/python
+          echo "🔨 Building SDK..."
+          uv build
+
+          echo "📦 Publishing to PyPI..."
+          uv publish --trusted-publishing always
+
+          echo "✅ Successfully published to PyPI!"

@@ -9,13 +9,9 @@ images:
     repository: redis
     tag: 8.0-M02-alpine3.20
     pullPolicy: IfNotPresent
-  mariadb:
-    repository: 10.10.10.240/library/mariadb
-    tag: 11.8.1-noble-rc
-    pullPolicy: IfNotPresent
-  postgres:
-    repository: postgres
-    tag: 16-bullseye
+  mysql:
+    repository: mysql
+    tag: 8.0.43
     pullPolicy: IfNotPresent
   jaeger:
     repository: jaegertracing/all-in-one
@@ -30,7 +26,6 @@ images:
     tag: buildx-stable-1
     pullPolicy: IfNotPresent
 
-
 configmap:
   name: "rcabench"
   version: "0.1.0"
@@ -41,11 +36,12 @@ configmap:
     env_mode: "prod"
     timezone: "Asia/Shanghai"
   injection:
-    enable_duplicate: false
+    benchmark: ["clickhouse"]
     namespace_config:
       ts:
         count: 6
         port: "31%03d"
+        chart_name: "trainticket"
         repo_name: "train-ticket"
         repo_url: "https://lgu-se-internal.github.io/train-ticket"
     target_label_key: "app"
@@ -55,13 +51,9 @@ configmap:
     mysql_password: "yourpassword"
     mysql_port: "3306"
     mysql_db: "rcabench"
-    postgres_user: "postgres"
-    postgres_password: "yourpassword"
-    postgres_port: "5432"
-    postgres_db: "rcabench"
   harbor:
     host: "10.10.10.240"
-    repository: "10.10.10.240/library"
+    project: "library"
     username: "admin"
     password: "Harbor12345"
   k8s:
@@ -70,19 +62,25 @@ configmap:
     path: "/var/lib/rcabench"
   algo:
     detector: "detector"
-    storage_path: "/app/algorithms"
+  container:
+    storage_path: "/app/containers"
   debugging:
     enable: false
   buildkit:
     address: "tcp://{{ .Release.Name }}-buildkit:1234"
+  rate_limiting:
+    max_concurrent_builds: 3
+    max_concurrent_restarts: 2
+    max_concurrent_algo_execution: 5
+    token_wait_timeout: 10
 
 persistence:
-  postgres:
+  redis:
     enabled: true
     accessMode: ReadWriteOnce
     size: 1Gi
     storageClass: ""
-  redis:
+  mysql:
     enabled: true
     accessMode: ReadWriteOnce
     size: 1Gi
@@ -91,4 +89,9 @@ persistence:
     enabled: true
     accessMode: ReadWriteOnce
     size: 2Gi
+    storageClass: ""
+  containers:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 1Gi
     storageClass: ""

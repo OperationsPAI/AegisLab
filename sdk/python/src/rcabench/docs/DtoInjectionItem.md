@@ -5,14 +5,20 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**batch** | **str** |  | [optional] 
+**benchmark** | **str** |  | [optional] 
+**created_at** | **str** |  | [optional] 
+**display_config** | **str** |  | [optional] 
 **end_time** | **str** |  | [optional] 
-**fault_type** | **str** |  | [optional] 
+**engine_config** | **str** |  | [optional] 
+**env** | **str** |  | [optional] 
+**fault_type** | **int** |  | [optional] 
 **id** | **int** |  | [optional] 
+**injection_name** | **str** |  | [optional] 
 **pre_duration** | **int** |  | [optional] 
-**spec** | **object** |  | [optional] 
 **start_time** | **str** |  | [optional] 
-**status** | **str** |  | [optional] 
-**task_id** | **str** |  | [optional] 
+**status** | **int** |  | [optional] 
+**tag** | **str** |  | [optional] 
 
 ## Example
 

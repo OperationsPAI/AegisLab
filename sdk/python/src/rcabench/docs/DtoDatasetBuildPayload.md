@@ -7,7 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **benchmark** | **str** |  | [optional] 
 **env_vars** | **object** |  | [optional] 
-**name** | **str** |  | [optional] 
+**name** | **str** |  | 
 **pre_duration** | **int** |  | [optional] 
 
 ## Example

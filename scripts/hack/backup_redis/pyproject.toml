@@ -1,0 +1,35 @@
+[project]
+name = "backup-redis"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "psycopg2-binary>=2.9.10",
+    "pymysql>=1.1.1",
+    "pyproject-toml>=0.1.0",
+    "rcabench>=1.0.51",
+    "redis>=6.2.0",
+    "rich>=14.0.0",
+    "sqlalchemy>=2.0.42",
+    "typer>=0.16.0",
+]
+
+[tool.uv]
+index-url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+
+[tool.uv.workspace]
+members = ["backup-redis"]
+
+[tool.ruff]
+cache-dir = ".cache/ruff"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E",  # https://docs.astral.sh/ruff/rules/#error-e
+    "F",  # https://docs.astral.sh/ruff/rules/#pyflakes-f
+    "I",  # https://docs.astral.sh/ruff/rules/#isort-i
+    "UP", # https://docs.astral.sh/ruff/rules/#pyupgrade-up
+]
+ignore = ["F401", "UP038"]

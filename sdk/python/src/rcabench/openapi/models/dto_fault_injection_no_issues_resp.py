@@ -29,12 +29,10 @@ class DtoFaultInjectionNoIssuesResp(BaseModel):
     DtoFaultInjectionNoIssuesResp
     """ # noqa: E501
     dataset_id: Optional[StrictInt] = None
-    display_config: Optional[StrictStr] = None
     engine_config: Optional[HandlerNode] = None
     injection_name: Optional[StrictStr] = None
-    pre_duration: Optional[StrictInt] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["dataset_id", "display_config", "engine_config", "injection_name", "pre_duration"]
+    __properties: ClassVar[List[str]] = ["dataset_id", "engine_config", "injection_name"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -98,10 +96,8 @@ class DtoFaultInjectionNoIssuesResp(BaseModel):
 
         _obj = cls.model_validate({
             "dataset_id": obj.get("dataset_id"),
-            "display_config": obj.get("display_config"),
             "engine_config": HandlerNode.from_dict(obj["engine_config"]) if obj.get("engine_config") is not None else None,
-            "injection_name": obj.get("injection_name"),
-            "pre_duration": obj.get("pre_duration")
+            "injection_name": obj.get("injection_name")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

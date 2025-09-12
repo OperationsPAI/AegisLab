@@ -1,0 +1,65 @@
+name = "rcabench"
+version = "0.1.0"
+
+port = 8082
+debug = true
+workspace = "/home/nn/workspace/rcabench"
+
+[system]
+env_mode = "dev"
+timezone = "Asia/Shanghai"
+
+[debugging]
+enable = true
+
+[injection]
+benchmark = ["clickhouse"]
+target_label_key = "app"
+
+[injection.namespace_config.ts]
+count = 6
+port = "31%03d"
+chart_name = "trainticket"
+repo_name = "train-ticket"
+repo_url = "https://lgu-se-internal.github.io/train-ticket"
+
+[database]
+clickhouse_host = "10.10.10.58"
+mysql_user = "root"
+mysql_password = "yourpassword"
+mysql_host = "10.10.10.220"
+mysql_port = "32206"
+mysql_db = "rcabench"
+
+[jaeger]
+endpoint = "localhost:4318"
+
+[redis]
+host = "localhost:6379"
+
+[harbor]
+host = "10.10.10.240"
+project = "library"
+username = "admin"
+password = "Harbor12345"
+
+[k8s]
+namespace = "exp"
+
+[jfs]
+path = "/mnt/jfs/rcabench_dataset"
+
+[algo]
+detector = "detector"
+
+[container]
+storage_path = "/home/nn/workspace/rcabench/containers"
+
+[buildkit]
+address = "tcp://localhost:1234"
+
+[rate_limiting]
+max_concurrent_builds = 3
+max_concurrent_restarts = 2
+max_concurrent_algo_execution = 5
+token_wait_timeout = 10

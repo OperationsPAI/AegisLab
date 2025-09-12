@@ -4,96 +4,23 @@ All URIs are relative to *http://localhost:8080/api/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**api_v1_algorithms_build_post**](AlgorithmApi.md#api_v1_algorithms_build_post) | **POST** /api/v1/algorithms/build | 构建算法镜像
-[**api_v1_algorithms_get**](AlgorithmApi.md#api_v1_algorithms_get) | **GET** /api/v1/algorithms | 获取算法列表
-[**api_v1_algorithms_post**](AlgorithmApi.md#api_v1_algorithms_post) | **POST** /api/v1/algorithms | 执行算法
+[**api_v1_algorithms_get**](AlgorithmApi.md#api_v1_algorithms_get) | **GET** /api/v1/algorithms | Get algorithm list
+[**api_v1_algorithms_post**](AlgorithmApi.md#api_v1_algorithms_post) | **POST** /api/v1/algorithms | Submit algorithm execution task
 
-
-# **api_v1_algorithms_build_post**
-> DtoGenericResponseDtoSubmitResp api_v1_algorithms_build_post(file=file, algo=algo)
-
-构建算法镜像
-
-通过上传文件或指定算法名称来构建算法镜像
-
-### Example
-
-
-```python
-import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_dto_submit_resp import DtoGenericResponseDtoSubmitResp
-from rcabench.openapi.rest import ApiException
-from pprint import pprint
-
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
-# See configuration.py for a list of all supported configuration parameters.
-configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
-)
-
-
-# Enter a context with an instance of the API client
-with rcabench.openapi.ApiClient(configuration) as api_client:
-    # Create an instance of the API class
-    api_instance = rcabench.openapi.AlgorithmApi(api_client)
-    file = None # bytearray | 算法文件 (zip/tar.gz) (optional)
-    algo = 'algo_example' # str | 算法名称 (optional)
-
-    try:
-        # 构建算法镜像
-        api_response = api_instance.api_v1_algorithms_build_post(file=file, algo=algo)
-        print("The response of AlgorithmApi->api_v1_algorithms_build_post:\n")
-        pprint(api_response)
-    except Exception as e:
-        print("Exception when calling AlgorithmApi->api_v1_algorithms_build_post: %s\n" % e)
-```
-
-
-
-### Parameters
-
-
-Name | Type | Description  | Notes
-------------- | ------------- | ------------- | -------------
- **file** | **bytearray**| 算法文件 (zip/tar.gz) | [optional] 
- **algo** | **str**| 算法名称 | [optional] 
-
-### Return type
-
-[**DtoGenericResponseDtoSubmitResp**](DtoGenericResponseDtoSubmitResp.md)
-
-### Authorization
-
-No authorization required
-
-### HTTP request headers
-
- - **Content-Type**: multipart/form-data
- - **Accept**: application/json
-
-### HTTP response details
-
-| Status code | Description | Response headers |
-|-------------|-------------|------------------|
-**202** | Accepted |  -  |
-**400** | Bad Request |  -  |
-**500** | Internal Server Error |  -  |
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_algorithms_get**
-> DtoGenericResponseDtoAlgorithmListResp api_v1_algorithms_get()
+> DtoGenericResponseDtoListAlgorithmsResp api_v1_algorithms_get()
 
-获取算法列表
+Get algorithm list
 
-获取算法列表
+Get all available algorithms in the system, including image info, tags, and update time. Only returns containers with active status.
 
 ### Example
 
 
 ```python
 import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_dto_algorithm_list_resp import DtoGenericResponseDtoAlgorithmListResp
+from rcabench.openapi.models.dto_generic_response_dto_list_algorithms_resp import DtoGenericResponseDtoListAlgorithmsResp
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
@@ -110,7 +37,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
     api_instance = rcabench.openapi.AlgorithmApi(api_client)
 
     try:
-        # 获取算法列表
+        # Get algorithm list
         api_response = api_instance.api_v1_algorithms_get()
         print("The response of AlgorithmApi->api_v1_algorithms_get:\n")
         pprint(api_response)
@@ -126,7 +53,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**DtoGenericResponseDtoAlgorithmListResp**](DtoGenericResponseDtoAlgorithmListResp.md)
+[**DtoGenericResponseDtoListAlgorithmsResp**](DtoGenericResponseDtoListAlgorithmsResp.md)
 
 ### Authorization
 
@@ -141,26 +68,25 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | OK |  -  |
-**400** | Bad Request |  -  |
-**500** | Internal Server Error |  -  |
+**200** | Successfully returned algorithm list |  -  |
+**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_algorithms_post**
 > DtoGenericResponseDtoSubmitResp api_v1_algorithms_post(body)
 
-执行算法
+Submit algorithm execution task
 
-执行算法
+Batch submit algorithm execution tasks, supporting multiple algorithm and dataset combinations. The system assigns a unique TraceID for each execution task to track status and results.
 
 ### Example
 
 
 ```python
 import rcabench.openapi
-from rcabench.openapi.models.dto_algorithm_execution_payload import DtoAlgorithmExecutionPayload
 from rcabench.openapi.models.dto_generic_response_dto_submit_resp import DtoGenericResponseDtoSubmitResp
+from rcabench.openapi.models.dto_submit_execution_req import DtoSubmitExecutionReq
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
@@ -175,10 +101,10 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.AlgorithmApi(api_client)
-    body = [rcabench.openapi.DtoAlgorithmExecutionPayload()] # List[DtoAlgorithmExecutionPayload] | 请求体
+    body = rcabench.openapi.DtoSubmitExecutionReq() # DtoSubmitExecutionReq | Algorithm execution request list, including algorithm name, dataset, and environment variables
 
     try:
-        # 执行算法
+        # Submit algorithm execution task
         api_response = api_instance.api_v1_algorithms_post(body)
         print("The response of AlgorithmApi->api_v1_algorithms_post:\n")
         pprint(api_response)
@@ -193,7 +119,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**List[DtoAlgorithmExecutionPayload]**](DtoAlgorithmExecutionPayload.md)| 请求体 | 
+ **body** | [**DtoSubmitExecutionReq**](DtoSubmitExecutionReq.md)| Algorithm execution request list, including algorithm name, dataset, and environment variables | 
 
 ### Return type
 
@@ -212,9 +138,9 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**202** | Accepted |  -  |
-**400** | Bad Request |  -  |
-**500** | Internal Server Error |  -  |
+**202** | Successfully submitted algorithm execution task, returns task tracking info |  -  |
+**400** | Request parameter error, such as invalid JSON format, algorithm name or dataset name, unsupported environment variable name, etc. |  -  |
+**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

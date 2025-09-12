@@ -5,12 +5,16 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**abnormal_avg_duration** | **float** |  | [optional] 
+**abnormal_p99** | **float** |  | [optional] 
+**abnormal_succ_rate** | **float** |  | [optional] 
 **dataset_id** | **int** |  | [optional] 
-**display_config** | **str** |  | [optional] 
 **engine_config** | [**HandlerNode**](HandlerNode.md) |  | [optional] 
 **injection_name** | **str** |  | [optional] 
 **issues** | **str** |  | [optional] 
-**pre_duration** | **int** |  | [optional] 
+**normal_avg_duration** | **float** |  | [optional] 
+**normal_p99** | **float** |  | [optional] 
+**normal_succ_rate** | **float** |  | [optional] 
 
 ## Example
 

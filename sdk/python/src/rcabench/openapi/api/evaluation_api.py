@@ -17,11 +17,21 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-from pydantic import Field, StrictStr
-from typing import List
+from pydantic import Field, StrictInt, StrictStr
+from typing import Optional
 from typing_extensions import Annotated
-from rcabench.openapi.models.dto_generic_response_array_dto_raw_data_item import DtoGenericResponseArrayDtoRawDataItem
+from rcabench.openapi.models.dto_datapack_detector_req import DtoDatapackDetectorReq
+from rcabench.openapi.models.dto_datapack_evaluation_batch_req import DtoDatapackEvaluationBatchReq
+from rcabench.openapi.models.dto_dataset_evaluation_batch_req import DtoDatasetEvaluationBatchReq
+from rcabench.openapi.models.dto_generic_response_array_string import DtoGenericResponseArrayString
+from rcabench.openapi.models.dto_generic_response_dto_datapack_detector_resp import DtoGenericResponseDtoDatapackDetectorResp
+from rcabench.openapi.models.dto_generic_response_dto_datapack_evaluation_batch_resp import DtoGenericResponseDtoDatapackEvaluationBatchResp
+from rcabench.openapi.models.dto_generic_response_dto_dataset_evaluation_batch_resp import DtoGenericResponseDtoDatasetEvaluationBatchResp
 from rcabench.openapi.models.dto_generic_response_dto_ground_truth_resp import DtoGenericResponseDtoGroundTruthResp
+from rcabench.openapi.models.dto_generic_response_dto_raw_data_resp import DtoGenericResponseDtoRawDataResp
+from rcabench.openapi.models.dto_generic_response_dto_successful_executions_resp import DtoGenericResponseDtoSuccessfulExecutionsResp
+from rcabench.openapi.models.dto_ground_truth_req import DtoGroundTruthReq
+from rcabench.openapi.models.dto_raw_data_req import DtoRawDataReq
 
 from rcabench.openapi.api_client import ApiClient, RequestSerialized
 from rcabench.openapi.api_response import ApiResponse
@@ -42,9 +52,12 @@ class EvaluationApi:
 
 
     @validate_call
-    def api_v1_evaluations_groundtruth_get(
+    def api_v1_evaluations_executions_get(
         self,
-        datasets: Annotated[List[StrictStr], Field(description="数据集数组")],
+        start_time: Annotated[Optional[StrictStr], Field(description="Start time, format: 2006-01-02T15:04:05Z07:00")] = None,
+        end_time: Annotated[Optional[StrictStr], Field(description="End time, format: 2006-01-02T15:04:05Z07:00")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Limit")] = None,
+        offset: Annotated[Optional[StrictInt], Field(description="Offset for pagination")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -57,13 +70,19 @@ class EvaluationApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseDtoGroundTruthResp:
-        """获取数据集的 ground truth
+    ) -> DtoGenericResponseDtoSuccessfulExecutionsResp:
+        """Get successful algorithm execution records
 
-        根据数据集数组获取对应的 ground truth 数据
+        Get all records in ExecutionResult with status ExecutionSuccess, supports time range filtering and quantity filtering
 
-        :param datasets: 数据集数组 (required)
-        :type datasets: List[str]
+        :param start_time: Start time, format: 2006-01-02T15:04:05Z07:00
+        :type start_time: str
+        :param end_time: End time, format: 2006-01-02T15:04:05Z07:00
+        :type end_time: str
+        :param limit: Limit
+        :type limit: int
+        :param offset: Offset for pagination
+        :type offset: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -86,8 +105,318 @@ class EvaluationApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_evaluations_groundtruth_get_serialize(
-            datasets=datasets,
+        _param = self._api_v1_evaluations_executions_get_serialize(
+            start_time=start_time,
+            end_time=end_time,
+            limit=limit,
+            offset=offset,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseDtoSuccessfulExecutionsResp",
+            '400': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def api_v1_evaluations_executions_get_with_http_info(
+        self,
+        start_time: Annotated[Optional[StrictStr], Field(description="Start time, format: 2006-01-02T15:04:05Z07:00")] = None,
+        end_time: Annotated[Optional[StrictStr], Field(description="End time, format: 2006-01-02T15:04:05Z07:00")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Limit")] = None,
+        offset: Annotated[Optional[StrictInt], Field(description="Offset for pagination")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[DtoGenericResponseDtoSuccessfulExecutionsResp]:
+        """Get successful algorithm execution records
+
+        Get all records in ExecutionResult with status ExecutionSuccess, supports time range filtering and quantity filtering
+
+        :param start_time: Start time, format: 2006-01-02T15:04:05Z07:00
+        :type start_time: str
+        :param end_time: End time, format: 2006-01-02T15:04:05Z07:00
+        :type end_time: str
+        :param limit: Limit
+        :type limit: int
+        :param offset: Offset for pagination
+        :type offset: int
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v1_evaluations_executions_get_serialize(
+            start_time=start_time,
+            end_time=end_time,
+            limit=limit,
+            offset=offset,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseDtoSuccessfulExecutionsResp",
+            '400': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def api_v1_evaluations_executions_get_without_preload_content(
+        self,
+        start_time: Annotated[Optional[StrictStr], Field(description="Start time, format: 2006-01-02T15:04:05Z07:00")] = None,
+        end_time: Annotated[Optional[StrictStr], Field(description="End time, format: 2006-01-02T15:04:05Z07:00")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Limit")] = None,
+        offset: Annotated[Optional[StrictInt], Field(description="Offset for pagination")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Get successful algorithm execution records
+
+        Get all records in ExecutionResult with status ExecutionSuccess, supports time range filtering and quantity filtering
+
+        :param start_time: Start time, format: 2006-01-02T15:04:05Z07:00
+        :type start_time: str
+        :param end_time: End time, format: 2006-01-02T15:04:05Z07:00
+        :type end_time: str
+        :param limit: Limit
+        :type limit: int
+        :param offset: Offset for pagination
+        :type offset: int
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v1_evaluations_executions_get_serialize(
+            start_time=start_time,
+            end_time=end_time,
+            limit=limit,
+            offset=offset,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseDtoSuccessfulExecutionsResp",
+            '400': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _api_v1_evaluations_executions_get_serialize(
+        self,
+        start_time,
+        end_time,
+        limit,
+        offset,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        # process the query parameters
+        if start_time is not None:
+            
+            _query_params.append(('start_time', start_time))
+            
+        if end_time is not None:
+            
+            _query_params.append(('end_time', end_time))
+            
+        if limit is not None:
+            
+            _query_params.append(('limit', limit))
+            
+        if offset is not None:
+            
+            _query_params.append(('offset', offset))
+            
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+
+        # authentication setting
+        _auth_settings: List[str] = [
+        ]
+
+        return self.api_client.param_serialize(
+            method='GET',
+            resource_path='/api/v1/evaluations/executions',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def api_v1_evaluations_groundtruth_post(
+        self,
+        body: Annotated[DtoGroundTruthReq, Field(description="Ground truth query request, contains dataset list")],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> DtoGenericResponseDtoGroundTruthResp:
+        """Get ground truth for datasets
+
+        Get ground truth data for the given dataset array, used as benchmark data for algorithm evaluation. Supports batch query for ground truth information of multiple datasets
+
+        :param body: Ground truth query request, contains dataset list (required)
+        :type body: DtoGroundTruthReq
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v1_evaluations_groundtruth_post_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -111,9 +440,9 @@ class EvaluationApi:
 
 
     @validate_call
-    def api_v1_evaluations_groundtruth_get_with_http_info(
+    def api_v1_evaluations_groundtruth_post_with_http_info(
         self,
-        datasets: Annotated[List[StrictStr], Field(description="数据集数组")],
+        body: Annotated[DtoGroundTruthReq, Field(description="Ground truth query request, contains dataset list")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -127,12 +456,12 @@ class EvaluationApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseDtoGroundTruthResp]:
-        """获取数据集的 ground truth
+        """Get ground truth for datasets
 
-        根据数据集数组获取对应的 ground truth 数据
+        Get ground truth data for the given dataset array, used as benchmark data for algorithm evaluation. Supports batch query for ground truth information of multiple datasets
 
-        :param datasets: 数据集数组 (required)
-        :type datasets: List[str]
+        :param body: Ground truth query request, contains dataset list (required)
+        :type body: DtoGroundTruthReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -155,8 +484,8 @@ class EvaluationApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_evaluations_groundtruth_get_serialize(
-            datasets=datasets,
+        _param = self._api_v1_evaluations_groundtruth_post_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -180,9 +509,9 @@ class EvaluationApi:
 
 
     @validate_call
-    def api_v1_evaluations_groundtruth_get_without_preload_content(
+    def api_v1_evaluations_groundtruth_post_without_preload_content(
         self,
-        datasets: Annotated[List[StrictStr], Field(description="数据集数组")],
+        body: Annotated[DtoGroundTruthReq, Field(description="Ground truth query request, contains dataset list")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -196,12 +525,12 @@ class EvaluationApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """获取数据集的 ground truth
+        """Get ground truth for datasets
 
-        根据数据集数组获取对应的 ground truth 数据
+        Get ground truth data for the given dataset array, used as benchmark data for algorithm evaluation. Supports batch query for ground truth information of multiple datasets
 
-        :param datasets: 数据集数组 (required)
-        :type datasets: List[str]
+        :param body: Ground truth query request, contains dataset list (required)
+        :type body: DtoGroundTruthReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -224,8 +553,8 @@ class EvaluationApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_evaluations_groundtruth_get_serialize(
-            datasets=datasets,
+        _param = self._api_v1_evaluations_groundtruth_post_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -244,9 +573,9 @@ class EvaluationApi:
         return response_data.response
 
 
-    def _api_v1_evaluations_groundtruth_get_serialize(
+    def _api_v1_evaluations_groundtruth_post_serialize(
         self,
-        datasets,
+        body,
         _request_auth,
         _content_type,
         _headers,
@@ -256,7 +585,6 @@ class EvaluationApi:
         _host = None
 
         _collection_formats: Dict[str, str] = {
-            'datasets': 'csv',
         }
 
         _path_params: Dict[str, str] = {}
@@ -270,13 +598,11 @@ class EvaluationApi:
 
         # process the path parameters
         # process the query parameters
-        if datasets is not None:
-            
-            _query_params.append(('datasets', datasets))
-            
         # process the header parameters
         # process the form parameters
         # process the body parameter
+        if body is not None:
+            _body_params = body
 
 
         # set the HTTP header `Accept`
@@ -293,7 +619,7 @@ class EvaluationApi:
         ]
 
         return self.api_client.param_serialize(
-            method='GET',
+            method='POST',
             resource_path='/api/v1/evaluations/groundtruth',
             path_params=_path_params,
             query_params=_query_params,
@@ -311,10 +637,9 @@ class EvaluationApi:
 
 
     @validate_call
-    def api_v1_evaluations_raw_data_get(
+    def api_v1_evaluations_raw_data_post(
         self,
-        algorithms: Annotated[List[StrictStr], Field(description="算法数组")],
-        datasets: Annotated[List[StrictStr], Field(description="数据集数组")],
+        body: Annotated[DtoRawDataReq, Field(description="Raw data query request, supports three modes: pairs array, (algorithms+datasets) Cartesian product, or execution_ids list")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -327,15 +652,13 @@ class EvaluationApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseArrayDtoRawDataItem:
-        """获取原始评估数据
+    ) -> DtoGenericResponseDtoRawDataResp:
+        """Get raw evaluation data
 
-        根据算法和数据集的笛卡尔积获取对应的原始评估数据，包括粒度记录和真实值信息
+        Supports three query modes: 1) Directly pass an array of algorithm-dataset pairs for precise query; 2) Pass lists of algorithms and datasets for Cartesian product query; 3) Query by execution ID list. The three modes are mutually exclusive, only one can be selected
 
-        :param algorithms: 算法数组 (required)
-        :type algorithms: List[str]
-        :param datasets: 数据集数组 (required)
-        :type datasets: List[str]
+        :param body: Raw data query request, supports three modes: pairs array, (algorithms+datasets) Cartesian product, or execution_ids list (required)
+        :type body: DtoRawDataReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -358,9 +681,8 @@ class EvaluationApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_evaluations_raw_data_get_serialize(
-            algorithms=algorithms,
-            datasets=datasets,
+        _param = self._api_v1_evaluations_raw_data_post_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -368,7 +690,7 @@ class EvaluationApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseArrayDtoRawDataItem",
+            '200': "DtoGenericResponseDtoRawDataResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -384,10 +706,9 @@ class EvaluationApi:
 
 
     @validate_call
-    def api_v1_evaluations_raw_data_get_with_http_info(
+    def api_v1_evaluations_raw_data_post_with_http_info(
         self,
-        algorithms: Annotated[List[StrictStr], Field(description="算法数组")],
-        datasets: Annotated[List[StrictStr], Field(description="数据集数组")],
+        body: Annotated[DtoRawDataReq, Field(description="Raw data query request, supports three modes: pairs array, (algorithms+datasets) Cartesian product, or execution_ids list")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -400,15 +721,13 @@ class EvaluationApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseArrayDtoRawDataItem]:
-        """获取原始评估数据
+    ) -> ApiResponse[DtoGenericResponseDtoRawDataResp]:
+        """Get raw evaluation data
 
-        根据算法和数据集的笛卡尔积获取对应的原始评估数据，包括粒度记录和真实值信息
+        Supports three query modes: 1) Directly pass an array of algorithm-dataset pairs for precise query; 2) Pass lists of algorithms and datasets for Cartesian product query; 3) Query by execution ID list. The three modes are mutually exclusive, only one can be selected
 
-        :param algorithms: 算法数组 (required)
-        :type algorithms: List[str]
-        :param datasets: 数据集数组 (required)
-        :type datasets: List[str]
+        :param body: Raw data query request, supports three modes: pairs array, (algorithms+datasets) Cartesian product, or execution_ids list (required)
+        :type body: DtoRawDataReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -431,9 +750,8 @@ class EvaluationApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_evaluations_raw_data_get_serialize(
-            algorithms=algorithms,
-            datasets=datasets,
+        _param = self._api_v1_evaluations_raw_data_post_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -441,7 +759,7 @@ class EvaluationApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseArrayDtoRawDataItem",
+            '200': "DtoGenericResponseDtoRawDataResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -457,10 +775,9 @@ class EvaluationApi:
 
 
     @validate_call
-    def api_v1_evaluations_raw_data_get_without_preload_content(
+    def api_v1_evaluations_raw_data_post_without_preload_content(
         self,
-        algorithms: Annotated[List[StrictStr], Field(description="算法数组")],
-        datasets: Annotated[List[StrictStr], Field(description="数据集数组")],
+        body: Annotated[DtoRawDataReq, Field(description="Raw data query request, supports three modes: pairs array, (algorithms+datasets) Cartesian product, or execution_ids list")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -474,14 +791,12 @@ class EvaluationApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """获取原始评估数据
+        """Get raw evaluation data
 
-        根据算法和数据集的笛卡尔积获取对应的原始评估数据，包括粒度记录和真实值信息
+        Supports three query modes: 1) Directly pass an array of algorithm-dataset pairs for precise query; 2) Pass lists of algorithms and datasets for Cartesian product query; 3) Query by execution ID list. The three modes are mutually exclusive, only one can be selected
 
-        :param algorithms: 算法数组 (required)
-        :type algorithms: List[str]
-        :param datasets: 数据集数组 (required)
-        :type datasets: List[str]
+        :param body: Raw data query request, supports three modes: pairs array, (algorithms+datasets) Cartesian product, or execution_ids list (required)
+        :type body: DtoRawDataReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -504,9 +819,8 @@ class EvaluationApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_evaluations_raw_data_get_serialize(
-            algorithms=algorithms,
-            datasets=datasets,
+        _param = self._api_v1_evaluations_raw_data_post_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -514,7 +828,7 @@ class EvaluationApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseArrayDtoRawDataItem",
+            '200': "DtoGenericResponseDtoRawDataResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -525,10 +839,9 @@ class EvaluationApi:
         return response_data.response
 
 
-    def _api_v1_evaluations_raw_data_get_serialize(
+    def _api_v1_evaluations_raw_data_post_serialize(
         self,
-        algorithms,
-        datasets,
+        body,
         _request_auth,
         _content_type,
         _headers,
@@ -538,8 +851,6 @@ class EvaluationApi:
         _host = None
 
         _collection_formats: Dict[str, str] = {
-            'algorithms': 'csv',
-            'datasets': 'csv',
         }
 
         _path_params: Dict[str, str] = {}
@@ -553,17 +864,11 @@ class EvaluationApi:
 
         # process the path parameters
         # process the query parameters
-        if algorithms is not None:
-            
-            _query_params.append(('algorithms', algorithms))
-            
-        if datasets is not None:
-            
-            _query_params.append(('datasets', datasets))
-            
         # process the header parameters
         # process the form parameters
         # process the body parameter
+        if body is not None:
+            _body_params = body
 
 
         # set the HTTP header `Accept`
@@ -580,8 +885,1121 @@ class EvaluationApi:
         ]
 
         return self.api_client.param_serialize(
-            method='GET',
+            method='POST',
             resource_path='/api/v1/evaluations/raw-data',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def api_v2_evaluations_datapacks_detector_post(
+        self,
+        request: Annotated[DtoDatapackDetectorReq, Field(description="Datapack detector request")],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> DtoGenericResponseDtoDatapackDetectorResp:
+        """Get Datapack Detector Results
+
+        Get detector analysis results for multiple datapacks. If a datapack has multiple executions, returns the latest one.
+
+        :param request: Datapack detector request (required)
+        :type request: DtoDatapackDetectorReq
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_evaluations_datapacks_detector_post_serialize(
+            request=request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseDtoDatapackDetectorResp",
+            '400': "DtoGenericResponseAny",
+            '401': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def api_v2_evaluations_datapacks_detector_post_with_http_info(
+        self,
+        request: Annotated[DtoDatapackDetectorReq, Field(description="Datapack detector request")],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[DtoGenericResponseDtoDatapackDetectorResp]:
+        """Get Datapack Detector Results
+
+        Get detector analysis results for multiple datapacks. If a datapack has multiple executions, returns the latest one.
+
+        :param request: Datapack detector request (required)
+        :type request: DtoDatapackDetectorReq
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_evaluations_datapacks_detector_post_serialize(
+            request=request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseDtoDatapackDetectorResp",
+            '400': "DtoGenericResponseAny",
+            '401': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def api_v2_evaluations_datapacks_detector_post_without_preload_content(
+        self,
+        request: Annotated[DtoDatapackDetectorReq, Field(description="Datapack detector request")],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Get Datapack Detector Results
+
+        Get detector analysis results for multiple datapacks. If a datapack has multiple executions, returns the latest one.
+
+        :param request: Datapack detector request (required)
+        :type request: DtoDatapackDetectorReq
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_evaluations_datapacks_detector_post_serialize(
+            request=request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseDtoDatapackDetectorResp",
+            '400': "DtoGenericResponseAny",
+            '401': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _api_v2_evaluations_datapacks_detector_post_serialize(
+        self,
+        request,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+        if request is not None:
+            _body_params = request
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'BearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='POST',
+            resource_path='/api/v2/evaluations/datapacks/detector',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def api_v2_evaluations_datapacks_post(
+        self,
+        request: Annotated[DtoDatapackEvaluationBatchReq, Field(description="Batch evaluation request containing multiple algorithm-datapack pairs")],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> DtoGenericResponseDtoDatapackEvaluationBatchResp:
+        """Get Batch Algorithm Datapack Evaluation
+
+        Get execution results with predictions and ground truth for multiple algorithm-datapack pairs in a single request. Returns the latest execution for each pair if multiple executions exist.
+
+        :param request: Batch evaluation request containing multiple algorithm-datapack pairs (required)
+        :type request: DtoDatapackEvaluationBatchReq
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_evaluations_datapacks_post_serialize(
+            request=request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseDtoDatapackEvaluationBatchResp",
+            '400': "DtoGenericResponseAny",
+            '401': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def api_v2_evaluations_datapacks_post_with_http_info(
+        self,
+        request: Annotated[DtoDatapackEvaluationBatchReq, Field(description="Batch evaluation request containing multiple algorithm-datapack pairs")],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[DtoGenericResponseDtoDatapackEvaluationBatchResp]:
+        """Get Batch Algorithm Datapack Evaluation
+
+        Get execution results with predictions and ground truth for multiple algorithm-datapack pairs in a single request. Returns the latest execution for each pair if multiple executions exist.
+
+        :param request: Batch evaluation request containing multiple algorithm-datapack pairs (required)
+        :type request: DtoDatapackEvaluationBatchReq
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_evaluations_datapacks_post_serialize(
+            request=request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseDtoDatapackEvaluationBatchResp",
+            '400': "DtoGenericResponseAny",
+            '401': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def api_v2_evaluations_datapacks_post_without_preload_content(
+        self,
+        request: Annotated[DtoDatapackEvaluationBatchReq, Field(description="Batch evaluation request containing multiple algorithm-datapack pairs")],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Get Batch Algorithm Datapack Evaluation
+
+        Get execution results with predictions and ground truth for multiple algorithm-datapack pairs in a single request. Returns the latest execution for each pair if multiple executions exist.
+
+        :param request: Batch evaluation request containing multiple algorithm-datapack pairs (required)
+        :type request: DtoDatapackEvaluationBatchReq
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_evaluations_datapacks_post_serialize(
+            request=request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseDtoDatapackEvaluationBatchResp",
+            '400': "DtoGenericResponseAny",
+            '401': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _api_v2_evaluations_datapacks_post_serialize(
+        self,
+        request,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+        if request is not None:
+            _body_params = request
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'BearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='POST',
+            resource_path='/api/v2/evaluations/datapacks',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def api_v2_evaluations_datasets_post(
+        self,
+        request: Annotated[DtoDatasetEvaluationBatchReq, Field(description="Batch evaluation request containing multiple algorithm-dataset pairs")],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> DtoGenericResponseDtoDatasetEvaluationBatchResp:
+        """Get Batch Algorithm Dataset Evaluation
+
+        Get execution results with predictions and ground truth for multiple algorithm-dataset pairs in a single request
+
+        :param request: Batch evaluation request containing multiple algorithm-dataset pairs (required)
+        :type request: DtoDatasetEvaluationBatchReq
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_evaluations_datasets_post_serialize(
+            request=request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseDtoDatasetEvaluationBatchResp",
+            '400': "DtoGenericResponseAny",
+            '401': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def api_v2_evaluations_datasets_post_with_http_info(
+        self,
+        request: Annotated[DtoDatasetEvaluationBatchReq, Field(description="Batch evaluation request containing multiple algorithm-dataset pairs")],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[DtoGenericResponseDtoDatasetEvaluationBatchResp]:
+        """Get Batch Algorithm Dataset Evaluation
+
+        Get execution results with predictions and ground truth for multiple algorithm-dataset pairs in a single request
+
+        :param request: Batch evaluation request containing multiple algorithm-dataset pairs (required)
+        :type request: DtoDatasetEvaluationBatchReq
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_evaluations_datasets_post_serialize(
+            request=request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseDtoDatasetEvaluationBatchResp",
+            '400': "DtoGenericResponseAny",
+            '401': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def api_v2_evaluations_datasets_post_without_preload_content(
+        self,
+        request: Annotated[DtoDatasetEvaluationBatchReq, Field(description="Batch evaluation request containing multiple algorithm-dataset pairs")],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Get Batch Algorithm Dataset Evaluation
+
+        Get execution results with predictions and ground truth for multiple algorithm-dataset pairs in a single request
+
+        :param request: Batch evaluation request containing multiple algorithm-dataset pairs (required)
+        :type request: DtoDatasetEvaluationBatchReq
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_evaluations_datasets_post_serialize(
+            request=request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseDtoDatasetEvaluationBatchResp",
+            '400': "DtoGenericResponseAny",
+            '401': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _api_v2_evaluations_datasets_post_serialize(
+        self,
+        request,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+        if request is not None:
+            _body_params = request
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'BearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='POST',
+            resource_path='/api/v2/evaluations/datasets',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def api_v2_evaluations_label_keys_get(
+        self,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> DtoGenericResponseArrayString:
+        """Get Available Label Keys
+
+        Get the list of available label keys that can be used for filtering execution results
+
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_evaluations_label_keys_get_serialize(
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseArrayString",
+            '401': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def api_v2_evaluations_label_keys_get_with_http_info(
+        self,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[DtoGenericResponseArrayString]:
+        """Get Available Label Keys
+
+        Get the list of available label keys that can be used for filtering execution results
+
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_evaluations_label_keys_get_serialize(
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseArrayString",
+            '401': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def api_v2_evaluations_label_keys_get_without_preload_content(
+        self,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Get Available Label Keys
+
+        Get the list of available label keys that can be used for filtering execution results
+
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v2_evaluations_label_keys_get_serialize(
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseArrayString",
+            '401': "DtoGenericResponseAny",
+            '403': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _api_v2_evaluations_label_keys_get_serialize(
+        self,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'BearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='GET',
+            resource_path='/api/v2/evaluations/label-keys',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

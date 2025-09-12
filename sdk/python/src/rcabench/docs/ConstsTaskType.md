@@ -3,19 +3,17 @@
 
 ## Enum
 
-* `EMPTY` (value: `''`)
+* `TaskTypeRestartService` (value: `'RestartService'`)
 
-* `RESTARTSERVICE` (value: `'RestartService'`)
+* `TaskTypeRunAlgorithm` (value: `'RunAlgorithm'`)
 
-* `RUNALGORITHM` (value: `'RunAlgorithm'`)
+* `TaskTypeFaultInjection` (value: `'FaultInjection'`)
 
-* `FAULTINJECTION` (value: `'FaultInjection'`)
+* `TaskTypeBuildImage` (value: `'BuildImage'`)
 
-* `BUILDIMAGES` (value: `'BuildImages'`)
+* `TaskTypeBuildDataset` (value: `'BuildDataset'`)
 
-* `BUILDDATASET` (value: `'BuildDataset'`)
-
-* `COLLECTRESULT` (value: `'CollectResult'`)
+* `TaskTypeCollectResult` (value: `'CollectResult'`)
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

@@ -15,14 +15,15 @@ data:
     timezone = "{{ .Values.configmap.system.timezone }}"
 
     [injection]
-    enable_duplicate = {{ .Values.configmap.injection.enable_duplicate }}
     target_label_key = "{{ .Values.configmap.injection.target_label_key }}"
+    benchmark = {{ .Values.configmap.injection.benchmark | toJson }}
     {{- with .Values.configmap.injection.namespace_config }}
     [injection.namespace_config]
     {{- range $key, $value := . }}
     [injection.namespace_config.{{ $key }}]
     count = {{ $value.count }}
     port = "{{ $value.port }}"
+    chart_name = "{{ $value.chart_name }}"
     repo_name = "{{ $value.repo_name }}"
     repo_url = "{{ $value.repo_url }}"
     {{- end }}
@@ -32,14 +33,9 @@ data:
     clickhouse_host = "{{ .Values.configmap.database.clickhouse_host }}"
     mysql_user = "{{ .Values.configmap.database.mysql_user }}"
     mysql_password = "{{ .Values.configmap.database.mysql_password }}"
-    mysql_host = "{{ .Release.Name }}-mariadb"
+    mysql_host = "{{ .Release.Name }}-mysql"
     mysql_port = "{{ .Values.configmap.database.mysql_port }}"
     mysql_db = "{{ .Values.configmap.database.mysql_db }}"
-    postgres_user = "{{ .Values.configmap.database.postgres_user }}"
-    postgres_password = "{{ .Values.configmap.database.postgres_password }}"
-    postgres_host = "{{ .Release.Name }}-postgres"
-    postgres_port = "{{ .Values.configmap.database.postgres_port }}"
-    postgres_db = "{{ .Values.configmap.database.postgres_db }}"
 
 
     [jaeger]
@@ -50,7 +46,7 @@ data:
 
     [harbor]
     host = "{{ .Values.configmap.harbor.host }}"
-    repository = "{{ .Values.configmap.harbor.repository }}"
+    project = "{{ .Values.configmap.harbor.project }}"
     username = "{{ .Values.configmap.harbor.username }}"
     password = "{{ .Values.configmap.harbor.password }}"
 
@@ -62,23 +58,21 @@ data:
 
     [algo]
     detector = "{{ .Values.configmap.algo.detector }}"
-    storage_path = "{{ .Values.configmap.algo.storage_path }}"
+
+    [container]
+    storage_path = "{{ .Values.configmap.container.storage_path }}"
 
     [debugging]
     enable = {{ .Values.configmap.debugging.enable }}
 
     [buildkit]
-    address = "tcp://{{ .Release.Name }}-buildkit:1234"    
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ .Release.Name }}-mariadb-config
-data:
-  my.cnf: |
-    [mysqld]
-    bind-address = 0.0.0.0
+    address = "tcp://{{ .Release.Name }}-buildkit:1234"
 
+    [rate_limiting]
+    max_concurrent_builds = {{ .Values.configmap.rate_limiting.max_concurrent_builds }}
+    max_concurrent_restarts = {{ .Values.configmap.rate_limiting.max_concurrent_restarts }}
+    max_concurrent_algo_execution = {{ .Values.configmap.rate_limiting.max_concurrent_algo_execution }}
+    token_wait_timeout = {{ .Values.configmap.rate_limiting.token_wait_timeout }}    
 ---
 apiVersion: v1
 kind: ConfigMap

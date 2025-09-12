@@ -27,16 +27,22 @@ class DtoInjectionItem(BaseModel):
     """
     DtoInjectionItem
     """ # noqa: E501
+    batch: Optional[StrictStr] = None
+    benchmark: Optional[StrictStr] = None
+    created_at: Optional[StrictStr] = None
+    display_config: Optional[StrictStr] = None
     end_time: Optional[StrictStr] = None
-    fault_type: Optional[StrictStr] = None
+    engine_config: Optional[StrictStr] = None
+    env: Optional[StrictStr] = None
+    fault_type: Optional[StrictInt] = None
     id: Optional[StrictInt] = None
+    injection_name: Optional[StrictStr] = None
     pre_duration: Optional[StrictInt] = None
-    spec: Optional[Dict[str, Any]] = None
     start_time: Optional[StrictStr] = None
-    status: Optional[StrictStr] = None
-    task_id: Optional[StrictStr] = None
+    status: Optional[StrictInt] = None
+    tag: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["end_time", "fault_type", "id", "pre_duration", "spec", "start_time", "status", "task_id"]
+    __properties: ClassVar[List[str]] = ["batch", "benchmark", "created_at", "display_config", "end_time", "engine_config", "env", "fault_type", "id", "injection_name", "pre_duration", "start_time", "status", "tag"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -96,14 +102,20 @@ class DtoInjectionItem(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "batch": obj.get("batch"),
+            "benchmark": obj.get("benchmark"),
+            "created_at": obj.get("created_at"),
+            "display_config": obj.get("display_config"),
             "end_time": obj.get("end_time"),
+            "engine_config": obj.get("engine_config"),
+            "env": obj.get("env"),
             "fault_type": obj.get("fault_type"),
             "id": obj.get("id"),
+            "injection_name": obj.get("injection_name"),
             "pre_duration": obj.get("pre_duration"),
-            "spec": obj.get("spec"),
             "start_time": obj.get("start_time"),
             "status": obj.get("status"),
-            "task_id": obj.get("task_id")
+            "tag": obj.get("tag")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():
