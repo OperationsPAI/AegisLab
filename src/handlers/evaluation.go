@@ -3,8 +3,8 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/repository"
+	"rcabench/dto"
+	"rcabench/repository"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"

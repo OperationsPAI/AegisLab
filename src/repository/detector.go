@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/dto"
+	"rcabench/consts"
+	"rcabench/database"
+	"rcabench/dto"
 )
 
 func CheckDetectorResultsByExecutionID(executionID int) (bool, error) {

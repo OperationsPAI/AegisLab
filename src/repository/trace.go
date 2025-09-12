@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/dto"
+	"rcabench/consts"
+	"rcabench/database"
+	"rcabench/dto"
 	"github.com/redis/go-redis/v9"
 )
 

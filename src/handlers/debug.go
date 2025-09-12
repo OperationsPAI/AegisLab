@@ -3,9 +3,9 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/LGU-SE-Internal/rcabench/client/debug"
-	"github.com/LGU-SE-Internal/rcabench/client/k8s"
-	"github.com/LGU-SE-Internal/rcabench/dto"
+	"rcabench/client/debug"
+	"rcabench/client/k8s"
+	"rcabench/dto"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )

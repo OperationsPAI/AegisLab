@@ -43,7 +43,7 @@ configmap:
         port: "31%03d"
         chart_name: "trainticket"
         repo_name: "train-ticket"
-        repo_url: "https://lgu-se-internal.github.io/train-ticket"
+        repo_url: "https://rcabench.github.io/train-ticket"
     target_label_key: "app"
   database:
     clickhouse_host: "10.10.10.58"

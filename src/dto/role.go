@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/database"
+	"rcabench/database"
 )
 
 // CreateRoleRequest represents role creation request

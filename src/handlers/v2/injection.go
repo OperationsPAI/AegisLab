@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/repository"
-	"github.com/LGU-SE-Internal/rcabench/utils"
+	"rcabench/database"
+	"rcabench/dto"
+	"rcabench/repository"
+	"rcabench/utils"
 	"github.com/gin-gonic/gin"
 )
 

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/dto"
+	"rcabench/dto"
 	"github.com/gin-gonic/gin"
 )
 

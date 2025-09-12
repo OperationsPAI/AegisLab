@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/repository"
+	"rcabench/database"
+	"rcabench/dto"
+	"rcabench/repository"
 	"github.com/gin-gonic/gin"
 )
 

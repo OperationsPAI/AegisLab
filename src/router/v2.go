@@ -1,8 +1,8 @@
 package router
 
 import (
-	v2handlers "github.com/LGU-SE-Internal/rcabench/handlers/v2"
-	"github.com/LGU-SE-Internal/rcabench/middleware"
+	v2handlers "rcabench/handlers/v2"
+	"rcabench/middleware"
 	"github.com/gin-gonic/gin"
 )
 

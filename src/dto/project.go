@@ -3,7 +3,7 @@ package dto
 import (
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/database"
+	"rcabench/database"
 )
 
 type ProjectV2GetReq struct {

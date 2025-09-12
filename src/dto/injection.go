@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
-	"github.com/LGU-SE-Internal/rcabench/config"
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/utils"
+	chaos "github.com/rcabench/chaos-experiment/handler"
+	"rcabench/config"
+	"rcabench/consts"
+	"rcabench/database"
+	"rcabench/utils"
 )
 
 type InjectionConfig struct {

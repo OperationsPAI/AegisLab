@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	chaos "github.com/rcabench/chaos-experiment/handler"
 	"gorm.io/gorm"
 
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/dto"
+	"rcabench/consts"
+	"rcabench/database"
+	"rcabench/dto"
 )
 
 const BATCH_SIZE = 500 // 服务器端分批大小

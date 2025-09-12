@@ -3,7 +3,7 @@ set -e
 
 CHART_DIR="helm"
 REPO_NAME="rcabench"
-REPO_URL="https://lgu-se-internal.github.io/rcabench"
+REPO_URL="https://rcabench.github.io/rcabench"
 
 helm dependency update $CHART_DIR
 

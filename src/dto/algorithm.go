@@ -3,9 +3,9 @@ package dto
 import (
 	"fmt"
 
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/utils"
+	"rcabench/consts"
+	"rcabench/database"
+	"rcabench/utils"
 )
 
 // AlgorithmItem represents an algorithm configuration

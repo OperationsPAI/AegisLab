@@ -8,9 +8,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/utils"
+	"rcabench/database"
+	"rcabench/dto"
+	"rcabench/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/sqlite"

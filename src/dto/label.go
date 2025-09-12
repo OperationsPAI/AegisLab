@@ -3,8 +3,8 @@ package dto
 import (
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/utils"
+	"rcabench/database"
+	"rcabench/utils"
 )
 
 type LabelCreateReq struct {

@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/LGU-SE-Internal/rcabench/client"
-	"github.com/LGU-SE-Internal/rcabench/dto"
+	"rcabench/client"
+	"rcabench/dto"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )

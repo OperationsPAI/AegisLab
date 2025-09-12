@@ -3,7 +3,7 @@ package database
 import (
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/config"
+	"rcabench/config"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )

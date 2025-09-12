@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
-	"github.com/LGU-SE-Internal/rcabench/config"
+	chaos "github.com/rcabench/chaos-experiment/handler"
+	"rcabench/config"
 )
 
 // GroundTruthReq represents ground truth request

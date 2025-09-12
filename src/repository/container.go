@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/dto"
+	"rcabench/database"
+	"rcabench/dto"
 	"gorm.io/gorm"
 )
 

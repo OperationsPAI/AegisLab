@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/database"
+	"rcabench/consts"
+	"rcabench/database"
 )
 
 func GetProject(column, param string) (*database.Project, error) {

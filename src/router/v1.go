@@ -1,7 +1,7 @@
 package router
 
 import (
-	"github.com/LGU-SE-Internal/rcabench/handlers"
+	"rcabench/handlers"
 	"github.com/gin-gonic/gin"
 )
 

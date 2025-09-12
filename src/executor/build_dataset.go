@@ -10,14 +10,14 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/LGU-SE-Internal/rcabench/client/k8s"
-	"github.com/LGU-SE-Internal/rcabench/config"
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/repository"
-	"github.com/LGU-SE-Internal/rcabench/tracing"
-	"github.com/LGU-SE-Internal/rcabench/utils"
+	"rcabench/client/k8s"
+	"rcabench/config"
+	"rcabench/consts"
+	"rcabench/database"
+	"rcabench/dto"
+	"rcabench/repository"
+	"rcabench/tracing"
+	"rcabench/utils"
 )
 
 type datasetPayload struct {

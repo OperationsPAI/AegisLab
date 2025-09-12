@@ -225,7 +225,7 @@ local-debug-minimal: ## 🚀 启动本地调试环境 (最小模式，无备份�
 import: ## 📦 导入最新版本的 chaos-experiment 库
 	@printf "$(BLUE)📦 导入最新版本的 chaos-experiment 库...$(RESET)\n"
 	cd $(SRC_DIR) && \
-	go get -u github.com/LGU-SE-Internal/chaos-experiment@injectionv2 && \
+	go get -u github.com/rcabench/chaos-experiment@injectionv2 && \
 	go mod tidy
 	@printf "$(GREEN)✅ 依赖更新完成$(RESET)\n"
 

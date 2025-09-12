@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/config"
+	"rcabench/config"
 )
 
 func TestTokenBucketRateLimiter_AcquireAndRelease(t *testing.T) {

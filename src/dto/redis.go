@@ -1,6 +1,6 @@
 package dto
 
-import "github.com/LGU-SE-Internal/rcabench/consts"
+import "rcabench/consts"
 
 type RdbMsg struct {
 	Status string          `json:"status"`

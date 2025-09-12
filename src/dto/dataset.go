@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/utils"
+	chaos "github.com/rcabench/chaos-experiment/handler"
+	"rcabench/consts"
+	"rcabench/database"
+	"rcabench/utils"
 )
 
 type DatasetDeleteReq struct {

@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/middleware"
-	"github.com/LGU-SE-Internal/rcabench/repository"
+	"rcabench/dto"
+	"rcabench/middleware"
+	"rcabench/repository"
 	"github.com/gin-gonic/gin"
 )
 

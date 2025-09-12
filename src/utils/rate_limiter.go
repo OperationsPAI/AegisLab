@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/client"
-	"github.com/LGU-SE-Internal/rcabench/config"
-	"github.com/LGU-SE-Internal/rcabench/consts"
+	"rcabench/client"
+	"rcabench/config"
+	"rcabench/consts"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"

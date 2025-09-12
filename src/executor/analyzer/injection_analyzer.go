@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"strings"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
-	"github.com/LGU-SE-Internal/rcabench/config"
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/dto"
+	chaos "github.com/rcabench/chaos-experiment/handler"
+	"rcabench/config"
+	"rcabench/database"
+	"rcabench/dto"
 )
 
 const PairName = "network_pairs"

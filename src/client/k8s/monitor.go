@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/client"
-	"github.com/LGU-SE-Internal/rcabench/config"
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/repository"
+	"rcabench/client"
+	"rcabench/config"
+	"rcabench/consts"
+	"rcabench/dto"
+	"rcabench/repository"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )

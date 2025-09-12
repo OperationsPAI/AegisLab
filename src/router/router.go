@@ -1,7 +1,7 @@
 package router
 
 import (
-	"github.com/LGU-SE-Internal/rcabench/middleware"
+	"rcabench/middleware"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"

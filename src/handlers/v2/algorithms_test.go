@@ -3,7 +3,7 @@ package v2
 import (
 	"testing"
 
-	"github.com/LGU-SE-Internal/rcabench/dto"
+	"rcabench/dto"
 	"github.com/stretchr/testify/assert"
 )
 

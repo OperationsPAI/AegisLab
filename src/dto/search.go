@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/consts"
+	"rcabench/consts"
 )
 
 // SortDirection represents sort direction

@@ -3,7 +3,7 @@ package repository
 import (
 	"fmt"
 
-	"github.com/LGU-SE-Internal/rcabench/database"
+	"rcabench/database"
 	"gorm.io/gorm"
 )
 

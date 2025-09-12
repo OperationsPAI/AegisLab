@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/config"
+	"rcabench/config"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"

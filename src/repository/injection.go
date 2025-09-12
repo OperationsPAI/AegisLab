@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/utils"
+	"rcabench/consts"
+	"rcabench/database"
+	"rcabench/dto"
+	"rcabench/utils"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
