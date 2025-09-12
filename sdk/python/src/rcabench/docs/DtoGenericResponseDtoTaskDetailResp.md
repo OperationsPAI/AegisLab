@@ -5,10 +5,10 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**code** | **int** | 状态码 | [optional] 
-**data** | [**DtoTaskDetailResp**](DtoTaskDetailResp.md) | 泛型类型的数据 | [optional] 
-**message** | **str** | 响应消息 | [optional] 
-**timestamp** | **int** | 响应生成时间 | [optional] 
+**code** | **int** | Status code | [optional] 
+**data** | [**DtoTaskDetailResp**](DtoTaskDetailResp.md) | Generic type data | [optional] 
+**message** | **str** | Response message | [optional] 
+**timestamp** | **int** | Response generation time | [optional] 
 
 ## Example
 

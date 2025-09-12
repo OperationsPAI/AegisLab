@@ -17,19 +17,22 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-from pydantic import Field, StrictInt, StrictStr
+from datetime import datetime
+from pydantic import Field, StrictInt, StrictStr, field_validator
 from typing import List, Optional
 from typing_extensions import Annotated
 from rcabench.openapi.models.dto_generic_response_any import DtoGenericResponseAny
 from rcabench.openapi.models.dto_generic_response_array_dto_fault_injection_no_issues_resp import DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp
 from rcabench.openapi.models.dto_generic_response_array_dto_fault_injection_with_issues_resp import DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp
-from rcabench.openapi.models.dto_generic_response_dto_fault_injection_statistics_resp import DtoGenericResponseDtoFaultInjectionStatisticsResp
 from rcabench.openapi.models.dto_generic_response_dto_inject_cancel_resp import DtoGenericResponseDtoInjectCancelResp
-from rcabench.openapi.models.dto_generic_response_dto_injection_item import DtoGenericResponseDtoInjectionItem
-from rcabench.openapi.models.dto_generic_response_dto_pagination_resp_dto_injection_item import DtoGenericResponseDtoPaginationRespDtoInjectionItem
-from rcabench.openapi.models.dto_generic_response_dto_submit_resp import DtoGenericResponseDtoSubmitResp
+from rcabench.openapi.models.dto_generic_response_dto_injection_field_mapping_resp import DtoGenericResponseDtoInjectionFieldMappingResp
+from rcabench.openapi.models.dto_generic_response_dto_injection_stats_resp import DtoGenericResponseDtoInjectionStatsResp
+from rcabench.openapi.models.dto_generic_response_dto_list_injections_resp import DtoGenericResponseDtoListInjectionsResp
+from rcabench.openapi.models.dto_generic_response_dto_query_injection_resp import DtoGenericResponseDtoQueryInjectionResp
+from rcabench.openapi.models.dto_generic_response_dto_submit_injection_resp import DtoGenericResponseDtoSubmitInjectionResp
 from rcabench.openapi.models.dto_generic_response_handler_node import DtoGenericResponseHandlerNode
-from rcabench.openapi.models.dto_injection_submit_req import DtoInjectionSubmitReq
+from rcabench.openapi.models.dto_generic_response_handler_resources import DtoGenericResponseHandlerResources
+from rcabench.openapi.models.dto_submit_injection_req import DtoSubmitInjectionReq
 
 from rcabench.openapi.api_client import ApiClient, RequestSerialized
 from rcabench.openapi.api_response import ApiResponse
@@ -50,280 +53,13 @@ class InjectionApi:
 
 
     @validate_call
-    def api_v1_injections_analysis_dataset_dataset_id_get(
-        self,
-        dataset_id: Annotated[StrictInt, Field(description="数据集ID")],
-        _request_timeout: Union[
-            None,
-            Annotated[StrictFloat, Field(gt=0)],
-            Tuple[
-                Annotated[StrictFloat, Field(gt=0)],
-                Annotated[StrictFloat, Field(gt=0)]
-            ]
-        ] = None,
-        _request_auth: Optional[Dict[StrictStr, Any]] = None,
-        _content_type: Optional[StrictStr] = None,
-        _headers: Optional[Dict[StrictStr, Any]] = None,
-        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseAny:
-        """根据数据集ID查询故障注入记录
-
-        根据数据集ID查询故障注入记录详情（包括是否有问题）
-
-        :param dataset_id: 数据集ID (required)
-        :type dataset_id: int
-        :param _request_timeout: timeout setting for this request. If one
-                                 number provided, it will be total request
-                                 timeout. It can also be a pair (tuple) of
-                                 (connection, read) timeouts.
-        :type _request_timeout: int, tuple(int, int), optional
-        :param _request_auth: set to override the auth_settings for an a single
-                              request; this effectively ignores the
-                              authentication in the spec for a single request.
-        :type _request_auth: dict, optional
-        :param _content_type: force content-type for the request.
-        :type _content_type: str, Optional
-        :param _headers: set to override the headers for a single
-                         request; this effectively ignores the headers
-                         in the spec for a single request.
-        :type _headers: dict, optional
-        :param _host_index: set to override the host_index for a single
-                            request; this effectively ignores the host_index
-                            in the spec for a single request.
-        :type _host_index: int, optional
-        :return: Returns the result object.
-        """ # noqa: E501
-
-        _param = self._api_v1_injections_analysis_dataset_dataset_id_get_serialize(
-            dataset_id=dataset_id,
-            _request_auth=_request_auth,
-            _content_type=_content_type,
-            _headers=_headers,
-            _host_index=_host_index
-        )
-
-        _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseAny",
-            '400': "DtoGenericResponseAny",
-            '404': "DtoGenericResponseAny",
-            '500': "DtoGenericResponseAny",
-        }
-        response_data = self.api_client.call_api(
-            *_param,
-            _request_timeout=_request_timeout
-        )
-        response_data.read()
-        return self.api_client.response_deserialize(
-            response_data=response_data,
-            response_types_map=_response_types_map,
-        ).data
-
-
-    @validate_call
-    def api_v1_injections_analysis_dataset_dataset_id_get_with_http_info(
-        self,
-        dataset_id: Annotated[StrictInt, Field(description="数据集ID")],
-        _request_timeout: Union[
-            None,
-            Annotated[StrictFloat, Field(gt=0)],
-            Tuple[
-                Annotated[StrictFloat, Field(gt=0)],
-                Annotated[StrictFloat, Field(gt=0)]
-            ]
-        ] = None,
-        _request_auth: Optional[Dict[StrictStr, Any]] = None,
-        _content_type: Optional[StrictStr] = None,
-        _headers: Optional[Dict[StrictStr, Any]] = None,
-        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseAny]:
-        """根据数据集ID查询故障注入记录
-
-        根据数据集ID查询故障注入记录详情（包括是否有问题）
-
-        :param dataset_id: 数据集ID (required)
-        :type dataset_id: int
-        :param _request_timeout: timeout setting for this request. If one
-                                 number provided, it will be total request
-                                 timeout. It can also be a pair (tuple) of
-                                 (connection, read) timeouts.
-        :type _request_timeout: int, tuple(int, int), optional
-        :param _request_auth: set to override the auth_settings for an a single
-                              request; this effectively ignores the
-                              authentication in the spec for a single request.
-        :type _request_auth: dict, optional
-        :param _content_type: force content-type for the request.
-        :type _content_type: str, Optional
-        :param _headers: set to override the headers for a single
-                         request; this effectively ignores the headers
-                         in the spec for a single request.
-        :type _headers: dict, optional
-        :param _host_index: set to override the host_index for a single
-                            request; this effectively ignores the host_index
-                            in the spec for a single request.
-        :type _host_index: int, optional
-        :return: Returns the result object.
-        """ # noqa: E501
-
-        _param = self._api_v1_injections_analysis_dataset_dataset_id_get_serialize(
-            dataset_id=dataset_id,
-            _request_auth=_request_auth,
-            _content_type=_content_type,
-            _headers=_headers,
-            _host_index=_host_index
-        )
-
-        _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseAny",
-            '400': "DtoGenericResponseAny",
-            '404': "DtoGenericResponseAny",
-            '500': "DtoGenericResponseAny",
-        }
-        response_data = self.api_client.call_api(
-            *_param,
-            _request_timeout=_request_timeout
-        )
-        response_data.read()
-        return self.api_client.response_deserialize(
-            response_data=response_data,
-            response_types_map=_response_types_map,
-        )
-
-
-    @validate_call
-    def api_v1_injections_analysis_dataset_dataset_id_get_without_preload_content(
-        self,
-        dataset_id: Annotated[StrictInt, Field(description="数据集ID")],
-        _request_timeout: Union[
-            None,
-            Annotated[StrictFloat, Field(gt=0)],
-            Tuple[
-                Annotated[StrictFloat, Field(gt=0)],
-                Annotated[StrictFloat, Field(gt=0)]
-            ]
-        ] = None,
-        _request_auth: Optional[Dict[StrictStr, Any]] = None,
-        _content_type: Optional[StrictStr] = None,
-        _headers: Optional[Dict[StrictStr, Any]] = None,
-        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> RESTResponseType:
-        """根据数据集ID查询故障注入记录
-
-        根据数据集ID查询故障注入记录详情（包括是否有问题）
-
-        :param dataset_id: 数据集ID (required)
-        :type dataset_id: int
-        :param _request_timeout: timeout setting for this request. If one
-                                 number provided, it will be total request
-                                 timeout. It can also be a pair (tuple) of
-                                 (connection, read) timeouts.
-        :type _request_timeout: int, tuple(int, int), optional
-        :param _request_auth: set to override the auth_settings for an a single
-                              request; this effectively ignores the
-                              authentication in the spec for a single request.
-        :type _request_auth: dict, optional
-        :param _content_type: force content-type for the request.
-        :type _content_type: str, Optional
-        :param _headers: set to override the headers for a single
-                         request; this effectively ignores the headers
-                         in the spec for a single request.
-        :type _headers: dict, optional
-        :param _host_index: set to override the host_index for a single
-                            request; this effectively ignores the host_index
-                            in the spec for a single request.
-        :type _host_index: int, optional
-        :return: Returns the result object.
-        """ # noqa: E501
-
-        _param = self._api_v1_injections_analysis_dataset_dataset_id_get_serialize(
-            dataset_id=dataset_id,
-            _request_auth=_request_auth,
-            _content_type=_content_type,
-            _headers=_headers,
-            _host_index=_host_index
-        )
-
-        _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseAny",
-            '400': "DtoGenericResponseAny",
-            '404': "DtoGenericResponseAny",
-            '500': "DtoGenericResponseAny",
-        }
-        response_data = self.api_client.call_api(
-            *_param,
-            _request_timeout=_request_timeout
-        )
-        return response_data.response
-
-
-    def _api_v1_injections_analysis_dataset_dataset_id_get_serialize(
-        self,
-        dataset_id,
-        _request_auth,
-        _content_type,
-        _headers,
-        _host_index,
-    ) -> RequestSerialized:
-
-        _host = None
-
-        _collection_formats: Dict[str, str] = {
-        }
-
-        _path_params: Dict[str, str] = {}
-        _query_params: List[Tuple[str, str]] = []
-        _header_params: Dict[str, Optional[str]] = _headers or {}
-        _form_params: List[Tuple[str, str]] = []
-        _files: Dict[
-            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
-        ] = {}
-        _body_params: Optional[bytes] = None
-
-        # process the path parameters
-        if dataset_id is not None:
-            _path_params['dataset_id'] = dataset_id
-        # process the query parameters
-        # process the header parameters
-        # process the form parameters
-        # process the body parameter
-
-
-        # set the HTTP header `Accept`
-        if 'Accept' not in _header_params:
-            _header_params['Accept'] = self.api_client.select_header_accept(
-                [
-                    'application/json'
-                ]
-            )
-
-
-        # authentication setting
-        _auth_settings: List[str] = [
-        ]
-
-        return self.api_client.param_serialize(
-            method='GET',
-            resource_path='/api/v1/injections/analysis/dataset/{dataset_id}',
-            path_params=_path_params,
-            query_params=_query_params,
-            header_params=_header_params,
-            body=_body_params,
-            post_params=_form_params,
-            files=_files,
-            auth_settings=_auth_settings,
-            collection_formats=_collection_formats,
-            _host=_host,
-            _request_auth=_request_auth
-        )
-
-
-
-
-    @validate_call
     def api_v1_injections_analysis_no_issues_get(
         self,
-        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
-        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间 (RFC3339格式)")] = None,
-        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间 (RFC3339格式)")] = None,
+        env: Annotated[Optional[StrictStr], Field(description="Environment label filter")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="Batch label filter")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="Time range query, supports custom relative time (1h/24h/7d) or custom, default not set")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="Custom start time, RFC3339 format, required when lookback=custom")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="Custom end time, RFC3339 format, required when lookback=custom")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -337,16 +73,20 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp:
-        """查询没有问题的故障注入记录
+        """Query Fault Injection Records Without Issues
 
-        根据时间范围查询所有没有问题的故障注入记录列表
+        Query all fault injection records without issues based on time range, returning detailed records including configuration information
 
-        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :param env: Environment label filter
+        :type env: str
+        :param batch: Batch label filter
+        :type batch: str
+        :param lookback: Time range query, supports custom relative time (1h/24h/7d) or custom, default not set
         :type lookback: str
-        :param custom_start_time: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
-        :type custom_start_time: str
-        :param custom_end_time: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
-        :type custom_end_time: str
+        :param custom_start_time: Custom start time, RFC3339 format, required when lookback=custom
+        :type custom_start_time: datetime
+        :param custom_end_time: Custom end time, RFC3339 format, required when lookback=custom
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -370,6 +110,8 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_analysis_no_issues_get_serialize(
+            env=env,
+            batch=batch,
             lookback=lookback,
             custom_start_time=custom_start_time,
             custom_end_time=custom_end_time,
@@ -398,9 +140,11 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_no_issues_get_with_http_info(
         self,
-        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
-        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间 (RFC3339格式)")] = None,
-        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间 (RFC3339格式)")] = None,
+        env: Annotated[Optional[StrictStr], Field(description="Environment label filter")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="Batch label filter")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="Time range query, supports custom relative time (1h/24h/7d) or custom, default not set")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="Custom start time, RFC3339 format, required when lookback=custom")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="Custom end time, RFC3339 format, required when lookback=custom")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -414,16 +158,20 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp]:
-        """查询没有问题的故障注入记录
+        """Query Fault Injection Records Without Issues
 
-        根据时间范围查询所有没有问题的故障注入记录列表
+        Query all fault injection records without issues based on time range, returning detailed records including configuration information
 
-        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :param env: Environment label filter
+        :type env: str
+        :param batch: Batch label filter
+        :type batch: str
+        :param lookback: Time range query, supports custom relative time (1h/24h/7d) or custom, default not set
         :type lookback: str
-        :param custom_start_time: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
-        :type custom_start_time: str
-        :param custom_end_time: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
-        :type custom_end_time: str
+        :param custom_start_time: Custom start time, RFC3339 format, required when lookback=custom
+        :type custom_start_time: datetime
+        :param custom_end_time: Custom end time, RFC3339 format, required when lookback=custom
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -447,6 +195,8 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_analysis_no_issues_get_serialize(
+            env=env,
+            batch=batch,
             lookback=lookback,
             custom_start_time=custom_start_time,
             custom_end_time=custom_end_time,
@@ -475,9 +225,11 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_analysis_no_issues_get_without_preload_content(
         self,
-        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
-        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间 (RFC3339格式)")] = None,
-        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间 (RFC3339格式)")] = None,
+        env: Annotated[Optional[StrictStr], Field(description="Environment label filter")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="Batch label filter")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="Time range query, supports custom relative time (1h/24h/7d) or custom, default not set")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="Custom start time, RFC3339 format, required when lookback=custom")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="Custom end time, RFC3339 format, required when lookback=custom")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -491,16 +243,20 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """查询没有问题的故障注入记录
+        """Query Fault Injection Records Without Issues
 
-        根据时间范围查询所有没有问题的故障注入记录列表
+        Query all fault injection records without issues based on time range, returning detailed records including configuration information
 
-        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :param env: Environment label filter
+        :type env: str
+        :param batch: Batch label filter
+        :type batch: str
+        :param lookback: Time range query, supports custom relative time (1h/24h/7d) or custom, default not set
         :type lookback: str
-        :param custom_start_time: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
-        :type custom_start_time: str
-        :param custom_end_time: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
-        :type custom_end_time: str
+        :param custom_start_time: Custom start time, RFC3339 format, required when lookback=custom
+        :type custom_start_time: datetime
+        :param custom_end_time: Custom end time, RFC3339 format, required when lookback=custom
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -524,6 +280,8 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_analysis_no_issues_get_serialize(
+            env=env,
+            batch=batch,
             lookback=lookback,
             custom_start_time=custom_start_time,
             custom_end_time=custom_end_time,
@@ -547,6 +305,8 @@ class InjectionApi:
 
     def _api_v1_injections_analysis_no_issues_get_serialize(
         self,
+        env,
+        batch,
         lookback,
         custom_start_time,
         custom_end_time,
@@ -572,17 +332,43 @@ class InjectionApi:
 
         # process the path parameters
         # process the query parameters
+        if env is not None:
+            
+            _query_params.append(('env', env))
+            
+        if batch is not None:
+            
+            _query_params.append(('batch', batch))
+            
         if lookback is not None:
             
             _query_params.append(('lookback', lookback))
             
         if custom_start_time is not None:
-            
-            _query_params.append(('custom_start_time', custom_start_time))
+            if isinstance(custom_start_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_start_time',
+                        custom_start_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_start_time', custom_start_time))
             
         if custom_end_time is not None:
-            
-            _query_params.append(('custom_end_time', custom_end_time))
+            if isinstance(custom_end_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_end_time',
+                        custom_end_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_end_time', custom_end_time))
             
         # process the header parameters
         # process the form parameters
@@ -621,8 +407,11 @@ class InjectionApi:
 
 
     @validate_call
-    def api_v1_injections_analysis_statistics_get(
+    def api_v1_injections_analysis_stats_get(
         self,
+        lookback: Annotated[Optional[StrictStr], Field(description="Time range query, supports custom relative time (1h/24h/7d) or custom, default not set")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="Custom start time, RFC3339 format, required when lookback=custom")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="Custom end time, RFC3339 format, required when lookback=custom")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -635,268 +424,17 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseDtoFaultInjectionStatisticsResp:
-        """获取故障注入统计信息
+    ) -> DtoGenericResponseDtoInjectionStatsResp:
+        """Get Fault Injection Statistics
 
-        获取故障注入记录的统计信息，包括有问题和没有问题的记录数量
+        Get statistical information of fault injection records, including counts of records with issues, without issues, and total records
 
-        :param _request_timeout: timeout setting for this request. If one
-                                 number provided, it will be total request
-                                 timeout. It can also be a pair (tuple) of
-                                 (connection, read) timeouts.
-        :type _request_timeout: int, tuple(int, int), optional
-        :param _request_auth: set to override the auth_settings for an a single
-                              request; this effectively ignores the
-                              authentication in the spec for a single request.
-        :type _request_auth: dict, optional
-        :param _content_type: force content-type for the request.
-        :type _content_type: str, Optional
-        :param _headers: set to override the headers for a single
-                         request; this effectively ignores the headers
-                         in the spec for a single request.
-        :type _headers: dict, optional
-        :param _host_index: set to override the host_index for a single
-                            request; this effectively ignores the host_index
-                            in the spec for a single request.
-        :type _host_index: int, optional
-        :return: Returns the result object.
-        """ # noqa: E501
-
-        _param = self._api_v1_injections_analysis_statistics_get_serialize(
-            _request_auth=_request_auth,
-            _content_type=_content_type,
-            _headers=_headers,
-            _host_index=_host_index
-        )
-
-        _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoFaultInjectionStatisticsResp",
-            '500': "DtoGenericResponseAny",
-        }
-        response_data = self.api_client.call_api(
-            *_param,
-            _request_timeout=_request_timeout
-        )
-        response_data.read()
-        return self.api_client.response_deserialize(
-            response_data=response_data,
-            response_types_map=_response_types_map,
-        ).data
-
-
-    @validate_call
-    def api_v1_injections_analysis_statistics_get_with_http_info(
-        self,
-        _request_timeout: Union[
-            None,
-            Annotated[StrictFloat, Field(gt=0)],
-            Tuple[
-                Annotated[StrictFloat, Field(gt=0)],
-                Annotated[StrictFloat, Field(gt=0)]
-            ]
-        ] = None,
-        _request_auth: Optional[Dict[StrictStr, Any]] = None,
-        _content_type: Optional[StrictStr] = None,
-        _headers: Optional[Dict[StrictStr, Any]] = None,
-        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseDtoFaultInjectionStatisticsResp]:
-        """获取故障注入统计信息
-
-        获取故障注入记录的统计信息，包括有问题和没有问题的记录数量
-
-        :param _request_timeout: timeout setting for this request. If one
-                                 number provided, it will be total request
-                                 timeout. It can also be a pair (tuple) of
-                                 (connection, read) timeouts.
-        :type _request_timeout: int, tuple(int, int), optional
-        :param _request_auth: set to override the auth_settings for an a single
-                              request; this effectively ignores the
-                              authentication in the spec for a single request.
-        :type _request_auth: dict, optional
-        :param _content_type: force content-type for the request.
-        :type _content_type: str, Optional
-        :param _headers: set to override the headers for a single
-                         request; this effectively ignores the headers
-                         in the spec for a single request.
-        :type _headers: dict, optional
-        :param _host_index: set to override the host_index for a single
-                            request; this effectively ignores the host_index
-                            in the spec for a single request.
-        :type _host_index: int, optional
-        :return: Returns the result object.
-        """ # noqa: E501
-
-        _param = self._api_v1_injections_analysis_statistics_get_serialize(
-            _request_auth=_request_auth,
-            _content_type=_content_type,
-            _headers=_headers,
-            _host_index=_host_index
-        )
-
-        _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoFaultInjectionStatisticsResp",
-            '500': "DtoGenericResponseAny",
-        }
-        response_data = self.api_client.call_api(
-            *_param,
-            _request_timeout=_request_timeout
-        )
-        response_data.read()
-        return self.api_client.response_deserialize(
-            response_data=response_data,
-            response_types_map=_response_types_map,
-        )
-
-
-    @validate_call
-    def api_v1_injections_analysis_statistics_get_without_preload_content(
-        self,
-        _request_timeout: Union[
-            None,
-            Annotated[StrictFloat, Field(gt=0)],
-            Tuple[
-                Annotated[StrictFloat, Field(gt=0)],
-                Annotated[StrictFloat, Field(gt=0)]
-            ]
-        ] = None,
-        _request_auth: Optional[Dict[StrictStr, Any]] = None,
-        _content_type: Optional[StrictStr] = None,
-        _headers: Optional[Dict[StrictStr, Any]] = None,
-        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> RESTResponseType:
-        """获取故障注入统计信息
-
-        获取故障注入记录的统计信息，包括有问题和没有问题的记录数量
-
-        :param _request_timeout: timeout setting for this request. If one
-                                 number provided, it will be total request
-                                 timeout. It can also be a pair (tuple) of
-                                 (connection, read) timeouts.
-        :type _request_timeout: int, tuple(int, int), optional
-        :param _request_auth: set to override the auth_settings for an a single
-                              request; this effectively ignores the
-                              authentication in the spec for a single request.
-        :type _request_auth: dict, optional
-        :param _content_type: force content-type for the request.
-        :type _content_type: str, Optional
-        :param _headers: set to override the headers for a single
-                         request; this effectively ignores the headers
-                         in the spec for a single request.
-        :type _headers: dict, optional
-        :param _host_index: set to override the host_index for a single
-                            request; this effectively ignores the host_index
-                            in the spec for a single request.
-        :type _host_index: int, optional
-        :return: Returns the result object.
-        """ # noqa: E501
-
-        _param = self._api_v1_injections_analysis_statistics_get_serialize(
-            _request_auth=_request_auth,
-            _content_type=_content_type,
-            _headers=_headers,
-            _host_index=_host_index
-        )
-
-        _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoFaultInjectionStatisticsResp",
-            '500': "DtoGenericResponseAny",
-        }
-        response_data = self.api_client.call_api(
-            *_param,
-            _request_timeout=_request_timeout
-        )
-        return response_data.response
-
-
-    def _api_v1_injections_analysis_statistics_get_serialize(
-        self,
-        _request_auth,
-        _content_type,
-        _headers,
-        _host_index,
-    ) -> RequestSerialized:
-
-        _host = None
-
-        _collection_formats: Dict[str, str] = {
-        }
-
-        _path_params: Dict[str, str] = {}
-        _query_params: List[Tuple[str, str]] = []
-        _header_params: Dict[str, Optional[str]] = _headers or {}
-        _form_params: List[Tuple[str, str]] = []
-        _files: Dict[
-            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
-        ] = {}
-        _body_params: Optional[bytes] = None
-
-        # process the path parameters
-        # process the query parameters
-        # process the header parameters
-        # process the form parameters
-        # process the body parameter
-
-
-        # set the HTTP header `Accept`
-        if 'Accept' not in _header_params:
-            _header_params['Accept'] = self.api_client.select_header_accept(
-                [
-                    'application/json'
-                ]
-            )
-
-
-        # authentication setting
-        _auth_settings: List[str] = [
-        ]
-
-        return self.api_client.param_serialize(
-            method='GET',
-            resource_path='/api/v1/injections/analysis/statistics',
-            path_params=_path_params,
-            query_params=_query_params,
-            header_params=_header_params,
-            body=_body_params,
-            post_params=_form_params,
-            files=_files,
-            auth_settings=_auth_settings,
-            collection_formats=_collection_formats,
-            _host=_host,
-            _request_auth=_request_auth
-        )
-
-
-
-
-    @validate_call
-    def api_v1_injections_analysis_with_issues_get(
-        self,
-        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
-        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间 (RFC3339格式)")] = None,
-        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间 (RFC3339格式)")] = None,
-        _request_timeout: Union[
-            None,
-            Annotated[StrictFloat, Field(gt=0)],
-            Tuple[
-                Annotated[StrictFloat, Field(gt=0)],
-                Annotated[StrictFloat, Field(gt=0)]
-            ]
-        ] = None,
-        _request_auth: Optional[Dict[StrictStr, Any]] = None,
-        _content_type: Optional[StrictStr] = None,
-        _headers: Optional[Dict[StrictStr, Any]] = None,
-        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp:
-        """查询有问题的故障注入记录
-
-        根据时间范围查询所有有问题的故障注入记录列表
-
-        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :param lookback: Time range query, supports custom relative time (1h/24h/7d) or custom, default not set
         :type lookback: str
-        :param custom_start_time: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
-        :type custom_start_time: str
-        :param custom_end_time: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
-        :type custom_end_time: str
+        :param custom_start_time: Custom start time, RFC3339 format, required when lookback=custom
+        :type custom_start_time: datetime
+        :param custom_end_time: Custom end time, RFC3339 format, required when lookback=custom
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -919,7 +457,7 @@ class InjectionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_injections_analysis_with_issues_get_serialize(
+        _param = self._api_v1_injections_analysis_stats_get_serialize(
             lookback=lookback,
             custom_start_time=custom_start_time,
             custom_end_time=custom_end_time,
@@ -930,7 +468,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp",
+            '200': "DtoGenericResponseDtoInjectionStatsResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -946,11 +484,11 @@ class InjectionApi:
 
 
     @validate_call
-    def api_v1_injections_analysis_with_issues_get_with_http_info(
+    def api_v1_injections_analysis_stats_get_with_http_info(
         self,
-        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
-        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间 (RFC3339格式)")] = None,
-        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间 (RFC3339格式)")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="Time range query, supports custom relative time (1h/24h/7d) or custom, default not set")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="Custom start time, RFC3339 format, required when lookback=custom")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="Custom end time, RFC3339 format, required when lookback=custom")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -963,17 +501,17 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp]:
-        """查询有问题的故障注入记录
+    ) -> ApiResponse[DtoGenericResponseDtoInjectionStatsResp]:
+        """Get Fault Injection Statistics
 
-        根据时间范围查询所有有问题的故障注入记录列表
+        Get statistical information of fault injection records, including counts of records with issues, without issues, and total records
 
-        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :param lookback: Time range query, supports custom relative time (1h/24h/7d) or custom, default not set
         :type lookback: str
-        :param custom_start_time: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
-        :type custom_start_time: str
-        :param custom_end_time: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
-        :type custom_end_time: str
+        :param custom_start_time: Custom start time, RFC3339 format, required when lookback=custom
+        :type custom_start_time: datetime
+        :param custom_end_time: Custom end time, RFC3339 format, required when lookback=custom
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -996,7 +534,7 @@ class InjectionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_injections_analysis_with_issues_get_serialize(
+        _param = self._api_v1_injections_analysis_stats_get_serialize(
             lookback=lookback,
             custom_start_time=custom_start_time,
             custom_end_time=custom_end_time,
@@ -1007,7 +545,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp",
+            '200': "DtoGenericResponseDtoInjectionStatsResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -1023,11 +561,11 @@ class InjectionApi:
 
 
     @validate_call
-    def api_v1_injections_analysis_with_issues_get_without_preload_content(
+    def api_v1_injections_analysis_stats_get_without_preload_content(
         self,
-        lookback: Annotated[Optional[StrictStr], Field(description="相对时间查询，如 1h, 24h, 7d或者是custom")] = None,
-        custom_start_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义开始时间 (RFC3339格式)")] = None,
-        custom_end_time: Annotated[Optional[StrictStr], Field(description="当lookback=custom时必需，自定义结束时间 (RFC3339格式)")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="Time range query, supports custom relative time (1h/24h/7d) or custom, default not set")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="Custom start time, RFC3339 format, required when lookback=custom")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="Custom end time, RFC3339 format, required when lookback=custom")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1041,16 +579,16 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """查询有问题的故障注入记录
+        """Get Fault Injection Statistics
 
-        根据时间范围查询所有有问题的故障注入记录列表
+        Get statistical information of fault injection records, including counts of records with issues, without issues, and total records
 
-        :param lookback: 相对时间查询，如 1h, 24h, 7d或者是custom
+        :param lookback: Time range query, supports custom relative time (1h/24h/7d) or custom, default not set
         :type lookback: str
-        :param custom_start_time: 当lookback=custom时必需，自定义开始时间 (RFC3339格式)
-        :type custom_start_time: str
-        :param custom_end_time: 当lookback=custom时必需，自定义结束时间 (RFC3339格式)
-        :type custom_end_time: str
+        :param custom_start_time: Custom start time, RFC3339 format, required when lookback=custom
+        :type custom_start_time: datetime
+        :param custom_end_time: Custom end time, RFC3339 format, required when lookback=custom
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1073,7 +611,7 @@ class InjectionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_injections_analysis_with_issues_get_serialize(
+        _param = self._api_v1_injections_analysis_stats_get_serialize(
             lookback=lookback,
             custom_start_time=custom_start_time,
             custom_end_time=custom_end_time,
@@ -1084,7 +622,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp",
+            '200': "DtoGenericResponseDtoInjectionStatsResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -1095,7 +633,7 @@ class InjectionApi:
         return response_data.response
 
 
-    def _api_v1_injections_analysis_with_issues_get_serialize(
+    def _api_v1_injections_analysis_stats_get_serialize(
         self,
         lookback,
         custom_start_time,
@@ -1127,12 +665,384 @@ class InjectionApi:
             _query_params.append(('lookback', lookback))
             
         if custom_start_time is not None:
-            
-            _query_params.append(('custom_start_time', custom_start_time))
+            if isinstance(custom_start_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_start_time',
+                        custom_start_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_start_time', custom_start_time))
             
         if custom_end_time is not None:
+            if isinstance(custom_end_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_end_time',
+                        custom_end_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_end_time', custom_end_time))
             
-            _query_params.append(('custom_end_time', custom_end_time))
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+
+        # authentication setting
+        _auth_settings: List[str] = [
+        ]
+
+        return self.api_client.param_serialize(
+            method='GET',
+            resource_path='/api/v1/injections/analysis/stats',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def api_v1_injections_analysis_with_issues_get(
+        self,
+        env: Annotated[Optional[StrictStr], Field(description="Environment label filter")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="Batch label filter")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="Time range query, supports custom relative time (1h/24h/7d) or custom, default not set")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="Custom start time, RFC3339 format, required when lookback=custom")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="Custom end time, RFC3339 format, required when lookback=custom")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp:
+        """Query Fault Injection Records With Issues
+
+        Query all fault injection records with issues based on time range
+
+        :param env: Environment label filter
+        :type env: str
+        :param batch: Batch label filter
+        :type batch: str
+        :param lookback: Time range query, supports custom relative time (1h/24h/7d) or custom, default not set
+        :type lookback: str
+        :param custom_start_time: Custom start time, RFC3339 format, required when lookback=custom
+        :type custom_start_time: datetime
+        :param custom_end_time: Custom end time, RFC3339 format, required when lookback=custom
+        :type custom_end_time: datetime
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v1_injections_analysis_with_issues_get_serialize(
+            env=env,
+            batch=batch,
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp",
+            '400': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def api_v1_injections_analysis_with_issues_get_with_http_info(
+        self,
+        env: Annotated[Optional[StrictStr], Field(description="Environment label filter")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="Batch label filter")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="Time range query, supports custom relative time (1h/24h/7d) or custom, default not set")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="Custom start time, RFC3339 format, required when lookback=custom")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="Custom end time, RFC3339 format, required when lookback=custom")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp]:
+        """Query Fault Injection Records With Issues
+
+        Query all fault injection records with issues based on time range
+
+        :param env: Environment label filter
+        :type env: str
+        :param batch: Batch label filter
+        :type batch: str
+        :param lookback: Time range query, supports custom relative time (1h/24h/7d) or custom, default not set
+        :type lookback: str
+        :param custom_start_time: Custom start time, RFC3339 format, required when lookback=custom
+        :type custom_start_time: datetime
+        :param custom_end_time: Custom end time, RFC3339 format, required when lookback=custom
+        :type custom_end_time: datetime
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v1_injections_analysis_with_issues_get_serialize(
+            env=env,
+            batch=batch,
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp",
+            '400': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def api_v1_injections_analysis_with_issues_get_without_preload_content(
+        self,
+        env: Annotated[Optional[StrictStr], Field(description="Environment label filter")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="Batch label filter")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="Time range query, supports custom relative time (1h/24h/7d) or custom, default not set")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="Custom start time, RFC3339 format, required when lookback=custom")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="Custom end time, RFC3339 format, required when lookback=custom")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Query Fault Injection Records With Issues
+
+        Query all fault injection records with issues based on time range
+
+        :param env: Environment label filter
+        :type env: str
+        :param batch: Batch label filter
+        :type batch: str
+        :param lookback: Time range query, supports custom relative time (1h/24h/7d) or custom, default not set
+        :type lookback: str
+        :param custom_start_time: Custom start time, RFC3339 format, required when lookback=custom
+        :type custom_start_time: datetime
+        :param custom_end_time: Custom end time, RFC3339 format, required when lookback=custom
+        :type custom_end_time: datetime
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v1_injections_analysis_with_issues_get_serialize(
+            env=env,
+            batch=batch,
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp",
+            '400': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _api_v1_injections_analysis_with_issues_get_serialize(
+        self,
+        env,
+        batch,
+        lookback,
+        custom_start_time,
+        custom_end_time,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        # process the query parameters
+        if env is not None:
+            
+            _query_params.append(('env', env))
+            
+        if batch is not None:
+            
+            _query_params.append(('batch', batch))
+            
+        if lookback is not None:
+            
+            _query_params.append(('lookback', lookback))
+            
+        if custom_start_time is not None:
+            if isinstance(custom_start_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_start_time',
+                        custom_start_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_start_time', custom_start_time))
+            
+        if custom_end_time is not None:
+            if isinstance(custom_end_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_end_time',
+                        custom_end_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_end_time', custom_end_time))
             
         # process the header parameters
         # process the form parameters
@@ -1173,8 +1083,8 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_conf_get(
         self,
-        namespace: Annotated[StrictStr, Field(description="命名空间")],
-        mode: Annotated[StrictStr, Field(description="显示模式(display/engine)")],
+        namespace: Annotated[StrictStr, Field(description="Namespace, specifies the namespace to get configuration for")],
+        mode: Annotated[Optional[StrictStr], Field(description="Display mode")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1188,13 +1098,13 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseHandlerNode:
-        """获取故障注入配置
+        """Get Fault Injection Configuration
 
-        获取指定命名空间的故障注入配置信息
+        Get fault injection configuration for the specified namespace, supporting different display modes for configuration tree structure
 
-        :param namespace: 命名空间 (required)
+        :param namespace: Namespace, specifies the namespace to get configuration for (required)
         :type namespace: str
-        :param mode: 显示模式(display/engine) (required)
+        :param mode: Display mode
         :type mode: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -1246,8 +1156,8 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_conf_get_with_http_info(
         self,
-        namespace: Annotated[StrictStr, Field(description="命名空间")],
-        mode: Annotated[StrictStr, Field(description="显示模式(display/engine)")],
+        namespace: Annotated[StrictStr, Field(description="Namespace, specifies the namespace to get configuration for")],
+        mode: Annotated[Optional[StrictStr], Field(description="Display mode")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1261,13 +1171,13 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseHandlerNode]:
-        """获取故障注入配置
+        """Get Fault Injection Configuration
 
-        获取指定命名空间的故障注入配置信息
+        Get fault injection configuration for the specified namespace, supporting different display modes for configuration tree structure
 
-        :param namespace: 命名空间 (required)
+        :param namespace: Namespace, specifies the namespace to get configuration for (required)
         :type namespace: str
-        :param mode: 显示模式(display/engine) (required)
+        :param mode: Display mode
         :type mode: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -1319,8 +1229,8 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_conf_get_without_preload_content(
         self,
-        namespace: Annotated[StrictStr, Field(description="命名空间")],
-        mode: Annotated[StrictStr, Field(description="显示模式(display/engine)")],
+        namespace: Annotated[StrictStr, Field(description="Namespace, specifies the namespace to get configuration for")],
+        mode: Annotated[Optional[StrictStr], Field(description="Display mode")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1334,13 +1244,13 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """获取故障注入配置
+        """Get Fault Injection Configuration
 
-        获取指定命名空间的故障注入配置信息
+        Get fault injection configuration for the specified namespace, supporting different display modes for configuration tree structure
 
-        :param namespace: 命名空间 (required)
+        :param namespace: Namespace, specifies the namespace to get configuration for (required)
         :type namespace: str
-        :param mode: 显示模式(display/engine) (required)
+        :param mode: Display mode
         :type mode: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -1458,7 +1368,7 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_configs_get(
         self,
-        trace_ids: Annotated[List[StrictStr], Field(description="Trace ID 列表")],
+        trace_ids: Annotated[Optional[List[StrictStr]], Field(description="TraceID list, supports multiple values, used to query corresponding configuration information")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1472,11 +1382,11 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseAny:
-        """获取故障注入配置列表
+        """Get Injected Fault Configuration List
 
-        根据多个 TraceID 获取对应的故障注入配置信息
+        Get fault injection configuration information based on multiple TraceIDs, used to view configuration details of submitted fault injection tasks
 
-        :param trace_ids: Trace ID 列表 (required)
+        :param trace_ids: TraceID list, supports multiple values, used to query corresponding configuration information
         :type trace_ids: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -1527,7 +1437,7 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_configs_get_with_http_info(
         self,
-        trace_ids: Annotated[List[StrictStr], Field(description="Trace ID 列表")],
+        trace_ids: Annotated[Optional[List[StrictStr]], Field(description="TraceID list, supports multiple values, used to query corresponding configuration information")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1541,11 +1451,11 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseAny]:
-        """获取故障注入配置列表
+        """Get Injected Fault Configuration List
 
-        根据多个 TraceID 获取对应的故障注入配置信息
+        Get fault injection configuration information based on multiple TraceIDs, used to view configuration details of submitted fault injection tasks
 
-        :param trace_ids: Trace ID 列表 (required)
+        :param trace_ids: TraceID list, supports multiple values, used to query corresponding configuration information
         :type trace_ids: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -1596,7 +1506,7 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_configs_get_without_preload_content(
         self,
-        trace_ids: Annotated[List[StrictStr], Field(description="Trace ID 列表")],
+        trace_ids: Annotated[Optional[List[StrictStr]], Field(description="TraceID list, supports multiple values, used to query corresponding configuration information")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1610,11 +1520,11 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """获取故障注入配置列表
+        """Get Injected Fault Configuration List
 
-        根据多个 TraceID 获取对应的故障注入配置信息
+        Get fault injection configuration information based on multiple TraceIDs, used to view configuration details of submitted fault injection tasks
 
-        :param trace_ids: Trace ID 列表 (required)
+        :param trace_ids: TraceID list, supports multiple values, used to query corresponding configuration information
         :type trace_ids: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -1670,7 +1580,7 @@ class InjectionApi:
         _host = None
 
         _collection_formats: Dict[str, str] = {
-            'trace_ids': 'csv',
+            'trace_ids': 'multi',
         }
 
         _path_params: Dict[str, str] = {}
@@ -1727,8 +1637,21 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_get(
         self,
-        page_num: Annotated[Optional[StrictInt], Field(description="页码")] = None,
-        page_size: Annotated[Optional[StrictInt], Field(description="每页大小")] = None,
+        project_name: Annotated[Optional[StrictStr], Field(description="Project name filter")] = None,
+        env: Annotated[Optional[StrictStr], Field(description="Environment label filter")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="Batch label filter")] = None,
+        tag: Annotated[Optional[StrictStr], Field(description="Category label filter")] = None,
+        benchmark: Annotated[Optional[StrictStr], Field(description="Benchmark type filter")] = None,
+        status: Annotated[Optional[StrictInt], Field(description="Status filter, refer to field mapping interface (/mapping) for specific values")] = None,
+        fault_type: Annotated[Optional[StrictInt], Field(description="Fault type filter, refer to field mapping interface (/mapping) for specific values")] = None,
+        sort_field: Annotated[Optional[StrictStr], Field(description="Sort field, default created_at")] = None,
+        sort_order: Annotated[Optional[StrictStr], Field(description="Sort order, default desc")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Result quantity limit, used to control the number of returned records")] = None,
+        page_num: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Pagination query, page number")] = None,
+        page_size: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Pagination query, records per page")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="Time range query, supports custom relative time (1h/24h/7d) or custom, default not set")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="Custom start time, RFC3339 format, required when lookback=custom")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="Custom end time, RFC3339 format, required when lookback=custom")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1741,15 +1664,41 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseDtoPaginationRespDtoInjectionItem:
-        """分页查询注入记录列表
+    ) -> DtoGenericResponseDtoListInjectionsResp:
+        """Get Fault Injection Record List
 
-        获取注入记录列表（支持分页参数）
+        Fault injection record query interface supporting sorting and filtering. Returns the original database record list without data conversion.
 
-        :param page_num: 页码
+        :param project_name: Project name filter
+        :type project_name: str
+        :param env: Environment label filter
+        :type env: str
+        :param batch: Batch label filter
+        :type batch: str
+        :param tag: Category label filter
+        :type tag: str
+        :param benchmark: Benchmark type filter
+        :type benchmark: str
+        :param status: Status filter, refer to field mapping interface (/mapping) for specific values
+        :type status: int
+        :param fault_type: Fault type filter, refer to field mapping interface (/mapping) for specific values
+        :type fault_type: int
+        :param sort_field: Sort field, default created_at
+        :type sort_field: str
+        :param sort_order: Sort order, default desc
+        :type sort_order: str
+        :param limit: Result quantity limit, used to control the number of returned records
+        :type limit: int
+        :param page_num: Pagination query, page number
         :type page_num: int
-        :param page_size: 每页大小
+        :param page_size: Pagination query, records per page
         :type page_size: int
+        :param lookback: Time range query, supports custom relative time (1h/24h/7d) or custom, default not set
+        :type lookback: str
+        :param custom_start_time: Custom start time, RFC3339 format, required when lookback=custom
+        :type custom_start_time: datetime
+        :param custom_end_time: Custom end time, RFC3339 format, required when lookback=custom
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1773,8 +1722,21 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_get_serialize(
+            project_name=project_name,
+            env=env,
+            batch=batch,
+            tag=tag,
+            benchmark=benchmark,
+            status=status,
+            fault_type=fault_type,
+            sort_field=sort_field,
+            sort_order=sort_order,
+            limit=limit,
             page_num=page_num,
             page_size=page_size,
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1782,7 +1744,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoPaginationRespDtoInjectionItem",
+            '200': "DtoGenericResponseDtoListInjectionsResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -1800,8 +1762,21 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_get_with_http_info(
         self,
-        page_num: Annotated[Optional[StrictInt], Field(description="页码")] = None,
-        page_size: Annotated[Optional[StrictInt], Field(description="每页大小")] = None,
+        project_name: Annotated[Optional[StrictStr], Field(description="Project name filter")] = None,
+        env: Annotated[Optional[StrictStr], Field(description="Environment label filter")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="Batch label filter")] = None,
+        tag: Annotated[Optional[StrictStr], Field(description="Category label filter")] = None,
+        benchmark: Annotated[Optional[StrictStr], Field(description="Benchmark type filter")] = None,
+        status: Annotated[Optional[StrictInt], Field(description="Status filter, refer to field mapping interface (/mapping) for specific values")] = None,
+        fault_type: Annotated[Optional[StrictInt], Field(description="Fault type filter, refer to field mapping interface (/mapping) for specific values")] = None,
+        sort_field: Annotated[Optional[StrictStr], Field(description="Sort field, default created_at")] = None,
+        sort_order: Annotated[Optional[StrictStr], Field(description="Sort order, default desc")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Result quantity limit, used to control the number of returned records")] = None,
+        page_num: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Pagination query, page number")] = None,
+        page_size: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Pagination query, records per page")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="Time range query, supports custom relative time (1h/24h/7d) or custom, default not set")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="Custom start time, RFC3339 format, required when lookback=custom")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="Custom end time, RFC3339 format, required when lookback=custom")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1814,15 +1789,41 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseDtoPaginationRespDtoInjectionItem]:
-        """分页查询注入记录列表
+    ) -> ApiResponse[DtoGenericResponseDtoListInjectionsResp]:
+        """Get Fault Injection Record List
 
-        获取注入记录列表（支持分页参数）
+        Fault injection record query interface supporting sorting and filtering. Returns the original database record list without data conversion.
 
-        :param page_num: 页码
+        :param project_name: Project name filter
+        :type project_name: str
+        :param env: Environment label filter
+        :type env: str
+        :param batch: Batch label filter
+        :type batch: str
+        :param tag: Category label filter
+        :type tag: str
+        :param benchmark: Benchmark type filter
+        :type benchmark: str
+        :param status: Status filter, refer to field mapping interface (/mapping) for specific values
+        :type status: int
+        :param fault_type: Fault type filter, refer to field mapping interface (/mapping) for specific values
+        :type fault_type: int
+        :param sort_field: Sort field, default created_at
+        :type sort_field: str
+        :param sort_order: Sort order, default desc
+        :type sort_order: str
+        :param limit: Result quantity limit, used to control the number of returned records
+        :type limit: int
+        :param page_num: Pagination query, page number
         :type page_num: int
-        :param page_size: 每页大小
+        :param page_size: Pagination query, records per page
         :type page_size: int
+        :param lookback: Time range query, supports custom relative time (1h/24h/7d) or custom, default not set
+        :type lookback: str
+        :param custom_start_time: Custom start time, RFC3339 format, required when lookback=custom
+        :type custom_start_time: datetime
+        :param custom_end_time: Custom end time, RFC3339 format, required when lookback=custom
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1846,8 +1847,21 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_get_serialize(
+            project_name=project_name,
+            env=env,
+            batch=batch,
+            tag=tag,
+            benchmark=benchmark,
+            status=status,
+            fault_type=fault_type,
+            sort_field=sort_field,
+            sort_order=sort_order,
+            limit=limit,
             page_num=page_num,
             page_size=page_size,
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1855,7 +1869,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoPaginationRespDtoInjectionItem",
+            '200': "DtoGenericResponseDtoListInjectionsResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -1873,8 +1887,21 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_get_without_preload_content(
         self,
-        page_num: Annotated[Optional[StrictInt], Field(description="页码")] = None,
-        page_size: Annotated[Optional[StrictInt], Field(description="每页大小")] = None,
+        project_name: Annotated[Optional[StrictStr], Field(description="Project name filter")] = None,
+        env: Annotated[Optional[StrictStr], Field(description="Environment label filter")] = None,
+        batch: Annotated[Optional[StrictStr], Field(description="Batch label filter")] = None,
+        tag: Annotated[Optional[StrictStr], Field(description="Category label filter")] = None,
+        benchmark: Annotated[Optional[StrictStr], Field(description="Benchmark type filter")] = None,
+        status: Annotated[Optional[StrictInt], Field(description="Status filter, refer to field mapping interface (/mapping) for specific values")] = None,
+        fault_type: Annotated[Optional[StrictInt], Field(description="Fault type filter, refer to field mapping interface (/mapping) for specific values")] = None,
+        sort_field: Annotated[Optional[StrictStr], Field(description="Sort field, default created_at")] = None,
+        sort_order: Annotated[Optional[StrictStr], Field(description="Sort order, default desc")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Result quantity limit, used to control the number of returned records")] = None,
+        page_num: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Pagination query, page number")] = None,
+        page_size: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Pagination query, records per page")] = None,
+        lookback: Annotated[Optional[StrictStr], Field(description="Time range query, supports custom relative time (1h/24h/7d) or custom, default not set")] = None,
+        custom_start_time: Annotated[Optional[datetime], Field(description="Custom start time, RFC3339 format, required when lookback=custom")] = None,
+        custom_end_time: Annotated[Optional[datetime], Field(description="Custom end time, RFC3339 format, required when lookback=custom")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1888,14 +1915,40 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """分页查询注入记录列表
+        """Get Fault Injection Record List
 
-        获取注入记录列表（支持分页参数）
+        Fault injection record query interface supporting sorting and filtering. Returns the original database record list without data conversion.
 
-        :param page_num: 页码
+        :param project_name: Project name filter
+        :type project_name: str
+        :param env: Environment label filter
+        :type env: str
+        :param batch: Batch label filter
+        :type batch: str
+        :param tag: Category label filter
+        :type tag: str
+        :param benchmark: Benchmark type filter
+        :type benchmark: str
+        :param status: Status filter, refer to field mapping interface (/mapping) for specific values
+        :type status: int
+        :param fault_type: Fault type filter, refer to field mapping interface (/mapping) for specific values
+        :type fault_type: int
+        :param sort_field: Sort field, default created_at
+        :type sort_field: str
+        :param sort_order: Sort order, default desc
+        :type sort_order: str
+        :param limit: Result quantity limit, used to control the number of returned records
+        :type limit: int
+        :param page_num: Pagination query, page number
         :type page_num: int
-        :param page_size: 每页大小
+        :param page_size: Pagination query, records per page
         :type page_size: int
+        :param lookback: Time range query, supports custom relative time (1h/24h/7d) or custom, default not set
+        :type lookback: str
+        :param custom_start_time: Custom start time, RFC3339 format, required when lookback=custom
+        :type custom_start_time: datetime
+        :param custom_end_time: Custom end time, RFC3339 format, required when lookback=custom
+        :type custom_end_time: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1919,8 +1972,21 @@ class InjectionApi:
         """ # noqa: E501
 
         _param = self._api_v1_injections_get_serialize(
+            project_name=project_name,
+            env=env,
+            batch=batch,
+            tag=tag,
+            benchmark=benchmark,
+            status=status,
+            fault_type=fault_type,
+            sort_field=sort_field,
+            sort_order=sort_order,
+            limit=limit,
             page_num=page_num,
             page_size=page_size,
+            lookback=lookback,
+            custom_start_time=custom_start_time,
+            custom_end_time=custom_end_time,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1928,7 +1994,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoPaginationRespDtoInjectionItem",
+            '200': "DtoGenericResponseDtoListInjectionsResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -1941,8 +2007,21 @@ class InjectionApi:
 
     def _api_v1_injections_get_serialize(
         self,
+        project_name,
+        env,
+        batch,
+        tag,
+        benchmark,
+        status,
+        fault_type,
+        sort_field,
+        sort_order,
+        limit,
         page_num,
         page_size,
+        lookback,
+        custom_start_time,
+        custom_end_time,
         _request_auth,
         _content_type,
         _headers,
@@ -1965,6 +2044,46 @@ class InjectionApi:
 
         # process the path parameters
         # process the query parameters
+        if project_name is not None:
+            
+            _query_params.append(('project_name', project_name))
+            
+        if env is not None:
+            
+            _query_params.append(('env', env))
+            
+        if batch is not None:
+            
+            _query_params.append(('batch', batch))
+            
+        if tag is not None:
+            
+            _query_params.append(('tag', tag))
+            
+        if benchmark is not None:
+            
+            _query_params.append(('benchmark', benchmark))
+            
+        if status is not None:
+            
+            _query_params.append(('status', status))
+            
+        if fault_type is not None:
+            
+            _query_params.append(('fault_type', fault_type))
+            
+        if sort_field is not None:
+            
+            _query_params.append(('sort_field', sort_field))
+            
+        if sort_order is not None:
+            
+            _query_params.append(('sort_order', sort_order))
+            
+        if limit is not None:
+            
+            _query_params.append(('limit', limit))
+            
         if page_num is not None:
             
             _query_params.append(('page_num', page_num))
@@ -1972,6 +2091,36 @@ class InjectionApi:
         if page_size is not None:
             
             _query_params.append(('page_size', page_size))
+            
+        if lookback is not None:
+            
+            _query_params.append(('lookback', lookback))
+            
+        if custom_start_time is not None:
+            if isinstance(custom_start_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_start_time',
+                        custom_start_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_start_time', custom_start_time))
+            
+        if custom_end_time is not None:
+            if isinstance(custom_end_time, datetime):
+                _query_params.append(
+                    (
+                        'custom_end_time',
+                        custom_end_time.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('custom_end_time', custom_end_time))
             
         # process the header parameters
         # process the form parameters
@@ -2010,7 +2159,7 @@ class InjectionApi:
 
 
     @validate_call
-    def api_v1_injections_ns_status_get(
+    def api_v1_injections_mapping_get(
         self,
         _request_timeout: Union[
             None,
@@ -2024,10 +2173,10 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseAny:
-        """获取命名空间锁状态
+    ) -> DtoGenericResponseDtoInjectionFieldMappingResp:
+        """Get Field Mapping
 
-        获取命名空间锁状态信息
+        Get string-to-number mapping relationships for status and fault types, used for frontend display and API parameter validation
 
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -2051,7 +2200,7 @@ class InjectionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_injections_ns_status_get_serialize(
+        _param = self._api_v1_injections_mapping_get_serialize(
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2059,7 +2208,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseAny",
+            '200': "DtoGenericResponseDtoInjectionFieldMappingResp",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -2074,7 +2223,7 @@ class InjectionApi:
 
 
     @validate_call
-    def api_v1_injections_ns_status_get_with_http_info(
+    def api_v1_injections_mapping_get_with_http_info(
         self,
         _request_timeout: Union[
             None,
@@ -2088,10 +2237,10 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseAny]:
-        """获取命名空间锁状态
+    ) -> ApiResponse[DtoGenericResponseDtoInjectionFieldMappingResp]:
+        """Get Field Mapping
 
-        获取命名空间锁状态信息
+        Get string-to-number mapping relationships for status and fault types, used for frontend display and API parameter validation
 
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -2115,7 +2264,7 @@ class InjectionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_injections_ns_status_get_serialize(
+        _param = self._api_v1_injections_mapping_get_serialize(
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2123,7 +2272,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseAny",
+            '200': "DtoGenericResponseDtoInjectionFieldMappingResp",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -2138,7 +2287,7 @@ class InjectionApi:
 
 
     @validate_call
-    def api_v1_injections_ns_status_get_without_preload_content(
+    def api_v1_injections_mapping_get_without_preload_content(
         self,
         _request_timeout: Union[
             None,
@@ -2153,9 +2302,9 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """获取命名空间锁状态
+        """Get Field Mapping
 
-        获取命名空间锁状态信息
+        Get string-to-number mapping relationships for status and fault types, used for frontend display and API parameter validation
 
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -2179,7 +2328,7 @@ class InjectionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_injections_ns_status_get_serialize(
+        _param = self._api_v1_injections_mapping_get_serialize(
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2187,7 +2336,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseAny",
+            '200': "DtoGenericResponseDtoInjectionFieldMappingResp",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -2197,7 +2346,7 @@ class InjectionApi:
         return response_data.response
 
 
-    def _api_v1_injections_ns_status_get_serialize(
+    def _api_v1_injections_mapping_get_serialize(
         self,
         _request_auth,
         _content_type,
@@ -2241,7 +2390,275 @@ class InjectionApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/v1/injections/ns/status',
+            resource_path='/api/v1/injections/mapping',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def api_v1_injections_ns_resources_get(
+        self,
+        namespace: Annotated[Optional[StrictStr], Field(description="Namespace name, returns resource mappings for all namespaces if not specified")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> DtoGenericResponseHandlerResources:
+        """Get Namespace Resource Mapping
+
+        Get mapping of all namespaces and their corresponding resource information, or query resource information for a specific namespace. Returns a mapping table from namespace to resources, used for fault injection configuration and resource management
+
+        :param namespace: Namespace name, returns resource mappings for all namespaces if not specified
+        :type namespace: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v1_injections_ns_resources_get_serialize(
+            namespace=namespace,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseHandlerResources",
+            '404': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def api_v1_injections_ns_resources_get_with_http_info(
+        self,
+        namespace: Annotated[Optional[StrictStr], Field(description="Namespace name, returns resource mappings for all namespaces if not specified")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[DtoGenericResponseHandlerResources]:
+        """Get Namespace Resource Mapping
+
+        Get mapping of all namespaces and their corresponding resource information, or query resource information for a specific namespace. Returns a mapping table from namespace to resources, used for fault injection configuration and resource management
+
+        :param namespace: Namespace name, returns resource mappings for all namespaces if not specified
+        :type namespace: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v1_injections_ns_resources_get_serialize(
+            namespace=namespace,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseHandlerResources",
+            '404': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def api_v1_injections_ns_resources_get_without_preload_content(
+        self,
+        namespace: Annotated[Optional[StrictStr], Field(description="Namespace name, returns resource mappings for all namespaces if not specified")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Get Namespace Resource Mapping
+
+        Get mapping of all namespaces and their corresponding resource information, or query resource information for a specific namespace. Returns a mapping table from namespace to resources, used for fault injection configuration and resource management
+
+        :param namespace: Namespace name, returns resource mappings for all namespaces if not specified
+        :type namespace: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._api_v1_injections_ns_resources_get_serialize(
+            namespace=namespace,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DtoGenericResponseHandlerResources",
+            '404': "DtoGenericResponseAny",
+            '500': "DtoGenericResponseAny",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _api_v1_injections_ns_resources_get_serialize(
+        self,
+        namespace,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        # process the query parameters
+        if namespace is not None:
+            
+            _query_params.append(('namespace', namespace))
+            
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+
+        # authentication setting
+        _auth_settings: List[str] = [
+        ]
+
+        return self.api_client.param_serialize(
+            method='GET',
+            resource_path='/api/v1/injections/ns-resources',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2260,7 +2677,7 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_post(
         self,
-        body: Annotated[DtoInjectionSubmitReq, Field(description="请求体")],
+        body: Annotated[DtoSubmitInjectionReq, Field(description="Fault injection request body")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2273,13 +2690,13 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseDtoSubmitResp:
-        """注入故障
+    ) -> DtoGenericResponseDtoSubmitInjectionResp:
+        """Submit Fault Injection Task
 
-        注入故障
+        Submit fault injection task, supporting batch submission of multiple fault configurations, the system will automatically deduplicate and return submission results
 
-        :param body: 请求体 (required)
-        :type body: DtoInjectionSubmitReq
+        :param body: Fault injection request body (required)
+        :type body: DtoSubmitInjectionReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2311,7 +2728,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '202': "DtoGenericResponseDtoSubmitResp",
+            '202': "DtoGenericResponseDtoSubmitInjectionResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -2329,7 +2746,7 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_post_with_http_info(
         self,
-        body: Annotated[DtoInjectionSubmitReq, Field(description="请求体")],
+        body: Annotated[DtoSubmitInjectionReq, Field(description="Fault injection request body")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2342,13 +2759,13 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseDtoSubmitResp]:
-        """注入故障
+    ) -> ApiResponse[DtoGenericResponseDtoSubmitInjectionResp]:
+        """Submit Fault Injection Task
 
-        注入故障
+        Submit fault injection task, supporting batch submission of multiple fault configurations, the system will automatically deduplicate and return submission results
 
-        :param body: 请求体 (required)
-        :type body: DtoInjectionSubmitReq
+        :param body: Fault injection request body (required)
+        :type body: DtoSubmitInjectionReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2380,7 +2797,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '202': "DtoGenericResponseDtoSubmitResp",
+            '202': "DtoGenericResponseDtoSubmitInjectionResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -2398,7 +2815,7 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_post_without_preload_content(
         self,
-        body: Annotated[DtoInjectionSubmitReq, Field(description="请求体")],
+        body: Annotated[DtoSubmitInjectionReq, Field(description="Fault injection request body")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2412,12 +2829,12 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """注入故障
+        """Submit Fault Injection Task
 
-        注入故障
+        Submit fault injection task, supporting batch submission of multiple fault configurations, the system will automatically deduplicate and return submission results
 
-        :param body: 请求体 (required)
-        :type body: DtoInjectionSubmitReq
+        :param body: Fault injection request body (required)
+        :type body: DtoSubmitInjectionReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2449,7 +2866,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '202': "DtoGenericResponseDtoSubmitResp",
+            '202': "DtoGenericResponseDtoSubmitInjectionResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -2526,8 +2943,8 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_query_get(
         self,
-        name: Annotated[Optional[StrictStr], Field(description="注入名称")] = None,
-        task_id: Annotated[Optional[StrictStr], Field(description="任务ID")] = None,
+        name: Annotated[Optional[StrictStr], Field(description="Fault injection name")] = None,
+        task_id: Annotated[Optional[StrictStr], Field(description="Task ID")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2540,14 +2957,14 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseDtoInjectionItem:
-        """查询故障注入记录
+    ) -> DtoGenericResponseDtoQueryInjectionResp:
+        """Query Single Fault Injection Record
 
-        根据名称或任务ID查询故障注入记录详情
+        Query fault injection record details by name or task ID, at least one of the two parameters must be provided
 
-        :param name: 注入名称
+        :param name: Fault injection name
         :type name: str
-        :param task_id: 任务ID
+        :param task_id: Task ID
         :type task_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -2581,7 +2998,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoInjectionItem",
+            '200': "DtoGenericResponseDtoQueryInjectionResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -2599,8 +3016,8 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_query_get_with_http_info(
         self,
-        name: Annotated[Optional[StrictStr], Field(description="注入名称")] = None,
-        task_id: Annotated[Optional[StrictStr], Field(description="任务ID")] = None,
+        name: Annotated[Optional[StrictStr], Field(description="Fault injection name")] = None,
+        task_id: Annotated[Optional[StrictStr], Field(description="Task ID")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2613,14 +3030,14 @@ class InjectionApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseDtoInjectionItem]:
-        """查询故障注入记录
+    ) -> ApiResponse[DtoGenericResponseDtoQueryInjectionResp]:
+        """Query Single Fault Injection Record
 
-        根据名称或任务ID查询故障注入记录详情
+        Query fault injection record details by name or task ID, at least one of the two parameters must be provided
 
-        :param name: 注入名称
+        :param name: Fault injection name
         :type name: str
-        :param task_id: 任务ID
+        :param task_id: Task ID
         :type task_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -2654,7 +3071,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoInjectionItem",
+            '200': "DtoGenericResponseDtoQueryInjectionResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -2672,8 +3089,8 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_query_get_without_preload_content(
         self,
-        name: Annotated[Optional[StrictStr], Field(description="注入名称")] = None,
-        task_id: Annotated[Optional[StrictStr], Field(description="任务ID")] = None,
+        name: Annotated[Optional[StrictStr], Field(description="Fault injection name")] = None,
+        task_id: Annotated[Optional[StrictStr], Field(description="Task ID")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2687,13 +3104,13 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """查询故障注入记录
+        """Query Single Fault Injection Record
 
-        根据名称或任务ID查询故障注入记录详情
+        Query fault injection record details by name or task ID, at least one of the two parameters must be provided
 
-        :param name: 注入名称
+        :param name: Fault injection name
         :type name: str
-        :param task_id: 任务ID
+        :param task_id: Task ID
         :type task_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -2727,7 +3144,7 @@ class InjectionApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoInjectionItem",
+            '200': "DtoGenericResponseDtoQueryInjectionResp",
             '400': "DtoGenericResponseAny",
             '500': "DtoGenericResponseAny",
         }
@@ -2811,7 +3228,7 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_task_id_cancel_put(
         self,
-        task_id: Annotated[StrictStr, Field(description="任务ID")],
+        task_id: Annotated[StrictStr, Field(description="Task ID")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2825,11 +3242,11 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseDtoInjectCancelResp:
-        """取消故障注入任务
+        """Cancel Fault Injection Task
 
-        取消指定的故障注入任务
+        Cancel the specified fault injection task
 
-        :param task_id: 任务ID (required)
+        :param task_id: Task ID (required)
         :type task_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -2880,7 +3297,7 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_task_id_cancel_put_with_http_info(
         self,
-        task_id: Annotated[StrictStr, Field(description="任务ID")],
+        task_id: Annotated[StrictStr, Field(description="Task ID")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2894,11 +3311,11 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseDtoInjectCancelResp]:
-        """取消故障注入任务
+        """Cancel Fault Injection Task
 
-        取消指定的故障注入任务
+        Cancel the specified fault injection task
 
-        :param task_id: 任务ID (required)
+        :param task_id: Task ID (required)
         :type task_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -2949,7 +3366,7 @@ class InjectionApi:
     @validate_call
     def api_v1_injections_task_id_cancel_put_without_preload_content(
         self,
-        task_id: Annotated[StrictStr, Field(description="任务ID")],
+        task_id: Annotated[StrictStr, Field(description="Task ID")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2963,11 +3380,11 @@ class InjectionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """取消故障注入任务
+        """Cancel Fault Injection Task
 
-        取消指定的故障注入任务
+        Cancel the specified fault injection task
 
-        :param task_id: 任务ID (required)
+        :param task_id: Task ID (required)
         :type task_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request

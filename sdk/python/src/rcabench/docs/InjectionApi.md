@@ -4,96 +4,25 @@ All URIs are relative to *http://localhost:8080/api/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**api_v1_injections_analysis_dataset_dataset_id_get**](InjectionApi.md#api_v1_injections_analysis_dataset_dataset_id_get) | **GET** /api/v1/injections/analysis/dataset/{dataset_id} | 根据数据集ID查询故障注入记录
-[**api_v1_injections_analysis_no_issues_get**](InjectionApi.md#api_v1_injections_analysis_no_issues_get) | **GET** /api/v1/injections/analysis/no-issues | 查询没有问题的故障注入记录
-[**api_v1_injections_analysis_statistics_get**](InjectionApi.md#api_v1_injections_analysis_statistics_get) | **GET** /api/v1/injections/analysis/statistics | 获取故障注入统计信息
-[**api_v1_injections_analysis_with_issues_get**](InjectionApi.md#api_v1_injections_analysis_with_issues_get) | **GET** /api/v1/injections/analysis/with-issues | 查询有问题的故障注入记录
-[**api_v1_injections_conf_get**](InjectionApi.md#api_v1_injections_conf_get) | **GET** /api/v1/injections/conf | 获取故障注入配置
-[**api_v1_injections_configs_get**](InjectionApi.md#api_v1_injections_configs_get) | **GET** /api/v1/injections/configs | 获取故障注入配置列表
-[**api_v1_injections_get**](InjectionApi.md#api_v1_injections_get) | **GET** /api/v1/injections | 分页查询注入记录列表
-[**api_v1_injections_ns_status_get**](InjectionApi.md#api_v1_injections_ns_status_get) | **GET** /api/v1/injections/ns/status | 获取命名空间锁状态
-[**api_v1_injections_post**](InjectionApi.md#api_v1_injections_post) | **POST** /api/v1/injections | 注入故障
-[**api_v1_injections_query_get**](InjectionApi.md#api_v1_injections_query_get) | **GET** /api/v1/injections/query | 查询故障注入记录
-[**api_v1_injections_task_id_cancel_put**](InjectionApi.md#api_v1_injections_task_id_cancel_put) | **PUT** /api/v1/injections/{task_id}/cancel | 取消故障注入任务
+[**api_v1_injections_analysis_no_issues_get**](InjectionApi.md#api_v1_injections_analysis_no_issues_get) | **GET** /api/v1/injections/analysis/no-issues | Query Fault Injection Records Without Issues
+[**api_v1_injections_analysis_stats_get**](InjectionApi.md#api_v1_injections_analysis_stats_get) | **GET** /api/v1/injections/analysis/stats | Get Fault Injection Statistics
+[**api_v1_injections_analysis_with_issues_get**](InjectionApi.md#api_v1_injections_analysis_with_issues_get) | **GET** /api/v1/injections/analysis/with-issues | Query Fault Injection Records With Issues
+[**api_v1_injections_conf_get**](InjectionApi.md#api_v1_injections_conf_get) | **GET** /api/v1/injections/conf | Get Fault Injection Configuration
+[**api_v1_injections_configs_get**](InjectionApi.md#api_v1_injections_configs_get) | **GET** /api/v1/injections/configs | Get Injected Fault Configuration List
+[**api_v1_injections_get**](InjectionApi.md#api_v1_injections_get) | **GET** /api/v1/injections | Get Fault Injection Record List
+[**api_v1_injections_mapping_get**](InjectionApi.md#api_v1_injections_mapping_get) | **GET** /api/v1/injections/mapping | Get Field Mapping
+[**api_v1_injections_ns_resources_get**](InjectionApi.md#api_v1_injections_ns_resources_get) | **GET** /api/v1/injections/ns-resources | Get Namespace Resource Mapping
+[**api_v1_injections_post**](InjectionApi.md#api_v1_injections_post) | **POST** /api/v1/injections | Submit Fault Injection Task
+[**api_v1_injections_query_get**](InjectionApi.md#api_v1_injections_query_get) | **GET** /api/v1/injections/query | Query Single Fault Injection Record
+[**api_v1_injections_task_id_cancel_put**](InjectionApi.md#api_v1_injections_task_id_cancel_put) | **PUT** /api/v1/injections/{task_id}/cancel | Cancel Fault Injection Task
 
-
-# **api_v1_injections_analysis_dataset_dataset_id_get**
-> DtoGenericResponseAny api_v1_injections_analysis_dataset_dataset_id_get(dataset_id)
-
-根据数据集ID查询故障注入记录
-
-根据数据集ID查询故障注入记录详情（包括是否有问题）
-
-### Example
-
-
-```python
-import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_any import DtoGenericResponseAny
-from rcabench.openapi.rest import ApiException
-from pprint import pprint
-
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
-# See configuration.py for a list of all supported configuration parameters.
-configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
-)
-
-
-# Enter a context with an instance of the API client
-with rcabench.openapi.ApiClient(configuration) as api_client:
-    # Create an instance of the API class
-    api_instance = rcabench.openapi.InjectionApi(api_client)
-    dataset_id = 56 # int | 数据集ID
-
-    try:
-        # 根据数据集ID查询故障注入记录
-        api_response = api_instance.api_v1_injections_analysis_dataset_dataset_id_get(dataset_id)
-        print("The response of InjectionApi->api_v1_injections_analysis_dataset_dataset_id_get:\n")
-        pprint(api_response)
-    except Exception as e:
-        print("Exception when calling InjectionApi->api_v1_injections_analysis_dataset_dataset_id_get: %s\n" % e)
-```
-
-
-
-### Parameters
-
-
-Name | Type | Description  | Notes
-------------- | ------------- | ------------- | -------------
- **dataset_id** | **int**| 数据集ID | 
-
-### Return type
-
-[**DtoGenericResponseAny**](DtoGenericResponseAny.md)
-
-### Authorization
-
-No authorization required
-
-### HTTP request headers
-
- - **Content-Type**: Not defined
- - **Accept**: application/json
-
-### HTTP response details
-
-| Status code | Description | Response headers |
-|-------------|-------------|------------------|
-**200** | OK |  -  |
-**400** | Bad Request |  -  |
-**404** | Not Found |  -  |
-**500** | Internal Server Error |  -  |
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_injections_analysis_no_issues_get**
-> DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp api_v1_injections_analysis_no_issues_get(lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
+> DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp api_v1_injections_analysis_no_issues_get(env=env, batch=batch, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
 
-查询没有问题的故障注入记录
+Query Fault Injection Records Without Issues
 
-根据时间范围查询所有没有问题的故障注入记录列表
+Query all fault injection records without issues based on time range, returning detailed records including configuration information
 
 ### Example
 
@@ -115,13 +44,15 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.InjectionApi(api_client)
-    lookback = 'lookback_example' # str | 相对时间查询，如 1h, 24h, 7d或者是custom (optional)
-    custom_start_time = 'custom_start_time_example' # str | 当lookback=custom时必需，自定义开始时间 (RFC3339格式) (optional)
-    custom_end_time = 'custom_end_time_example' # str | 当lookback=custom时必需，自定义结束时间 (RFC3339格式) (optional)
+    env = 'env_example' # str | Environment label filter (optional)
+    batch = 'batch_example' # str | Batch label filter (optional)
+    lookback = 'lookback_example' # str | Time range query, supports custom relative time (1h/24h/7d) or custom, default not set (optional)
+    custom_start_time = '2013-10-20T19:20:30+01:00' # datetime | Custom start time, RFC3339 format, required when lookback=custom (optional)
+    custom_end_time = '2013-10-20T19:20:30+01:00' # datetime | Custom end time, RFC3339 format, required when lookback=custom (optional)
 
     try:
-        # 查询没有问题的故障注入记录
-        api_response = api_instance.api_v1_injections_analysis_no_issues_get(lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
+        # Query Fault Injection Records Without Issues
+        api_response = api_instance.api_v1_injections_analysis_no_issues_get(env=env, batch=batch, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
         print("The response of InjectionApi->api_v1_injections_analysis_no_issues_get:\n")
         pprint(api_response)
     except Exception as e:
@@ -135,9 +66,11 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **lookback** | **str**| 相对时间查询，如 1h, 24h, 7d或者是custom | [optional] 
- **custom_start_time** | **str**| 当lookback&#x3D;custom时必需，自定义开始时间 (RFC3339格式) | [optional] 
- **custom_end_time** | **str**| 当lookback&#x3D;custom时必需，自定义结束时间 (RFC3339格式) | [optional] 
+ **env** | **str**| Environment label filter | [optional] 
+ **batch** | **str**| Batch label filter | [optional] 
+ **lookback** | **str**| Time range query, supports custom relative time (1h/24h/7d) or custom, default not set | [optional] 
+ **custom_start_time** | **datetime**| Custom start time, RFC3339 format, required when lookback&#x3D;custom | [optional] 
+ **custom_end_time** | **datetime**| Custom end time, RFC3339 format, required when lookback&#x3D;custom | [optional] 
 
 ### Return type
 
@@ -156,25 +89,25 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | OK |  -  |
-**400** | 参数错误或时间格式错误 |  -  |
-**500** | 服务器内部错误 |  -  |
+**200** | Successfully returned fault injection records without issues |  -  |
+**400** | Request parameter error, such as incorrect time format or parameter validation failure, etc. |  -  |
+**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **api_v1_injections_analysis_statistics_get**
-> DtoGenericResponseDtoFaultInjectionStatisticsResp api_v1_injections_analysis_statistics_get()
+# **api_v1_injections_analysis_stats_get**
+> DtoGenericResponseDtoInjectionStatsResp api_v1_injections_analysis_stats_get(lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
 
-获取故障注入统计信息
+Get Fault Injection Statistics
 
-获取故障注入记录的统计信息，包括有问题和没有问题的记录数量
+Get statistical information of fault injection records, including counts of records with issues, without issues, and total records
 
 ### Example
 
 
 ```python
 import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_dto_fault_injection_statistics_resp import DtoGenericResponseDtoFaultInjectionStatisticsResp
+from rcabench.openapi.models.dto_generic_response_dto_injection_stats_resp import DtoGenericResponseDtoInjectionStatsResp
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
@@ -189,25 +122,33 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.InjectionApi(api_client)
+    lookback = 'lookback_example' # str | Time range query, supports custom relative time (1h/24h/7d) or custom, default not set (optional)
+    custom_start_time = '2013-10-20T19:20:30+01:00' # datetime | Custom start time, RFC3339 format, required when lookback=custom (optional)
+    custom_end_time = '2013-10-20T19:20:30+01:00' # datetime | Custom end time, RFC3339 format, required when lookback=custom (optional)
 
     try:
-        # 获取故障注入统计信息
-        api_response = api_instance.api_v1_injections_analysis_statistics_get()
-        print("The response of InjectionApi->api_v1_injections_analysis_statistics_get:\n")
+        # Get Fault Injection Statistics
+        api_response = api_instance.api_v1_injections_analysis_stats_get(lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
+        print("The response of InjectionApi->api_v1_injections_analysis_stats_get:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling InjectionApi->api_v1_injections_analysis_statistics_get: %s\n" % e)
+        print("Exception when calling InjectionApi->api_v1_injections_analysis_stats_get: %s\n" % e)
 ```
 
 
 
 ### Parameters
 
-This endpoint does not need any parameter.
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **lookback** | **str**| Time range query, supports custom relative time (1h/24h/7d) or custom, default not set | [optional] 
+ **custom_start_time** | **datetime**| Custom start time, RFC3339 format, required when lookback&#x3D;custom | [optional] 
+ **custom_end_time** | **datetime**| Custom end time, RFC3339 format, required when lookback&#x3D;custom | [optional] 
 
 ### Return type
 
-[**DtoGenericResponseDtoFaultInjectionStatisticsResp**](DtoGenericResponseDtoFaultInjectionStatisticsResp.md)
+[**DtoGenericResponseDtoInjectionStatsResp**](DtoGenericResponseDtoInjectionStatsResp.md)
 
 ### Authorization
 
@@ -222,17 +163,18 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | OK |  -  |
-**500** | Internal Server Error |  -  |
+**200** | Successfully returned fault injection statistics |  -  |
+**400** | Request parameter error, such as incorrect time format or parameter validation failure, etc. |  -  |
+**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_injections_analysis_with_issues_get**
-> DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp api_v1_injections_analysis_with_issues_get(lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
+> DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp api_v1_injections_analysis_with_issues_get(env=env, batch=batch, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
 
-查询有问题的故障注入记录
+Query Fault Injection Records With Issues
 
-根据时间范围查询所有有问题的故障注入记录列表
+Query all fault injection records with issues based on time range
 
 ### Example
 
@@ -254,13 +196,15 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.InjectionApi(api_client)
-    lookback = 'lookback_example' # str | 相对时间查询，如 1h, 24h, 7d或者是custom (optional)
-    custom_start_time = 'custom_start_time_example' # str | 当lookback=custom时必需，自定义开始时间 (RFC3339格式) (optional)
-    custom_end_time = 'custom_end_time_example' # str | 当lookback=custom时必需，自定义结束时间 (RFC3339格式) (optional)
+    env = 'env_example' # str | Environment label filter (optional)
+    batch = 'batch_example' # str | Batch label filter (optional)
+    lookback = 'lookback_example' # str | Time range query, supports custom relative time (1h/24h/7d) or custom, default not set (optional)
+    custom_start_time = '2013-10-20T19:20:30+01:00' # datetime | Custom start time, RFC3339 format, required when lookback=custom (optional)
+    custom_end_time = '2013-10-20T19:20:30+01:00' # datetime | Custom end time, RFC3339 format, required when lookback=custom (optional)
 
     try:
-        # 查询有问题的故障注入记录
-        api_response = api_instance.api_v1_injections_analysis_with_issues_get(lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
+        # Query Fault Injection Records With Issues
+        api_response = api_instance.api_v1_injections_analysis_with_issues_get(env=env, batch=batch, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
         print("The response of InjectionApi->api_v1_injections_analysis_with_issues_get:\n")
         pprint(api_response)
     except Exception as e:
@@ -274,9 +218,11 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **lookback** | **str**| 相对时间查询，如 1h, 24h, 7d或者是custom | [optional] 
- **custom_start_time** | **str**| 当lookback&#x3D;custom时必需，自定义开始时间 (RFC3339格式) | [optional] 
- **custom_end_time** | **str**| 当lookback&#x3D;custom时必需，自定义结束时间 (RFC3339格式) | [optional] 
+ **env** | **str**| Environment label filter | [optional] 
+ **batch** | **str**| Batch label filter | [optional] 
+ **lookback** | **str**| Time range query, supports custom relative time (1h/24h/7d) or custom, default not set | [optional] 
+ **custom_start_time** | **datetime**| Custom start time, RFC3339 format, required when lookback&#x3D;custom | [optional] 
+ **custom_end_time** | **datetime**| Custom end time, RFC3339 format, required when lookback&#x3D;custom | [optional] 
 
 ### Return type
 
@@ -296,17 +242,17 @@ No authorization required
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 **200** | OK |  -  |
-**400** | 参数错误或时间格式错误 |  -  |
-**500** | 服务器内部错误 |  -  |
+**400** | Request parameter error, such as incorrect time format or parameter validation failure, etc. |  -  |
+**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_injections_conf_get**
-> DtoGenericResponseHandlerNode api_v1_injections_conf_get(namespace, mode)
+> DtoGenericResponseHandlerNode api_v1_injections_conf_get(namespace, mode=mode)
 
-获取故障注入配置
+Get Fault Injection Configuration
 
-获取指定命名空间的故障注入配置信息
+Get fault injection configuration for the specified namespace, supporting different display modes for configuration tree structure
 
 ### Example
 
@@ -328,12 +274,12 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.InjectionApi(api_client)
-    namespace = 'namespace_example' # str | 命名空间
-    mode = 'mode_example' # str | 显示模式(display/engine)
+    namespace = 'namespace_example' # str | Namespace, specifies the namespace to get configuration for
+    mode = engine # str | Display mode (optional) (default to engine)
 
     try:
-        # 获取故障注入配置
-        api_response = api_instance.api_v1_injections_conf_get(namespace, mode)
+        # Get Fault Injection Configuration
+        api_response = api_instance.api_v1_injections_conf_get(namespace, mode=mode)
         print("The response of InjectionApi->api_v1_injections_conf_get:\n")
         pprint(api_response)
     except Exception as e:
@@ -347,8 +293,8 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **namespace** | **str**| 命名空间 | 
- **mode** | **str**| 显示模式(display/engine) | 
+ **namespace** | **str**| Namespace, specifies the namespace to get configuration for | 
+ **mode** | **str**| Display mode | [optional] [default to engine]
 
 ### Return type
 
@@ -367,18 +313,18 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | OK |  -  |
-**400** | Bad Request |  -  |
-**500** | Internal Server Error |  -  |
+**200** | Successfully returned configuration tree structure |  -  |
+**400** | Request parameter error, such as missing namespace or mode parameter |  -  |
+**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_injections_configs_get**
-> DtoGenericResponseAny api_v1_injections_configs_get(trace_ids)
+> DtoGenericResponseAny api_v1_injections_configs_get(trace_ids=trace_ids)
 
-获取故障注入配置列表
+Get Injected Fault Configuration List
 
-根据多个 TraceID 获取对应的故障注入配置信息
+Get fault injection configuration information based on multiple TraceIDs, used to view configuration details of submitted fault injection tasks
 
 ### Example
 
@@ -400,11 +346,11 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.InjectionApi(api_client)
-    trace_ids = ['trace_ids_example'] # List[str] | Trace ID 列表
+    trace_ids = ['trace_ids_example'] # List[str] | TraceID list, supports multiple values, used to query corresponding configuration information (optional)
 
     try:
-        # 获取故障注入配置列表
-        api_response = api_instance.api_v1_injections_configs_get(trace_ids)
+        # Get Injected Fault Configuration List
+        api_response = api_instance.api_v1_injections_configs_get(trace_ids=trace_ids)
         print("The response of InjectionApi->api_v1_injections_configs_get:\n")
         pprint(api_response)
     except Exception as e:
@@ -418,7 +364,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **trace_ids** | [**List[str]**](str.md)| Trace ID 列表 | 
+ **trace_ids** | [**List[str]**](str.md)| TraceID list, supports multiple values, used to query corresponding configuration information | [optional] 
 
 ### Return type
 
@@ -437,25 +383,25 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | OK |  -  |
-**400** | Bad Request |  -  |
-**500** | Internal Server Error |  -  |
+**200** | Successfully returned configuration list |  -  |
+**400** | Request parameter error, such as missing TraceID parameter or incorrect format |  -  |
+**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_injections_get**
-> DtoGenericResponseDtoPaginationRespDtoInjectionItem api_v1_injections_get(page_num=page_num, page_size=page_size)
+> DtoGenericResponseDtoListInjectionsResp api_v1_injections_get(project_name=project_name, env=env, batch=batch, tag=tag, benchmark=benchmark, status=status, fault_type=fault_type, sort_field=sort_field, sort_order=sort_order, limit=limit, page_num=page_num, page_size=page_size, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
 
-分页查询注入记录列表
+Get Fault Injection Record List
 
-获取注入记录列表（支持分页参数）
+Fault injection record query interface supporting sorting and filtering. Returns the original database record list without data conversion.
 
 ### Example
 
 
 ```python
 import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_dto_pagination_resp_dto_injection_item import DtoGenericResponseDtoPaginationRespDtoInjectionItem
+from rcabench.openapi.models.dto_generic_response_dto_list_injections_resp import DtoGenericResponseDtoListInjectionsResp
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
@@ -470,12 +416,25 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.InjectionApi(api_client)
-    page_num = 1 # int | 页码 (optional) (default to 1)
-    page_size = 10 # int | 每页大小 (optional) (default to 10)
+    project_name = 'project_name_example' # str | Project name filter (optional)
+    env = prod # str | Environment label filter (optional) (default to prod)
+    batch = 'batch_example' # str | Batch label filter (optional)
+    tag = train # str | Category label filter (optional) (default to train)
+    benchmark = clickhouse # str | Benchmark type filter (optional) (default to clickhouse)
+    status = 0 # int | Status filter, refer to field mapping interface (/mapping) for specific values (optional) (default to 0)
+    fault_type = 0 # int | Fault type filter, refer to field mapping interface (/mapping) for specific values (optional) (default to 0)
+    sort_field = 'created_at' # str | Sort field, default created_at (optional) (default to 'created_at')
+    sort_order = desc # str | Sort order, default desc (optional) (default to desc)
+    limit = 0 # int | Result quantity limit, used to control the number of returned records (optional) (default to 0)
+    page_num = 0 # int | Pagination query, page number (optional) (default to 0)
+    page_size = 0 # int | Pagination query, records per page (optional) (default to 0)
+    lookback = 'lookback_example' # str | Time range query, supports custom relative time (1h/24h/7d) or custom, default not set (optional)
+    custom_start_time = '2013-10-20T19:20:30+01:00' # datetime | Custom start time, RFC3339 format, required when lookback=custom (optional)
+    custom_end_time = '2013-10-20T19:20:30+01:00' # datetime | Custom end time, RFC3339 format, required when lookback=custom (optional)
 
     try:
-        # 分页查询注入记录列表
-        api_response = api_instance.api_v1_injections_get(page_num=page_num, page_size=page_size)
+        # Get Fault Injection Record List
+        api_response = api_instance.api_v1_injections_get(project_name=project_name, env=env, batch=batch, tag=tag, benchmark=benchmark, status=status, fault_type=fault_type, sort_field=sort_field, sort_order=sort_order, limit=limit, page_num=page_num, page_size=page_size, lookback=lookback, custom_start_time=custom_start_time, custom_end_time=custom_end_time)
         print("The response of InjectionApi->api_v1_injections_get:\n")
         pprint(api_response)
     except Exception as e:
@@ -489,12 +448,25 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **page_num** | **int**| 页码 | [optional] [default to 1]
- **page_size** | **int**| 每页大小 | [optional] [default to 10]
+ **project_name** | **str**| Project name filter | [optional] 
+ **env** | **str**| Environment label filter | [optional] [default to prod]
+ **batch** | **str**| Batch label filter | [optional] 
+ **tag** | **str**| Category label filter | [optional] [default to train]
+ **benchmark** | **str**| Benchmark type filter | [optional] [default to clickhouse]
+ **status** | **int**| Status filter, refer to field mapping interface (/mapping) for specific values | [optional] [default to 0]
+ **fault_type** | **int**| Fault type filter, refer to field mapping interface (/mapping) for specific values | [optional] [default to 0]
+ **sort_field** | **str**| Sort field, default created_at | [optional] [default to &#39;created_at&#39;]
+ **sort_order** | **str**| Sort order, default desc | [optional] [default to desc]
+ **limit** | **int**| Result quantity limit, used to control the number of returned records | [optional] [default to 0]
+ **page_num** | **int**| Pagination query, page number | [optional] [default to 0]
+ **page_size** | **int**| Pagination query, records per page | [optional] [default to 0]
+ **lookback** | **str**| Time range query, supports custom relative time (1h/24h/7d) or custom, default not set | [optional] 
+ **custom_start_time** | **datetime**| Custom start time, RFC3339 format, required when lookback&#x3D;custom | [optional] 
+ **custom_end_time** | **datetime**| Custom end time, RFC3339 format, required when lookback&#x3D;custom | [optional] 
 
 ### Return type
 
-[**DtoGenericResponseDtoPaginationRespDtoInjectionItem**](DtoGenericResponseDtoPaginationRespDtoInjectionItem.md)
+[**DtoGenericResponseDtoListInjectionsResp**](DtoGenericResponseDtoListInjectionsResp.md)
 
 ### Authorization
 
@@ -509,25 +481,25 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | OK |  -  |
-**400** | Bad Request |  -  |
-**500** | Internal Server Error |  -  |
+**200** | Successfully returned fault injection record list |  -  |
+**400** | Request parameter error, such as incorrect parameter format, validation failure, etc. |  -  |
+**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **api_v1_injections_ns_status_get**
-> DtoGenericResponseAny api_v1_injections_ns_status_get()
+# **api_v1_injections_mapping_get**
+> DtoGenericResponseDtoInjectionFieldMappingResp api_v1_injections_mapping_get()
 
-获取命名空间锁状态
+Get Field Mapping
 
-获取命名空间锁状态信息
+Get string-to-number mapping relationships for status and fault types, used for frontend display and API parameter validation
 
 ### Example
 
 
 ```python
 import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_any import DtoGenericResponseAny
+from rcabench.openapi.models.dto_generic_response_dto_injection_field_mapping_resp import DtoGenericResponseDtoInjectionFieldMappingResp
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
@@ -544,12 +516,12 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
     api_instance = rcabench.openapi.InjectionApi(api_client)
 
     try:
-        # 获取命名空间锁状态
-        api_response = api_instance.api_v1_injections_ns_status_get()
-        print("The response of InjectionApi->api_v1_injections_ns_status_get:\n")
+        # Get Field Mapping
+        api_response = api_instance.api_v1_injections_mapping_get()
+        print("The response of InjectionApi->api_v1_injections_mapping_get:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling InjectionApi->api_v1_injections_ns_status_get: %s\n" % e)
+        print("Exception when calling InjectionApi->api_v1_injections_mapping_get: %s\n" % e)
 ```
 
 
@@ -560,7 +532,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**DtoGenericResponseAny**](DtoGenericResponseAny.md)
+[**DtoGenericResponseDtoInjectionFieldMappingResp**](DtoGenericResponseDtoInjectionFieldMappingResp.md)
 
 ### Authorization
 
@@ -575,25 +547,24 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | OK |  -  |
-**500** | Internal Server Error |  -  |
+**200** | Successfully returned field mapping relationships |  -  |
+**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **api_v1_injections_post**
-> DtoGenericResponseDtoSubmitResp api_v1_injections_post(body)
+# **api_v1_injections_ns_resources_get**
+> DtoGenericResponseHandlerResources api_v1_injections_ns_resources_get(namespace=namespace)
 
-注入故障
+Get Namespace Resource Mapping
 
-注入故障
+Get mapping of all namespaces and their corresponding resource information, or query resource information for a specific namespace. Returns a mapping table from namespace to resources, used for fault injection configuration and resource management
 
 ### Example
 
 
 ```python
 import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_dto_submit_resp import DtoGenericResponseDtoSubmitResp
-from rcabench.openapi.models.dto_injection_submit_req import DtoInjectionSubmitReq
+from rcabench.openapi.models.dto_generic_response_handler_resources import DtoGenericResponseHandlerResources
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
@@ -608,10 +579,81 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.InjectionApi(api_client)
-    body = rcabench.openapi.DtoInjectionSubmitReq() # DtoInjectionSubmitReq | 请求体
+    namespace = 'namespace_example' # str | Namespace name, returns resource mappings for all namespaces if not specified (optional)
 
     try:
-        # 注入故障
+        # Get Namespace Resource Mapping
+        api_response = api_instance.api_v1_injections_ns_resources_get(namespace=namespace)
+        print("The response of InjectionApi->api_v1_injections_ns_resources_get:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling InjectionApi->api_v1_injections_ns_resources_get: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **namespace** | **str**| Namespace name, returns resource mappings for all namespaces if not specified | [optional] 
+
+### Return type
+
+[**DtoGenericResponseHandlerResources**](DtoGenericResponseHandlerResources.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Returns resource information for the specified namespace when a namespace is provided |  -  |
+**404** | The specified namespace does not exist |  -  |
+**500** | Internal server error, unable to get resource mapping |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **api_v1_injections_post**
+> DtoGenericResponseDtoSubmitInjectionResp api_v1_injections_post(body)
+
+Submit Fault Injection Task
+
+Submit fault injection task, supporting batch submission of multiple fault configurations, the system will automatically deduplicate and return submission results
+
+### Example
+
+
+```python
+import rcabench.openapi
+from rcabench.openapi.models.dto_generic_response_dto_submit_injection_resp import DtoGenericResponseDtoSubmitInjectionResp
+from rcabench.openapi.models.dto_submit_injection_req import DtoSubmitInjectionReq
+from rcabench.openapi.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = rcabench.openapi.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+
+# Enter a context with an instance of the API client
+with rcabench.openapi.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = rcabench.openapi.InjectionApi(api_client)
+    body = rcabench.openapi.DtoSubmitInjectionReq() # DtoSubmitInjectionReq | Fault injection request body
+
+    try:
+        # Submit Fault Injection Task
         api_response = api_instance.api_v1_injections_post(body)
         print("The response of InjectionApi->api_v1_injections_post:\n")
         pprint(api_response)
@@ -626,11 +668,11 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**DtoInjectionSubmitReq**](DtoInjectionSubmitReq.md)| 请求体 | 
+ **body** | [**DtoSubmitInjectionReq**](DtoSubmitInjectionReq.md)| Fault injection request body | 
 
 ### Return type
 
-[**DtoGenericResponseDtoSubmitResp**](DtoGenericResponseDtoSubmitResp.md)
+[**DtoGenericResponseDtoSubmitInjectionResp**](DtoGenericResponseDtoSubmitInjectionResp.md)
 
 ### Authorization
 
@@ -645,25 +687,25 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**202** | Accepted |  -  |
-**400** | Bad Request |  -  |
-**500** | Internal Server Error |  -  |
+**202** | Successfully submitted fault injection task |  -  |
+**400** | Request parameter error, such as incorrect JSON format, parameter validation failure, or invalid algorithm, etc. |  -  |
+**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_injections_query_get**
-> DtoGenericResponseDtoInjectionItem api_v1_injections_query_get(name=name, task_id=task_id)
+> DtoGenericResponseDtoQueryInjectionResp api_v1_injections_query_get(name=name, task_id=task_id)
 
-查询故障注入记录
+Query Single Fault Injection Record
 
-根据名称或任务ID查询故障注入记录详情
+Query fault injection record details by name or task ID, at least one of the two parameters must be provided
 
 ### Example
 
 
 ```python
 import rcabench.openapi
-from rcabench.openapi.models.dto_generic_response_dto_injection_item import DtoGenericResponseDtoInjectionItem
+from rcabench.openapi.models.dto_generic_response_dto_query_injection_resp import DtoGenericResponseDtoQueryInjectionResp
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
@@ -678,11 +720,11 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.InjectionApi(api_client)
-    name = 'name_example' # str | 注入名称 (optional)
-    task_id = 'task_id_example' # str | 任务ID (optional)
+    name = 'name_example' # str | Fault injection name (optional)
+    task_id = 'task_id_example' # str | Task ID (optional)
 
     try:
-        # 查询故障注入记录
+        # Query Single Fault Injection Record
         api_response = api_instance.api_v1_injections_query_get(name=name, task_id=task_id)
         print("The response of InjectionApi->api_v1_injections_query_get:\n")
         pprint(api_response)
@@ -697,12 +739,12 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **name** | **str**| 注入名称 | [optional] 
- **task_id** | **str**| 任务ID | [optional] 
+ **name** | **str**| Fault injection name | [optional] 
+ **task_id** | **str**| Task ID | [optional] 
 
 ### Return type
 
-[**DtoGenericResponseDtoInjectionItem**](DtoGenericResponseDtoInjectionItem.md)
+[**DtoGenericResponseDtoQueryInjectionResp**](DtoGenericResponseDtoQueryInjectionResp.md)
 
 ### Authorization
 
@@ -717,18 +759,18 @@ No authorization required
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | OK |  -  |
-**400** | Bad Request |  -  |
-**500** | Internal Server Error |  -  |
+**200** | Successfully returned fault injection record details |  -  |
+**400** | Request parameter error, such as missing parameters, incorrect format, or validation failure, etc. |  -  |
+**500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_injections_task_id_cancel_put**
 > DtoGenericResponseDtoInjectCancelResp api_v1_injections_task_id_cancel_put(task_id)
 
-取消故障注入任务
+Cancel Fault Injection Task
 
-取消指定的故障注入任务
+Cancel the specified fault injection task
 
 ### Example
 
@@ -750,10 +792,10 @@ configuration = rcabench.openapi.Configuration(
 with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = rcabench.openapi.InjectionApi(api_client)
-    task_id = 'task_id_example' # str | 任务ID
+    task_id = 'task_id_example' # str | Task ID
 
     try:
-        # 取消故障注入任务
+        # Cancel Fault Injection Task
         api_response = api_instance.api_v1_injections_task_id_cancel_put(task_id)
         print("The response of InjectionApi->api_v1_injections_task_id_cancel_put:\n")
         pprint(api_response)
@@ -768,7 +810,7 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **task_id** | **str**| 任务ID | 
+ **task_id** | **str**| Task ID | 
 
 ### Return type
 

@@ -17,12 +17,11 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-from pydantic import Field, StrictBytes, StrictStr
-from typing import List, Optional, Tuple, Union
+from pydantic import Field
 from typing_extensions import Annotated
-from rcabench.openapi.models.dto_algorithm_execution_payload import DtoAlgorithmExecutionPayload
-from rcabench.openapi.models.dto_generic_response_dto_algorithm_list_resp import DtoGenericResponseDtoAlgorithmListResp
+from rcabench.openapi.models.dto_generic_response_dto_list_algorithms_resp import DtoGenericResponseDtoListAlgorithmsResp
 from rcabench.openapi.models.dto_generic_response_dto_submit_resp import DtoGenericResponseDtoSubmitResp
+from rcabench.openapi.models.dto_submit_execution_req import DtoSubmitExecutionReq
 
 from rcabench.openapi.api_client import ApiClient, RequestSerialized
 from rcabench.openapi.api_response import ApiResponse
@@ -43,300 +42,6 @@ class AlgorithmApi:
 
 
     @validate_call
-    def api_v1_algorithms_build_post(
-        self,
-        file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="算法文件 (zip/tar.gz)")] = None,
-        algo: Annotated[Optional[StrictStr], Field(description="算法名称")] = None,
-        _request_timeout: Union[
-            None,
-            Annotated[StrictFloat, Field(gt=0)],
-            Tuple[
-                Annotated[StrictFloat, Field(gt=0)],
-                Annotated[StrictFloat, Field(gt=0)]
-            ]
-        ] = None,
-        _request_auth: Optional[Dict[StrictStr, Any]] = None,
-        _content_type: Optional[StrictStr] = None,
-        _headers: Optional[Dict[StrictStr, Any]] = None,
-        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseDtoSubmitResp:
-        """构建算法镜像
-
-        通过上传文件或指定算法名称来构建算法镜像
-
-        :param file: 算法文件 (zip/tar.gz)
-        :type file: bytearray
-        :param algo: 算法名称
-        :type algo: str
-        :param _request_timeout: timeout setting for this request. If one
-                                 number provided, it will be total request
-                                 timeout. It can also be a pair (tuple) of
-                                 (connection, read) timeouts.
-        :type _request_timeout: int, tuple(int, int), optional
-        :param _request_auth: set to override the auth_settings for an a single
-                              request; this effectively ignores the
-                              authentication in the spec for a single request.
-        :type _request_auth: dict, optional
-        :param _content_type: force content-type for the request.
-        :type _content_type: str, Optional
-        :param _headers: set to override the headers for a single
-                         request; this effectively ignores the headers
-                         in the spec for a single request.
-        :type _headers: dict, optional
-        :param _host_index: set to override the host_index for a single
-                            request; this effectively ignores the host_index
-                            in the spec for a single request.
-        :type _host_index: int, optional
-        :return: Returns the result object.
-        """ # noqa: E501
-
-        _param = self._api_v1_algorithms_build_post_serialize(
-            file=file,
-            algo=algo,
-            _request_auth=_request_auth,
-            _content_type=_content_type,
-            _headers=_headers,
-            _host_index=_host_index
-        )
-
-        _response_types_map: Dict[str, Optional[str]] = {
-            '202': "DtoGenericResponseDtoSubmitResp",
-            '400': "DtoGenericResponseAny",
-            '500': "DtoGenericResponseAny",
-        }
-        response_data = self.api_client.call_api(
-            *_param,
-            _request_timeout=_request_timeout
-        )
-        response_data.read()
-        return self.api_client.response_deserialize(
-            response_data=response_data,
-            response_types_map=_response_types_map,
-        ).data
-
-
-    @validate_call
-    def api_v1_algorithms_build_post_with_http_info(
-        self,
-        file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="算法文件 (zip/tar.gz)")] = None,
-        algo: Annotated[Optional[StrictStr], Field(description="算法名称")] = None,
-        _request_timeout: Union[
-            None,
-            Annotated[StrictFloat, Field(gt=0)],
-            Tuple[
-                Annotated[StrictFloat, Field(gt=0)],
-                Annotated[StrictFloat, Field(gt=0)]
-            ]
-        ] = None,
-        _request_auth: Optional[Dict[StrictStr, Any]] = None,
-        _content_type: Optional[StrictStr] = None,
-        _headers: Optional[Dict[StrictStr, Any]] = None,
-        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseDtoSubmitResp]:
-        """构建算法镜像
-
-        通过上传文件或指定算法名称来构建算法镜像
-
-        :param file: 算法文件 (zip/tar.gz)
-        :type file: bytearray
-        :param algo: 算法名称
-        :type algo: str
-        :param _request_timeout: timeout setting for this request. If one
-                                 number provided, it will be total request
-                                 timeout. It can also be a pair (tuple) of
-                                 (connection, read) timeouts.
-        :type _request_timeout: int, tuple(int, int), optional
-        :param _request_auth: set to override the auth_settings for an a single
-                              request; this effectively ignores the
-                              authentication in the spec for a single request.
-        :type _request_auth: dict, optional
-        :param _content_type: force content-type for the request.
-        :type _content_type: str, Optional
-        :param _headers: set to override the headers for a single
-                         request; this effectively ignores the headers
-                         in the spec for a single request.
-        :type _headers: dict, optional
-        :param _host_index: set to override the host_index for a single
-                            request; this effectively ignores the host_index
-                            in the spec for a single request.
-        :type _host_index: int, optional
-        :return: Returns the result object.
-        """ # noqa: E501
-
-        _param = self._api_v1_algorithms_build_post_serialize(
-            file=file,
-            algo=algo,
-            _request_auth=_request_auth,
-            _content_type=_content_type,
-            _headers=_headers,
-            _host_index=_host_index
-        )
-
-        _response_types_map: Dict[str, Optional[str]] = {
-            '202': "DtoGenericResponseDtoSubmitResp",
-            '400': "DtoGenericResponseAny",
-            '500': "DtoGenericResponseAny",
-        }
-        response_data = self.api_client.call_api(
-            *_param,
-            _request_timeout=_request_timeout
-        )
-        response_data.read()
-        return self.api_client.response_deserialize(
-            response_data=response_data,
-            response_types_map=_response_types_map,
-        )
-
-
-    @validate_call
-    def api_v1_algorithms_build_post_without_preload_content(
-        self,
-        file: Annotated[Optional[Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]], Field(description="算法文件 (zip/tar.gz)")] = None,
-        algo: Annotated[Optional[StrictStr], Field(description="算法名称")] = None,
-        _request_timeout: Union[
-            None,
-            Annotated[StrictFloat, Field(gt=0)],
-            Tuple[
-                Annotated[StrictFloat, Field(gt=0)],
-                Annotated[StrictFloat, Field(gt=0)]
-            ]
-        ] = None,
-        _request_auth: Optional[Dict[StrictStr, Any]] = None,
-        _content_type: Optional[StrictStr] = None,
-        _headers: Optional[Dict[StrictStr, Any]] = None,
-        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> RESTResponseType:
-        """构建算法镜像
-
-        通过上传文件或指定算法名称来构建算法镜像
-
-        :param file: 算法文件 (zip/tar.gz)
-        :type file: bytearray
-        :param algo: 算法名称
-        :type algo: str
-        :param _request_timeout: timeout setting for this request. If one
-                                 number provided, it will be total request
-                                 timeout. It can also be a pair (tuple) of
-                                 (connection, read) timeouts.
-        :type _request_timeout: int, tuple(int, int), optional
-        :param _request_auth: set to override the auth_settings for an a single
-                              request; this effectively ignores the
-                              authentication in the spec for a single request.
-        :type _request_auth: dict, optional
-        :param _content_type: force content-type for the request.
-        :type _content_type: str, Optional
-        :param _headers: set to override the headers for a single
-                         request; this effectively ignores the headers
-                         in the spec for a single request.
-        :type _headers: dict, optional
-        :param _host_index: set to override the host_index for a single
-                            request; this effectively ignores the host_index
-                            in the spec for a single request.
-        :type _host_index: int, optional
-        :return: Returns the result object.
-        """ # noqa: E501
-
-        _param = self._api_v1_algorithms_build_post_serialize(
-            file=file,
-            algo=algo,
-            _request_auth=_request_auth,
-            _content_type=_content_type,
-            _headers=_headers,
-            _host_index=_host_index
-        )
-
-        _response_types_map: Dict[str, Optional[str]] = {
-            '202': "DtoGenericResponseDtoSubmitResp",
-            '400': "DtoGenericResponseAny",
-            '500': "DtoGenericResponseAny",
-        }
-        response_data = self.api_client.call_api(
-            *_param,
-            _request_timeout=_request_timeout
-        )
-        return response_data.response
-
-
-    def _api_v1_algorithms_build_post_serialize(
-        self,
-        file,
-        algo,
-        _request_auth,
-        _content_type,
-        _headers,
-        _host_index,
-    ) -> RequestSerialized:
-
-        _host = None
-
-        _collection_formats: Dict[str, str] = {
-        }
-
-        _path_params: Dict[str, str] = {}
-        _query_params: List[Tuple[str, str]] = []
-        _header_params: Dict[str, Optional[str]] = _headers or {}
-        _form_params: List[Tuple[str, str]] = []
-        _files: Dict[
-            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
-        ] = {}
-        _body_params: Optional[bytes] = None
-
-        # process the path parameters
-        # process the query parameters
-        # process the header parameters
-        # process the form parameters
-        if file is not None:
-            _files['file'] = file
-        if algo is not None:
-            _form_params.append(('algo', algo))
-        # process the body parameter
-
-
-        # set the HTTP header `Accept`
-        if 'Accept' not in _header_params:
-            _header_params['Accept'] = self.api_client.select_header_accept(
-                [
-                    'application/json'
-                ]
-            )
-
-        # set the HTTP header `Content-Type`
-        if _content_type:
-            _header_params['Content-Type'] = _content_type
-        else:
-            _default_content_type = (
-                self.api_client.select_header_content_type(
-                    [
-                        'multipart/form-data'
-                    ]
-                )
-            )
-            if _default_content_type is not None:
-                _header_params['Content-Type'] = _default_content_type
-
-        # authentication setting
-        _auth_settings: List[str] = [
-        ]
-
-        return self.api_client.param_serialize(
-            method='POST',
-            resource_path='/api/v1/algorithms/build',
-            path_params=_path_params,
-            query_params=_query_params,
-            header_params=_header_params,
-            body=_body_params,
-            post_params=_form_params,
-            files=_files,
-            auth_settings=_auth_settings,
-            collection_formats=_collection_formats,
-            _host=_host,
-            _request_auth=_request_auth
-        )
-
-
-
-
-    @validate_call
     def api_v1_algorithms_get(
         self,
         _request_timeout: Union[
@@ -351,10 +56,10 @@ class AlgorithmApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> DtoGenericResponseDtoAlgorithmListResp:
-        """获取算法列表
+    ) -> DtoGenericResponseDtoListAlgorithmsResp:
+        """Get algorithm list
 
-        获取算法列表
+        Get all available algorithms in the system, including image info, tags, and update time. Only returns containers with active status.
 
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -386,8 +91,7 @@ class AlgorithmApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoAlgorithmListResp",
-            '400': "DtoGenericResponseAny",
+            '200': "DtoGenericResponseDtoListAlgorithmsResp",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -416,10 +120,10 @@ class AlgorithmApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[DtoGenericResponseDtoAlgorithmListResp]:
-        """获取算法列表
+    ) -> ApiResponse[DtoGenericResponseDtoListAlgorithmsResp]:
+        """Get algorithm list
 
-        获取算法列表
+        Get all available algorithms in the system, including image info, tags, and update time. Only returns containers with active status.
 
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -451,8 +155,7 @@ class AlgorithmApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoAlgorithmListResp",
-            '400': "DtoGenericResponseAny",
+            '200': "DtoGenericResponseDtoListAlgorithmsResp",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -482,9 +185,9 @@ class AlgorithmApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """获取算法列表
+        """Get algorithm list
 
-        获取算法列表
+        Get all available algorithms in the system, including image info, tags, and update time. Only returns containers with active status.
 
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -516,8 +219,7 @@ class AlgorithmApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "DtoGenericResponseDtoAlgorithmListResp",
-            '400': "DtoGenericResponseAny",
+            '200': "DtoGenericResponseDtoListAlgorithmsResp",
             '500': "DtoGenericResponseAny",
         }
         response_data = self.api_client.call_api(
@@ -590,7 +292,7 @@ class AlgorithmApi:
     @validate_call
     def api_v1_algorithms_post(
         self,
-        body: Annotated[List[DtoAlgorithmExecutionPayload], Field(description="请求体")],
+        body: Annotated[DtoSubmitExecutionReq, Field(description="Algorithm execution request list, including algorithm name, dataset, and environment variables")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -604,12 +306,12 @@ class AlgorithmApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> DtoGenericResponseDtoSubmitResp:
-        """执行算法
+        """Submit algorithm execution task
 
-        执行算法
+        Batch submit algorithm execution tasks, supporting multiple algorithm and dataset combinations. The system assigns a unique TraceID for each execution task to track status and results.
 
-        :param body: 请求体 (required)
-        :type body: List[DtoAlgorithmExecutionPayload]
+        :param body: Algorithm execution request list, including algorithm name, dataset, and environment variables (required)
+        :type body: DtoSubmitExecutionReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -659,7 +361,7 @@ class AlgorithmApi:
     @validate_call
     def api_v1_algorithms_post_with_http_info(
         self,
-        body: Annotated[List[DtoAlgorithmExecutionPayload], Field(description="请求体")],
+        body: Annotated[DtoSubmitExecutionReq, Field(description="Algorithm execution request list, including algorithm name, dataset, and environment variables")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -673,12 +375,12 @@ class AlgorithmApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[DtoGenericResponseDtoSubmitResp]:
-        """执行算法
+        """Submit algorithm execution task
 
-        执行算法
+        Batch submit algorithm execution tasks, supporting multiple algorithm and dataset combinations. The system assigns a unique TraceID for each execution task to track status and results.
 
-        :param body: 请求体 (required)
-        :type body: List[DtoAlgorithmExecutionPayload]
+        :param body: Algorithm execution request list, including algorithm name, dataset, and environment variables (required)
+        :type body: DtoSubmitExecutionReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -728,7 +430,7 @@ class AlgorithmApi:
     @validate_call
     def api_v1_algorithms_post_without_preload_content(
         self,
-        body: Annotated[List[DtoAlgorithmExecutionPayload], Field(description="请求体")],
+        body: Annotated[DtoSubmitExecutionReq, Field(description="Algorithm execution request list, including algorithm name, dataset, and environment variables")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -742,12 +444,12 @@ class AlgorithmApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """执行算法
+        """Submit algorithm execution task
 
-        执行算法
+        Batch submit algorithm execution tasks, supporting multiple algorithm and dataset combinations. The system assigns a unique TraceID for each execution task to track status and results.
 
-        :param body: 请求体 (required)
-        :type body: List[DtoAlgorithmExecutionPayload]
+        :param body: Algorithm execution request list, including algorithm name, dataset, and environment variables (required)
+        :type body: DtoSubmitExecutionReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -802,7 +504,6 @@ class AlgorithmApi:
         _host = None
 
         _collection_formats: Dict[str, str] = {
-            'body': '',
         }
 
         _path_params: Dict[str, str] = {}

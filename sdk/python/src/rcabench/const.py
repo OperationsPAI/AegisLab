@@ -1,20 +1,8 @@
 from enum import Enum
 
 
-INJECTION_CONF_MODES = {"display", "engine"}
-
-
 TIME_FORMAT = "%Y-%m-%dT%H:%M:%S+08:00"
 TIME_EXAMPLE = "1970-01-01T00:00:00+08:00"
-
-
-class InjectionStatus(str, Enum):
-    INITIAL = "initial"
-    INJECT_SUCCESS = "inject_success"
-    INJECT_FAILED = "inject_failed"
-    BUILD_SUCCESS = "build_success"
-    BUILD_FAILED = "build_failed"
-    DELETED = "deleted"
 
 
 class SSEMsgPrefix:
@@ -22,24 +10,14 @@ class SSEMsgPrefix:
     EVENT = "event"
 
 
-class TaskStatus:
+class TaskStatus(str, Enum):
+    Canceled = "Canceled"
     COMPLETED = "Completed"
     ERROR = "Error"
-
-
-class Pagination:
-    DEFAULT_PAGE_NUM = 1
-    ALLOWED_PAGE_SIZES = {10, 20, 50}
-    DEFAULT_PAGE_SIZE = 10
-
-
-class Dataset:
-    DEFAULT_SORT = "desc"
-    ALLOWED_SORTS = {"asc", "desc"}
-
-
-class Evaluation:
-    ALLOWED_RANKS = {1, 3, 5}
+    Pending = "Pending"
+    Running = "Running"
+    Rescheduled = "Rescheduled"
+    Scheduled = "Scheduled"
 
 
 class Task:
@@ -47,23 +25,22 @@ class Task:
     HTTP_ERROR_STATUS_CODE = 500
 
 
-class EventStatus(str, Enum):
-    END = "end"
-    UPDATE = "update"
-
-
 class EventType(str, Enum):
     EventAlgoRunSucceed = "algorithm.run.succeed"
+    EventAlgoRunFailed = "algorithm.run.failed"
 
     EventAlgoResultCollection = "algorithm.collect_result"
     EventDatasetResultCollection = "dataset.result.collection"
     EventDatasetNoAnomaly = "dataset.no_anomaly"
     EventDatasetNoConclusionFile = "dataset.no_conclusion_file"
     EventDatasetBuildSucceed = "dataset.build.succeed"
+    EventDatasetBuildFailed = "dataset.build.failed"
 
     EventTaskStatusUpdate = "task.status.update"
     EventTaskRetryStatus = "task.retry.status"
     EventTaskStarted = "task.started"
+
+    EventImageBuildSucceed = "image.build.succeed"
 
     EventNoNamespaceAvailable = "no.namespace.available"
     EventRestartServiceStarted = "restart.service.started"
@@ -77,10 +54,13 @@ class EventType(str, Enum):
     EventAcquireLock = "acquire.lock"
     EventReleaseLock = "release.lock"
 
+    EventJobLogsRecorded = "job.logs.recorded"
+
 
 class TaskType(str, Enum):
     DUMMY = ""
     BUILD_DATASET = "BuildDataset"
+    BUILD_IMAGE = "BuildImage"
     COLLECT_RESULT = "CollectResult"
     FAULT_INJECTION = "FaultInjection"
     RESTART_SERVICE = "RestartService"

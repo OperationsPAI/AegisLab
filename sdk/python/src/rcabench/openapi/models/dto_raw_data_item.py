@@ -18,7 +18,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from rcabench.openapi.models.dto_granularity_record import DtoGranularityRecord
 from rcabench.openapi.models.handler_groundtruth import HandlerGroundtruth
@@ -32,9 +32,10 @@ class DtoRawDataItem(BaseModel):
     algorithm: Optional[StrictStr] = None
     dataset: Optional[StrictStr] = None
     entries: Optional[List[DtoGranularityRecord]] = None
+    execution_id: Optional[StrictInt] = None
     groundtruth: Optional[HandlerGroundtruth] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["algorithm", "dataset", "entries", "groundtruth"]
+    __properties: ClassVar[List[str]] = ["algorithm", "dataset", "entries", "execution_id", "groundtruth"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -107,6 +108,7 @@ class DtoRawDataItem(BaseModel):
             "algorithm": obj.get("algorithm"),
             "dataset": obj.get("dataset"),
             "entries": [DtoGranularityRecord.from_dict(_item) for _item in obj["entries"]] if obj.get("entries") is not None else None,
+            "execution_id": obj.get("execution_id"),
             "groundtruth": HandlerGroundtruth.from_dict(obj["groundtruth"]) if obj.get("groundtruth") is not None else None
         })
         # store additional fields in additional_properties

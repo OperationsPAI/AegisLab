@@ -18,8 +18,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
+from pydantic import BaseModel, ConfigDict, StrictFloat, StrictInt, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional, Union
 from rcabench.openapi.models.handler_node import HandlerNode
 from typing import Optional, Set
 from typing_extensions import Self
@@ -28,14 +28,18 @@ class DtoFaultInjectionWithIssuesResp(BaseModel):
     """
     DtoFaultInjectionWithIssuesResp
     """ # noqa: E501
+    abnormal_avg_duration: Optional[Union[StrictFloat, StrictInt]] = None
+    abnormal_p99: Optional[Union[StrictFloat, StrictInt]] = None
+    abnormal_succ_rate: Optional[Union[StrictFloat, StrictInt]] = None
     dataset_id: Optional[StrictInt] = None
-    display_config: Optional[StrictStr] = None
     engine_config: Optional[HandlerNode] = None
     injection_name: Optional[StrictStr] = None
     issues: Optional[StrictStr] = None
-    pre_duration: Optional[StrictInt] = None
+    normal_avg_duration: Optional[Union[StrictFloat, StrictInt]] = None
+    normal_p99: Optional[Union[StrictFloat, StrictInt]] = None
+    normal_succ_rate: Optional[Union[StrictFloat, StrictInt]] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["dataset_id", "display_config", "engine_config", "injection_name", "issues", "pre_duration"]
+    __properties: ClassVar[List[str]] = ["abnormal_avg_duration", "abnormal_p99", "abnormal_succ_rate", "dataset_id", "engine_config", "injection_name", "issues", "normal_avg_duration", "normal_p99", "normal_succ_rate"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -98,12 +102,16 @@ class DtoFaultInjectionWithIssuesResp(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "abnormal_avg_duration": obj.get("abnormal_avg_duration"),
+            "abnormal_p99": obj.get("abnormal_p99"),
+            "abnormal_succ_rate": obj.get("abnormal_succ_rate"),
             "dataset_id": obj.get("dataset_id"),
-            "display_config": obj.get("display_config"),
             "engine_config": HandlerNode.from_dict(obj["engine_config"]) if obj.get("engine_config") is not None else None,
             "injection_name": obj.get("injection_name"),
             "issues": obj.get("issues"),
-            "pre_duration": obj.get("pre_duration")
+            "normal_avg_duration": obj.get("normal_avg_duration"),
+            "normal_p99": obj.get("normal_p99"),
+            "normal_succ_rate": obj.get("normal_succ_rate")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

@@ -6,10 +6,8 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **dataset_id** | **int** |  | [optional] 
-**display_config** | **str** |  | [optional] 
 **engine_config** | [**HandlerNode**](HandlerNode.md) |  | [optional] 
 **injection_name** | **str** |  | [optional] 
-**pre_duration** | **int** |  | [optional] 
 
 ## Example
 
