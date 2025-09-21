@@ -3,15 +3,17 @@ package v2
 import (
 	"net/http"
 
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/middleware"
-	"github.com/LGU-SE-Internal/rcabench/repository"
-	"github.com/LGU-SE-Internal/rcabench/utils"
+	"aegis/database"
+	"aegis/dto"
+	"aegis/middleware"
+	"aegis/repository"
+	"aegis/utils"
+
 	"github.com/gin-gonic/gin"
 )
 
 // Login handles user authentication
+//
 //	@Summary User login
 //	@Description Authenticate user with username and password
 //	@Tags Authentication
@@ -68,6 +70,7 @@ func Login(c *gin.Context) {
 }
 
 // Register handles user registration
+//
 //	@Summary User registration
 //	@Description Register a new user account
 //	@Tags Authentication
@@ -132,6 +135,7 @@ func Register(c *gin.Context) {
 }
 
 // RefreshToken handles JWT token refresh
+//
 //	@Summary Refresh JWT token
 //	@Description Refresh an existing JWT token
 //	@Tags Authentication
@@ -166,6 +170,7 @@ func RefreshToken(c *gin.Context) {
 }
 
 // Logout handles user logout
+//
 //	@Summary User logout
 //	@Description Logout user and invalidate token
 //	@Tags Authentication
@@ -208,6 +213,7 @@ func Logout(c *gin.Context) {
 }
 
 // ChangePassword handles password change
+//
 //	@Summary Change user password
 //	@Description Change password for authenticated user
 //	@Tags Authentication
@@ -263,6 +269,7 @@ func ChangePassword(c *gin.Context) {
 }
 
 // GetProfile handles getting current user profile
+//
 //	@Summary Get current user profile
 //	@Description Get profile information for authenticated user
 //	@Tags Authentication

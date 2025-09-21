@@ -4,7 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/LGU-SE-Internal/rcabench/database"
+	"aegis/database"
+
 	"gorm.io/gorm"
 )
 

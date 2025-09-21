@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/database"
+	"aegis/database"
 )
 
 // LoginRequest represents user login request

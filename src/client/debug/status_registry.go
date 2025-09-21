@@ -9,8 +9,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/client"
-	"github.com/LGU-SE-Internal/rcabench/utils"
+	"aegis/client"
+	"aegis/utils"
+
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"

@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"aegis/config"
+
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
-	"github.com/LGU-SE-Internal/rcabench/config"
 )
 
 // GroundTruthReq represents ground truth request

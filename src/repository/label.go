@@ -4,8 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/database"
+	"aegis/consts"
+	"aegis/database"
+
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

@@ -7,9 +7,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/repository"
+	"aegis/consts"
+	"aegis/dto"
+	"aegis/repository"
+
 	"github.com/gin-contrib/sse"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/database"
+	"aegis/database"
 )
 
 // AuditLog represents an audit log entry

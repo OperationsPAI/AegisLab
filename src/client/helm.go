@@ -9,7 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/tracing"
+	"aegis/tracing"
+
 	"github.com/sirupsen/logrus"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"

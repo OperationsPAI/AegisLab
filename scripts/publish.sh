@@ -2,8 +2,8 @@
 set -e
 
 CHART_DIR="helm"
-REPO_NAME="rcabench"
-REPO_URL="https://lgu-se-internal.github.io/rcabench"
+REPO_NAME="AegisLab"
+REPO_URL="https://operationspai.github.io/AegisLab/"
 
 helm dependency update $CHART_DIR
 

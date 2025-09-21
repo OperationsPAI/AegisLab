@@ -7,8 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/utils"
+	"aegis/dto"
+	"aegis/utils"
+
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )

@@ -3,8 +3,9 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/utils"
+	"aegis/dto"
+	"aegis/utils"
+
 	"github.com/gin-gonic/gin"
 )
 

@@ -5,6 +5,7 @@ on:
     paths:
       - 'helm/**'
       - '.github/workflows/release-helm.yml'
+      - 'scripts/publish.sh'
 
 jobs:
   deploy:

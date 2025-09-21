@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/database"
+	"aegis/database"
 )
 
 // CreatePermissionRequest represents permission creation request

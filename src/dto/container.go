@@ -7,10 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"aegis/config"
+	"aegis/consts"
+	"aegis/utils"
+
 	"github.com/BurntSushi/toml"
-	"github.com/LGU-SE-Internal/rcabench/config"
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/utils"
 )
 
 const (

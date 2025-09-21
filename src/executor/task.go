@@ -9,11 +9,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/repository"
-	"github.com/LGU-SE-Internal/rcabench/tracing"
+	"aegis/consts"
+	"aegis/database"
+	"aegis/dto"
+	"aegis/repository"
+	"aegis/tracing"
+
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"

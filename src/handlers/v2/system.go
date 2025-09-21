@@ -7,13 +7,15 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/middleware"
-	"github.com/LGU-SE-Internal/rcabench/repository"
+	"aegis/dto"
+	"aegis/middleware"
+	"aegis/repository"
+
 	"github.com/gin-gonic/gin"
 )
 
 // GetHealth handles system health check
+//
 //	@Summary System health check
 //	@Description Get system health status and service information
 //	@Tags System
@@ -53,6 +55,7 @@ func GetHealth(c *gin.Context) {
 }
 
 // GetStatistics handles system statistics
+//
 //	@Summary Get system statistics
 //	@Description Get comprehensive system statistics and metrics
 //	@Tags System
@@ -208,6 +211,7 @@ func GetStatistics(c *gin.Context) {
 }
 
 // ListAuditLogs handles audit log listing
+//
 //	@Summary List audit logs
 //	@Description Get paginated list of audit logs with optional filtering
 //	@Tags System
@@ -310,6 +314,7 @@ func ListAuditLogs(c *gin.Context) {
 }
 
 // GetMetrics handles monitoring metrics query
+//
 //	@Summary Get monitoring metrics
 //	@Description Query monitoring metrics for system performance
 //	@Tags System
@@ -367,6 +372,7 @@ func GetMetrics(c *gin.Context) {
 }
 
 // GetSystemInfo handles basic system information
+//
 //	@Summary Get system information
 //	@Description Get basic system information and status
 //	@Tags System
@@ -389,6 +395,7 @@ func GetSystemInfo(c *gin.Context) {
 }
 
 // CreateAuditLog handles creating new audit log entries
+//
 //	@Summary Create audit log
 //	@Description Create a new audit log entry
 //	@Tags System
@@ -453,6 +460,7 @@ func CreateAuditLog(c *gin.Context) {
 }
 
 // GetAuditLog handles single audit log retrieval
+//
 //	@Summary Get audit log by ID
 //	@Description Get a specific audit log entry by ID
 //	@Tags System
