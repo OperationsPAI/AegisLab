@@ -7877,7 +7877,8 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "coverage": {
-                    "type": "number"
+                    "type": "number",
+                    "format": "float64"
                 },
                 "num": {
                     "type": "integer"
@@ -9151,6 +9152,26 @@ const docTemplate = `{
                 "OpNotLike": "NOT LIKE %value%",
                 "OpStartsWith": "LIKE value%"
             },
+            "x-enum-descriptions": [
+                "==",
+                "!=",
+                "\u003e",
+                "\u003e=",
+                "\u003c",
+                "\u003c=",
+                "LIKE %value%",
+                "LIKE value%",
+                "LIKE %value",
+                "NOT LIKE %value%",
+                "IN (value1, value2, ...)",
+                "NOT IN (value1, value2, ...)",
+                "IS NULL",
+                "IS NOT NULL",
+                "DATE(field) = DATE(value)",
+                "DATE(field) \u003e DATE(value)",
+                "DATE(field) \u003c DATE(value)",
+                "DATE(field) BETWEEN date1 AND date2"
+            ],
             "x-enum-varnames": [
                 "OpEqual",
                 "OpNotEqual",
@@ -11189,6 +11210,12 @@ const docTemplate = `{
                 "dataset_fault_injections": {
                     "type": "integer"
                 },
+                "detectors": {
+                    "type": "integer"
+                },
+                "execution_result_labels": {
+                    "type": "integer"
+                },
                 "execution_results": {
                     "type": "integer"
                 },
@@ -12914,7 +12941,8 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "coverage": {
-                    "type": "number"
+                    "type": "number",
+                    "format": "float64"
                 },
                 "notCovered": {
                     "type": "array",
@@ -13524,7 +13552,8 @@ const docTemplate = `{
                     "additionalProperties": {
                         "type": "object",
                         "additionalProperties": {
-                            "type": "number"
+                            "type": "number",
+                            "format": "float64"
                         }
                     }
                 }
