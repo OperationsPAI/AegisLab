@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"runtime/debug"
 
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/repository"
-	"github.com/LGU-SE-Internal/rcabench/tracing"
+	"aegis/consts"
+	"aegis/dto"
+	"aegis/repository"
+	"aegis/tracing"
+
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"

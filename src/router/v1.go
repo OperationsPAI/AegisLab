@@ -1,7 +1,8 @@
 package router
 
 import (
-	"github.com/LGU-SE-Internal/rcabench/handlers"
+	"aegis/handlers"
+
 	"github.com/gin-gonic/gin"
 )
 

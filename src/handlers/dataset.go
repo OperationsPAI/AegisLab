@@ -8,13 +8,14 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/LGU-SE-Internal/rcabench/config"
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/executor"
-	"github.com/LGU-SE-Internal/rcabench/middleware"
-	"github.com/LGU-SE-Internal/rcabench/repository"
-	"github.com/LGU-SE-Internal/rcabench/utils"
+	"aegis/config"
+	"aegis/consts"
+	"aegis/dto"
+	"aegis/executor"
+	"aegis/middleware"
+	"aegis/repository"
+	"aegis/utils"
+
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )

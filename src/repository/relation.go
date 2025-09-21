@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/database"
+	"aegis/database"
 )
 
 // RelationInfo represents a relationship between entities

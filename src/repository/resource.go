@@ -4,7 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/LGU-SE-Internal/rcabench/database"
+	"aegis/database"
+
 	"gorm.io/gorm"
 )
 
@@ -79,12 +80,12 @@ func ListResources(page, pageSize int, resourceType string, category string, par
 		query = query.Where("parent_id = ?", *parentID)
 	}
 
-	  // Get total count
+	// Get total count
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to count resources: %v", err)
 	}
 
-	  // Paginated query
+	// Paginated query
 	offset := (page - 1) * pageSize
 	if err := query.Offset(offset).Limit(pageSize).Order("name").Find(&resources).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to list resources: %v", err)
@@ -192,10 +193,10 @@ func GetResourcePermissions(resourceID int) ([]database.Permission, error) {
 func GetOrCreateResource(name, displayName, resourceType, category string, parentID *int) (*database.Resource, error) {
 	var resource database.Resource
 
-	 // First try to get
+	// First try to get
 	if err := database.DB.Where("name = ?", name).First(&resource).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			                 // Create if not exists
+			// Create if not exists
 			resource = database.Resource{
 				Name:        name,
 				DisplayName: displayName,
@@ -238,7 +239,7 @@ func GetResourceHierarchy(resourceID int) ([]database.Resource, error) {
 			return nil, fmt.Errorf("failed to get resource hierarchy: %v", err)
 		}
 
-		         hierarchy = append([]database.Resource{resource}, hierarchy...) // Prepend insert
+		hierarchy = append([]database.Resource{resource}, hierarchy...) // Prepend insert
 		currentID = resource.ParentID
 	}
 

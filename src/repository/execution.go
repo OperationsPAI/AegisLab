@@ -9,9 +9,9 @@ import (
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"gorm.io/gorm"
 
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/dto"
+	"aegis/consts"
+	"aegis/database"
+	"aegis/dto"
 )
 
 const BATCH_SIZE = 500 // 服务器端分批大小

@@ -7,10 +7,11 @@ import (
 	"net/http"
 	"sort"
 
-	"github.com/LGU-SE-Internal/rcabench/client"
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/executor"
-	"github.com/LGU-SE-Internal/rcabench/repository"
+	"aegis/client"
+	"aegis/dto"
+	"aegis/executor"
+	"aegis/repository"
+
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"

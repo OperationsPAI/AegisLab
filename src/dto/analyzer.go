@@ -3,7 +3,7 @@ package dto
 import (
 	"fmt"
 
-	"github.com/LGU-SE-Internal/rcabench/consts"
+	"aegis/consts"
 )
 
 var ValidFirstTaskTypes = map[consts.TaskType]struct{}{

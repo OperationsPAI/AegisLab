@@ -3,7 +3,7 @@ package repository
 import (
 	"fmt"
 
-	"github.com/LGU-SE-Internal/rcabench/database"
+	"aegis/database"
 )
 
 func CheckGranularityResultsByExecutionID(executionID int) (bool, error) {

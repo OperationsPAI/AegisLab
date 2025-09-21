@@ -3,7 +3,7 @@ package dto
 import (
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/database"
+	"aegis/database"
 )
 
 type ProjectV2GetReq struct {

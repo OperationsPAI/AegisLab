@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/executor/analyzer"
-	"github.com/LGU-SE-Internal/rcabench/repository"
+	"aegis/dto"
+	"aegis/executor/analyzer"
+	"aegis/repository"
+
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )

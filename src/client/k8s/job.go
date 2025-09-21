@@ -6,8 +6,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/config"
-	"github.com/LGU-SE-Internal/rcabench/tracing"
+	"aegis/config"
+	"aegis/tracing"
+
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
 	batchv1 "k8s.io/api/batch/v1"

@@ -7,11 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"aegis/config"
+	"aegis/consts"
+	"aegis/database"
+	"aegis/utils"
+
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
-	"github.com/LGU-SE-Internal/rcabench/config"
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/utils"
 )
 
 type InjectionConfig struct {

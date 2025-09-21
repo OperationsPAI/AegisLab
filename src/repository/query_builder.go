@@ -5,7 +5,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/LGU-SE-Internal/rcabench/dto"
+	"aegis/dto"
+
 	"gorm.io/gorm"
 )
 

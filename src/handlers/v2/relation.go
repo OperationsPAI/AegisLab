@@ -4,12 +4,14 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/repository"
+	"aegis/dto"
+	"aegis/repository"
+
 	"github.com/gin-gonic/gin"
 )
 
 // AssignUserRole handles user-role assignment
+//
 //	@Summary Assign role to user
 //	@Description Assign a role to a user (global role assignment)
 //	@Tags Relations
@@ -51,6 +53,7 @@ func AssignUserRole(c *gin.Context) {
 }
 
 // RemoveUserRole handles user-role removal
+//
 //	@Summary Remove role from user
 //	@Description Remove a role from a user (global role removal)
 //	@Tags Relations
@@ -80,6 +83,7 @@ func RemoveUserRole(c *gin.Context) {
 }
 
 // AssignRolePermissions handles role-permission assignment
+//
 //	@Summary Assign permissions to role
 //	@Description Assign multiple permissions to a role
 //	@Tags Relations
@@ -117,6 +121,7 @@ func AssignRolePermissions(c *gin.Context) {
 }
 
 // RemoveRolePermissions handles role-permission removal
+//
 //	@Summary Remove permissions from role
 //	@Description Remove multiple permissions from a role
 //	@Tags Relations
@@ -147,6 +152,7 @@ func RemoveRolePermissions(c *gin.Context) {
 }
 
 // AssignUserPermission handles direct user-permission assignment
+//
 //	@Summary Assign permission to user
 //	@Description Assign a permission directly to a user (with optional project scope)
 //	@Tags Relations
@@ -182,6 +188,7 @@ func AssignUserPermission(c *gin.Context) {
 }
 
 // RemoveUserPermission handles direct user-permission removal
+//
 //	@Summary Remove permission from user
 //	@Description Remove a permission directly from a user
 //	@Tags Relations
@@ -210,6 +217,7 @@ func RemoveUserPermission(c *gin.Context) {
 }
 
 // BatchRelationOperations handles batch relationship operations
+//
 //	@Summary Batch relationship operations
 //	@Description Perform multiple relationship operations in a single request
 //	@Tags Relations
@@ -260,6 +268,7 @@ func BatchRelationOperations(c *gin.Context) {
 }
 
 // ListRelations handles listing relationships
+//
 //	@Summary List relationships
 //	@Description Get paginated list of relationships with optional filtering
 //	@Tags Relations
@@ -336,6 +345,7 @@ func ListRelations(c *gin.Context) {
 }
 
 // GetRelationStatistics handles relationship statistics
+//
 //	@Summary Get relationship statistics
 //	@Description Get statistics about all relationship types in the system
 //	@Tags Relations

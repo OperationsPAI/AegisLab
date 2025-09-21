@@ -1,7 +1,7 @@
 package dto
 
 import (
-	"github.com/LGU-SE-Internal/rcabench/consts"
+	"aegis/consts"
 )
 
 var ValidTaskEventMap = map[consts.TaskType][]consts.EventType{

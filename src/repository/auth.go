@@ -3,9 +3,10 @@ package repository
 import (
 	"fmt"
 
-	"github.com/LGU-SE-Internal/rcabench/config"
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/database"
+	"aegis/config"
+	"aegis/consts"
+	"aegis/database"
+
 	"gorm.io/gorm"
 )
 

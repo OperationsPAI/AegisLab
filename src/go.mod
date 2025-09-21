@@ -1,4 +1,4 @@
-module github.com/LGU-SE-Internal/rcabench
+module aegis
 
 go 1.23.2
 

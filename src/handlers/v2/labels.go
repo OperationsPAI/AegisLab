@@ -4,11 +4,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/repository"
-	"github.com/LGU-SE-Internal/rcabench/utils"
+	"aegis/consts"
+	"aegis/database"
+	"aegis/dto"
+	"aegis/repository"
+	"aegis/utils"
+
 	"github.com/gin-gonic/gin"
 )
 

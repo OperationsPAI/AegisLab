@@ -7,11 +7,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/client"
-	"github.com/LGU-SE-Internal/rcabench/config"
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/repository"
+	"aegis/client"
+	"aegis/config"
+	"aegis/consts"
+	"aegis/dto"
+	"aegis/repository"
+
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )

@@ -7,10 +7,11 @@ import (
 	"strconv"
 	"strings"
 
+	"aegis/config"
+	"aegis/database"
+	"aegis/dto"
+
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
-	"github.com/LGU-SE-Internal/rcabench/config"
-	"github.com/LGU-SE-Internal/rcabench/database"
-	"github.com/LGU-SE-Internal/rcabench/dto"
 )
 
 const PairName = "network_pairs"

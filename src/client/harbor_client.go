@@ -11,8 +11,8 @@ import (
 	"github.com/goharbor/go-client/pkg/sdk/v2.0/client/artifact"
 	"github.com/goharbor/go-client/pkg/sdk/v2.0/models"
 
-	"github.com/LGU-SE-Internal/rcabench/config"
-	"github.com/LGU-SE-Internal/rcabench/consts"
+	"aegis/config"
+	"aegis/consts"
 )
 
 // Singleton pattern Harbor client

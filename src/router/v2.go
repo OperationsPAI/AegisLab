@@ -1,8 +1,9 @@
 package router
 
 import (
-	v2handlers "github.com/LGU-SE-Internal/rcabench/handlers/v2"
-	"github.com/LGU-SE-Internal/rcabench/middleware"
+	v2handlers "aegis/handlers/v2"
+	"aegis/middleware"
+
 	"github.com/gin-gonic/gin"
 )
 

@@ -4,8 +4,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/repository"
+	"aegis/dto"
+	"aegis/repository"
+
 	"github.com/gin-gonic/gin"
 )
 

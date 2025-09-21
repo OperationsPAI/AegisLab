@@ -9,9 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/LGU-SE-Internal/rcabench/consts"
-	"github.com/LGU-SE-Internal/rcabench/dto"
-	"github.com/LGU-SE-Internal/rcabench/repository"
+	"aegis/consts"
+	"aegis/dto"
+	"aegis/repository"
+
 	"github.com/sirupsen/logrus"
 )
 
