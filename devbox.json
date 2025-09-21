@@ -18,7 +18,7 @@
         "ruff check --fix --show-fixes --exclude algorithms"
       ],
       "build": [
-        "skaffold build --default-repo=10.10.10.240/library"
+        "skaffold build --default-repo=docker.io/opspai"
       ]
     }
   }

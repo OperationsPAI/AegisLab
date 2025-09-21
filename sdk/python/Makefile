@@ -1,4 +1,4 @@
-SDK_PHTHON_IMAGE := 10.10.10.240/library/sdk_python:latest
+SDK_PHTHON_IMAGE := docker.io/opspai/sdk_python:latest
 
 .PHONY: help build build-docker
 

@@ -1,6 +1,6 @@
 # values.yaml
 image:
-  repository: 10.10.10.240/library/rcabench
+  repository: docker.io/opspai/rcabench
   tag: latest
   pullPolicy: Always
 
