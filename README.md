@@ -1,8 +1,8 @@
 # RCABench: A Comprehensive Root Cause Analysis Benchmarking Platform
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Go Version](https://img.shields.io/badge/Go-1.23+-blue.svg)](https://golang.org/)
-[![Python Version](https://img.shields.io/badge/Python-3.8+-green.svg)](https://python.org/)
+[![Python Version](https://img.shields.io/badge/Python-3.10+-green.svg)](https://python.org/)
 
 RCABench is a comprehensive benchmarking platform designed for evaluating root cause analysis (RCA) algorithms in microservices environments. It provides automated fault injection, algorithm execution, and evaluation capabilities for distributed systems research.
 
@@ -33,7 +33,7 @@ The platform consists of several key components:
 - **Kubernetes** (>= 1.25) or **kind/minikube** for local development
 - **kubectl** (compatible with your cluster version)
 - **Go** (>= 1.23) for development
-- **Python** (>= 3.8) for SDK usage
+- **Python** (>= 3.10) for SDK usage
 
 ### Hardware Requirements
 - **CPU**: 4+ cores recommended
