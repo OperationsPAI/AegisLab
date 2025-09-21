@@ -9,7 +9,7 @@
 # =============================================================================
 
 # 基础配置
-DEFAULT_REPO ?= 10.10.10.240/library
+DEFAULT_REPO ?= docker.io/opspai
 NS          ?= exp
 NS_PREFIX	?= ts
 PORT        ?= 30080

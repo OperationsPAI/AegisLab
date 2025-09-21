@@ -361,7 +361,7 @@ func processHarborSource(req *dto.SubmitContainerBuildingReq) (int, error) {
 	harbor := req.Source.Harbor
 
 	// Parse image name, extract the last part from the full image path
-	// Example: 10.10.10.240/library/rca-algo-random -> rca-algo-random
+	// Example: docker.io/opspai/rca-algo-random -> rca-algo-random
 	imageName := harbor.Image
 	if strings.Contains(imageName, "/") {
 		parts := strings.Split(imageName, "/")

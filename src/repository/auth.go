@@ -294,7 +294,7 @@ func initializeContainers(tx *gorm.DB, userID int) error {
 		{
 			Type:     "algorithm",
 			Name:     config.GetString("algo.detector"),
-			Image:    "10.10.10.240/library/detector",
+			Image:    "docker.io/opspai/detector",
 			Tag:      "latest",
 			Command:  "bash /entrypoint.sh",
 			UserID:   userID,
@@ -303,7 +303,7 @@ func initializeContainers(tx *gorm.DB, userID int) error {
 		{
 			Type:     "algorithm",
 			Name:     "traceback",
-			Image:    "10.10.10.240/library/rca-algo-traceback",
+			Image:    "docker.io/opspai/rca-algo-traceback",
 			Tag:      "latest",
 			Command:  "bash /entrypoint.sh",
 			UserID:   userID,
@@ -312,7 +312,7 @@ func initializeContainers(tx *gorm.DB, userID int) error {
 		{
 			Type:     "benchmark",
 			Name:     "clickhouse",
-			Image:    "10.10.10.240/library/clickhouse_dataset",
+			Image:    "docker.io/opspai/clickhouse_dataset",
 			Tag:      "latest",
 			Command:  "bash /entrypoint.sh",
 			UserID:   userID,
@@ -321,7 +321,7 @@ func initializeContainers(tx *gorm.DB, userID int) error {
 		{
 			Type:     "namespace",
 			Name:     "ts",
-			Image:    "10.10.10.240/library/ts-train-service",
+			Image:    "docker.io/opspai/ts-train-service",
 			Tag:      "v1.0.0-207-g305d0588",
 			UserID:   userID,
 			IsPublic: isPublic,
