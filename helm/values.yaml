@@ -39,7 +39,7 @@ configmap:
     benchmark: ["clickhouse"]
     namespace_config:
       ts:
-        count: 6
+        count: 2
         port: "31%03d"
         chart_name: "trainticket"
         repo_name: "train-ticket"
