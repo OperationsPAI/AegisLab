@@ -9,6 +9,7 @@ RCABench is a comprehensive benchmarking platform designed for evaluating root c
 ## 🎯 Overview
 
 RCABench enables researchers and practitioners to:
+
 - **Inject faults** into microservices using chaos engineering principles
 - **Execute RCA algorithms** on collected observability data
 - **Evaluate and compare** different root cause analysis approaches
@@ -29,6 +30,7 @@ The platform consists of several key components:
 ## 📋 Prerequisites
 
 ### Software Requirements
+
 - **Docker** (>= 20.10)
 - **Kubernetes** (>= 1.25) or **kind/minikube** for local development
 - **kubectl** (compatible with your cluster version)
@@ -36,6 +38,7 @@ The platform consists of several key components:
 - **Python** (>= 3.10) for SDK usage
 
 ### Hardware Requirements
+
 - **CPU**: 4+ cores recommended
 - **Memory**: 8GB+ RAM
 - **Storage**: 20GB+ available disk space
@@ -47,8 +50,8 @@ The platform consists of several key components:
 
 ```bash
 # Clone the repository
-git clone <repository-url>
-cd rcabench
+git clone https://github.com/OperationsPAI/AegisLab.git
+cd AegisLab
 
 # Start local environment
 make local-debug
@@ -204,6 +207,7 @@ RCABench integrates with:
 - **ClickHouse**: Analytics and data warehouse
 
 Access monitoring:
+
 - Jaeger UI: http://localhost:16686
 - API Metrics: http://localhost:8082/metrics
 
@@ -253,19 +257,21 @@ make swagger                # Generate API documentation
 ### Common Issues
 
 1. **Database Connection Failed**
+
    ```bash
    # Check database status
    kubectl get pods | grep mysql
-   
+
    # Reset database
    make reset-db
    ```
 
 2. **Pod Scheduling Issues**
+
    ```bash
    # Check node resources
    kubectl describe nodes
-   
+
    # Check pod status
    kubectl describe pod <pod-name>
    ```
