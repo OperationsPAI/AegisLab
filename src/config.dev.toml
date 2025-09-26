@@ -27,8 +27,8 @@ repo_url = "https://lgu-se-internal.github.io/train-ticket"
 clickhouse_host = "10.10.10.58"
 mysql_user = "root"
 mysql_password = "yourpassword"
-mysql_host = "10.10.10.220"
-mysql_port = "32206"
+mysql_host = "localhost"
+mysql_port = "3306"
 mysql_db = "rcabench"
 
 [jaeger]
@@ -56,7 +56,7 @@ detector = "detector"
 storage_path = "/home/nn/workspace/rcabench/containers"
 
 [buildkit]
-address = "tcp://localhost:1234"
+address = "localhost:1234"
 
 [rate_limiting]
 max_concurrent_builds = 3

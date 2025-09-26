@@ -128,8 +128,7 @@ build: ## 🔨 Build application only (no deployment)
 # Database Management
 # =============================================================================
 
-## Check database status
-check-db: 
+check-db: ## 🔍 Check database status
 	@printf "$(BLUE)🔍 Checking database status...$(RESET)\n"
 	@if kubectl get pods -n $(NS) -l app=rcabench-mysql --field-selector=status.phase=Running | grep -q rcabench-mysql; then \
 		printf "$(GREEN)✅ Database is running$(RESET)\n"; \
@@ -170,6 +169,17 @@ reset-db: ## 🗑️ Reset database (⚠️ Will delete all data)
 	$(MAKE) -C scripts/hack/backup_mysql migrate
 	@printf "$(GREEN)📦 Restoring database from backup.$(RESET)\n"
 
+check-redis: ## 🔍 check Redis status
+	@printf "$(BLUE)🔍 Checking Redis status...$(RESET)\n"
+	@if kubectl get pods -n $(NS) -l app=rcabench-redis --field-selector=status.phase=Running | grep -q rcabench-redis; then \
+		printf "$(GREEN)✅ Redis is running$(RESET)\n"; \
+	else \
+		printf "$(RED)❌ Redis not running in namespace $(NS)$(RESET)\n"; \
+		printf "$(GRAY)Available Pods:$(RESET)\n"; \
+		kubectl get pods -n $(NS) -l app=rcabench-redis || printf "$(GRAY)No Redis pods found$(RESET)\n"; \
+		exit 1; \
+	fi
+
 # =============================================================================
 # Development Tools
 # =============================================================================
@@ -194,12 +204,30 @@ local-debug: ## 🐛 Start local debugging environment
 	else \
 		use_backup="n"; \
 	fi; \
-	if [ "$$use_backup" = "y" ] || [ "$$use_backup" = "Y" ]; then \
-		printf "$(BLUE)📦 Backing up Redis from production environment...$(RESET)\n"; \
-		$(MAKE) -C scripts/hack/backup_redis restore-local; \
-		printf "$(BLUE)🗄️ Backing up database from production environment...$(RESET)\n"; \
-		$(MAKE) -C scripts/hack/backup_mysql migrate; \
-		printf "$(GREEN)✅ Environment preparation completed!$(RESET)\n"; \
+	if [ "$$use_backup" = "y" ]; then \
+		db_status="down"; \
+		redis_status="down"; \
+		if $(MAKE) check-db 2>/dev/null; then \
+		    db_status="up"; \
+		fi; \
+		if $(MAKE) check-redis 2>/dev/null; then \
+		    redis_status="up"; \
+		fi; \
+		printf "$(GRAY)Database status: $$db_status$(RESET)\n"; \
+		printf "$(GRAY)Redis status: $$redis_status$(RESET)\n"; \
+		if [ "$$db_status" = "up" ]; then \
+			printf "$(BLUE)🗄️ Backing up database from production environment...$(RESET)\n"; \
+			$(MAKE) -C scripts/hack/backup_mysql migrate; \
+		else \
+		    printf "$(YELLOW)⚠️ Database not available, skipping database backup$(RESET)\n"; \
+		fi; \
+		if [ "$$redis_status" = "up" ]; then \
+			printf "$(BLUE)📦 Backing up Redis from production environment...$(RESET)\n"; \
+			$(MAKE) -C scripts/hack/backup_redis restore-local; \
+		else \
+			printf "$(YELLOW)⚠️ Redis not available, skipping Redis backup$(RESET)\n"; \
+		fi; \
+        printf "$(GREEN)✅ Environment preparation completed!$(RESET)\n"; \
 	fi; \
 	if [ "$(START_APP)" = "ask" ]; then \
 		read -p "Start local application now (y/n)? " start_app; \
@@ -208,7 +236,7 @@ local-debug: ## 🐛 Start local debugging environment
 	else \
 		start_app="n"; \
 	fi; \
-	if [ "$$start_app" = "n" ] || [ "$$start_app" = "N" ]; then \
+	if [ "$$start_app" = "n" ]; then \
 		printf "$(YELLOW)⏸️  Local application not started, you can start it manually later:$(RESET)\n"; \
 		printf "$(GRAY)cd $(SRC_DIR) && go run main.go both --port 8082$(RESET)\n"; \
 	else \
