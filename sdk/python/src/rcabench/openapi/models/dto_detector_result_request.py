@@ -18,8 +18,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt
+from typing import Any, ClassVar, Dict, List, Union
 from rcabench.openapi.models.dto_detector_result_item import DtoDetectorResultItem
 from typing import Optional, Set
 from typing_extensions import Self
@@ -28,7 +28,7 @@ class DtoDetectorResultRequest(BaseModel):
     """
     DtoDetectorResultRequest
     """ # noqa: E501
-    duration: StrictInt = Field(description="Execution duration in seconds")
+    duration: Union[StrictFloat, StrictInt] = Field(description="Execution duration in seconds")
     results: List[DtoDetectorResultItem]
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["duration", "results"]

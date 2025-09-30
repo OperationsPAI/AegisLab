@@ -404,7 +404,7 @@ Name | Type | Description  | Notes
 
 Get Batch Algorithm Dataset Evaluation
 
-Get execution results with predictions and ground truth for multiple algorithm-dataset pairs in a single request
+Get execution results with predictions and ground truth for multiple algorithm-dataset pairs in a single request. Returns the latest execution for each datapack if multiple executions exist.
 
 ### Example
 

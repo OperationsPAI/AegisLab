@@ -15,6 +15,9 @@ const (
 	ResourceUser           ResourceName = "user"            // user resource
 	ResourceRole           ResourceName = "role"            // role resource
 	ResourcePermission     ResourceName = "permission"      // permission resource
+	ResourceLabel          ResourceName = "label"           // label resource
+	ResourceSystem         ResourceName = "system"          // system resource
+	ResourceAudit          ResourceName = "audit"           // audit resource
 )
 
 // String returns the string representation of the resource name

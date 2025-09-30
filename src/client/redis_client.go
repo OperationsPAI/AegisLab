@@ -25,9 +25,7 @@ func GetRedisClient() *redis.Client {
 			Password: "",
 			DB:       0,
 		})
-		// if err := errors.Join(redisotel.InstrumentTracing(redisClient), redisotel.InstrumentMetrics(redisClient)); err != nil {
-		// log.Fatal(err)
-		// }
+
 		ctx := context.Background()
 		if err := redisClient.Ping(ctx).Err(); err != nil {
 			logrus.Fatalf("Failed to connect to Redis: %v", err)

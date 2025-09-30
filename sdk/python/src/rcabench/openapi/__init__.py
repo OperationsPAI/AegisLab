@@ -141,6 +141,7 @@ __all__ = [
     "DtoGenericResponseDtoInjectionFieldMappingResp",
     "DtoGenericResponseDtoInjectionSearchResponse",
     "DtoGenericResponseDtoInjectionStatsResp",
+    "DtoGenericResponseDtoInjectionV2BatchDeleteResponse",
     "DtoGenericResponseDtoInjectionV2CreateResponse",
     "DtoGenericResponseDtoInjectionV2Response",
     "DtoGenericResponseDtoLabelResponse",
@@ -196,10 +197,15 @@ __all__ = [
     "DtoInjectionStatistics",
     "DtoInjectionStats",
     "DtoInjectionStatsResp",
+    "DtoInjectionV2BatchDeleteReq",
+    "DtoInjectionV2BatchDeleteResponse",
+    "DtoInjectionV2CascadeDeleteStats",
     "DtoInjectionV2CreateItem",
     "DtoInjectionV2CreateReq",
     "DtoInjectionV2CreateResponse",
     "DtoInjectionV2CustomLabelManageReq",
+    "DtoInjectionV2DeleteError",
+    "DtoInjectionV2DeletedItem",
     "DtoInjectionV2LabelManageReq",
     "DtoInjectionV2Response",
     "DtoInjectionV2SearchReq",
@@ -418,6 +424,7 @@ if __import__("typing").TYPE_CHECKING:
     from rcabench.openapi.models.dto_generic_response_dto_injection_field_mapping_resp import DtoGenericResponseDtoInjectionFieldMappingResp as DtoGenericResponseDtoInjectionFieldMappingResp
     from rcabench.openapi.models.dto_generic_response_dto_injection_search_response import DtoGenericResponseDtoInjectionSearchResponse as DtoGenericResponseDtoInjectionSearchResponse
     from rcabench.openapi.models.dto_generic_response_dto_injection_stats_resp import DtoGenericResponseDtoInjectionStatsResp as DtoGenericResponseDtoInjectionStatsResp
+    from rcabench.openapi.models.dto_generic_response_dto_injection_v2_batch_delete_response import DtoGenericResponseDtoInjectionV2BatchDeleteResponse as DtoGenericResponseDtoInjectionV2BatchDeleteResponse
     from rcabench.openapi.models.dto_generic_response_dto_injection_v2_create_response import DtoGenericResponseDtoInjectionV2CreateResponse as DtoGenericResponseDtoInjectionV2CreateResponse
     from rcabench.openapi.models.dto_generic_response_dto_injection_v2_response import DtoGenericResponseDtoInjectionV2Response as DtoGenericResponseDtoInjectionV2Response
     from rcabench.openapi.models.dto_generic_response_dto_label_response import DtoGenericResponseDtoLabelResponse as DtoGenericResponseDtoLabelResponse
@@ -473,10 +480,15 @@ if __import__("typing").TYPE_CHECKING:
     from rcabench.openapi.models.dto_injection_statistics import DtoInjectionStatistics as DtoInjectionStatistics
     from rcabench.openapi.models.dto_injection_stats import DtoInjectionStats as DtoInjectionStats
     from rcabench.openapi.models.dto_injection_stats_resp import DtoInjectionStatsResp as DtoInjectionStatsResp
+    from rcabench.openapi.models.dto_injection_v2_batch_delete_req import DtoInjectionV2BatchDeleteReq as DtoInjectionV2BatchDeleteReq
+    from rcabench.openapi.models.dto_injection_v2_batch_delete_response import DtoInjectionV2BatchDeleteResponse as DtoInjectionV2BatchDeleteResponse
+    from rcabench.openapi.models.dto_injection_v2_cascade_delete_stats import DtoInjectionV2CascadeDeleteStats as DtoInjectionV2CascadeDeleteStats
     from rcabench.openapi.models.dto_injection_v2_create_item import DtoInjectionV2CreateItem as DtoInjectionV2CreateItem
     from rcabench.openapi.models.dto_injection_v2_create_req import DtoInjectionV2CreateReq as DtoInjectionV2CreateReq
     from rcabench.openapi.models.dto_injection_v2_create_response import DtoInjectionV2CreateResponse as DtoInjectionV2CreateResponse
     from rcabench.openapi.models.dto_injection_v2_custom_label_manage_req import DtoInjectionV2CustomLabelManageReq as DtoInjectionV2CustomLabelManageReq
+    from rcabench.openapi.models.dto_injection_v2_delete_error import DtoInjectionV2DeleteError as DtoInjectionV2DeleteError
+    from rcabench.openapi.models.dto_injection_v2_deleted_item import DtoInjectionV2DeletedItem as DtoInjectionV2DeletedItem
     from rcabench.openapi.models.dto_injection_v2_label_manage_req import DtoInjectionV2LabelManageReq as DtoInjectionV2LabelManageReq
     from rcabench.openapi.models.dto_injection_v2_response import DtoInjectionV2Response as DtoInjectionV2Response
     from rcabench.openapi.models.dto_injection_v2_search_req import DtoInjectionV2SearchReq as DtoInjectionV2SearchReq
@@ -701,6 +713,7 @@ from rcabench.openapi.models.dto_generic_response_dto_inject_cancel_resp import 
 from rcabench.openapi.models.dto_generic_response_dto_injection_field_mapping_resp import DtoGenericResponseDtoInjectionFieldMappingResp as DtoGenericResponseDtoInjectionFieldMappingResp
 from rcabench.openapi.models.dto_generic_response_dto_injection_search_response import DtoGenericResponseDtoInjectionSearchResponse as DtoGenericResponseDtoInjectionSearchResponse
 from rcabench.openapi.models.dto_generic_response_dto_injection_stats_resp import DtoGenericResponseDtoInjectionStatsResp as DtoGenericResponseDtoInjectionStatsResp
+from rcabench.openapi.models.dto_generic_response_dto_injection_v2_batch_delete_response import DtoGenericResponseDtoInjectionV2BatchDeleteResponse as DtoGenericResponseDtoInjectionV2BatchDeleteResponse
 from rcabench.openapi.models.dto_generic_response_dto_injection_v2_create_response import DtoGenericResponseDtoInjectionV2CreateResponse as DtoGenericResponseDtoInjectionV2CreateResponse
 from rcabench.openapi.models.dto_generic_response_dto_injection_v2_response import DtoGenericResponseDtoInjectionV2Response as DtoGenericResponseDtoInjectionV2Response
 from rcabench.openapi.models.dto_generic_response_dto_label_response import DtoGenericResponseDtoLabelResponse as DtoGenericResponseDtoLabelResponse
@@ -756,10 +769,15 @@ from rcabench.openapi.models.dto_injection_search_response import DtoInjectionSe
 from rcabench.openapi.models.dto_injection_statistics import DtoInjectionStatistics as DtoInjectionStatistics
 from rcabench.openapi.models.dto_injection_stats import DtoInjectionStats as DtoInjectionStats
 from rcabench.openapi.models.dto_injection_stats_resp import DtoInjectionStatsResp as DtoInjectionStatsResp
+from rcabench.openapi.models.dto_injection_v2_batch_delete_req import DtoInjectionV2BatchDeleteReq as DtoInjectionV2BatchDeleteReq
+from rcabench.openapi.models.dto_injection_v2_batch_delete_response import DtoInjectionV2BatchDeleteResponse as DtoInjectionV2BatchDeleteResponse
+from rcabench.openapi.models.dto_injection_v2_cascade_delete_stats import DtoInjectionV2CascadeDeleteStats as DtoInjectionV2CascadeDeleteStats
 from rcabench.openapi.models.dto_injection_v2_create_item import DtoInjectionV2CreateItem as DtoInjectionV2CreateItem
 from rcabench.openapi.models.dto_injection_v2_create_req import DtoInjectionV2CreateReq as DtoInjectionV2CreateReq
 from rcabench.openapi.models.dto_injection_v2_create_response import DtoInjectionV2CreateResponse as DtoInjectionV2CreateResponse
 from rcabench.openapi.models.dto_injection_v2_custom_label_manage_req import DtoInjectionV2CustomLabelManageReq as DtoInjectionV2CustomLabelManageReq
+from rcabench.openapi.models.dto_injection_v2_delete_error import DtoInjectionV2DeleteError as DtoInjectionV2DeleteError
+from rcabench.openapi.models.dto_injection_v2_deleted_item import DtoInjectionV2DeletedItem as DtoInjectionV2DeletedItem
 from rcabench.openapi.models.dto_injection_v2_label_manage_req import DtoInjectionV2LabelManageReq as DtoInjectionV2LabelManageReq
 from rcabench.openapi.models.dto_injection_v2_response import DtoInjectionV2Response as DtoInjectionV2Response
 from rcabench.openapi.models.dto_injection_v2_search_req import DtoInjectionV2SearchReq as DtoInjectionV2SearchReq

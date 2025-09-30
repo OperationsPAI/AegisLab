@@ -49,8 +49,11 @@ configmap:
     clickhouse_host: "10.10.10.58"
     mysql_user: "root"
     mysql_password: "yourpassword"
+    mysql_host: "{{ .Release.Name }}-mysql"
     mysql_port: "3306"
     mysql_db: "rcabench"
+  redis:
+    host: "{{ .Release.Name }}-redis:6379"
   harbor:
     host: "10.10.10.240"
     project: "library"
@@ -58,6 +61,8 @@ configmap:
     password: "Harbor12345"
   k8s:
     namespace: "exp"
+  jaeger:
+    endpoint: "{{ .Release.Name }}-jaeger:4318"
   jfs:
     path: "/var/lib/rcabench"
   algo:
@@ -67,7 +72,7 @@ configmap:
   debugging:
     enable: false
   buildkit:
-    address: "tcp://{{ .Release.Name }}-buildkit:1234"
+    address: "{{ .Release.Name }}-buildkit:1234"
   rate_limiting:
     max_concurrent_builds: 3
     max_concurrent_restarts: 2

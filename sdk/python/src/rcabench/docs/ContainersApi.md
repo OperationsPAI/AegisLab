@@ -8,6 +8,7 @@ Method | HTTP request | Description
 [**api_v2_containers_id_delete**](ContainersApi.md#api_v2_containers_id_delete) | **DELETE** /api/v2/containers/{id} | Delete container
 [**api_v2_containers_id_get**](ContainersApi.md#api_v2_containers_id_get) | **GET** /api/v2/containers/{id} | Get container by ID
 [**api_v2_containers_id_put**](ContainersApi.md#api_v2_containers_id_put) | **PUT** /api/v2/containers/{id} | Update container
+[**api_v2_containers_name_name_latest_get**](ContainersApi.md#api_v2_containers_name_name_latest_get) | **GET** /api/v2/containers/name/{name}/latest | Get latest container by name
 [**api_v2_containers_post**](ContainersApi.md#api_v2_containers_post) | **POST** /api/v2/containers | Create or update container
 [**api_v2_containers_search_post**](ContainersApi.md#api_v2_containers_search_post) | **POST** /api/v2/containers/search | Search containers
 
@@ -346,6 +347,89 @@ Name | Type | Description  | Notes
 |-------------|-------------|------------------|
 **200** | Container updated successfully |  -  |
 **400** | Invalid request |  -  |
+**403** | Permission denied |  -  |
+**404** | Container not found |  -  |
+**500** | Internal server error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **api_v2_containers_name_name_latest_get**
+> DtoGenericResponseDtoContainerResponse api_v2_containers_name_name_latest_get(name)
+
+Get latest container by name
+
+Get the most recently updated container record for a given algorithm name
+
+### Example
+
+* Api Key Authentication (BearerAuth):
+
+```python
+import rcabench.openapi
+from rcabench.openapi.models.dto_generic_response_dto_container_response import DtoGenericResponseDtoContainerResponse
+from rcabench.openapi.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = rcabench.openapi.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: BearerAuth
+configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with rcabench.openapi.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = rcabench.openapi.ContainersApi(api_client)
+    name = 'name_example' # str | Container/Algorithm name
+
+    try:
+        # Get latest container by name
+        api_response = api_instance.api_v2_containers_name_name_latest_get(name)
+        print("The response of ContainersApi->api_v2_containers_name_name_latest_get:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling ContainersApi->api_v2_containers_name_name_latest_get: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **name** | **str**| Container/Algorithm name | 
+
+### Return type
+
+[**DtoGenericResponseDtoContainerResponse**](DtoGenericResponseDtoContainerResponse.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Latest container retrieved successfully |  -  |
+**400** | Invalid container name |  -  |
 **403** | Permission denied |  -  |
 **404** | Container not found |  -  |
 **500** | Internal server error |  -  |

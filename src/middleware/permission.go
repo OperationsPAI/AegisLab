@@ -217,29 +217,29 @@ type PermissionCheck struct {
 // Common permission middlewares
 var (
 	// User management permissions
-	RequireUserRead   = RequirePermission("read", "users")
-	RequireUserWrite  = RequirePermission("write", "users")
-	RequireUserDelete = RequirePermission("delete", "users")
+	RequireUserRead   = RequirePermission("read", "user")
+	RequireUserWrite  = RequirePermission("write", "user")
+	RequireUserDelete = RequirePermission("delete", "user")
 
 	// Role management permissions
-	RequireRoleRead   = RequirePermission("read", "roles")
-	RequireRoleWrite  = RequirePermission("write", "roles")
-	RequireRoleDelete = RequirePermission("delete", "roles")
+	RequireRoleRead   = RequirePermission("read", "role")
+	RequireRoleWrite  = RequirePermission("write", "role")
+	RequireRoleDelete = RequirePermission("delete", "role")
 
 	// Permission management permissions
-	RequirePermissionRead   = RequirePermission("read", "permissions")
-	RequirePermissionWrite  = RequirePermission("write", "permissions")
-	RequirePermissionDelete = RequirePermission("delete", "permissions")
+	RequirePermissionRead   = RequirePermission("read", "permission")
+	RequirePermissionWrite  = RequirePermission("write", "permission")
+	RequirePermissionDelete = RequirePermission("delete", "permission")
 
 	// Label management permissions
-	RequireLabelRead   = RequirePermission("read", "labels")
-	RequireLabelWrite  = RequirePermission("write", "labels")
-	RequireLabelDelete = RequirePermission("delete", "labels")
+	RequireLabelRead   = RequirePermission("read", "label")
+	RequireLabelWrite  = RequirePermission("write", "label")
+	RequireLabelDelete = RequirePermission("delete", "label")
 
 	// Project management permissions
-	RequireProjectRead   = RequirePermission("read", "projects")
-	RequireProjectWrite  = RequirePermission("write", "projects")
-	RequireProjectDelete = RequirePermission("delete", "projects")
+	RequireProjectRead   = RequirePermission("read", "project")
+	RequireProjectWrite  = RequirePermission("write", "project")
+	RequireProjectDelete = RequirePermission("delete", "project")
 
 	// Dataset management permissions
 	RequireDatasetRead   = RequirePermission("read", "dataset")

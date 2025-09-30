@@ -18,25 +18,23 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional, Union
-from rcabench.openapi.models.dto_granularity_record import DtoGranularityRecord
-from rcabench.openapi.models.handler_groundtruth import HandlerGroundtruth
+from pydantic import BaseModel, ConfigDict, StrictInt
+from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoDatapackEvaluationItem(BaseModel):
+class DtoInjectionV2CascadeDeleteStats(BaseModel):
     """
-    DtoDatapackEvaluationItem
+    DtoInjectionV2CascadeDeleteStats
     """ # noqa: E501
-    datapack_name: Optional[StrictStr] = Field(default=None, description="Datapack name (from FaultInjectionSchedule)")
-    executed_at: Optional[StrictStr] = Field(default=None, description="Execution time")
-    execution_duration: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Execution duration in seconds")
-    execution_id: Optional[StrictInt] = Field(default=None, description="Execution ID")
-    groundtruth: Optional[HandlerGroundtruth] = Field(default=None, description="Ground truth for this datapack")
-    predictions: Optional[List[DtoGranularityRecord]] = Field(default=None, description="Algorithm predictions")
+    dataset_fault_injections: Optional[StrictInt] = None
+    detectors: Optional[StrictInt] = None
+    execution_result_labels: Optional[StrictInt] = None
+    execution_results: Optional[StrictInt] = None
+    fault_injection_labels: Optional[StrictInt] = None
+    granularity_results: Optional[StrictInt] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["datapack_name", "executed_at", "execution_duration", "execution_id", "groundtruth", "predictions"]
+    __properties: ClassVar[List[str]] = ["dataset_fault_injections", "detectors", "execution_result_labels", "execution_results", "fault_injection_labels", "granularity_results"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -56,7 +54,7 @@ class DtoDatapackEvaluationItem(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoDatapackEvaluationItem from a JSON string"""
+        """Create an instance of DtoInjectionV2CascadeDeleteStats from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -79,16 +77,6 @@ class DtoDatapackEvaluationItem(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of groundtruth
-        if self.groundtruth:
-            _dict['groundtruth'] = self.groundtruth.to_dict()
-        # override the default output from pydantic by calling `to_dict()` of each item in predictions (list)
-        _items = []
-        if self.predictions:
-            for _item_predictions in self.predictions:
-                if _item_predictions:
-                    _items.append(_item_predictions.to_dict())
-            _dict['predictions'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -98,7 +86,7 @@ class DtoDatapackEvaluationItem(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoDatapackEvaluationItem from a dict"""
+        """Create an instance of DtoInjectionV2CascadeDeleteStats from a dict"""
         if obj is None:
             return None
 
@@ -106,12 +94,12 @@ class DtoDatapackEvaluationItem(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "datapack_name": obj.get("datapack_name"),
-            "executed_at": obj.get("executed_at"),
-            "execution_duration": obj.get("execution_duration"),
-            "execution_id": obj.get("execution_id"),
-            "groundtruth": HandlerGroundtruth.from_dict(obj["groundtruth"]) if obj.get("groundtruth") is not None else None,
-            "predictions": [DtoGranularityRecord.from_dict(_item) for _item in obj["predictions"]] if obj.get("predictions") is not None else None
+            "dataset_fault_injections": obj.get("dataset_fault_injections"),
+            "detectors": obj.get("detectors"),
+            "execution_result_labels": obj.get("execution_result_labels"),
+            "execution_results": obj.get("execution_results"),
+            "fault_injection_labels": obj.get("fault_injection_labels"),
+            "granularity_results": obj.get("granularity_results")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

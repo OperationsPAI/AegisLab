@@ -8,7 +8,7 @@ Name | Type | Description | Notes
 **algorithm** | **str** | Algorithm name | [optional] 
 **datapack** | **str** | Datapack name | [optional] 
 **executed_at** | **str** | Execution time | [optional] 
-**execution_duration** | **int** | Execution duration in seconds | [optional] 
+**execution_duration** | **float** | Execution duration in seconds | [optional] 
 **execution_id** | **int** | Execution ID (0 if no execution found) | [optional] 
 **found** | **bool** | Whether execution result was found | [optional] 
 **groundtruth** | [**HandlerGroundtruth**](HandlerGroundtruth.md) | Ground truth for this datapack | [optional] 

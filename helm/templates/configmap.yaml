@@ -33,16 +33,17 @@ data:
     clickhouse_host = "{{ .Values.configmap.database.clickhouse_host }}"
     mysql_user = "{{ .Values.configmap.database.mysql_user }}"
     mysql_password = "{{ .Values.configmap.database.mysql_password }}"
-    mysql_host = "{{ .Release.Name }}-mysql"
+    mysql_host = "{{ .Values.configmap.database.mysql_host }}"
     mysql_port = "{{ .Values.configmap.database.mysql_port }}"
     mysql_db = "{{ .Values.configmap.database.mysql_db }}"
 
 
     [jaeger]
-    endpoint = "{{ .Release.Name }}-jaeger:4318"
+    endpoint = "{{ .Values.configmap.jaeger.endpoint }}"
+    address = "{{ .Values.configmap.jaeger.address }}"
 
     [redis]
-    host = "{{ .Release.Name }}-redis:6379"
+    host = "{{ .Values.configmap.redis.host }}"
 
     [harbor]
     host = "{{ .Values.configmap.harbor.host }}"
@@ -66,7 +67,7 @@ data:
     enable = {{ .Values.configmap.debugging.enable }}
 
     [buildkit]
-    address = "tcp://{{ .Release.Name }}-buildkit:1234"
+    address = "{{ .Values.configmap.buildkit.address }}"
 
     [rate_limiting]
     max_concurrent_builds = {{ .Values.configmap.rate_limiting.max_concurrent_builds }}

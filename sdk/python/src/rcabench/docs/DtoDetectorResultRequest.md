@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**duration** | **int** | Execution duration in seconds | 
+**duration** | **float** | Execution duration in seconds | 
 **results** | [**List[DtoDetectorResultItem]**](DtoDetectorResultItem.md) |  | 
 
 ## Example

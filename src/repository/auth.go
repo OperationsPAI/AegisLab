@@ -23,6 +23,9 @@ func InitializeSystemData() error {
 			{Name: consts.ResourceUser.String(), DisplayName: "User", Type: "table", Category: "admin", IsSystem: true, Status: 1},
 			{Name: consts.ResourceRole.String(), DisplayName: "Role", Type: "table", Category: "admin", IsSystem: true, Status: 1},
 			{Name: consts.ResourcePermission.String(), DisplayName: "Permission", Type: "table", Category: "admin", IsSystem: true, Status: 1},
+			{Name: consts.ResourceLabel.String(), DisplayName: "Label", Type: "table", Category: "admin", IsSystem: true, Status: 1},
+			{Name: consts.ResourceSystem.String(), DisplayName: "System", Type: "system", Category: "admin", IsSystem: true, Status: 1},
+			{Name: consts.ResourceAudit.String(), DisplayName: "Audit", Type: "table", Category: "admin", IsSystem: true, Status: 1},
 		}
 
 		for _, resource := range systemResources {

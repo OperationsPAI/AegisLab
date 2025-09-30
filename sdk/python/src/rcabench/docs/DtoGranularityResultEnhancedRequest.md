@@ -6,7 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **datapack_id** | **int** | Required if no execution_id | [optional] 
-**duration** | **int** | Execution duration in seconds | 
+**duration** | **float** | Execution duration in seconds | 
 **results** | [**List[DtoGranularityResultItem]**](DtoGranularityResultItem.md) |  | 
 
 ## Example

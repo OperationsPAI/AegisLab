@@ -1946,186 +1946,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/audit": {
-            "get": {
-                "description": "Get paginated list of audit logs with optional filtering",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "System"
-                ],
-                "summary": "List audit logs",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Page number",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 20,
-                        "description": "Page size",
-                        "name": "size",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Filter by user ID",
-                        "name": "user_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by action",
-                        "name": "action",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by resource",
-                        "name": "resource",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Filter by success status",
-                        "name": "success",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter from date (YYYY-MM-DD)",
-                        "name": "start_date",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter to date (YYYY-MM-DD)",
-                        "name": "end_date",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Audit logs retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_AuditLogListResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request parameters",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Create a new audit log entry",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "System"
-                ],
-                "summary": "Create audit log",
-                "parameters": [
-                    {
-                        "description": "Audit log data",
-                        "name": "audit_log",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.AuditLogRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Audit log created successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_AuditLogResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/audit/{id}": {
-            "get": {
-                "description": "Get a specific audit log entry by ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "System"
-                ],
-                "summary": "Get audit log by ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Audit log ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Audit log retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_AuditLogResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid ID",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "Audit log not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v2/auth/change-password": {
             "post": {
                 "security": [
@@ -3820,32 +3640,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/health": {
-            "get": {
-                "description": "Get system health status and service information",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "System"
-                ],
-                "summary": "System health check",
-                "responses": {
-                    "200": {
-                        "description": "Health check successful",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_HealthCheckResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v2/injections": {
             "get": {
                 "security": [
@@ -4502,78 +4296,6 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Label already exists",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/monitor/info": {
-            "get": {
-                "description": "Get basic system information and status",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "System"
-                ],
-                "summary": "Get system information",
-                "responses": {
-                    "200": {
-                        "description": "System info retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SystemInfo"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/monitor/metrics": {
-            "post": {
-                "description": "Query monitoring metrics for system performance",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "System"
-                ],
-                "summary": "Get monitoring metrics",
-                "parameters": [
-                    {
-                        "description": "Metrics query request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.MonitoringQueryRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Metrics retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_MonitoringMetricsResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -6146,32 +5868,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/statistics": {
-            "get": {
-                "description": "Get comprehensive system statistics and metrics",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "System"
-                ],
-                "summary": "Get system statistics",
-                "responses": {
-                    "200": {
-                        "description": "Statistics retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SystemStatisticsResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v2/tasks": {
             "get": {
                 "security": [
@@ -6919,6 +6615,310 @@ const docTemplate = `{
                         "description": "Invalid ID",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/system/audit": {
+            "get": {
+                "description": "Get paginated list of audit logs with optional filtering",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "List audit logs",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by user ID",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by action",
+                        "name": "action",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by resource",
+                        "name": "resource",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by success status",
+                        "name": "success",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter from date (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter to date (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Audit logs retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_AuditLogListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new audit log entry",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Create audit log",
+                "parameters": [
+                    {
+                        "description": "Audit log data",
+                        "name": "audit_log",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AuditLogRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Audit log created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_AuditLogResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/system/audit/{id}": {
+            "get": {
+                "description": "Get a specific audit log entry by ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Get audit log by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Audit log ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Audit log retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_AuditLogResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Audit log not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/system/health": {
+            "get": {
+                "description": "Get system health status and service information",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "System health check",
+                "responses": {
+                    "200": {
+                        "description": "Health check successful",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_HealthCheckResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/system/monitor/info": {
+            "get": {
+                "description": "Get basic system information and status",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Get system information",
+                "responses": {
+                    "200": {
+                        "description": "System info retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SystemInfo"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/system/monitor/metrics": {
+            "post": {
+                "description": "Query monitoring metrics for system performance",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Get monitoring metrics",
+                "parameters": [
+                    {
+                        "description": "Metrics query request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.MonitoringQueryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Metrics retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_MonitoringMetricsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/system/statistics": {
+            "get": {
+                "description": "Get comprehensive system statistics and metrics",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Get system statistics",
+                "responses": {
+                    "200": {
+                        "description": "Statistics retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SystemStatisticsResponse"
                         }
                     },
                     "500": {
@@ -7877,8 +7877,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "coverage": {
-                    "type": "number",
-                    "format": "float64"
+                    "type": "number"
                 },
                 "num": {
                     "type": "integer"
@@ -7907,20 +7906,16 @@ const docTemplate = `{
             ],
             "properties": {
                 "action": {
-                    "type": "string",
-                    "example": "CREATE_USER"
+                    "type": "string"
                 },
                 "details": {
-                    "type": "string",
-                    "example": "{\"username\":\"newuser\"}"
+                    "type": "string"
                 },
                 "resource": {
-                    "type": "string",
-                    "example": "users"
+                    "type": "string"
                 },
                 "resource_id": {
-                    "type": "integer",
-                    "example": 123
+                    "type": "integer"
                 }
             }
         },
@@ -7928,51 +7923,40 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "action": {
-                    "type": "string",
-                    "example": "CREATE_USER"
+                    "type": "string"
                 },
                 "details": {
-                    "type": "string",
-                    "example": "{\"username\":\"newuser\"}"
+                    "type": "string"
                 },
                 "error": {
                     "type": "string"
                 },
                 "id": {
-                    "type": "integer",
-                    "example": 1
+                    "type": "integer"
                 },
                 "ip_address": {
-                    "type": "string",
-                    "example": "192.168.1.100"
+                    "type": "string"
                 },
                 "resource": {
-                    "type": "string",
-                    "example": "users"
+                    "type": "string"
                 },
                 "resource_id": {
-                    "type": "string",
-                    "example": "123"
+                    "type": "string"
                 },
                 "success": {
-                    "type": "boolean",
-                    "example": true
+                    "type": "boolean"
                 },
                 "timestamp": {
-                    "type": "string",
-                    "example": "2024-01-01T12:00:00Z"
+                    "type": "string"
                 },
                 "user_agent": {
-                    "type": "string",
-                    "example": "Mozilla/5.0..."
+                    "type": "string"
                 },
                 "user_id": {
-                    "type": "integer",
-                    "example": 1
+                    "type": "integer"
                 },
                 "username": {
-                    "type": "string",
-                    "example": "admin"
+                    "type": "string"
                 }
             }
         },
@@ -8197,16 +8181,13 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "active": {
-                    "type": "integer",
-                    "example": 20
+                    "type": "integer"
                 },
                 "deleted": {
-                    "type": "integer",
-                    "example": 5
+                    "type": "integer"
                 },
                 "total": {
-                    "type": "integer",
-                    "example": 25
+                    "type": "integer"
                 }
             }
         },
@@ -8500,20 +8481,16 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "private": {
-                    "type": "integer",
-                    "example": 70
+                    "type": "integer"
                 },
                 "public": {
-                    "type": "integer",
-                    "example": 30
+                    "type": "integer"
                 },
                 "total": {
-                    "type": "integer",
-                    "example": 100
+                    "type": "integer"
                 },
                 "total_size": {
-                    "type": "integer",
-                    "example": 1073741824
+                    "type": "integer"
                 }
             }
         },
@@ -9048,16 +9025,13 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "failed": {
-                    "type": "integer",
-                    "example": 50
+                    "type": "integer"
                 },
                 "successful": {
-                    "type": "integer",
-                    "example": 750
+                    "type": "integer"
                 },
                 "total": {
-                    "type": "integer",
-                    "example": 800
+                    "type": "integer"
                 }
             }
         },
@@ -9152,26 +9126,6 @@ const docTemplate = `{
                 "OpNotLike": "NOT LIKE %value%",
                 "OpStartsWith": "LIKE value%"
             },
-            "x-enum-descriptions": [
-                "==",
-                "!=",
-                "\u003e",
-                "\u003e=",
-                "\u003c",
-                "\u003c=",
-                "LIKE %value%",
-                "LIKE value%",
-                "LIKE %value",
-                "NOT LIKE %value%",
-                "IN (value1, value2, ...)",
-                "NOT IN (value1, value2, ...)",
-                "IS NULL",
-                "IS NOT NULL",
-                "DATE(field) = DATE(value)",
-                "DATE(field) \u003e DATE(value)",
-                "DATE(field) \u003c DATE(value)",
-                "DATE(field) BETWEEN date1 AND date2"
-            ],
             "x-enum-varnames": [
                 "OpEqual",
                 "OpNotEqual",
@@ -10946,20 +10900,16 @@ const docTemplate = `{
                     }
                 },
                 "status": {
-                    "type": "string",
-                    "example": "healthy"
+                    "type": "string"
                 },
                 "timestamp": {
-                    "type": "string",
-                    "example": "2024-01-01T12:00:00Z"
+                    "type": "string"
                 },
                 "uptime": {
-                    "type": "string",
-                    "example": "72h30m15s"
+                    "type": "string"
                 },
                 "version": {
-                    "type": "string",
-                    "example": "1.0.0"
+                    "type": "string"
                 }
             }
         },
@@ -11110,24 +11060,19 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "completed": {
-                    "type": "integer",
-                    "example": 480
+                    "type": "integer"
                 },
                 "failed": {
-                    "type": "integer",
-                    "example": 5
+                    "type": "integer"
                 },
                 "running": {
-                    "type": "integer",
-                    "example": 5
+                    "type": "integer"
                 },
                 "scheduled": {
-                    "type": "integer",
-                    "example": 10
+                    "type": "integer"
                 },
                 "total": {
-                    "type": "integer",
-                    "example": 500
+                    "type": "integer"
                 }
             }
         },
@@ -11720,16 +11665,13 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "timestamp": {
-                    "type": "string",
-                    "example": "2024-01-01T12:00:00Z"
+                    "type": "string"
                 },
                 "unit": {
-                    "type": "string",
-                    "example": "percent"
+                    "type": "string"
                 },
                 "value": {
-                    "type": "number",
-                    "example": 42.5
+                    "type": "number"
                 }
             }
         },
@@ -11749,8 +11691,7 @@ const docTemplate = `{
                     }
                 },
                 "timestamp": {
-                    "type": "string",
-                    "example": "2024-01-01T12:00:00Z"
+                    "type": "string"
                 }
             }
         },
@@ -11761,20 +11702,16 @@ const docTemplate = `{
             ],
             "properties": {
                 "end_time": {
-                    "type": "string",
-                    "example": "2024-01-01T23:59:59Z"
+                    "type": "string"
                 },
                 "query": {
-                    "type": "string",
-                    "example": "cpu_usage"
+                    "type": "string"
                 },
                 "start_time": {
-                    "type": "string",
-                    "example": "2024-01-01T00:00:00Z"
+                    "type": "string"
                 },
                 "step": {
-                    "type": "string",
-                    "example": "1m"
+                    "type": "string"
                 }
             }
         },
@@ -12076,20 +12013,16 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "active": {
-                    "type": "integer",
-                    "example": 45
+                    "type": "integer"
                 },
                 "inactive": {
-                    "type": "integer",
-                    "example": 5
+                    "type": "integer"
                 },
                 "new_today": {
-                    "type": "integer",
-                    "example": 2
+                    "type": "integer"
                 },
                 "total": {
-                    "type": "integer",
-                    "example": 50
+                    "type": "integer"
                 }
             }
         },
@@ -12941,8 +12874,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "coverage": {
-                    "type": "number",
-                    "format": "float64"
+                    "type": "number"
                 },
                 "notCovered": {
                     "type": "array",
@@ -12963,16 +12895,13 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "last_checked": {
-                    "type": "string",
-                    "example": "2024-01-01T12:00:00Z"
+                    "type": "string"
                 },
                 "response_time": {
-                    "type": "string",
-                    "example": "15ms"
+                    "type": "string"
                 },
                 "status": {
-                    "type": "string",
-                    "example": "healthy"
+                    "type": "string"
                 }
             }
         },
@@ -13160,20 +13089,16 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "cpu_usage": {
-                    "type": "number",
-                    "example": 25.5
+                    "type": "number"
                 },
                 "disk_usage": {
-                    "type": "number",
-                    "example": 45.8
+                    "type": "number"
                 },
                 "load_average": {
-                    "type": "string",
-                    "example": "1.2, 1.5, 1.8"
+                    "type": "string"
                 },
                 "memory_usage": {
-                    "type": "number",
-                    "example": 60.2
+                    "type": "number"
                 }
             }
         },
@@ -13190,8 +13115,7 @@ const docTemplate = `{
                     "$ref": "#/definitions/dto.ExecutionStatistics"
                 },
                 "generated_at": {
-                    "type": "string",
-                    "example": "2024-01-01T12:00:00Z"
+                    "type": "string"
                 },
                 "injections": {
                     "$ref": "#/definitions/dto.InjectionStatistics"
@@ -13433,24 +13357,19 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "completed": {
-                    "type": "integer",
-                    "example": 900
+                    "type": "integer"
                 },
                 "failed": {
-                    "type": "integer",
-                    "example": 30
+                    "type": "integer"
                 },
                 "pending": {
-                    "type": "integer",
-                    "example": 50
+                    "type": "integer"
                 },
                 "running": {
-                    "type": "integer",
-                    "example": 20
+                    "type": "integer"
                 },
                 "total": {
-                    "type": "integer",
-                    "example": 1000
+                    "type": "integer"
                 }
             }
         },
@@ -13552,8 +13471,7 @@ const docTemplate = `{
                     "additionalProperties": {
                         "type": "object",
                         "additionalProperties": {
-                            "type": "number",
-                            "format": "float64"
+                            "type": "number"
                         }
                     }
                 }
@@ -14023,24 +13941,19 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "active": {
-                    "type": "integer",
-                    "example": 120
+                    "type": "integer"
                 },
                 "inactive": {
-                    "type": "integer",
-                    "example": 30
+                    "type": "integer"
                 },
                 "new_this_week": {
-                    "type": "integer",
-                    "example": 20
+                    "type": "integer"
                 },
                 "new_today": {
-                    "type": "integer",
-                    "example": 5
+                    "type": "integer"
                 },
                 "total": {
-                    "type": "integer",
-                    "example": 150
+                    "type": "integer"
                 }
             }
         },

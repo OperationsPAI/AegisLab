@@ -663,7 +663,6 @@ definitions:
   dto.AttributeCoverageItem:
     properties:
       coverage:
-        format: float64
         type: number
       num:
         type: integer
@@ -680,16 +679,12 @@ definitions:
   dto.AuditLogRequest:
     properties:
       action:
-        example: CREATE_USER
         type: string
       details:
-        example: '{"username":"newuser"}'
         type: string
       resource:
-        example: users
         type: string
       resource_id:
-        example: 123
         type: integer
     required:
     - action
@@ -698,39 +693,28 @@ definitions:
   dto.AuditLogResponse:
     properties:
       action:
-        example: CREATE_USER
         type: string
       details:
-        example: '{"username":"newuser"}'
         type: string
       error:
         type: string
       id:
-        example: 1
         type: integer
       ip_address:
-        example: 192.168.1.100
         type: string
       resource:
-        example: users
         type: string
       resource_id:
-        example: "123"
         type: string
       success:
-        example: true
         type: boolean
       timestamp:
-        example: "2024-01-01T12:00:00Z"
         type: string
       user_agent:
-        example: Mozilla/5.0...
         type: string
       user_id:
-        example: 1
         type: integer
       username:
-        example: admin
         type: string
     type: object
   dto.BatchAlgorithmExecutionRequest:
@@ -880,13 +864,10 @@ definitions:
   dto.ContainerStatistics:
     properties:
       active:
-        example: 20
         type: integer
       deleted:
-        example: 5
         type: integer
       total:
-        example: 25
         type: integer
     type: object
   dto.CreatePermissionRequest:
@@ -1090,16 +1071,12 @@ definitions:
   dto.DatasetStatistics:
     properties:
       private:
-        example: 70
         type: integer
       public:
-        example: 30
         type: integer
       total:
-        example: 100
         type: integer
       total_size:
-        example: 1073741824
         type: integer
     type: object
   dto.DatasetV2CreateReq:
@@ -1481,13 +1458,10 @@ definitions:
   dto.ExecutionStatistics:
     properties:
       failed:
-        example: 50
         type: integer
       successful:
-        example: 750
         type: integer
       total:
-        example: 800
         type: integer
     type: object
   dto.FaultInjectionNoIssuesResp:
@@ -1562,25 +1536,6 @@ definitions:
       OpNotIn: NOT IN (value1, value2, ...)
       OpNotLike: NOT LIKE %value%
       OpStartsWith: LIKE value%
-    x-enum-descriptions:
-    - ==
-    - '!='
-    - '>'
-    - '>='
-    - <
-    - <=
-    - LIKE %value%
-    - LIKE value%
-    - LIKE %value
-    - NOT LIKE %value%
-    - IN (value1, value2, ...)
-    - NOT IN (value1, value2, ...)
-    - IS NULL
-    - IS NOT NULL
-    - DATE(field) = DATE(value)
-    - DATE(field) > DATE(value)
-    - DATE(field) < DATE(value)
-    - DATE(field) BETWEEN date1 AND date2
     x-enum-varnames:
     - OpEqual
     - OpNotEqual
@@ -2747,16 +2702,12 @@ definitions:
           $ref: '#/definitions/dto.ServiceInfo'
         type: object
       status:
-        example: healthy
         type: string
       timestamp:
-        example: "2024-01-01T12:00:00Z"
         type: string
       uptime:
-        example: 72h30m15s
         type: string
       version:
-        example: 1.0.0
         type: string
     type: object
   dto.InjectCancelResp:
@@ -2856,19 +2807,14 @@ definitions:
   dto.InjectionStatistics:
     properties:
       completed:
-        example: 480
         type: integer
       failed:
-        example: 5
         type: integer
       running:
-        example: 5
         type: integer
       scheduled:
-        example: 10
         type: integer
       total:
-        example: 500
         type: integer
     type: object
   dto.InjectionStats:
@@ -3268,13 +3214,10 @@ definitions:
   dto.MetricValue:
     properties:
       timestamp:
-        example: "2024-01-01T12:00:00Z"
         type: string
       unit:
-        example: percent
         type: string
       value:
-        example: 42.5
         type: number
     type: object
   dto.MonitoringMetricsResponse:
@@ -3288,22 +3231,17 @@ definitions:
           $ref: '#/definitions/dto.MetricValue'
         type: object
       timestamp:
-        example: "2024-01-01T12:00:00Z"
         type: string
     type: object
   dto.MonitoringQueryRequest:
     properties:
       end_time:
-        example: "2024-01-01T23:59:59Z"
         type: string
       query:
-        example: cpu_usage
         type: string
       start_time:
-        example: "2024-01-01T00:00:00Z"
         type: string
       step:
-        example: 1m
         type: string
     required:
     - query
@@ -3514,16 +3452,12 @@ definitions:
   dto.ProjectStatistics:
     properties:
       active:
-        example: 45
         type: integer
       inactive:
-        example: 5
         type: integer
       new_today:
-        example: 2
         type: integer
       total:
-        example: 50
         type: integer
     type: object
   dto.ProjectV2Response:
@@ -4111,7 +4045,6 @@ definitions:
   dto.ServiceCoverageItem:
     properties:
       coverage:
-        format: float64
         type: number
       notCovered:
         items:
@@ -4126,13 +4059,10 @@ definitions:
       error:
         type: string
       last_checked:
-        example: "2024-01-01T12:00:00Z"
         type: string
       response_time:
-        example: 15ms
         type: string
       status:
-        example: healthy
         type: string
     type: object
   dto.SizeRangeFilter:
@@ -4260,16 +4190,12 @@ definitions:
   dto.SystemInfo:
     properties:
       cpu_usage:
-        example: 25.5
         type: number
       disk_usage:
-        example: 45.8
         type: number
       load_average:
-        example: 1.2, 1.5, 1.8
         type: string
       memory_usage:
-        example: 60.2
         type: number
     type: object
   dto.SystemStatisticsResponse:
@@ -4281,7 +4207,6 @@ definitions:
       executions:
         $ref: '#/definitions/dto.ExecutionStatistics'
       generated_at:
-        example: "2024-01-01T12:00:00Z"
         type: string
       injections:
         $ref: '#/definitions/dto.InjectionStatistics'
@@ -4441,19 +4366,14 @@ definitions:
   dto.TaskStatistics:
     properties:
       completed:
-        example: 900
         type: integer
       failed:
-        example: 30
         type: integer
       pending:
-        example: 50
         type: integer
       running:
-        example: 20
         type: integer
       total:
-        example: 1000
         type: integer
     type: object
   dto.TaskV2Response:
@@ -4521,7 +4441,6 @@ definitions:
       trace_status_time_map:
         additionalProperties:
           additionalProperties:
-            format: float64
             type: number
           type: object
         type: object
@@ -4849,19 +4768,14 @@ definitions:
   dto.UserStatistics:
     properties:
       active:
-        example: 120
         type: integer
       inactive:
-        example: 30
         type: integer
       new_this_week:
-        example: 20
         type: integer
       new_today:
-        example: 5
         type: integer
       total:
-        example: 150
         type: integer
     type: object
   handler.Groundtruth:
@@ -6347,124 +6261,6 @@ paths:
       summary: Search algorithms
       tags:
       - Algorithms
-  /api/v2/audit:
-    get:
-      description: Get paginated list of audit logs with optional filtering
-      parameters:
-      - default: 1
-        description: Page number
-        in: query
-        name: page
-        type: integer
-      - default: 20
-        description: Page size
-        in: query
-        name: size
-        type: integer
-      - description: Filter by user ID
-        in: query
-        name: user_id
-        type: integer
-      - description: Filter by action
-        in: query
-        name: action
-        type: string
-      - description: Filter by resource
-        in: query
-        name: resource
-        type: string
-      - description: Filter by success status
-        in: query
-        name: success
-        type: boolean
-      - description: Filter from date (YYYY-MM-DD)
-        in: query
-        name: start_date
-        type: string
-      - description: Filter to date (YYYY-MM-DD)
-        in: query
-        name: end_date
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Audit logs retrieved successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_AuditLogListResponse'
-        "400":
-          description: Invalid request parameters
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      summary: List audit logs
-      tags:
-      - System
-    post:
-      consumes:
-      - application/json
-      description: Create a new audit log entry
-      parameters:
-      - description: Audit log data
-        in: body
-        name: audit_log
-        required: true
-        schema:
-          $ref: '#/definitions/dto.AuditLogRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Audit log created successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_AuditLogResponse'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      security:
-      - BearerAuth: []
-      summary: Create audit log
-      tags:
-      - System
-  /api/v2/audit/{id}:
-    get:
-      description: Get a specific audit log entry by ID
-      parameters:
-      - description: Audit log ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Audit log retrieved successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_AuditLogResponse'
-        "400":
-          description: Invalid ID
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "404":
-          description: Audit log not found
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      summary: Get audit log by ID
-      tags:
-      - System
   /api/v2/auth/change-password:
     post:
       consumes:
@@ -7574,23 +7370,6 @@ paths:
       summary: Get Available Label Keys
       tags:
       - evaluation
-  /api/v2/health:
-    get:
-      description: Get system health status and service information
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Health check successful
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_HealthCheckResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      summary: System health check
-      tags:
-      - System
   /api/v2/injections:
     get:
       description: Get a paginated list of injections with filtering and sorting
@@ -8024,53 +7803,6 @@ paths:
       summary: Create label
       tags:
       - Labels
-  /api/v2/monitor/info:
-    get:
-      description: Get basic system information and status
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: System info retrieved successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_SystemInfo'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      summary: Get system information
-      tags:
-      - System
-  /api/v2/monitor/metrics:
-    post:
-      consumes:
-      - application/json
-      description: Query monitoring metrics for system performance
-      parameters:
-      - description: Metrics query request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/dto.MonitoringQueryRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Metrics retrieved successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_MonitoringMetricsResponse'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      summary: Get monitoring metrics
-      tags:
-      - System
   /api/v2/permissions:
     get:
       description: Get paginated list of permissions with optional filtering
@@ -9066,23 +8798,6 @@ paths:
       summary: Search roles
       tags:
       - Roles
-  /api/v2/statistics:
-    get:
-      description: Get comprehensive system statistics and metrics
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Statistics retrieved successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_SystemStatisticsResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      summary: Get system statistics
-      tags:
-      - System
   /api/v2/tasks:
     get:
       description: Get a simple list of tasks with basic filtering via query parameters
@@ -9573,6 +9288,205 @@ paths:
       summary: Search users
       tags:
       - Users
+  /system/audit:
+    get:
+      description: Get paginated list of audit logs with optional filtering
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: size
+        type: integer
+      - description: Filter by user ID
+        in: query
+        name: user_id
+        type: integer
+      - description: Filter by action
+        in: query
+        name: action
+        type: string
+      - description: Filter by resource
+        in: query
+        name: resource
+        type: string
+      - description: Filter by success status
+        in: query
+        name: success
+        type: boolean
+      - description: Filter from date (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Filter to date (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Audit logs retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_AuditLogListResponse'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: List audit logs
+      tags:
+      - System
+    post:
+      consumes:
+      - application/json
+      description: Create a new audit log entry
+      parameters:
+      - description: Audit log data
+        in: body
+        name: audit_log
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AuditLogRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Audit log created successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_AuditLogResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Create audit log
+      tags:
+      - System
+  /system/audit/{id}:
+    get:
+      description: Get a specific audit log entry by ID
+      parameters:
+      - description: Audit log ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Audit log retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_AuditLogResponse'
+        "400":
+          description: Invalid ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Audit log not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: Get audit log by ID
+      tags:
+      - System
+  /system/health:
+    get:
+      description: Get system health status and service information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Health check successful
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_HealthCheckResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: System health check
+      tags:
+      - System
+  /system/monitor/info:
+    get:
+      description: Get basic system information and status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: System info retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SystemInfo'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: Get system information
+      tags:
+      - System
+  /system/monitor/metrics:
+    post:
+      consumes:
+      - application/json
+      description: Query monitoring metrics for system performance
+      parameters:
+      - description: Metrics query request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.MonitoringQueryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Metrics retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_MonitoringMetricsResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: Get monitoring metrics
+      tags:
+      - System
+  /system/statistics:
+    get:
+      description: Get comprehensive system statistics and metrics
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Statistics retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SystemStatisticsResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      summary: Get system statistics
+      tags:
+      - System
 produces:
 - application/json
 schemes:

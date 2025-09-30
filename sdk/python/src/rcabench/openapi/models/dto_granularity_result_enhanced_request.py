@@ -18,8 +18,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt
-from typing import Any, ClassVar, Dict, List, Optional
+from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt
+from typing import Any, ClassVar, Dict, List, Optional, Union
 from rcabench.openapi.models.dto_granularity_result_item import DtoGranularityResultItem
 from typing import Optional, Set
 from typing_extensions import Self
@@ -29,7 +29,7 @@ class DtoGranularityResultEnhancedRequest(BaseModel):
     DtoGranularityResultEnhancedRequest
     """ # noqa: E501
     datapack_id: Optional[StrictInt] = Field(default=None, description="Required if no execution_id")
-    duration: StrictInt = Field(description="Execution duration in seconds")
+    duration: Union[StrictFloat, StrictInt] = Field(description="Execution duration in seconds")
     results: List[DtoGranularityResultItem]
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["datapack_id", "duration", "results"]
