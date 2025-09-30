@@ -48,7 +48,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_audit_get(
+    def system_audit_get(
         self,
         page: Annotated[Optional[StrictInt], Field(description="Page number")] = None,
         size: Annotated[Optional[StrictInt], Field(description="Page size")] = None,
@@ -113,7 +113,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_audit_get_serialize(
+        _param = self._system_audit_get_serialize(
             page=page,
             size=size,
             user_id=user_id,
@@ -145,7 +145,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_audit_get_with_http_info(
+    def system_audit_get_with_http_info(
         self,
         page: Annotated[Optional[StrictInt], Field(description="Page number")] = None,
         size: Annotated[Optional[StrictInt], Field(description="Page size")] = None,
@@ -210,7 +210,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_audit_get_serialize(
+        _param = self._system_audit_get_serialize(
             page=page,
             size=size,
             user_id=user_id,
@@ -242,7 +242,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_audit_get_without_preload_content(
+    def system_audit_get_without_preload_content(
         self,
         page: Annotated[Optional[StrictInt], Field(description="Page number")] = None,
         size: Annotated[Optional[StrictInt], Field(description="Page size")] = None,
@@ -307,7 +307,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_audit_get_serialize(
+        _param = self._system_audit_get_serialize(
             page=page,
             size=size,
             user_id=user_id,
@@ -334,7 +334,7 @@ class SystemApi:
         return response_data.response
 
 
-    def _api_v2_audit_get_serialize(
+    def _system_audit_get_serialize(
         self,
         page,
         size,
@@ -418,7 +418,7 @@ class SystemApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/v2/audit',
+            resource_path='/system/audit',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -435,7 +435,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_audit_id_get(
+    def system_audit_id_get(
         self,
         id: Annotated[StrictInt, Field(description="Audit log ID")],
         _request_timeout: Union[
@@ -479,7 +479,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_audit_id_get_serialize(
+        _param = self._system_audit_id_get_serialize(
             id=id,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -505,7 +505,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_audit_id_get_with_http_info(
+    def system_audit_id_get_with_http_info(
         self,
         id: Annotated[StrictInt, Field(description="Audit log ID")],
         _request_timeout: Union[
@@ -549,7 +549,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_audit_id_get_serialize(
+        _param = self._system_audit_id_get_serialize(
             id=id,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -575,7 +575,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_audit_id_get_without_preload_content(
+    def system_audit_id_get_without_preload_content(
         self,
         id: Annotated[StrictInt, Field(description="Audit log ID")],
         _request_timeout: Union[
@@ -619,7 +619,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_audit_id_get_serialize(
+        _param = self._system_audit_id_get_serialize(
             id=id,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -640,7 +640,7 @@ class SystemApi:
         return response_data.response
 
 
-    def _api_v2_audit_id_get_serialize(
+    def _system_audit_id_get_serialize(
         self,
         id,
         _request_auth,
@@ -687,7 +687,7 @@ class SystemApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/v2/audit/{id}',
+            resource_path='/system/audit/{id}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -704,7 +704,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_audit_post(
+    def system_audit_post(
         self,
         audit_log: Annotated[DtoAuditLogRequest, Field(description="Audit log data")],
         _request_timeout: Union[
@@ -748,7 +748,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_audit_post_serialize(
+        _param = self._system_audit_post_serialize(
             audit_log=audit_log,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -773,7 +773,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_audit_post_with_http_info(
+    def system_audit_post_with_http_info(
         self,
         audit_log: Annotated[DtoAuditLogRequest, Field(description="Audit log data")],
         _request_timeout: Union[
@@ -817,7 +817,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_audit_post_serialize(
+        _param = self._system_audit_post_serialize(
             audit_log=audit_log,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -842,7 +842,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_audit_post_without_preload_content(
+    def system_audit_post_without_preload_content(
         self,
         audit_log: Annotated[DtoAuditLogRequest, Field(description="Audit log data")],
         _request_timeout: Union[
@@ -886,7 +886,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_audit_post_serialize(
+        _param = self._system_audit_post_serialize(
             audit_log=audit_log,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -906,7 +906,7 @@ class SystemApi:
         return response_data.response
 
 
-    def _api_v2_audit_post_serialize(
+    def _system_audit_post_serialize(
         self,
         audit_log,
         _request_auth,
@@ -967,7 +967,7 @@ class SystemApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/v2/audit',
+            resource_path='/system/audit',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -984,7 +984,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_health_get(
+    def system_health_get(
         self,
         _request_timeout: Union[
             None,
@@ -1025,7 +1025,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_health_get_serialize(
+        _param = self._system_health_get_serialize(
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1048,7 +1048,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_health_get_with_http_info(
+    def system_health_get_with_http_info(
         self,
         _request_timeout: Union[
             None,
@@ -1089,7 +1089,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_health_get_serialize(
+        _param = self._system_health_get_serialize(
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1112,7 +1112,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_health_get_without_preload_content(
+    def system_health_get_without_preload_content(
         self,
         _request_timeout: Union[
             None,
@@ -1153,7 +1153,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_health_get_serialize(
+        _param = self._system_health_get_serialize(
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1171,7 +1171,7 @@ class SystemApi:
         return response_data.response
 
 
-    def _api_v2_health_get_serialize(
+    def _system_health_get_serialize(
         self,
         _request_auth,
         _content_type,
@@ -1215,7 +1215,7 @@ class SystemApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/v2/health',
+            resource_path='/system/health',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1232,7 +1232,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_monitor_info_get(
+    def system_monitor_info_get(
         self,
         _request_timeout: Union[
             None,
@@ -1273,7 +1273,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_monitor_info_get_serialize(
+        _param = self._system_monitor_info_get_serialize(
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1296,7 +1296,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_monitor_info_get_with_http_info(
+    def system_monitor_info_get_with_http_info(
         self,
         _request_timeout: Union[
             None,
@@ -1337,7 +1337,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_monitor_info_get_serialize(
+        _param = self._system_monitor_info_get_serialize(
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1360,7 +1360,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_monitor_info_get_without_preload_content(
+    def system_monitor_info_get_without_preload_content(
         self,
         _request_timeout: Union[
             None,
@@ -1401,7 +1401,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_monitor_info_get_serialize(
+        _param = self._system_monitor_info_get_serialize(
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1419,7 +1419,7 @@ class SystemApi:
         return response_data.response
 
 
-    def _api_v2_monitor_info_get_serialize(
+    def _system_monitor_info_get_serialize(
         self,
         _request_auth,
         _content_type,
@@ -1463,7 +1463,7 @@ class SystemApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/v2/monitor/info',
+            resource_path='/system/monitor/info',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1480,7 +1480,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_monitor_metrics_post(
+    def system_monitor_metrics_post(
         self,
         request: Annotated[DtoMonitoringQueryRequest, Field(description="Metrics query request")],
         _request_timeout: Union[
@@ -1524,7 +1524,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_monitor_metrics_post_serialize(
+        _param = self._system_monitor_metrics_post_serialize(
             request=request,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -1549,7 +1549,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_monitor_metrics_post_with_http_info(
+    def system_monitor_metrics_post_with_http_info(
         self,
         request: Annotated[DtoMonitoringQueryRequest, Field(description="Metrics query request")],
         _request_timeout: Union[
@@ -1593,7 +1593,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_monitor_metrics_post_serialize(
+        _param = self._system_monitor_metrics_post_serialize(
             request=request,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -1618,7 +1618,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_monitor_metrics_post_without_preload_content(
+    def system_monitor_metrics_post_without_preload_content(
         self,
         request: Annotated[DtoMonitoringQueryRequest, Field(description="Metrics query request")],
         _request_timeout: Union[
@@ -1662,7 +1662,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_monitor_metrics_post_serialize(
+        _param = self._system_monitor_metrics_post_serialize(
             request=request,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -1682,7 +1682,7 @@ class SystemApi:
         return response_data.response
 
 
-    def _api_v2_monitor_metrics_post_serialize(
+    def _system_monitor_metrics_post_serialize(
         self,
         request,
         _request_auth,
@@ -1742,7 +1742,7 @@ class SystemApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/v2/monitor/metrics',
+            resource_path='/system/monitor/metrics',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1759,7 +1759,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_statistics_get(
+    def system_statistics_get(
         self,
         _request_timeout: Union[
             None,
@@ -1800,7 +1800,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_statistics_get_serialize(
+        _param = self._system_statistics_get_serialize(
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1823,7 +1823,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_statistics_get_with_http_info(
+    def system_statistics_get_with_http_info(
         self,
         _request_timeout: Union[
             None,
@@ -1864,7 +1864,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_statistics_get_serialize(
+        _param = self._system_statistics_get_serialize(
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1887,7 +1887,7 @@ class SystemApi:
 
 
     @validate_call
-    def api_v2_statistics_get_without_preload_content(
+    def system_statistics_get_without_preload_content(
         self,
         _request_timeout: Union[
             None,
@@ -1928,7 +1928,7 @@ class SystemApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v2_statistics_get_serialize(
+        _param = self._system_statistics_get_serialize(
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1946,7 +1946,7 @@ class SystemApi:
         return response_data.response
 
 
-    def _api_v2_statistics_get_serialize(
+    def _system_statistics_get_serialize(
         self,
         _request_auth,
         _content_type,
@@ -1990,7 +1990,7 @@ class SystemApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/v2/statistics',
+            resource_path='/system/statistics',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

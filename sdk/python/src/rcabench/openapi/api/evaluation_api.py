@@ -1493,7 +1493,7 @@ class EvaluationApi:
     ) -> DtoGenericResponseDtoDatasetEvaluationBatchResp:
         """Get Batch Algorithm Dataset Evaluation
 
-        Get execution results with predictions and ground truth for multiple algorithm-dataset pairs in a single request
+        Get execution results with predictions and ground truth for multiple algorithm-dataset pairs in a single request. Returns the latest execution for each datapack if multiple executions exist.
 
         :param request: Batch evaluation request containing multiple algorithm-dataset pairs (required)
         :type request: DtoDatasetEvaluationBatchReq
@@ -1564,7 +1564,7 @@ class EvaluationApi:
     ) -> ApiResponse[DtoGenericResponseDtoDatasetEvaluationBatchResp]:
         """Get Batch Algorithm Dataset Evaluation
 
-        Get execution results with predictions and ground truth for multiple algorithm-dataset pairs in a single request
+        Get execution results with predictions and ground truth for multiple algorithm-dataset pairs in a single request. Returns the latest execution for each datapack if multiple executions exist.
 
         :param request: Batch evaluation request containing multiple algorithm-dataset pairs (required)
         :type request: DtoDatasetEvaluationBatchReq
@@ -1635,7 +1635,7 @@ class EvaluationApi:
     ) -> RESTResponseType:
         """Get Batch Algorithm Dataset Evaluation
 
-        Get execution results with predictions and ground truth for multiple algorithm-dataset pairs in a single request
+        Get execution results with predictions and ground truth for multiple algorithm-dataset pairs in a single request. Returns the latest execution for each datapack if multiple executions exist.
 
         :param request: Batch evaluation request containing multiple algorithm-dataset pairs (required)
         :type request: DtoDatasetEvaluationBatchReq

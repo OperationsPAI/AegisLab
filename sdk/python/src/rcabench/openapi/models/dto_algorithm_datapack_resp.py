@@ -18,8 +18,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional, Union
 from rcabench.openapi.models.dto_granularity_record import DtoGranularityRecord
 from rcabench.openapi.models.handler_groundtruth import HandlerGroundtruth
 from typing import Optional, Set
@@ -32,7 +32,7 @@ class DtoAlgorithmDatapackResp(BaseModel):
     algorithm: Optional[StrictStr] = Field(default=None, description="Algorithm name")
     datapack: Optional[StrictStr] = Field(default=None, description="Datapack name")
     executed_at: Optional[StrictStr] = Field(default=None, description="Execution time")
-    execution_duration: Optional[StrictInt] = Field(default=None, description="Execution duration in seconds")
+    execution_duration: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Execution duration in seconds")
     execution_id: Optional[StrictInt] = Field(default=None, description="Execution ID (0 if no execution found)")
     found: Optional[StrictBool] = Field(default=None, description="Whether execution result was found")
     groundtruth: Optional[HandlerGroundtruth] = Field(default=None, description="Ground truth for this datapack")

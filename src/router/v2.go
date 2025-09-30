@@ -131,35 +131,6 @@ func SetupV2Routes(router *gin.Engine) {
 		}
 	}
 
-	// System management routes
-	health := v2.Group("/health")
-	{
-		health.GET("", v2handlers.GetHealth) // System health check (no auth required)
-	}
-
-	statistics := v2.Group("/statistics", middleware.JWTAuth(), middleware.RequireSystemRead)
-	{
-		statistics.GET("", v2handlers.GetStatistics) // System statistics
-	}
-
-	audit := v2.Group("/audit", middleware.JWTAuth(), middleware.RequireAuditRead)
-	{
-		audit.GET("", v2handlers.ListAuditLogs)   // List audit logs
-		audit.GET("/:id", v2handlers.GetAuditLog) // Get audit log by ID
-
-		// Admin only
-		auditAdmin := audit.Group("", middleware.RequireSystemAdmin)
-		{
-			auditAdmin.POST("", v2handlers.CreateAuditLog) // Create audit log (internal)
-		}
-	}
-
-	monitor := v2.Group("/monitor", middleware.JWTAuth(), middleware.RequireSystemRead)
-	{
-		monitor.POST("/metrics", v2handlers.GetMetrics) // Query monitoring metrics
-		monitor.GET("/info", v2handlers.GetSystemInfo)  // Get system information
-	}
-
 	// Relation management routes
 	relations := v2.Group("/relations", middleware.JWTAuth(), middleware.StrictRateLimit)
 	{

@@ -4,17 +4,17 @@ All URIs are relative to *http://localhost:8080/api/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**api_v2_audit_get**](SystemApi.md#api_v2_audit_get) | **GET** /api/v2/audit | List audit logs
-[**api_v2_audit_id_get**](SystemApi.md#api_v2_audit_id_get) | **GET** /api/v2/audit/{id} | Get audit log by ID
-[**api_v2_audit_post**](SystemApi.md#api_v2_audit_post) | **POST** /api/v2/audit | Create audit log
-[**api_v2_health_get**](SystemApi.md#api_v2_health_get) | **GET** /api/v2/health | System health check
-[**api_v2_monitor_info_get**](SystemApi.md#api_v2_monitor_info_get) | **GET** /api/v2/monitor/info | Get system information
-[**api_v2_monitor_metrics_post**](SystemApi.md#api_v2_monitor_metrics_post) | **POST** /api/v2/monitor/metrics | Get monitoring metrics
-[**api_v2_statistics_get**](SystemApi.md#api_v2_statistics_get) | **GET** /api/v2/statistics | Get system statistics
+[**system_audit_get**](SystemApi.md#system_audit_get) | **GET** /system/audit | List audit logs
+[**system_audit_id_get**](SystemApi.md#system_audit_id_get) | **GET** /system/audit/{id} | Get audit log by ID
+[**system_audit_post**](SystemApi.md#system_audit_post) | **POST** /system/audit | Create audit log
+[**system_health_get**](SystemApi.md#system_health_get) | **GET** /system/health | System health check
+[**system_monitor_info_get**](SystemApi.md#system_monitor_info_get) | **GET** /system/monitor/info | Get system information
+[**system_monitor_metrics_post**](SystemApi.md#system_monitor_metrics_post) | **POST** /system/monitor/metrics | Get monitoring metrics
+[**system_statistics_get**](SystemApi.md#system_statistics_get) | **GET** /system/statistics | Get system statistics
 
 
-# **api_v2_audit_get**
-> DtoGenericResponseDtoAuditLogListResponse api_v2_audit_get(page=page, size=size, user_id=user_id, action=action, resource=resource, success=success, start_date=start_date, end_date=end_date)
+# **system_audit_get**
+> DtoGenericResponseDtoAuditLogListResponse system_audit_get(page=page, size=size, user_id=user_id, action=action, resource=resource, success=success, start_date=start_date, end_date=end_date)
 
 List audit logs
 
@@ -51,11 +51,11 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
     try:
         # List audit logs
-        api_response = api_instance.api_v2_audit_get(page=page, size=size, user_id=user_id, action=action, resource=resource, success=success, start_date=start_date, end_date=end_date)
-        print("The response of SystemApi->api_v2_audit_get:\n")
+        api_response = api_instance.system_audit_get(page=page, size=size, user_id=user_id, action=action, resource=resource, success=success, start_date=start_date, end_date=end_date)
+        print("The response of SystemApi->system_audit_get:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling SystemApi->api_v2_audit_get: %s\n" % e)
+        print("Exception when calling SystemApi->system_audit_get: %s\n" % e)
 ```
 
 
@@ -97,8 +97,8 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **api_v2_audit_id_get**
-> DtoGenericResponseDtoAuditLogResponse api_v2_audit_id_get(id)
+# **system_audit_id_get**
+> DtoGenericResponseDtoAuditLogResponse system_audit_id_get(id)
 
 Get audit log by ID
 
@@ -128,11 +128,11 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
     try:
         # Get audit log by ID
-        api_response = api_instance.api_v2_audit_id_get(id)
-        print("The response of SystemApi->api_v2_audit_id_get:\n")
+        api_response = api_instance.system_audit_id_get(id)
+        print("The response of SystemApi->system_audit_id_get:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling SystemApi->api_v2_audit_id_get: %s\n" % e)
+        print("Exception when calling SystemApi->system_audit_id_get: %s\n" % e)
 ```
 
 
@@ -168,8 +168,8 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **api_v2_audit_post**
-> DtoGenericResponseDtoAuditLogResponse api_v2_audit_post(audit_log)
+# **system_audit_post**
+> DtoGenericResponseDtoAuditLogResponse system_audit_post(audit_log)
 
 Create audit log
 
@@ -211,11 +211,11 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
     try:
         # Create audit log
-        api_response = api_instance.api_v2_audit_post(audit_log)
-        print("The response of SystemApi->api_v2_audit_post:\n")
+        api_response = api_instance.system_audit_post(audit_log)
+        print("The response of SystemApi->system_audit_post:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling SystemApi->api_v2_audit_post: %s\n" % e)
+        print("Exception when calling SystemApi->system_audit_post: %s\n" % e)
 ```
 
 
@@ -250,8 +250,8 @@ Name | Type | Description  | Notes
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **api_v2_health_get**
-> DtoGenericResponseDtoHealthCheckResponse api_v2_health_get()
+# **system_health_get**
+> DtoGenericResponseDtoHealthCheckResponse system_health_get()
 
 System health check
 
@@ -280,11 +280,11 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
     try:
         # System health check
-        api_response = api_instance.api_v2_health_get()
-        print("The response of SystemApi->api_v2_health_get:\n")
+        api_response = api_instance.system_health_get()
+        print("The response of SystemApi->system_health_get:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling SystemApi->api_v2_health_get: %s\n" % e)
+        print("Exception when calling SystemApi->system_health_get: %s\n" % e)
 ```
 
 
@@ -315,8 +315,8 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **api_v2_monitor_info_get**
-> DtoGenericResponseDtoSystemInfo api_v2_monitor_info_get()
+# **system_monitor_info_get**
+> DtoGenericResponseDtoSystemInfo system_monitor_info_get()
 
 Get system information
 
@@ -345,11 +345,11 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
     try:
         # Get system information
-        api_response = api_instance.api_v2_monitor_info_get()
-        print("The response of SystemApi->api_v2_monitor_info_get:\n")
+        api_response = api_instance.system_monitor_info_get()
+        print("The response of SystemApi->system_monitor_info_get:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling SystemApi->api_v2_monitor_info_get: %s\n" % e)
+        print("Exception when calling SystemApi->system_monitor_info_get: %s\n" % e)
 ```
 
 
@@ -380,8 +380,8 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **api_v2_monitor_metrics_post**
-> DtoGenericResponseDtoMonitoringMetricsResponse api_v2_monitor_metrics_post(request)
+# **system_monitor_metrics_post**
+> DtoGenericResponseDtoMonitoringMetricsResponse system_monitor_metrics_post(request)
 
 Get monitoring metrics
 
@@ -412,11 +412,11 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
     try:
         # Get monitoring metrics
-        api_response = api_instance.api_v2_monitor_metrics_post(request)
-        print("The response of SystemApi->api_v2_monitor_metrics_post:\n")
+        api_response = api_instance.system_monitor_metrics_post(request)
+        print("The response of SystemApi->system_monitor_metrics_post:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling SystemApi->api_v2_monitor_metrics_post: %s\n" % e)
+        print("Exception when calling SystemApi->system_monitor_metrics_post: %s\n" % e)
 ```
 
 
@@ -451,8 +451,8 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **api_v2_statistics_get**
-> DtoGenericResponseDtoSystemStatisticsResponse api_v2_statistics_get()
+# **system_statistics_get**
+> DtoGenericResponseDtoSystemStatisticsResponse system_statistics_get()
 
 Get system statistics
 
@@ -481,11 +481,11 @@ with rcabench.openapi.ApiClient(configuration) as api_client:
 
     try:
         # Get system statistics
-        api_response = api_instance.api_v2_statistics_get()
-        print("The response of SystemApi->api_v2_statistics_get:\n")
+        api_response = api_instance.system_statistics_get()
+        print("The response of SystemApi->system_statistics_get:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling SystemApi->api_v2_statistics_get: %s\n" % e)
+        print("Exception when calling SystemApi->system_statistics_get: %s\n" % e)
 ```
 
 

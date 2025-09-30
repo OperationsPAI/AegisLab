@@ -273,7 +273,7 @@ func buildImagendPush(ctx context.Context, payload *containerPayload) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 
-		address := config.GetString("buildkit.address")
+		address := fmt.Sprintf("tcp://%s", config.GetString("buildkit.address"))
 		if address == "" {
 			err := fmt.Errorf("buildkit address is not configured")
 			span.RecordError(err)

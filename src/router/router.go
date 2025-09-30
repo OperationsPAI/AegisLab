@@ -29,6 +29,9 @@ func New() *gin.Engine {
 		middleware.TracerMiddleware(),
 	)
 
+	// Set up system routes
+	SetupSystemRoutes(router)
+
 	// Set up API routes
 	SetupV1Routes(router)
 	SetupV2Routes(router)

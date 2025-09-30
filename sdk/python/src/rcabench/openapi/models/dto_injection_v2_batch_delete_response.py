@@ -18,25 +18,26 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional, Union
-from rcabench.openapi.models.dto_granularity_record import DtoGranularityRecord
-from rcabench.openapi.models.handler_groundtruth import HandlerGroundtruth
+from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
+from rcabench.openapi.models.dto_injection_v2_cascade_delete_stats import DtoInjectionV2CascadeDeleteStats
+from rcabench.openapi.models.dto_injection_v2_delete_error import DtoInjectionV2DeleteError
+from rcabench.openapi.models.dto_injection_v2_deleted_item import DtoInjectionV2DeletedItem
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoDatapackEvaluationItem(BaseModel):
+class DtoInjectionV2BatchDeleteResponse(BaseModel):
     """
-    DtoDatapackEvaluationItem
+    DtoInjectionV2BatchDeleteResponse
     """ # noqa: E501
-    datapack_name: Optional[StrictStr] = Field(default=None, description="Datapack name (from FaultInjectionSchedule)")
-    executed_at: Optional[StrictStr] = Field(default=None, description="Execution time")
-    execution_duration: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Execution duration in seconds")
-    execution_id: Optional[StrictInt] = Field(default=None, description="Execution ID")
-    groundtruth: Optional[HandlerGroundtruth] = Field(default=None, description="Ground truth for this datapack")
-    predictions: Optional[List[DtoGranularityRecord]] = Field(default=None, description="Algorithm predictions")
+    cascade_deleted: Optional[DtoInjectionV2CascadeDeleteStats] = None
+    failed_count: Optional[StrictInt] = None
+    failed_items: Optional[List[DtoInjectionV2DeleteError]] = None
+    message: Optional[StrictStr] = None
+    success_count: Optional[StrictInt] = None
+    success_items: Optional[List[DtoInjectionV2DeletedItem]] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["datapack_name", "executed_at", "execution_duration", "execution_id", "groundtruth", "predictions"]
+    __properties: ClassVar[List[str]] = ["cascade_deleted", "failed_count", "failed_items", "message", "success_count", "success_items"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -56,7 +57,7 @@ class DtoDatapackEvaluationItem(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoDatapackEvaluationItem from a JSON string"""
+        """Create an instance of DtoInjectionV2BatchDeleteResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -79,16 +80,23 @@ class DtoDatapackEvaluationItem(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of groundtruth
-        if self.groundtruth:
-            _dict['groundtruth'] = self.groundtruth.to_dict()
-        # override the default output from pydantic by calling `to_dict()` of each item in predictions (list)
+        # override the default output from pydantic by calling `to_dict()` of cascade_deleted
+        if self.cascade_deleted:
+            _dict['cascade_deleted'] = self.cascade_deleted.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of each item in failed_items (list)
         _items = []
-        if self.predictions:
-            for _item_predictions in self.predictions:
-                if _item_predictions:
-                    _items.append(_item_predictions.to_dict())
-            _dict['predictions'] = _items
+        if self.failed_items:
+            for _item_failed_items in self.failed_items:
+                if _item_failed_items:
+                    _items.append(_item_failed_items.to_dict())
+            _dict['failed_items'] = _items
+        # override the default output from pydantic by calling `to_dict()` of each item in success_items (list)
+        _items = []
+        if self.success_items:
+            for _item_success_items in self.success_items:
+                if _item_success_items:
+                    _items.append(_item_success_items.to_dict())
+            _dict['success_items'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -98,7 +106,7 @@ class DtoDatapackEvaluationItem(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoDatapackEvaluationItem from a dict"""
+        """Create an instance of DtoInjectionV2BatchDeleteResponse from a dict"""
         if obj is None:
             return None
 
@@ -106,12 +114,12 @@ class DtoDatapackEvaluationItem(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "datapack_name": obj.get("datapack_name"),
-            "executed_at": obj.get("executed_at"),
-            "execution_duration": obj.get("execution_duration"),
-            "execution_id": obj.get("execution_id"),
-            "groundtruth": HandlerGroundtruth.from_dict(obj["groundtruth"]) if obj.get("groundtruth") is not None else None,
-            "predictions": [DtoGranularityRecord.from_dict(_item) for _item in obj["predictions"]] if obj.get("predictions") is not None else None
+            "cascade_deleted": DtoInjectionV2CascadeDeleteStats.from_dict(obj["cascade_deleted"]) if obj.get("cascade_deleted") is not None else None,
+            "failed_count": obj.get("failed_count"),
+            "failed_items": [DtoInjectionV2DeleteError.from_dict(_item) for _item in obj["failed_items"]] if obj.get("failed_items") is not None else None,
+            "message": obj.get("message"),
+            "success_count": obj.get("success_count"),
+            "success_items": [DtoInjectionV2DeletedItem.from_dict(_item) for _item in obj["success_items"]] if obj.get("success_items") is not None else None
         })
         # store additional fields in additional_properties
         for _key in obj.keys():
