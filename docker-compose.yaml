@@ -36,7 +36,7 @@ services:
       --allow-insecure-entitlement network.host
     volumes:
       - buildkit_cache:/var/lib/buildkit
-      - /etc/ssl/certs:/etc/ssl/certs:ro  # 添加 SSL 证书
+      - /etc/ssl/certs:/etc/ssl/certs:ro # 添加 SSL 证书
     restart: always
     network_mode: host
     environment:

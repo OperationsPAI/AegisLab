@@ -5,21 +5,23 @@
 # Use 'make help' to view all available commands
 
 # =============================================================================
-# Configuration Variables
+# Configuration Loading
 # =============================================================================
 
+# Load environment-specific configuration
+-include .env
+
 # Basic Configuration
-DEFAULT_REPO ?= docker.io/opspai
-NS          ?= exp
-NS_PREFIX	?= ts
-PORT        ?= 30080
+DEFAULT_REPO 	:= docker.io/opspai
+NS          	:= exp
+PORT        	:= 30080
 
 # Directory Configuration
-SRC_DIR = src
-SDK_DIR = sdk/python-gen
+SRC_DIR := src
+SDK_DIR := sdk/python-gen
 
 # Chaos Types Configuration
-CHAOS_TYPES ?= dnschaos httpchaos jvmchaos networkchaos podchaos stresschaos timechaos
+CHAOS_TYPES := dnschaos httpchaos jvmchaos networkchaos podchaos stresschaos timechaos
 
 # Color definitions
 BLUE    := \033[1;34m
@@ -32,6 +34,15 @@ RESET   := \033[0m
 
 BACKUP_DATA ?= $(shell [ -t 0 ] && echo "ask" || echo "no")
 START_APP   ?= $(shell [ -t 0 ] && echo "ask" || echo "yes")
+
+# Dependency Repositories
+CHAOS_EXPERIMENT_REPO := github.com/LGU-SE-Internal/chaos-experiment@injectionv2
+
+# Pedestal Configuration Mapping
+# Format: KEY=REPO_NAME/CHART_NAME:IMAGE_TAG:NODE_PORT
+define PEDESTAL_MAPPING
+ts=train-ticket/trainticket:v1.0.0-213-gf9294111:31000
+endef
 
 # =============================================================================
 # Declare all non-file targets
@@ -50,7 +61,7 @@ START_APP   ?= $(shell [ -t 0 ] && echo "ask" || echo "yes")
 # =============================================================================
 help:  ## 📖 Display all available commands
 	@printf "$(BLUE)╔══════════════════════════════════════════════════════════════╗$(RESET)\n"
-	@printf "$(BLUE)║                    RCABench Project Management Tool         ║$(RESET)\n"
+	@printf "$(BLUE)║               RCABench Project Management Tool               ║$(RESET)\n"
 	@printf "$(BLUE)╚══════════════════════════════════════════════════════════════╝$(RESET)\n"
 	@printf "\n"
 	@printf "$(YELLOW)Usage:$(RESET) make $(CYAN)<target>$(RESET)\n"
@@ -71,6 +82,149 @@ help:  ## 📖 Display all available commands
 	@printf "  $(CYAN)make logs$(RESET)                - View application logs\n"
 
 # =============================================================================
+# Kubernetes Function
+# =============================================================================
+
+switch-context: ## 🔄 Switch Kubernetes context (usage: make switch-context CONTEXT=dev|prod)
+	@if [ -z "$(CONTEXT)" ]; then \
+		printf "$(RED)❌ Please provide context: make switch-context CONTEXT=dev|prod$(RESET)\n"; \
+		printf "$(YELLOW)Available contexts:$(RESET)\n"; \
+		kubectl config get-contexts -o name; \
+		exit 1; \
+	fi; \
+	case "$(CONTEXT)" in \
+		dev) target_context="$(DEV_CONTEXT)" ;; \
+		prod) target_context="$(PROD_CONTEXT)" ;; \
+		*) printf "$(RED)❌ Invalid CONTEXT '$(CONTEXT)'. Please provide CONTEXT: dev|prod$(RESET)\n"; exit 1 ;; \
+	esac; \
+	kubectl config use-context "$$target_context"; \
+
+# =============================================================================
+# Pedestal Function
+# =============================================================================
+
+# Function to extract pedestal information
+get_pedestal_chart_ref = $(shell echo "$(PEDESTAL_MAPPING)" | grep "^$(1)=" | cut -d'=' -f2 | cut -d':' -f1)
+get_pedestal_image_tag = $(shell echo "$(PEDESTAL_MAPPING)" | grep "^$(1)=" | cut -d'=' -f2 | cut -d':' -f2)
+get_pedestal_node_port = $(shell echo "$(PEDESTAL_MAPPING)" | grep "^$(1)=" | cut -d'=' -f2 | cut -d':' -f3)
+
+# Function to validate pedestal (usage: $(call validate-pedestal-key,key))
+validate_pedestal_key = $(shell echo "$(PEDESTAL_MAPPING)" | grep -q "^$(1)=" && echo "valid" || echo "invalid")
+
+install-release: ## 🚀 Install Pedestal Release (usage: make install-release PEDESTAL_KEY=ts)
+	@if [ -z "$(PEDESTAL_KEY)" ]; then \
+		printf "$(RED)❌ Please provide pedestal key: make install-release PEDESTAL_KEY=ts$(RESET)\n"; \
+		exit 1; \
+	fi
+	@if [ "$(call validate_pedestal_key,$(PEDESTAL_KEY))" = "invalid" ]; then \
+		printf "$(RED)❌ Invalid pedestal key '$(PEDESTAL_KEY)'$(RESET)\n"; \
+		printf "$(YELLOW)Available keys:$(RESET)\n"; \
+		$(MAKE) show-pedestal-map; \
+		exit 1; \
+	fi
+	@if [ "$(PEDESTAL_KEY)" = "ts" ] && [ -n "$(NS_COUNT)" ] && [ -n "$(NODE_PORT)" ]; then \
+		pedestal_key="$(PEDESTAL_KEY)"; \
+		ns="$${pedestal_key}$(NS_COUNT)"; \
+		chart_ref="$(call get_pedestal_chart_ref,$(PEDESTAL_KEY))"; \
+		image_tag="$(call get_pedestal_image_tag,$(PEDESTAL_KEY))"; \
+
+		kube_context="$(shell kubectl config current-context)"; \
+		printf "$(GRAY)Using Kubernetes context: $$kube_context$(RESET)\n"; \
+
+		printf "$(BLUE)🚀 Installing $$chart_ref release in namespace $$ns on port $(NODE_PORT)...$(RESET)\n"; \
+		if [ "$$kube_context" = "$(DEV_CONTEXT)" ]; then \
+			helm install "$$ns" "$$chart_ref" -n "$$ns" --create-namespace \
+				--set global.image.tag="$$image_tag" \
+				--set global.security.allowInsecureImages=true \
+				--set services.tsUiDashboard.nodePort="$(NODE_PORT)"; \
+		elif [ "$$kube_context" = "$(PROD_CONTEXT)" ]; then \
+			helm install "$$ns" "$$chart_ref" -n "$$ns" --create-namespace \
+				--set global.image.repository=pair-diagnose-cn-guangzhou.cr.volces.com/opspai \
+				--set global.image.tag="$$image_tag" \
+				--set global.security.allowInsecureImages=true \
+				--set mysql.image.repository=pair-diagnose-cn-guangzhou.cr.volces.com/library/mysql \
+  				--set rabbitmq.image.registry=pair-diagnose-cn-guangzhou.cr.volces.com \
+  				--set rabbitmq.image.repository=bitnamilegacy/rabbitmq \
+  				--set loadgenerator.image.repository=pair-diagnose-cn-guangzhou.cr.volces.com/opspai/loadgenerator \
+  				--set loadgenerator.initContainer.image=pair-diagnose-cn-guangzhou.cr.volces.com/nicolaka/netshoot:v0.14 \
+				--set services.tsUiDashboard.nodePort="$(NODE_PORT)"; \
+		else \
+			printf "$(RED)❌ Unknown Kubernetes context '$$kube_context'. Please switch to a valid context.$(RESET)\n"; \
+			printf "$(YELLOW)Available contexts:$(RESET)\n"; \
+			kubectl config get-contexts -o name; \
+			exit 1; \
+		fi; \
+	else \
+		printf "$(RED)❌ Please provide NS_COUNT and NODE_PORT for pedestal key '$(PEDESTAL_KEY)': make install-release PEDESTAL_KEY=ts NS_COUNT=0 NODE_PORT=31000$(RESET)\n"; \
+		exit 1; \
+	fi
+
+install-releases: ## 🔍 Install Helm releases in namespaces (usage: make install-releases PEDESTAL_KEY=ts PEDESTAL_COUNT=2)
+	@if [ -z "$(PEDESTAL_KEY)" ] || [ -z "$(PEDESTAL_COUNT)" ]; then \
+		printf "$(RED)❌ Please provide pedestal key and count: make install-releases PEDESTAL_KEY=ts PEDESTAL_COUNT=2$(RESET)\n"; \
+		exit 1; \
+	fi
+	@if ! printf "$(PEDESTAL_COUNT)" | grep -Eq '^[0-9]+$$'; then \
+		printf "$(RED)❌ PEDESTAL_COUNT must be a positive number$(RESET)\n"; \
+		exit 1; \
+	fi
+	@if [ "$(call validate_pedestal_key,$(PEDESTAL_KEY))" = "invalid" ]; then \
+		printf "$(RED)❌ Invalid pedestal key '$(PEDESTAL_KEY)'$(RESET)\n"; \
+		printf "$(YELLOW)Available keys:$(RESET)\n"; \
+		$(MAKE) show-pedestal-map; \
+		exit 1; \
+	fi
+	@$(call get-pedestal-info PEDESTAL_KEY="$(PEDESTAL_KEY)")
+	@printf "\n$(BLUE)🔍 Checking Helm releases in namespaces $(PEDESTAL_KEY)0 to $(PEDESTAL_KEY)$$(( $(PEDESTAL_COUNT) - 1 ))...$(RESET)\n"
+	@base_port="$(call get_pedestal_node_port,$(PEDESTAL_KEY))"; \
+	for i in $$(seq 0 $$(( $(PEDESTAL_COUNT) - 1 ))); do \
+		ns="$(PEDESTAL_KEY)$$i"; \
+		port="$$(($$base_port + i))"; \
+		printf "$(BLUE)🔍 Checking namespace: $$ns$(RESET)\n"; \
+		if ! kubectl get namespace "$$ns" >/dev/null 2>&1; then \
+			printf "$(YELLOW)❌ Namespace $$ns does not exist$(RESET)\n"; \
+		elif helm list -n "$$ns" 2>/dev/null | grep -q "$$ns"; then \
+			printf "$(GREEN)✅ Helm release '$$ns' found in namespace $$ns$(RESET)\n"; \
+		else \
+			printf "$(YELLOW)⚠️ Helm release '$$ns' not found in namespace $$ns$(RESET)\n"; \
+			if [ "$(PEDESTAL_KEY)" = "ts" ]; then \
+				$(MAKE) install-release PEDESTAL_KEY="ts" NS_COUNT="$$i" NODE_PORT="$$port" ; \
+			fi; \
+		fi; \
+	done
+	@printf "$(GREEN)🎉 Check and installation completed!$(RESET)\n"
+
+define get-pedestal-info
+	@printf "$(BLUE)ℹ️ Pedestal Information for '$(PEDESTAL_KEY)':$(RESET)\n"
+	@printf "$(YELLOW)Full Chart Reference:$(RESET) $(call get_pedestal_chart_ref,$(PEDESTAL_KEY))\n"
+	@printf "$(YELLOW)Image Tag:$(RESET) $(call get_pedestal_image_tag,$(PEDESTAL_KEY))\n"
+	@printf "$(YELLOW)Node Port:$(RESET) $(call get_pedestal_node_port,$(PEDESTAL_KEY))\n"
+endef
+
+show-pedestal-info: ## ℹ️  Show pedestal repository information (usage: make show-pedestal-info PEDESTAL_KEY=ts)
+	@if [ -z "$(PEDESTAL_KEY)" ]; then \
+		printf "$(RED)❌ Please provide pedestal key: make show-pedestal-info PEDESTAL_KEY=ts$(RESET)\n"; \
+		exit 1; \
+	fi
+	@if [ "$(call validate_pedestal_key,$(PEDESTAL_KEY))" = "invalid" ]; then \
+		printf "$(RED)❌ Invalid pedestal key '$(PEDESTAL_KEY)'$(RESET)\n"; \
+		printf "$(YELLOW)Available keys:$(RESET)\n"; \
+		$(MAKE) show-pedestal-map; \
+		exit 1; \
+	fi
+	@$(call get-pedestal-info)
+
+show-pedestal-map: ## 🗺️  Show available pedestal mappings
+	@printf "$(BLUE)🗺️ Available Pedestal Mappings:$(RESET)\n\n"
+	@printf "$(YELLOW)Format: KEY -> REPO_NAME/CHART_NAME$(RESET)\n\n"
+	@echo "$(PEDESTAL_MAPPING)" | tr ' ' '\n' | while IFS='=' read -r key mapping; do \
+		if [ -n "$$key" ] && [ -n "$$mapping" ]; then \
+			chart_ref=$$(echo "$$mapping" | cut -d':' -f1); \
+			printf "$(CYAN)%-0s$(RESET) -> $(GREEN)%-20s$(RESET)\n" "$$key" "$$chart_ref"; \
+		fi; \
+	done
+	
+# =============================================================================
 # Environment Check and Setup
 # =============================================================================
 
@@ -90,7 +244,7 @@ check-prerequisites: ## 🔍 Check development environment dependencies
 	@printf "$(GREEN)✅ helm installed$(RESET)\n"
 	@printf "$(GREEN)🎉 All dependency checks passed!$(RESET)\n"
 
-setup-dev-env: check-prerequisites ## 🛠️ Setup development environment
+setup-dev-env: check-prerequisites ## 🛠️  Setup development environment
 	@printf "$(BLUE)🛠️ Setting up development environment...$(RESET)\n"
 	@printf "$(GRAY)Installing Git hooks...$(RESET)\n"
 	@$(MAKE) install-hooks
@@ -139,7 +293,7 @@ check-db: ## 🔍 Check database status
 		exit 1; \
 	fi
 
-reset-db: ## 🗑️ Reset database (⚠️ Will delete all data)
+reset-db: ## 🗑️  Reset database (⚠️ Will delete all data)
 	@printf "$(RED)⚠️ Warning: This will delete all database data!$(RESET)\n"
 	@read -p "Confirm to continue? (y/N): " confirm && [ "$$confirm" = "y" ] || exit 1
 	@if $(MAKE) check-db 2>/dev/null; then \
@@ -250,28 +404,36 @@ local-debug-auto: ## 🤖 Start local debugging environment (auto mode, no inter
 local-debug-minimal: ## 🚀 Start local debugging environment (minimal mode, no backup, no auto start)
 	@$(MAKE) local-debug BACKUP_DATA=no START_APP=no
 
-import: ## 📦 Import latest version of chaos-experiment library
-	@printf "$(BLUE)📦 Importing latest version of chaos-experiment library...$(RESET)\n"
-	cd $(SRC_DIR) && \
-	go get -u github.com/LGU-SE-Internal/chaos-experiment@injectionv2 && \
-	go mod tidy
-	@printf "$(GREEN)✅ Dependency update completed$(RESET)\n"
+update-dependencies: ## 📦 Update latest version of dependencies
+	@printf "$(BLUE)📦 Updating latest version of chaos-experiment library...$(RESET)\n"
+	cd $(SRC_DIR) && go get -u $(CHAOS_EXPERIMENT_REPO) && go mod tidy
+	@printf "$(GREEN)✅ Dependencies update completed$(RESET)\n"
 
 # =============================================================================
 # Chaos Management
 # =============================================================================
 
+# Function to get target namespaces matching prefix pattern with optional count limit
+# Usage: $(call get_target_namespaces,prefix) or $(call get_target_namespaces,prefix,count)
 define get_target_namespaces
-    kubectl get namespaces -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | tr ' ' '\n' | grep "^$(NS_PREFIX)[0-9]$$" | sort
+	kubectl get namespaces -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | tr ' ' '\n' | grep "^$(1)[0-9]*$$" | sort | $(if $(2),head -n $(2),cat)
 endef
 
-clean-finalizers: ## 🧹 Clean all chaos resource finalizers
+clean-finalizers: ## 🧹 Clean all chaos resource finalizers in namespaces with specific prefix
+	@if [ -z "$(NS_PREFIX)" ]; then \
+		printf "$(RED)❌ Please provide namespace prefix: make clean-finalizers NS_PREFIX=ts NS_COUNT=2$(RESET)\n"; \
+		exit 1; \
+	fi
+	@if [ -z "$(NS_COUNT)" ]; then \
+		printf "$(RED)❌ Please provide namespace count for namespace prefix '$(NS_PREFIX)': make clean-finalizers NS_PREFIX=$(NS_PREFIX) NS_COUNT=2$(RESET)\n"; \
+		exit 1; \
+	fi
 	@printf "$(BLUE)🧹 Cleaning chaos finalizers...$(RESET)\n"
 	@printf "$(GRAY)Dynamically getting namespaces with prefix $(NS_PREFIX)...$(RESET)\n"
-	@namespaces=$$($(call get_target_namespaces)); \
+	@namespaces="$$($(call get_target_namespaces,$(NS_PREFIX),$(NS_COUNT)))"; \
 	printf "$(CYAN)Found the following namespaces:$(RESET)\n"; \
 	for ns in $$namespaces; do \
-		printf "  - $$ns"; \
+		printf "  - $$ns\n"; \
 	done; \
 	printf "$(GRAY)Total: $$(printf "$$namespaces" | wc -w) namespaces$(RESET)\n"; \
 	printf ""; \
@@ -287,10 +449,18 @@ clean-finalizers: ## 🧹 Clean all chaos resource finalizers
 	done
 	@printf "$(GREEN)✅ Finalizer cleanup completed$(RESET)\n"
 
-delete-all-chaos: ## 🗑️ Delete all chaos resources
-	@printf "$(BLUE)🗑️ Deleting chaos resources...$(RESET)\n"
+delete-all-chaos: ## 🗑️  Delete all chaos resources in namespaces with specific prefix
+	@if [ -z "$(NS_PREFIX)" ]; then \
+		printf "$(RED)❌ Please provide namespace prefix: make delete-all-chaos NS_PREFIX=ts NS_COUNT=2$(RESET)\n"; \
+		exit 1; \
+	fi
+	@if [ -z "$(NS_COUNT)" ]; then \
+		printf "$(RED)❌ Please provide namespace count for namespace prefix '$(NS_PREFIX)': make delete-all-chaos NS_PREFIX=$(NS_PREFIX) NS_COUNT=2$(RESET)\n"; \
+		exit 1; \
+	fi
+	@printf "$(BLUE)🗑️ Deleting all chaos resources...$(RESET)\n"
 	@printf "$(GRAY)Dynamically getting namespaces with prefix $(NS_PREFIX)...$(RESET)\n"
-	@namespaces=$$($(call get_target_namespaces)); \
+	@namespaces="$$($(call get_target_namespaces,$(NS_PREFIX),$(NS_COUNT)))"; \
 	printf "$(CYAN)Found the following namespaces:$(RESET)\n"; \
 	for ns in $$namespaces; do \
 		printf "  - $$ns"; \
@@ -380,7 +550,7 @@ generate-sdk: swag-init
 # Release Management
 # =============================================================================
 
-release: ## 🏷️ Release new version (usage: make release VERSION=1.0.1)
+release: ## 🏷️  Release new version (usage: make release VERSION=1.0.1)
 	@if [ -z "$(VERSION)" ]; then \
 		printf "$(RED)❌ Please provide version number: make release VERSION=1.0.1$(RESET)\n"; \
 		exit 1; \
@@ -431,7 +601,6 @@ scale: ## 📏 Scale deployment (usage: make scale DEPLOYMENT=app REPLICAS=3)
 		printf "$(RED)❌ Please provide deployment name and replica count: make scale DEPLOYMENT=app REPLICAS=3$(RESET)\n"; \
 		exit 1; \
 	fi
-	scale: ## 📏 Scale deployment (usage: make scale DEPLOYMENT=app REPLICAS=3)
 	@printf "$(BLUE)📏 Scaling deployment $(DEPLOYMENT) to $(REPLICAS) replicas...$(RESET)\n"
 	kubectl scale deployment $(DEPLOYMENT) --replicas=$(REPLICAS) -n $(NS)
 	@printf "$(GREEN)✅ Extension completed$(RESET)\n"
@@ -440,9 +609,9 @@ scale: ## 📏 Scale deployment (usage: make scale DEPLOYMENT=app REPLICAS=3)
 # Information Display
 # =============================================================================
 
-info: ## ℹ️ Display project information
+info: ## ℹ️  Display project information
 	@printf "$(BLUE)╔══════════════════════════════════════════════════════════════╗$(RESET)\n"
-	@printf "$(BLUE)║                        RCABench Project Information                     ║$(RESET)\n"
+	@printf "$(BLUE)║                 RCABench Project Information                 ║$(RESET)\n"
 	@printf "$(BLUE)╚══════════════════════════════════════════════════════════════╝$(RESET)\n"
 	@printf "$(YELLOW)Configuration Information:$(RESET)\n"
 	@printf "  $(CYAN)Default Repository:$(RESET) $(DEFAULT_REPO)\n"
