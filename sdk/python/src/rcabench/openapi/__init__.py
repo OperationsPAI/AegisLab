@@ -32,7 +32,6 @@ __all__ = [
     "SystemApi",
     "TasksApi",
     "UsersApi",
-    "AlgorithmApi",
     "AnalyzerApi",
     "ContainerApi",
     "DatasetApi",
@@ -54,6 +53,7 @@ __all__ = [
     "DatabaseContainer",
     "DatabaseDataset",
     "DatabaseFaultInjectionSchedule",
+    "DatabaseHelmConfig",
     "DatabaseLabel",
     "DatabaseProject",
     "DatabaseTask",
@@ -111,7 +111,6 @@ __all__ = [
     "DtoDetectorResultItem",
     "DtoDetectorResultRequest",
     "DtoExecutionLabels",
-    "DtoExecutionPayload",
     "DtoExecutionStatistics",
     "DtoFaultInjectionNoIssuesResp",
     "DtoFaultInjectionWithIssuesResp",
@@ -145,7 +144,6 @@ __all__ = [
     "DtoGenericResponseDtoInjectionV2CreateResponse",
     "DtoGenericResponseDtoInjectionV2Response",
     "DtoGenericResponseDtoLabelResponse",
-    "DtoGenericResponseDtoListAlgorithmsResp",
     "DtoGenericResponseDtoListInjectionsResp",
     "DtoGenericResponseDtoListTasksResp",
     "DtoGenericResponseDtoLoginResponse",
@@ -261,7 +259,6 @@ __all__ = [
     "DtoSortDirection",
     "DtoSortOption",
     "DtoSubmitDatasetBuildingReq",
-    "DtoSubmitExecutionReq",
     "DtoSubmitInjectionReq",
     "DtoSubmitInjectionResp",
     "DtoSubmitResp",
@@ -311,7 +308,6 @@ if __import__("typing").TYPE_CHECKING:
     from rcabench.openapi.api.system_api import SystemApi as SystemApi
     from rcabench.openapi.api.tasks_api import TasksApi as TasksApi
     from rcabench.openapi.api.users_api import UsersApi as UsersApi
-    from rcabench.openapi.api.algorithm_api import AlgorithmApi as AlgorithmApi
     from rcabench.openapi.api.analyzer_api import AnalyzerApi as AnalyzerApi
     from rcabench.openapi.api.container_api import ContainerApi as ContainerApi
     from rcabench.openapi.api.dataset_api import DatasetApi as DatasetApi
@@ -337,6 +333,7 @@ if __import__("typing").TYPE_CHECKING:
     from rcabench.openapi.models.database_container import DatabaseContainer as DatabaseContainer
     from rcabench.openapi.models.database_dataset import DatabaseDataset as DatabaseDataset
     from rcabench.openapi.models.database_fault_injection_schedule import DatabaseFaultInjectionSchedule as DatabaseFaultInjectionSchedule
+    from rcabench.openapi.models.database_helm_config import DatabaseHelmConfig as DatabaseHelmConfig
     from rcabench.openapi.models.database_label import DatabaseLabel as DatabaseLabel
     from rcabench.openapi.models.database_project import DatabaseProject as DatabaseProject
     from rcabench.openapi.models.database_task import DatabaseTask as DatabaseTask
@@ -394,7 +391,6 @@ if __import__("typing").TYPE_CHECKING:
     from rcabench.openapi.models.dto_detector_result_item import DtoDetectorResultItem as DtoDetectorResultItem
     from rcabench.openapi.models.dto_detector_result_request import DtoDetectorResultRequest as DtoDetectorResultRequest
     from rcabench.openapi.models.dto_execution_labels import DtoExecutionLabels as DtoExecutionLabels
-    from rcabench.openapi.models.dto_execution_payload import DtoExecutionPayload as DtoExecutionPayload
     from rcabench.openapi.models.dto_execution_statistics import DtoExecutionStatistics as DtoExecutionStatistics
     from rcabench.openapi.models.dto_fault_injection_no_issues_resp import DtoFaultInjectionNoIssuesResp as DtoFaultInjectionNoIssuesResp
     from rcabench.openapi.models.dto_fault_injection_with_issues_resp import DtoFaultInjectionWithIssuesResp as DtoFaultInjectionWithIssuesResp
@@ -428,7 +424,6 @@ if __import__("typing").TYPE_CHECKING:
     from rcabench.openapi.models.dto_generic_response_dto_injection_v2_create_response import DtoGenericResponseDtoInjectionV2CreateResponse as DtoGenericResponseDtoInjectionV2CreateResponse
     from rcabench.openapi.models.dto_generic_response_dto_injection_v2_response import DtoGenericResponseDtoInjectionV2Response as DtoGenericResponseDtoInjectionV2Response
     from rcabench.openapi.models.dto_generic_response_dto_label_response import DtoGenericResponseDtoLabelResponse as DtoGenericResponseDtoLabelResponse
-    from rcabench.openapi.models.dto_generic_response_dto_list_algorithms_resp import DtoGenericResponseDtoListAlgorithmsResp as DtoGenericResponseDtoListAlgorithmsResp
     from rcabench.openapi.models.dto_generic_response_dto_list_injections_resp import DtoGenericResponseDtoListInjectionsResp as DtoGenericResponseDtoListInjectionsResp
     from rcabench.openapi.models.dto_generic_response_dto_list_tasks_resp import DtoGenericResponseDtoListTasksResp as DtoGenericResponseDtoListTasksResp
     from rcabench.openapi.models.dto_generic_response_dto_login_response import DtoGenericResponseDtoLoginResponse as DtoGenericResponseDtoLoginResponse
@@ -544,7 +539,6 @@ if __import__("typing").TYPE_CHECKING:
     from rcabench.openapi.models.dto_sort_direction import DtoSortDirection as DtoSortDirection
     from rcabench.openapi.models.dto_sort_option import DtoSortOption as DtoSortOption
     from rcabench.openapi.models.dto_submit_dataset_building_req import DtoSubmitDatasetBuildingReq as DtoSubmitDatasetBuildingReq
-    from rcabench.openapi.models.dto_submit_execution_req import DtoSubmitExecutionReq as DtoSubmitExecutionReq
     from rcabench.openapi.models.dto_submit_injection_req import DtoSubmitInjectionReq as DtoSubmitInjectionReq
     from rcabench.openapi.models.dto_submit_injection_resp import DtoSubmitInjectionResp as DtoSubmitInjectionResp
     from rcabench.openapi.models.dto_submit_resp import DtoSubmitResp as DtoSubmitResp
@@ -600,7 +594,6 @@ from rcabench.openapi.api.roles_api import RolesApi as RolesApi
 from rcabench.openapi.api.system_api import SystemApi as SystemApi
 from rcabench.openapi.api.tasks_api import TasksApi as TasksApi
 from rcabench.openapi.api.users_api import UsersApi as UsersApi
-from rcabench.openapi.api.algorithm_api import AlgorithmApi as AlgorithmApi
 from rcabench.openapi.api.analyzer_api import AnalyzerApi as AnalyzerApi
 from rcabench.openapi.api.container_api import ContainerApi as ContainerApi
 from rcabench.openapi.api.dataset_api import DatasetApi as DatasetApi
@@ -626,6 +619,7 @@ from rcabench.openapi.models.consts_task_type import ConstsTaskType as ConstsTas
 from rcabench.openapi.models.database_container import DatabaseContainer as DatabaseContainer
 from rcabench.openapi.models.database_dataset import DatabaseDataset as DatabaseDataset
 from rcabench.openapi.models.database_fault_injection_schedule import DatabaseFaultInjectionSchedule as DatabaseFaultInjectionSchedule
+from rcabench.openapi.models.database_helm_config import DatabaseHelmConfig as DatabaseHelmConfig
 from rcabench.openapi.models.database_label import DatabaseLabel as DatabaseLabel
 from rcabench.openapi.models.database_project import DatabaseProject as DatabaseProject
 from rcabench.openapi.models.database_task import DatabaseTask as DatabaseTask
@@ -683,7 +677,6 @@ from rcabench.openapi.models.dto_detector_record import DtoDetectorRecord as Dto
 from rcabench.openapi.models.dto_detector_result_item import DtoDetectorResultItem as DtoDetectorResultItem
 from rcabench.openapi.models.dto_detector_result_request import DtoDetectorResultRequest as DtoDetectorResultRequest
 from rcabench.openapi.models.dto_execution_labels import DtoExecutionLabels as DtoExecutionLabels
-from rcabench.openapi.models.dto_execution_payload import DtoExecutionPayload as DtoExecutionPayload
 from rcabench.openapi.models.dto_execution_statistics import DtoExecutionStatistics as DtoExecutionStatistics
 from rcabench.openapi.models.dto_fault_injection_no_issues_resp import DtoFaultInjectionNoIssuesResp as DtoFaultInjectionNoIssuesResp
 from rcabench.openapi.models.dto_fault_injection_with_issues_resp import DtoFaultInjectionWithIssuesResp as DtoFaultInjectionWithIssuesResp
@@ -717,7 +710,6 @@ from rcabench.openapi.models.dto_generic_response_dto_injection_v2_batch_delete_
 from rcabench.openapi.models.dto_generic_response_dto_injection_v2_create_response import DtoGenericResponseDtoInjectionV2CreateResponse as DtoGenericResponseDtoInjectionV2CreateResponse
 from rcabench.openapi.models.dto_generic_response_dto_injection_v2_response import DtoGenericResponseDtoInjectionV2Response as DtoGenericResponseDtoInjectionV2Response
 from rcabench.openapi.models.dto_generic_response_dto_label_response import DtoGenericResponseDtoLabelResponse as DtoGenericResponseDtoLabelResponse
-from rcabench.openapi.models.dto_generic_response_dto_list_algorithms_resp import DtoGenericResponseDtoListAlgorithmsResp as DtoGenericResponseDtoListAlgorithmsResp
 from rcabench.openapi.models.dto_generic_response_dto_list_injections_resp import DtoGenericResponseDtoListInjectionsResp as DtoGenericResponseDtoListInjectionsResp
 from rcabench.openapi.models.dto_generic_response_dto_list_tasks_resp import DtoGenericResponseDtoListTasksResp as DtoGenericResponseDtoListTasksResp
 from rcabench.openapi.models.dto_generic_response_dto_login_response import DtoGenericResponseDtoLoginResponse as DtoGenericResponseDtoLoginResponse
@@ -833,7 +825,6 @@ from rcabench.openapi.models.dto_size_range_filter import DtoSizeRangeFilter as 
 from rcabench.openapi.models.dto_sort_direction import DtoSortDirection as DtoSortDirection
 from rcabench.openapi.models.dto_sort_option import DtoSortOption as DtoSortOption
 from rcabench.openapi.models.dto_submit_dataset_building_req import DtoSubmitDatasetBuildingReq as DtoSubmitDatasetBuildingReq
-from rcabench.openapi.models.dto_submit_execution_req import DtoSubmitExecutionReq as DtoSubmitExecutionReq
 from rcabench.openapi.models.dto_submit_injection_req import DtoSubmitInjectionReq as DtoSubmitInjectionReq
 from rcabench.openapi.models.dto_submit_injection_resp import DtoSubmitInjectionResp as DtoSubmitInjectionResp
 from rcabench.openapi.models.dto_submit_resp import DtoSubmitResp as DtoSubmitResp

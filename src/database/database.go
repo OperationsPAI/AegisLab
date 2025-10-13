@@ -47,6 +47,8 @@ func InitDB() {
 
 		&Container{},
 		&ContainerLabel{},
+		&ContainerHelm{},
+		&HelmConfig{},
 		&Dataset{},
 		&DatasetLabel{},
 		&Task{},

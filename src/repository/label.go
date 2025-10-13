@@ -23,37 +23,52 @@ var RemoveRelationsFromLabel = map[string]RemoveRelationsFromId{
 
 // CreateOrGetLabel creates a new label or gets existing one
 func CreateOrGetLabel(key, value, category, description string) (*database.Label, error) {
+	return CreateOrGetLabelWithTx(nil, key, value, category, description)
+}
+
+// CreateOrGetLabelWithTx creates a new label or gets existing one with transaction support
+func CreateOrGetLabelWithTx(tx *gorm.DB, key, value, category, description string) (*database.Label, error) {
 	var label database.Label
 
-	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		err := tx.Session(&gorm.Session{Logger: tx.Logger.LogMode(logger.Silent)}).
-			Where("label_key = ? AND label_value = ?", key, value).
-			First(&label).Error
-		if err == nil {
-			return tx.Model(&label).UpdateColumn("usage_count", gorm.Expr("usage_count + ?", 1)).Error
+	if tx == nil {
+		err := database.DB.Transaction(func(newTx *gorm.DB) error {
+			return createOrGetLabelInTx(newTx, &label, key, value, category, description)
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create or get label: %v", err)
 		}
-
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("failed to query label: %v", err)
-		}
-
-		label = database.Label{
-			Key:         key,
-			Value:       value,
-			Category:    category,
-			Description: description,
-			Color:       "#1890ff",
-			IsSystem:    true,
-			Usage:       1,
-		}
-		return tx.Create(&label).Error
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to create or get label: %v", err)
+		return &label, nil
 	}
 
+	if err := createOrGetLabelInTx(tx, &label, key, value, category, description); err != nil {
+		return nil, fmt.Errorf("failed to create or get label: %v", err)
+	}
 	return &label, nil
+}
+
+// Internal function that performs the actual create-or-get logic within a transaction
+func createOrGetLabelInTx(tx *gorm.DB, label *database.Label, key, value, category, description string) error {
+	err := tx.Session(&gorm.Session{Logger: tx.Logger.LogMode(logger.Silent)}).
+		Where("label_key = ? AND label_value = ?", key, value).
+		First(label).Error
+	if err == nil {
+		return tx.Model(label).UpdateColumn("usage_count", gorm.Expr("usage_count + ?", 1)).Error
+	}
+
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return fmt.Errorf("failed to query label: %v", err)
+	}
+
+	*label = database.Label{
+		Key:         key,
+		Value:       value,
+		Category:    category,
+		Description: description,
+		Color:       "#1890ff",
+		IsSystem:    true,
+		Usage:       1,
+	}
+	return tx.Create(label).Error
 }
 
 // GetLabelByID gets label by ID

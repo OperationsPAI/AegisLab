@@ -111,7 +111,7 @@ spec:
             claimName: {{ .Release.Name }}-jaeger-data
 
 ---
-# exp 应用
+# exp Application
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -183,6 +183,9 @@ spec:
               mountPath: "{{ .Values.configmap.jfs.path }}"
             - name: containers-data
               mountPath: "{{ .Values.configmap.container.storage_path }}"
+            - name: initial-data
+              mountPath: "{{ .Values.configmap.initialization.data_path }}"
+              readOnly: true
       volumes:
         - name: config
           configMap:
@@ -200,8 +203,11 @@ spec:
         - name: containers-data
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-containers-data
+        - name: initial-data
+          configMap:
+            name: {{ .Release.Name }}-initial-data
 ---
-# exp 应用
+# exp Application
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -271,6 +277,9 @@ spec:
               mountPath: "{{ .Values.configmap.jfs.path }}"
             - name: containers-data
               mountPath: "{{ .Values.configmap.container.storage_path }}"
+            - name: initial-data
+              mountPath: "{{ .Values.configmap.initialization.data_path }}"
+              readOnly: true
             - name: docker-config-volume
               mountPath: /root/.docker/config.json
               subPath: config.json
@@ -294,6 +303,9 @@ spec:
         - name: containers-data
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-containers-data
+        - name: initial-data
+          configMap:
+            name: {{ .Release.Name }}-initial-data
         - name: docker-config-volume
           secret:
             secretName: docker-config
@@ -341,8 +353,6 @@ spec:
             - name: kube-config
               mountPath: /root/.kube/config
               subPath: config
-            # - name: data
-            #   mountPath: /var/lib/rcabench
             - name: containers-data
               mountPath: "{{ .Values.configmap.container.storage_path }}"
             - name: buildkit-socket
@@ -363,9 +373,6 @@ spec:
             items:
               - key: config
                 path: config
-        # - name: data
-        #   persistentVolumeClaim:
-        #     claimName: nfs-shared-pvc
         - name: containers-data
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-containers-data

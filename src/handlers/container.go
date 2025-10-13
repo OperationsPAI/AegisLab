@@ -16,11 +16,9 @@ import (
 	"aegis/client"
 	"aegis/config"
 	"aegis/consts"
-	"aegis/database"
 	"aegis/dto"
 	"aegis/executor"
 	"aegis/middleware"
-	"aegis/repository"
 	"aegis/utils"
 
 	"github.com/gin-gonic/gin"
@@ -170,21 +168,6 @@ func SubmitContainerBuilding(c *gin.Context) {
 		return
 	}
 	spanCtx := ctx.(context.Context)
-
-	if req.Source.Type == consts.BuildSourceTypeHarbor {
-		taskID, traceID, err := processHarborDirectUpdate(spanCtx, req)
-		if err != nil {
-			logrus.Errorf("failed to process harbor direct update: %v", err)
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to process harbor direct update")
-			return
-		}
-
-		dto.JSONResponse(c, http.StatusOK,
-			"Container information updated successfully from Harbor",
-			dto.SubmitResp{Traces: []dto.Trace{{TraceID: traceID, HeadTaskID: taskID, Index: 0}}},
-		)
-		return
-	}
 
 	task := &dto.UnifiedTask{
 		Type: consts.TaskTypeBuildImage,
@@ -380,27 +363,4 @@ func processHarborSource(req *dto.SubmitContainerBuildingReq) (int, error) {
 	}
 
 	return http.StatusOK, nil
-}
-
-func processHarborDirectUpdate(ctx context.Context, req *dto.SubmitContainerBuildingReq) (string, string, error) {
-	taskID := fmt.Sprintf("harbor-%d", time.Now().UnixNano())
-	traceID := fmt.Sprintf("trace-%d", time.Now().UnixNano())
-
-	container := &database.Container{
-		Type:    string(req.ContainerType),
-		Name:    req.Name,
-		Image:   req.Source.Harbor.Image,
-		Tag:     req.Source.Harbor.Tag,
-		Command: req.Command,
-		EnvVars: strings.Join(req.EnvVars, ","),
-		Status:  consts.ContainerEnabled,
-		UserID:  1, // TODO: Need to get actual user ID from authentication context
-	}
-
-	if err := repository.CreateContainer(container); err != nil {
-		return "", "", fmt.Errorf("failed to create container record: %v", err)
-	}
-
-	logrus.Infof("Harbor container %s:%s updated successfully in database", req.Source.Harbor.Image, req.Source.Harbor.Tag)
-	return taskID, traceID, nil
 }

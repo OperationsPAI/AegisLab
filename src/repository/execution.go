@@ -28,12 +28,17 @@ func CheckExecutionResultExists(id int) (bool, error) {
 	return true, nil
 }
 
-func CreateExecutionResult(taskID string, algorithmID, datapackID int, duration float64, labels *dto.ExecutionLabels) (int, error) {
-	executionResult := database.ExecutionResult{
-		AlgorithmID: algorithmID,
-		DatapackID:  datapackID,
-		Duration:    duration,
-		Status:      consts.ExecutionSuccess,
+func CreateExecutionResult(taskID string, algorithmID, algorithmTagID, datapackID int, duration float64, labels *dto.ExecutionLabels) (int, error) {
+	altorithmLabel, err := GetContainerLabel(algorithmID, algorithmTagID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get algorithm label: %v", err)
+	}
+
+	executionResult := &database.ExecutionResult{
+		AlgorithmLabelID: altorithmLabel.ID,
+		DatapackID:       datapackID,
+		Duration:         duration,
+		Status:           consts.ExecutionSuccess,
 	}
 
 	// Set TaskID to nil if it's empty, otherwise set the value
@@ -41,7 +46,13 @@ func CreateExecutionResult(taskID string, algorithmID, datapackID int, duration 
 		executionResult.TaskID = &taskID
 	}
 
-	if err := database.DB.Create(&executionResult).Error; err != nil {
+	if err := database.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(executionResult).Error; err != nil {
+			return fmt.Errorf("failed to create execution result: %v", err)
+		}
+
+		return nil
+	}); err != nil {
 		return 0, err
 	}
 
@@ -519,28 +530,6 @@ func RemoveExecutionResultLabel(executionID int, labelKey, labelValue string) er
 
 	if result.RowsAffected == 0 {
 		return fmt.Errorf("label relationship '%s:%s' not found for execution %d", labelKey, labelValue, executionID)
-	}
-
-	return nil
-}
-
-// InitializeExecutionLabels initializes system labels for execution results
-func InitializeExecutionLabels() error {
-	// Initialize source labels
-	sourceLabels := []struct {
-		value       string
-		description string
-	}{
-		{consts.ExecutionSourceManual, consts.ExecutionManualDescription},
-		{consts.ExecutionSourceSystem, consts.ExecutionSystemDescription},
-	}
-
-	for _, labelInfo := range sourceLabels {
-		_, err := CreateOrGetLabel(consts.ExecutionLabelSource, labelInfo.value, consts.LabelExecution, labelInfo.description)
-		if err != nil {
-			return fmt.Errorf("failed to initialize execution label %s=%s: %v",
-				consts.ExecutionLabelSource, labelInfo.value, err)
-		}
 	}
 
 	return nil

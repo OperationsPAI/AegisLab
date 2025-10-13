@@ -105,8 +105,10 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 					childTask := &dto.UnifiedTask{
 						Type: consts.TaskTypeRunAlgorithm,
 						Payload: map[string]any{
-							consts.ExecuteAlgorithm: item,
-							consts.ExecuteDataset:   collectPayload.dataset,
+							consts.ExecuteAlgorithm:    item.Name,
+							consts.ExecuteAlgorithmTag: item.Tag,
+							consts.ExecuteDataset:      collectPayload.dataset,
+							consts.ExecuteEnvVars:      item.EnvVars,
 						},
 						Immediate:    true,
 						TraceID:      task.TraceID,
@@ -158,9 +160,10 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				consts.TaskStatusCompleted,
 				task.Type,
 			)
+
+			logEntry.Info("Collect algorithm result task completed successfully")
 		}
 
-		logEntry.Info("Collect algorithm result task completed successfully")
 		return nil
 	})
 }

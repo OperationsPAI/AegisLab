@@ -40,7 +40,6 @@ import (
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/containers/search [post]
 func SearchContainers(c *gin.Context) {
-
 	var req dto.ContainerSearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
@@ -66,21 +65,8 @@ func SearchContainers(c *gin.Context) {
 	// Convert database containers to response DTOs
 	var containerResponses []dto.ContainerResponse
 	for _, container := range searchResult.Items {
-		containerResponse := dto.ContainerResponse{
-			ID:        container.ID,
-			Name:      container.Name,
-			Type:      container.Type,
-			Image:     container.Image,
-			Tag:       container.Tag,
-			Command:   container.Command,
-			EnvVars:   container.EnvVars,
-			UserID:    container.UserID,
-			IsPublic:  container.IsPublic,
-			Status:    container.Status,
-			CreatedAt: container.CreatedAt,
-			UpdatedAt: container.UpdatedAt,
-		}
-
+		var containerResponse dto.ContainerResponse
+		containerResponse.ConvertFromContainer(&container, false)
 		containerResponses = append(containerResponses, containerResponse)
 	}
 
@@ -167,21 +153,8 @@ func ListContainers(c *gin.Context) {
 	// Convert database containers to response DTOs
 	var containerResponses []dto.ContainerResponse
 	for _, container := range searchResult.Items {
-		containerResponse := dto.ContainerResponse{
-			ID:        container.ID,
-			Name:      container.Name,
-			Type:      container.Type,
-			Image:     container.Image,
-			Tag:       container.Tag,
-			Command:   container.Command,
-			EnvVars:   container.EnvVars,
-			UserID:    container.UserID,
-			IsPublic:  container.IsPublic,
-			Status:    container.Status,
-			CreatedAt: container.CreatedAt,
-			UpdatedAt: container.UpdatedAt,
-		}
-
+		var containerResponse dto.ContainerResponse
+		containerResponse.ConvertFromContainer(&container, false)
 		containerResponses = append(containerResponses, containerResponse)
 	}
 
@@ -211,7 +184,6 @@ func ListContainers(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/containers/{id} [get]
 func GetContainer(c *gin.Context) {
-
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -229,20 +201,8 @@ func GetContainer(c *gin.Context) {
 		return
 	}
 
-	response := dto.ContainerResponse{
-		ID:        container.ID,
-		Name:      container.Name,
-		Type:      container.Type,
-		Image:     container.Image,
-		Tag:       container.Tag,
-		Command:   container.Command,
-		EnvVars:   container.EnvVars,
-		UserID:    container.UserID,
-		IsPublic:  container.IsPublic,
-		Status:    container.Status,
-		CreatedAt: container.CreatedAt,
-		UpdatedAt: container.UpdatedAt,
-	}
+	var response dto.ContainerResponse
+	response.ConvertFromContainer(&container, false)
 
 	dto.SuccessResponse(c, response)
 }
@@ -537,7 +497,6 @@ func CreateContainer(c *gin.Context) {
 }
 
 // Helper functions for v2 container creation
-
 func processFileSourceV2(c *gin.Context, req *dto.CreateContainerRequest) (int, string, error) {
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
@@ -732,7 +691,6 @@ func processHarborDirectUpdateV2(ctx context.Context, req *dto.CreateContainerRe
 		Type:     string(req.ContainerType),
 		Name:     req.Name,
 		Image:    req.BuildSource.Harbor.Image,
-		Tag:      req.BuildSource.Harbor.Tag,
 		Command:  req.Command,
 		EnvVars:  envVarsStr,
 		UserID:   userID,
@@ -767,6 +725,7 @@ func processHarborDirectUpdateV2(ctx context.Context, req *dto.CreateContainerRe
 	return taskID, traceID, nil
 }
 
+// TODO 修改逻辑
 // UpdateContainer handles container updates
 //
 //	@Summary Update container
@@ -784,7 +743,6 @@ func processHarborDirectUpdateV2(ctx context.Context, req *dto.CreateContainerRe
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/containers/{id} [put]
 func UpdateContainer(c *gin.Context) {
-
 	// Parse container ID
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -821,9 +779,6 @@ func UpdateContainer(c *gin.Context) {
 	if req.Image != nil {
 		container.Image = *req.Image
 	}
-	if req.Tag != nil {
-		container.Tag = *req.Tag
-	}
 	if req.Command != nil {
 		container.Command = *req.Command
 	}
@@ -844,20 +799,8 @@ func UpdateContainer(c *gin.Context) {
 	}
 
 	// Build response
-	response := dto.ContainerResponse{
-		ID:        container.ID,
-		Name:      container.Name,
-		Type:      container.Type,
-		Image:     container.Image,
-		Tag:       container.Tag,
-		Command:   container.Command,
-		EnvVars:   container.EnvVars,
-		UserID:    container.UserID,
-		IsPublic:  container.IsPublic,
-		Status:    container.Status,
-		CreatedAt: container.CreatedAt,
-		UpdatedAt: container.UpdatedAt,
-	}
+	var response dto.ContainerResponse
+	response.ConvertFromContainer(&container, false)
 
 	dto.SuccessResponse(c, response)
 }
@@ -877,7 +820,6 @@ func UpdateContainer(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/containers/{id} [delete]
 func DeleteContainer(c *gin.Context) {
-
 	// Parse container ID
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -907,55 +849,4 @@ func DeleteContainer(c *gin.Context) {
 	}
 
 	dto.SuccessResponse(c, gin.H{"message": "Container deleted successfully"})
-}
-
-// GetLatestContainerByName handles getting the latest container by algorithm name
-//
-//	@Summary Get latest container by name
-//	@Description Get the most recently updated container record for a given algorithm name
-//	@Tags Containers
-//	@Produce json
-//	@Security BearerAuth
-//	@Param name path string true "Container/Algorithm name"
-//	@Success 200 {object} dto.GenericResponse[dto.ContainerResponse] "Latest container retrieved successfully"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid container name"
-//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-//	@Failure 404 {object} dto.GenericResponse[any] "Container not found"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/containers/name/{name}/latest [get]
-func GetLatestContainerByName(c *gin.Context) {
-	name := c.Param("name")
-	if name == "" {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Container name cannot be empty")
-		return
-	}
-
-	var container database.Container
-	if err := database.DB.Where("name = ? AND status = ?", name, consts.ContainerEnabled).
-		Order("updated_at DESC").
-		First(&container).Error; err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			dto.ErrorResponse(c, http.StatusNotFound, "Container not found")
-		} else {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get container: "+err.Error())
-		}
-		return
-	}
-
-	response := dto.ContainerResponse{
-		ID:        container.ID,
-		Name:      container.Name,
-		Type:      container.Type,
-		Image:     container.Image,
-		Tag:       container.Tag,
-		Command:   container.Command,
-		EnvVars:   container.EnvVars,
-		UserID:    container.UserID,
-		IsPublic:  container.IsPublic,
-		Status:    container.Status,
-		CreatedAt: container.CreatedAt,
-		UpdatedAt: container.UpdatedAt,
-	}
-
-	dto.SuccessResponse(c, response)
 }

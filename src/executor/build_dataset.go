@@ -27,6 +27,7 @@ type datasetPayload struct {
 	envVars     map[string]string
 	startTime   time.Time
 	endTime     time.Time
+	userID      int
 }
 
 func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
@@ -46,10 +47,7 @@ func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
 			return err
 		}
 
-		container, err := repository.GetContaineInfo(&dto.GetContainerFilterOptions{
-			Type: consts.ContainerTypeBenchmark,
-			Name: payload.benchmark,
-		})
+		container, tag, err := repository.GetContainerWithTag(consts.ContainerTypeBenchmark, payload.benchmark, "", payload.userID)
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to get container info for benchmark")
@@ -57,12 +55,13 @@ func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
 		}
 
 		jobName := task.TaskID
-		fullImage := fmt.Sprintf("%s:%s", container.Image, container.Tag)
+		fullImage := fmt.Sprintf("%s:%s", container.Image, tag)
 		labels := map[string]string{
 			consts.LabelTaskID:    task.TaskID,
 			consts.LabelTraceID:   task.TraceID,
 			consts.LabelGroupID:   task.GroupID,
 			consts.LabelProjectID: getProjectIDString(task.ProjectID),
+			consts.LabelUserID:    strconv.Itoa(payload.userID),
 			consts.LabelTaskType:  string(consts.TaskTypeBuildDataset),
 			consts.LabelDataset:   payload.name,
 		}
@@ -123,6 +122,12 @@ func parseDatasetPayload(payload map[string]any) (*datasetPayload, error) {
 			endTime = datasetItem.EndTime
 		}
 
+		userIDFloat, ok := payload[consts.BuildUserID].(float64)
+		if !ok || userIDFloat <= 0 {
+			return nil, fmt.Errorf(message, consts.BuildUserID)
+		}
+		userID := int(userIDFloat)
+
 		return &datasetPayload{
 			benchmark:   benchmark,
 			name:        name,
@@ -130,6 +135,7 @@ func parseDatasetPayload(payload map[string]any) (*datasetPayload, error) {
 			envVars:     envVars,
 			startTime:   startTime,
 			endTime:     endTime,
+			userID:      userID,
 		}, nil
 	})
 }

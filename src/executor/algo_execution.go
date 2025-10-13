@@ -23,19 +23,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// getProjectIDString converts a ProjectID pointer to string, handling nil case
-func getProjectIDString(projectID *int) string {
-	if projectID == nil {
-		return ""
-	}
-	return strconv.Itoa(*projectID)
-}
-
 type executionPayload struct {
-	algorithm dto.AlgorithmItem
-	dataset   string
-	envVars   map[string]string
-	labels    *dto.ExecutionLabels
+	algorithm    database.Container
+	algorithmTag string
+	dataset      string
+	envVars      map[string]string
+	labels       *dto.ExecutionLabels
 }
 
 func rescheduleAlgoExecutionTask(ctx context.Context, task *dto.UnifiedTask, reason string) error {
@@ -151,7 +144,6 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 
 		// Note: Token will be released when job completes or fails, not here
 		// This ensures proper rate limiting during the entire job execution period
-
 		payload, err := parseExecutionPayload(task.Payload)
 		if err != nil {
 			span.RecordError(err)
@@ -173,26 +165,23 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			return fmt.Errorf("failed to query database for dataset %s: %v", payload.dataset, err)
 		}
 
-		container, err := repository.GetContaineInfo(&dto.GetContainerFilterOptions{
-			Type:  consts.ContainerTypeAlgorithm,
-			Name:  payload.algorithm.Name,
-			Image: payload.algorithm.Image,
-			Tag:   payload.algorithm.Tag,
-		})
+		tagLabel, err := repository.CreateOrGetLabel(consts.ContainerTag, payload.algorithmTag, consts.ContainerCategory, "")
 		if err != nil {
-			span.RecordError(err)
-			span.AddEvent("failed to get container info for algorithm")
-			return fmt.Errorf("failed to get container info for algorithm %s: %v", payload.algorithm.Name, err)
+			return fmt.Errorf("failed to get label for algorithm tag: %v", err)
 		}
 
-		executionID, err := repository.CreateExecutionResult(task.TaskID, container.ID, record.ID, 0, payload.labels)
+		executionID, err := repository.CreateExecutionResult(task.TaskID, payload.algorithm.ID, tagLabel.ID, record.ID, 0, payload.labels)
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to create execution result")
 			return fmt.Errorf("failed to create execution result: %v", err)
 		}
 
-		itemJson, err := json.Marshal(payload.algorithm)
+		itemJson, err := json.Marshal(dto.AlgorithmItem{
+			Name:    payload.algorithm.Name,
+			Tag:     payload.algorithmTag,
+			EnvVars: payload.envVars,
+		})
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to marshal algorithm item")
@@ -202,7 +191,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 		annotations[consts.AnnotationAlgorithm] = string(itemJson)
 
 		jobName := task.TaskID
-		fullImage := fmt.Sprintf("%s:%s", container.Image, container.Tag)
+		fullImage := fmt.Sprintf("%s:%s", payload.algorithm.Image, payload.algorithmTag)
 		labels := map[string]string{
 			consts.LabelTaskID:      task.TaskID,
 			consts.LabelTraceID:     task.TraceID,
@@ -213,7 +202,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			consts.LabelExecutionID: strconv.Itoa(executionID),
 		}
 
-		if err := createAlgoJob(childCtx, jobName, fullImage, annotations, labels, executionID, payload, container, record); err != nil {
+		if err := createAlgoJob(childCtx, jobName, fullImage, annotations, labels, executionID, payload, &payload.algorithm, record); err != nil {
 			// Job creation failed, token will be released by defer function
 			return err
 		}
@@ -229,9 +218,14 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 	message := "missing or invalid '%s' key in payload"
 
-	algorithm, err := utils.ConvertToType[dto.AlgorithmItem](payload[consts.ExecuteAlgorithm])
+	algorithm, err := utils.ConvertToType[database.Container](payload[consts.ExecuteAlgorithm])
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert '%s' to AlgorithmItem: %v", consts.ExecuteAlgorithm, err)
+	}
+
+	algorithmTag, ok := payload[consts.ExecuteAlgorithmTag].(string)
+	if !ok || algorithmTag == "" {
+		return nil, fmt.Errorf(message, consts.ExecuteAlgorithmTag)
 	}
 
 	dataset, ok := payload[consts.ExecuteDataset].(string)
@@ -254,10 +248,11 @@ func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 	}
 
 	return &executionPayload{
-		algorithm: algorithm,
-		dataset:   dataset,
-		envVars:   envVars,
-		labels:    labels,
+		algorithm:    algorithm,
+		algorithmTag: algorithmTag,
+		dataset:      dataset,
+		envVars:      envVars,
+		labels:       labels,
 	}, nil
 }
 

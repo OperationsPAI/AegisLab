@@ -20,6 +20,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from rcabench.openapi.models.database_helm_config import DatabaseHelmConfig
 from rcabench.openapi.models.database_user import DatabaseUser
 from typing import Optional, Set
 from typing_extensions import Self
@@ -31,10 +32,14 @@ class DatabaseContainer(BaseModel):
     command: Optional[StrictStr] = Field(default=None, description="Startup command")
     created_at: Optional[StrictStr] = Field(default=None, description="Creation time")
     env_vars: Optional[StrictStr] = Field(default=None, description="List of environment variable names")
+    helm_config: Optional[DatabaseHelmConfig] = None
+    helm_config_id: Optional[StrictInt] = Field(default=None, description="Associated Helm configuration, nullable")
     id: Optional[StrictInt] = Field(default=None, description="Unique identifier")
-    image: Optional[StrictStr] = Field(default=None, description="Image name with size limit")
+    image: Optional[StrictStr] = Field(default=None, description="Full image name (not stored in DB, used for display)")
     is_public: Optional[StrictBool] = Field(default=None, description="Whether publicly visible")
     name: Optional[StrictStr] = Field(default=None, description="Name with size limit")
+    registry: Optional[StrictStr] = Field(default=None, description="Image registry with size limit")
+    repository: Optional[StrictStr] = Field(default=None, description="Image repository with size limit")
     status: Optional[StrictInt] = Field(default=None, description="Status: -1:deleted 0:disabled 1:active")
     tag: Optional[StrictStr] = Field(default=None, description="Image tag with size limit")
     type: Optional[StrictStr] = Field(default=None, description="Image type")
@@ -42,7 +47,7 @@ class DatabaseContainer(BaseModel):
     user: Optional[DatabaseUser] = Field(default=None, description="Foreign key association")
     user_id: Optional[StrictInt] = Field(default=None, description="Container must belong to a user")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["command", "created_at", "env_vars", "id", "image", "is_public", "name", "status", "tag", "type", "updated_at", "user", "user_id"]
+    __properties: ClassVar[List[str]] = ["command", "created_at", "env_vars", "helm_config", "helm_config_id", "id", "image", "is_public", "name", "registry", "repository", "status", "tag", "type", "updated_at", "user", "user_id"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -85,6 +90,9 @@ class DatabaseContainer(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of helm_config
+        if self.helm_config:
+            _dict['helm_config'] = self.helm_config.to_dict()
         # override the default output from pydantic by calling `to_dict()` of user
         if self.user:
             _dict['user'] = self.user.to_dict()
@@ -108,10 +116,14 @@ class DatabaseContainer(BaseModel):
             "command": obj.get("command"),
             "created_at": obj.get("created_at"),
             "env_vars": obj.get("env_vars"),
+            "helm_config": DatabaseHelmConfig.from_dict(obj["helm_config"]) if obj.get("helm_config") is not None else None,
+            "helm_config_id": obj.get("helm_config_id"),
             "id": obj.get("id"),
             "image": obj.get("image"),
             "is_public": obj.get("is_public"),
             "name": obj.get("name"),
+            "registry": obj.get("registry"),
+            "repository": obj.get("repository"),
             "status": obj.get("status"),
             "tag": obj.get("tag"),
             "type": obj.get("type"),

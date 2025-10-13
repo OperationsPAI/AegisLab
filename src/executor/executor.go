@@ -32,6 +32,7 @@ type TaskIdentifiers struct {
 	TraceID   string `json:"trace_id"`
 	GroupID   string `json:"group_id"`
 	ProjectID *int   `json:"project_id,omitempty"`
+	UserID    *int   `json:"user_id,omitempty"` // UserID is optional and can be nil
 }
 
 type CRDLabels struct {
@@ -102,7 +103,7 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 		"trace_id": parsedLabels.TraceID,
 	})
 
-	logEntry.Info("fault inject successfully")
+	logEntry.Info("fault injected successfully")
 	repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, parsedLabels.TraceID), dto.StreamEvent{
 		TaskID:    parsedLabels.TaskID,
 		TaskType:  consts.TaskTypeFaultInjection,
@@ -135,6 +136,7 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 			},
 			consts.BuildStartTime: startTime,
 			consts.BuildEndTime:   endTime,
+			consts.BuildUserID:    parsedLabels.UserID,
 		},
 		Immediate: true,
 		TraceID:   parsedLabels.TraceID,
@@ -185,24 +187,6 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 		logrus.WithField("job_name", job.Name).Errorf("failed to get job logs: %v", err)
 	}
 
-	for podName, log := range logMap {
-		logrus.WithField("pod_name", podName).Error("job logs:")
-		logrus.Error(log)
-	}
-
-	jobLogBytes, err := json.Marshal(logMap)
-	if err != nil {
-		logrus.WithField("job_name", job.Name).Errorf("failed to marshal job logs: %v", err)
-	}
-
-	jobLog := string(jobLogBytes)
-	span.AddEvent("job failed", trace.WithAttributes(
-		attribute.KeyValue{
-			Key:   "logs",
-			Value: attribute.StringValue(jobLog),
-		},
-	))
-
 	// Use PublishEvent to record job logs
 	if len(logMap) > 0 {
 		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
@@ -216,6 +200,44 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 				Logs:      logMap,
 			},
 		}, repository.WithCallerLevel(4))
+
+		jobLogBytes, err := json.Marshal(logMap)
+		if err != nil {
+			logrus.WithField("job_name", job.Name).Errorf("failed to marshal job logs: %v", err)
+		}
+
+		jobLog := string(jobLogBytes)
+		spanAttrs := []trace.EventOption{
+			trace.WithAttributes(
+				attribute.String("job_name", job.Name),
+				attribute.String("namespace", job.Namespace),
+			),
+		}
+
+		filePath, err := writeJobLogs(job, taskOptions, logMap)
+		if err != nil {
+			logrus.WithFields(logrus.Fields{
+				"job_name":  job.Name,
+				"pod_count": len(logMap),
+			}).Error("Job failed - logs available but file writing disabled")
+
+			for podName, log := range logMap {
+				logrus.WithField("pod_name", podName).Error("job logs:")
+				logrus.Error(log)
+			}
+
+			spanAttrs = append(spanAttrs, trace.WithAttributes(
+				attribute.String("logs", jobLog),
+			))
+		}
+
+		if filePath != "" {
+			spanAttrs = append(spanAttrs, trace.WithAttributes(
+				attribute.String("log_file", filePath),
+			))
+		}
+
+		span.AddEvent("job failed", spanAttrs...)
 	}
 
 	logEntry := logrus.WithFields(logrus.Fields{
@@ -351,14 +373,20 @@ func (e *Executor) HandleJobSucceeded(job *batchv1.Job, annotations map[string]s
 			return
 		}
 
+		algorithm, tag, err := repository.GetContainerWithTag(consts.ContainerTypeAlgorithm, config.GetString("algo.detector"), consts.DefaultContainerTag, *taskOptions.UserID)
+		if err != nil {
+			logEntry.Errorf("get algorithm container failed: %v", err)
+			taskSpan.AddEvent("get algorithm container failed")
+			return
+		}
+
 		task := &dto.UnifiedTask{
 			Type: consts.TaskTypeRunAlgorithm,
 			Payload: map[string]any{
-				consts.ExecuteAlgorithm: dto.AlgorithmItem{
-					Name: config.GetString("algo.detector"),
-				},
-				consts.ExecuteDataset: options.Dataset,
-				consts.ExecuteEnvVars: map[string]string{},
+				consts.ExecuteAlgorithm:    algorithm,
+				consts.ExecuteAlgorithmTag: tag,
+				consts.ExecuteDataset:      options.Dataset,
+				consts.ExecuteEnvVars:      map[string]string{},
 			},
 			Immediate: true,
 			TraceID:   taskOptions.TraceID,
@@ -487,11 +515,22 @@ func parseTaskIdentifiers(message string, labels map[string]string) (*TaskIdenti
 		projectID = &id
 	}
 
+	var userID *int
+	userIDStr, ok := labels[consts.LabelUserID]
+	if ok && userIDStr != "" {
+		id, err := strconv.Atoi(userIDStr)
+		if err != nil {
+			return nil, fmt.Errorf(message, consts.LabelUserID)
+		}
+		userID = &id
+	}
+
 	return &TaskIdentifiers{
 		TaskID:    taskID,
 		TraceID:   traceID,
 		GroupID:   groupID,
 		ProjectID: projectID,
+		UserID:    userID,
 	}, nil
 }
 
@@ -598,4 +637,23 @@ func parseExecutionOptions(annotations, labels map[string]string) (*dto.Executio
 		ExecutionID: executionID,
 		Timestamp:   timestamp,
 	}, nil
+}
+
+func writeJobLogs(job *batchv1.Job, taskOptions *TaskOptions, logMap map[string][]string) (string, error) {
+	logWriter, err := utils.NewJobLogWriter()
+	if err != nil {
+		return "", fmt.Errorf("failed to create job log writer: %v", err)
+	}
+
+	filePath, err := logWriter.WriteJobLogs(
+		job.Name,
+		job.Namespace,
+		taskOptions.TraceID,
+		logMap,
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to write job logs to file: %v", err)
+	}
+
+	return filePath, nil
 }

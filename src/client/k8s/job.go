@@ -1,9 +1,10 @@
 package k8s
 
 import (
+	"bufio"
 	"context"
 	"fmt"
-	"io"
+	"strings"
 	"time"
 
 	"aegis/config"
@@ -196,7 +197,7 @@ func GetJob(ctx context.Context, namespace, jobName string) (*batchv1.Job, error
 	return job, nil
 }
 
-func GetJobPodLogs(ctx context.Context, namespace, jobName string) (map[string]string, error) {
+func GetJobPodLogs(ctx context.Context, namespace, jobName string) (map[string][]string, error) {
 	podList, err := k8sClient.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("job-name=%s", jobName),
 	})
@@ -204,7 +205,7 @@ func GetJobPodLogs(ctx context.Context, namespace, jobName string) (map[string]s
 		return nil, fmt.Errorf("failed to list pods: %v", err)
 	}
 
-	logsMap := make(map[string]string)
+	logsMap := make(map[string][]string)
 	for _, pod := range podList.Items {
 		if !isPodReadyForLogs(pod) {
 			logrus.WithFields(logrus.Fields{
@@ -221,12 +222,20 @@ func GetJobPodLogs(ctx context.Context, namespace, jobName string) (map[string]s
 		}
 		defer logStream.Close()
 
-		logData, err := io.ReadAll(logStream)
-		if err != nil {
+		var logLines []string
+		scanner := bufio.NewScanner(logStream)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.TrimSpace(line) != "" {
+				logLines = append(logLines, line)
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
 			return nil, fmt.Errorf("failed to read logs for pod %s: %v", pod.Name, err)
 		}
 
-		logsMap[pod.Name] = string(logData)
+		logsMap[pod.Name] = logLines
 	}
 
 	return logsMap, nil

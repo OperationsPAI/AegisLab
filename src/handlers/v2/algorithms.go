@@ -17,6 +17,16 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+type algorithmTaskParams struct {
+	projectID    *int
+	algorithm    *database.Container
+	algorithmTag string
+	envVars      map[string]string
+	datapacks    []database.FaultInjectionSchedule
+	datasetID    *int
+	labels       *dto.ExecutionLabels
+}
+
 // SearchAlgorithms handles complex algorithm search with advanced filtering
 //
 //	@Summary Search algorithms
@@ -32,7 +42,6 @@ import (
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/algorithms/search [post]
 func SearchAlgorithms(c *gin.Context) {
-
 	var req dto.AlgorithmSearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
@@ -59,19 +68,7 @@ func SearchAlgorithms(c *gin.Context) {
 	// Convert database containers to response DTOs
 	var algorithmResponses []dto.AlgorithmResponse
 	for _, container := range searchResult.Items {
-		algorithmResponse := dto.AlgorithmResponse{
-			ID:        container.ID,
-			Name:      container.Name,
-			Type:      container.Type,
-			Image:     container.Image,
-			Tag:       container.Tag,
-			Command:   container.Command,
-			EnvVars:   container.EnvVars,
-			Status:    container.Status,
-			CreatedAt: container.CreatedAt,
-			UpdatedAt: container.UpdatedAt,
-		}
-
+		algorithmResponse := dto.ToAlgorithmResponse(container)
 		algorithmResponses = append(algorithmResponses, algorithmResponse)
 	}
 
@@ -101,7 +98,6 @@ func SearchAlgorithms(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/algorithms [get]
 func ListAlgorithms(c *gin.Context) {
-
 	// Create a basic search request from query parameters
 	tp := string(consts.ContainerTypeAlgorithm)
 	req := dto.AlgorithmSearchRequest{
@@ -150,19 +146,7 @@ func ListAlgorithms(c *gin.Context) {
 	// Convert database containers to response DTOs
 	var algorithmResponses []dto.AlgorithmResponse
 	for _, container := range searchResult.Items {
-		algorithmResponse := dto.AlgorithmResponse{
-			ID:        container.ID,
-			Name:      container.Name,
-			Type:      container.Type,
-			Image:     container.Image,
-			Tag:       container.Tag,
-			Command:   container.Command,
-			EnvVars:   container.EnvVars,
-			Status:    container.Status,
-			CreatedAt: container.CreatedAt,
-			UpdatedAt: container.UpdatedAt,
-		}
-
+		algorithmResponse := dto.ToAlgorithmResponse(container)
 		algorithmResponses = append(algorithmResponses, algorithmResponse)
 	}
 
@@ -195,7 +179,6 @@ func ListAlgorithms(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/algorithms/{algorithm_id}/executions/{execution_id}/detectors [post]
 func UploadDetectorResults(c *gin.Context) {
-	// Parse path parameters
 	algorithmID, err := parseIntParam(c.Param("algorithm_id"))
 	if err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid algorithm ID: "+err.Error())
@@ -257,21 +240,7 @@ func UploadDetectorResults(c *gin.Context) {
 	// Convert to database entities
 	var detectorResults []database.Detector
 	for _, item := range req.Results {
-		detectorResult := database.Detector{
-			ExecutionID:         executionID,
-			SpanName:            item.SpanName,
-			Issues:              item.Issues,
-			AbnormalAvgDuration: item.AbnormalAvgDuration,
-			NormalAvgDuration:   item.NormalAvgDuration,
-			AbnormalSuccRate:    item.AbnormalSuccRate,
-			NormalSuccRate:      item.NormalSuccRate,
-			AbnormalP90:         item.AbnormalP90,
-			NormalP90:           item.NormalP90,
-			AbnormalP95:         item.AbnormalP95,
-			NormalP95:           item.NormalP95,
-			AbnormalP99:         item.AbnormalP99,
-			NormalP99:           item.NormalP99,
-		}
+		detectorResult := item.ToDetectorEntity(executionID)
 		detectorResults = append(detectorResults, detectorResult)
 	}
 
@@ -327,6 +296,13 @@ func UploadGranularityResults(c *gin.Context) {
 	var executionID int
 	executionIDParam := c.Query("execution_id")
 	hasExecutionID := executionIDParam != ""
+
+	tag := c.Query("tag")
+	tagLabel, err := repository.CreateOrGetLabel(consts.ContainerTag, tag, consts.ContainerCategory, "")
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get tag label: "+err.Error())
+		return
+	}
 
 	if hasExecutionID {
 		executionID, err = parseIntParam(executionIDParam)
@@ -386,7 +362,7 @@ func UploadGranularityResults(c *gin.Context) {
 		}
 
 		// Create new execution record using repository function
-		executionID, err = repository.CreateExecutionResult("", algorithmID, req.DatapackID, req.Duration, labels)
+		executionID, err = repository.CreateExecutionResult("", algorithmID, tagLabel.ID, req.DatapackID, req.Duration, labels)
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to create execution record: "+err.Error())
 			return
@@ -479,20 +455,23 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 	spanCtx := ctx.(context.Context)
 	trace.SpanFromContext(spanCtx)
 
-	// Parse request body
+	userID, exists := middleware.GetCurrentUserID(c)
+	if !exists {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
 	var req dto.BatchAlgorithmExecutionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 
-	// Validate request data
 	if err := req.Validate(); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Data validation failed: "+err.Error())
 		return
 	}
 
-	// Get project
 	project, err := repository.GetProject("name", req.ProjectName)
 	if err != nil {
 		dto.ErrorResponse(c, http.StatusNotFound, "Project not found: "+req.ProjectName)
@@ -500,27 +479,9 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 	}
 
 	var allExecutions []dto.AlgorithmExecutionResponse
-
-	// Process each execution request
 	for _, execution := range req.Executions {
-		// Get algorithm container with conditional filtering
-		var algorithm database.Container
-		query := database.DB.Where("name = ? AND type = ? AND status = ?", execution.Algorithm.Name, consts.ContainerTypeAlgorithm, consts.ContainerEnabled)
-
-		// Add image and tag filters if specified
-		if execution.Algorithm.Image != "" {
-			query = query.Where("image = ?", execution.Algorithm.Image)
-		}
-		if execution.Algorithm.Tag != "" {
-			query = query.Where("tag = ?", execution.Algorithm.Tag)
-		}
-
-		// If neither image nor tag specified, get the latest one (most recent)
-		if execution.Algorithm.Image == "" && execution.Algorithm.Tag == "" {
-			query = query.Order("created_at DESC")
-		}
-
-		if err := query.First(&algorithm).Error; err != nil {
+		algorithm, tag, err := repository.GetContainerWithTag(consts.ContainerTypeAlgorithm, execution.Algorithm.Name, execution.Algorithm.Tag, userID)
+		if err != nil {
 			dto.ErrorResponse(c, http.StatusNotFound, "Algorithm not found: "+execution.Algorithm.Name)
 			return
 		}
@@ -532,8 +493,15 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 			return
 		}
 
-		// Submit tasks for all datapacks
-		executions, err := submitAlgorithmTasks(spanCtx, groupID, &project.ID, &algorithm, execution.EnvVars, datapacks, datasetID, req.Labels)
+		executions, err := submitAlgorithmTasks(spanCtx, groupID, &algorithmTaskParams{
+			projectID:    &project.ID,
+			algorithm:    algorithm,
+			algorithmTag: tag,
+			envVars:      execution.Algorithm.EnvVars,
+			datapacks:    datapacks,
+			datasetID:    datasetID,
+			labels:       req.Labels,
+		})
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to submit algorithm execution tasks: "+err.Error())
 			return
@@ -598,54 +566,45 @@ func extractDatapacks(datapackName *string, datasetName *string, datasetVersion 
 }
 
 // submitAlgorithmTasks submits algorithm execution tasks for the given datapacks
-func submitAlgorithmTasks(ctx context.Context, groupID string, projectID *int, algorithm *database.Container, envVars map[string]string, datapacks []database.FaultInjectionSchedule, datasetID *int, labels *dto.ExecutionLabels) ([]dto.AlgorithmExecutionResponse, error) {
+func submitAlgorithmTasks(ctx context.Context, groupID string, params *algorithmTaskParams) ([]dto.AlgorithmExecutionResponse, error) {
 	var executions []dto.AlgorithmExecutionResponse
-
-	for _, datapack := range datapacks {
-		// Create v1 compatible payload
+	for _, datapack := range params.datapacks {
 		payload := map[string]any{
-			"algorithm": map[string]any{
-				"name":  algorithm.Name,
-				"image": algorithm.Image,
-				"tag":   algorithm.Tag,
-			},
-			"dataset":  datapack.InjectionName, // Use datapack name as dataset field
-			"env_vars": envVars,
+			consts.ExecuteAlgorithm:    *params.algorithm,
+			consts.ExecuteAlgorithmTag: params.algorithmTag,
+			consts.ExecuteDataset:      datapack.InjectionName, // Use datapack name as dataset field
+			consts.ExecuteEnvVars:      params.envVars,
 		}
 
-		// Add labels to payload if provided
-		if labels != nil {
-			payload["labels"] = labels
+		if params.labels != nil {
+			payload["labels"] = params.labels
 		}
 
-		// Create unified task
 		task := &dto.UnifiedTask{
 			Type:      consts.TaskTypeRunAlgorithm,
 			Payload:   payload,
 			Immediate: true,
 			GroupID:   groupID,
-			ProjectID: projectID,
+			ProjectID: params.projectID,
 		}
 		task.SetGroupCtx(ctx)
 
-		// Submit task
 		taskID, traceID, err := executor.SubmitTask(ctx, task)
 		if err != nil {
 			return nil, fmt.Errorf("failed to submit task: %s", err.Error())
 		}
 
-		// Build execution response
 		execution := dto.AlgorithmExecutionResponse{
 			TraceID:     traceID,
 			TaskID:      taskID,
-			AlgorithmID: algorithm.ID,
+			AlgorithmID: params.algorithm.ID,
 			DatapackID:  &datapack.ID,
 			Status:      "submitted",
 		}
 
 		// Set DatasetID if this is from a dataset
-		if datasetID != nil {
-			execution.DatasetID = datasetID
+		if params.datasetID != nil {
+			execution.DatasetID = params.datasetID
 		}
 
 		executions = append(executions, execution)

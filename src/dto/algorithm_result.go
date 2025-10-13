@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"aegis/database"
 	"fmt"
 	"time"
 )
@@ -25,6 +26,24 @@ type DetectorResultItem struct {
 	NormalP95           *float64 `json:"normal_p95,omitempty"`
 	AbnormalP99         *float64 `json:"abnormal_p99,omitempty"`
 	NormalP99           *float64 `json:"normal_p99,omitempty"`
+}
+
+func (item DetectorResultItem) ToDetectorEntity(executionID int) database.Detector {
+	return database.Detector{
+		ExecutionID:         executionID,
+		SpanName:            item.SpanName,
+		Issues:              item.Issues,
+		AbnormalAvgDuration: item.AbnormalAvgDuration,
+		NormalAvgDuration:   item.NormalAvgDuration,
+		AbnormalSuccRate:    item.AbnormalSuccRate,
+		NormalSuccRate:      item.NormalSuccRate,
+		AbnormalP90:         item.AbnormalP90,
+		NormalP90:           item.NormalP90,
+		AbnormalP95:         item.AbnormalP95,
+		NormalP95:           item.NormalP95,
+		AbnormalP99:         item.AbnormalP99,
+		NormalP99:           item.NormalP99,
+	}
 }
 
 // GranularityResultRequest Granularity result upload request

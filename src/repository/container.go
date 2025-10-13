@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"aegis/consts"
 	"aegis/database"
 	"aegis/dto"
 
@@ -25,61 +26,102 @@ func CheckContainerExists(id int) (bool, error) {
 	return true, nil
 }
 
-func CreateContainer(container *database.Container) error {
-	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		var existingContainer database.Container
-		result := tx.Where("type = ? AND name = ? AND image = ? AND tag = ?",
-			container.Type, container.Name, container.Image, container.Tag).
-			FirstOrCreate(&existingContainer, container)
+func CreateContainer(container *database.Container, tag string) error {
+	return CreateContainerWithTx(nil, container, tag)
+}
 
-		if err := result.Error; err != nil {
-			return err
+// CreateContainerWithTx creates a container with explicit transaction control
+// If tx is nil, it creates its own transaction; otherwise uses the provided transaction
+func CreateContainerWithTx(tx *gorm.DB, container *database.Container, tag string) error {
+	if tx == nil {
+		return database.DB.Transaction(func(newTx *gorm.DB) error {
+			return createContainerInTx(newTx, container, tag)
+		})
+	}
+
+	// Use provided transaction
+	return createContainerInTx(tx, container, tag)
+}
+
+// Internal function that performs the actual creation within a transaction
+func createContainerInTx(tx *gorm.DB, container *database.Container, tag string) error {
+	if err := tx.Create(container).Error; err != nil {
+		return fmt.Errorf("failed to create container: %v", err)
+	}
+
+	if tag != "" {
+		label, err := CreateOrGetLabelWithTx(tx, consts.ContainerTag, tag, consts.ContainerCategory, "")
+		if err != nil {
+			return fmt.Errorf("failed to create or get label: %v", err)
 		}
 
-		if result.RowsAffected == 0 {
-			return tx.Model(&existingContainer).Update("updated_at", tx.NowFunc()).Error
+		relation := &database.ContainerLabel{
+			ContainerID: container.ID,
+			LabelID:     label.ID,
 		}
-
-		*container = existingContainer
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to create or update container: %v", err)
+		if err := tx.Create(relation).Error; err != nil {
+			return fmt.Errorf("failed to create container-label relation: %v", err)
+		}
 	}
 
 	return nil
 }
 
-func GetContaineInfo(opts *dto.GetContainerFilterOptions) (*database.Container, error) {
-	query := database.DB.Where("name = ?", opts.Name)
+func GetContainerInfo(opts *dto.GetContainerFilterOptions, userID int) (*dto.ContainerInfo, error) {
+	query := database.DB.
+		Preload("User").
+		Where("name = ? AND type = ? AND user_id = ?", opts.Name, opts.Type, userID)
 
-	if opts != nil {
-		if opts.Type != "" {
-			query = query.Where("type = ?", opts.Type)
-		}
-
-		if opts.Image != "" {
-			query = query.Where("image = ?", opts.Image)
-		}
-
-		if opts.Image != "" && opts.Tag != "" {
-			query = query.Where("tag = ?", opts.Tag)
-		}
+	if opts.Status != nil {
+		query = query.Where("status = ?", *opts.Status)
 	}
 
-	var record database.Container
+	var container database.Container
 	if err := query.
-		Order("updated_at DESC").
-		First(&record).Error; err != nil {
+		Preload("HelmConfig").
+		First(&container).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("container info '%s' not found", opts.Name)
+			return nil, fmt.Errorf("container '%s' not found for user %d", opts.Name, userID)
 		}
 
-		return nil, fmt.Errorf("failed to query container info: %v", err)
+		return nil, fmt.Errorf("failed to query container: %v", err)
 	}
 
-	return &record, nil
+	var tags []database.Label
+	if err := database.DB.
+		Joins("JOIN container_labels ON container_labels.label_id = labels.id").
+		Where("container_labels.container_id = ?", container.ID).
+		Where("labels.label_key = ?", "container_tag").
+		Order("labels.created_at DESC").
+		Find(&tags).Error; err != nil {
+		return nil, fmt.Errorf("failed to get container tags: %v", err)
+	}
+
+	return &dto.ContainerInfo{
+		Container: container,
+		Tags:      tags,
+	}, nil
+}
+
+func GetContainerWithTag(containerType consts.ContainerType, name string, requestedTag string, userID int) (*database.Container, string, error) {
+	enabledStatus := consts.ContainerEnabled
+	containerInfo, err := GetContainerInfo(&dto.GetContainerFilterOptions{
+		Type:   containerType,
+		Name:   name,
+		Status: &enabledStatus,
+	}, userID)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to get container info: %w", err)
+	}
+
+	var selectedTag string
+	if requestedTag != "" && containerInfo.IsTagExists(requestedTag) {
+		selectedTag = requestedTag
+	} else {
+		selectedTag = containerInfo.Container.DefaultTag
+	}
+
+	return &containerInfo.Container, selectedTag, nil
 }
 
 func ListContainers(opts *dto.ListContainersFilterOptions) ([]database.Container, error) {
@@ -195,4 +237,19 @@ func GetContainerCountByType() (map[string]int64, error) {
 	}
 
 	return typeCounts, nil
+}
+
+func GetContainerLabel(containerID, labelID int) (*database.ContainerLabel, error) {
+	var relation database.ContainerLabel
+	if err := database.DB.
+		Where("container_id = ? AND label_id = ?", containerID, labelID).
+		First(&relation).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("failed to query container-label relation: %v", err)
+	}
+
+	return &relation, nil
 }

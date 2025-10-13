@@ -4,14 +4,15 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"aegis/client"
-	"aegis/config"
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/repository"
+	"aegis/utils"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
@@ -88,7 +89,7 @@ func GetMonitor() *Monitor {
 
 // initMonitor creates and initializes a new Monitor instance
 func initMonitor() *Monitor {
-	initialNamespaces, err := config.GetAllNamespaces()
+	initialNamespaces, err := utils.GetAllNamespaces()
 	if err != nil {
 		logrus.Fatalf("Failed to get namespaces for initialization: %v", err)
 	}
@@ -317,7 +318,7 @@ func (m *Monitor) CheckNamespaceToInject(namespace string, executeTime time.Time
 }
 
 // GetNamespaceToRestart finds an available namespace for restart and acquires it
-func (m *Monitor) GetNamespaceToRestart(endTime time.Time, traceID string) string {
+func (m *Monitor) GetNamespaceToRestart(endTime time.Time, nsPrefix, traceID string) string {
 	namespaces, err := m.redisClient.SMembers(m.ctx, namespacesKey).Result()
 	if err != nil {
 		logrus.Errorf("failed to get namespaces from Redis: %v", err)
@@ -325,8 +326,10 @@ func (m *Monitor) GetNamespaceToRestart(endTime time.Time, traceID string) strin
 	}
 
 	for _, ns := range namespaces {
-		if err := m.acquireNamespaceLock(ns, endTime, traceID, consts.TaskTypeRestartService); err == nil {
-			return ns
+		if nsPrefix != "" && strings.HasPrefix(ns, nsPrefix) {
+			if err := m.acquireNamespaceLock(ns, endTime, traceID, consts.TaskTypeRestartService); err == nil {
+				return ns
+			}
 		}
 	}
 

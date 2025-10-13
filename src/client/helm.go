@@ -296,7 +296,7 @@ func (c *HelmClient) InstallRelease(ctx context.Context, releaseName, chartName 
 	})
 }
 
-func (c *HelmClient) InstallTrainTicket(ctx context.Context, releaseName, chartName, imageName, imageTag, nodePort string, installTimeout, unInstallTimeout time.Duration) error {
+func (c *HelmClient) Install(ctx context.Context, releaseName, chartName string, values map[string]any, installTimeout, unInstallTimeout time.Duration) error {
 	installed, err := c.IsReleaseInstalled(releaseName)
 	if err != nil {
 		return err
@@ -310,19 +310,6 @@ func (c *HelmClient) InstallTrainTicket(ctx context.Context, releaseName, chartN
 		}
 	} else {
 		logrus.Infof("No existing %s release found", releaseName)
-	}
-
-	values := map[string]any{
-		"global": map[string]any{
-			"image": map[string]any{
-				"tag": imageTag,
-			},
-		},
-		"services": map[string]any{
-			"tsUiDashboard": map[string]any{
-				"nodePort": nodePort,
-			},
-		},
 	}
 
 	return c.InstallRelease(ctx, releaseName, chartName, values, installTimeout)

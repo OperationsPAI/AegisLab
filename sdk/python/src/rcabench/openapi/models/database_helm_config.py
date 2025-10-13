@@ -18,19 +18,26 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class DtoAlgorithmItem(BaseModel):
+class DatabaseHelmConfig(BaseModel):
     """
-    DtoAlgorithmItem
+    DatabaseHelmConfig
     """ # noqa: E501
-    name: StrictStr
-    tag: Optional[StrictStr] = None
+    chart_name: Optional[StrictStr] = Field(default=None, description="Helm chart information")
+    chart_version: Optional[StrictStr] = Field(default=None, description="Chart version")
+    full_chart: Optional[StrictStr] = Field(default=None, description="Full chart reference (not stored in DB, used for display)")
+    id: Optional[StrictInt] = Field(default=None, description="Unique identifier")
+    ns_prefix: Optional[StrictStr] = Field(default=None, description="Deployment configuration")
+    port_template: Optional[StrictStr] = Field(default=None, description="Port template for dynamic port assignment, e.g., \"31%03d\"")
+    repo_name: Optional[StrictStr] = Field(default=None, description="Repository name")
+    repo_url: Optional[StrictStr] = Field(default=None, description="Repository URL")
+    values: Optional[StrictStr] = Field(default=None, description="Helm values in JSON format")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["name", "tag"]
+    __properties: ClassVar[List[str]] = ["chart_name", "chart_version", "full_chart", "id", "ns_prefix", "port_template", "repo_name", "repo_url", "values"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -50,7 +57,7 @@ class DtoAlgorithmItem(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of DtoAlgorithmItem from a JSON string"""
+        """Create an instance of DatabaseHelmConfig from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -82,7 +89,7 @@ class DtoAlgorithmItem(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of DtoAlgorithmItem from a dict"""
+        """Create an instance of DatabaseHelmConfig from a dict"""
         if obj is None:
             return None
 
@@ -90,8 +97,15 @@ class DtoAlgorithmItem(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "name": obj.get("name"),
-            "tag": obj.get("tag")
+            "chart_name": obj.get("chart_name"),
+            "chart_version": obj.get("chart_version"),
+            "full_chart": obj.get("full_chart"),
+            "id": obj.get("id"),
+            "ns_prefix": obj.get("ns_prefix"),
+            "port_template": obj.get("port_template"),
+            "repo_name": obj.get("repo_name"),
+            "repo_url": obj.get("repo_url"),
+            "values": obj.get("values")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

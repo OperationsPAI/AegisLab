@@ -1,7 +1,10 @@
 package repository
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"aegis/config"
 	"aegis/consts"
@@ -10,8 +13,52 @@ import (
 	"gorm.io/gorm"
 )
 
+type InitialDataContainer struct {
+	Type       string             `json:"type"`
+	Name       string             `json:"name"`
+	Registry   string             `json:"registry"`
+	Repository string             `json:"repository"`
+	Tag        string             `json:"tag"`
+	Command    string             `json:"command"`
+	EnvVars    string             `json:"env_vars"`
+	IsPublic   bool               `json:"is_public"`
+	Status     int                `json:"status"`
+	HelmConfig *InitialHelmConfig `json:"helm_config"`
+}
+
+type InitialHelmConfig struct {
+	ChartName    string         `json:"chart_name"`
+	RepoName     string         `json:"repo_name"`
+	RepoURL      string         `json:"repo_url"`
+	Values       map[string]any `json:"values"`
+	NsPrefix     string         `json:"ns_prefix"`
+	PortTemplate string         `json:"port_template"`
+}
+
+type InitialDataUser struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	FullName string `json:"full_name"`
+	Status   int    `json:"status"`
+	IsActive bool   `json:"is_active"`
+}
+
+type InitialData struct {
+	Containers []InitialDataContainer `json:"containers"`
+	Projects   []database.Project     `json:"projects"`
+	AdminUser  InitialDataUser        `json:"admin_user"`
+}
+
 // InitializeSystemData initializes system data (roles, permissions, resources)
 func InitializeSystemData() error {
+	dataPath := config.GetString("initialization.data_path")
+	filePath := filepath.Join(dataPath, consts.InitialFilename)
+	initialData, err := loadInitialDataFromFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to load initial data from file: %v", err)
+	}
+
 	return database.DB.Transaction(func(tx *gorm.DB) error {
 		// Create system resources
 		systemResources := []database.Resource{
@@ -82,22 +129,36 @@ func InitializeSystemData() error {
 		}
 
 		// Create super admin user and default project
-		adminUser, err := initializeAdminUserAndProjects(tx)
+		adminUser, err := initializeAdminUserAndProjects(tx, initialData)
 		if err != nil {
 			return fmt.Errorf("failed to initialize admin user and projects: %v", err)
 		}
 
-		if err := initializeContainers(tx, adminUser.ID); err != nil {
+		if err := initializeContainers(tx, initialData, adminUser.ID); err != nil {
 			return fmt.Errorf("failed to initialize containers: %v", err)
 		}
 
 		// Initialize execution result labels
-		if err := InitializeExecutionLabels(); err != nil {
+		if err := initializeExecutionLabels(tx); err != nil {
 			return fmt.Errorf("failed to initialize execution labels: %v", err)
 		}
 
 		return nil
 	})
+}
+
+func loadInitialDataFromFile(filePath string) (*InitialData, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read initial data file: %v", err)
+	}
+
+	var initialData InitialData
+	if err := json.Unmarshal(data, &initialData); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal initial data: %v", err)
+	}
+
+	return &initialData, nil
 }
 
 // assignSystemRolePermissions assigns permissions to system roles
@@ -151,16 +212,6 @@ func assignSystemRolePermissions(tx *gorm.DB) error {
 	}
 
 	return nil
-}
-
-// Helper functions
-func splitPermission(permission string) []string {
-	for i, char := range permission {
-		if char == ':' {
-			return []string{permission[:i], permission[i+1:]}
-		}
-	}
-	return []string{permission}
 }
 
 func actionDisplayName(action string) string {
@@ -231,16 +282,15 @@ func assignPermissionsToRole(tx *gorm.DB, roleName consts.RoleName, permissionNa
 }
 
 // initializeAdminUserAndProjects initializes the super admin user and default projects
-func initializeAdminUserAndProjects(tx *gorm.DB) (*database.User, error) {
+func initializeAdminUserAndProjects(tx *gorm.DB, data *InitialData) (*database.User, error) {
 	// 1. Create super admin user
 	adminUser := database.User{
-		Username: "admin",
-		Email:    "admin@rcabench.local",
-		// password: admin123, encrypted with project standard SHA256+salt
-		Password: "60c873a916c7659b9798e17015e9130c0cb9c9f4f7f7c022222c0b869243fd6b:98a126542e7a0e2bf0322965b28885e8eb628c605f3cd0228b74e3d36e5edeee",
-		FullName: "System Admin",
-		Status:   1,
-		IsActive: true,
+		Username: data.AdminUser.Username,
+		Email:    data.AdminUser.Email,
+		Password: data.AdminUser.Password, // Plain password, will be hashed in BeforeCreate hook
+		FullName: data.AdminUser.FullName,
+		Status:   data.AdminUser.Status,
+		IsActive: data.AdminUser.IsActive,
 	}
 
 	var existingUser database.User
@@ -263,13 +313,7 @@ func initializeAdminUserAndProjects(tx *gorm.DB) (*database.User, error) {
 	}
 
 	// 3. Create default projects
-	defaultProjects := []database.Project{
-		{
-			Name:        "pair_diagnosis",
-			Description: "pair_diagnosis",
-			Status:      1,
-		},
-	}
+	defaultProjects := data.Projects
 
 	for _, project := range defaultProjects {
 		var existingProject database.Project
@@ -292,51 +336,69 @@ func initializeAdminUserAndProjects(tx *gorm.DB) (*database.User, error) {
 	return &existingUser, nil
 }
 
-func initializeContainers(tx *gorm.DB, userID int) error {
-	isPublic := true
-	containers := []database.Container{
-		{
-			Type:     "algorithm",
-			Name:     config.GetString("algo.detector"),
-			Image:    "docker.io/opspai/detector",
-			Tag:      "latest",
-			Command:  "bash /entrypoint.sh",
-			UserID:   userID,
-			IsPublic: isPublic,
-		},
-		{
-			Type:     "algorithm",
-			Name:     "traceback",
-			Image:    "docker.io/opspai/rca-algo-traceback",
-			Tag:      "latest",
-			Command:  "bash /entrypoint.sh",
-			UserID:   userID,
-			IsPublic: isPublic,
-		},
-		{
-			Type:     "benchmark",
-			Name:     "clickhouse",
-			Image:    "docker.io/opspai/clickhouse_dataset",
-			Tag:      "latest",
-			Command:  "bash /entrypoint.sh",
-			UserID:   userID,
-			IsPublic: isPublic,
-		},
-		{
-			Type:     "namespace",
-			Name:     "ts",
-			Image:    "docker.io/opspai/ts-train-service",
-			Tag:      "v1.0.0-207-g305d0588",
-			UserID:   userID,
-			IsPublic: isPublic,
-		},
+// initializeContainers initializes default containers from initial data
+func initializeContainers(tx *gorm.DB, data *InitialData, userID int) error {
+	for _, containerData := range data.Containers {
+		container := &database.Container{
+			Type:         containerData.Type,
+			Name:         containerData.Name,
+			Registry:     containerData.Registry,
+			Repository:   containerData.Repository,
+			Command:      containerData.Command,
+			EnvVars:      containerData.EnvVars,
+			UserID:       userID,
+			HelmConfigID: nil,
+			IsPublic:     containerData.IsPublic,
+			Status:       containerData.Status,
+		}
+
+		var helmConfig *database.HelmConfig
+		if containerData.HelmConfig != nil {
+			valuesBytes, err := json.Marshal(containerData.HelmConfig.Values)
+			if err != nil {
+				return fmt.Errorf("failed to marshal default helm values for container %s: %v", containerData.Name, err)
+			}
+
+			helmConfig = &database.HelmConfig{
+				ChartName:    containerData.HelmConfig.ChartName,
+				RepoName:     containerData.HelmConfig.RepoName,
+				RepoURL:      containerData.HelmConfig.RepoURL,
+				Values:       string(valuesBytes),
+				NsPrefix:     containerData.HelmConfig.NsPrefix,
+				PortTemplate: containerData.HelmConfig.PortTemplate,
+			}
+
+			if err := CreateHelmConfig(helmConfig); err != nil {
+				return fmt.Errorf("failed to create helm config for container %s: %v", containerData.Name, err)
+			}
+
+			container.HelmConfigID = &helmConfig.ID
+		}
+
+		if err := CreateContainerWithTx(tx, container, containerData.Tag); err != nil {
+			return fmt.Errorf("failed to create container %s: %v", container.Name, err)
+		}
 	}
 
-	for _, resource := range containers {
-		var existingContainer database.Container
-		if err := tx.Where("type = ? AND name = ? AND image = ? AND tag = ?",
-			resource.Type, resource.Name, resource.Image, resource.Tag).FirstOrCreate(&existingContainer, resource).Error; err != nil {
-			return fmt.Errorf("failed to create container %s: %v", resource.Name, err)
+	return nil
+}
+
+// initializeExecutionLabels initializes system labels for execution results
+func initializeExecutionLabels(tx *gorm.DB) error {
+	// Initialize source labels
+	sourceLabels := []struct {
+		value       string
+		description string
+	}{
+		{consts.ExecutionSourceManual, consts.ExecutionManualDescription},
+		{consts.ExecutionSourceSystem, consts.ExecutionSystemDescription},
+	}
+
+	for _, labelInfo := range sourceLabels {
+		_, err := CreateOrGetLabelWithTx(tx, consts.ExecutionLabelSource, labelInfo.value, consts.LabelExecution, labelInfo.description)
+		if err != nil {
+			return fmt.Errorf("failed to initialize execution label %s=%s: %v",
+				consts.ExecutionLabelSource, labelInfo.value, err)
 		}
 	}
 

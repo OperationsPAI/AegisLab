@@ -35,6 +35,7 @@ import (
 	"aegis/executor"
 	"aegis/repository"
 	"aegis/router"
+	"aegis/utils"
 
 	cli "github.com/LGU-SE-Internal/chaos-experiment/client"
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
@@ -87,7 +88,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	nsTargetMap, err := config.GetNsCountMap()
+	nsTargetMap, err := utils.GetNsCountMap()
 	logrus.Infof("initalized nsTargetMap: %v", nsTargetMap)
 	if err != nil {
 		logrus.Fatal(err)

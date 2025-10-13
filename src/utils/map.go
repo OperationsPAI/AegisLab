@@ -14,6 +14,42 @@ func CloneMap(src map[string]any) map[string]any {
 	return dst
 }
 
+// DeepMergeClone creates a new map that is the deep merge of multiple maps.
+// Later maps take precedence over earlier maps for conflicting keys
+func DeepMergeClone(maps ...map[string]any) map[string]any {
+	result := make(map[string]any)
+
+	for _, m := range maps {
+		if m != nil {
+			result = deepMerge(result, m)
+		}
+	}
+
+	return result
+}
+
+func deepMerge(dst, src map[string]any) map[string]any {
+	if dst == nil {
+		dst = make(map[string]any)
+	}
+
+	for key, srcVal := range src {
+		if dstVal, exists := dst[key]; exists {
+			// If both values are maps, merge them recursively
+			if dstMap, dstOk := dstVal.(map[string]any); dstOk {
+				if srcMap, srcOk := srcVal.(map[string]any); srcOk {
+					dst[key] = deepMerge(dstMap, srcMap)
+					continue
+				}
+			}
+		}
+
+		dst[key] = srcVal
+	}
+
+	return dst
+}
+
 func GetMapField(m map[string]any, keys ...string) (string, bool) {
 	current := m
 	for i, key := range keys {

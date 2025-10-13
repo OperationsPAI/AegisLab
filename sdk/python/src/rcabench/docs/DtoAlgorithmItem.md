@@ -5,7 +5,6 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**image** | **str** |  | [optional] 
 **name** | **str** |  | 
 **tag** | **str** |  | [optional] 
 
