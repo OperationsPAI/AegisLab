@@ -2,6 +2,8 @@ package consts
 
 import "time"
 
+const InitialFilename = "data.json"
+
 // ResourceName is the type for resource names, used for permission checks
 type ResourceName string
 
@@ -45,6 +47,12 @@ const (
 
 	ExecutionManualDescription = "Manual execution result created via API"
 	ExecutionSystemDescription = "System-managed execution result created by RCABench"
+)
+
+// Container Label
+const (
+	ContainerCategory = "container"
+	ContainerTag      = "container_tag"
 )
 
 // Database Label
@@ -97,7 +105,7 @@ type ContainerType string
 const (
 	ContainerTypeAlgorithm ContainerType = "algorithm"
 	ContainerTypeBenchmark ContainerType = "benchmark"
-	ContainerTypeNamespace ContainerType = "namespace"
+	ContainerTypePedestal  ContainerType = "pedestal"
 )
 
 type BuildSourceType string
@@ -188,6 +196,7 @@ const (
 	BuildStartTime   = "start_time"
 	BuildEndTime     = "end_time"
 	BuildEnvVars     = "env_vars"
+	BuildUserID      = "user_id"
 
 	BuildContainerType = "container_type"
 	BuildName          = "name"
@@ -213,7 +222,9 @@ const (
 	EvaluateLevel = "level"
 
 	AnnotationAlgorithm = "algorithm"
+
 	ExecuteAlgorithm    = "algorithm"
+	ExecuteAlgorithmTag = "algorithm_tag"
 	ExecuteDataset      = "dataset"
 	ExecuteEnvVars      = "env_vars"
 
@@ -226,7 +237,10 @@ const (
 	InjectConf        = "conf"
 	InjectNode        = "node"
 	InjectLabels      = "labels"
+	InjectUserID      = "user_idf"
 
+	RestartContainer     = "container"
+	RestartContainerTag  = "container_tag"
 	RestartIntarval      = "interval"
 	RestartFaultDuration = "fault_duration"
 	RestartInjectPayload = "inject_payload"
@@ -330,6 +344,7 @@ const (
 	LabelTraceID   = "trace_id"
 	LabelGroupID   = "group_id"
 	LabelProjectID = "project_id"
+	LabelUserID    = "user_id"
 
 	// CRD label fields
 	LabelBenchmark   = "benchmark"
@@ -361,6 +376,10 @@ const (
 	DownloadFilename       = "package"
 	DetectorConclusionFile = "conclusion.csv"
 	ExecutionResultFile    = "result.csv"
+)
+
+const (
+	DefaultContainerTag = "latest"
 )
 
 const (

@@ -1,7 +1,12 @@
 package database
 
 import (
+	"aegis/consts"
+	"aegis/utils"
+	"fmt"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type Project struct {
@@ -54,38 +59,103 @@ type FaultInjectionSchedule struct {
 	Task *Task `gorm:"foreignKey:TaskID" json:"task,omitempty"`
 }
 
+// TODO User权限控制
 type Container struct {
-	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`                                             // Unique identifier
-	Type      string    `gorm:"index;not null;index:idx_container_unique,unique;size:64" json:"type"`           // Image type
-	Name      string    `gorm:"index;not null;index:idx_container_unique,unique;size:128" json:"name"`          // Name with size limit
-	Image     string    `gorm:"not null;index:idx_container_unique,unique;size:256" json:"image"`               // Image name with size limit
-	Tag       string    `gorm:"not null;default:'latest';index:idx_container_unique,unique;size:64" json:"tag"` // Image tag with size limit
-	Command   string    `gorm:"type:text" json:"command"`                                                       // Startup command
-	EnvVars   string    `gorm:"default:''" json:"env_vars"`                                                     // List of environment variable names
-	UserID    int       `gorm:"not null;index:idx_container_user" json:"user_id"`                               // Container must belong to a user
-	IsPublic  bool      `gorm:"default:false;index:idx_container_visibility" json:"is_public"`                  // Whether publicly visible
-	Status    int       `gorm:"default:1" json:"status"`                                                        // Status: -1:deleted 0:disabled 1:active
-	CreatedAt time.Time `gorm:"autoCreateTime;index" json:"created_at"`                                         // Creation time
-	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                               // Update time
+	ID           int       `gorm:"primaryKey;autoIncrement" json:"id"`                                      // Unique identifier
+	Type         string    `gorm:"index;not null;size:64" json:"type"`                                      // Image type
+	Name         string    `gorm:"index;not null;uniqueIndex:idx_user_container_name;size:128" json:"name"` // Name with size limit
+	Registry     string    `gorm:"not null;default:'docker.io';size:256" json:"registry"`                   // Image registry with size limit
+	Repository   string    `gorm:"not null;size:256" json:"repository"`                                     // Image repository with size limit
+	DefaultTag   string    `gorm:"not null;default:'latest';size:64" json:"tag"`                            // Image tag with size limit
+	Command      string    `gorm:"type:text" json:"command"`                                                // Startup command
+	EnvVars      string    `gorm:"type:text" json:"env_vars"`                                               // List of environment variable names
+	UserID       int       `gorm:"not null;index;uniqueIndex:idx_user_container_name" json:"user_id"`       // Container must belong to a user
+	HelmConfigID *int      `gorm:"index" json:"helm_config_id,omitempty"`                                   // Associated Helm configuration, nullable
+	IsPublic     bool      `gorm:"default:false;index:idx_container_visibility" json:"is_public"`           // Whether publicly visible
+	Status       int       `gorm:"default:1" json:"status"`                                                 // Status: -1:deleted 0:disabled 1:active
+	CreatedAt    time.Time `gorm:"autoCreateTime;index" json:"created_at"`                                  // Creation time
+	UpdatedAt    time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                        // Update time
+
+	Image string `gorm:"-" json:"image"` // Full image name (not stored in DB, used for display)
 
 	// Foreign key association
-	User *User `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	User       *User       `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	HelmConfig *HelmConfig `gorm:"foreignKey:HelmConfigID" json:"helm_config,omitempty"`
+}
+
+// BeforeCreate GORM hook - validate Type before creating a new record
+func (c *Container) BeforeCreate(tx *gorm.DB) error {
+	_, exists := consts.ValidContainerTypes[consts.ContainerType(c.Type)]
+	if !exists {
+		return fmt.Errorf("invalid container type: %s", c.Type)
+	}
+
+	return nil
+}
+
+// AfterFind GORM hook - set the Image field after retrieving from DB
+func (c *Container) AfterFind(tx *gorm.DB) error {
+	c.Image = fmt.Sprintf("%s/%s", c.Registry, c.Repository)
+	return nil
+}
+
+type HelmConfig struct {
+	ID int `gorm:"primaryKey;autoIncrement" json:"id"` // Unique identifier
+
+	// Helm chart information
+	ChartName    string `gorm:"not null;size:128" json:"chart_name"`           // Helm chart name
+	RepoName     string `gorm:"size:128" json:"repo_name"`                     // Repository name
+	RepoURL      string `gorm:"not null;size:512" json:"repo_url"`             // Repository URL
+	ChartVersion string `gorm:"size:64;default:'latest'" json:"chart_version"` // Chart version
+
+	// Deployment configuration
+	NsPrefix     string `gorm:"not null;size:64" json:"ns_prefix"` // Namespace prefix for deployments
+	PortTemplate string `gorm:"size:32" json:"port_template"`      // Port template for dynamic port assignment, e.g., "31%03d"
+	Values       string `gorm:"type:longtext" json:"values"`       // Helm values in JSON format
+
+	FullChart string `gorm:"-" json:"full_chart"` // Full chart reference (not stored in DB, used for display)
+}
+
+// BeforeCreate GORM hook - validate NsPrefix before creating a new record
+func (h *HelmConfig) BeforeCreate(tx *gorm.DB) error {
+	if !utils.CheckNsPrefixExists(h.NsPrefix) {
+		return fmt.Errorf("invalid namespace prefix: %s", h.NsPrefix)
+	}
+
+	return nil
+}
+
+func (h *HelmConfig) AfterFind(tx *gorm.DB) error {
+	h.FullChart = fmt.Sprintf("%s/%s", h.RepoName, h.ChartName)
+	return nil
+}
+
+type ContainerHelm struct {
+	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`                                  // Unique identifier
+	ContainerID int       `gorm:"not null;index:idx_container_helm_unique,unique" json:"container_id"` // Container ID
+	HelmID      int       `gorm:"not null;index:idx_container_helm_unique,unique" json:"helm_id"`      // Helm Config ID
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`                                    // Creation time
+	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                    // Update time
+
+	// Foreign key association - keep explicit associations for manual queries
+	Container  *Container  `gorm:"foreignKey:ContainerID" json:"container,omitempty"`
+	HelmConfig *HelmConfig `gorm:"foreignKey:HelmID" json:"helm_config,omitempty"`
 }
 
 type ExecutionResult struct {
-	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`                                         // Unique identifier
-	TaskID      *string   `gorm:"index:idx_exec_task_status;index:idx_exec_task_algo;size:64" json:"task_id"` // Associated task ID, add composite index, nullable
-	AlgorithmID int       `gorm:"index:idx_exec_task_algo;index:idx_exec_algo_dataset" json:"algorithm_id"`   // Algorithm used, add composite index
-	DatapackID  int       `gorm:"index:idx_exec_algo_dataset" json:"datapack_id"`                             // Data package identifier, add composite index
-	Duration    float64   `gorm:"default:0;index:idx_exec_duration" json:"duration"`                          // Execution duration
-	Status      int       `gorm:"default:0;index:idx_exec_task_status" json:"status"`                         // Status: -1:deleted 0:initial 1:failed 2:success
-	CreatedAt   time.Time `gorm:"autoCreateTime;index:idx_exec_created_at" json:"created_at"`                 // Creation time, add time index for partitioning
-	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                           // Update time
+	ID               int       `gorm:"primaryKey;autoIncrement" json:"id"`                                             // Unique identifier
+	TaskID           *string   `gorm:"index:idx_exec_task_status;index:idx_exec_task_algo;size:64" json:"task_id"`     // Associated task ID, add composite index, nullable
+	AlgorithmLabelID int       `gorm:"index:idx_exec_task_algo;index:idx_exec_algo_dataset" json:"algorithm_label_id"` // Algorithm label ID, add composite index
+	DatapackID       int       `gorm:"index:idx_exec_algo_dataset" json:"datapack_id"`                                 // Data package identifier, add composite index
+	Duration         float64   `gorm:"default:0;index:idx_exec_duration" json:"duration"`                              // Execution duration
+	Status           int       `gorm:"default:0;index:idx_exec_task_status" json:"status"`                             // Status: -1:deleted 0:initial 1:failed 2:success
+	CreatedAt        time.Time `gorm:"autoCreateTime;index:idx_exec_created_at" json:"created_at"`                     // Creation time, add time index for partitioning
+	UpdatedAt        time.Time `gorm:"autoUpdateTime" json:"updated_at"`                                               // Update time
 
 	// Foreign key association
-	Task      *Task                   `gorm:"foreignKey:TaskID" json:"task,omitempty"`
-	Algorithm *Container              `gorm:"foreignKey:AlgorithmID" json:"algorithm,omitempty"`
-	Datapack  *FaultInjectionSchedule `gorm:"foreignKey:DatapackID;constraint:OnDelete:CASCADE" json:"datapack,omitempty"`
+	Task           *Task                   `gorm:"foreignKey:TaskID" json:"task,omitempty"`
+	AlgorithmLabel *ContainerLabel         `gorm:"foreignKey:AlgorithmLabelID" json:"algorithm_label,omitempty"`
+	Datapack       *FaultInjectionSchedule `gorm:"foreignKey:DatapackID;constraint:OnDelete:CASCADE" json:"datapack,omitempty"`
 
 	// Many-to-many relationship with labels
 	Labels []Label `gorm:"many2many:execution_result_labels;" json:"labels,omitempty"`
@@ -264,6 +334,17 @@ type User struct {
 	LastLoginAt *time.Time `json:"last_login_at,omitempty"`                       // Last login time
 	CreatedAt   time.Time  `gorm:"autoCreateTime;index" json:"created_at"`        // Creation time
 	UpdatedAt   time.Time  `gorm:"autoUpdateTime" json:"updated_at"`              // Update time
+}
+
+// BeforeCreate GORM hook - hash the password before creating a new user
+func (u *User) BeforeCreate(tx *gorm.DB) error {
+	hashedPassword, err := utils.HashPassword(u.Password)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	u.Password = hashedPassword
+	return nil
 }
 
 // Role Role table

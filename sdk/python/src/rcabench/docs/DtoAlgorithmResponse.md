@@ -7,15 +7,13 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **command** | **str** |  | [optional] 
 **created_at** | **str** |  | [optional] 
+**default_tag** | **str** |  | [optional] 
 **env_vars** | **str** |  | [optional] 
 **id** | **int** |  | [optional] 
 **image** | **str** |  | [optional] 
 **is_public** | **bool** |  | [optional] 
 **name** | **str** |  | [optional] 
-**project** | [**DtoProjectResponse**](DtoProjectResponse.md) | Related entities (only included when specifically requested) | [optional] 
-**project_id** | **int** |  | [optional] 
 **status** | **int** |  | [optional] 
-**tag** | **str** |  | [optional] 
 **type** | **str** |  | [optional] 
 **updated_at** | **str** |  | [optional] 
 

@@ -12,7 +12,8 @@ import (
 type ExecutionResultProject struct {
 	ID          int
 	Algorithm   string `gorm:"column:algorithm"`
-	Image       string
+	Registry    string
+	Repository  string
 	Tag         string
 	Dataset     string `gorm:"column:dataset"`
 	Status      int
@@ -86,12 +87,19 @@ func (FaultInjectionWithIssues) TableName() string {
 func addDetectorJoins(query *gorm.DB) *gorm.DB {
 	return query.
 		Joins(`JOIN (
-			SELECT er.id, er.algorithm_id, er.datapack_id,
-				ROW_NUMBER() OVER (PARTITION BY er.algorithm_id, er.datapack_id ORDER BY er.created_at DESC, er.id DESC) as rn
-			FROM execution_results er
-			JOIN containers c ON c.id = er.algorithm_id AND c.name = ?
-			WHERE er.status = 2
-		) er_ranked ON fis.id = er_ranked.datapack_id AND er_ranked.rn = 1`, config.GetString("algo.detector")).
+            SELECT 
+                er.id,
+                cl.container_id AS algorithm_id,
+                er.datapack_id,
+                ROW_NUMBER() OVER (
+                    PARTITION BY cl.container_id, er.datapack_id 
+                    ORDER BY er.created_at DESC, er.id DESC
+                ) as rn
+            FROM execution_results er
+            JOIN container_labels cl ON er.algorithm_label_id = cl.id
+            JOIN containers c ON c.id = cl.container_id
+            WHERE er.status = 2 AND c.name = ?
+        ) er_ranked ON fis.id = er_ranked.datapack_id AND er_ranked.rn = 1`, config.GetString("algo.detector")).
 		Joins("JOIN detectors d ON er_ranked.id = d.execution_id")
 }
 
@@ -156,11 +164,14 @@ func createExecutionResultViews() {
 		er.status,
 		er.created_at,
 		c.name AS algorithm,
-		c.image,
-		c.tag,
+		c.registry,
+		c.repository,
+		l.label_value AS tag,
 		fis.injection_name AS dataset,
 		COALESCE(p.name, 'No Project') AS project_name`).
-		Joins("JOIN containers c ON c.id = er.algorithm_id").
+		Joins("JOIN container_labels cl ON er.algorithm_label_id = cl.id").
+		Joins("JOIN containers c ON c.id = cl.container_id").
+		Joins("JOIN labels l ON l.id = cl.label_id").
 		Joins("JOIN fault_injection_schedules fis ON fis.id = er.datapack_id").
 		Joins(`JOIN (
         	SELECT id AS task_id, project_id

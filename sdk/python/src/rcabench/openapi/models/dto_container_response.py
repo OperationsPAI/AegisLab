@@ -36,13 +36,11 @@ class DtoContainerResponse(BaseModel):
     is_public: Optional[StrictBool] = None
     name: Optional[StrictStr] = None
     status: Optional[StrictInt] = None
-    tag: Optional[StrictStr] = None
     type: Optional[StrictStr] = None
     updated_at: Optional[StrictStr] = None
     user: Optional[DtoUserResponse] = Field(default=None, description="Related entities (only included when specifically requested)")
-    user_id: Optional[StrictInt] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["command", "created_at", "env_vars", "id", "image", "is_public", "name", "status", "tag", "type", "updated_at", "user", "user_id"]
+    __properties: ClassVar[List[str]] = ["command", "created_at", "env_vars", "id", "image", "is_public", "name", "status", "type", "updated_at", "user"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -113,11 +111,9 @@ class DtoContainerResponse(BaseModel):
             "is_public": obj.get("is_public"),
             "name": obj.get("name"),
             "status": obj.get("status"),
-            "tag": obj.get("tag"),
             "type": obj.get("type"),
             "updated_at": obj.get("updated_at"),
-            "user": DtoUserResponse.from_dict(obj["user"]) if obj.get("user") is not None else None,
-            "user_id": obj.get("user_id")
+            "user": DtoUserResponse.from_dict(obj["user"]) if obj.get("user") is not None else None
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

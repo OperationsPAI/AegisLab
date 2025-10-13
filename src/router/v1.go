@@ -2,12 +2,15 @@ package router
 
 import (
 	"aegis/handlers"
+	"aegis/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
 // SetupV1Routes Setup API v1 routes
 func SetupV1Routes(router *gin.Engine) {
+	middleware.StartCleanupRoutine()
+
 	r := router.Group("/api/v1")
 
 	debug := r.Group("/debug")
@@ -16,12 +19,6 @@ func SetupV1Routes(router *gin.Engine) {
 		debug.GET("/vars", handlers.GetAllVars)
 		debug.POST("/var", handlers.SetVar)
 		debug.GET("/ns/status", handlers.GetNSLock)
-	}
-
-	algorithms := r.Group("/algorithms")
-	{
-		algorithms.GET("", handlers.ListAlgorithms)
-		algorithms.POST("", handlers.SubmitAlgorithmExecution)
 	}
 
 	analyzer := r.Group("/analyzer")
@@ -49,15 +46,16 @@ func SetupV1Routes(router *gin.Engine) {
 		evaluations.GET("executions", handlers.GetSuccessfulExecutions)
 	}
 
-	injections := r.Group("/injections")
+	r.GET("/injections/query", handlers.QueryInjection)
+
+	injections := r.Group("/injections", middleware.JWTAuth())
 	{
 		injections.GET("", handlers.ListInjections)
 		injections.GET("/conf", handlers.GetInjectionConf)
 		injections.GET("/configs", handlers.ListDisplayConfigs)
 		injections.GET("/mapping", handlers.GetInjectionFieldMapping)
 		injections.GET("ns-resources", handlers.GetNsResourceMap)
-		injections.GET("/query", handlers.QueryInjection)
-		injections.POST("", handlers.SubmitFaultInjection)
+		injections.POST("", middleware.RequireFaultInjectionWrite, handlers.SubmitFaultInjection)
 
 		analysis := injections.Group("/analysis")
 		{

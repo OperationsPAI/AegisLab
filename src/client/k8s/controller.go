@@ -17,6 +17,7 @@ import (
 
 	"aegis/config"
 	"aegis/consts"
+	"aegis/utils"
 
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -72,7 +73,7 @@ type Controller struct {
 }
 
 func NewController() *Controller {
-	namespaces, err := config.GetAllNamespaces()
+	namespaces, err := utils.GetAllNamespaces()
 	if err != nil {
 		logrus.WithField("func", "config.GetAllNamespaces").Error(err)
 		panic(err)
@@ -214,7 +215,6 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 						return
 					}
 
-					// Will spend duration time to try injection
 					allInjected := getCRDConditionStatus(conditions, "AllInjected")
 					if !allInjected {
 						c.handleCRDFailed(gvr, newU, "failed to inject all targets in the chaos experiment")
@@ -438,7 +438,7 @@ func (c *Controller) checkRecoveryStatus(item QueueItem) error {
 	recovered := getCRDConditionStatus(conditions, "AllRecovered")
 	if recovered {
 		logEntry.Infof("all targets recoverd in the chaos experiment after %d attempts", item.RetryCount+1)
-		c.processCRDSuccess(*item.GVR, obj, item.Duration)
+		c.handleCRDSuccess(*item.GVR, obj, item.Duration)
 		return nil
 	}
 
@@ -457,13 +457,13 @@ func (c *Controller) checkRecoveryStatus(item QueueItem) error {
 	} else {
 		// If the retry count exceeds the maximum, log it and handle it normally.
 		logEntry.Warningf("Recovery not complete after %d retries, giving up but processing as success", item.MaxRetries+1)
-		c.processCRDSuccess(*item.GVR, obj, item.Duration)
+		c.handleCRDSuccess(*item.GVR, obj, item.Duration)
 	}
 
 	return nil
 }
 
-func (c *Controller) processCRDSuccess(gvr schema.GroupVersionResource, u *unstructured.Unstructured, duration time.Duration) {
+func (c *Controller) handleCRDSuccess(gvr schema.GroupVersionResource, u *unstructured.Unstructured, duration time.Duration) {
 	newRecords, _, _ := unstructured.NestedSlice(u.Object, "status", "experiment", "containerRecords")
 	timeRange := getCRDEventTimeRanges(newRecords, duration)
 	if timeRange == nil {

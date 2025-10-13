@@ -83,25 +83,6 @@ func ErrorResponse(c *gin.Context, code int, message string) {
 	})
 }
 
-// AlgorithmResponse represents algorithm response for v2 API
-type AlgorithmResponse struct {
-	ID        int       `json:"id"`
-	Name      string    `json:"name"`
-	Type      string    `json:"type"`
-	Image     string    `json:"image"`
-	Tag       string    `json:"tag"`
-	Command   string    `json:"command"`
-	EnvVars   string    `json:"env_vars"`
-	ProjectID int       `json:"project_id"`
-	IsPublic  bool      `json:"is_public"`
-	Status    int       `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-
-	// Related entities (only included when specifically requested)
-	Project *ProjectResponse `json:"project,omitempty"`
-}
-
 // TaskResponse represents task response for v2 API
 type TaskResponse struct {
 	ID        string    `json:"id"`
@@ -117,25 +98,6 @@ type TaskResponse struct {
 
 	// Related entities (only included when specifically requested)
 	Project *ProjectResponse `json:"project,omitempty"`
-}
-
-// ContainerResponse represents container response for v2 API
-type ContainerResponse struct {
-	ID        int       `json:"id"`
-	Name      string    `json:"name"`
-	Type      string    `json:"type"`
-	Image     string    `json:"image"`
-	Tag       string    `json:"tag"`
-	Command   string    `json:"command"`
-	EnvVars   string    `json:"env_vars"`
-	UserID    int       `json:"user_id"`
-	IsPublic  bool      `json:"is_public"`
-	Status    int       `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-
-	// Related entities (only included when specifically requested)
-	User *UserResponse `json:"user,omitempty"`
 }
 
 // ProjectResponse represents project response for v2 API

@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"aegis/config"
 	"aegis/database"
 	"aegis/dto"
+	"aegis/utils"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 )
@@ -46,8 +46,8 @@ func NewCoverageItem(rangeNum int, coveredMap map[string]struct{}) *coverageItem
 }
 
 func NewInjectionAnalyzer() (*InjectionAnalyzer, error) {
-	nsPrefixMap := make(map[string]struct{}, len(config.GetNsPrefixs()))
-	for _, nsPrefix := range config.GetNsPrefixs() {
+	nsPrefixMap := make(map[string]struct{}, len(utils.GetNsPrefixs()))
+	for _, nsPrefix := range utils.GetNsPrefixs() {
 		nsPrefixMap[nsPrefix] = struct{}{}
 	}
 

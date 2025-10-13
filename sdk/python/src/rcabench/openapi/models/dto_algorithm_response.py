@@ -18,9 +18,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_project_response import DtoProjectResponse
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -30,19 +29,17 @@ class DtoAlgorithmResponse(BaseModel):
     """ # noqa: E501
     command: Optional[StrictStr] = None
     created_at: Optional[StrictStr] = None
+    default_tag: Optional[StrictStr] = None
     env_vars: Optional[StrictStr] = None
     id: Optional[StrictInt] = None
     image: Optional[StrictStr] = None
     is_public: Optional[StrictBool] = None
     name: Optional[StrictStr] = None
-    project: Optional[DtoProjectResponse] = Field(default=None, description="Related entities (only included when specifically requested)")
-    project_id: Optional[StrictInt] = None
     status: Optional[StrictInt] = None
-    tag: Optional[StrictStr] = None
     type: Optional[StrictStr] = None
     updated_at: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["command", "created_at", "env_vars", "id", "image", "is_public", "name", "project", "project_id", "status", "tag", "type", "updated_at"]
+    __properties: ClassVar[List[str]] = ["command", "created_at", "default_tag", "env_vars", "id", "image", "is_public", "name", "status", "type", "updated_at"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -85,9 +82,6 @@ class DtoAlgorithmResponse(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of project
-        if self.project:
-            _dict['project'] = self.project.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -107,15 +101,13 @@ class DtoAlgorithmResponse(BaseModel):
         _obj = cls.model_validate({
             "command": obj.get("command"),
             "created_at": obj.get("created_at"),
+            "default_tag": obj.get("default_tag"),
             "env_vars": obj.get("env_vars"),
             "id": obj.get("id"),
             "image": obj.get("image"),
             "is_public": obj.get("is_public"),
             "name": obj.get("name"),
-            "project": DtoProjectResponse.from_dict(obj["project"]) if obj.get("project") is not None else None,
-            "project_id": obj.get("project_id"),
             "status": obj.get("status"),
-            "tag": obj.get("tag"),
             "type": obj.get("type"),
             "updated_at": obj.get("updated_at")
         })

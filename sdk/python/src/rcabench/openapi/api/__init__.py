@@ -15,7 +15,6 @@ if __import__("typing").TYPE_CHECKING:
     from rcabench.openapi.api.system_api import SystemApi
     from rcabench.openapi.api.tasks_api import TasksApi
     from rcabench.openapi.api.users_api import UsersApi
-    from rcabench.openapi.api.algorithm_api import AlgorithmApi
     from rcabench.openapi.api.analyzer_api import AnalyzerApi
     from rcabench.openapi.api.container_api import ContainerApi
     from rcabench.openapi.api.dataset_api import DatasetApi
@@ -45,7 +44,6 @@ from rcabench.openapi.api.roles_api import RolesApi
 from rcabench.openapi.api.system_api import SystemApi
 from rcabench.openapi.api.tasks_api import TasksApi
 from rcabench.openapi.api.users_api import UsersApi
-from rcabench.openapi.api.algorithm_api import AlgorithmApi
 from rcabench.openapi.api.analyzer_api import AnalyzerApi
 from rcabench.openapi.api.container_api import ContainerApi
 from rcabench.openapi.api.dataset_api import DatasetApi

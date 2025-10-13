@@ -13,11 +13,9 @@ Name | Type | Description | Notes
 **is_public** | **bool** |  | [optional] 
 **name** | **str** |  | [optional] 
 **status** | **int** |  | [optional] 
-**tag** | **str** |  | [optional] 
 **type** | **str** |  | [optional] 
 **updated_at** | **str** |  | [optional] 
 **user** | [**DtoUserResponse**](DtoUserResponse.md) | Related entities (only included when specifically requested) | [optional] 
-**user_id** | **int** |  | [optional] 
 
 ## Example
 

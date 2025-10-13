@@ -89,7 +89,7 @@ type InjectionFilterOptions struct {
 
 func (opts *InjectionFilterOptions) Validate() error {
 	if opts.Benchmark != "" {
-		if _, exists := config.GetValidBenchmarkMap()[opts.Benchmark]; !exists {
+		if _, exists := utils.GetValidBenchmarkMap()[opts.Benchmark]; !exists {
 			return fmt.Errorf("invalid benchmark: %s", opts.Benchmark)
 		}
 	}
@@ -179,12 +179,14 @@ type LabelItem struct {
 type SubmitInjectionReq struct {
 	ProjectName string `json:"project_name" binding:"required"`
 
-	Interval    int             `json:"interval" binding:"required,min=1"`
-	PreDuration int             `json:"pre_duration" binding:"required,min=1"`
-	Specs       []chaos.Node    `json:"specs" binding:"required"`
-	Benchmark   string          `json:"benchmark" binding:"required"`
-	Algorithms  []AlgorithmItem `json:"algorithms" binding:"omitempty"`
-	Labels      []LabelItem     `json:"labels" binding:"omitempty"`
+	ContainerName string          `json:"container_name" binding:"required"`
+	ContainerTag  string          `json:"container_tag" binding:"omitempty"`
+	Interval      int             `json:"interval" binding:"required,min=1"`
+	PreDuration   int             `json:"pre_duration" binding:"required,min=1"`
+	Specs         []chaos.Node    `json:"specs" binding:"required"`
+	Benchmark     string          `json:"benchmark" binding:"required"`
+	Algorithms    []AlgorithmItem `json:"algorithms" binding:"omitempty"`
+	Labels        []LabelItem     `json:"labels" binding:"omitempty"`
 }
 
 func (req *SubmitInjectionReq) ParseInjectionSpecs() ([]InjectionConfig, error) {
@@ -242,7 +244,7 @@ func (req *SubmitInjectionReq) Validate() error {
 	if req.Benchmark == "" {
 		return fmt.Errorf("benchmark must not be blank")
 	} else {
-		if _, exists := config.GetValidBenchmarkMap()[req.Benchmark]; !exists {
+		if _, exists := utils.GetValidBenchmarkMap()[req.Benchmark]; !exists {
 			return fmt.Errorf("invalid benchmark: %s", req.Benchmark)
 		}
 	}

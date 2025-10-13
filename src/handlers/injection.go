@@ -315,6 +315,12 @@ func SubmitFaultInjection(c *gin.Context) {
 	spanCtx := ctx.(context.Context)
 	span := trace.SpanFromContext(spanCtx)
 
+	userID, exists := middleware.GetCurrentUserID(c)
+	if !exists {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
 	handleError := func(err error, message string, statusCode int) {
 		logrus.Error(err)
 		span.SetStatus(codes.Error, message)
@@ -338,6 +344,17 @@ func SubmitFaultInjection(c *gin.Context) {
 
 	if err := req.Validate(); err != nil {
 		handleError(err, "Invalid query parameters", http.StatusBadRequest)
+		return
+	}
+
+	container, tag, err := repository.GetContainerWithTag(consts.ContainerTypePedestal, req.ContainerName, req.ContainerTag, userID)
+	if err != nil {
+		handleError(err, "Algorithm not found: "+req.ContainerName, http.StatusNotFound)
+		return
+	}
+
+	if container.HelmConfig == nil || !utils.CheckNsPrefixExists(container.HelmConfig.NsPrefix) {
+		handleError(fmt.Errorf("invalid pedestal container config: %+v", container.HelmConfig), "Invalid pedestal container configuration", http.StatusBadRequest)
 		return
 	}
 
@@ -366,6 +383,8 @@ func SubmitFaultInjection(c *gin.Context) {
 	traces := make([]dto.Trace, 0, len(newConfigs))
 	for _, config := range newConfigs {
 		payload := map[string]any{
+			consts.RestartContainer:     container,
+			consts.RestartContainerTag:  tag,
 			consts.RestartIntarval:      req.Interval,
 			consts.RestartFaultDuration: config.FaultDuration,
 			consts.RestartInjectPayload: map[string]any{
@@ -377,6 +396,7 @@ func SubmitFaultInjection(c *gin.Context) {
 				consts.InjectConf:        config.Conf,
 				consts.InjectNode:        config.Node,
 				consts.InjectLabels:      config.Labels,
+				consts.InjectUserID:      userID,
 			},
 		}
 

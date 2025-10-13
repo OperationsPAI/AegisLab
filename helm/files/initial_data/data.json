@@ -1,0 +1,101 @@
+{
+    "containers": [
+        {
+            "type": "algorithm",
+            "name": "detector",
+            "registry": "pair-diagnose-cn-guangzhou.cr.volces.com",
+            "repository": "opspai/detector",
+            "tag": "latest",
+            "command": "bash /entrypoint.sh",
+            "is_public": true,
+            "status": 1
+        },
+        {
+            "type": "algorithm",
+            "name": "traceback",
+            "registry": "pair-diagnose-cn-guangzhou.cr.volces.com",
+            "repository": "opspai/rca-algo-traceback",
+            "tag": "latest",
+            "command": "bash /entrypoint.sh",
+            "is_public": true,
+            "status": 1
+        },
+        {
+            "type": "benchmark",
+            "name": "clickhouse",
+            "registry": "pair-diagnose-cn-guangzhou.cr.volces.com",
+            "repository": "opspai/clickhouse_dataset",
+            "tag": "latest",
+            "command": "bash /entrypoint.sh",
+            "is_public": true,
+            "status": 1
+        },
+        {
+            "type": "pedestal",
+            "name": "ts",
+            "registry": "docker.io",
+            "repository": "opspai/ts-train-service",
+            "tag": "v1.0.0-213-gf9294111",
+            "is_public": true,
+            "status": 1
+        },
+        {
+            "type": "pedestal",
+            "name": "ts_cn",
+            "registry": "pair-diagnose-cn-guangzhou.cr.volces.com",
+            "repository": "opspai/ts-train-service",
+            "tag": "v1.0.0-213-gf9294111",
+            "is_public": true,
+            "status": 1,
+            "helm_config": {
+                "repo_name": "train-ticket",
+                "chart_name": "trainticket",
+                "repo_url": "https://lgu-se-internal.github.io/train-ticket",
+                "values": {
+                    "mysql": {
+                        "image": {
+                            "repository": "pair-diagnose-cn-guangzhou.cr.volces.com/library/mysql"
+                        }
+                    },
+                    "rabbitmq": {
+                        "image": {
+                            "registry": "pair-diagnose-cn-guangzhou.cr.volces.com",
+                            "repository": "bitnamilegacy/rabbitmq"
+                        }
+                    },
+                    "loadgenerator": {
+                        "image": {
+                            "repository": "pair-diagnose-cn-guangzhou.cr.volces.com/opspai/loadgenerator"
+                        },
+                        "initContainer": {
+                            "image": "pair-diagnose-cn-guangzhou.cr.volces.com/nicolaka/netshoot:v0.14"
+                        }
+                    },
+                    "global": {
+                        "security": {
+                            "allowInsecureImages": true
+                        }
+                    }
+                },
+                "ns_prefix": "ts",
+                "port_template": "31%03d",
+                "status": 1
+            }
+        }
+    ],
+    "projects": [
+        {
+            "name": "pair_diagnosis",
+            "description": "pair_diagnosis",
+            "status": 1
+        }
+    ],
+    "admin_user": {
+        "username": "admin",
+        "email": "admin@rcabench.local",
+        "password": "admin123",
+        "full_name": "System Admin",
+        "status": 1,
+        "is_active": true
+    }
+}

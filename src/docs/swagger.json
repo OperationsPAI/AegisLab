@@ -23,73 +23,6 @@
     "host": "localhost:8080",
     "basePath": "/api/v1",
     "paths": {
-        "/api/v1/algorithms": {
-            "get": {
-                "description": "Get all available algorithms in the system, including image info, tags, and update time. Only returns containers with active status.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "algorithm"
-                ],
-                "summary": "Get algorithm list",
-                "responses": {
-                    "200": {
-                        "description": "Successfully returned algorithm list",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_ListAlgorithmsResp"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Batch submit algorithm execution tasks, supporting multiple algorithm and dataset combinations. The system assigns a unique TraceID for each execution task to track status and results.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "algorithm"
-                ],
-                "summary": "Submit algorithm execution task",
-                "parameters": [
-                    {
-                        "description": "Algorithm execution request list, including algorithm name, dataset, and environment variables",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.SubmitExecutionReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": "Successfully submitted algorithm execution task, returns task tracking info",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Request parameter error, such as invalid JSON format, algorithm name or dataset name, unsupported environment variable name, etc.",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/analyzers/injections": {
             "get": {
                 "description": "Analyze fault injection data using various filtering conditions, returning statistical information including efficiency, diversity, distance between seeds, etc.",
@@ -2487,64 +2420,6 @@
                     },
                     "403": {
                         "description": "Permission denied",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/containers/name/{name}/latest": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get the most recently updated container record for a given algorithm name",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Containers"
-                ],
-                "summary": "Get latest container by name",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Container/Algorithm name",
-                        "name": "name",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Latest container retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid container name",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "403": {
-                        "description": "Permission denied",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "Container not found",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -6964,12 +6839,19 @@
                     "description": "List of environment variable names",
                     "type": "string"
                 },
+                "helm_config": {
+                    "$ref": "#/definitions/database.HelmConfig"
+                },
+                "helm_config_id": {
+                    "description": "Associated Helm configuration, nullable",
+                    "type": "integer"
+                },
                 "id": {
                     "description": "Unique identifier",
                     "type": "integer"
                 },
                 "image": {
-                    "description": "Image name with size limit",
+                    "description": "Full image name (not stored in DB, used for display)",
                     "type": "string"
                 },
                 "is_public": {
@@ -6978,6 +6860,14 @@
                 },
                 "name": {
                     "description": "Name with size limit",
+                    "type": "string"
+                },
+                "registry": {
+                    "description": "Image registry with size limit",
+                    "type": "string"
+                },
+                "repository": {
+                    "description": "Image repository with size limit",
                     "type": "string"
                 },
                 "status": {
@@ -7149,6 +7039,47 @@
                 },
                 "updated_at": {
                     "description": "Update time",
+                    "type": "string"
+                }
+            }
+        },
+        "database.HelmConfig": {
+            "type": "object",
+            "properties": {
+                "chart_name": {
+                    "description": "Helm chart information",
+                    "type": "string"
+                },
+                "chart_version": {
+                    "description": "Chart version",
+                    "type": "string"
+                },
+                "full_chart": {
+                    "description": "Full chart reference (not stored in DB, used for display)",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "Unique identifier",
+                    "type": "integer"
+                },
+                "ns_prefix": {
+                    "description": "Deployment configuration",
+                    "type": "string"
+                },
+                "port_template": {
+                    "description": "Port template for dynamic port assignment, e.g., \"31%03d\"",
+                    "type": "string"
+                },
+                "repo_name": {
+                    "description": "Repository name",
+                    "type": "string"
+                },
+                "repo_url": {
+                    "description": "Repository URL",
+                    "type": "string"
+                },
+                "values": {
+                    "description": "Helm values in JSON format",
                     "type": "string"
                 }
             }
@@ -7607,9 +7538,6 @@
                 "name"
             ],
             "properties": {
-                "image": {
-                    "type": "string"
-                },
                 "name": {
                     "type": "string"
                 },
@@ -7627,6 +7555,9 @@
                 "created_at": {
                     "type": "string"
                 },
+                "default_tag": {
+                    "type": "string"
+                },
                 "env_vars": {
                     "type": "string"
                 },
@@ -7642,22 +7573,8 @@
                 "name": {
                     "type": "string"
                 },
-                "project": {
-                    "description": "Related entities (only included when specifically requested)",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.ProjectResponse"
-                        }
-                    ]
-                },
-                "project_id": {
-                    "type": "integer"
-                },
                 "status": {
                     "type": "integer"
-                },
-                "tag": {
-                    "type": "string"
                 },
                 "type": {
                     "type": "string"
@@ -8061,9 +7978,6 @@
                 "status": {
                     "type": "integer"
                 },
-                "tag": {
-                    "type": "string"
-                },
                 "type": {
                     "type": "string"
                 },
@@ -8077,9 +7991,6 @@
                             "$ref": "#/definitions/dto.UserResponse"
                         }
                     ]
-                },
-                "user_id": {
-                    "type": "integer"
                 }
             }
         },
@@ -9001,24 +8912,6 @@
                 }
             }
         },
-        "dto.ExecutionPayload": {
-            "type": "object",
-            "required": [
-                "algorithm",
-                "dataset"
-            ],
-            "properties": {
-                "algorithm": {
-                    "$ref": "#/definitions/dto.AlgorithmItem"
-                },
-                "dataset": {
-                    "type": "string"
-                },
-                "env_vars": {
-                    "type": "object"
-                }
-            }
-        },
         "dto.ExecutionStatistics": {
             "type": "object",
             "properties": {
@@ -9846,30 +9739,6 @@
                             "$ref": "#/definitions/dto.LabelResponse"
                         }
                     ]
-                },
-                "message": {
-                    "description": "Response message",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "Response generation time",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.GenericResponse-dto_ListAlgorithmsResp": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "Status code",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "Generic type data",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/database.Container"
-                    }
                 },
                 "message": {
                     "description": "Response message",
@@ -12966,28 +12835,11 @@
                 }
             }
         },
-        "dto.SubmitExecutionReq": {
-            "type": "object",
-            "required": [
-                "payloads",
-                "project_name"
-            ],
-            "properties": {
-                "payloads": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.ExecutionPayload"
-                    }
-                },
-                "project_name": {
-                    "type": "string"
-                }
-            }
-        },
         "dto.SubmitInjectionReq": {
             "type": "object",
             "required": [
                 "benchmark",
+                "container_name",
                 "interval",
                 "pre_duration",
                 "project_name",
@@ -13001,6 +12853,12 @@
                     }
                 },
                 "benchmark": {
+                    "type": "string"
+                },
+                "container_name": {
+                    "type": "string"
+                },
+                "container_tag": {
                     "type": "string"
                 },
                 "interval": {

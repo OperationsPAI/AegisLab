@@ -7,25 +7,23 @@ data:
     name = "{{ .Values.configmap.name }}"
     version = "{{ .Values.configmap.version }}"
     port = {{ .Values.configmap.port }}
-    debug = {{ .Values.configmap.debug }}
     workspace = "{{ .Values.configmap.workspace }}"
 
     [system]
     env_mode = "{{ .Values.configmap.system.env_mode }}"
     timezone = "{{ .Values.configmap.system.timezone }}"
 
+    [initialization]
+    data_path = "{{ .Values.configmap.initialization.data_path }}"
+
     [injection]
-    target_label_key = "{{ .Values.configmap.injection.target_label_key }}"
     benchmark = {{ .Values.configmap.injection.benchmark | toJson }}
+    target_label_key = "{{ .Values.configmap.injection.target_label_key }}"
     {{- with .Values.configmap.injection.namespace_config }}
     [injection.namespace_config]
     {{- range $key, $value := . }}
     [injection.namespace_config.{{ $key }}]
     count = {{ $value.count }}
-    port = "{{ $value.port }}"
-    chart_name = "{{ $value.chart_name }}"
-    repo_name = "{{ $value.repo_name }}"
-    repo_url = "{{ $value.repo_url }}"
     {{- end }}
     {{- end }}
 
@@ -33,17 +31,15 @@ data:
     clickhouse_host = "{{ .Values.configmap.database.clickhouse_host }}"
     mysql_user = "{{ .Values.configmap.database.mysql_user }}"
     mysql_password = "{{ .Values.configmap.database.mysql_password }}"
-    mysql_host = "{{ .Values.configmap.database.mysql_host }}"
+    mysql_host = "{{ .Release.Name }}-mysql"
     mysql_port = "{{ .Values.configmap.database.mysql_port }}"
     mysql_db = "{{ .Values.configmap.database.mysql_db }}"
 
-
     [jaeger]
-    endpoint = "{{ .Values.configmap.jaeger.endpoint }}"
-    address = "{{ .Values.configmap.jaeger.address }}"
+    endpoint = "{{ .Release.Name }}-jaeger:4318"
 
     [redis]
-    host = "{{ .Values.configmap.redis.host }}"
+    host = "{{ .Release.Name }}-redis:6379"
 
     [harbor]
     host = "{{ .Values.configmap.harbor.host }}"
@@ -67,7 +63,7 @@ data:
     enable = {{ .Values.configmap.debugging.enable }}
 
     [buildkit]
-    address = "{{ .Values.configmap.buildkit.address }}"
+    address = "{{ .Release.Name }}-buildkit:1234"
 
     [rate_limiting]
     max_concurrent_builds = {{ .Values.configmap.rate_limiting.max_concurrent_builds }}
@@ -91,3 +87,12 @@ data:
     [registry."10.10.10.240"]
     http = false
     ca = ["/usr/local/share/ca-certificates/harbor.lab.pj.crt"]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-initial-data
+data:
+  data.json: |
+{{ .Files.Get "files/initial_data/data.json" | indent 4 }}
+

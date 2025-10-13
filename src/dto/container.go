@@ -6,9 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"aegis/config"
 	"aegis/consts"
+	"aegis/database"
 	"aegis/utils"
 
 	"github.com/BurntSushi/toml"
@@ -20,16 +22,74 @@ const (
 )
 
 type GetContainerFilterOptions struct {
-	Type  consts.ContainerType
-	Name  string
-	Image string
-	Tag   string
+	Type   consts.ContainerType
+	Name   string
+	Status *int
 }
 
 type ListContainersFilterOptions struct {
 	Status *bool
 	Type   consts.ContainerType
 	Names  []string
+}
+
+type ContainerInfo struct {
+	Container database.Container `json:"container"`
+	Tags      []database.Label   `json:"tags"`
+}
+
+func (c *ContainerInfo) IsTagExists(tag string) bool {
+	tagMaps := make(map[string]struct{}, len(c.Tags))
+	for _, tag := range c.Tags {
+		tagMaps[tag.Value] = struct{}{}
+	}
+
+	_, exists := tagMaps[tag]
+	return exists
+}
+
+func (c *ContainerInfo) GetLatestTag() string {
+	if len(c.Tags) > 0 {
+		return c.Tags[0].Value
+	}
+
+	return ""
+}
+
+// ContainerResponse represents container response for v2 API
+type ContainerResponse struct {
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	Type      string    `json:"type"`
+	Image     string    `json:"image"`
+	Command   string    `json:"command"`
+	EnvVars   string    `json:"env_vars"`
+	IsPublic  bool      `json:"is_public"`
+	Status    int       `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// Related entities (only included when specifically requested)
+	User *UserResponse `json:"user,omitempty"`
+}
+
+// ConvertFromContainer converts database Container to ContainerResponse DTO
+func (c *ContainerResponse) ConvertFromContainer(container *database.Container, includeUser bool) {
+	c.ID = container.ID
+	c.Name = container.Name
+	c.Type = string(container.Type)
+	c.Image = container.Image
+	c.Command = container.Command
+	c.EnvVars = container.EnvVars
+	c.IsPublic = container.IsPublic
+	c.Status = container.Status
+	c.CreatedAt = container.CreatedAt
+	c.UpdatedAt = container.UpdatedAt
+
+	if includeUser && container.User != nil {
+		c.User = &UserResponse{}
+		c.User.ConvertFromUser(container.User)
+	}
 }
 
 // BuildSource represents the source configuration for container building

@@ -44,6 +44,7 @@ type containerPayload struct {
 	buildOptions  dto.BuildOptions
 }
 
+// TODO 校验type和权限
 func rescheduleBuildTask(ctx context.Context, task *dto.UnifiedTask, reason string) error {
 	span := trace.SpanFromContext(ctx)
 
@@ -176,10 +177,9 @@ func executeBuildImage(ctx context.Context, task *dto.UnifiedTask) error {
 			Type:    string(payload.containerType),
 			Name:    payload.name,
 			Image:   payload.image,
-			Tag:     payload.tag,
 			Command: payload.command,
 			EnvVars: payload.envVars,
-		}); err != nil {
+		}, payload.tag); err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to create container record")
 			return err
@@ -190,9 +190,8 @@ func executeBuildImage(ctx context.Context, task *dto.UnifiedTask) error {
 			TaskType:  task.Type,
 			EventName: consts.EventImageBuildSucceed,
 			Payload: dto.AlgorithmItem{
-				Name:  payload.name,
-				Image: payload.image,
-				Tag:   payload.tag,
+				Name: payload.name,
+				Tag:  payload.tag,
 			},
 		})
 

@@ -141,10 +141,10 @@ type ExecutionOptions struct {
 }
 
 type JobMessage struct {
-	JobName   string            `json:"job_name"`
-	Namespace string            `json:"namespace"`
-	Status    string            `json:"status"`
-	Logs      map[string]string `json:"logs"`
+	JobName   string              `json:"job_name"`
+	Namespace string              `json:"namespace"`
+	Status    string              `json:"status"`
+	Logs      map[string][]string `json:"logs"`
 }
 
 type StreamEvent struct {

@@ -250,9 +250,6 @@ func SetupV2Routes(router *gin.Engine) {
 		// GET /api/v2/containers/{id}
 		containers.GET("/:id", middleware.RequireContainerRead, v2handlers.GetContainer)
 
-		// GET /api/v2/containers/name/{name}/latest - Get latest container by name
-		containers.GET("/name/:name/latest", middleware.RequireContainerRead, v2handlers.GetLatestContainerByName)
-
 		// POST /api/v2/containers/search - Advanced search with complex filters
 		containers.POST("/search", middleware.RequireContainerRead, v2handlers.SearchContainers)
 

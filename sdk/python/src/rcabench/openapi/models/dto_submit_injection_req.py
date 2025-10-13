@@ -33,13 +33,15 @@ class DtoSubmitInjectionReq(BaseModel):
     """ # noqa: E501
     algorithms: Optional[List[DtoAlgorithmItem]] = None
     benchmark: StrictStr
+    container_name: StrictStr
+    container_tag: Optional[StrictStr] = None
     interval: Annotated[int, Field(strict=True, ge=1)]
     labels: Optional[List[DtoLabelItem]] = None
     pre_duration: Annotated[int, Field(strict=True, ge=1)]
     project_name: StrictStr
     specs: List[HandlerNode]
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["algorithms", "benchmark", "interval", "labels", "pre_duration", "project_name", "specs"]
+    __properties: ClassVar[List[str]] = ["algorithms", "benchmark", "container_name", "container_tag", "interval", "labels", "pre_duration", "project_name", "specs"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -122,6 +124,8 @@ class DtoSubmitInjectionReq(BaseModel):
         _obj = cls.model_validate({
             "algorithms": [DtoAlgorithmItem.from_dict(_item) for _item in obj["algorithms"]] if obj.get("algorithms") is not None else None,
             "benchmark": obj.get("benchmark"),
+            "container_name": obj.get("container_name"),
+            "container_tag": obj.get("container_tag"),
             "interval": obj.get("interval"),
             "labels": [DtoLabelItem.from_dict(_item) for _item in obj["labels"]] if obj.get("labels") is not None else None,
             "pre_duration": obj.get("pre_duration"),

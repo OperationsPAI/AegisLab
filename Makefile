@@ -127,10 +127,8 @@ install-release: ## 🚀 Install Pedestal Release (usage: make install-release P
 		ns="$${pedestal_key}$(NS_COUNT)"; \
 		chart_ref="$(call get_pedestal_chart_ref,$(PEDESTAL_KEY))"; \
 		image_tag="$(call get_pedestal_image_tag,$(PEDESTAL_KEY))"; \
-
 		kube_context="$(shell kubectl config current-context)"; \
 		printf "$(GRAY)Using Kubernetes context: $$kube_context$(RESET)\n"; \
-
 		printf "$(BLUE)🚀 Installing $$chart_ref release in namespace $$ns on port $(NODE_PORT)...$(RESET)\n"; \
 		if [ "$$kube_context" = "$(DEV_CONTEXT)" ]; then \
 			helm install "$$ns" "$$chart_ref" -n "$$ns" --create-namespace \

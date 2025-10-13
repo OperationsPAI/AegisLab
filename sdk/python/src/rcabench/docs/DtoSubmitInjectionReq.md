@@ -7,6 +7,8 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **algorithms** | [**List[DtoAlgorithmItem]**](DtoAlgorithmItem.md) |  | [optional] 
 **benchmark** | **str** |  | 
+**container_name** | **str** |  | 
+**container_tag** | **str** |  | [optional] 
 **interval** | **int** |  | 
 **labels** | [**List[DtoLabelItem]**](DtoLabelItem.md) |  | [optional] 
 **pre_duration** | **int** |  | 

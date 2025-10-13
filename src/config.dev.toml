@@ -1,13 +1,15 @@
-name = "rcabench"
+name = "AegisLab"
 version = "0.1.0"
 
 port = 8082
-debug = true
-workspace = "/home/nn/workspace/rcabench"
+workspace = "/home/nn/workspace/AegisLab"
 
 [system]
 env_mode = "dev"
 timezone = "Asia/Shanghai"
+
+[initialization]
+data_path = "/home/nn/workspace/AegisLab/helm/files/initial_data"
 
 [debugging]
 enable = true
@@ -17,11 +19,7 @@ benchmark = ["clickhouse"]
 target_label_key = "app"
 
 [injection.namespace_config.ts]
-count = 6
-port = "31%03d"
-chart_name = "trainticket"
-repo_name = "train-ticket"
-repo_url = "https://lgu-se-internal.github.io/train-ticket"
+count = 1
 
 [database]
 clickhouse_host = "10.10.10.58"
@@ -47,13 +45,17 @@ password = "Harbor12345"
 namespace = "exp"
 
 [jfs]
-path = "/mnt/jfs/rcabench_dataset"
+data_path = "/mnt/jfs/aegislab/data"
+
+[logging.job]
+log_dir = "/mnt/jfs/aegislab/logs/jobs"
+log_retention_days = 7
 
 [algo]
 detector = "detector"
 
 [container]
-storage_path = "/home/nn/workspace/rcabench/containers"
+storage_path = "/home/nn/workspace/AegisLab/containers"
 
 [buildkit]
 address = "localhost:1234"

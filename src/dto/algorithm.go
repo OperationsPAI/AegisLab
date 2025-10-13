@@ -2,6 +2,7 @@ package dto
 
 import (
 	"fmt"
+	"time"
 
 	"aegis/consts"
 	"aegis/database"
@@ -10,9 +11,9 @@ import (
 
 // AlgorithmItem represents an algorithm configuration
 type AlgorithmItem struct {
-	Name  string `json:"name" binding:"required"`
-	Image string `json:"image" binding:"omitempty"`
-	Tag   string `json:"tag" binding:"omitempty"`
+	Name    string            `json:"name" binding:"required"`
+	Tag     string            `json:"tag" binding:"omitempty"`
+	EnvVars map[string]string `json:"env_vars" binding:"omitempty" swaggertype:"object"`
 }
 
 // ExecutionPayload represents algorithm execution payload
@@ -185,6 +186,36 @@ func (req *SubmitBatchDatapackExecutionReq) Validate() error {
 }
 
 // V2 Algorithm Execution DTOs
+
+// AlgorithmResponse represents algorithm response for v2 API
+type AlgorithmResponse struct {
+	ID         int       `json:"id"`
+	Name       string    `json:"name"`
+	Type       string    `json:"type"`
+	Image      string    `json:"image"`
+	DefaultTag string    `json:"default_tag"`
+	Command    string    `json:"command"`
+	EnvVars    string    `json:"env_vars"`
+	IsPublic   bool      `json:"is_public"`
+	Status     int       `json:"status"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+func ToAlgorithmResponse(container database.Container) AlgorithmResponse {
+	return AlgorithmResponse{
+		ID:         container.ID,
+		Name:       container.Name,
+		Type:       container.Type,
+		Image:      container.Image,
+		DefaultTag: container.DefaultTag,
+		Command:    container.Command,
+		EnvVars:    container.EnvVars,
+		Status:     container.Status,
+		CreatedAt:  container.CreatedAt,
+		UpdatedAt:  container.UpdatedAt,
+	}
+}
 
 // AlgorithmExecutionRequest represents v2 algorithm execution request
 type AlgorithmExecutionRequest struct {

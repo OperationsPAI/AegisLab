@@ -30,30 +30,24 @@ configmap:
   name: "rcabench"
   version: "0.1.0"
   port: 8080
-  debug: true
   workspace: "/app"
   system:
     env_mode: "prod"
     timezone: "Asia/Shanghai"
+  initialization:
+    data_path: "/app/data/initial_data"
   injection:
     benchmark: ["clickhouse"]
+    target_label_key: "app"
     namespace_config:
       ts:
         count: 2
-        port: "31%03d"
-        chart_name: "trainticket"
-        repo_name: "train-ticket"
-        repo_url: "https://lgu-se-internal.github.io/train-ticket"
-    target_label_key: "app"
   database:
     clickhouse_host: "10.10.10.58"
     mysql_user: "root"
     mysql_password: "yourpassword"
-    mysql_host: "{{ .Release.Name }}-mysql"
     mysql_port: "3306"
     mysql_db: "rcabench"
-  redis:
-    host: "{{ .Release.Name }}-redis:6379"
   harbor:
     host: "10.10.10.240"
     project: "library"
@@ -61,8 +55,6 @@ configmap:
     password: "Harbor12345"
   k8s:
     namespace: "exp"
-  jaeger:
-    endpoint: "{{ .Release.Name }}-jaeger:4318"
   jfs:
     path: "/var/lib/rcabench"
   algo:
@@ -71,8 +63,6 @@ configmap:
     storage_path: "/app/containers"
   debugging:
     enable: false
-  buildkit:
-    address: "{{ .Release.Name }}-buildkit:1234"
   rate_limiting:
     max_concurrent_builds: 3
     max_concurrent_restarts: 2

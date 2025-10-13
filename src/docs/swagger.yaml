@@ -27,17 +27,28 @@ definitions:
       env_vars:
         description: List of environment variable names
         type: string
+      helm_config:
+        $ref: '#/definitions/database.HelmConfig'
+      helm_config_id:
+        description: Associated Helm configuration, nullable
+        type: integer
       id:
         description: Unique identifier
         type: integer
       image:
-        description: Image name with size limit
+        description: Full image name (not stored in DB, used for display)
         type: string
       is_public:
         description: Whether publicly visible
         type: boolean
       name:
         description: Name with size limit
+        type: string
+      registry:
+        description: Image registry with size limit
+        type: string
+      repository:
+        description: Image repository with size limit
         type: string
       status:
         description: 'Status: -1:deleted 0:disabled 1:active'
@@ -161,6 +172,36 @@ definitions:
         type: string
       updated_at:
         description: Update time
+        type: string
+    type: object
+  database.HelmConfig:
+    properties:
+      chart_name:
+        description: Helm chart information
+        type: string
+      chart_version:
+        description: Chart version
+        type: string
+      full_chart:
+        description: Full chart reference (not stored in DB, used for display)
+        type: string
+      id:
+        description: Unique identifier
+        type: integer
+      ns_prefix:
+        description: Deployment configuration
+        type: string
+      port_template:
+        description: Port template for dynamic port assignment, e.g., "31%03d"
+        type: string
+      repo_name:
+        description: Repository name
+        type: string
+      repo_url:
+        description: Repository URL
+        type: string
+      values:
+        description: Helm values in JSON format
         type: string
     type: object
   database.Label:
@@ -479,8 +520,6 @@ definitions:
     type: object
   dto.AlgorithmItem:
     properties:
-      image:
-        type: string
       name:
         type: string
       tag:
@@ -494,6 +533,8 @@ definitions:
         type: string
       created_at:
         type: string
+      default_tag:
+        type: string
       env_vars:
         type: string
       id:
@@ -504,16 +545,8 @@ definitions:
         type: boolean
       name:
         type: string
-      project:
-        allOf:
-        - $ref: '#/definitions/dto.ProjectResponse'
-        description: Related entities (only included when specifically requested)
-      project_id:
-        type: integer
       status:
         type: integer
-      tag:
-        type: string
       type:
         type: string
       updated_at:
@@ -785,8 +818,6 @@ definitions:
         type: string
       status:
         type: integer
-      tag:
-        type: string
       type:
         type: string
       updated_at:
@@ -795,8 +826,6 @@ definitions:
         allOf:
         - $ref: '#/definitions/dto.UserResponse'
         description: Related entities (only included when specifically requested)
-      user_id:
-        type: integer
     type: object
   dto.ContainerSearchRequest:
     properties:
@@ -1443,18 +1472,6 @@ definitions:
         description: user-defined tag
         type: string
     type: object
-  dto.ExecutionPayload:
-    properties:
-      algorithm:
-        $ref: '#/definitions/dto.AlgorithmItem'
-      dataset:
-        type: string
-      env_vars:
-        type: object
-    required:
-    - algorithm
-    - dataset
-    type: object
   dto.ExecutionStatistics:
     properties:
       failed:
@@ -2018,23 +2035,6 @@ definitions:
         allOf:
         - $ref: '#/definitions/dto.LabelResponse'
         description: Generic type data
-      message:
-        description: Response message
-        type: string
-      timestamp:
-        description: Response generation time
-        type: integer
-    type: object
-  dto.GenericResponse-dto_ListAlgorithmsResp:
-    properties:
-      code:
-        description: Status code
-        type: integer
-      data:
-        description: Generic type data
-        items:
-          $ref: '#/definitions/database.Container'
-        type: array
       message:
         description: Response message
         type: string
@@ -4107,18 +4107,6 @@ definitions:
     - payloads
     - project_name
     type: object
-  dto.SubmitExecutionReq:
-    properties:
-      payloads:
-        items:
-          $ref: '#/definitions/dto.ExecutionPayload'
-        type: array
-      project_name:
-        type: string
-    required:
-    - payloads
-    - project_name
-    type: object
   dto.SubmitInjectionReq:
     properties:
       algorithms:
@@ -4126,6 +4114,10 @@ definitions:
           $ref: '#/definitions/dto.AlgorithmItem'
         type: array
       benchmark:
+        type: string
+      container_name:
+        type: string
+      container_tag:
         type: string
       interval:
         minimum: 1
@@ -4145,6 +4137,7 @@ definitions:
         type: array
     required:
     - benchmark
+    - container_name
     - interval
     - pre_duration
     - project_name
@@ -4879,56 +4872,6 @@ info:
   title: RCABench API
   version: 1.0.1
 paths:
-  /api/v1/algorithms:
-    get:
-      description: Get all available algorithms in the system, including image info,
-        tags, and update time. Only returns containers with active status.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Successfully returned algorithm list
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_ListAlgorithmsResp'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      summary: Get algorithm list
-      tags:
-      - algorithm
-    post:
-      description: Batch submit algorithm execution tasks, supporting multiple algorithm
-        and dataset combinations. The system assigns a unique TraceID for each execution
-        task to track status and results.
-      parameters:
-      - description: Algorithm execution request list, including algorithm name, dataset,
-          and environment variables
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/dto.SubmitExecutionReq'
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Successfully submitted algorithm execution task, returns task
-            tracking info
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_SubmitResp'
-        "400":
-          description: Request parameter error, such as invalid JSON format, algorithm
-            name or dataset name, unsupported environment variable name, etc.
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      summary: Submit algorithm execution task
-      tags:
-      - algorithm
   /api/v1/analyzers/injections:
     get:
       description: Analyze fault injection data using various filtering conditions,
@@ -6747,44 +6690,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Update container
-      tags:
-      - Containers
-  /api/v2/containers/name/{name}/latest:
-    get:
-      description: Get the most recently updated container record for a given algorithm
-        name
-      parameters:
-      - description: Container/Algorithm name
-        in: path
-        name: name
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Latest container retrieved successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_ContainerResponse'
-        "400":
-          description: Invalid container name
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "403":
-          description: Permission denied
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "404":
-          description: Container not found
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      security:
-      - BearerAuth: []
-      summary: Get latest container by name
       tags:
       - Containers
   /api/v2/containers/search:
