@@ -55,6 +55,24 @@ configmap:
     password: "Harbor12345"
   k8s:
     namespace: "exp"
+    job:
+      volume_mount:
+        data:
+          name: "data"
+          mount_path: "/data"
+          host_path: "/mnt/jfs/rcabench_dataset"
+          type: "Directory"
+        experiment_storage:
+          name: "experiment-storage"
+          mount_path: "/experiment_storage"
+          host_path: "/mnt/jfs/experiment_storage"
+          type: "Directory"
+        kube_config:
+          name: "kube-config"
+          mount_path: "/root/.kube/config"
+          sub_path: "config"
+          source_type: "secret"
+          secret_name: "kube-config"
   jfs:
     path: "/var/lib/rcabench"
   algo:

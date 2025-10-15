@@ -1,11 +1,38 @@
 package k8s
 
 import (
+	"aegis/config"
+	"aegis/utils"
 	"context"
 	"testing"
 
+	"github.com/k0kubun/pp/v3"
 	corev1 "k8s.io/api/core/v1"
 )
+
+func TestGetVolumeMountConfigs(t *testing.T) {
+	config.Init("../..")
+
+	volumeMountConfigs := make([]VolumeMountConfig, 0)
+	mapData := config.GetMap("k8s.job.volume_mount")
+	for _, cfgData := range mapData {
+		cfg, err := utils.ConvertToType[VolumeMountConfig](cfgData)
+		if err != nil {
+			t.Errorf("invalid volume mount config %v: %v", cfgData, err)
+		}
+
+		volumeMountConfigs = append(volumeMountConfigs, cfg)
+	}
+
+	volumeMounts := []corev1.VolumeMount{}
+	volumes := []corev1.Volume{}
+	for _, cfg := range volumeMountConfigs {
+		volumeMounts = append(volumeMounts, cfg.GetVolumeMount())
+		volumes = append(volumes, cfg.GEtVolume())
+	}
+
+	pp.Println(volumeMountConfigs)
+}
 
 func TestCreateGetDeleteK8sJob(t *testing.T) {
 	jobName := "example-job"

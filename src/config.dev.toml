@@ -44,8 +44,24 @@ password = "Harbor12345"
 [k8s]
 namespace = "exp"
 
-[jfs]
-data_path = "/mnt/jfs/aegislab/data"
+[k8s.job.volume_mount.data]
+name = "data"
+mount_path = "/data"
+host_path = "/mnt/jfs/rcabench_dataset"
+type = "Directory"
+
+[k8s.job.volume_mount.experiment_storage]
+name = "experiment-storage"
+mount_path = "/experiment_storage"
+host_path = "/mnt/jfs/experiment_storage"
+type = "Directory"
+
+[k8s.job.volume_mount.kube_config]
+name = "kube-config"
+mount_path = "/root/.kube/config"
+sub_path = "config"
+source_type = "secret"
+secret_name = "kube-config"
 
 [logging.job]
 log_dir = "/mnt/jfs/aegislab/logs/jobs"

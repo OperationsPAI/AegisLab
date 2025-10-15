@@ -321,7 +321,6 @@ func UploadGranularityResults(c *gin.Context) {
 		}
 	}
 
-	// Parse request body
 	var req dto.GranularityResultEnhancedRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
@@ -480,16 +479,16 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 
 	var allExecutions []dto.AlgorithmExecutionResponse
 	for _, execution := range req.Executions {
-		algorithm, tag, err := repository.GetContainerWithTag(consts.ContainerTypeAlgorithm, execution.Algorithm.Name, execution.Algorithm.Tag, userID)
-		if err != nil {
-			dto.ErrorResponse(c, http.StatusNotFound, "Algorithm not found: "+execution.Algorithm.Name)
-			return
-		}
-
 		// Extract datapacks from request (either single datapack or dataset)
 		datapacks, datasetID, err := extractDatapacks(execution.Datapack, execution.Dataset, execution.DatasetVersion)
 		if err != nil {
-			dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+			dto.ErrorResponse(c, http.StatusBadRequest, "Failed to extract datapacks: "+err.Error())
+			return
+		}
+
+		algorithm, tag, err := repository.GetContainerWithTag(consts.ContainerTypeAlgorithm, execution.Algorithm.Name, execution.Algorithm.Tag, userID)
+		if err != nil {
+			dto.ErrorResponse(c, http.StatusNotFound, "Algorithm not found: "+execution.Algorithm.Name)
 			return
 		}
 
@@ -525,16 +524,26 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 func extractDatapacks(datapackName *string, datasetName *string, datasetVersion *string) ([]database.FaultInjectionSchedule, *int, error) {
 	if datapackName != nil {
 		// Single datapack mode
-		var datapack database.FaultInjectionSchedule
-		if err := database.DB.Where("injection_name = ?", *datapackName).First(&datapack).Error; err != nil {
+		datapack, err := repository.GetInjectionByNameV2(*datapackName)
+		if err != nil {
 			return nil, nil, fmt.Errorf("datapack not found: %s", *datapackName)
 		}
-		return []database.FaultInjectionSchedule{datapack}, nil, nil
+
+		labels, err := repository.GetInjectionLabels(datapack.ID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to get datapack labels: %s", err.Error())
+		}
+
+		exists := checkLabelKeyValue(labels, consts.LabelKeyTag, consts.DetectorNoAnomaly)
+		if exists {
+			return nil, nil, fmt.Errorf("cannot execute detector algorithm on no_anomaly datapack: %s", *datapackName)
+		}
+
+		return []database.FaultInjectionSchedule{*datapack}, nil, nil
 	} else if datasetName != nil {
 		// Dataset mode - get all datapacks in the dataset
 		var dataset database.Dataset
 
-		// Use name and version to uniquely identify dataset
 		if datasetVersion == nil || *datasetVersion == "" {
 			return nil, nil, fmt.Errorf("dataset_version is required when querying by dataset name")
 		}
@@ -556,7 +565,18 @@ func extractDatapacks(datapackName *string, datasetName *string, datasetVersion 
 		var datapacks []database.FaultInjectionSchedule
 		for _, relation := range datasetFaultInjections {
 			if relation.FaultInjectionSchedule != nil {
-				datapacks = append(datapacks, *relation.FaultInjectionSchedule)
+				datapack := relation.FaultInjectionSchedule
+				labels, err := repository.GetInjectionLabels(datapack.ID)
+				if err != nil {
+					return nil, nil, fmt.Errorf("failed to get datapack labels: %s", err.Error())
+				}
+
+				exists := checkLabelKeyValue(labels, consts.LabelKeyTag, consts.DetectorNoAnomaly)
+				if exists {
+					return nil, nil, fmt.Errorf("cannot execute detector algorithm on no_anomaly datapack: %s", datapack.InjectionName)
+				}
+
+				datapacks = append(datapacks, *datapack)
 			}
 		}
 		return datapacks, &dataset.ID, nil
@@ -611,6 +631,15 @@ func submitAlgorithmTasks(ctx context.Context, groupID string, params *algorithm
 	}
 
 	return executions, nil
+}
+
+func checkLabelKeyValue(labels []database.Label, key, value string) bool {
+	for _, label := range labels {
+		if label.Key == key && label.Value == value {
+			return true
+		}
+	}
+	return false
 }
 
 // Helper function to parse integer parameters

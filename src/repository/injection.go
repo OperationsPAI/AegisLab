@@ -525,9 +525,18 @@ func GetInjectionByIDV2(id int) (*database.FaultInjectionSchedule, error) {
 }
 
 // GetInjectionByNameV2 gets injection by name for V2 API
-func GetInjectionByNameV2(name string) (*database.FaultInjectionSchedule, error) {
+func GetInjectionByNameV2(name string, status ...int) (*database.FaultInjectionSchedule, error) {
+	query := database.DB.Where("injection_name = ?", name)
+	if len(status) == 0 {
+		query = query.Where("status != ?", consts.DatapackDeleted)
+	} else if len(status) == 1 {
+		query = query.Where("status = ?", status[0])
+	} else {
+		query = query.Where("status IN ?", status)
+	}
+
 	var injection database.FaultInjectionSchedule
-	if err := database.DB.Where("injection_name = ? AND status != ?", name, consts.DatapackDeleted).First(&injection).Error; err != nil {
+	if err := query.First(&injection).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("injection not found")
 		}
@@ -1140,7 +1149,7 @@ func BatchDeleteInjectionsByLabelsV2(labelFilters []string) (dto.InjectionV2Batc
 
 	// Build WHERE condition for labels
 	var whereClauses []string
-	var whereArgs []interface{}
+	var whereArgs []any
 
 	for _, condition := range labelConditions {
 		whereClauses = append(whereClauses, "(labels.label_key = ? AND labels.label_value = ?)")

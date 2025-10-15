@@ -9,6 +9,7 @@ import (
 
 	"aegis/config"
 	"aegis/tracing"
+	"aegis/utils"
 
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
@@ -33,6 +34,67 @@ type JobConfig struct {
 	InitContainers []corev1.Container
 }
 
+type VolumeMountConfig struct {
+	Name      string `json:"name"`
+	MountPath string `json:"mount_path"`
+
+	// when source_type is "hostPath"
+	HostPath string `json:"host_path,omitempty"`
+	Type     string `json:"type,omitempty"`
+
+	// when source_type is "secret"
+	SubPath    string `json:"sub_path,omitempty"`
+	SourceType string `json:"source_type,omitempty"`
+	SecretName string `json:"secret_name,omitempty"`
+}
+
+func (v *VolumeMountConfig) GetVolumeMount() corev1.VolumeMount {
+	if v.SourceType == "secret" {
+		return corev1.VolumeMount{
+			Name:      v.Name,
+			MountPath: v.MountPath,
+			SubPath:   v.SubPath,
+		}
+	} else {
+		return corev1.VolumeMount{
+			Name:      v.Name,
+			MountPath: v.MountPath,
+		}
+	}
+}
+
+func (v *VolumeMountConfig) GEtVolume() corev1.Volume {
+	if v.SourceType == "secret" {
+		return corev1.Volume{
+			Name: v.Name,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: v.SecretName,
+					Items: []corev1.KeyToPath{
+						{
+							Key:  v.SubPath,
+							Path: v.SubPath,
+						},
+					},
+				},
+			},
+		}
+	} else {
+		return corev1.Volume{
+			Name: v.Name,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: v.HostPath,
+					Type: func() *corev1.HostPathType {
+						hostPathType := corev1.HostPathType(v.Type)
+						return &hostPathType
+					}(),
+				},
+			},
+		}
+	}
+}
+
 func CreateJob(ctx context.Context, jobConfig *JobConfig) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
@@ -43,60 +105,21 @@ func CreateJob(ctx context.Context, jobConfig *JobConfig) error {
 		jobConfig.Completions = int32(1)
 		jobConfig.RestartPolicy = corev1.RestartPolicyNever
 
-		volumeMounts := []corev1.VolumeMount{
-			{
-				Name:      "jfs-volume",
-				MountPath: "/data",
-			},
-			{
-				Name:      "experiment-storage",
-				MountPath: "/experiment_storage",
-			},
-			{
-				Name:      "kube-config",
-				MountPath: "/root/.kube/config",
-				SubPath:   "config",
-			},
+		volumeMountConfigs := make([]VolumeMountConfig, 0)
+		for _, cfgData := range config.GetMap("k8s.job.volume_mount") {
+			cfg, err := utils.ConvertToType[VolumeMountConfig](cfgData)
+			if err != nil {
+				return fmt.Errorf("invalid volume mount config %v: %v", cfgData, err)
+			}
+
+			volumeMountConfigs = append(volumeMountConfigs, cfg)
 		}
-		volumes := []corev1.Volume{
-			{
-				Name: "jfs-volume",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/mnt/jfs/rcabench_dataset",
-						Type: func() *corev1.HostPathType {
-							hostPathType := corev1.HostPathDirectory
-							return &hostPathType
-						}(),
-					},
-				},
-			},
-			{
-				Name: "experiment-storage",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/mnt/jfs/experiment_storage",
-						Type: func() *corev1.HostPathType {
-							hostPathType := corev1.HostPathDirectory
-							return &hostPathType
-						}(),
-					},
-				},
-			},
-			{
-				Name: "kube-config",
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: "kube-config",
-						Items: []corev1.KeyToPath{
-							{
-								Key:  "config",
-								Path: "config",
-							},
-						},
-					},
-				},
-			},
+
+		volumeMounts := []corev1.VolumeMount{}
+		volumes := []corev1.Volume{}
+		for _, cfg := range volumeMountConfigs {
+			volumeMounts = append(volumeMounts, cfg.GetVolumeMount())
+			volumes = append(volumes, cfg.GEtVolume())
 		}
 
 		jobConfig.Labels["job-name"] = jobConfig.JobName

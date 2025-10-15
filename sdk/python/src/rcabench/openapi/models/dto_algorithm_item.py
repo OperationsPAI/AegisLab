@@ -27,10 +27,11 @@ class DtoAlgorithmItem(BaseModel):
     """
     DtoAlgorithmItem
     """ # noqa: E501
+    env_vars: Optional[Dict[str, Any]] = None
     name: StrictStr
     tag: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["name", "tag"]
+    __properties: ClassVar[List[str]] = ["env_vars", "name", "tag"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -90,6 +91,7 @@ class DtoAlgorithmItem(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "env_vars": obj.get("env_vars"),
             "name": obj.get("name"),
             "tag": obj.get("tag")
         })

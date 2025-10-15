@@ -7540,6 +7540,9 @@ const docTemplate = `{
                 "name"
             ],
             "properties": {
+                "env_vars": {
+                    "type": "object"
+                },
                 "name": {
                     "type": "string"
                 },

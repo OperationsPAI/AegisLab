@@ -5,6 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**env_vars** | **object** |  | [optional] 
 **name** | **str** |  | 
 **tag** | **str** |  | [optional] 
 
