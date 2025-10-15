@@ -49,6 +49,24 @@ data:
 
     [k8s]
     namespace = "{{ .Values.configmap.k8s.namespace }}"
+    {{- range $key, $value := .Values.configmap.k8s.job.volume_mount }}
+    [[k8s.job.volume_mount]]
+    name = {{ $value.name | quote }}
+    mount_path = {{ $value.mount_path | quote }}
+    {{- if $value.host_path }}
+    host_path = {{ $value.host_path | quote }}
+    type = {{ $value.type | quote }}
+    {{- end }}
+    {{- if $value.source_type }}
+    source_type = {{ $value.source_type | quote }}
+    {{- end }}
+    {{- if $value.sub_path }}
+    sub_path = {{ $value.sub_path | quote }}
+    {{- end }}
+    {{- if $value.secret_name }}
+    secret_name = {{ $value.secret_name | quote }}
+    {{- end }}
+    {{- end }}
 
     [jfs]
     path = "{{ .Values.configmap.jfs.path }}"

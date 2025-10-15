@@ -159,6 +159,10 @@ const (
 )
 
 const (
+	DetectorNoAnomaly = "no_anomaly"
+)
+
+const (
 	ExecutionDeleted = -1
 	ExecutionInitial = 0
 	ExecutionFailed  = 1

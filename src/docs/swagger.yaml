@@ -520,6 +520,8 @@ definitions:
     type: object
   dto.AlgorithmItem:
     properties:
+      env_vars:
+        type: object
       name:
         type: string
       tag:

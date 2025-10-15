@@ -1047,7 +1047,7 @@ func ManageDatasetLabels(c *gin.Context) {
 
 func packageDatasetToZip(zipWriter *zip.Writer, datapackNames []string, excludeRules []utils.ExculdeRule) error {
 	for _, name := range datapackNames {
-		workDir := filepath.Join(config.GetString("jfs.data_path"), name)
+		workDir := filepath.Join(config.GetString("jfs.path"), name)
 		if !utils.IsAllowedPath(workDir) {
 			return fmt.Errorf("Invalid path access to %s", workDir)
 		}
