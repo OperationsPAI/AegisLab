@@ -15,6 +15,7 @@
 DEFAULT_REPO 	:= docker.io/opspai
 NS          	:= exp
 PORT        	:= 30080
+RELEASE_NAME    := rcabench
 
 # Directory Configuration
 SRC_DIR := src
@@ -254,22 +255,52 @@ setup-dev-env: check-prerequisites ## 🛠️  Setup development environment
 
 run: check-prerequisites ## 🚀 Build and deploy application (using skaffold)
 	@printf "$(BLUE)🔄 Starting deployment process...$(RESET)\n"
+	@printf "$(BLUE)📋 Step 1: Backup existing data...$(RESET)\n"
 	@if $(MAKE) check-db 2>/dev/null; then \
 		printf "$(YELLOW)📄 Backing up existing database...$(RESET)\n"; \
 		$(MAKE) -C scripts/hack/backup_mysql backup; \
 	else \
 		printf "$(YELLOW)⚠️ Database not running, skipping backup$(RESET)\n"; \
 	fi
-	@printf "$(GRAY)Deploying using skaffold...$(RESET)\n"
+	@printf "$(BLUE)📋 Step 2: Deploy with Skaffold...$(RESET)\n"
 	skaffold run --default-repo=$(DEFAULT_REPO)
-	@printf "$(BLUE)⏳ Waiting for deployment to stabilize...$(RESET)\n"
+	@printf "$(BLUE)📋 Step 3: Wait for deployment...$(RESET)\n"
 	$(MAKE) wait-for-deployment
+	@printf "$(BLUE)📋 Step 4: Wait for HostPath initialization...$(RESET)\n"
+	$(MAKE) wait-for-hostpath-init
 	@printf "$(GREEN)🎉 Deployment completed!$(RESET)\n"
+	@printf "$(CYAN)📊 Deployment Summary:$(RESET)\n"
+	@printf "$(GRAY)  - Namespace: $(NS)$(RESET)\n"
+	@printf "$(GRAY)  - Access URL: http://$$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}'):$(PORT)$(RESET)\n"
 
 wait-for-deployment: ## ⏳ Wait for deployment to be ready
 	@printf "$(BLUE)⏳ Waiting for all deployments to be ready...$(RESET)\n"
 	kubectl wait --for=condition=available --timeout=300s deployment --all -n $(NS)
 	@printf "$(GREEN)✅ All deployments are ready$(RESET)\n"
+
+wait-for-hostpath-init: ## ⏳ Wait for HostPath initialization DaemonSet to complete
+	@printf "$(BLUE)⏳ Waiting for HostPath initialization DaemonSet...$(RESET)\n"
+	@if kubectl get daemonset $(RELEASE_NAME)-hostpath-init -n $(NS) >/dev/null 2>&1; then \
+		printf "$(GRAY)DaemonSet found, checking status...$(RESET)\n"; \
+		kubectl rollout status daemonset/$(RELEASE_NAME)-hostpath-init -n $(NS) --timeout=120s || \
+			(printf "$(RED)❌ DaemonSet failed to initialize$(RESET)\n" && exit 1); \
+		printf "$(GREEN)✅ HostPath DaemonSet is ready$(RESET)\n"; \
+		printf "$(BLUE)🔍 Verifying directories on nodes...$(RESET)\n"; \
+		sleep 5; \
+		pods=$$(kubectl get pods -l app=$(RELEASE_NAME)-hostpath-init -n $(NS) -o jsonpath='{.items[*].metadata.name}'); \
+		for pod in $$pods; do \
+			node=$$(kubectl get pod $$pod -n $(NS) -o jsonpath='{.spec.nodeName}'); \
+			printf "$(CYAN)📍 Checking pod $$pod on node $$node$(RESET)\n"; \
+			if kubectl logs $$pod -n $(NS) | grep -q "HostPath directories initialized successfully"; then \
+				printf "$(GREEN)  ✅ Directories initialized$(RESET)\n"; \
+			else \
+				printf "$(YELLOW)  ⚠️  Initialization in progress or failed$(RESET)\n"; \
+			fi; \
+		done; \
+		printf "$(GREEN)✅ HostPath initialization completed$(RESET)\n"; \
+	else \
+		printf "$(YELLOW)⚠️  HostPath DaemonSet not found, skipping check$(RESET)\n"; \
+	fi
 
 build: ## 🔨 Build application only (no deployment)
 	@printf "$(BLUE)🔨 Building application...$(RESET)\n"

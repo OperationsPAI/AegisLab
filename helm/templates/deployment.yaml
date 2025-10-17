@@ -277,6 +277,8 @@ spec:
               mountPath: "{{ .Values.configmap.jfs.path }}"
             - name: containers-data
               mountPath: "{{ .Values.configmap.container.storage_path }}"
+            - name: logs-data
+              mountPath: "{{ .Values.configmap.logging.dir }}"
             - name: initial-data
               mountPath: "{{ .Values.configmap.initialization.data_path }}"
               readOnly: true
@@ -303,6 +305,9 @@ spec:
         - name: containers-data
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-containers-data
+        - name: logs-data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-logs-data
         - name: initial-data
           configMap:
             name: {{ .Release.Name }}-initial-data

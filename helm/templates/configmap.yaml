@@ -50,7 +50,7 @@ data:
     [k8s]
     namespace = "{{ .Values.configmap.k8s.namespace }}"
     {{- range $key, $value := .Values.configmap.k8s.job.volume_mount }}
-    [[k8s.job.volume_mount]]
+    [k8s.job.volume_mount.{{ $key }}]
     name = {{ $value.name | quote }}
     mount_path = {{ $value.mount_path | quote }}
     {{- if $value.host_path }}
@@ -67,6 +67,12 @@ data:
     secret_name = {{ $value.secret_name | quote }}
     {{- end }}
     {{- end }}
+
+    [logging]
+    dir = "{{ .Values.configmap.logging.dir }}"
+    [logging.job]
+    dir = "{{ .Values.configmap.logging.job.dir }}"
+    log_retention_days = {{ .Values.configmap.logging.job.log_retention_days }}
 
     [jfs]
     path = "{{ .Values.configmap.jfs.path }}"
