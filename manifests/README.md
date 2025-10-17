@@ -18,3 +18,10 @@ cilium -> cilium prometheus -> otel collector prome receiver -> clickhouse
 ```
 kubectl apply -f cilium-metrics.yaml
 ```
+# otel-kube-stack
+
+```
+helm install  --namespace monitoring \
+  opentelemetry-kube-stack open-telemetry/opentelemetry-kube-stack -f \
+  otel-kube-stack.yaml
+```
