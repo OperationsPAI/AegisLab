@@ -219,7 +219,7 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 			logrus.WithFields(logrus.Fields{
 				"job_name":  job.Name,
 				"pod_count": len(logMap),
-			}).Error("Job failed - logs available but file writing disabled")
+			}).Errorf("Job failed - logs available but file writing disabled: %v", err)
 
 			for podName, log := range logMap {
 				logrus.WithField("pod_name", podName).Error("job logs:")

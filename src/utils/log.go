@@ -16,7 +16,7 @@ type JobLogWriter struct {
 }
 
 func NewJobLogWriter() (*JobLogWriter, error) {
-	logDir := config.GetString("logging.job.log_dir")
+	logDir := filepath.Join(config.GetString("logging.dir"), config.GetString("logging.job.dir"))
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create job log directory %s: %v", logDir, err)
 	}

@@ -73,6 +73,11 @@ configmap:
           sub_path: "config"
           source_type: "secret"
           secret_name: "kube-config"
+  logging:
+    dir: "/app/logs"
+    job:
+      dir: "jobs"
+      log_retention_days: 7
   jfs:
     path: "/var/lib/rcabench"
   algo:
@@ -80,7 +85,7 @@ configmap:
   container:
     storage_path: "/app/containers"
   debugging:
-    enable: false
+    enable: true
   rate_limiting:
     max_concurrent_builds: 3
     max_concurrent_restarts: 2
@@ -104,6 +109,11 @@ persistence:
     size: 2Gi
     storageClass: ""
   containers:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    storageClass: ""
+  logs:
     enabled: true
     accessMode: ReadWriteOnce
     size: 1Gi
