@@ -97,24 +97,24 @@ persistence:
     enabled: true
     accessMode: ReadWriteOnce
     size: 1Gi
-    storageClass: ""
+    storageClass: "openebs-hostpath"
   mysql:
     enabled: true
     accessMode: ReadWriteOnce
     size: 1Gi
-    storageClass: ""
+    storageClass: "openebs-hostpath"
   jaeger:
     enabled: true
     accessMode: ReadWriteOnce
     size: 2Gi
-    storageClass: ""
+    storageClass: "openebs-hostpath"
   containers:
     enabled: true
     accessMode: ReadWriteOnce
     size: 1Gi
-    storageClass: ""
+    storageClass: "openebs-hostpath"
   logs:
     enabled: true
     accessMode: ReadWriteOnce
     size: 1Gi
-    storageClass: ""
+    storageClass: "openebs-hostpath"

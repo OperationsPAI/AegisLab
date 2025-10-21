@@ -250,6 +250,106 @@ setup-dev-env: check-prerequisites ## 🛠️  Setup development environment
 	@printf "$(GREEN)✅ Development environment setup completed!$(RESET)\n"
 
 # =============================================================================
+# Secret Management
+# =============================================================================
+
+install-secrets: ## 🔑 Install all Secrets from Helm templates
+	@printf "$(BLUE)🔑 Installing Secrets in namespace $(NS)...$(RESET)\n"
+	@helm template $(RELEASE_NAME) ./helm -n $(NS) -s templates/secret.yaml | kubectl apply -f -
+	@printf "$(GREEN)✅ Secrets installed$(RESET)\n"
+
+check-secrets: ## 🔍 Check required Secrets exist
+	@printf "$(BLUE)🔍 Checking required Secrets in namespace $(NS)...$(RESET)\n"
+	@printf "$(GRAY)Extracting Secret names from Helm templates...$(RESET)\n"
+	@all_ok=true; \
+	expected_secrets=$$(helm template $(RELEASE_NAME) ./helm -n $(NS) -s templates/secret.yaml 2>/dev/null | \
+		awk '/^kind: Secret/,/^---/ { if (/^metadata:/) { getline; if (/name:/) print $$2 } }' | \
+		sort -u); \
+	if [ -z "$$expected_secrets" ]; then \
+		printf "$(YELLOW)⚠️  No Secrets defined in Helm templates$(RESET)\n"; \
+		exit 0; \
+	fi; \
+	printf "$(CYAN)Expected Secrets:$(RESET)\n"; \
+	echo "$$expected_secrets" | while read secret; do \
+		printf "  - $$secret\n"; \
+	done; \
+	printf "\n"; \
+	echo "$$expected_secrets" | while read secret; do \
+		if kubectl get secret $$secret -n $(NS) >/dev/null 2>&1; then \
+			printf "$(GREEN)✅ $$secret exists$(RESET)\n"; \
+		else \
+			printf "$(RED)❌ $$secret not found$(RESET)\n"; \
+			all_ok=false; \
+		fi; \
+	done; \
+	if [ "$$all_ok" = "false" ]; then \
+		printf "$(YELLOW)💡 Run: make install-secrets$(RESET)\n"; \
+		exit 1; \
+	fi
+
+# =============================================================================
+# HostPath Management
+# =============================================================================
+
+install-hostpath: ## 🚀 Install HostPath DaemonSet
+	@printf "$(BLUE)🚀 Installing HostPath DaemonSet in namespace $(NS)...$(RESET)\n"
+	@helm template $(RELEASE_NAME) ./helm -n $(NS) -s templates/daemonset.yaml | kubectl apply -f -
+	@printf "$(GREEN)✅ HostPath DaemonSet installation initiated$(RESET)\n"
+
+check-hostpath-daemonset: ## 🔍 Check if HostPath DaemonSet is installed and ready
+	@printf "$(BLUE)🔍 Checking HostPath DaemonSet status...$(RESET)\n"
+	@if kubectl get daemonset $(RELEASE_NAME)-hostpath-init -n $(NS) >/dev/null 2>&1; then \
+		printf "$(GREEN)✅ HostPath DaemonSet exists$(RESET)\n"; \
+		desired=$$(kubectl get daemonset $(RELEASE_NAME)-hostpath-init -n $(NS) -o jsonpath='{.status.desiredNumberScheduled}'); \
+		ready=$$(kubectl get daemonset $(RELEASE_NAME)-hostpath-init -n $(NS) -o jsonpath='{.status.numberReady}'); \
+		printf "$(CYAN)📊 Status: $$ready/$$desired pods ready$(RESET)\n"; \
+		if [ "$$ready" = "$$desired" ] && [ "$$ready" != "0" ]; then \
+			printf "$(GREEN)✅ All HostPath init pods are ready$(RESET)\n"; \
+			$(MAKE) check-hostpath-logs; \
+		else \
+			printf "$(YELLOW)⚠️  HostPath init pods not fully ready$(RESET)\n"; \
+			exit 1; \
+		fi; \
+	else \
+		printf "$(RED)❌ HostPath DaemonSet not found$(RESET)\n"; \
+		printf "$(YELLOW)💡 It will be installed during 'make run'$(RESET)\n"; \
+		exit 1; \
+	fi
+
+check-hostpath-logs: ## 🔍 Check HostPath initialization from pod logs
+	@printf "$(BLUE)🔍 Checking HostPath initialization logs...$(RESET)\n"
+	@pods=$$(kubectl get pods -l app=$(RELEASE_NAME)-hostpath-init -n $(NS) -o jsonpath='{.items[*].metadata.name}'); \
+	all_ok=true; \
+	for pod in $$pods; do \
+		node=$$(kubectl get pod $$pod -n $(NS) -o jsonpath='{.spec.nodeName}'); \
+		printf "$(CYAN)📍 Checking pod $$pod on node $$node$(RESET)\n"; \
+		if kubectl logs $$pod -n $(NS) 2>/dev/null | grep -q "HostPath directories initialized successfully"; then \
+			printf "$(GREEN)  ✅ Directories initialized$(RESET)\n"; \
+		else \
+			printf "$(RED)  ❌ Initialization failed or incomplete$(RESET)\n"; \
+			all_ok=false; \
+		fi; \
+	done; \
+	if [ "$$all_ok" = "false" ]; then \
+		printf "$(RED)❌ Some nodes have incomplete HostPath initialization$(RESET)\n"; \
+		exit 1; \
+	fi	
+
+wait-for-hostpath-init: ## ⏳ Wait for HostPath initialization DaemonSet to complete
+	@printf "$(BLUE)⏳ Waiting for HostPath initialization DaemonSet...$(RESET)\n"
+	@if kubectl get daemonset $(RELEASE_NAME)-hostpath-init -n $(NS) >/dev/null 2>&1; then \
+		printf "$(GRAY)DaemonSet found, checking status...$(RESET)\n"; \
+		kubectl rollout status daemonset/$(RELEASE_NAME)-hostpath-init -n $(NS) --timeout=120s || \
+			(printf "$(RED)❌ DaemonSet failed to initialize$(RESET)\n" && exit 1); \
+		printf "$(GREEN)✅ HostPath DaemonSet is ready$(RESET)\n"; \
+		sleep 5; \
+		$(MAKE) verify-hostpath-logs; \
+		printf "$(GREEN)✅ HostPath initialization completed$(RESET)\n"; \
+	else \
+		printf "$(YELLOW)⚠️  HostPath DaemonSet not found, skipping check$(RESET)\n"; \
+	fi
+
+# =============================================================================
 # Build and Deployment
 # =============================================================================
 
@@ -268,6 +368,8 @@ run: check-prerequisites ## 🚀 Build and deploy application (using skaffold)
 	$(MAKE) wait-for-deployment
 	@printf "$(BLUE)📋 Step 4: Wait for HostPath initialization...$(RESET)\n"
 	$(MAKE) wait-for-hostpath-init
+	@printf "$(BLUE)📋 Step 5: Verifying Secrets...$(RESET)\n"
+	@$(MAKE) check-secrets
 	@printf "$(GREEN)🎉 Deployment completed!$(RESET)\n"
 	@printf "$(CYAN)📊 Deployment Summary:$(RESET)\n"
 	@printf "$(GRAY)  - Namespace: $(NS)$(RESET)\n"
