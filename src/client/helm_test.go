@@ -175,13 +175,19 @@ func TestHelmClient_NewHelmClient(t *testing.T) {
 
 	if client == nil {
 		t.Error("Expected non-nil client")
+		return
 	}
+
 	if client.namespace != namespace {
 		t.Errorf("Expected namespace %s, got %s", namespace, client.namespace)
+		return
 	}
+
 	if client.actionConfig == nil {
 		t.Error("Expected non-nil actionConfig")
+		return
 	}
+
 	if client.settings == nil {
 		t.Error("Expected non-nil settings")
 	}

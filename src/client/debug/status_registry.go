@@ -2,7 +2,6 @@ package debug
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -14,7 +13,6 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
-	"k8s.io/client-go/kubernetes"
 )
 
 type EntryType string
@@ -53,10 +51,6 @@ type HistoryEntry struct {
 type DebugRegistry struct {
 	mu      sync.RWMutex
 	entries map[string]*DebugEntry
-
-	redisClient *redis.Client
-	mysqlClient *sql.DB
-	k8sClient   kubernetes.Interface
 
 	ctx    context.Context
 	cancel context.CancelFunc

@@ -46,7 +46,9 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 
 		monitor := k8s.GetMonitor()
 		if err := monitor.CheckNamespaceToInject(payload.namespace, time.Now(), task.TraceID); err != nil {
-			monitor.ReleaseLock(payload.namespace, task.TraceID)
+			if err := monitor.ReleaseLock(payload.namespace, task.TraceID); err != nil {
+				logrus.Errorf("failed to release lock for namespace %s: %v", payload.namespace, err)
+			}
 			span.RecordError(fmt.Errorf("failed to get namespace to inject fault: %v", err))
 			span.AddEvent("failed to get namespace to inject fault")
 			return err
@@ -54,7 +56,9 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 
 		annotations, err := getAnnotations(childCtx, task)
 		if err != nil {
-			monitor.ReleaseLock(payload.namespace, task.TraceID)
+			if err := monitor.ReleaseLock(payload.namespace, task.TraceID); err != nil {
+				logrus.Errorf("failed to release lock for namespace %s: %v", payload.namespace, err)
+			}
 			span.RecordError(err)
 			span.AddEvent("failed to get annotations")
 			return err
@@ -74,7 +78,9 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 				consts.LabelPreDuration: strconv.Itoa(payload.preDuration),
 			})
 		if err != nil {
-			monitor.ReleaseLock(payload.namespace, task.TraceID)
+			if err := monitor.ReleaseLock(payload.namespace, task.TraceID); err != nil {
+				logrus.Errorf("failed to release lock for namespace %s: %v", payload.namespace, err)
+			}
 			span.RecordError(err)
 			span.AddEvent("failed to inject fault")
 			return fmt.Errorf("failed to inject fault: %v", err)

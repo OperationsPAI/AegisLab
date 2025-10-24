@@ -175,3 +175,4 @@ ts
 containers
 .codebuddy
 .github/instructions/tmp/
+.husky/

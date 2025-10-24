@@ -106,8 +106,8 @@ func addDetectorJoins(query *gorm.DB) *gorm.DB {
 func createDetectorViews() {
 	var err error
 
-	DB.Migrator().DropView("fault_injection_no_issues")
-	DB.Migrator().DropView("fault_injection_with_issues")
+	_ = DB.Migrator().DropView("fault_injection_no_issues")
+	_ = DB.Migrator().DropView("fault_injection_with_issues")
 
 	// Create view for fault injections with no issues
 	noIssuesQuery := addDetectorJoins(DB.Table("fault_injection_schedules fis").
@@ -156,7 +156,7 @@ func createDetectorViews() {
 func createExecutionResultViews() {
 	var err error
 
-	DB.Migrator().DropView("execution_result_project")
+	_ = DB.Migrator().DropView("execution_result_project")
 
 	projectQuery := DB.Table("execution_results er").
 		Select(`
@@ -186,7 +186,7 @@ func createExecutionResultViews() {
 func createFaultInjectionViews() {
 	var err error
 
-	DB.Migrator().DropView("fault_injection_project")
+	_ = DB.Migrator().DropView("fault_injection_project")
 
 	projectQuery := DB.Table("fault_injection_schedules fis").
 		Select(`

@@ -268,7 +268,9 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 				"name":      u.GetName(),
 			}).Info("Chaos experiment deleted successfully")
 			traceId := u.GetLabels()[consts.LabelTraceID]
-			GetMonitor().ReleaseLock(u.GetNamespace(), traceId)
+			if err := GetMonitor().ReleaseLock(u.GetNamespace(), traceId); err != nil {
+				logrus.Errorf("failed to release lock for namespace %s: %v", u.GetNamespace(), err)
+			}
 		},
 	}
 }
