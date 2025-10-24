@@ -19,6 +19,7 @@ import re
 import ssl
 
 import urllib3
+from urllib3.response import BaseHTTPResponse
 
 from rcabench.openapi.exceptions import ApiException, ApiValueError
 
@@ -38,11 +39,11 @@ def is_socks_proxy_url(url):
 
 class RESTResponse(io.IOBase):
 
-    def __init__(self, resp) -> None:
+    def __init__(self, resp: BaseHTTPResponse) -> None:
         self.response = resp
         self.status = resp.status
         self.reason = resp.reason
-        self.data = None
+        self.data: bytes | None = None
 
     def read(self):
         if self.data is None:
@@ -57,7 +58,7 @@ class RESTResponse(io.IOBase):
         """Returns a given response header."""
         return self.response.headers.get(name, default)
 
-
+    
 class RESTClientObject:
 
     def __init__(self, configuration) -> None:
@@ -121,7 +122,7 @@ class RESTClientObject:
         body=None,
         post_params=None,
         _request_timeout=None
-    ):
+    ) -> RESTResponse | None:
         """Perform requests.
 
         :param method: http request method

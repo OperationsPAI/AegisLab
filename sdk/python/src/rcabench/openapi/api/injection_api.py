@@ -1,5 +1,3 @@
-# coding: utf-8
-
 """
     RCABench API
 
@@ -11,6 +9,7 @@
 
     Do not edit the class manually.
 """  # noqa: E501
+
 
 import warnings
 from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
@@ -50,7 +49,6 @@ class InjectionApi:
         if api_client is None:
             api_client = ApiClient.get_default()
         self.api_client = api_client
-
 
     @validate_call
     def api_v1_injections_analysis_no_issues_get(
@@ -134,7 +132,7 @@ class InjectionApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -405,7 +403,6 @@ class InjectionApi:
 
 
 
-
     @validate_call
     def api_v1_injections_analysis_stats_get(
         self,
@@ -480,7 +477,7 @@ class InjectionApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -725,7 +722,6 @@ class InjectionApi:
 
 
 
-
     @validate_call
     def api_v1_injections_analysis_with_issues_get(
         self,
@@ -808,7 +804,7 @@ class InjectionApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -1079,7 +1075,6 @@ class InjectionApi:
 
 
 
-
     @validate_call
     def api_v1_injections_conf_get(
         self,
@@ -1150,7 +1145,7 @@ class InjectionApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -1364,7 +1359,6 @@ class InjectionApi:
 
 
 
-
     @validate_call
     def api_v1_injections_configs_get(
         self,
@@ -1431,7 +1425,7 @@ class InjectionApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -1633,7 +1627,6 @@ class InjectionApi:
 
 
 
-
     @validate_call
     def api_v1_injections_get(
         self,
@@ -1756,7 +1749,7 @@ class InjectionApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -2157,7 +2150,6 @@ class InjectionApi:
 
 
 
-
     @validate_call
     def api_v1_injections_mapping_get(
         self,
@@ -2219,7 +2211,7 @@ class InjectionApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -2405,7 +2397,6 @@ class InjectionApi:
 
 
 
-
     @validate_call
     def api_v1_injections_ns_resources_get(
         self,
@@ -2472,7 +2463,7 @@ class InjectionApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -2673,7 +2664,6 @@ class InjectionApi:
 
 
 
-
     @validate_call
     def api_v1_injections_post(
         self,
@@ -2740,7 +2730,7 @@ class InjectionApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -2920,6 +2910,7 @@ class InjectionApi:
 
         # authentication setting
         _auth_settings: List[str] = [
+            'BearerAuth'
         ]
 
         return self.api_client.param_serialize(
@@ -2936,7 +2927,6 @@ class InjectionApi:
             _host=_host,
             _request_auth=_request_auth
         )
-
 
 
 
@@ -3010,7 +3000,7 @@ class InjectionApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -3224,7 +3214,6 @@ class InjectionApi:
 
 
 
-
     @validate_call
     def api_v1_injections_task_id_cancel_put(
         self,
@@ -3291,7 +3280,7 @@ class InjectionApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call

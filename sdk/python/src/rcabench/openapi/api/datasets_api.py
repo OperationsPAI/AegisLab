@@ -1,5 +1,3 @@
-# coding: utf-8
-
 """
     RCABench API
 
@@ -11,6 +9,7 @@
 
     Do not edit the class manually.
 """  # noqa: E501
+
 
 import warnings
 from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
@@ -46,7 +45,6 @@ class DatasetsApi:
         if api_client is None:
             api_client = ApiClient.get_default()
         self.api_client = api_client
-
 
     @validate_call
     def api_v2_datasets_get(
@@ -147,7 +145,7 @@ class DatasetsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -455,7 +453,6 @@ class DatasetsApi:
 
 
 
-
     @validate_call
     def api_v2_datasets_id_delete(
         self,
@@ -524,7 +521,7 @@ class DatasetsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -728,7 +725,6 @@ class DatasetsApi:
 
 
 
-
     @validate_call
     def api_v2_datasets_id_download_get(
         self,
@@ -797,7 +793,7 @@ class DatasetsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -1001,7 +997,6 @@ class DatasetsApi:
 
 
 
-
     @validate_call
     def api_v2_datasets_id_get(
         self,
@@ -1078,7 +1073,7 @@ class DatasetsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -1308,7 +1303,6 @@ class DatasetsApi:
 
 
 
-
     @validate_call
     def api_v2_datasets_id_injections_patch(
         self,
@@ -1381,7 +1375,7 @@ class DatasetsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -1609,7 +1603,6 @@ class DatasetsApi:
 
 
 
-
     @validate_call
     def api_v2_datasets_id_labels_patch(
         self,
@@ -1682,7 +1675,7 @@ class DatasetsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -1910,7 +1903,6 @@ class DatasetsApi:
 
 
 
-
     @validate_call
     def api_v2_datasets_id_put(
         self,
@@ -1983,7 +1975,7 @@ class DatasetsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -2211,7 +2203,6 @@ class DatasetsApi:
 
 
 
-
     @validate_call
     def api_v2_datasets_post(
         self,
@@ -2280,7 +2271,7 @@ class DatasetsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -2497,7 +2488,6 @@ class DatasetsApi:
 
 
 
-
     @validate_call
     def api_v2_datasets_search_post(
         self,
@@ -2565,7 +2555,7 @@ class DatasetsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call

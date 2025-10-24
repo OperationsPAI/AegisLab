@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -35,7 +36,6 @@ import (
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/tasks/{id} [get]
 func GetTask(c *gin.Context) {
-
 	taskID := c.Param("id")
 	includeList := c.QueryArray("include")
 
@@ -101,7 +101,6 @@ func GetTask(c *gin.Context) {
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/tasks [get]
 func ListTasks(c *gin.Context) {
-
 	// Create a basic search request from query parameters
 	req := dto.TaskSearchRequest{
 		AdvancedSearchRequest: dto.AdvancedSearchRequest{
@@ -400,10 +399,5 @@ func GetQueuedTasks(c *gin.Context) {
 
 // Helper function to check if slice contains string
 func containsString(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, item)
 }

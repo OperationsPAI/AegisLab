@@ -318,13 +318,15 @@ func SetupV2Routes(router *gin.Engine) {
 		datasets.DELETE("/:id", middleware.RequireDatasetDelete, v2handlers.DeleteDataset)
 	}
 
-	executions := v2.Group("/executions") // Execution Result Management - ExecutionResult Entity
-	labels := v2.Group("/labels")         // Label Management - Label Entity
+	// Execution Result Management - ExecutionResult Entity
+	executions := v2.Group("/executions")
+	labels := v2.Group("/labels") // Label Management - Label Entity
 	{
 		labels.POST("", v2handlers.CreateLabels)
 	}
 
-	projects := v2.Group("/projects", middleware.JWTAuth()) // Project Management - Project Entity
+	// Project Management - Project Entity
+	projects := v2.Group("/projects", middleware.JWTAuth())
 	{
 		projects.GET("/:id", v2handlers.GetProject)
 	}
@@ -345,10 +347,15 @@ func SetupV2Routes(router *gin.Engine) {
 		evaluations.POST("/datapacks/detector", middleware.RequireDatasetRead, v2handlers.GetDatapackDetectorResults)
 	}
 
+	// Trace Management
+	traces := v2.Group("/traces", middleware.JWTAuth())
+	{
+		traces.GET("/:id/stream", v2handlers.GetTraceStream)
+	}
+
 	// Analysis and Detection related API Group (for future expansion)
 	detectors := v2.Group("/detectors")     // Detector Management - Detector Entity
 	granularity := v2.Group("/granularity") // Granularity Result Management - GranularityResult Entity
-	traces := v2.Group("/traces")           // Trace Management - Related to TraceID
 	analyzer := v2.Group("/analyzer")       // Analyzer related
 
 	// Temporarily use empty assignment to avoid compilation errors, specific routes will be implemented gradually later

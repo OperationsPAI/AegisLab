@@ -15,7 +15,7 @@
 """  # noqa: E501
 
 
-__version__ = "1.0.0"
+__version__ = "1.1.44"
 
 # Define package exports
 __all__ = [
@@ -23,6 +23,7 @@ __all__ = [
     "AuthenticationApi",
     "ContainersApi",
     "DatasetsApi",
+    "DocumentationApi",
     "InjectionsApi",
     "LabelsApi",
     "PermissionsApi",
@@ -31,6 +32,7 @@ __all__ = [
     "RolesApi",
     "SystemApi",
     "TasksApi",
+    "TracesApi",
     "UsersApi",
     "AnalyzerApi",
     "ContainerApi",
@@ -49,6 +51,8 @@ __all__ = [
     "ApiKeyError",
     "ApiAttributeError",
     "ApiException",
+    "ConstsEventType",
+    "ConstsSSEEventName",
     "ConstsTaskType",
     "DatabaseContainer",
     "DatabaseDataset",
@@ -96,6 +100,7 @@ __all__ = [
     "DtoDatasetBuildPayload",
     "DtoDatasetDeleteResp",
     "DtoDatasetEvaluationBatchReq",
+    "DtoDatasetOptions",
     "DtoDatasetSearchResponse",
     "DtoDatasetStatistics",
     "DtoDatasetV2CreateReq",
@@ -111,6 +116,7 @@ __all__ = [
     "DtoDetectorResultItem",
     "DtoDetectorResultRequest",
     "DtoExecutionLabels",
+    "DtoExecutionOptions",
     "DtoExecutionStatistics",
     "DtoFaultInjectionNoIssuesResp",
     "DtoFaultInjectionWithIssuesResp",
@@ -186,6 +192,7 @@ __all__ = [
     "DtoGranularityResultItem",
     "DtoGroundTruthReq",
     "DtoHealthCheckResponse",
+    "DtoInfoPayloadTemplate",
     "DtoInjectionCreateError",
     "DtoInjectionDiversity",
     "DtoInjectionFieldMappingResp",
@@ -254,10 +261,10 @@ __all__ = [
     "DtoSearchResponseDtoTaskResponse",
     "DtoSearchResponseDtoUserResponse",
     "DtoServiceCoverageItem",
-    "DtoServiceInfo",
     "DtoSizeRangeFilter",
     "DtoSortDirection",
     "DtoSortOption",
+    "DtoStreamEvent",
     "DtoSubmitDatasetBuildingReq",
     "DtoSubmitInjectionReq",
     "DtoSubmitInjectionResp",
@@ -293,298 +300,12 @@ __all__ = [
     "HandlerResources",
 ]
 
-if __import__("typing").TYPE_CHECKING:
-    # import apis into sdk package
-    from rcabench.openapi.api.algorithms_api import AlgorithmsApi as AlgorithmsApi
-    from rcabench.openapi.api.authentication_api import AuthenticationApi as AuthenticationApi
-    from rcabench.openapi.api.containers_api import ContainersApi as ContainersApi
-    from rcabench.openapi.api.datasets_api import DatasetsApi as DatasetsApi
-    from rcabench.openapi.api.injections_api import InjectionsApi as InjectionsApi
-    from rcabench.openapi.api.labels_api import LabelsApi as LabelsApi
-    from rcabench.openapi.api.permissions_api import PermissionsApi as PermissionsApi
-    from rcabench.openapi.api.projects_api import ProjectsApi as ProjectsApi
-    from rcabench.openapi.api.relations_api import RelationsApi as RelationsApi
-    from rcabench.openapi.api.roles_api import RolesApi as RolesApi
-    from rcabench.openapi.api.system_api import SystemApi as SystemApi
-    from rcabench.openapi.api.tasks_api import TasksApi as TasksApi
-    from rcabench.openapi.api.users_api import UsersApi as UsersApi
-    from rcabench.openapi.api.analyzer_api import AnalyzerApi as AnalyzerApi
-    from rcabench.openapi.api.container_api import ContainerApi as ContainerApi
-    from rcabench.openapi.api.dataset_api import DatasetApi as DatasetApi
-    from rcabench.openapi.api.debug_api import DebugApi as DebugApi
-    from rcabench.openapi.api.evaluation_api import EvaluationApi as EvaluationApi
-    from rcabench.openapi.api.injection_api import InjectionApi as InjectionApi
-    from rcabench.openapi.api.task_api import TaskApi as TaskApi
-    from rcabench.openapi.api.trace_api import TraceApi as TraceApi
-    
-    # import ApiClient
-    from rcabench.openapi.api_response import ApiResponse as ApiResponse
-    from rcabench.openapi.api_client import ApiClient as ApiClient
-    from rcabench.openapi.configuration import Configuration as Configuration
-    from rcabench.openapi.exceptions import OpenApiException as OpenApiException
-    from rcabench.openapi.exceptions import ApiTypeError as ApiTypeError
-    from rcabench.openapi.exceptions import ApiValueError as ApiValueError
-    from rcabench.openapi.exceptions import ApiKeyError as ApiKeyError
-    from rcabench.openapi.exceptions import ApiAttributeError as ApiAttributeError
-    from rcabench.openapi.exceptions import ApiException as ApiException
-    
-    # import models into sdk package
-    from rcabench.openapi.models.consts_task_type import ConstsTaskType as ConstsTaskType
-    from rcabench.openapi.models.database_container import DatabaseContainer as DatabaseContainer
-    from rcabench.openapi.models.database_dataset import DatabaseDataset as DatabaseDataset
-    from rcabench.openapi.models.database_fault_injection_schedule import DatabaseFaultInjectionSchedule as DatabaseFaultInjectionSchedule
-    from rcabench.openapi.models.database_helm_config import DatabaseHelmConfig as DatabaseHelmConfig
-    from rcabench.openapi.models.database_label import DatabaseLabel as DatabaseLabel
-    from rcabench.openapi.models.database_project import DatabaseProject as DatabaseProject
-    from rcabench.openapi.models.database_task import DatabaseTask as DatabaseTask
-    from rcabench.openapi.models.database_user import DatabaseUser as DatabaseUser
-    from rcabench.openapi.models.dto_advanced_search_request import DtoAdvancedSearchRequest as DtoAdvancedSearchRequest
-    from rcabench.openapi.models.dto_algorithm_datapack_req import DtoAlgorithmDatapackReq as DtoAlgorithmDatapackReq
-    from rcabench.openapi.models.dto_algorithm_datapack_resp import DtoAlgorithmDatapackResp as DtoAlgorithmDatapackResp
-    from rcabench.openapi.models.dto_algorithm_dataset_pair import DtoAlgorithmDatasetPair as DtoAlgorithmDatasetPair
-    from rcabench.openapi.models.dto_algorithm_dataset_req import DtoAlgorithmDatasetReq as DtoAlgorithmDatasetReq
-    from rcabench.openapi.models.dto_algorithm_dataset_resp import DtoAlgorithmDatasetResp as DtoAlgorithmDatasetResp
-    from rcabench.openapi.models.dto_algorithm_execution_request import DtoAlgorithmExecutionRequest as DtoAlgorithmExecutionRequest
-    from rcabench.openapi.models.dto_algorithm_execution_response import DtoAlgorithmExecutionResponse as DtoAlgorithmExecutionResponse
-    from rcabench.openapi.models.dto_algorithm_item import DtoAlgorithmItem as DtoAlgorithmItem
-    from rcabench.openapi.models.dto_algorithm_response import DtoAlgorithmResponse as DtoAlgorithmResponse
-    from rcabench.openapi.models.dto_algorithm_result_upload_response import DtoAlgorithmResultUploadResponse as DtoAlgorithmResultUploadResponse
-    from rcabench.openapi.models.dto_algorithm_search_request import DtoAlgorithmSearchRequest as DtoAlgorithmSearchRequest
-    from rcabench.openapi.models.dto_analyze_injections_resp import DtoAnalyzeInjectionsResp as DtoAnalyzeInjectionsResp
-    from rcabench.openapi.models.dto_assign_user_permission_request import DtoAssignUserPermissionRequest as DtoAssignUserPermissionRequest
-    from rcabench.openapi.models.dto_assign_user_role_request import DtoAssignUserRoleRequest as DtoAssignUserRoleRequest
-    from rcabench.openapi.models.dto_assign_user_to_project_request import DtoAssignUserToProjectRequest as DtoAssignUserToProjectRequest
-    from rcabench.openapi.models.dto_attribute_coverage_item import DtoAttributeCoverageItem as DtoAttributeCoverageItem
-    from rcabench.openapi.models.dto_audit_log_list_response import DtoAuditLogListResponse as DtoAuditLogListResponse
-    from rcabench.openapi.models.dto_audit_log_request import DtoAuditLogRequest as DtoAuditLogRequest
-    from rcabench.openapi.models.dto_audit_log_response import DtoAuditLogResponse as DtoAuditLogResponse
-    from rcabench.openapi.models.dto_batch_algorithm_execution_request import DtoBatchAlgorithmExecutionRequest as DtoBatchAlgorithmExecutionRequest
-    from rcabench.openapi.models.dto_batch_algorithm_execution_response import DtoBatchAlgorithmExecutionResponse as DtoBatchAlgorithmExecutionResponse
-    from rcabench.openapi.models.dto_batch_relation_request import DtoBatchRelationRequest as DtoBatchRelationRequest
-    from rcabench.openapi.models.dto_change_password_request import DtoChangePasswordRequest as DtoChangePasswordRequest
-    from rcabench.openapi.models.dto_container_response import DtoContainerResponse as DtoContainerResponse
-    from rcabench.openapi.models.dto_container_search_request import DtoContainerSearchRequest as DtoContainerSearchRequest
-    from rcabench.openapi.models.dto_container_statistics import DtoContainerStatistics as DtoContainerStatistics
-    from rcabench.openapi.models.dto_create_permission_request import DtoCreatePermissionRequest as DtoCreatePermissionRequest
-    from rcabench.openapi.models.dto_create_role_request import DtoCreateRoleRequest as DtoCreateRoleRequest
-    from rcabench.openapi.models.dto_create_user_request import DtoCreateUserRequest as DtoCreateUserRequest
-    from rcabench.openapi.models.dto_datapack_detector_item import DtoDatapackDetectorItem as DtoDatapackDetectorItem
-    from rcabench.openapi.models.dto_datapack_detector_req import DtoDatapackDetectorReq as DtoDatapackDetectorReq
-    from rcabench.openapi.models.dto_datapack_detector_resp import DtoDatapackDetectorResp as DtoDatapackDetectorResp
-    from rcabench.openapi.models.dto_datapack_evaluation_batch_req import DtoDatapackEvaluationBatchReq as DtoDatapackEvaluationBatchReq
-    from rcabench.openapi.models.dto_datapack_evaluation_item import DtoDatapackEvaluationItem as DtoDatapackEvaluationItem
-    from rcabench.openapi.models.dto_dataset_build_payload import DtoDatasetBuildPayload as DtoDatasetBuildPayload
-    from rcabench.openapi.models.dto_dataset_delete_resp import DtoDatasetDeleteResp as DtoDatasetDeleteResp
-    from rcabench.openapi.models.dto_dataset_evaluation_batch_req import DtoDatasetEvaluationBatchReq as DtoDatasetEvaluationBatchReq
-    from rcabench.openapi.models.dto_dataset_search_response import DtoDatasetSearchResponse as DtoDatasetSearchResponse
-    from rcabench.openapi.models.dto_dataset_statistics import DtoDatasetStatistics as DtoDatasetStatistics
-    from rcabench.openapi.models.dto_dataset_v2_create_req import DtoDatasetV2CreateReq as DtoDatasetV2CreateReq
-    from rcabench.openapi.models.dto_dataset_v2_injection_manage_req import DtoDatasetV2InjectionManageReq as DtoDatasetV2InjectionManageReq
-    from rcabench.openapi.models.dto_dataset_v2_label_create_req import DtoDatasetV2LabelCreateReq as DtoDatasetV2LabelCreateReq
-    from rcabench.openapi.models.dto_dataset_v2_label_manage_req import DtoDatasetV2LabelManageReq as DtoDatasetV2LabelManageReq
-    from rcabench.openapi.models.dto_dataset_v2_response import DtoDatasetV2Response as DtoDatasetV2Response
-    from rcabench.openapi.models.dto_dataset_v2_search_req import DtoDatasetV2SearchReq as DtoDatasetV2SearchReq
-    from rcabench.openapi.models.dto_dataset_v2_update_req import DtoDatasetV2UpdateReq as DtoDatasetV2UpdateReq
-    from rcabench.openapi.models.dto_date_range import DtoDateRange as DtoDateRange
-    from rcabench.openapi.models.dto_date_range_filter import DtoDateRangeFilter as DtoDateRangeFilter
-    from rcabench.openapi.models.dto_detector_record import DtoDetectorRecord as DtoDetectorRecord
-    from rcabench.openapi.models.dto_detector_result_item import DtoDetectorResultItem as DtoDetectorResultItem
-    from rcabench.openapi.models.dto_detector_result_request import DtoDetectorResultRequest as DtoDetectorResultRequest
-    from rcabench.openapi.models.dto_execution_labels import DtoExecutionLabels as DtoExecutionLabels
-    from rcabench.openapi.models.dto_execution_statistics import DtoExecutionStatistics as DtoExecutionStatistics
-    from rcabench.openapi.models.dto_fault_injection_no_issues_resp import DtoFaultInjectionNoIssuesResp as DtoFaultInjectionNoIssuesResp
-    from rcabench.openapi.models.dto_fault_injection_with_issues_resp import DtoFaultInjectionWithIssuesResp as DtoFaultInjectionWithIssuesResp
-    from rcabench.openapi.models.dto_filter_operator import DtoFilterOperator as DtoFilterOperator
-    from rcabench.openapi.models.dto_generic_response_any import DtoGenericResponseAny as DtoGenericResponseAny
-    from rcabench.openapi.models.dto_generic_response_array_dto_fault_injection_no_issues_resp import DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp as DtoGenericResponseArrayDtoFaultInjectionNoIssuesResp
-    from rcabench.openapi.models.dto_generic_response_array_dto_fault_injection_with_issues_resp import DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp as DtoGenericResponseArrayDtoFaultInjectionWithIssuesResp
-    from rcabench.openapi.models.dto_generic_response_array_dto_permission_response import DtoGenericResponseArrayDtoPermissionResponse as DtoGenericResponseArrayDtoPermissionResponse
-    from rcabench.openapi.models.dto_generic_response_array_dto_role_response import DtoGenericResponseArrayDtoRoleResponse as DtoGenericResponseArrayDtoRoleResponse
-    from rcabench.openapi.models.dto_generic_response_array_dto_user_response import DtoGenericResponseArrayDtoUserResponse as DtoGenericResponseArrayDtoUserResponse
-    from rcabench.openapi.models.dto_generic_response_array_string import DtoGenericResponseArrayString as DtoGenericResponseArrayString
-    from rcabench.openapi.models.dto_generic_response_dto_algorithm_result_upload_response import DtoGenericResponseDtoAlgorithmResultUploadResponse as DtoGenericResponseDtoAlgorithmResultUploadResponse
-    from rcabench.openapi.models.dto_generic_response_dto_analyze_injections_resp import DtoGenericResponseDtoAnalyzeInjectionsResp as DtoGenericResponseDtoAnalyzeInjectionsResp
-    from rcabench.openapi.models.dto_generic_response_dto_audit_log_list_response import DtoGenericResponseDtoAuditLogListResponse as DtoGenericResponseDtoAuditLogListResponse
-    from rcabench.openapi.models.dto_generic_response_dto_audit_log_response import DtoGenericResponseDtoAuditLogResponse as DtoGenericResponseDtoAuditLogResponse
-    from rcabench.openapi.models.dto_generic_response_dto_batch_algorithm_execution_response import DtoGenericResponseDtoBatchAlgorithmExecutionResponse as DtoGenericResponseDtoBatchAlgorithmExecutionResponse
-    from rcabench.openapi.models.dto_generic_response_dto_container_response import DtoGenericResponseDtoContainerResponse as DtoGenericResponseDtoContainerResponse
-    from rcabench.openapi.models.dto_generic_response_dto_datapack_detector_resp import DtoGenericResponseDtoDatapackDetectorResp as DtoGenericResponseDtoDatapackDetectorResp
-    from rcabench.openapi.models.dto_generic_response_dto_datapack_evaluation_batch_resp import DtoGenericResponseDtoDatapackEvaluationBatchResp as DtoGenericResponseDtoDatapackEvaluationBatchResp
-    from rcabench.openapi.models.dto_generic_response_dto_dataset_delete_resp import DtoGenericResponseDtoDatasetDeleteResp as DtoGenericResponseDtoDatasetDeleteResp
-    from rcabench.openapi.models.dto_generic_response_dto_dataset_evaluation_batch_resp import DtoGenericResponseDtoDatasetEvaluationBatchResp as DtoGenericResponseDtoDatasetEvaluationBatchResp
-    from rcabench.openapi.models.dto_generic_response_dto_dataset_search_response import DtoGenericResponseDtoDatasetSearchResponse as DtoGenericResponseDtoDatasetSearchResponse
-    from rcabench.openapi.models.dto_generic_response_dto_dataset_v2_response import DtoGenericResponseDtoDatasetV2Response as DtoGenericResponseDtoDatasetV2Response
-    from rcabench.openapi.models.dto_generic_response_dto_ground_truth_resp import DtoGenericResponseDtoGroundTruthResp as DtoGenericResponseDtoGroundTruthResp
-    from rcabench.openapi.models.dto_generic_response_dto_health_check_response import DtoGenericResponseDtoHealthCheckResponse as DtoGenericResponseDtoHealthCheckResponse
-    from rcabench.openapi.models.dto_generic_response_dto_inject_cancel_resp import DtoGenericResponseDtoInjectCancelResp as DtoGenericResponseDtoInjectCancelResp
-    from rcabench.openapi.models.dto_generic_response_dto_injection_field_mapping_resp import DtoGenericResponseDtoInjectionFieldMappingResp as DtoGenericResponseDtoInjectionFieldMappingResp
-    from rcabench.openapi.models.dto_generic_response_dto_injection_search_response import DtoGenericResponseDtoInjectionSearchResponse as DtoGenericResponseDtoInjectionSearchResponse
-    from rcabench.openapi.models.dto_generic_response_dto_injection_stats_resp import DtoGenericResponseDtoInjectionStatsResp as DtoGenericResponseDtoInjectionStatsResp
-    from rcabench.openapi.models.dto_generic_response_dto_injection_v2_batch_delete_response import DtoGenericResponseDtoInjectionV2BatchDeleteResponse as DtoGenericResponseDtoInjectionV2BatchDeleteResponse
-    from rcabench.openapi.models.dto_generic_response_dto_injection_v2_create_response import DtoGenericResponseDtoInjectionV2CreateResponse as DtoGenericResponseDtoInjectionV2CreateResponse
-    from rcabench.openapi.models.dto_generic_response_dto_injection_v2_response import DtoGenericResponseDtoInjectionV2Response as DtoGenericResponseDtoInjectionV2Response
-    from rcabench.openapi.models.dto_generic_response_dto_label_response import DtoGenericResponseDtoLabelResponse as DtoGenericResponseDtoLabelResponse
-    from rcabench.openapi.models.dto_generic_response_dto_list_injections_resp import DtoGenericResponseDtoListInjectionsResp as DtoGenericResponseDtoListInjectionsResp
-    from rcabench.openapi.models.dto_generic_response_dto_list_tasks_resp import DtoGenericResponseDtoListTasksResp as DtoGenericResponseDtoListTasksResp
-    from rcabench.openapi.models.dto_generic_response_dto_login_response import DtoGenericResponseDtoLoginResponse as DtoGenericResponseDtoLoginResponse
-    from rcabench.openapi.models.dto_generic_response_dto_monitoring_metrics_response import DtoGenericResponseDtoMonitoringMetricsResponse as DtoGenericResponseDtoMonitoringMetricsResponse
-    from rcabench.openapi.models.dto_generic_response_dto_ns_resources_resp import DtoGenericResponseDtoNsResourcesResp as DtoGenericResponseDtoNsResourcesResp
-    from rcabench.openapi.models.dto_generic_response_dto_pagination_resp_dto_unified_task import DtoGenericResponseDtoPaginationRespDtoUnifiedTask as DtoGenericResponseDtoPaginationRespDtoUnifiedTask
-    from rcabench.openapi.models.dto_generic_response_dto_permission_list_response import DtoGenericResponseDtoPermissionListResponse as DtoGenericResponseDtoPermissionListResponse
-    from rcabench.openapi.models.dto_generic_response_dto_permission_response import DtoGenericResponseDtoPermissionResponse as DtoGenericResponseDtoPermissionResponse
-    from rcabench.openapi.models.dto_generic_response_dto_project_v2_response import DtoGenericResponseDtoProjectV2Response as DtoGenericResponseDtoProjectV2Response
-    from rcabench.openapi.models.dto_generic_response_dto_query_injection_resp import DtoGenericResponseDtoQueryInjectionResp as DtoGenericResponseDtoQueryInjectionResp
-    from rcabench.openapi.models.dto_generic_response_dto_raw_data_resp import DtoGenericResponseDtoRawDataResp as DtoGenericResponseDtoRawDataResp
-    from rcabench.openapi.models.dto_generic_response_dto_relation_list_response import DtoGenericResponseDtoRelationListResponse as DtoGenericResponseDtoRelationListResponse
-    from rcabench.openapi.models.dto_generic_response_dto_relation_statistics_response import DtoGenericResponseDtoRelationStatisticsResponse as DtoGenericResponseDtoRelationStatisticsResponse
-    from rcabench.openapi.models.dto_generic_response_dto_role_list_response import DtoGenericResponseDtoRoleListResponse as DtoGenericResponseDtoRoleListResponse
-    from rcabench.openapi.models.dto_generic_response_dto_role_response import DtoGenericResponseDtoRoleResponse as DtoGenericResponseDtoRoleResponse
-    from rcabench.openapi.models.dto_generic_response_dto_search_response_dto_algorithm_response import DtoGenericResponseDtoSearchResponseDtoAlgorithmResponse as DtoGenericResponseDtoSearchResponseDtoAlgorithmResponse
-    from rcabench.openapi.models.dto_generic_response_dto_search_response_dto_container_response import DtoGenericResponseDtoSearchResponseDtoContainerResponse as DtoGenericResponseDtoSearchResponseDtoContainerResponse
-    from rcabench.openapi.models.dto_generic_response_dto_search_response_dto_dataset_v2_response import DtoGenericResponseDtoSearchResponseDtoDatasetV2Response as DtoGenericResponseDtoSearchResponseDtoDatasetV2Response
-    from rcabench.openapi.models.dto_generic_response_dto_search_response_dto_injection_v2_response import DtoGenericResponseDtoSearchResponseDtoInjectionV2Response as DtoGenericResponseDtoSearchResponseDtoInjectionV2Response
-    from rcabench.openapi.models.dto_generic_response_dto_search_response_dto_permission_response import DtoGenericResponseDtoSearchResponseDtoPermissionResponse as DtoGenericResponseDtoSearchResponseDtoPermissionResponse
-    from rcabench.openapi.models.dto_generic_response_dto_search_response_dto_role_response import DtoGenericResponseDtoSearchResponseDtoRoleResponse as DtoGenericResponseDtoSearchResponseDtoRoleResponse
-    from rcabench.openapi.models.dto_generic_response_dto_search_response_dto_task_response import DtoGenericResponseDtoSearchResponseDtoTaskResponse as DtoGenericResponseDtoSearchResponseDtoTaskResponse
-    from rcabench.openapi.models.dto_generic_response_dto_search_response_dto_user_response import DtoGenericResponseDtoSearchResponseDtoUserResponse as DtoGenericResponseDtoSearchResponseDtoUserResponse
-    from rcabench.openapi.models.dto_generic_response_dto_submit_injection_resp import DtoGenericResponseDtoSubmitInjectionResp as DtoGenericResponseDtoSubmitInjectionResp
-    from rcabench.openapi.models.dto_generic_response_dto_submit_resp import DtoGenericResponseDtoSubmitResp as DtoGenericResponseDtoSubmitResp
-    from rcabench.openapi.models.dto_generic_response_dto_successful_executions_resp import DtoGenericResponseDtoSuccessfulExecutionsResp as DtoGenericResponseDtoSuccessfulExecutionsResp
-    from rcabench.openapi.models.dto_generic_response_dto_system_info import DtoGenericResponseDtoSystemInfo as DtoGenericResponseDtoSystemInfo
-    from rcabench.openapi.models.dto_generic_response_dto_system_statistics_response import DtoGenericResponseDtoSystemStatisticsResponse as DtoGenericResponseDtoSystemStatisticsResponse
-    from rcabench.openapi.models.dto_generic_response_dto_task_detail_resp import DtoGenericResponseDtoTaskDetailResp as DtoGenericResponseDtoTaskDetailResp
-    from rcabench.openapi.models.dto_generic_response_dto_task_detail_response import DtoGenericResponseDtoTaskDetailResponse as DtoGenericResponseDtoTaskDetailResponse
-    from rcabench.openapi.models.dto_generic_response_dto_token_refresh_response import DtoGenericResponseDtoTokenRefreshResponse as DtoGenericResponseDtoTokenRefreshResponse
-    from rcabench.openapi.models.dto_generic_response_dto_trace_stats import DtoGenericResponseDtoTraceStats as DtoGenericResponseDtoTraceStats
-    from rcabench.openapi.models.dto_generic_response_dto_user_info import DtoGenericResponseDtoUserInfo as DtoGenericResponseDtoUserInfo
-    from rcabench.openapi.models.dto_generic_response_dto_user_list_response import DtoGenericResponseDtoUserListResponse as DtoGenericResponseDtoUserListResponse
-    from rcabench.openapi.models.dto_generic_response_dto_user_response import DtoGenericResponseDtoUserResponse as DtoGenericResponseDtoUserResponse
-    from rcabench.openapi.models.dto_generic_response_handler_node import DtoGenericResponseHandlerNode as DtoGenericResponseHandlerNode
-    from rcabench.openapi.models.dto_generic_response_handler_resources import DtoGenericResponseHandlerResources as DtoGenericResponseHandlerResources
-    from rcabench.openapi.models.dto_granularity_record import DtoGranularityRecord as DtoGranularityRecord
-    from rcabench.openapi.models.dto_granularity_result_enhanced_request import DtoGranularityResultEnhancedRequest as DtoGranularityResultEnhancedRequest
-    from rcabench.openapi.models.dto_granularity_result_item import DtoGranularityResultItem as DtoGranularityResultItem
-    from rcabench.openapi.models.dto_ground_truth_req import DtoGroundTruthReq as DtoGroundTruthReq
-    from rcabench.openapi.models.dto_health_check_response import DtoHealthCheckResponse as DtoHealthCheckResponse
-    from rcabench.openapi.models.dto_injection_create_error import DtoInjectionCreateError as DtoInjectionCreateError
-    from rcabench.openapi.models.dto_injection_diversity import DtoInjectionDiversity as DtoInjectionDiversity
-    from rcabench.openapi.models.dto_injection_field_mapping_resp import DtoInjectionFieldMappingResp as DtoInjectionFieldMappingResp
-    from rcabench.openapi.models.dto_injection_item import DtoInjectionItem as DtoInjectionItem
-    from rcabench.openapi.models.dto_injection_ref import DtoInjectionRef as DtoInjectionRef
-    from rcabench.openapi.models.dto_injection_search_response import DtoInjectionSearchResponse as DtoInjectionSearchResponse
-    from rcabench.openapi.models.dto_injection_statistics import DtoInjectionStatistics as DtoInjectionStatistics
-    from rcabench.openapi.models.dto_injection_stats import DtoInjectionStats as DtoInjectionStats
-    from rcabench.openapi.models.dto_injection_stats_resp import DtoInjectionStatsResp as DtoInjectionStatsResp
-    from rcabench.openapi.models.dto_injection_v2_batch_delete_req import DtoInjectionV2BatchDeleteReq as DtoInjectionV2BatchDeleteReq
-    from rcabench.openapi.models.dto_injection_v2_batch_delete_response import DtoInjectionV2BatchDeleteResponse as DtoInjectionV2BatchDeleteResponse
-    from rcabench.openapi.models.dto_injection_v2_cascade_delete_stats import DtoInjectionV2CascadeDeleteStats as DtoInjectionV2CascadeDeleteStats
-    from rcabench.openapi.models.dto_injection_v2_create_item import DtoInjectionV2CreateItem as DtoInjectionV2CreateItem
-    from rcabench.openapi.models.dto_injection_v2_create_req import DtoInjectionV2CreateReq as DtoInjectionV2CreateReq
-    from rcabench.openapi.models.dto_injection_v2_create_response import DtoInjectionV2CreateResponse as DtoInjectionV2CreateResponse
-    from rcabench.openapi.models.dto_injection_v2_custom_label_manage_req import DtoInjectionV2CustomLabelManageReq as DtoInjectionV2CustomLabelManageReq
-    from rcabench.openapi.models.dto_injection_v2_delete_error import DtoInjectionV2DeleteError as DtoInjectionV2DeleteError
-    from rcabench.openapi.models.dto_injection_v2_deleted_item import DtoInjectionV2DeletedItem as DtoInjectionV2DeletedItem
-    from rcabench.openapi.models.dto_injection_v2_label_manage_req import DtoInjectionV2LabelManageReq as DtoInjectionV2LabelManageReq
-    from rcabench.openapi.models.dto_injection_v2_response import DtoInjectionV2Response as DtoInjectionV2Response
-    from rcabench.openapi.models.dto_injection_v2_search_req import DtoInjectionV2SearchReq as DtoInjectionV2SearchReq
-    from rcabench.openapi.models.dto_injection_v2_update_req import DtoInjectionV2UpdateReq as DtoInjectionV2UpdateReq
-    from rcabench.openapi.models.dto_label_create_req import DtoLabelCreateReq as DtoLabelCreateReq
-    from rcabench.openapi.models.dto_label_item import DtoLabelItem as DtoLabelItem
-    from rcabench.openapi.models.dto_label_response import DtoLabelResponse as DtoLabelResponse
-    from rcabench.openapi.models.dto_list_injections_resp import DtoListInjectionsResp as DtoListInjectionsResp
-    from rcabench.openapi.models.dto_login_request import DtoLoginRequest as DtoLoginRequest
-    from rcabench.openapi.models.dto_login_response import DtoLoginResponse as DtoLoginResponse
-    from rcabench.openapi.models.dto_logout_request import DtoLogoutRequest as DtoLogoutRequest
-    from rcabench.openapi.models.dto_metric_value import DtoMetricValue as DtoMetricValue
-    from rcabench.openapi.models.dto_monitoring_metrics_response import DtoMonitoringMetricsResponse as DtoMonitoringMetricsResponse
-    from rcabench.openapi.models.dto_monitoring_query_request import DtoMonitoringQueryRequest as DtoMonitoringQueryRequest
-    from rcabench.openapi.models.dto_number_range import DtoNumberRange as DtoNumberRange
-    from rcabench.openapi.models.dto_pagination_info import DtoPaginationInfo as DtoPaginationInfo
-    from rcabench.openapi.models.dto_pagination_resp_dto_unified_task import DtoPaginationRespDtoUnifiedTask as DtoPaginationRespDtoUnifiedTask
-    from rcabench.openapi.models.dto_pair_stats import DtoPairStats as DtoPairStats
-    from rcabench.openapi.models.dto_permission_list_response import DtoPermissionListResponse as DtoPermissionListResponse
-    from rcabench.openapi.models.dto_permission_response import DtoPermissionResponse as DtoPermissionResponse
-    from rcabench.openapi.models.dto_permission_search_request import DtoPermissionSearchRequest as DtoPermissionSearchRequest
-    from rcabench.openapi.models.dto_project_response import DtoProjectResponse as DtoProjectResponse
-    from rcabench.openapi.models.dto_project_statistics import DtoProjectStatistics as DtoProjectStatistics
-    from rcabench.openapi.models.dto_project_v2_response import DtoProjectV2Response as DtoProjectV2Response
-    from rcabench.openapi.models.dto_query_injection_resp import DtoQueryInjectionResp as DtoQueryInjectionResp
-    from rcabench.openapi.models.dto_raw_data_item import DtoRawDataItem as DtoRawDataItem
-    from rcabench.openapi.models.dto_raw_data_req import DtoRawDataReq as DtoRawDataReq
-    from rcabench.openapi.models.dto_register_request import DtoRegisterRequest as DtoRegisterRequest
-    from rcabench.openapi.models.dto_relation_entity import DtoRelationEntity as DtoRelationEntity
-    from rcabench.openapi.models.dto_relation_list_response import DtoRelationListResponse as DtoRelationListResponse
-    from rcabench.openapi.models.dto_relation_operation import DtoRelationOperation as DtoRelationOperation
-    from rcabench.openapi.models.dto_relation_response import DtoRelationResponse as DtoRelationResponse
-    from rcabench.openapi.models.dto_relation_statistics_response import DtoRelationStatisticsResponse as DtoRelationStatisticsResponse
-    from rcabench.openapi.models.dto_remove_user_permission_request import DtoRemoveUserPermissionRequest as DtoRemoveUserPermissionRequest
-    from rcabench.openapi.models.dto_remove_user_role_request import DtoRemoveUserRoleRequest as DtoRemoveUserRoleRequest
-    from rcabench.openapi.models.dto_resource_response import DtoResourceResponse as DtoResourceResponse
-    from rcabench.openapi.models.dto_retry_policy import DtoRetryPolicy as DtoRetryPolicy
-    from rcabench.openapi.models.dto_role_list_response import DtoRoleListResponse as DtoRoleListResponse
-    from rcabench.openapi.models.dto_role_response import DtoRoleResponse as DtoRoleResponse
-    from rcabench.openapi.models.dto_role_search_request import DtoRoleSearchRequest as DtoRoleSearchRequest
-    from rcabench.openapi.models.dto_search_filter import DtoSearchFilter as DtoSearchFilter
-    from rcabench.openapi.models.dto_search_response_dto_algorithm_response import DtoSearchResponseDtoAlgorithmResponse as DtoSearchResponseDtoAlgorithmResponse
-    from rcabench.openapi.models.dto_search_response_dto_container_response import DtoSearchResponseDtoContainerResponse as DtoSearchResponseDtoContainerResponse
-    from rcabench.openapi.models.dto_search_response_dto_dataset_v2_response import DtoSearchResponseDtoDatasetV2Response as DtoSearchResponseDtoDatasetV2Response
-    from rcabench.openapi.models.dto_search_response_dto_injection_v2_response import DtoSearchResponseDtoInjectionV2Response as DtoSearchResponseDtoInjectionV2Response
-    from rcabench.openapi.models.dto_search_response_dto_permission_response import DtoSearchResponseDtoPermissionResponse as DtoSearchResponseDtoPermissionResponse
-    from rcabench.openapi.models.dto_search_response_dto_role_response import DtoSearchResponseDtoRoleResponse as DtoSearchResponseDtoRoleResponse
-    from rcabench.openapi.models.dto_search_response_dto_task_response import DtoSearchResponseDtoTaskResponse as DtoSearchResponseDtoTaskResponse
-    from rcabench.openapi.models.dto_search_response_dto_user_response import DtoSearchResponseDtoUserResponse as DtoSearchResponseDtoUserResponse
-    from rcabench.openapi.models.dto_service_coverage_item import DtoServiceCoverageItem as DtoServiceCoverageItem
-    from rcabench.openapi.models.dto_service_info import DtoServiceInfo as DtoServiceInfo
-    from rcabench.openapi.models.dto_size_range_filter import DtoSizeRangeFilter as DtoSizeRangeFilter
-    from rcabench.openapi.models.dto_sort_direction import DtoSortDirection as DtoSortDirection
-    from rcabench.openapi.models.dto_sort_option import DtoSortOption as DtoSortOption
-    from rcabench.openapi.models.dto_submit_dataset_building_req import DtoSubmitDatasetBuildingReq as DtoSubmitDatasetBuildingReq
-    from rcabench.openapi.models.dto_submit_injection_req import DtoSubmitInjectionReq as DtoSubmitInjectionReq
-    from rcabench.openapi.models.dto_submit_injection_resp import DtoSubmitInjectionResp as DtoSubmitInjectionResp
-    from rcabench.openapi.models.dto_submit_resp import DtoSubmitResp as DtoSubmitResp
-    from rcabench.openapi.models.dto_successful_execution_item import DtoSuccessfulExecutionItem as DtoSuccessfulExecutionItem
-    from rcabench.openapi.models.dto_system_info import DtoSystemInfo as DtoSystemInfo
-    from rcabench.openapi.models.dto_system_statistics_response import DtoSystemStatisticsResponse as DtoSystemStatisticsResponse
-    from rcabench.openapi.models.dto_task_detail_resp import DtoTaskDetailResp as DtoTaskDetailResp
-    from rcabench.openapi.models.dto_task_detail_response import DtoTaskDetailResponse as DtoTaskDetailResponse
-    from rcabench.openapi.models.dto_task_item import DtoTaskItem as DtoTaskItem
-    from rcabench.openapi.models.dto_task_response import DtoTaskResponse as DtoTaskResponse
-    from rcabench.openapi.models.dto_task_search_request import DtoTaskSearchRequest as DtoTaskSearchRequest
-    from rcabench.openapi.models.dto_task_statistics import DtoTaskStatistics as DtoTaskStatistics
-    from rcabench.openapi.models.dto_task_v2_response import DtoTaskV2Response as DtoTaskV2Response
-    from rcabench.openapi.models.dto_token_refresh_request import DtoTokenRefreshRequest as DtoTokenRefreshRequest
-    from rcabench.openapi.models.dto_token_refresh_response import DtoTokenRefreshResponse as DtoTokenRefreshResponse
-    from rcabench.openapi.models.dto_trace import DtoTrace as DtoTrace
-    from rcabench.openapi.models.dto_trace_stats import DtoTraceStats as DtoTraceStats
-    from rcabench.openapi.models.dto_unified_task import DtoUnifiedTask as DtoUnifiedTask
-    from rcabench.openapi.models.dto_update_container_request import DtoUpdateContainerRequest as DtoUpdateContainerRequest
-    from rcabench.openapi.models.dto_update_permission_request import DtoUpdatePermissionRequest as DtoUpdatePermissionRequest
-    from rcabench.openapi.models.dto_update_role_request import DtoUpdateRoleRequest as DtoUpdateRoleRequest
-    from rcabench.openapi.models.dto_update_user_request import DtoUpdateUserRequest as DtoUpdateUserRequest
-    from rcabench.openapi.models.dto_user_info import DtoUserInfo as DtoUserInfo
-    from rcabench.openapi.models.dto_user_list_response import DtoUserListResponse as DtoUserListResponse
-    from rcabench.openapi.models.dto_user_project_response import DtoUserProjectResponse as DtoUserProjectResponse
-    from rcabench.openapi.models.dto_user_response import DtoUserResponse as DtoUserResponse
-    from rcabench.openapi.models.dto_user_search_request import DtoUserSearchRequest as DtoUserSearchRequest
-    from rcabench.openapi.models.dto_user_statistics import DtoUserStatistics as DtoUserStatistics
-    from rcabench.openapi.models.handler_groundtruth import HandlerGroundtruth as HandlerGroundtruth
-    from rcabench.openapi.models.handler_node import HandlerNode as HandlerNode
-    from rcabench.openapi.models.handler_pair import HandlerPair as HandlerPair
-    from rcabench.openapi.models.handler_resources import HandlerResources as HandlerResources
-    
-else:
-    from lazy_imports import LazyModule, as_package, load
-
-    load(
-        LazyModule(
-            *as_package(__file__),
-            ("__version__", __version__),
-            ("__all__", __all__),
-            """# import apis into sdk package
+# import apis into sdk package
 from rcabench.openapi.api.algorithms_api import AlgorithmsApi as AlgorithmsApi
 from rcabench.openapi.api.authentication_api import AuthenticationApi as AuthenticationApi
 from rcabench.openapi.api.containers_api import ContainersApi as ContainersApi
 from rcabench.openapi.api.datasets_api import DatasetsApi as DatasetsApi
+from rcabench.openapi.api.documentation_api import DocumentationApi as DocumentationApi
 from rcabench.openapi.api.injections_api import InjectionsApi as InjectionsApi
 from rcabench.openapi.api.labels_api import LabelsApi as LabelsApi
 from rcabench.openapi.api.permissions_api import PermissionsApi as PermissionsApi
@@ -593,6 +314,7 @@ from rcabench.openapi.api.relations_api import RelationsApi as RelationsApi
 from rcabench.openapi.api.roles_api import RolesApi as RolesApi
 from rcabench.openapi.api.system_api import SystemApi as SystemApi
 from rcabench.openapi.api.tasks_api import TasksApi as TasksApi
+from rcabench.openapi.api.traces_api import TracesApi as TracesApi
 from rcabench.openapi.api.users_api import UsersApi as UsersApi
 from rcabench.openapi.api.analyzer_api import AnalyzerApi as AnalyzerApi
 from rcabench.openapi.api.container_api import ContainerApi as ContainerApi
@@ -615,6 +337,8 @@ from rcabench.openapi.exceptions import ApiAttributeError as ApiAttributeError
 from rcabench.openapi.exceptions import ApiException as ApiException
 
 # import models into sdk package
+from rcabench.openapi.models.consts_event_type import ConstsEventType as ConstsEventType
+from rcabench.openapi.models.consts_sse_event_name import ConstsSSEEventName as ConstsSSEEventName
 from rcabench.openapi.models.consts_task_type import ConstsTaskType as ConstsTaskType
 from rcabench.openapi.models.database_container import DatabaseContainer as DatabaseContainer
 from rcabench.openapi.models.database_dataset import DatabaseDataset as DatabaseDataset
@@ -662,6 +386,7 @@ from rcabench.openapi.models.dto_datapack_evaluation_item import DtoDatapackEval
 from rcabench.openapi.models.dto_dataset_build_payload import DtoDatasetBuildPayload as DtoDatasetBuildPayload
 from rcabench.openapi.models.dto_dataset_delete_resp import DtoDatasetDeleteResp as DtoDatasetDeleteResp
 from rcabench.openapi.models.dto_dataset_evaluation_batch_req import DtoDatasetEvaluationBatchReq as DtoDatasetEvaluationBatchReq
+from rcabench.openapi.models.dto_dataset_options import DtoDatasetOptions as DtoDatasetOptions
 from rcabench.openapi.models.dto_dataset_search_response import DtoDatasetSearchResponse as DtoDatasetSearchResponse
 from rcabench.openapi.models.dto_dataset_statistics import DtoDatasetStatistics as DtoDatasetStatistics
 from rcabench.openapi.models.dto_dataset_v2_create_req import DtoDatasetV2CreateReq as DtoDatasetV2CreateReq
@@ -677,6 +402,7 @@ from rcabench.openapi.models.dto_detector_record import DtoDetectorRecord as Dto
 from rcabench.openapi.models.dto_detector_result_item import DtoDetectorResultItem as DtoDetectorResultItem
 from rcabench.openapi.models.dto_detector_result_request import DtoDetectorResultRequest as DtoDetectorResultRequest
 from rcabench.openapi.models.dto_execution_labels import DtoExecutionLabels as DtoExecutionLabels
+from rcabench.openapi.models.dto_execution_options import DtoExecutionOptions as DtoExecutionOptions
 from rcabench.openapi.models.dto_execution_statistics import DtoExecutionStatistics as DtoExecutionStatistics
 from rcabench.openapi.models.dto_fault_injection_no_issues_resp import DtoFaultInjectionNoIssuesResp as DtoFaultInjectionNoIssuesResp
 from rcabench.openapi.models.dto_fault_injection_with_issues_resp import DtoFaultInjectionWithIssuesResp as DtoFaultInjectionWithIssuesResp
@@ -752,6 +478,7 @@ from rcabench.openapi.models.dto_granularity_result_enhanced_request import DtoG
 from rcabench.openapi.models.dto_granularity_result_item import DtoGranularityResultItem as DtoGranularityResultItem
 from rcabench.openapi.models.dto_ground_truth_req import DtoGroundTruthReq as DtoGroundTruthReq
 from rcabench.openapi.models.dto_health_check_response import DtoHealthCheckResponse as DtoHealthCheckResponse
+from rcabench.openapi.models.dto_info_payload_template import DtoInfoPayloadTemplate as DtoInfoPayloadTemplate
 from rcabench.openapi.models.dto_injection_create_error import DtoInjectionCreateError as DtoInjectionCreateError
 from rcabench.openapi.models.dto_injection_diversity import DtoInjectionDiversity as DtoInjectionDiversity
 from rcabench.openapi.models.dto_injection_field_mapping_resp import DtoInjectionFieldMappingResp as DtoInjectionFieldMappingResp
@@ -820,10 +547,10 @@ from rcabench.openapi.models.dto_search_response_dto_role_response import DtoSea
 from rcabench.openapi.models.dto_search_response_dto_task_response import DtoSearchResponseDtoTaskResponse as DtoSearchResponseDtoTaskResponse
 from rcabench.openapi.models.dto_search_response_dto_user_response import DtoSearchResponseDtoUserResponse as DtoSearchResponseDtoUserResponse
 from rcabench.openapi.models.dto_service_coverage_item import DtoServiceCoverageItem as DtoServiceCoverageItem
-from rcabench.openapi.models.dto_service_info import DtoServiceInfo as DtoServiceInfo
 from rcabench.openapi.models.dto_size_range_filter import DtoSizeRangeFilter as DtoSizeRangeFilter
 from rcabench.openapi.models.dto_sort_direction import DtoSortDirection as DtoSortDirection
 from rcabench.openapi.models.dto_sort_option import DtoSortOption as DtoSortOption
+from rcabench.openapi.models.dto_stream_event import DtoStreamEvent as DtoStreamEvent
 from rcabench.openapi.models.dto_submit_dataset_building_req import DtoSubmitDatasetBuildingReq as DtoSubmitDatasetBuildingReq
 from rcabench.openapi.models.dto_submit_injection_req import DtoSubmitInjectionReq as DtoSubmitInjectionReq
 from rcabench.openapi.models.dto_submit_injection_resp import DtoSubmitInjectionResp as DtoSubmitInjectionResp
@@ -858,8 +585,3 @@ from rcabench.openapi.models.handler_node import HandlerNode as HandlerNode
 from rcabench.openapi.models.handler_pair import HandlerPair as HandlerPair
 from rcabench.openapi.models.handler_resources import HandlerResources as HandlerResources
 
-""",
-            name=__name__,
-            doc=__doc__,
-        )
-    )

@@ -1,5 +1,3 @@
-# coding: utf-8
-
 """
     RCABench API
 
@@ -11,6 +9,7 @@
 
     Do not edit the class manually.
 """  # noqa: E501
+
 
 import warnings
 from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
@@ -44,7 +43,6 @@ class AlgorithmsApi:
         if api_client is None:
             api_client = ApiClient.get_default()
         self.api_client = api_client
-
 
     @validate_call
     def api_v2_algorithms_algorithm_id_executions_execution_id_detectors_post(
@@ -122,7 +120,7 @@ class AlgorithmsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -361,7 +359,6 @@ class AlgorithmsApi:
 
 
 
-
     @validate_call
     def api_v2_algorithms_algorithm_id_results_post(
         self,
@@ -442,7 +439,7 @@ class AlgorithmsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -696,7 +693,6 @@ class AlgorithmsApi:
 
 
 
-
     @validate_call
     def api_v2_algorithms_execute_post(
         self,
@@ -765,7 +761,7 @@ class AlgorithmsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -982,7 +978,6 @@ class AlgorithmsApi:
 
 
 
-
     @validate_call
     def api_v2_algorithms_get(
         self,
@@ -1054,7 +1049,7 @@ class AlgorithmsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -1271,7 +1266,6 @@ class AlgorithmsApi:
 
 
 
-
     @validate_call
     def api_v2_algorithms_search_post(
         self,
@@ -1339,7 +1333,7 @@ class AlgorithmsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call

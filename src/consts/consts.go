@@ -328,7 +328,8 @@ const (
 	EventAcquireLock EventType = "acquire.lock"
 	EventReleaseLock EventType = "release.lock"
 
-	EventJobLogsRecorded EventType = "job.logs.recorded"
+	EventJobSucceed EventType = "k8s.job.succeed"
+	EventJobFailed  EventType = "k8s.job.failed"
 )
 
 // K8s Job name
@@ -361,15 +362,12 @@ const (
 	LabelTimestamp   = "timestamp"
 )
 
-const (
-	JobSucceed = "succeed"
-	JobFailed  = "failed"
-)
+type SSEEventName string
 
 // SSE event types
 const (
-	EventEnd    = "end"
-	EventUpdate = "update"
+	EventEnd    SSEEventName = "end"
+	EventUpdate SSEEventName = "update"
 )
 
 const (

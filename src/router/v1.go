@@ -80,12 +80,4 @@ func SetupV1Routes(router *gin.Engine) {
 			tasksWithID.GET("", handlers.GetTaskDetail)
 		}
 	}
-
-	traces := r.Group("/traces")
-	{
-		tracesWithID := traces.Group("/:trace_id")
-		{
-			tracesWithID.GET("/stream", handlers.GetTraceStream)
-		}
-	}
 }

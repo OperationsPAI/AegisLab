@@ -1,13 +1,12 @@
-from rcabench.rcabench import RCABenchSDK
 import pytest
+from dotenv import load_dotenv
 
-#   BASE_URL = "http://10.10.10.220:32080"
-BASE_URL = "http://127.0.0.1:8082"
+from rcabench.client import RCABenchClient
+
+load_dotenv()
 
 
-@pytest.fixture
-def sdk() -> RCABenchSDK:
-    """
-    初始化 RCABenchSDK 并返回实例
-    """
-    return RCABenchSDK(BASE_URL)
+@pytest.fixture(scope="session")
+def rcabench_client():
+    with RCABenchClient() as client:
+        yield client

@@ -189,18 +189,6 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 
 	// Use PublishEvent to record job logs
 	if len(logMap) > 0 {
-		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
-			TaskID:    taskOptions.TaskID,
-			TaskType:  taskOptions.Type,
-			EventName: consts.EventJobLogsRecorded,
-			Payload: dto.JobMessage{
-				JobName:   job.Name,
-				Namespace: job.Namespace,
-				Status:    consts.JobSucceed,
-				Logs:      logMap,
-			},
-		}, repository.WithCallerLevel(4))
-
 		jobLogBytes, err := json.Marshal(logMap)
 		if err != nil {
 			logrus.WithField("job_name", job.Name).Errorf("failed to marshal job logs: %v", err)
@@ -236,6 +224,17 @@ func (e *Executor) HandleJobFailed(job *batchv1.Job, annotations map[string]stri
 				attribute.String("log_file", filePath),
 			))
 		}
+
+		repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
+			TaskID:    taskOptions.TaskID,
+			TaskType:  taskOptions.Type,
+			EventName: consts.EventJobFailed,
+			Payload: dto.JobMessage{
+				JobName:   job.Name,
+				Namespace: job.Namespace,
+				LogFile:   filePath,
+			},
+		}, repository.WithCallerLevel(4))
 
 		span.AddEvent("job failed", spanAttrs...)
 	}
@@ -322,24 +321,15 @@ func (e *Executor) HandleJobSucceeded(job *batchv1.Job, annotations map[string]s
 	traceCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.TraceCarrier)
 	taskSpan := trace.SpanFromContext(taskCtx)
 
-	logMap, err := k8s.GetJobPodLogs(taskCtx, job.Namespace, job.Name)
-	if err != nil {
-		logrus.WithField("job_name", job.Name).Errorf("failed to get job logs: %v", err)
-	}
-
-	if len(logMap) > 0 {
-		repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
-			TaskID:    taskOptions.TaskID,
-			TaskType:  taskOptions.Type,
-			EventName: consts.EventJobLogsRecorded,
-			Payload: dto.JobMessage{
-				JobName:   job.Name,
-				Namespace: job.Namespace,
-				Status:    consts.JobFailed,
-				Logs:      logMap,
-			},
-		}, repository.WithCallerLevel(4))
-	}
+	repository.PublishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, taskOptions.TraceID), dto.StreamEvent{
+		TaskID:    taskOptions.TaskID,
+		TaskType:  taskOptions.Type,
+		EventName: consts.EventJobSucceed,
+		Payload: dto.JobMessage{
+			JobName:   job.Name,
+			Namespace: job.Namespace,
+		},
+	}, repository.WithCallerLevel(4))
 
 	logEntry := logrus.WithFields(logrus.Fields{
 		"task_id":  taskOptions.TaskID,
@@ -355,7 +345,7 @@ func (e *Executor) HandleJobSucceeded(job *batchv1.Job, annotations map[string]s
 			TaskID:    taskOptions.TaskID,
 			TaskType:  consts.TaskTypeBuildDataset,
 			EventName: consts.EventDatapackBuildSucceed,
-			Payload:   options.Dataset,
+			Payload:   options,
 		}, repository.WithCallerLevel(4))
 
 		updateTaskStatus(

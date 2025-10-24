@@ -1,181 +1,124 @@
-from typing import Any, Callable, Dict, Optional, Union
-from ..error.http import HTTPClientError
-from ..logger import logger
-from ..model.error import ModelHTTPError
-from functools import wraps
-from requests.adapters import HTTPAdapter
-from requests.exceptions import HTTPError, RequestException, Timeout
-from requests import Response
-from urllib3.exceptions import NewConnectionError
-import inspect
-import requests
-import time
+import os
 
-__all__ = ["HTTPClient"]
+from rcabench.openapi.api.authentication_api import AuthenticationApi
+from rcabench.openapi.api_client import ApiClient
+from rcabench.openapi.configuration import Configuration
+from rcabench.openapi.models.dto_login_request import DtoLoginRequest
 
 
-def handle_http_errors(func: Callable):
-    @wraps(func)
-    def wrapper(*args, **kwargs) -> Union[Dict, Response, ModelHTTPError]:
-        try:
-            resp = func(*args, **kwargs)
-            sig = inspect.signature(func)
-            bound_args = sig.bind(*args, **kwargs)
-            if "stream" in bound_args.arguments:
-                return resp
+class RCABenchClient:
+    """
+    Usage:
+    with RCABenchClient() as api_client:
+        container_api = rcabench.openapi.ContainersApi(api_client)
+        containers = container_api.api_v2_containers_get()
+        print(f"Containers: {containers.data}")
+    """
 
-            resp_data = resp.json()
-            return resp_data.get("data")
+    _instances = {}
+    _sessions = {}
 
-        except HTTPClientError as e:
-            # 统一记录日志并返回错误响应
-            logger.error(f"API request failed: {e.url} -> {e.message}")
-            return ModelHTTPError(
-                status_code=e.status_code,
-                detail=e.message,
-                path=args[1],
-                method=str.upper(func.__name__),
-            )
+    def __new__(
+        cls,
+        base_url: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
+    ):
+        # Parse actual configuration values
+        actual_base_url = base_url or os.getenv("RCABENCH_BASE_URL")
+        actual_username = username or os.getenv("RCABENCH_USERNAME")
+        actual_password = password or os.getenv("RCABENCH_PASSWORD")
 
-        except Exception as e:
-            logger.error(f"Unknown error: {str(e)}")
-            return ModelHTTPError(
-                status_code=500,
-                detail=str(e),
-                path=args[1],
-                method=str.upper(func.__name__),
-            )
+        # Use (base_url, username) as unique identifier
+        instance_key = (actual_base_url, actual_username, actual_password)
 
-    return wrapper
+        if instance_key not in cls._instances:
+            instance = super().__new__(cls)
+            cls._instances[instance_key] = instance
+            instance._initialized = False
 
+        return cls._instances[instance_key]
 
-class HTTPClient:
     def __init__(
         self,
-        base_url: str,
-        max_retries: int = 3,
-        backoff_factor: float = 0.5,
+        base_url: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
     ):
-        self.base_url = base_url
-        self.max_retries = max_retries
-        self.backoff_factor = backoff_factor
+        # Avoid duplicate initialization of the same instance
+        if hasattr(self, "_initialized") and self._initialized:
+            return
 
-        # 配置Session对象复用TCP连接
-        self.session = requests.Session()
-        adapter = HTTPAdapter(max_retries=max_retries)
-        self.session.mount("http://", adapter)
-        self.session.mount("https://", adapter)
+        self.base_url = base_url or os.getenv("RCABENCH_BASE_URL")
+        self.username = username or os.getenv("RCABENCH_USERNAME")
+        self.password = password or os.getenv("RCABENCH_PASSWORD")
 
-    def _request(
-        self,
-        method: str,
-        endpoint: str,
-        headers: Optional[Dict] = None,
-        params: Optional[Dict] = None,
-        json: Optional[Any] = None,
-        timeout: Optional[float] = None,
-        stream: bool = False,
-    ) -> Response:
-        full_url = f"{self.base_url}{endpoint}"
+        assert self.username is not None, "username or RCABENCH_USERNAME is not set"
+        assert self.password is not None, "password or RCABENCH_PASSWORD is not set"
+        assert self.base_url is not None, "base_url or RCABENCH_BASE_URL is not set"
 
-        for attempt in range(self.max_retries):
-            try:
-                response = self.session.request(
-                    method=method,
-                    url=full_url,
-                    headers=headers,
-                    params=params,
-                    json=json,
-                    timeout=timeout,
-                    stream=stream,
-                )
-                response.raise_for_status()
-                return response
-
-            except HTTPError as e:
-                status_code = e.response.status_code if e.response is not None else 500
-                if 500 <= status_code < 600 and attempt < self.max_retries:
-                    self._handle_retry(attempt, e)
-                    continue
-
-                error_message = f"Server returned {status_code}"
-                if e.response:
-                    try:
-                        error_data = e.response.json()
-                        error_message = (
-                            error_data.get("message")
-                            or error_data.get("detail")
-                            or error_message
-                        )
-                    except (ValueError, AttributeError):
-                        error_message = e.response.text[:200]
-
-                raise HTTPClientError(
-                    message=error_message,
-                    status_code=status_code,
-                    url=full_url,
-                ) from e
-
-            except (Timeout, NewConnectionError, RequestException) as e:
-                if attempt == self.max_retries - 1:
-                    raise HTTPClientError(
-                        message=f"Connection failed after {self.max_retries} retries: {str(e)}",
-                        status_code=503,
-                        url=full_url,
-                    ) from e
-                self._handle_retry(attempt, e)
-
-    def _handle_retry(self, attempt: int, error: Exception) -> None:
-        sleep_time = self.backoff_factor * (2**attempt)
-        logger.warning(
-            f"Attempt {attempt + 1} failed: {error}. Retrying in {sleep_time:.1f}s..."
-        )
-        time.sleep(sleep_time)
-
-    @handle_http_errors
-    def delete(
-        self,
-        endpoint: str,
-        params: Optional[Dict] = None,
-    ) -> Response:
-        return self._request("DELETE", endpoint, params=params)
-
-    @handle_http_errors
-    def get(
-        self,
-        endpoint: str,
-        headers: Optional[Dict] = None,
-        params: Optional[Dict] = None,
-        stream: bool = False,
-        timeout: Optional[float] = None,
-    ) -> Response:
-        return self._request(
-            "GET",
-            endpoint,
-            headers=headers,
-            params=params,
-            stream=stream,
-            timeout=timeout,
-        )
-
-    @handle_http_errors
-    def post(
-        self,
-        endpoint: str,
-        json: Dict,
-    ) -> Response:
-        return self._request("POST", endpoint, json=json)
-
-    @handle_http_errors
-    def put(
-        self,
-        endpoint: str,
-        json: Dict,
-    ) -> Response:
-        return self._request("PUT", endpoint, json=json)
+        self.instance_key = (self.base_url, self.username)
+        self._initialized = True
 
     def __enter__(self):
-        return self
+        # Check if there is already a valid session
+        if self.instance_key not in self._sessions or not self._is_session_valid():
+            self._login()
+        return self._get_authenticated_client()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.session.close()
+        # Do not close session, maintain singleton state
+        pass
+
+    def _is_session_valid(self):
+        """Check if the current session is valid"""
+        session_data = self._sessions.get(self.instance_key)
+        if not session_data:
+            return False
+
+        # More complex session validity checks can be added here, such as checking if token is expired
+        # Currently simply check if access_token exists
+        return session_data.get("access_token") is not None
+
+    def _login(self):
+        config = Configuration(host=self.base_url)
+        with ApiClient(config) as api_client:
+            auth_api = AuthenticationApi(api_client)
+            assert self.username is not None
+            assert self.password is not None
+            login_request = DtoLoginRequest(username=self.username, password=self.password)
+            response = auth_api.api_v2_auth_login_post(login_request)
+            assert response.data is not None
+
+            # Store session information in class-level cache
+            self._sessions[self.instance_key] = {
+                "access_token": response.data.token,
+                "api_client": None,
+            }
+
+    def _get_authenticated_client(self):
+        session_data = self._sessions.get(self.instance_key)
+        if not session_data:
+            self._login()
+            session_data = self._sessions[self.instance_key]
+
+        # If api_client has not been created or needs to be updated, create a new one
+        if not session_data.get("api_client"):
+            auth_config = Configuration(
+                host=self.base_url,
+                api_key={"BearerAuth": session_data["access_token"]},
+                api_key_prefix={"BearerAuth": "Bearer"},
+            )
+            session_data["api_client"] = ApiClient(auth_config)
+
+        return session_data["api_client"]
+
+    def get_client(self):
+        if self.instance_key not in self._sessions or not self._is_session_valid():
+            self._login()
+        return self._get_authenticated_client()
+
+    @classmethod
+    def clear_sessions(cls):
+        cls._sessions.clear()
+        cls._instances.clear()

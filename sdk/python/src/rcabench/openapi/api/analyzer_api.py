@@ -1,5 +1,3 @@
-# coding: utf-8
-
 """
     RCABench API
 
@@ -11,6 +9,7 @@
 
     Do not edit the class manually.
 """  # noqa: E501
+
 
 import warnings
 from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
@@ -39,7 +38,6 @@ class AnalyzerApi:
         if api_client is None:
             api_client = ApiClient.get_default()
         self.api_client = api_client
-
 
     @validate_call
     def api_v1_analyzers_injections_get(
@@ -143,7 +141,7 @@ class AnalyzerApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call

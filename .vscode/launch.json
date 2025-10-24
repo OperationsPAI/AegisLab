@@ -20,6 +20,21 @@
       "args": ["producer", "-c ./config.dev.toml"],
       "cwd": "${workspaceFolder}/src",
       "console": "integratedTerminal"
+    },
+    {
+      "name": "Python: Debug Specific Test",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "tests/test_traces.py::TestTraces::test_get_trace_stream",
+        "-v",
+        "-s",
+        "--tb=short"
+      ],
+      "cwd": "${workspaceFolder}/sdk/python",
+      "console": "integratedTerminal",
+      "justMyCode": false
     }
   ]
 }

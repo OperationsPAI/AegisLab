@@ -1,6 +1,6 @@
 # rcabench.openapi.LabelsApi
 
-All URIs are relative to *http://localhost:8080/api/v1*
+All URIs are relative to *http://localhost:8082*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
@@ -25,10 +25,10 @@ from rcabench.openapi.models.dto_label_create_req import DtoLabelCreateReq
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
 configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
+    host = "http://localhost:8082"
 )
 
 # The client must configure the authentication and authorization parameters

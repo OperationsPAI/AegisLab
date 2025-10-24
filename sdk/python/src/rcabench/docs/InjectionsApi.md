@@ -1,6 +1,6 @@
 # rcabench.openapi.InjectionsApi
 
-All URIs are relative to *http://localhost:8080/api/v1*
+All URIs are relative to *http://localhost:8082*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
@@ -33,10 +33,10 @@ from rcabench.openapi.models.dto_injection_v2_batch_delete_req import DtoInjecti
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
 configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
+    host = "http://localhost:8082"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -115,10 +115,10 @@ from rcabench.openapi.models.dto_generic_response_dto_injection_search_response 
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
 configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
+    host = "http://localhost:8082"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -217,10 +217,10 @@ from rcabench.openapi.models.dto_generic_response_any import DtoGenericResponseA
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
 configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
+    host = "http://localhost:8082"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -300,10 +300,10 @@ from rcabench.openapi.models.dto_generic_response_dto_injection_v2_response impo
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
 configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
+    host = "http://localhost:8082"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -386,10 +386,10 @@ from rcabench.openapi.models.dto_injection_v2_update_req import DtoInjectionV2Up
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
 configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
+    host = "http://localhost:8082"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -472,10 +472,10 @@ from rcabench.openapi.models.dto_injection_v2_custom_label_manage_req import Dto
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
 configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
+    host = "http://localhost:8082"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -558,10 +558,10 @@ from rcabench.openapi.models.dto_injection_v2_label_manage_req import DtoInjecti
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
 configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
+    host = "http://localhost:8082"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -644,10 +644,10 @@ from rcabench.openapi.models.dto_injection_v2_create_req import DtoInjectionV2Cr
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
 configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
+    host = "http://localhost:8082"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -727,10 +727,10 @@ from rcabench.openapi.models.dto_injection_v2_search_req import DtoInjectionV2Se
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
 configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
+    host = "http://localhost:8082"
 )
 
 # The client must configure the authentication and authorization parameters

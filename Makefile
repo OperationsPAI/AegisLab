@@ -335,20 +335,6 @@ check-hostpath-logs: ## 🔍 Check HostPath initialization from pod logs
 		exit 1; \
 	fi	
 
-wait-for-hostpath-init: ## ⏳ Wait for HostPath initialization DaemonSet to complete
-	@printf "$(BLUE)⏳ Waiting for HostPath initialization DaemonSet...$(RESET)\n"
-	@if kubectl get daemonset $(RELEASE_NAME)-hostpath-init -n $(NS) >/dev/null 2>&1; then \
-		printf "$(GRAY)DaemonSet found, checking status...$(RESET)\n"; \
-		kubectl rollout status daemonset/$(RELEASE_NAME)-hostpath-init -n $(NS) --timeout=120s || \
-			(printf "$(RED)❌ DaemonSet failed to initialize$(RESET)\n" && exit 1); \
-		printf "$(GREEN)✅ HostPath DaemonSet is ready$(RESET)\n"; \
-		sleep 5; \
-		$(MAKE) verify-hostpath-logs; \
-		printf "$(GREEN)✅ HostPath initialization completed$(RESET)\n"; \
-	else \
-		printf "$(YELLOW)⚠️  HostPath DaemonSet not found, skipping check$(RESET)\n"; \
-	fi
-
 # =============================================================================
 # Build and Deployment
 # =============================================================================
@@ -547,7 +533,7 @@ update-dependencies: ## 📦 Update latest version of dependencies
 # Function to get target namespaces matching prefix pattern with optional count limit
 # Usage: $(call get_target_namespaces,prefix) or $(call get_target_namespaces,prefix,count)
 define get_target_namespaces
-	kubectl get namespaces -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | tr ' ' '\n' | grep "^$(1)[0-9]*$$" | sort | $(if $(2),head -n $(2),cat)
+    kubectl get namespaces -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | tr ' ' '\n' | grep "^$(1)[0-9]\+$$" | sort | $(if $(2),head -n $(2),cat)
 endef
 
 clean-finalizers: ## 🧹 Clean all chaos resource finalizers in namespaces with specific prefix
@@ -594,7 +580,7 @@ delete-all-chaos: ## 🗑️  Delete all chaos resources in namespaces with spec
 	@namespaces="$$($(call get_target_namespaces,$(NS_PREFIX),$(NS_COUNT)))"; \
 	printf "$(CYAN)Found the following namespaces:$(RESET)\n"; \
 	for ns in $$namespaces; do \
-		printf "  - $$ns"; \
+		printf "  - $$ns\n"; \
 	done; \
 	printf "$(GRAY)Total: $$(printf "$$namespaces" | wc -w) namespaces$(RESET)\n"; \
 	printf ""; \
@@ -657,21 +643,22 @@ install-hooks: ## 🔧 Install pre-commit hooks
 
 swagger: swag-init generate-sdk ## 📚 Generate complete Swagger documentation and SDK
 
-## Initialize Swagger documentation
-swag-init:
+swag-init: ## 📝 Initialize Swagger documentation
 	@printf "$(BLUE)📝 Initializing Swagger documentation...$(RESET)\n"
-	swag init -d ./$(SRC_DIR) --parseDependency --parseDepth 1 --output ./$(SRC_DIR)/docs
+	swag init -d ./$(SRC_DIR) --parseDependency --parseDepth 1 --output ./$(SRC_DIR)/docs/openapi2
+	@printf "$(BLUE)📦 Post-processing swagger initiaization...$(RESET)\n"
+	./scripts/swag-init-postprocess.sh
 	@printf "$(GREEN)✅ Swagger documentation generation completed$(RESET)\n"
 
-## Generate Python SDK from Swagger documentation
-generate-sdk: swag-init
+generate-sdk: swag-init ## ⚙️ Generate Python SDK from Swagger documentation
 	@printf "$(BLUE)🐍 Generating Python SDK...$(RESET)\n"
 	docker run --rm -u $(shell id -u):$(shell id -g) -v $(shell pwd):/local \
 		openapitools/openapi-generator-cli:latest generate \
-		-i /local/$(SRC_DIR)/docs/swagger.json \
+		-i /local/$(SRC_DIR)/docs/openapi2/swagger.json \
 		-g python \
 		-o /local/$(SDK_DIR) \
 		-c /local/.openapi-generator/config.properties \
+		-t /local/.openapi-generator/python \
 		--additional-properties=packageName=openapi,projectName=rcabench
 	@printf "$(BLUE)📦 Post-processing generated SDK...$(RESET)\n"
 	./scripts/mv-generated-sdk.sh

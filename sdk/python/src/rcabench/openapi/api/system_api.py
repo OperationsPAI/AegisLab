@@ -1,5 +1,3 @@
-# coding: utf-8
-
 """
     RCABench API
 
@@ -11,6 +9,7 @@
 
     Do not edit the class manually.
 """  # noqa: E501
+
 
 import warnings
 from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
@@ -45,7 +44,6 @@ class SystemApi:
         if api_client is None:
             api_client = ApiClient.get_default()
         self.api_client = api_client
-
 
     @validate_call
     def system_audit_get(
@@ -141,7 +139,7 @@ class SystemApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -433,7 +431,6 @@ class SystemApi:
 
 
 
-
     @validate_call
     def system_audit_id_get(
         self,
@@ -501,7 +498,7 @@ class SystemApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -702,7 +699,6 @@ class SystemApi:
 
 
 
-
     @validate_call
     def system_audit_post(
         self,
@@ -769,7 +765,7 @@ class SystemApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -982,7 +978,6 @@ class SystemApi:
 
 
 
-
     @validate_call
     def system_health_get(
         self,
@@ -1044,7 +1039,7 @@ class SystemApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -1230,7 +1225,6 @@ class SystemApi:
 
 
 
-
     @validate_call
     def system_monitor_info_get(
         self,
@@ -1292,7 +1286,7 @@ class SystemApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -1478,7 +1472,6 @@ class SystemApi:
 
 
 
-
     @validate_call
     def system_monitor_metrics_post(
         self,
@@ -1545,7 +1538,7 @@ class SystemApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -1757,7 +1750,6 @@ class SystemApi:
 
 
 
-
     @validate_call
     def system_statistics_get(
         self,
@@ -1819,7 +1811,7 @@ class SystemApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
