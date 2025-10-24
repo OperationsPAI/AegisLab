@@ -123,7 +123,9 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 
 		_, index, err := extractNamespace(namespace)
 		if err != nil {
-			monitor.ReleaseLock(namespace, task.TraceID)
+			if err := monitor.ReleaseLock(namespace, task.TraceID); err != nil {
+				logrus.Errorf("failed to release lock for namespace %s: %v", namespace, err)
+			}
 			span.RecordError(err)
 			span.AddEvent("failed to read namespace index")
 			return fmt.Errorf("failed to read namespace index: %v", err)
@@ -146,13 +148,17 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 
 		installFunc, exists := installReleaseMap[nsPrefix]
 		if !exists {
-			monitor.ReleaseLock(namespace, task.TraceID)
+			if err := monitor.ReleaseLock(namespace, task.TraceID); err != nil {
+				logrus.Errorf("failed to release lock for namespace %s: %v", namespace, err)
+			}
 			span.AddEvent("no install function for namespace prefix")
 			return fmt.Errorf("no install function for namespace prefix: %s", nsPrefix)
 		}
 
 		if err := installFunc(childCtx, namespace, index, &payload.container, payload.containerTag); err != nil {
-			monitor.ReleaseLock(namespace, task.TraceID)
+			if err := monitor.ReleaseLock(namespace, task.TraceID); err != nil {
+				logrus.Errorf("failed to release lock for namespace %s: %v", namespace, err)
+			}
 			span.RecordError(err)
 			span.AddEvent("failed to install Train Ticket")
 
@@ -196,7 +202,9 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 			TraceCarrier: task.TraceCarrier,
 		}
 		if _, _, err := SubmitTask(childCtx, injectTask); err != nil {
-			monitor.ReleaseLock(namespace, task.TraceID)
+			if err := monitor.ReleaseLock(namespace, task.TraceID); err != nil {
+				logrus.Errorf("failed to release lock for namespace %s: %v", namespace, err)
+			}
 			span.RecordError(err)
 			span.AddEvent("failed to submit inject task")
 			return fmt.Errorf("failed to submit inject task: %v", err)

@@ -224,7 +224,6 @@ func ExtractTarGz(tarGzFile, destDir string) error {
 
 	tr := tar.NewReader(gzr)
 
-	var headers []*tar.Header
 	var topLevelDir string
 	allInSingleDir := true
 
@@ -236,7 +235,6 @@ func ExtractTarGz(tarGzFile, destDir string) error {
 		if err != nil {
 			return err
 		}
-		headers = append(headers, header)
 
 		parts := strings.Split(header.Name, "/")
 		if len(parts) == 1 && header.Typeflag == tar.TypeReg {

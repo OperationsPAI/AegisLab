@@ -197,7 +197,9 @@ func ProcessDelayedTasks(ctx context.Context) {
 			nextTime, err := cronNextTime(task.CronExpr)
 			if err != nil {
 				logrus.Warnf("invalid cron expr: %v", err)
-				repository.HandleCronRescheduleFailure(ctx, []byte(taskData))
+				if err := repository.HandleCronRescheduleFailure(ctx, []byte(taskData)); err != nil {
+					logrus.Errorf("failed to handle cron reschedule failure: %v", err)
+				}
 				continue
 			}
 
@@ -413,7 +415,9 @@ func unregisterCancelFunc(taskID string) {
 // handleFinalFailure moves a failed task to the dead letter queue
 func handleFinalFailure(ctx context.Context, task *dto.UnifiedTask, errMsg string) {
 	taskData, _ := marshalTask(task)
-	repository.HandleFailedTask(ctx, taskData, task.RetryPolicy.BackoffSec)
+	if err := repository.HandleFailedTask(ctx, taskData, task.RetryPolicy.BackoffSec); err != nil {
+		logrus.Errorf("failed to handle failed task %s: %v", task.TaskID, err)
+	}
 
 	span := trace.SpanFromContext(ctx)
 	span.AddEvent(errMsg)
@@ -464,7 +468,9 @@ func CancelTask(taskID string) error {
 	}
 
 	// Clean up index
-	repository.DeleteTaskIndex(ctx, taskID)
+	if err := repository.DeleteTaskIndex(ctx, taskID); err != nil {
+		logrus.Warnf("failed to delete task index: %v", err)
+	}
 
 	if exists || err == nil {
 		return nil
@@ -479,7 +485,7 @@ func CancelTask(taskID string) error {
 
 // updateTaskStatus updates the task status and publishes the update
 func updateTaskStatus(ctx context.Context, traceID, taskID, message, taskStatus string, taskType consts.TaskType) {
-	tracing.WithSpan(ctx, func(ctx context.Context) error {
+	err := tracing.WithSpan(ctx, func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
 		logEntry := logrus.WithField("trace_id", traceID).WithField("task_id", taskID)
 		span.AddEvent(message)
@@ -509,6 +515,10 @@ func updateTaskStatus(ctx context.Context, traceID, taskID, message, taskStatus 
 		}
 		return err
 	})
+
+	if err != nil {
+		logrus.WithField("task_id", taskID).Errorf("failed to update task status: %v", err)
+	}
 }
 
 // -----------------------------------------------------------------------------

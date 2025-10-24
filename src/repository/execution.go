@@ -536,16 +536,16 @@ func RemoveExecutionResultLabel(executionID int, labelKey, labelValue string) er
 }
 
 // applyLabelFilters applies label filters to a GORM query using native GORM joins
-func applyLabelFilters(query *gorm.DB, tag string) *gorm.DB {
-	if tag == "" {
-		return query
-	}
+// func applyLabelFilters(query *gorm.DB, tag string) *gorm.DB {
+// 	if tag == "" {
+// 		return query
+// 	}
 
-	query = query.Joins("JOIN execution_result_labels erl ON erl.execution_id = execution_results.id").
-		Joins("JOIN labels l ON l.id = erl.label_id").
-		Where("l.label_key = ? AND l.label_value = ?", consts.LabelKeyTag, tag)
-	return query
-}
+// 	query = query.Joins("JOIN execution_result_labels erl ON erl.execution_id = execution_results.id").
+// 		Joins("JOIN labels l ON l.id = erl.label_id").
+// 		Where("l.label_key = ? AND l.label_value = ?", consts.LabelKeyTag, tag)
+// 	return query
+// }
 
 // GetDatasetEvaluationBatch retrieves evaluation results for multiple algorithm-dataset pairs in batch
 // Optimized for datasets with large number of execution records (10000+ executions, 50000+ results)

@@ -4,21 +4,28 @@
     "go@1.23.3",
     "skaffold@2.13.2",
     "ruff@0.9.3",
-    "golangci-lint@latest"
+    "golangci-lint@latest",
+    "husky@8.0.3"
   ],
   "shell": {
     "init_hook": [
       "echo 'Welcome to devbox!'"
     ],
     "scripts": {
+      "install-hooks": [
+        "husky install && husky add .husky/pre-commit 'make pre-commit' && husky add .husky/pre-push 'make pre-push'"
+      ],
       "lint-go": [
         "cd src && golangci-lint run"
       ],
       "lint-py": [
         "ruff check --fix --show-fixes --exclude algorithms"
       ],
-      "build": [
-        "skaffold build --default-repo=docker.io/opspai"
+      "local-debug": [
+        "make local-debug"
+      ],
+      "run": [
+        "make run"
       ]
     }
   }

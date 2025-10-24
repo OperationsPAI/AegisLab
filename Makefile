@@ -18,8 +18,9 @@ PORT        	:= 30080
 RELEASE_NAME    := rcabench
 
 # Directory Configuration
-SRC_DIR := src
+HUSKY_DIR := .husky
 SDK_DIR := sdk/python-gen
+SRC_DIR := src
 
 # Chaos Types Configuration
 CHAOS_TYPES := dnschaos httpchaos jvmchaos networkchaos podchaos stresschaos timechaos
@@ -49,7 +50,7 @@ endef
 # Declare all non-file targets
 # =============================================================================
 .PHONY: help build run debug swagger import clean-finalizers delete-all-chaos k8s-resources ports \
-        install-hooks deploy-ts swag-init generate-sdk release \
+        pre-commit deploy-ts swag-init generate-sdk release \
         check-prerequisites setup-dev-env clean-all status logs
 
 # =============================================================================
@@ -244,10 +245,17 @@ check-prerequisites: ## 🔍 Check development environment dependencies
 	@printf "$(GREEN)🎉 All dependency checks passed!$(RESET)\n"
 
 setup-dev-env: check-prerequisites ## 🛠️  Setup development environment
-	@printf "$(BLUE)🛠️ Setting up development environment...$(RESET)\n"
+	@printf "$(BLUE)🛠️  Setting up development environment...$(RESET)\n"
 	@printf "$(GRAY)Installing Git hooks...$(RESET)\n"
-	@$(MAKE) install-hooks
-	@printf "$(GREEN)✅ Development environment setup completed!$(RESET)\n"
+	@printf "$(GRAY)Checking Husky Installation Status...$(RESET)\n"
+	@if test -d $(HUSKY_DIR); then \
+		printf "$(YELLOW)Warning: The $(HUSKY_DIR) directory already exists$(RESET)\n"; \
+		printf "$(YELLOW)If you need to re-install, please remove the directory first$(RESET)\n"; \
+	else \
+		printf "$(BLUE)Directory $(HUSKY_DIR) not found. Running initialization...$(RESET)\n"; \
+		devbox run install-hooks; \
+		printf "$(GREEN)✅ Development environment setup completed!$(RESET)\n"; \
+	fi
 
 # =============================================================================
 # Secret Management
@@ -627,15 +635,34 @@ ports: ## 🔌 Port forward services
 	@printf "$(GRAY)Access URL: http://localhost:8081$(RESET)\n"
 
 # =============================================================================
-# Git Management
+# Git Hooks
 # =============================================================================
 
-install-hooks: ## 🔧 Install pre-commit hooks
-	@printf "$(BLUE)🔧 Installing Git hooks...$(RESET)\n"
-	chmod +x scripts/hooks/pre-commit
-	cp scripts/hooks/pre-commit .git/hooks/pre-commit
-	chmod +x .git/hooks/pre-commit
-	@printf "$(GREEN)✅ Git hooks installation completed$(RESET)\n"
+pre-commit:
+	@printf "$(BLUE)Running pre-commit checks...$(RESET)\n"
+	@devbox run lint-go
+	@if [ $$? -ne 0 ]; then \
+		echo "❌ Lint failed. Please fix the issues before committing."; \
+		exit 1; \
+	fi
+	@printf "$(GREEN)✅ Pre-commit checks passed!$(RESET)\n"
+
+pre-push: ## 🚀 Run pre-push checks (validates tags and runs tests)
+	@printf "$(BLUE)🚀 Running pre-push checks...$(RESET)\n"
+	@printf "$(GRAY)Checking if pushing tags...$(RESET)\n"
+	@while read local_ref local_sha remote_ref remote_sha; do \
+		if echo "$$remote_ref" | grep -q "refs/tags/"; then \
+			tag_name=$$(echo "$$remote_ref" | sed 's/refs\/tags\///'); \
+			printf "$(CYAN)📌 Detected tag push: $$tag_name$(RESET)\n"; \
+			if echo "$$tag_name" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+				printf "$(GREEN)✅ Valid semver tag: $$tag_name$(RESET)\n"; \
+			else \
+				printf "$(RED)❌ Invalid tag format: $$tag_name (expected: vX.Y.Z)$(RESET)\n"; \
+				exit 1; \
+			fi; \
+		fi; \
+	done
+	@printf "$(GREEN)✅ Pre-push checks passed!$(RESET)\n"
 
 # =============================================================================
 # SDK Generation

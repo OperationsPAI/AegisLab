@@ -32,6 +32,8 @@ func TestGetVolumeMountConfigs(t *testing.T) {
 	}
 
 	pp.Println(volumeMountConfigs)
+	pp.Println(volumeMounts)
+	pp.Println(volumes)
 }
 
 func TestCreateGetDeleteK8sJob(t *testing.T) {
