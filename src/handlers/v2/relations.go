@@ -121,6 +121,7 @@ func AssignRolePermissions(c *gin.Context) {
 }
 
 // RemoveRolePermissions handles role-permission removal
+// ·
 //
 //	@Summary Remove permissions from role
 //	@Description Remove multiple permissions from a role

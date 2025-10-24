@@ -1,5 +1,3 @@
-# coding: utf-8
-
 """
     RCABench API
 
@@ -11,6 +9,7 @@
 
     Do not edit the class manually.
 """  # noqa: E501
+
 
 import warnings
 from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
@@ -45,7 +44,6 @@ class RelationsApi:
         if api_client is None:
             api_client = ApiClient.get_default()
         self.api_client = api_client
-
 
     @validate_call
     def api_v2_relations_batch_post(
@@ -113,7 +111,7 @@ class RelationsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -326,7 +324,6 @@ class RelationsApi:
 
 
 
-
     @validate_call
     def api_v2_relations_get(
         self,
@@ -417,7 +414,7 @@ class RelationsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -697,7 +694,6 @@ class RelationsApi:
 
 
 
-
     @validate_call
     def api_v2_relations_role_permissions_delete(
         self,
@@ -764,7 +760,7 @@ class RelationsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -977,7 +973,6 @@ class RelationsApi:
 
 
 
-
     @validate_call
     def api_v2_relations_role_permissions_post(
         self,
@@ -1045,7 +1040,7 @@ class RelationsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -1260,7 +1255,6 @@ class RelationsApi:
 
 
 
-
     @validate_call
     def api_v2_relations_statistics_get(
         self,
@@ -1322,7 +1316,7 @@ class RelationsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -1509,7 +1503,6 @@ class RelationsApi:
 
 
 
-
     @validate_call
     def api_v2_relations_user_permissions_delete(
         self,
@@ -1576,7 +1569,7 @@ class RelationsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -1789,7 +1782,6 @@ class RelationsApi:
 
 
 
-
     @validate_call
     def api_v2_relations_user_permissions_post(
         self,
@@ -1857,7 +1849,7 @@ class RelationsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -2072,7 +2064,6 @@ class RelationsApi:
 
 
 
-
     @validate_call
     def api_v2_relations_user_roles_delete(
         self,
@@ -2140,7 +2131,7 @@ class RelationsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -2355,7 +2346,6 @@ class RelationsApi:
 
 
 
-
     @validate_call
     def api_v2_relations_user_roles_post(
         self,
@@ -2423,7 +2413,7 @@ class RelationsApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call

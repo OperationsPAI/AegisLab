@@ -3,15 +3,15 @@
 // @description     RCABench - A comprehensive root cause analysis benchmarking platform for microservices
 // @description     This API provides endpoints for managing datasets, algorithms, evaluations, and fault injections
 // @description     for root cause analysis in distributed systems and microservices architectures.
+
 // @contact.name    RCABench Team
 // @contact.email   team@rcabench.com
-// @license.name    MIT
-// @license.url     https://opensource.org/licenses/MIT
-// @host            localhost:8080
-// @BasePath        /api/v1
-// @schemes         http https
-// @produce         json
-// @consumes        json
+
+// @license.name  Apache 2.0
+// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host            localhost:8082
+// @schemes         http
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
@@ -31,7 +31,6 @@ import (
 	"aegis/client/k8s"
 	"aegis/config"
 	"aegis/database"
-	_ "aegis/docs"
 	"aegis/executor"
 	"aegis/repository"
 	"aegis/router"

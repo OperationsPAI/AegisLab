@@ -1,36 +1,16 @@
-from typing import Any
-from ..const import EventType, TaskStatus, TaskType
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from uuid import UUID
 import json
+from typing import Any
+from uuid import UUID
 
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-class GetTraceEventsReq(BaseModel):
-    trace_id: UUID = Field(
-        ...,
-        description="Unique identifier for the entire trace",
-        json_schema_extra={"example": "75430787-c19a-4f90-8c1f-07d215a664b7"},
-    )
-
-    last_event_id: str = Field(
-        default="0",
-        description="",
-        json_schema_extra={"example": "0"},
-    )
-
-    timeout: float | None = Field(
-        None,
-        description="",
-        json_schema_extra={
-            "example": [None, 60.0],
-        },
-    )
+from ..const import EventType, TaskStatus, TaskType
 
 
 class AlgorithmItem(BaseModel):
     """Algorithm item model"""
 
-    model_config = ConfigDict(extra="ignore", validate_by_name=True)
+    model_config = ConfigDict(extra="ignore", validate_by_name=True)  # type: ignore
 
     name: str = Field(..., description="Algorithm name")
     image: str = Field(..., description="Algorithm image")
@@ -40,7 +20,7 @@ class AlgorithmItem(BaseModel):
 class DatasetOptions(BaseModel):
     """Dataset options model"""
 
-    model_config = ConfigDict(extra="ignore", validate_by_name=True)
+    model_config = ConfigDict(extra="ignore", validate_by_name=True)  # type: ignore
 
     dataset: str = Field(..., description="Dataset name")
 
@@ -48,7 +28,7 @@ class DatasetOptions(BaseModel):
 class DetectorRecord(BaseModel):
     """Detector record model"""
 
-    model_config = ConfigDict(extra="ignore", validate_by_name=True)
+    model_config = ConfigDict(extra="ignore", validate_by_name=True)  # type: ignore
 
     span_name: str = Field(..., alias="SpanName", description="Span name")
     issues: dict[str, Any] = Field(..., description="Issues detected")
@@ -73,7 +53,7 @@ class DetectorRecord(BaseModel):
 class ExecutionOptions(BaseModel):
     """Execution options model"""
 
-    model_config = ConfigDict(extra="ignore", validate_by_name=True)
+    model_config = ConfigDict(extra="ignore", validate_by_name=True)  # type: ignore
 
     algorithm: AlgorithmItem = Field(..., description="Algorithm item")
     dataset: str = Field(..., description="dataset")
@@ -83,12 +63,10 @@ class ExecutionOptions(BaseModel):
 class InfoPayload(BaseModel):
     """Info payload model"""
 
-    model_config = ConfigDict(extra="ignore", validate_by_name=True)
+    model_config = ConfigDict(extra="ignore", validate_by_name=True)  # type: ignore
 
     status: TaskStatus = Field(..., description="Status of the task")
-    message: str = Field(
-        ..., alias="msg", description="Message associated with the task status"
-    )
+    message: str = Field(..., alias="msg", description="Message associated with the task status")
 
 
 class StreamEvent(BaseModel):
@@ -136,31 +114,4 @@ class StreamEvent(BaseModel):
     payload: Any | None = Field(
         None,
         description="Additional data associated with the event. Content varies based on event_name",
-    )
-
-
-class TraceEvents(BaseModel):
-    """
-    TraceEvents 跟踪事件集合模型
-
-    Attributes:
-        last_event_id (str): 返回的事件集合中最后一个事件的ID
-            - 格式通常为 "{timestamp}-{sequence}"，来自Redis Stream的消息ID体系
-            - 用于后续请求的分页标记，实现增量获取事件
-            - 客户端应在下次请求中将此值作为起始ID传递，以获取更新的事件
-
-        events (List[StreamEvent]): 事件列表，按时间顺序记录链路中的各个状态变更和操作
-            - 列表中的每个元素为一个StreamEvent对象
-            - 通常按时间先后顺序排列，从链路开始到结束
-            - 包含任务生命周期中的所有关键状态变更和操作记录
-    """
-
-    last_event_id: str = Field(
-        ...,
-        description="ID of the last event in the returned collection, used for pagination and incremental event retrieval. ",
-    )
-
-    events: list[StreamEvent] = Field(
-        ...,
-        description="Ordered list of events associated with a task trace, capturing the complete execution history from start to finish",
     )

@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**services** | [**Dict[str, DtoServiceInfo]**](DtoServiceInfo.md) |  | [optional] 
+**services** | **object** |  | [optional] 
 **status** | **str** |  | [optional] 
 **timestamp** | **str** |  | [optional] 
 **uptime** | **str** |  | [optional] 

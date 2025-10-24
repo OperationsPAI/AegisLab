@@ -210,7 +210,7 @@ conf = rcabench.openapi.Configuration(
     ) -> None:
         """Constructor
         """
-        self._base_path = "http://localhost:8080/api/v1" if host is None else host
+        self._base_path = "http://localhost:8082" if host is None else host
         """Default Base url
         """
         self.server_index = 0 if server_index is None and host is None else server_index
@@ -532,7 +532,7 @@ conf = rcabench.openapi.Configuration(
                "OS: {env}\n"\
                "Python Version: {pyversion}\n"\
                "Version of the API: 1.0.1\n"\
-               "SDK Package Version: 1.0.0".\
+               "SDK Package Version: 1.1.44".\
                format(env=sys.platform, pyversion=sys.version)
 
     def get_host_settings(self) -> List[HostSetting]:
@@ -542,11 +542,7 @@ conf = rcabench.openapi.Configuration(
         """
         return [
             {
-                'url': "http://localhost:8080/api/v1",
-                'description': "No description provided",
-            },
-            {
-                'url': "https://localhost:8080/api/v1",
+                'url': "http://localhost:8082",
                 'description': "No description provided",
             }
         ]

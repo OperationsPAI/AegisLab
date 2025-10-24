@@ -294,6 +294,7 @@ func QueryInjection(c *gin.Context) {
 //	@Description	Submit fault injection task, supporting batch submission of multiple fault configurations, the system will automatically deduplicate and return submission results
 //	@Tags			injection
 //	@Produce		json
+//	@Security BearerAuth
 //	@Consumes		application/json
 //	@Param			body	body		dto.SubmitInjectionReq	true	"Fault injection request body"
 //	@Success		202		{object}	dto.GenericResponse[dto.SubmitInjectionResp]	"Successfully submitted fault injection task"

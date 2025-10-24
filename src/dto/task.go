@@ -17,6 +17,7 @@ import (
 // -----------------------------------------------------------------------------
 // Data Structures
 // -----------------------------------------------------------------------------
+
 // RetryPolicy defines how tasks should be retried on failure
 type RetryPolicy struct {
 	MaxAttempts int `json:"max_attempts"` // Maximum number of retry attempts
@@ -127,66 +128,6 @@ type TaskStreamItem struct {
 func (t *TaskStreamItem) Convert(task database.Task) {
 	t.Type = task.Type
 	t.TraceID = task.TraceID
-}
-
-type DatasetOptions struct {
-	Dataset string `json:"dataset"`
-}
-
-type ExecutionOptions struct {
-	Algorithm   AlgorithmItem `json:"algorithm"`
-	Dataset     string        `json:"dataset"`
-	ExecutionID int           `json:"execution_id"`
-	Timestamp   string        `json:"timestamp"`
-}
-
-type JobMessage struct {
-	JobName   string              `json:"job_name"`
-	Namespace string              `json:"namespace"`
-	Status    string              `json:"status"`
-	Logs      map[string][]string `json:"logs"`
-}
-
-type StreamEvent struct {
-	TimeStamp int              `json:"timestamp,omitempty"`
-	TaskID    string           `json:"task_id"`
-	TaskType  consts.TaskType  `json:"task_type"`
-	FileName  string           `json:"file_name"`
-	FnName    string           `json:"function_name"`
-	Line      int              `json:"line"`
-	EventName consts.EventType `json:"event_name"`
-	Payload   any              `json:"payload"`
-}
-
-type InfoPayloadTemplate struct {
-	Status string `json:"status"`
-	Msg    string `json:"msg"`
-}
-
-func (s *StreamEvent) ToRedisStream() map[string]any {
-	payload, err := json.Marshal(s.Payload)
-	if err != nil {
-		logrus.Errorf("Failed to marshal payload: %v", err)
-		return nil
-	}
-
-	return map[string]any{
-		consts.RdbEventTaskID:   s.TaskID,
-		consts.RdbEventTaskType: string(s.TaskType),
-		consts.RdbEventFileName: s.FileName,
-		consts.RdbEventFn:       s.FnName,
-		consts.RdbEventLine:     s.Line,
-		consts.RdbEventName:     string(s.EventName),
-		consts.RdbEventPayload:  payload,
-	}
-}
-
-func (s *StreamEvent) ToSSE() (string, error) {
-	jsonData, err := json.Marshal(s)
-	if err != nil {
-		return "", err
-	}
-	return string(jsonData), nil
 }
 
 type ListTasksReq struct {

@@ -20,7 +20,6 @@ import json
 
 from pydantic import BaseModel, ConfigDict, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from rcabench.openapi.models.dto_service_info import DtoServiceInfo
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -28,7 +27,7 @@ class DtoHealthCheckResponse(BaseModel):
     """
     DtoHealthCheckResponse
     """ # noqa: E501
-    services: Optional[Dict[str, DtoServiceInfo]] = None
+    services: Optional[Dict[str, Any]] = None
     status: Optional[StrictStr] = None
     timestamp: Optional[StrictStr] = None
     uptime: Optional[StrictStr] = None
@@ -77,13 +76,6 @@ class DtoHealthCheckResponse(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of each value in services (dict)
-        _field_dict = {}
-        if self.services:
-            for _key_services in self.services:
-                if self.services[_key_services]:
-                    _field_dict[_key_services] = self.services[_key_services].to_dict()
-            _dict['services'] = _field_dict
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -101,12 +93,7 @@ class DtoHealthCheckResponse(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "services": dict(
-                (_k, DtoServiceInfo.from_dict(_v))
-                for _k, _v in obj["services"].items()
-            )
-            if obj.get("services") is not None
-            else None,
+            "services": obj.get("services"),
             "status": obj.get("status"),
             "timestamp": obj.get("timestamp"),
             "uptime": obj.get("uptime"),

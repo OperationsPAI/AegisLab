@@ -1,6 +1,6 @@
 # rcabench.openapi.TaskApi
 
-All URIs are relative to *http://localhost:8080/api/v1*
+All URIs are relative to *http://localhost:8082*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
@@ -25,10 +25,10 @@ from rcabench.openapi.models.dto_generic_response_dto_list_tasks_resp import Dto
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
 configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
+    host = "http://localhost:8082"
 )
 
 
@@ -117,10 +117,10 @@ from rcabench.openapi.models.dto_generic_response_dto_pagination_resp_dto_unifie
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
 configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
+    host = "http://localhost:8082"
 )
 
 
@@ -189,10 +189,10 @@ from rcabench.openapi.models.dto_generic_response_dto_task_detail_resp import Dt
 from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
 configuration = rcabench.openapi.Configuration(
-    host = "http://localhost:8080/api/v1"
+    host = "http://localhost:8082"
 )
 
 

@@ -1,15 +1,14 @@
-package handlers
+package v2
 
 import (
+	"aegis/consts"
+	"aegis/dto"
+	"aegis/repository"
 	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
-
-	"aegis/consts"
-	"aegis/dto"
-	"aegis/repository"
 
 	"github.com/gin-contrib/sse"
 	"github.com/gin-gonic/gin"
@@ -17,27 +16,29 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// GetTraceStream handles streaming of trace events via Server-Sent Events (SSE)
+//
+//	@Summary      Stream trace events in real-time
+//	@Description  Establishes a Server-Sent Events (SSE) connection to stream trace logs and task execution events in real-time. Returns historical events first, then switches to live monitoring.
+//	@Tags         Traces
+//	@Accept       json
+//	@Produce      text/event-stream
+//	@Security     BearerAuth
+//	@Param        id  		path      string  true   "Trace ID"
+//	@Param        last_id   query     string  false  "Last event ID received" default("0")
+//	@Failure      400       {object}  dto.GenericResponse[any]	"Invalid request"
+//	@Failure      500       {object}  dto.GenericResponse[any]  "Internal server error"
+//	@Router       /api/v2/traces/{id}/stream [get]
 func GetTraceStream(c *gin.Context) {
-	var traceReq dto.TraceReq
-	if err := c.BindUri(&traceReq); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid URI")
-		return
-	}
-
-	var req dto.TraceStreamReq
-	if err := c.BindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid Parameters")
-		return
-	}
-
-	lastID := req.LastID
+	traceID := c.Param("id")
+	lastID := c.Query("last_id")
 	if lastID == "" {
 		lastID = "0"
 	}
 
-	streamKey := fmt.Sprintf(consts.StreamLogKey, traceReq.TraceID)
+	streamKey := fmt.Sprintf(consts.StreamLogKey, traceID)
 	logEntry := logrus.WithFields(logrus.Fields{
-		"trace_id":   traceReq.TraceID,
+		"trace_id":   traceID,
 		"stream_key": streamKey,
 	})
 
@@ -49,7 +50,7 @@ func GetTraceStream(c *gin.Context) {
 	}
 
 	listReq := &dto.ListTasksReq{
-		TraceID: traceReq.TraceID,
+		TraceID: traceID,
 	}
 
 	if err := listReq.Validate(); err != nil {
@@ -88,11 +89,17 @@ func GetTraceStream(c *gin.Context) {
 		return
 	}
 
+	var completed bool
 	if len(historicalMessages) > 0 {
-		lastID, err = sendSSEMessages(c, processor, historicalMessages)
+		lastID, completed, err = sendSSEEvents(c, processor, historicalMessages)
 		if err != nil {
-			logEntry.Errorf("failed to read stream events: %v", err)
+			logEntry.Errorf("failed to read historical stream events of ID %s: %v", lastID, err)
 			dto.ErrorResponse(c, http.StatusInternalServerError, "failed to read stream events")
+			return
+		}
+
+		if completed {
+			logEntry.Info("Trace completed during historical events, closing stream connection")
 			return
 		}
 	}
@@ -121,9 +128,14 @@ func GetTraceStream(c *gin.Context) {
 				continue
 			}
 
-			lastID, err = sendSSEMessages(c, processor, newMessages)
+			lastID, completed, err = sendSSEEvents(c, processor, newMessages)
 			if err != nil {
-				logEntry.Error(err)
+				logEntry.Errorf("failed to read stream events of ID %s: %v", lastID, err)
+				return
+			}
+
+			if completed {
+				logEntry.Info("Trace completed, closing stream connection")
 				return
 			}
 
@@ -132,31 +144,26 @@ func GetTraceStream(c *gin.Context) {
 	}
 }
 
-func sendSSEMessages(c *gin.Context, processor *repository.StreamProcessor, streams []redis.XStream) (string, error) {
-	lastID, sseMessage, err := processor.ProcessMessageForSSE(streams[0].Messages[0])
+func sendSSEEvents(c *gin.Context, processor *repository.StreamProcessor, streams []redis.XStream) (string, bool, error) {
+	lastID, stremEvent, err := processor.ProcessMessageForSSE(streams[0].Messages[0])
 	if err != nil {
-		return "", err
+		c.SSEvent(string(consts.EventEnd), nil)
+		c.Writer.Flush()
+		return lastID, true, err
 	}
 
 	c.Render(-1, sse.Event{
 		Id:    lastID,
-		Event: consts.EventUpdate,
-		Data:  sseMessage,
+		Event: string(consts.EventUpdate),
+		Data:  stremEvent,
 	})
 	c.Writer.Flush()
 
-	if processor.IsCompleted() {
-		c.SSEvent(consts.EventEnd, nil)
+	completed := processor.IsCompleted()
+	if completed {
+		c.SSEvent(string(consts.EventEnd), nil)
 		c.Writer.Flush()
 	}
 
-	return lastID, nil
-}
-
-func GetTaskEventMap(c *gin.Context) {
-	dto.SuccessResponse(c, dto.ValidTaskEventMap)
-}
-
-func GetValidTaskTypes(c *gin.Context) {
-	dto.SuccessResponse(c, dto.ValidFirstTaskTypes)
+	return lastID, completed, nil
 }

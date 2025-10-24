@@ -8,7 +8,7 @@ type HealthCheckResponse struct {
 	Timestamp time.Time              `json:"timestamp"`
 	Version   string                 `json:"version"`
 	Uptime    string                 `json:"uptime"`
-	Services  map[string]ServiceInfo `json:"services"`
+	Services  map[string]ServiceInfo `json:"services" swaggertype:"object"`
 }
 
 // ServiceInfo represents individual service health information

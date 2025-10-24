@@ -1,5 +1,66 @@
-basePath: /api/v1
 definitions:
+  consts.EventType:
+    enum:
+    - algorithm.run.succeed
+    - algorithm.run.failed
+    - algorithm.result.collection
+    - algorithm.no_result_data
+    - datapack.build.succeed
+    - datapack.build.failed
+    - datapack.result.collection
+    - datapack.no_anomaly
+    - datapack.no_detector_data
+    - image.build.succeed
+    - task.status.update
+    - task.retry.status
+    - task.started
+    - no.token.available
+    - no.namespace.available
+    - restart.service.started
+    - restart.service.completed
+    - restart.service.failed
+    - fault.injection.started
+    - fault.injection.completed
+    - fault.injection.failed
+    - acquire.lock
+    - release.lock
+    - k8s.job.succeed
+    - k8s.job.failed
+    type: string
+    x-enum-varnames:
+    - EventAlgoRunSucceed
+    - EventAlgoRunFailed
+    - EventAlgoResultCollection
+    - EventAlgoNoResultData
+    - EventDatapackBuildSucceed
+    - EventDatapackBuildFailed
+    - EventDatapackResultCollection
+    - EventDatapackNoAnomaly
+    - EventDatapackNoDetectorData
+    - EventImageBuildSucceed
+    - EventTaskStatusUpdate
+    - EventTaskRetryStatus
+    - EventTaskStarted
+    - EventNoTokenAvailable
+    - EventNoNamespaceAvailable
+    - EventRestartServiceStarted
+    - EventRestartServiceCompleted
+    - EventRestartServiceFailed
+    - EventFaultInjectionStarted
+    - EventFaultInjectionCompleted
+    - EventFaultInjectionFailed
+    - EventAcquireLock
+    - EventReleaseLock
+    - EventJobSucceed
+    - EventJobFailed
+  consts.SSEEventName:
+    enum:
+    - end
+    - update
+    type: string
+    x-enum-varnames:
+    - EventEnd
+    - EventUpdate
   consts.TaskType:
     enum:
     - RestartService
@@ -1087,6 +1148,11 @@ definitions:
     required:
     - items
     type: object
+  dto.DatasetOptions:
+    properties:
+      dataset:
+        type: string
+    type: object
   dto.DatasetSearchResponse:
     properties:
       items:
@@ -1472,6 +1538,17 @@ definitions:
     properties:
       tag:
         description: user-defined tag
+        type: string
+    type: object
+  dto.ExecutionOptions:
+    properties:
+      algorithm:
+        $ref: '#/definitions/dto.AlgorithmItem'
+      dataset:
+        type: string
+      execution_id:
+        type: integer
+      timestamp:
         type: string
     type: object
   dto.ExecutionStatistics:
@@ -2700,8 +2777,6 @@ definitions:
   dto.HealthCheckResponse:
     properties:
       services:
-        additionalProperties:
-          $ref: '#/definitions/dto.ServiceInfo'
         type: object
       status:
         type: string
@@ -2710,6 +2785,13 @@ definitions:
       uptime:
         type: string
       version:
+        type: string
+    type: object
+  dto.InfoPayloadTemplate:
+    properties:
+      msg:
+        type: string
+      status:
         type: string
     type: object
   dto.InjectCancelResp:
@@ -4055,18 +4137,6 @@ definitions:
       num:
         type: integer
     type: object
-  dto.ServiceInfo:
-    properties:
-      details: {}
-      error:
-        type: string
-      last_checked:
-        type: string
-      response_time:
-        type: string
-      status:
-        type: string
-    type: object
   dto.SizeRangeFilter:
     properties:
       max_size:
@@ -4096,6 +4166,17 @@ definitions:
     required:
     - direction
     - field
+    type: object
+  dto.StreamEvent:
+    properties:
+      event_name:
+        $ref: '#/definitions/consts.EventType'
+      payload:
+        type: object
+      task_id:
+        type: string
+      task_type:
+        $ref: '#/definitions/consts.TaskType'
     type: object
   dto.SubmitDatasetBuildingReq:
     properties:
@@ -4859,7 +4940,7 @@ definitions:
     additionalProperties:
       type: string
     type: object
-host: localhost:8080
+host: localhost:8082
 info:
   contact:
     email: team@rcabench.com
@@ -4869,11 +4950,27 @@ info:
     This API provides endpoints for managing datasets, algorithms, evaluations, and fault injections
     for root cause analysis in distributed systems and microservices architectures.
   license:
-    name: MIT
-    url: https://opensource.org/licenses/MIT
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
   title: RCABench API
   version: 1.0.1
 paths:
+  /api/_docs/models:
+    get:
+      consumes:
+      - application/json
+      description: Virtual endpoint for including all DTO type definitions in Swagger
+        documentation. DO NOT USE in production.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: SSE event name constants
+          schema:
+            $ref: '#/definitions/consts.SSEEventName'
+      summary: API Model Definitions
+      tags:
+      - Documentation
   /api/v1/analyzers/injections:
     get:
       description: Analyze fault injection data using various filtering conditions,
@@ -5509,6 +5606,8 @@ paths:
           description: Internal server error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
       summary: Submit Fault Injection Task
       tags:
       - injection
@@ -8894,6 +8993,40 @@ paths:
       summary: Search tasks
       tags:
       - Tasks
+  /api/v2/traces/{id}/stream:
+    get:
+      consumes:
+      - application/json
+      description: Establishes a Server-Sent Events (SSE) connection to stream trace
+        logs and task execution events in real-time. Returns historical events first,
+        then switches to live monitoring.
+      parameters:
+      - description: Trace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: '"0"'
+        description: Last event ID received
+        in: query
+        name: last_id
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Stream trace events in real-time
+      tags:
+      - Traces
   /api/v2/users:
     get:
       description: Get paginated list of users with optional filtering
@@ -9394,11 +9527,8 @@ paths:
       summary: Get system statistics
       tags:
       - System
-produces:
-- application/json
 schemes:
 - http
-- https
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

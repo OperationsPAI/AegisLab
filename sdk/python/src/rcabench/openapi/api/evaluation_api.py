@@ -1,5 +1,3 @@
-# coding: utf-8
-
 """
     RCABench API
 
@@ -11,6 +9,7 @@
 
     Do not edit the class manually.
 """  # noqa: E501
+
 
 import warnings
 from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
@@ -49,7 +48,6 @@ class EvaluationApi:
         if api_client is None:
             api_client = ApiClient.get_default()
         self.api_client = api_client
-
 
     @validate_call
     def api_v1_evaluations_executions_get(
@@ -129,7 +127,7 @@ class EvaluationApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -369,7 +367,6 @@ class EvaluationApi:
 
 
 
-
     @validate_call
     def api_v1_evaluations_groundtruth_post(
         self,
@@ -436,7 +433,7 @@ class EvaluationApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -635,7 +632,6 @@ class EvaluationApi:
 
 
 
-
     @validate_call
     def api_v1_evaluations_raw_data_post(
         self,
@@ -702,7 +698,7 @@ class EvaluationApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -901,7 +897,6 @@ class EvaluationApi:
 
 
 
-
     @validate_call
     def api_v2_evaluations_datapacks_detector_post(
         self,
@@ -970,7 +965,7 @@ class EvaluationApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -1187,7 +1182,6 @@ class EvaluationApi:
 
 
 
-
     @validate_call
     def api_v2_evaluations_datapacks_post(
         self,
@@ -1256,7 +1250,7 @@ class EvaluationApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -1473,7 +1467,6 @@ class EvaluationApi:
 
 
 
-
     @validate_call
     def api_v2_evaluations_datasets_post(
         self,
@@ -1542,7 +1535,7 @@ class EvaluationApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call
@@ -1759,7 +1752,6 @@ class EvaluationApi:
 
 
 
-
     @validate_call
     def api_v2_evaluations_label_keys_get(
         self,
@@ -1823,7 +1815,7 @@ class EvaluationApi:
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        ).data
+        ).data # type: ignore
 
 
     @validate_call

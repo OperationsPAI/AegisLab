@@ -10,6 +10,7 @@ import (
 	"aegis/utils"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 // Login handles user authentication
@@ -54,7 +55,7 @@ func Login(c *gin.Context) {
 
 	// Update last login time
 	if err := repository.UpdateUserLoginTime(user.ID); err != nil {
-		// Log error but don't fail the login
+		logrus.Error("failed to update last login time for user", user.ID, ":", err)
 	}
 
 	var userInfo dto.UserInfo
@@ -198,15 +199,13 @@ func Logout(c *gin.Context) {
 	}
 
 	// Add token to blacklist
-	err = repository.BlacklistToken(
+	if err := repository.BlacklistToken(
 		claims.ID, // JWT ID (jti claim)
 		claims.UserID,
 		claims.ExpiresAt.Time,
 		"User logout",
-	)
-	if err != nil {
-		// Log error but don't fail logout
-		// In production, you might want to log this properly
+	); err != nil {
+		logrus.Errorf("failed to add a token to the blacklist: %v", err)
 	}
 
 	dto.SuccessResponse(c, gin.H{"message": "Logged out successfully"})
