@@ -49,8 +49,8 @@ configmap:
     mysql_port: "3306"
     mysql_db: "rcabench"
   harbor:
-    host: "10.10.10.240"
-    project: "library"
+    registry: "10.10.10.240"
+    namespace: "library"
     username: "admin"
     password: "Harbor12345"
   k8s:

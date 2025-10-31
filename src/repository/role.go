@@ -1,44 +1,45 @@
 package repository
 
 import (
-	"errors"
 	"fmt"
 
+	"aegis/consts"
 	"aegis/database"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
-// CreateRole creates a role
-func CreateRole(role *database.Role) error {
-	if err := database.DB.Create(role).Error; err != nil {
-		return fmt.Errorf("failed to create role: %v", err)
+// BatchUpsertRoles performs batch upsert of roles
+func BatchUpsertRoles(db *gorm.DB, roles []database.Role) error {
+	if len(roles) == 0 {
+		return fmt.Errorf("no roles to upsert")
 	}
+
+	if err := db.Omit(commonOmitFields).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "name"}},
+		DoNothing: true,
+	},
+	).Create(&roles).Error; err != nil {
+		return fmt.Errorf("failed to batch upsert roles: %v", err)
+	}
+
 	return nil
 }
 
+// CreateRole creates a role
+func CreateRole(db *gorm.DB, role *database.Role) error {
+	return createModel(db.Omit(commonOmitFields), role)
+}
+
 // GetRoleByID gets role by ID
-func GetRoleByID(id int) (*database.Role, error) {
-	var role database.Role
-	if err := database.DB.First(&role, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("role with id %d not found", id)
-		}
-		return nil, fmt.Errorf("failed to get role: %v", err)
-	}
-	return &role, nil
+func GetRoleByID(db *gorm.DB, id int) (*database.Role, error) {
+	return findModel[database.Role](db, "id = ? and status != ?", id, consts.CommonDeleted)
 }
 
 // GetRoleByName gets role by name
-func GetRoleByName(name string) (*database.Role, error) {
-	var role database.Role
-	if err := database.DB.Where("name = ?", name).First(&role).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("role '%s' not found", name)
-		}
-		return nil, fmt.Errorf("failed to get role: %v", err)
-	}
-	return &role, nil
+func GetRoleByName(db *gorm.DB, name string) (*database.Role, error) {
+	return findModel[database.Role](db, "name = ? and status != ?", name, consts.CommonDeleted)
 }
 
 // GetRolePermissionsMap gets all permissions for multiple roles in batch (optimized)
@@ -70,103 +71,77 @@ func GetRolePermissionsMap(roleIDs []int) (map[int][]database.Permission, error)
 	return permissionsMap, nil
 }
 
-// UpdateRole updates role information
-func UpdateRole(role *database.Role) error {
-	if err := database.DB.Save(role).Error; err != nil {
-		return fmt.Errorf("failed to update role: %v", err)
-	}
-	return nil
-}
-
-// DeleteRole soft deletes role (sets status to -1)
-func DeleteRole(id int) error {
-	if err := database.DB.Model(&database.Role{}).Where("id = ?", id).Update("status", -1).Error; err != nil {
-		return fmt.Errorf("failed to delete role: %v", err)
-	}
-	return nil
-}
-
-// ListRoles gets role list
-func ListRoles(page, pageSize int, roleType string, status *int) ([]database.Role, int64, error) {
-	var roles []database.Role
-	var total int64
-
-	query := database.DB.Model(&database.Role{})
-
-	if status != nil {
-		query = query.Where("status = ?", *status)
-	}
-
-	if roleType != "" {
-		query = query.Where("type = ?", roleType)
-	}
-
-	// Get total count
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to count roles: %v", err)
-	}
-
-	// Paginated query
-	offset := (page - 1) * pageSize
-	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&roles).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to list roles: %v", err)
-	}
-
-	return roles, total, nil
-}
-
 // GetRolePermissions gets role permissions
-func GetRolePermissions(roleID int) ([]database.Permission, error) {
+func GetRolePermissions(db *gorm.DB, roleID int) ([]database.Permission, error) {
 	var permissions []database.Permission
-	if err := database.DB.Table("permissions").
+	if err := db.Table("permissions").
 		Joins("JOIN role_permissions ON permissions.id = role_permissions.permission_id").
-		Where("role_permissions.role_id = ? AND permissions.status = 1", roleID).
+		Where("role_permissions.role_id = ? AND permissions.status = ?", roleID, consts.CommonEnabled).
 		Find(&permissions).Error; err != nil {
 		return nil, fmt.Errorf("failed to get role permissions: %v", err)
 	}
 	return permissions, nil
 }
 
-// AssignPermissionToRole assigns permission to role
-func AssignPermissionToRole(roleID, permissionID int) error {
-	rolePermission := &database.RolePermission{
-		RoleID:       roleID,
-		PermissionID: permissionID,
-	}
-
-	if err := database.DB.Create(rolePermission).Error; err != nil {
-		return fmt.Errorf("failed to assign permission to role: %v", err)
-	}
-	return nil
-}
-
-// RemovePermissionFromRole removes permission from role
-func RemovePermissionFromRole(roleID, permissionID int) error {
-	if err := database.DB.Where("role_id = ? AND permission_id = ?", roleID, permissionID).
-		Delete(&database.RolePermission{}).Error; err != nil {
-		return fmt.Errorf("failed to remove permission from role: %v", err)
-	}
-	return nil
-}
-
 // GetRoleUsers gets users who have this role
-func GetRoleUsers(roleID int) ([]database.User, error) {
+func GetRoleUsers(db *gorm.DB, roleID int) ([]database.User, error) {
 	var users []database.User
-	if err := database.DB.Table("users").
+	if err := db.Table("users").
 		Joins("JOIN user_roles ON users.id = user_roles.user_id").
-		Where("user_roles.role_id = ? AND users.status = 1", roleID).
+		Where("user_roles.role_id = ? AND users.status = ?", roleID, consts.CommonEnabled).
 		Find(&users).Error; err != nil {
 		return nil, fmt.Errorf("failed to get role users: %v", err)
 	}
 	return users, nil
 }
 
+// GetRoleUserCount gets count of users who have this role
+func GetRoleUserCount(db *gorm.DB, roleID int) (int64, error) {
+	var count int64
+	if err := db.Table("users").
+		Joins("JOIN user_roles ON users.id = user_roles.user_id").
+		Where("user_roles.role_id = ? AND users.status = ?", roleID, consts.CommonEnabled).
+		Count(&count).Error; err != nil {
+		return 0, fmt.Errorf("failed to get role users: %v", err)
+	}
+	return count, nil
+}
+
 // GetSystemRoles gets system roles
-func GetSystemRoles() ([]database.Role, error) {
+func GetSystemRoles(db *gorm.DB) ([]database.Role, error) {
 	var roles []database.Role
-	if err := database.DB.Where("is_system = true AND status = 1").
+	if err := db.Where("is_system = ? AND status = ?", true, consts.CommonEnabled).
 		Order("created_at ASC").Find(&roles).Error; err != nil {
 		return nil, fmt.Errorf("failed to get system roles: %v", err)
 	}
 	return roles, nil
+}
+
+// ListRoles gets role list
+func ListRoles(db *gorm.DB, limit, offset int, isSystem *bool, status *int) ([]database.Role, int64, error) {
+	var roles []database.Role
+	var total int64
+
+	query := db.Model(&database.Role{})
+	if isSystem != nil {
+		query = query.Where("is_system = ?", *isSystem)
+	}
+	if status != nil {
+		query = query.Where("status = ?", *status)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count roles: %v", err)
+	}
+
+	if err := query.Limit(limit).Offset(offset).Order("updated_at DESC").Find(&roles).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to list roles: %v", err)
+	}
+
+	return roles, total, nil
+}
+
+// UpdateRole updates role information
+func UpdateRole(db *gorm.DB, role *database.Role) error {
+	return updateModel(db.Omit(commonOmitFields), role)
 }

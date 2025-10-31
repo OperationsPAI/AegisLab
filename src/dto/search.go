@@ -52,7 +52,7 @@ const (
 type SearchFilter struct {
 	Field    string         `json:"field" binding:"required"`                    // Field name
 	Operator FilterOperator `json:"operator" binding:"required"`                 // Operator
-	Value    string         `json:"value" swaggertype:"string"`                  // Value (can be string, number, boolean, etc.)
+	Value    string         `json:"value"`                                       // Value (can be string, number, boolean, etc.)
 	Values   []string       `json:"values,omitempty" swaggertype:"array,string"` // Multiple values (for IN operations etc.)
 }
 
@@ -110,6 +110,12 @@ type AdvancedSearchRequest struct {
 	ProjectID *int       `json:"project_id,omitempty"`
 }
 
+// ListResponse represents the response for list operations
+type ListResponse[T any] struct {
+	Items      []T             `json:"items"`
+	Pagination *PaginationInfo `json:"pagination"`
+}
+
 // SearchResponse represents the response for search operations
 type SearchResponse[T any] struct {
 	Items      []T             `json:"items"`
@@ -118,8 +124,7 @@ type SearchResponse[T any] struct {
 	Sort       []SortOption    `json:"applied_sort,omitempty"`
 }
 
-// ValidateSearchRequest validates the search request
-func (sr *SearchRequest) ValidateSearchRequest() error {
+func (sr *SearchRequest) Validate() error {
 	// Set defaults
 	if sr.Page == 0 {
 		sr.Page = 1
@@ -338,43 +343,6 @@ func (asr *AlgorithmSearchRequest) ConvertToSearchRequest() *SearchRequest {
 	// Default to only active algorithms
 	if !sr.HasFilter("status") {
 		sr.AddFilter("status", OpEqual, consts.ContainerEnabled)
-	}
-
-	return sr
-}
-
-// ContainerSearchRequest represents container search request
-type ContainerSearchRequest struct {
-	AdvancedSearchRequest
-
-	// Container-specific filters
-	Name    *string `json:"name,omitempty"`
-	Image   *string `json:"image,omitempty"`
-	Tag     *string `json:"tag,omitempty"`
-	Type    *string `json:"type,omitempty"`
-	Command *string `json:"command,omitempty"`
-	Status  *int    `json:"status,omitempty"`
-}
-
-// ConvertToSearchRequest converts ContainerSearchRequest to SearchRequest
-func (csr *ContainerSearchRequest) ConvertToSearchRequest() *SearchRequest {
-	sr := csr.AdvancedSearchRequest.ConvertAdvancedToSearch()
-
-	// Add container-specific filters
-	if csr.Name != nil {
-		sr.AddFilter("name", OpLike, *csr.Name)
-	}
-	if csr.Image != nil {
-		sr.AddFilter("image", OpLike, *csr.Image)
-	}
-	if csr.Tag != nil {
-		sr.AddFilter("tag", OpEqual, *csr.Tag)
-	}
-	if csr.Type != nil {
-		sr.AddFilter("type", OpEqual, *csr.Type)
-	}
-	if csr.Command != nil {
-		sr.AddFilter("command", OpLike, *csr.Command)
 	}
 
 	return sr

@@ -548,10 +548,9 @@ func cronNextTime(expr string) (time.Time, error) {
 	return schedule.Next(time.Now()), nil
 }
 
-// getProjectIDString converts a ProjectID pointer to string, handling nil case
-func getProjectIDString(projectID *int) string {
-	if projectID == nil {
+func getDefaultIDString(id *int) string {
+	if id == nil {
 		return ""
 	}
-	return strconv.Itoa(*projectID)
+	return strconv.Itoa(*id)
 }

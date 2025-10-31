@@ -125,12 +125,19 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 		return
 	}
 
+	containerVersion, err := repository.GetContainerVersion(consts.ContainerTypeBenchmark, parsedLabels.Benchmark, *parsedLabels.UserID, "")
+	if err != nil {
+		logEntry.Errorf("get container failed: %v", err)
+		taskSpan.AddEvent("get container failed")
+		return
+	}
+
 	task := &dto.UnifiedTask{
 		Type: consts.TaskTypeBuildDataset,
 		Payload: map[string]any{
-			consts.BuildBenchmark:   parsedLabels.Benchmark,
-			consts.BuildDataset:     name,
-			consts.BuildPreDuration: parsedLabels.PreDuration,
+			consts.BuildContainerVersion: containerVersion,
+			consts.BuildDataset:          name,
+			consts.BuildPreDuration:      parsedLabels.PreDuration,
 			consts.BuildEnvVars: map[string]string{
 				consts.BuildEnvVarNamespace: namespace,
 			},
@@ -142,10 +149,11 @@ func (e *Executor) HandleCRDSucceeded(namespace, pod, name string, startTime, en
 		TraceID:   parsedLabels.TraceID,
 		GroupID:   parsedLabels.GroupID,
 		ProjectID: parsedLabels.ProjectID,
+		UserID:    parsedLabels.UserID,
 	}
 	task.SetTraceCtx(traceCtx)
 
-	_, _, err := SubmitTask(taskCtx, task)
+	_, _, err = SubmitTask(taskCtx, task)
 	if err != nil {
 		logEntry.Errorf("submit dataset building task failed: %v", err)
 		taskSpan.AddEvent("submit dataset building task failed")
@@ -363,7 +371,7 @@ func (e *Executor) HandleJobSucceeded(job *batchv1.Job, annotations map[string]s
 			return
 		}
 
-		algorithm, tag, err := repository.GetContainerWithTag(consts.ContainerTypeAlgorithm, config.GetString("algo.detector"), consts.DefaultContainerTag, *taskOptions.UserID)
+		algorithmVersion, err := repository.GetContainerVersion(consts.ContainerTypeAlgorithm, config.GetString("algo.detector"), *taskOptions.UserID, "")
 		if err != nil {
 			logEntry.Errorf("get algorithm container failed: %v", err)
 			taskSpan.AddEvent("get algorithm container failed")
@@ -373,15 +381,15 @@ func (e *Executor) HandleJobSucceeded(job *batchv1.Job, annotations map[string]s
 		task := &dto.UnifiedTask{
 			Type: consts.TaskTypeRunAlgorithm,
 			Payload: map[string]any{
-				consts.ExecuteAlgorithm:    algorithm,
-				consts.ExecuteAlgorithmTag: tag,
-				consts.ExecuteDataset:      options.Dataset,
-				consts.ExecuteEnvVars:      map[string]string{},
+				consts.ExecuteAlgorithmVersion: algorithmVersion,
+				consts.ExecuteDataset:          options.Dataset,
+				consts.ExecuteEnvVars:          map[string]string{},
 			},
 			Immediate: true,
 			TraceID:   taskOptions.TraceID,
 			GroupID:   taskOptions.GroupID,
 			ProjectID: taskOptions.ProjectID,
+			UserID:    taskOptions.UserID,
 		}
 		task.SetTraceCtx(traceCtx)
 
@@ -439,6 +447,7 @@ func (e *Executor) HandleJobSucceeded(job *batchv1.Job, annotations map[string]s
 			TraceID:   taskOptions.TraceID,
 			GroupID:   taskOptions.GroupID,
 			ProjectID: taskOptions.ProjectID,
+			UserID:    taskOptions.UserID,
 		}
 		task.SetTraceCtx(traceCtx)
 

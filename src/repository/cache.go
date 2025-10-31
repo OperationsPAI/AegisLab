@@ -13,6 +13,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const RedisDataInitKey = "app:system:data_init_done"
+const InitCompleteValue = "true"
+
 // CheckCachedField checks if a field exists in Redis cache
 func CheckCachedField(ctx context.Context, key, field string) bool {
 	exists, err := client.GetRedisClient().HExists(ctx, key, field).Result()
@@ -57,5 +60,16 @@ func SetAlgorithmItemsToRedis(ctx context.Context, key, field string, items []dt
 		return fmt.Errorf("failed to cache algorithm items for field %s: %v", field, err)
 	}
 
+	return nil
+}
+
+func IsInitialDataSeeded(ctx context.Context) bool {
+	return client.GetRedisClient().Get(ctx, RedisDataInitKey).Val() == InitCompleteValue
+}
+
+func MarkDataSeedingComplete(ctx context.Context) error {
+	if err := client.GetRedisClient().Set(ctx, RedisDataInitKey, InitCompleteValue, 0).Err(); err != nil {
+		return fmt.Errorf("failed to set setup complete flag in Redis: %v", err)
+	}
 	return nil
 }

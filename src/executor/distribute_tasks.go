@@ -42,8 +42,8 @@ func dispatchTask(ctx context.Context, task *dto.UnifiedTask) error {
 		err = executeFaultInjection(ctx, task)
 	case consts.TaskTypeRunAlgorithm:
 		err = executeAlgorithm(ctx, task)
-	case consts.TaskTypeBuildImage:
-		err = executeBuildImage(ctx, task)
+	case consts.TaskTypeBuildContainer:
+		err = executeBuildContainer(ctx, task)
 	case consts.TaskTypeBuildDataset:
 		err = executeBuildDataset(ctx, task)
 	case consts.TaskTypeCollectResult:

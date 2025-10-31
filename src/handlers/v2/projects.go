@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"aegis/database"
 	"aegis/dto"
 	"aegis/repository"
 
@@ -45,7 +46,7 @@ func GetProject(c *gin.Context) {
 	}
 
 	// Get project using repository function which excludes deleted projects
-	project, err := repository.GetProjectByID(id)
+	project, err := repository.GetProjectByID(database.DB, id)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			dto.ErrorResponse(c, http.StatusNotFound, "Project not found")

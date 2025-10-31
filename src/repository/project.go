@@ -6,7 +6,13 @@ import (
 
 	"aegis/consts"
 	"aegis/database"
+
+	"gorm.io/gorm"
 )
+
+func CreateProject(db *gorm.DB, project *database.Project) error {
+	return createModel(db, project)
+}
 
 func GetProject(column, param string) (*database.Project, error) {
 	var record database.Project
@@ -19,15 +25,12 @@ func GetProject(column, param string) (*database.Project, error) {
 	return &record, nil
 }
 
-func GetProjectByID(id int) (*database.Project, error) {
-	var project database.Project
-	if err := database.DB.
-		Where("id = ? AND status != ?", id, consts.ProjectDeleted).
-		First(&project).Error; err != nil {
-		return nil, fmt.Errorf("project not found: %w", err)
-	}
+func GetProjectByID(db *gorm.DB, id int) (*database.Project, error) {
+	return findModel[database.Project](db, "id = ? AND status != ?", id, consts.ProjectDeleted)
+}
 
-	return &project, nil
+func GetProjectByName(db *gorm.DB, name string) (*database.Project, error) {
+	return findModel[database.Project](db, "name = ? AND status != ?", name, consts.ProjectDeleted)
 }
 
 // GetProjectContainersMap gets all containers for multiple projects in batch (optimized)

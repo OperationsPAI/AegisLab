@@ -28,17 +28,12 @@ func CheckExecutionResultExists(id int) (bool, error) {
 	return true, nil
 }
 
-func CreateExecutionResult(taskID string, algorithmID, algorithmTagID, datapackID int, duration float64, labels *dto.ExecutionLabels) (int, error) {
-	altorithmLabel, err := GetContainerLabel(algorithmID, algorithmTagID)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get algorithm label: %v", err)
-	}
-
+func CreateExecutionResult(taskID string, algorithmVersionID, datapackID int, duration float64, labels *dto.ExecutionLabels) (int, error) {
 	executionResult := &database.ExecutionResult{
-		AlgorithmLabelID: altorithmLabel.ID,
-		DatapackID:       datapackID,
-		Duration:         duration,
-		Status:           consts.ExecutionSuccess,
+		AlgorithmVersionID: algorithmVersionID,
+		DatapackID:         datapackID,
+		Duration:           duration,
+		Status:             consts.ExecutionSuccess,
 	}
 
 	// Set TaskID to nil if it's empty, otherwise set the value

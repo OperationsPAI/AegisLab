@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"aegis/config"
+
+	"github.com/BurntSushi/toml"
 )
 
 type ExculdeRule struct {
@@ -42,6 +44,11 @@ func AddToZip(zipWriter *zip.Writer, fileInfo fs.FileInfo, srcPath string, zipPa
 
 	_, err = io.Copy(writer, file)
 	return err
+}
+
+func CheckFileExists(filePath string) bool {
+	_, err := os.Stat(filePath)
+	return !os.IsNotExist(err)
 }
 
 func GetAllSubDirectories(root string) ([]string, error) {
@@ -316,4 +323,18 @@ func ExtractTarGz(tarGzFile, destDir string) error {
 	}
 
 	return nil
+}
+
+func ReadTomlFile(tomlPath string) (map[string]any, error) {
+	data, err := os.ReadFile(tomlPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %s: %v", tomlPath, err)
+	}
+
+	var config map[string]any
+	if err := toml.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("failed to parse file %s: %v", tomlPath, err)
+	}
+
+	return config, nil
 }

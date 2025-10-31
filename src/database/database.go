@@ -47,7 +47,7 @@ func InitDB() {
 
 		&Container{},
 		&ContainerLabel{},
-		&ContainerHelm{},
+		&ContainerVersion{},
 		&HelmConfig{},
 		&Dataset{},
 		&DatasetLabel{},
@@ -68,6 +68,7 @@ func InitDB() {
 		&Role{},
 		&Permission{},
 		&Resource{},
+		&UserContainer{},
 		&UserProject{},
 		&UserRole{},
 		&RolePermission{},
@@ -87,7 +88,9 @@ func connectWithRetry(dbConfig *databaseConfig) {
 
 	var err error
 	for i := 0; i <= maxRetries; i++ {
-		DB, err = gorm.Open(mysql.Open(dbConfig.ToDSN()), &gorm.Config{})
+		DB, err = gorm.Open(mysql.Open(dbConfig.ToDSN()), &gorm.Config{
+			TranslateError: true,
+		})
 		if err == nil {
 			logrus.Info("Successfully connected to the database.")
 			if err := DB.Use(tracing.NewPlugin()); err != nil {

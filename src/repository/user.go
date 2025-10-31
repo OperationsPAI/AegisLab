@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"errors"
 	"fmt"
 
 	"aegis/database"
@@ -10,47 +9,23 @@ import (
 )
 
 // CreateUser creates a user
-func CreateUser(user *database.User) error {
-	if err := database.DB.Create(user).Error; err != nil {
-		return fmt.Errorf("failed to create user: %v", err)
-	}
-	return nil
+func CreateUser(db *gorm.DB, user *database.User) error {
+	return createModel(db, user)
 }
 
 // GetUserByID gets a user by ID
-func GetUserByID(id int) (*database.User, error) {
-	var user database.User
-	if err := database.DB.First(&user, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("user with id %d not found", id)
-		}
-		return nil, fmt.Errorf("failed to get user: %v", err)
-	}
-	return &user, nil
+func GetUserByID(db *gorm.DB, id int) (*database.User, error) {
+	return findModel[database.User](db, "id = ?", id)
 }
 
 // GetUserByUsername gets a user by username
-func GetUserByUsername(username string) (*database.User, error) {
-	var user database.User
-	if err := database.DB.Where("username = ?", username).First(&user).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("user '%s' not found", username)
-		}
-		return nil, fmt.Errorf("failed to get user: %v", err)
-	}
-	return &user, nil
+func GetUserByUsername(db *gorm.DB, username string) (*database.User, error) {
+	return findModel[database.User](db, "username = ?", username)
 }
 
 // GetUserByEmail gets a user by email
 func GetUserByEmail(email string) (*database.User, error) {
-	var user database.User
-	if err := database.DB.Where("email = ?", email).First(&user).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("user with email '%s' not found", email)
-		}
-		return nil, fmt.Errorf("failed to get user: %v", err)
-	}
-	return &user, nil
+	return findModel[database.User](database.DB, "email = ?", email)
 }
 
 // GetUserProjectsMap gets all projects for multiple users in batch (optimized)
@@ -194,51 +169,4 @@ func GetUserProjects(userID int) ([]database.UserProject, error) {
 		}
 	}
 	return activeProjects, nil
-}
-
-// AddUserToProject adds a user to a project
-func AddUserToProject(userID, projectID, roleID int) error {
-	userProject := &database.UserProject{
-		UserID:    userID,
-		ProjectID: projectID,
-		RoleID:    roleID,
-		Status:    1,
-	}
-
-	if err := database.DB.Create(userProject).Error; err != nil {
-		return fmt.Errorf("failed to add user to project: %v", err)
-	}
-	return nil
-}
-
-// RemoveUserFromProject removes a user from a project
-func RemoveUserFromProject(userID, projectID int) error {
-	if err := database.DB.Model(&database.UserProject{}).
-		Where("user_id = ? AND project_id = ?", userID, projectID).
-		Update("status", -1).Error; err != nil {
-		return fmt.Errorf("failed to remove user from project: %v", err)
-	}
-	return nil
-}
-
-// AssignRoleToUser assigns a global role to a user
-func AssignRoleToUser(userID, roleID int) error {
-	userRole := &database.UserRole{
-		UserID: userID,
-		RoleID: roleID,
-	}
-
-	if err := database.DB.Create(userRole).Error; err != nil {
-		return fmt.Errorf("failed to assign role to user: %v", err)
-	}
-	return nil
-}
-
-// RemoveRoleFromUser removes a global role from a user
-func RemoveRoleFromUser(userID, roleID int) error {
-	if err := database.DB.Where("user_id = ? AND role_id = ?", userID, roleID).
-		Delete(&database.UserRole{}).Error; err != nil {
-		return fmt.Errorf("failed to remove role from user: %v", err)
-	}
-	return nil
 }

@@ -22,7 +22,6 @@ func New() *gin.Engine {
 
 	// Middleware setup
 	router.Use(
-		middleware.Logging(),
 		middleware.GroupID(),
 		middleware.SSEPath(),
 		cors.New(config),

@@ -217,174 +217,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/containers": {
-            "post": {
-                "description": "Build Docker images by uploading files, specifying GitHub repositories, or Harbor images. Supports zip and tar.gz file uploads, or automatically pulls code from GitHub for building, or directly updates the database from existing Harbor images. The system automatically validates required files (Dockerfile) and sets execution permissions.",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "container"
-                ],
-                "summary": "Submit container build task",
-                "parameters": [
-                    {
-                        "enum": [
-                            "algorithm",
-                            "benchmark"
-                        ],
-                        "type": "string",
-                        "default": "algorithm",
-                        "description": "Container type, specifies the purpose of the container",
-                        "name": "type",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Container name, used to identify the container, will be used as the image build identifier, defaults to the name field in info.toml",
-                        "name": "name",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Docker image name. When source_type is harbor, specify the existing image name in Harbor; otherwise, supports the following formats: 1) image-name (automatically adds default Harbor address and namespace) 2) namespace/image-name (automatically adds default Harbor address)",
-                        "name": "image",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "default": "latest",
-                        "description": "Docker image tag. When source_type is harbor, specify the existing image tag in Harbor; otherwise, used for version control",
-                        "name": "tag",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "default": "bash /entrypoint.sh",
-                        "description": "Docker image startup command, defaults to bash /entrypoint.sh",
-                        "name": "command",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "List of environment variable names, supports multiple variables",
-                        "name": "env_vars",
-                        "in": "formData"
-                    },
-                    {
-                        "enum": [
-                            "file",
-                            "github",
-                            "harbor"
-                        ],
-                        "type": "string",
-                        "default": "file",
-                        "description": "Build source type, specifies the source of the code",
-                        "name": "source_type",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "file",
-                        "description": "Source file (supports zip or tar.gz format), required when source_type is file, file size limit 5MB",
-                        "name": "file",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "GitHub access token, used for private repositories, not required for public repositories",
-                        "name": "github_token",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "GitHub repository address, format: owner/repo, required when source_type is github",
-                        "name": "github_repo",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "default": "main",
-                        "description": "GitHub branch name, specifies the branch to build",
-                        "name": "github_branch",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "GitHub commit hash (supports short hash), if specified, branch parameter is ignored",
-                        "name": "github_commit",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "default": ".",
-                        "description": "Subdirectory path in the repository, if the source code is not in the root directory",
-                        "name": "github_path",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "default": ".",
-                        "description": "Docker build context path, relative to the source root directory",
-                        "name": "context_dir",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "default": "Dockerfile",
-                        "description": "Dockerfile path, relative to the source root directory",
-                        "name": "dockerfile_path",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Dockerfile build target (used for multi-stage builds)",
-                        "name": "target",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "boolean",
-                        "default": false,
-                        "description": "Whether to force rebuild the image, ignore cache",
-                        "name": "force_rebuild",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": "Successfully submitted container build task, returns task tracking information",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Request parameter error: unsupported file format (only zip, tar.gz), file size exceeds limit (5MB), parameter validation failed, invalid GitHub repository address, invalid Harbor image parameter, invalid force_rebuild value, etc.",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "Resource not found: build context path does not exist, missing required files (Dockerfile, entrypoint.sh), image not found in Harbor",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/datasets": {
             "post": {
                 "description": "Batch build datasets based on specified time range and benchmark container",
@@ -1822,7 +1654,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/algorithms/{algorithm_id}/results": {
+        "/api/v2/algorithms/{algorithm_id}/versions/{version_id}/executions/{execution_id}results": {
             "post": {
                 "security": [
                     {
@@ -1850,9 +1682,16 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Execution ID (optional, will create new if not provided)",
+                        "description": "Algorithm Version ID",
+                        "name": "version_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Execution ID (optional, if not provided a new execution will be created)",
                         "name": "execution_id",
-                        "in": "query"
+                        "in": "path"
                     },
                     {
                         "type": "string",
@@ -2207,7 +2046,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get a simple list of containers with basic filtering",
+                "description": "Get paginated list of containers with optional filtering",
                 "produces": [
                     "application/json"
                 ],
@@ -2251,11 +2090,17 @@ const docTemplate = `{
                     "200": {
                         "description": "Containers retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_ContainerResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListResponse-dto_ContainerResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -2280,9 +2125,9 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a new container with build configuration or update existing one if it already exists. Containers are associated with the authenticated user. If a container with the same name, type, image, and tag already exists, it will be updated instead of creating a new one.",
+                "description": "Create a new container without build configuration.",
                 "consumes": [
-                    "multipart/form-data"
+                    "application/json"
                 ],
                 "produces": [
                     "application/json"
@@ -2290,151 +2135,90 @@ const docTemplate = `{
                 "tags": [
                     "Containers"
                 ],
-                "summary": "Create or update container",
+                "summary": "Create container",
                 "parameters": [
                     {
-                        "enum": [
-                            "algorithm",
-                            "benchmark"
-                        ],
-                        "type": "string",
-                        "default": "algorithm",
-                        "description": "Container type",
-                        "name": "type",
-                        "in": "formData",
-                        "required": true
+                        "description": "Container creation request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateContainerRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Container created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerResponse"
+                        }
                     },
-                    {
-                        "type": "string",
-                        "description": "Container name",
-                        "name": "name",
-                        "in": "formData",
-                        "required": true
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
                     },
-                    {
-                        "type": "string",
-                        "description": "Docker image name",
-                        "name": "image",
-                        "in": "formData",
-                        "required": true
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
                     },
-                    {
-                        "type": "string",
-                        "default": "latest",
-                        "description": "Docker image tag",
-                        "name": "tag",
-                        "in": "formData"
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
                     },
-                    {
-                        "type": "string",
-                        "default": "/bin/bash",
-                        "description": "Container startup command",
-                        "name": "command",
-                        "in": "formData"
+                    "409": {
+                        "description": "Conflict error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
                     },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/containers/build": {
+            "post": {
+                "security": [
                     {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "Environment variables (can be specified multiple times)",
-                        "name": "env_vars",
-                        "in": "formData"
-                    },
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Build a container from provided source code (e.g., GitHub repository).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Containers"
+                ],
+                "summary": "Build container",
+                "parameters": [
                     {
-                        "type": "boolean",
-                        "default": false,
-                        "description": "Whether the container is public",
-                        "name": "is_public",
-                        "in": "formData"
-                    },
-                    {
-                        "enum": [
-                            "file",
-                            "github",
-                            "harbor"
-                        ],
-                        "type": "string",
-                        "default": "file",
-                        "description": "Build source type",
-                        "name": "build_source_type",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "file",
-                        "description": "Source code file (zip or tar.gz format, max 5MB) - required when build_source_type=file",
-                        "name": "file",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "GitHub repository (owner/repo) - required when build_source_type=github",
-                        "name": "github_repository",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "default": "main",
-                        "description": "GitHub branch name",
-                        "name": "github_branch",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "GitHub commit hash (if specified, branch is ignored)",
-                        "name": "github_commit",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "default": ".",
-                        "description": "Path within repository",
-                        "name": "github_path",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "GitHub access token for private repositories",
-                        "name": "github_token",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Harbor image name - required when build_source_type=harbor",
-                        "name": "harbor_image",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Harbor image tag - required when build_source_type=harbor",
-                        "name": "harbor_tag",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "default": ".",
-                        "description": "Docker build context directory",
-                        "name": "context_dir",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "default": "Dockerfile",
-                        "description": "Dockerfile path relative to source root",
-                        "name": "dockerfile_path",
-                        "in": "formData"
+                        "description": "Container build request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.BuildContainerRequest"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Container information updated successfully from Harbor",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
-                        }
-                    },
-                    "202": {
-                        "description": "Container creation/update task submitted successfully",
+                        "description": "Container build task submitted successfully",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
                         }
@@ -2445,8 +2229,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
-                    "403": {
-                        "description": "Permission denied",
+                    "404": {
+                        "description": "Required files not found",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -2482,7 +2266,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.ContainerSearchRequest"
+                            "$ref": "#/definitions/dto.SearchContainerRequest"
                         }
                     }
                 ],
@@ -2514,7 +2298,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/containers/{id}": {
+        "/api/v2/containers/{container_id}": {
             "get": {
                 "security": [
                     {
@@ -2533,7 +2317,7 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "description": "Container ID",
-                        "name": "id",
+                        "name": "container_id",
                         "in": "path",
                         "required": true
                     }
@@ -2542,7 +2326,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Container retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerDetailResponse"
                         }
                     },
                     "400": {
@@ -2551,70 +2335,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
-                    "403": {
-                        "description": "Permission denied",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "Container not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Update an existing container's information",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Containers"
-                ],
-                "summary": "Update container",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Container ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Container update request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.UpdateContainerRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Container updated successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -2657,13 +2379,13 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "description": "Container ID",
-                        "name": "id",
+                        "name": "container_id",
                         "in": "path",
                         "required": true
                     }
                 ],
                 "responses": {
-                    "200": {
+                    "204": {
                         "description": "Container deleted successfully",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
@@ -2671,6 +2393,383 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid container ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Container not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing container's information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Containers"
+                ],
+                "summary": "Update container",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Container ID",
+                        "name": "container_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Container update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateContainerRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Container updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid container ID/request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Container not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/containers/{container_id}/versions": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new container version for an existing container.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Containers"
+                ],
+                "summary": "Create container version",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Container ID",
+                        "name": "container_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Container version creation request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateContainerVersionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Container version created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerVersionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/containers/{container_id}/versions/{version_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get detailed information about a specific container version",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Containers"
+                ],
+                "summary": "Get container version by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Container ID",
+                        "name": "container_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Container Version ID",
+                        "name": "version_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Container version retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerVersionDetailResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid container ID/container version ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Container or version not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete a container version (soft delete by setting status to false)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Containers"
+                ],
+                "summary": "Delete container version",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Container ID",
+                        "name": "container_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Container Version ID",
+                        "name": "version_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Container version deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid container ID/container version ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Container or version not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing container version's information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Containers"
+                ],
+                "summary": "Update container version",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Container ID",
+                        "name": "container_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Container Version ID",
+                        "name": "version_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Container version update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateContainerVersionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Container version updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerVersionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid container ID/container version ID/request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -4246,9 +4345,9 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "description": "Filter by resource ID",
-                        "name": "resource_id",
+                        "type": "boolean",
+                        "description": "Filter by system permission",
+                        "name": "is_system",
                         "in": "query"
                     },
                     {
@@ -4256,29 +4355,29 @@ const docTemplate = `{
                         "description": "Filter by status",
                         "name": "status",
                         "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Filter by system permission",
-                        "name": "is_system",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by permission name",
-                        "name": "name",
-                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "Permissions retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_PermissionListResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListPermissionResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid request parameters",
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -4327,59 +4426,25 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "409": {
                         "description": "Permission already exists",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/permissions/resource/{resource_id}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get list of permissions associated with a specific resource",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Permissions"
-                ],
-                "summary": "Get permissions by resource",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Resource ID",
-                        "name": "resource_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Permissions retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-array_dto_PermissionResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid resource ID",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -4418,7 +4483,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.PermissionSearchRequest"
+                            "$ref": "#/definitions/dto.SearchPermissionRequest"
                         }
                     }
                 ],
@@ -4431,6 +4496,18 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -4472,11 +4549,23 @@ const docTemplate = `{
                     "200": {
                         "description": "Permission retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_PermissionResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_PermissionDetailResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid permission ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -4531,14 +4620,26 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
+                    "202": {
                         "description": "Permission updated successfully",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-dto_PermissionResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid permission ID or request format/parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -4581,7 +4682,7 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
+                    "204": {
                         "description": "Permission deleted successfully",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
@@ -4589,6 +4690,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid permission ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -4621,14 +4728,14 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get list of roles that have been assigned a specific permission",
+                "description": "Get list of roles assigned to a specific permission",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Permissions"
                 ],
-                "summary": "Get permission roles",
+                "summary": "List roles from permission",
                 "parameters": [
                     {
                         "type": "integer",
@@ -4647,6 +4754,18 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid permission ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -4748,482 +4867,45 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/relations": {
+        "/api/v2/resources/{id}/permissions": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get paginated list of relationships with optional filtering",
+                "description": "Get list of permissions assigned to a specific resource",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Relations"
+                    "Resources"
                 ],
-                "summary": "List relationships",
+                "summary": "List permissions from resource",
                 "parameters": [
                     {
                         "type": "integer",
-                        "default": 1,
-                        "description": "Page number",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 20,
-                        "description": "Page size",
-                        "name": "size",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Relationship type",
-                        "name": "type",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Source entity type",
-                        "name": "source_type",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Target entity type",
-                        "name": "target_type",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Source entity ID",
-                        "name": "source_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Target entity ID",
-                        "name": "target_id",
-                        "in": "query"
+                        "description": "Resource ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Relations retrieved successfully",
+                        "description": "Permissions retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_RelationListResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-array_dto_PermissionResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid request parameters",
+                        "description": "Invalid resource ID",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/relations/batch": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Perform multiple relationship operations in a single request",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Relations"
-                ],
-                "summary": "Batch relationship operations",
-                "parameters": [
-                    {
-                        "description": "Batch relation operations request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.BatchRelationRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Batch operations completed successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/relations/role-permissions": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Assign multiple permissions to a role",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Relations"
-                ],
-                "summary": "Assign permissions to role",
-                "parameters": [
-                    {
-                        "description": "Role permission assignment request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.AssignRolePermissionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Permissions assigned successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "Role or permission not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Remove multiple permissions from a role",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Relations"
-                ],
-                "summary": "Remove permissions from role",
-                "parameters": [
-                    {
-                        "description": "Role permission removal request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.RemoveRolePermissionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Permissions removed successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/relations/statistics": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get statistics about all relationship types in the system",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Relations"
-                ],
-                "summary": "Get relationship statistics",
-                "responses": {
-                    "200": {
-                        "description": "Statistics retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_RelationStatisticsResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/relations/user-permissions": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Assign a permission directly to a user (with optional project scope)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Relations"
-                ],
-                "summary": "Assign permission to user",
-                "parameters": [
-                    {
-                        "description": "User permission assignment request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.AssignUserPermissionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Permission assigned successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "User or permission not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Remove a permission directly from a user",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Relations"
-                ],
-                "summary": "Remove permission from user",
-                "parameters": [
-                    {
-                        "description": "User permission removal request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.RemoveUserPermissionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Permission removed successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/relations/user-roles": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Assign a role to a user (global role assignment)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Relations"
-                ],
-                "summary": "Assign role to user",
-                "parameters": [
-                    {
-                        "description": "User role assignment request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.AssignUserRoleRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Role assigned successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "User or role not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Remove a role from a user (global role removal)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Relations"
-                ],
-                "summary": "Remove role from user",
-                "parameters": [
-                    {
-                        "description": "User role removal request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.RemoveUserRoleRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Role removed successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "User or role not found",
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -5268,9 +4950,9 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "string",
-                        "description": "Filter by role type",
-                        "name": "type",
+                        "type": "boolean",
+                        "description": "Filter by system role",
+                        "name": "is_system",
                         "in": "query"
                     },
                     {
@@ -5278,29 +4960,29 @@ const docTemplate = `{
                         "description": "Filter by status",
                         "name": "status",
                         "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Filter by system role",
-                        "name": "is_system",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by role name",
-                        "name": "name",
-                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "Roles retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_RoleListResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListRoleResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -5349,7 +5031,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid request format",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -5394,7 +5088,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.RoleSearchRequest"
+                            "$ref": "#/definitions/dto.SearchRoleRequest"
                         }
                     }
                 ],
@@ -5406,7 +5100,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid request format or search parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -5448,7 +5154,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Role retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_RoleResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_RoleDetailResponse"
                         }
                     },
                     "400": {
@@ -5457,64 +5163,14 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
-                    "404": {
-                        "description": "Role not found",
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Update role information (partial update supported)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Roles"
-                ],
-                "summary": "Update role",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Role ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Role update request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.UpdateRoleRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Role updated successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_RoleResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -5569,8 +5225,88 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
                     "403": {
-                        "description": "Cannot delete system role",
+                        "description": "Permission denied or cannot delete system role",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Role not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update role information (partial update supported)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Roles"
+                ],
+                "summary": "Update role",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Role ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Role update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateRoleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Role updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_RoleResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -5634,7 +5370,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid role ID or request format",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -5696,7 +5444,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid role ID or request format",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -5730,7 +5490,7 @@ const docTemplate = `{
                 "tags": [
                     "Roles"
                 ],
-                "summary": "Get role users",
+                "summary": "List users from role",
                 "parameters": [
                     {
                         "type": "integer",
@@ -5749,6 +5509,18 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid role ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -6459,6 +6231,150 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/users/{id}/permissions": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Assign a permission directly to a user (with optional project scope)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Relations"
+                ],
+                "summary": "Assign permission to user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "User permission assignment request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AssignUserPermissionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Permission assigned successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/users/{id}/permissions/{permission_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Remove a permission directly from a user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Relations"
+                ],
+                "summary": "Remove permission from user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Permission ID",
+                        "name": "permission_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Permission removed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid user or permission ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "User or permission not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/users/{id}/projects": {
             "post": {
                 "security": [
@@ -6503,13 +6419,25 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid user ID or request format",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "404": {
-                        "description": "User not found",
+                        "description": "User or project not found",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -6555,14 +6483,182 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
+                    "204": {
                         "description": "User removed from project successfully",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "400": {
-                        "description": "Invalid ID",
+                        "description": "Invalid user or project ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "User or project not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/users/{id}/roles": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Assign a role to a user (global role assignment)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Relations"
+                ],
+                "summary": "Assign role to user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "User role assignment request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AssignRoleToUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Role assigned successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid user ID or request format",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "User or role not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/users/{id}/roles/{role_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Remove a role from a user (global role removal)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Relations"
+                ],
+                "summary": "Remove role from user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Role ID",
+                        "name": "role_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Role removed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid user or role ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "User or role not found",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -6882,6 +6978,43 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "consts.ActionName": {
+            "type": "string",
+            "enum": [
+                "read",
+                "write",
+                "delete",
+                "execute",
+                "manage"
+            ],
+            "x-enum-comments": {
+                "ActionDelete": "delete action",
+                "ActionExecute": "execute action",
+                "ActionManage": "manage action",
+                "ActionRead": "read action",
+                "ActionWrite": "write action"
+            },
+            "x-enum-varnames": [
+                "ActionRead",
+                "ActionWrite",
+                "ActionDelete",
+                "ActionExecute",
+                "ActionManage"
+            ]
+        },
+        "consts.ContainerType": {
+            "type": "string",
+            "enum": [
+                "algorithm",
+                "benchmark",
+                "pedestal"
+            ],
+            "x-enum-varnames": [
+                "ContainerTypeAlgorithm",
+                "ContainerTypeBenchmark",
+                "ContainerTypePedestal"
+            ]
+        },
         "consts.EventType": {
             "type": "string",
             "enum": [
@@ -6956,7 +7089,7 @@ const docTemplate = `{
                 "RestartService",
                 "RunAlgorithm",
                 "FaultInjection",
-                "BuildImage",
+                "BuildContainer",
                 "BuildDataset",
                 "CollectResult"
             ],
@@ -6964,7 +7097,7 @@ const docTemplate = `{
                 "TaskTypeRestartService",
                 "TaskTypeRunAlgorithm",
                 "TaskTypeFaultInjection",
-                "TaskTypeBuildImage",
+                "TaskTypeBuildContainer",
                 "TaskTypeBuildDataset",
                 "TaskTypeCollectResult"
             ]
@@ -6972,76 +7105,29 @@ const docTemplate = `{
         "database.Container": {
             "type": "object",
             "properties": {
-                "command": {
-                    "description": "Startup command",
-                    "type": "string"
-                },
                 "created_at": {
-                    "description": "Creation time",
                     "type": "string"
-                },
-                "env_vars": {
-                    "description": "List of environment variable names",
-                    "type": "string"
-                },
-                "helm_config": {
-                    "$ref": "#/definitions/database.HelmConfig"
-                },
-                "helm_config_id": {
-                    "description": "Associated Helm configuration, nullable",
-                    "type": "integer"
                 },
                 "id": {
-                    "description": "Unique identifier",
                     "type": "integer"
                 },
-                "image": {
-                    "description": "Full image name (not stored in DB, used for display)",
-                    "type": "string"
-                },
                 "is_public": {
-                    "description": "Whether publicly visible",
                     "type": "boolean"
                 },
                 "name": {
-                    "description": "Name with size limit",
                     "type": "string"
                 },
-                "registry": {
-                    "description": "Image registry with size limit",
-                    "type": "string"
-                },
-                "repository": {
-                    "description": "Image repository with size limit",
+                "readme": {
                     "type": "string"
                 },
                 "status": {
-                    "description": "Status: -1:deleted 0:disabled 1:active",
                     "type": "integer"
                 },
-                "tag": {
-                    "description": "Image tag with size limit",
-                    "type": "string"
-                },
                 "type": {
-                    "description": "Image type",
                     "type": "string"
                 },
                 "updated_at": {
-                    "description": "Update time",
                     "type": "string"
-                },
-                "user": {
-                    "description": "Foreign key association",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/database.User"
-                        }
-                    ]
-                },
-                "user_id": {
-                    "description": "Container must belong to a user",
-                    "type": "integer"
                 }
             }
         },
@@ -7188,47 +7274,6 @@ const docTemplate = `{
                 }
             }
         },
-        "database.HelmConfig": {
-            "type": "object",
-            "properties": {
-                "chart_name": {
-                    "description": "Helm chart information",
-                    "type": "string"
-                },
-                "chart_version": {
-                    "description": "Chart version",
-                    "type": "string"
-                },
-                "full_chart": {
-                    "description": "Full chart reference (not stored in DB, used for display)",
-                    "type": "string"
-                },
-                "id": {
-                    "description": "Unique identifier",
-                    "type": "integer"
-                },
-                "ns_prefix": {
-                    "description": "Deployment configuration",
-                    "type": "string"
-                },
-                "port_template": {
-                    "description": "Port template for dynamic port assignment, e.g., \"31%03d\"",
-                    "type": "string"
-                },
-                "repo_name": {
-                    "description": "Repository name",
-                    "type": "string"
-                },
-                "repo_url": {
-                    "description": "Repository URL",
-                    "type": "string"
-                },
-                "values": {
-                    "description": "Helm values in JSON format",
-                    "type": "string"
-                }
-            }
-        },
         "database.Label": {
             "type": "object",
             "properties": {
@@ -7367,55 +7412,6 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "description": "Update time",
-                    "type": "string"
-                }
-            }
-        },
-        "database.User": {
-            "type": "object",
-            "properties": {
-                "avatar": {
-                    "description": "Avatar URL with size limit",
-                    "type": "string"
-                },
-                "created_at": {
-                    "description": "Creation time",
-                    "type": "string"
-                },
-                "email": {
-                    "description": "Email (unique) with size limit",
-                    "type": "string"
-                },
-                "full_name": {
-                    "description": "Full name with size limit",
-                    "type": "string"
-                },
-                "id": {
-                    "description": "Unique identifier",
-                    "type": "integer"
-                },
-                "is_active": {
-                    "description": "Whether active",
-                    "type": "boolean"
-                },
-                "last_login_at": {
-                    "description": "Last login time",
-                    "type": "string"
-                },
-                "phone": {
-                    "description": "Phone number",
-                    "type": "string"
-                },
-                "status": {
-                    "description": "Status: -1:deleted 0:disabled 1:enabled",
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "description": "Update time",
-                    "type": "string"
-                },
-                "username": {
-                    "description": "Username (unique) with size limit",
                     "type": "string"
                 }
             }
@@ -7660,6 +7656,9 @@ const docTemplate = `{
                 "algorithm_id": {
                     "type": "integer"
                 },
+                "algorithm_version_id": {
+                    "type": "integer"
+                },
                 "datapack_id": {
                     "type": "integer"
                 },
@@ -7689,7 +7688,7 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "tag": {
+                "version": {
                     "type": "string"
                 }
             }
@@ -7697,34 +7696,13 @@ const docTemplate = `{
         "dto.AlgorithmResponse": {
             "type": "object",
             "properties": {
-                "command": {
-                    "type": "string"
-                },
                 "created_at": {
-                    "type": "string"
-                },
-                "default_tag": {
-                    "type": "string"
-                },
-                "env_vars": {
                     "type": "string"
                 },
                 "id": {
                     "type": "integer"
                 },
-                "image": {
-                    "type": "string"
-                },
-                "is_public": {
-                    "type": "boolean"
-                },
                 "name": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "integer"
-                },
-                "type": {
                     "type": "string"
                 },
                 "updated_at": {
@@ -7863,59 +7841,57 @@ const docTemplate = `{
             }
         },
         "dto.AssignPermissionToRoleRequest": {
-            "type": "object"
+            "type": "object",
+            "required": [
+                "permission_ids"
+            ],
+            "properties": {
+                "permission_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
         },
-        "dto.AssignRolePermissionRequest": {
-            "type": "object"
+        "dto.AssignRoleToUserRequest": {
+            "type": "object",
+            "required": [
+                "role_id"
+            ],
+            "properties": {
+                "role_id": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
         },
         "dto.AssignUserPermissionRequest": {
             "type": "object",
             "required": [
                 "grant_type",
-                "permission_id",
-                "user_id"
+                "permission_id"
             ],
             "properties": {
+                "container_id": {
+                    "type": "integer"
+                },
                 "expires_at": {
-                    "type": "string",
-                    "example": "2024-12-31T23:59:59Z"
+                    "type": "string"
                 },
                 "grant_type": {
                     "type": "string",
                     "enum": [
                         "grant",
                         "deny"
-                    ],
-                    "example": "grant"
+                    ]
                 },
                 "permission_id": {
-                    "type": "integer",
-                    "example": 1
+                    "type": "integer"
                 },
                 "project_id": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "user_id": {
-                    "type": "integer",
-                    "example": 1
-                }
-            }
-        },
-        "dto.AssignUserRoleRequest": {
-            "type": "object",
-            "required": [
-                "role_id",
-                "user_id"
-            ],
-            "properties": {
-                "role_id": {
-                    "type": "integer",
-                    "example": 2
-                },
-                "user_id": {
-                    "type": "integer",
-                    "example": 1
+                    "type": "integer"
                 }
             }
         },
@@ -7927,12 +7903,10 @@ const docTemplate = `{
             ],
             "properties": {
                 "project_id": {
-                    "type": "integer",
-                    "example": 1
+                    "type": "integer"
                 },
                 "role_id": {
-                    "type": "integer",
-                    "example": 2
+                    "type": "integer"
                 }
             }
         },
@@ -8066,18 +8040,60 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.BatchRelationRequest": {
+        "dto.BuildContainerRequest": {
             "type": "object",
             "required": [
-                "operations"
+                "github_repository",
+                "image_name"
             ],
             "properties": {
-                "operations": {
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                        "$ref": "#/definitions/dto.RelationOperation"
-                    }
+                "build_options": {
+                    "$ref": "#/definitions/dto.BuildOptions"
+                },
+                "github_branch": {
+                    "type": "string"
+                },
+                "github_commit": {
+                    "type": "string"
+                },
+                "github_repository": {
+                    "description": "GitHub repository information",
+                    "type": "string"
+                },
+                "github_token": {
+                    "type": "string"
+                },
+                "image_name": {
+                    "description": "Container Meta",
+                    "type": "string"
+                },
+                "sub_path": {
+                    "type": "string"
+                },
+                "tag": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.BuildOptions": {
+            "type": "object",
+            "properties": {
+                "build_args": {
+                    "type": "object"
+                },
+                "context_dir": {
+                    "type": "string",
+                    "default": "."
+                },
+                "dockerfile_path": {
+                    "type": "string",
+                    "default": "Dockerfile"
+                },
+                "force_rebuild": {
+                    "type": "boolean"
+                },
+                "target": {
+                    "type": "string"
                 }
             }
         },
@@ -8099,23 +8115,49 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.ContainerResponse": {
+        "dto.ContainerDetailResponse": {
             "type": "object",
             "properties": {
-                "command": {
-                    "type": "string"
-                },
                 "created_at": {
-                    "type": "string"
-                },
-                "env_vars": {
                     "type": "string"
                 },
                 "id": {
                     "type": "integer"
                 },
-                "image": {
+                "is_public": {
+                    "type": "boolean"
+                },
+                "name": {
                     "type": "string"
+                },
+                "readme": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "type": {
+                    "$ref": "#/definitions/consts.ContainerType"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "versions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ContainerVersionResponse"
+                    }
+                }
+            }
+        },
+        "dto.ContainerResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
                 },
                 "is_public": {
                     "type": "boolean"
@@ -8127,110 +8169,10 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "type": {
-                    "type": "string"
+                    "$ref": "#/definitions/consts.ContainerType"
                 },
                 "updated_at": {
                     "type": "string"
-                },
-                "user": {
-                    "description": "Related entities (only included when specifically requested)",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.UserResponse"
-                        }
-                    ]
-                }
-            }
-        },
-        "dto.ContainerSearchRequest": {
-            "type": "object",
-            "properties": {
-                "command": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "description": "Common filters shortcuts",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.DateRange"
-                        }
-                    ]
-                },
-                "exclude_fields": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "filters": {
-                    "description": "Filters",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.SearchFilter"
-                    }
-                },
-                "image": {
-                    "type": "string"
-                },
-                "include": {
-                    "description": "Include related entities",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "include_fields": {
-                    "description": "Include/Exclude fields",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "keyword": {
-                    "description": "Search keyword (for general text search)",
-                    "type": "string"
-                },
-                "name": {
-                    "description": "Container-specific filters",
-                    "type": "string"
-                },
-                "page": {
-                    "description": "Pagination",
-                    "type": "integer",
-                    "minimum": 1
-                },
-                "project_id": {
-                    "type": "integer"
-                },
-                "size": {
-                    "type": "integer",
-                    "maximum": 1000,
-                    "minimum": 1
-                },
-                "sort": {
-                    "description": "Sort",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.SortOption"
-                    }
-                },
-                "status": {
-                    "type": "integer"
-                },
-                "tag": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "$ref": "#/definitions/dto.DateRange"
-                },
-                "user_id": {
-                    "type": "integer"
                 }
             }
         },
@@ -8248,34 +8190,160 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.ContainerVersionDetailResponse": {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string"
+                },
+                "env_vars": {
+                    "type": "string"
+                },
+                "github_link": {
+                    "type": "string"
+                },
+                "helm_config": {
+                    "$ref": "#/definitions/dto.HelmConfigDetailResponse"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image_ref": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "usage": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.ContainerVersionResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "image_ref": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "usage": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.CreateContainerRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "type"
+            ],
+            "properties": {
+                "is_public": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "readme": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/consts.ContainerType"
+                },
+                "version": {
+                    "$ref": "#/definitions/dto.CreateContainerVersionRequest"
+                }
+            }
+        },
+        "dto.CreateContainerVersionRequest": {
+            "type": "object",
+            "required": [
+                "image_ref",
+                "name"
+            ],
+            "properties": {
+                "command": {
+                    "type": "string"
+                },
+                "env_vars": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "github_link": {
+                    "type": "string"
+                },
+                "helm_config": {
+                    "$ref": "#/definitions/dto.CreateHelmConfigRequest"
+                },
+                "image_ref": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CreateHelmConfigRequest": {
+            "type": "object",
+            "required": [
+                "chart_name",
+                "ns_prefix",
+                "repo_name",
+                "repo_url"
+            ],
+            "properties": {
+                "chart_name": {
+                    "type": "string"
+                },
+                "ns_prefix": {
+                    "type": "string"
+                },
+                "port_template": {
+                    "type": "string"
+                },
+                "repo_name": {
+                    "type": "string"
+                },
+                "repo_url": {
+                    "type": "string"
+                },
+                "values": {
+                    "type": "object"
+                }
+            }
+        },
         "dto.CreatePermissionRequest": {
             "type": "object",
             "required": [
                 "action",
-                "display_name",
-                "name",
                 "resource_id"
             ],
             "properties": {
                 "action": {
-                    "type": "string",
-                    "example": "read"
+                    "$ref": "#/definitions/consts.ActionName"
                 },
                 "description": {
-                    "type": "string",
-                    "example": "Permission to read dataset information"
+                    "type": "string"
                 },
                 "display_name": {
-                    "type": "string",
-                    "example": "Read Datasets"
-                },
-                "name": {
-                    "type": "string",
-                    "example": "read_datasets"
+                    "type": "string"
                 },
                 "resource_id": {
                     "type": "integer",
-                    "example": 1
+                    "minimum": 1
                 }
             }
         },
@@ -8283,29 +8351,17 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "display_name",
-                "name",
-                "type"
+                "name"
             ],
             "properties": {
                 "description": {
-                    "type": "string",
-                    "example": "Role for data analysis operations"
+                    "type": "string"
                 },
                 "display_name": {
-                    "type": "string",
-                    "example": "Data Analyst"
+                    "type": "string"
                 },
                 "name": {
-                    "type": "string",
-                    "example": "data_analyst"
-                },
-                "type": {
-                    "type": "string",
-                    "enum": [
-                        "system",
-                        "custom"
-                    ],
-                    "example": "custom"
+                    "type": "string"
                 }
             }
         },
@@ -9500,6 +9556,31 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GenericResponse-dto_ContainerDetailResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ContainerDetailResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GenericResponse-dto_ContainerResponse": {
             "type": "object",
             "properties": {
@@ -9512,6 +9593,56 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.ContainerResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_ContainerVersionDetailResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ContainerVersionDetailResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_ContainerVersionResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ContainerVersionResponse"
                         }
                     ]
                 },
@@ -9948,6 +10079,81 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GenericResponse-dto_ListPermissionResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ListPermissionResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_ListResponse-dto_ContainerResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ListResponse-dto_ContainerResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_ListRoleResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ListRoleResponse"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GenericResponse-dto_ListTasksResp": {
             "type": "object",
             "properties": {
@@ -10072,7 +10278,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_PermissionListResponse": {
+        "dto.GenericResponse-dto_PermissionDetailResponse": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10083,7 +10289,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.PermissionListResponse"
+                            "$ref": "#/definitions/dto.PermissionDetailResponse"
                         }
                     ]
                 },
@@ -10196,7 +10402,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_RelationListResponse": {
+        "dto.GenericResponse-dto_RoleDetailResponse": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10207,57 +10413,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.RelationListResponse"
-                        }
-                    ]
-                },
-                "message": {
-                    "description": "Response message",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "Response generation time",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.GenericResponse-dto_RelationStatisticsResponse": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "Status code",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "Generic type data",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.RelationStatisticsResponse"
-                        }
-                    ]
-                },
-                "message": {
-                    "description": "Response message",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "Response generation time",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.GenericResponse-dto_RoleListResponse": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "Status code",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "Generic type data",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.RoleListResponse"
+                            "$ref": "#/definitions/dto.RoleDetailResponse"
                         }
                     ]
                 },
@@ -10947,6 +11103,30 @@ const docTemplate = `{
                 },
                 "version": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.HelmConfigDetailResponse": {
+            "type": "object",
+            "properties": {
+                "full_chart": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "ns_prefix": {
+                    "type": "string"
+                },
+                "port_template": {
+                    "type": "string"
+                },
+                "repo_url": {
+                    "type": "string"
+                },
+                "values": {
+                    "type": "object",
+                    "additionalProperties": {}
                 }
             }
         },
@@ -11664,6 +11844,48 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.ListPermissionResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.PermissionResponse"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
+        "dto.ListResponse-dto_ContainerResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ContainerResponse"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
+        "dto.ListRoleResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.RoleResponse"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
         "dto.LoginRequest": {
             "type": "object",
             "required": [
@@ -11832,17 +12054,38 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.PermissionListResponse": {
+        "dto.PermissionDetailResponse": {
             "type": "object",
             "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.PermissionResponse"
-                    }
+                "action": {
+                    "type": "string"
                 },
-                "pagination": {
-                    "$ref": "#/definitions/dto.PaginationInfo"
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_system": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "resource": {
+                    "$ref": "#/definitions/dto.ResourceResponse"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -11850,177 +12093,28 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "action": {
-                    "type": "string",
-                    "example": "read"
-                },
-                "created_at": {
-                    "type": "string",
-                    "example": "2024-01-01T00:00:00Z"
-                },
-                "description": {
-                    "type": "string",
-                    "example": "Permission to read dataset information"
+                    "type": "string"
                 },
                 "display_name": {
-                    "type": "string",
-                    "example": "Read Datasets"
+                    "type": "string"
                 },
                 "id": {
-                    "type": "integer",
-                    "example": 1
+                    "type": "integer"
                 },
                 "is_system": {
-                    "type": "boolean",
-                    "example": false
+                    "type": "boolean"
                 },
                 "name": {
-                    "type": "string",
-                    "example": "read_datasets"
+                    "type": "string"
                 },
-                "resource": {
-                    "$ref": "#/definitions/dto.ResourceResponse"
-                },
-                "resource_id": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "roles": {
-                    "description": "Roles that have this permission",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.RoleResponse"
-                    }
+                "resource_name": {
+                    "type": "string"
                 },
                 "status": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "updated_at": {
-                    "type": "string",
-                    "example": "2024-01-01T00:00:00Z"
-                }
-            }
-        },
-        "dto.PermissionSearchRequest": {
-            "type": "object",
-            "properties": {
-                "actions": {
-                    "description": "Action filter",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "created_at": {
-                    "description": "Common filters shortcuts",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.DateRange"
-                        }
-                    ]
-                },
-                "description_pattern": {
-                    "description": "Fuzzy match for description",
-                    "type": "string"
-                },
-                "display_name_pattern": {
-                    "description": "Fuzzy match for display name",
-                    "type": "string"
-                },
-                "exclude_fields": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "filters": {
-                    "description": "Filters",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.SearchFilter"
-                    }
-                },
-                "include": {
-                    "description": "Include related entities",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "include_fields": {
-                    "description": "Include/Exclude fields",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "is_system": {
-                    "description": "Is system permission",
-                    "type": "boolean"
-                },
-                "keyword": {
-                    "description": "Search keyword (for general text search)",
-                    "type": "string"
-                },
-                "name_pattern": {
-                    "description": "Permission-specific filter shortcuts",
-                    "type": "string"
-                },
-                "page": {
-                    "description": "Pagination",
-                    "type": "integer",
-                    "minimum": 1
-                },
-                "project_id": {
                     "type": "integer"
                 },
-                "resource_ids": {
-                    "description": "Resource ID filter",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "resource_names": {
-                    "description": "Resource name filter",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "role_ids": {
-                    "description": "Role IDs that have this permission",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "size": {
-                    "type": "integer",
-                    "maximum": 1000,
-                    "minimum": 1
-                },
-                "sort": {
-                    "description": "Sort",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.SortOption"
-                    }
-                },
-                "status": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
                 "updated_at": {
-                    "$ref": "#/definitions/dto.DateRange"
-                },
-                "user_id": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },
@@ -12288,173 +12382,18 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.RelationEntity": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "name": {
-                    "type": "string",
-                    "example": "admin"
-                },
-                "type": {
-                    "type": "string",
-                    "example": "user"
-                }
-            }
-        },
-        "dto.RelationListResponse": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.RelationResponse"
-                    }
-                },
-                "pagination": {
-                    "$ref": "#/definitions/dto.PaginationInfo"
-                }
-            }
-        },
-        "dto.RelationOperation": {
-            "type": "object",
-            "required": [
-                "action",
-                "source_id",
-                "target_id",
-                "type"
-            ],
-            "properties": {
-                "action": {
-                    "type": "string",
-                    "enum": [
-                        "assign",
-                        "remove"
-                    ],
-                    "example": "assign"
-                },
-                "source_id": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "target_id": {
-                    "type": "integer",
-                    "example": 2
-                },
-                "type": {
-                    "type": "string",
-                    "example": "user_role"
-                }
-            }
-        },
-        "dto.RelationResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string",
-                    "example": "2024-01-01T00:00:00Z"
-                },
-                "id": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "source": {
-                    "$ref": "#/definitions/dto.RelationEntity"
-                },
-                "target": {
-                    "$ref": "#/definitions/dto.RelationEntity"
-                },
-                "type": {
-                    "type": "string",
-                    "example": "user_role"
-                },
-                "updated_at": {
-                    "type": "string",
-                    "example": "2024-01-01T00:00:00Z"
-                }
-            }
-        },
-        "dto.RelationStatisticsResponse": {
-            "type": "object",
-            "properties": {
-                "container_labels": {
-                    "type": "integer",
-                    "example": 150
-                },
-                "dataset_labels": {
-                    "type": "integer",
-                    "example": 200
-                },
-                "fault_injection_labels": {
-                    "type": "integer",
-                    "example": 120
-                },
-                "project_labels": {
-                    "type": "integer",
-                    "example": 80
-                },
-                "role_permissions": {
-                    "type": "integer",
-                    "example": 100
-                },
-                "user_permissions": {
-                    "type": "integer",
-                    "example": 25
-                },
-                "user_projects": {
-                    "type": "integer",
-                    "example": 75
-                },
-                "user_roles": {
-                    "type": "integer",
-                    "example": 50
-                }
-            }
-        },
         "dto.RemovePermissionFromRoleRequest": {
-            "type": "object"
-        },
-        "dto.RemoveRolePermissionRequest": {
-            "type": "object"
-        },
-        "dto.RemoveUserPermissionRequest": {
             "type": "object",
             "required": [
-                "permission_id",
-                "user_id"
+                "permission_ids"
             ],
             "properties": {
-                "permission_id": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "project_id": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "user_id": {
-                    "type": "integer",
-                    "example": 1
-                }
-            }
-        },
-        "dto.RemoveUserRoleRequest": {
-            "type": "object",
-            "required": [
-                "role_id",
-                "user_id"
-            ],
-            "properties": {
-                "role_id": {
-                    "type": "integer",
-                    "example": 2
-                },
-                "user_id": {
-                    "type": "integer",
-                    "example": 1
+                "permission_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "integer"
+                    }
                 }
             }
         },
@@ -12462,24 +12401,22 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "category": {
-                    "type": "string",
-                    "example": "data"
+                    "type": "string"
                 },
                 "display_name": {
-                    "type": "string",
-                    "example": "Datasets"
+                    "type": "string"
                 },
                 "id": {
-                    "type": "integer",
-                    "example": 1
+                    "type": "integer"
+                },
+                "is_system": {
+                    "type": "boolean"
                 },
                 "name": {
-                    "type": "string",
-                    "example": "datasets"
+                    "type": "string"
                 },
                 "type": {
-                    "type": "string",
-                    "example": "table"
+                    "type": "string"
                 }
             }
         },
@@ -12496,46 +12433,26 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.RoleListResponse": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.RoleResponse"
-                    }
-                },
-                "pagination": {
-                    "$ref": "#/definitions/dto.PaginationInfo"
-                }
-            }
-        },
-        "dto.RoleResponse": {
+        "dto.RoleDetailResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
-                    "type": "string",
-                    "example": "2024-01-01T00:00:00Z"
+                    "type": "string"
                 },
                 "description": {
-                    "type": "string",
-                    "example": "Role for data analysis operations"
+                    "type": "string"
                 },
                 "display_name": {
-                    "type": "string",
-                    "example": "Data Analyst"
+                    "type": "string"
                 },
                 "id": {
-                    "type": "integer",
-                    "example": 1
+                    "type": "integer"
                 },
                 "is_system": {
-                    "type": "boolean",
-                    "example": false
+                    "type": "boolean"
                 },
                 "name": {
-                    "type": "string",
-                    "example": "data_analyst"
+                    "type": "string"
                 },
                 "permissions": {
                     "type": "array",
@@ -12544,26 +12461,51 @@ const docTemplate = `{
                     }
                 },
                 "status": {
-                    "type": "integer",
-                    "example": 1
+                    "type": "integer"
                 },
                 "type": {
-                    "type": "string",
-                    "example": "custom"
+                    "type": "string"
                 },
                 "updated_at": {
-                    "type": "string",
-                    "example": "2024-01-01T00:00:00Z"
+                    "type": "string"
                 },
                 "user_count": {
-                    "type": "integer",
-                    "example": 5
+                    "type": "integer"
                 }
             }
         },
-        "dto.RoleSearchRequest": {
+        "dto.RoleResponse": {
             "type": "object",
             "properties": {
+                "display_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_system": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.SearchContainerRequest": {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string"
+                },
                 "created_at": {
                     "description": "Common filters shortcuts",
                     "allOf": [
@@ -12571,14 +12513,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.DateRange"
                         }
                     ]
-                },
-                "description_pattern": {
-                    "description": "Description fuzzy match",
-                    "type": "string"
-                },
-                "display_name_pattern": {
-                    "description": "Display name fuzzy match",
-                    "type": "string"
                 },
                 "exclude_fields": {
                     "type": "array",
@@ -12592,6 +12526,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/dto.SearchFilter"
                     }
+                },
+                "image": {
+                    "type": "string"
                 },
                 "include": {
                     "description": "Include related entities",
@@ -12610,29 +12547,18 @@ const docTemplate = `{
                 "is_active": {
                     "type": "boolean"
                 },
-                "is_system": {
-                    "description": "Whether system role",
-                    "type": "boolean"
-                },
                 "keyword": {
                     "description": "Search keyword (for general text search)",
                     "type": "string"
                 },
-                "name_pattern": {
-                    "description": "Role-specific filter shortcuts",
+                "name": {
+                    "description": "Container-specific filters",
                     "type": "string"
                 },
                 "page": {
                     "description": "Pagination",
                     "type": "integer",
                     "minimum": 1
-                },
-                "permission_ids": {
-                    "description": "Permission ID filter",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
                 },
                 "project_id": {
                     "type": "integer"
@@ -12650,28 +12576,16 @@ const docTemplate = `{
                     }
                 },
                 "status": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                    "type": "integer"
                 },
-                "types": {
-                    "description": "Role type filter",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
+                "tag": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
                 },
                 "updated_at": {
                     "$ref": "#/definitions/dto.DateRange"
-                },
-                "user_count": {
-                    "description": "User count range",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.NumberRange"
-                        }
-                    ]
                 },
                 "user_id": {
                     "type": "integer"
@@ -12707,6 +12621,129 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "dto.SearchPermissionRequest": {
+            "type": "object",
+            "properties": {
+                "actions": {
+                    "description": "Action filter",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "created_at": {
+                    "description": "Common filters shortcuts",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.DateRange"
+                        }
+                    ]
+                },
+                "description_pattern": {
+                    "description": "Fuzzy match for description",
+                    "type": "string"
+                },
+                "display_name_pattern": {
+                    "description": "Fuzzy match for display name",
+                    "type": "string"
+                },
+                "exclude_fields": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "filters": {
+                    "description": "Filters",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SearchFilter"
+                    }
+                },
+                "include": {
+                    "description": "Include related entities",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "include_fields": {
+                    "description": "Include/Exclude fields",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "is_system": {
+                    "description": "Is system permission",
+                    "type": "boolean"
+                },
+                "keyword": {
+                    "description": "Search keyword (for general text search)",
+                    "type": "string"
+                },
+                "name_pattern": {
+                    "description": "Permission-specific filter shortcuts",
+                    "type": "string"
+                },
+                "page": {
+                    "description": "Pagination",
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "resource_ids": {
+                    "description": "Resource ID filter",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "resource_names": {
+                    "description": "Resource name filter",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "role_ids": {
+                    "description": "Role IDs that have this permission",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "size": {
+                    "type": "integer",
+                    "maximum": 1000,
+                    "minimum": 1
+                },
+                "sort": {
+                    "description": "Sort",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SortOption"
+                    }
+                },
+                "status": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "updated_at": {
+                    "$ref": "#/definitions/dto.DateRange"
+                },
+                "user_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -12915,6 +12952,116 @@ const docTemplate = `{
                 },
                 "pagination": {
                     "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
+        "dto.SearchRoleRequest": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "description": "Common filters shortcuts",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.DateRange"
+                        }
+                    ]
+                },
+                "description_pattern": {
+                    "description": "Description fuzzy match",
+                    "type": "string"
+                },
+                "display_name_pattern": {
+                    "description": "Display name fuzzy match",
+                    "type": "string"
+                },
+                "exclude_fields": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "filters": {
+                    "description": "Filters",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SearchFilter"
+                    }
+                },
+                "include": {
+                    "description": "Include related entities",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "include_fields": {
+                    "description": "Include/Exclude fields",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "is_system": {
+                    "description": "Whether system role",
+                    "type": "boolean"
+                },
+                "keyword": {
+                    "description": "Search keyword (for general text search)",
+                    "type": "string"
+                },
+                "name_pattern": {
+                    "description": "Role-specific filter shortcuts",
+                    "type": "string"
+                },
+                "page": {
+                    "description": "Pagination",
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "permission_ids": {
+                    "description": "Permission ID filter",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer",
+                    "maximum": 1000,
+                    "minimum": 1
+                },
+                "sort": {
+                    "description": "Sort",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SortOption"
+                    }
+                },
+                "status": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "updated_at": {
+                    "$ref": "#/definitions/dto.DateRange"
+                },
+                "user_count": {
+                    "description": "User count range",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.NumberRange"
+                        }
+                    ]
+                },
+                "user_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -13587,48 +13734,70 @@ const docTemplate = `{
                             "$ref": "#/definitions/consts.TaskType"
                         }
                     ]
+                },
+                "user_id": {
+                    "description": "ID of the user who created the task (optional)",
+                    "type": "integer"
                 }
             }
         },
         "dto.UpdateContainerRequest": {
-            "description": "Request structure for updating container information",
             "type": "object",
             "properties": {
-                "command": {
-                    "description": "@Description Container startup command (optional)",
-                    "type": "string"
-                },
-                "env_vars": {
-                    "description": "@Description Environment variables (optional)",
-                    "type": "string"
-                },
-                "image": {
-                    "description": "@Description Docker image name (optional)",
-                    "type": "string"
-                },
                 "is_public": {
-                    "description": "@Description Whether the container is public (optional)",
                     "type": "boolean"
                 },
-                "name": {
-                    "description": "@Description Container name (optional)",
+                "readme": {
                     "type": "string"
                 },
                 "status": {
-                    "description": "@Description Container status (optional)",
                     "type": "integer"
-                },
-                "tag": {
-                    "description": "@Description Docker image tag (optional)",
+                }
+            }
+        },
+        "dto.UpdateContainerVersionRequest": {
+            "type": "object",
+            "properties": {
+                "command": {
                     "type": "string"
                 },
-                "type": {
-                    "description": "@Description Container type (optional)",
-                    "type": "string",
-                    "enum": [
-                        "algorithm",
-                        "benchmark"
-                    ]
+                "env_vars": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "github_link": {
+                    "type": "string"
+                },
+                "helm_config": {
+                    "$ref": "#/definitions/dto.UpdateHelmConfigRequest"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.UpdateHelmConfigRequest": {
+            "type": "object",
+            "properties": {
+                "chart_name": {
+                    "type": "string"
+                },
+                "ns_prefix": {
+                    "type": "string"
+                },
+                "port_template": {
+                    "type": "string"
+                },
+                "repo_name": {
+                    "type": "string"
+                },
+                "repo_url": {
+                    "type": "string"
+                },
+                "values": {
+                    "type": "object"
                 }
             }
         },
@@ -13636,24 +13805,19 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "action": {
-                    "type": "string",
-                    "example": "read"
+                    "$ref": "#/definitions/consts.ActionName"
                 },
                 "description": {
-                    "type": "string",
-                    "example": "Updated permission description"
+                    "type": "string"
                 },
                 "display_name": {
-                    "type": "string",
-                    "example": "Read All Datasets"
+                    "type": "string"
                 },
                 "resource_id": {
-                    "type": "integer",
-                    "example": 2
+                    "type": "integer"
                 },
                 "status": {
-                    "type": "integer",
-                    "example": 1
+                    "type": "integer"
                 }
             }
         },
@@ -13661,16 +13825,13 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "description": {
-                    "type": "string",
-                    "example": "Updated role description"
+                    "type": "string"
                 },
                 "display_name": {
-                    "type": "string",
-                    "example": "Senior Data Analyst"
+                    "type": "string"
                 },
                 "status": {
-                    "type": "integer",
-                    "example": 1
+                    "type": "integer"
                 }
             }
         },

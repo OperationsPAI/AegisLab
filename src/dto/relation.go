@@ -1,18 +1,9 @@
 package dto
 
-import "time"
-
-// AssignUserRoleRequest represents user-role assignment request
-type AssignUserRoleRequest struct {
-	UserID int `json:"user_id" binding:"required" example:"1"`
-	RoleID int `json:"role_id" binding:"required" example:"2"`
-}
-
-// RemoveUserRoleRequest represents user-role removal request
-type RemoveUserRoleRequest struct {
-	UserID int `json:"user_id" binding:"required" example:"1"`
-	RoleID int `json:"role_id" binding:"required" example:"2"`
-}
+import (
+	"aegis/database"
+	"time"
+)
 
 // AssignRolePermissionRequest represents role-permission assignment request
 type AssignRolePermissionRequest struct {
@@ -28,11 +19,18 @@ type RemoveRolePermissionRequest struct {
 
 // AssignUserPermissionRequest represents direct user-permission assignment request
 type AssignUserPermissionRequest struct {
-	UserID       int        `json:"user_id" binding:"required" example:"1"`
-	PermissionID int        `json:"permission_id" binding:"required" example:"1"`
-	ProjectID    *int       `json:"project_id,omitempty" example:"1"`
-	GrantType    string     `json:"grant_type" binding:"required,oneof=grant deny" example:"grant"`
-	ExpiresAt    *time.Time `json:"expires_at,omitempty" example:"2024-12-31T23:59:59Z"`
+	PermissionID int        `json:"permission_id" binding:"required"`
+	ProjectID    *int       `json:"project_id,omitempty"`
+	ContainerID  *int       `json:"container_id,omitempty"`
+	GrantType    string     `json:"grant_type" binding:"required,oneof=grant deny"`
+	ExpiresAt    *time.Time `json:"expires_at,omitempty"`
+}
+
+func (req *AssignUserPermissionRequest) ConvertToUserPermission() *database.UserPermission {
+	return &database.UserPermission{
+		GrantType: req.GrantType,
+		ExpiresAt: req.ExpiresAt,
+	}
 }
 
 // RemoveUserPermissionRequest represents direct user-permission removal request
@@ -131,20 +129,20 @@ type BatchRelationRequest struct {
 
 // RelationOperation represents a single relationship operation
 type RelationOperation struct {
-	Action   string `json:"action" binding:"required,oneof=assign remove" example:"assign"`
-	Type     string `json:"type" binding:"required" example:"user_role"`
-	SourceID int    `json:"source_id" binding:"required" example:"1"`
-	TargetID int    `json:"target_id" binding:"required" example:"2"`
+	Action   string `json:"action" binding:"required,oneof=assign remove"`
+	Type     string `json:"type" binding:"required"`
+	SourceID int    `json:"source_id" binding:"required"`
+	TargetID int    `json:"target_id" binding:"required"`
 }
 
 // RelationStatisticsResponse represents relationship statistics
 type RelationStatisticsResponse struct {
-	UserRoles            int `json:"user_roles" example:"50"`
-	RolePermissions      int `json:"role_permissions" example:"100"`
-	UserPermissions      int `json:"user_permissions" example:"25"`
-	UserProjects         int `json:"user_projects" example:"75"`
-	DatasetLabels        int `json:"dataset_labels" example:"200"`
-	ContainerLabels      int `json:"container_labels" example:"150"`
-	ProjectLabels        int `json:"project_labels" example:"80"`
-	FaultInjectionLabels int `json:"fault_injection_labels" example:"120"`
+	UserRoles            int `json:"user_roles"`
+	RolePermissions      int `json:"role_permissions"`
+	UserPermissions      int `json:"user_permissions"`
+	UserProjects         int `json:"user_projects"`
+	DatasetLabels        int `json:"dataset_labels"`
+	ContainerLabels      int `json:"container_labels"`
+	ProjectLabels        int `json:"project_labels"`
+	FaultInjectionLabels int `json:"fault_injection_labels"`
 }

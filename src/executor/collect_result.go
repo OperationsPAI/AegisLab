@@ -98,13 +98,17 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				}
 
 				for _, item := range items {
+					algorithmVersion, err := repository.GetContainerVersion(consts.ContainerTypeAlgorithm, item.Name, *task.UserID, "")
+					if err != nil {
+						return fmt.Errorf("get algorithm container failed: %v", err)
+					}
+
 					childTask := &dto.UnifiedTask{
 						Type: consts.TaskTypeRunAlgorithm,
 						Payload: map[string]any{
-							consts.ExecuteAlgorithm:    item.Name,
-							consts.ExecuteAlgorithmTag: item.Tag,
-							consts.ExecuteDataset:      collectPayload.dataset,
-							consts.ExecuteEnvVars:      item.EnvVars,
+							consts.ExecuteAlgorithmVersion: algorithmVersion,
+							consts.ExecuteDataset:          collectPayload.dataset,
+							consts.ExecuteEnvVars:          item.EnvVars,
 						},
 						Immediate:    true,
 						TraceID:      task.TraceID,

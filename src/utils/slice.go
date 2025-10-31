@@ -13,8 +13,25 @@ func FilterEmptyStrings(strs []string) []string {
 	return result
 }
 
-func Union(a, b []string) []string {
-	set := make(map[string]struct{})
+// SubtractArrays returns a new slice containing elements in 'a' that are not in 'b'.
+func SubtractArrays[T comparable](a, b []T) []T {
+	set := make(map[T]struct{})
+	for _, v := range b {
+		set[v] = struct{}{}
+	}
+
+	result := make([]T, 0, len(a))
+	for _, v := range a {
+		if _, exists := set[v]; !exists {
+			result = append(result, v)
+		}
+	}
+	return result
+}
+
+// Union returns the union of two slices, removing duplicates.
+func Union[T comparable](a, b []T) []T {
+	set := make(map[T]struct{})
 	for _, s := range a {
 		set[s] = struct{}{}
 	}
@@ -22,7 +39,7 @@ func Union(a, b []string) []string {
 		set[s] = struct{}{}
 	}
 
-	result := make([]string, 0, len(set))
+	result := make([]T, 0, len(set))
 	for k := range set {
 		result = append(result, k)
 	}

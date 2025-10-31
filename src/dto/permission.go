@@ -2,64 +2,62 @@ package dto
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
+	"aegis/consts"
 	"aegis/database"
 )
 
 // CreatePermissionRequest represents permission creation request
 type CreatePermissionRequest struct {
-	Name        string `json:"name" binding:"required" example:"read_datasets"`
-	DisplayName string `json:"display_name" binding:"required" example:"Read Datasets"`
-	Description string `json:"description,omitempty" example:"Permission to read dataset information"`
-	Action      string `json:"action" binding:"required" example:"read"`
-	ResourceID  int    `json:"resource_id" binding:"required" example:"1"`
+	DisplayName string            `json:"display_name" binding:"omitempty"`
+	Description string            `json:"description" binding:"omitempty"`
+	Action      consts.ActionName `json:"action" binding:"required"`
+	ResourceID  int               `json:"resource_id" binding:"required,min=1"`
 }
 
-// UpdatePermissionRequest represents permission update request
-type UpdatePermissionRequest struct {
-	DisplayName string `json:"display_name,omitempty" example:"Read All Datasets"`
-	Description string `json:"description,omitempty" example:"Updated permission description"`
-	Action      string `json:"action,omitempty" example:"read"`
-	ResourceID  *int   `json:"resource_id,omitempty" example:"2"`
-	Status      *int   `json:"status,omitempty" example:"1"`
+func (req *CreatePermissionRequest) Validate() error {
+	if req.Action == "" {
+		return fmt.Errorf("action cannot be empty")
+	}
+	if _, ok := consts.ValidActions[consts.ActionName(req.Action)]; !ok {
+		return fmt.Errorf("invalid action: %s", req.Action)
+	}
+	return nil
 }
 
-// PermissionResponse represents permission response
-type PermissionResponse struct {
-	ID          int               `json:"id" example:"1"`
-	Name        string            `json:"name" example:"read_datasets"`
-	DisplayName string            `json:"display_name" example:"Read Datasets"`
-	Description string            `json:"description" example:"Permission to read dataset information"`
-	Action      string            `json:"action" example:"read"`
-	ResourceID  int               `json:"resource_id" example:"1"`
-	IsSystem    bool              `json:"is_system" example:"false"`
-	Status      int               `json:"status" example:"1"`
-	CreatedAt   time.Time         `json:"created_at" example:"2024-01-01T00:00:00Z"`
-	UpdatedAt   time.Time         `json:"updated_at" example:"2024-01-01T00:00:00Z"`
-	Resource    *ResourceResponse `json:"resource,omitempty"`
-	Roles       []RoleResponse    `json:"roles,omitempty"` // Roles that have this permission
+func (req *CreatePermissionRequest) ConvertToPermission() *database.Permission {
+	return &database.Permission{
+		Description: req.Description,
+		Action:      req.Action.String(),
+		IsSystem:    false,
+		Status:      consts.CommonEnabled,
+	}
 }
 
-// PermissionListRequest represents permission list query parameters
-type PermissionListRequest struct {
-	Page       int    `form:"page,default=1" binding:"min=1" example:"1"`
-	Size       int    `form:"size,default=20" binding:"min=1,max=100" example:"20"`
-	Action     string `form:"action" example:"read"`
-	ResourceID *int   `form:"resource_id" example:"1"`
-	Status     *int   `form:"status" example:"1"`
-	IsSystem   *bool  `form:"is_system" example:"false"`
-	Name       string `form:"name" example:"read_datasets"`
+// ListPermissionRequest represents permission list query parameters
+type ListPermissionRequest struct {
+	PaginationRequest
+	Action   consts.ActionName `form:"action" binding:"omitempty"`
+	IsSystem *bool             `form:"is_system" binding:"omitempty"`
+	Status   *int              `form:"status" binding:"omitempty"`
 }
 
-// PermissionListResponse represents paginated permission list response
-type PermissionListResponse struct {
-	Items      []PermissionResponse `json:"items"`
-	Pagination PaginationInfo       `json:"pagination"`
+func (req *ListPermissionRequest) Validate() error {
+	if req.Action != "" {
+		if _, exists := consts.ValidActions[consts.ActionName(req.Action)]; !exists {
+			return fmt.Errorf("invalid action: %s", req.Action)
+		}
+	}
+	if req.Status != nil {
+		return validateStatusField(req.Status, false)
+	}
+	return nil
 }
 
-// PermissionSearchRequest represents advanced permission search with complex filtering
-type PermissionSearchRequest struct {
+// SearchPermissionRequest represents advanced permission search with complex filtering
+type SearchPermissionRequest struct {
 	AdvancedSearchRequest
 
 	// Permission-specific filter shortcuts
@@ -74,7 +72,7 @@ type PermissionSearchRequest struct {
 }
 
 // ConvertToSearchRequest converts PermissionSearchRequest to SearchRequest with permission-specific filters
-func (psr *PermissionSearchRequest) ConvertToSearchRequest() *SearchRequest {
+func (psr *SearchPermissionRequest) ConvertToSearchRequest() *SearchRequest {
 	sr := psr.ConvertAdvancedToSearch()
 
 	// Add permission-specific filters
@@ -145,8 +143,8 @@ func (psr *PermissionSearchRequest) ConvertToSearchRequest() *SearchRequest {
 	return sr
 }
 
-// PermissionSearchFilters represents simple search filters for backward compatibility
-type PermissionSearchFilters struct {
+// SearchPermissionFilters represents filters for searching permissions
+type SearchPermissionFilters struct {
 	Name        []string `json:"name,omitempty"`
 	DisplayName []string `json:"display_name,omitempty"`
 	Actions     []string `json:"actions,omitempty"`
@@ -155,35 +153,131 @@ type PermissionSearchFilters struct {
 	IsSystem    []bool   `json:"is_system,omitempty"`
 }
 
-// ResourceResponse represents resource response (simplified)
-type ResourceResponse struct {
-	ID          int    `json:"id" example:"1"`
-	Name        string `json:"name" example:"datasets"`
-	DisplayName string `json:"display_name" example:"Datasets"`
-	Type        string `json:"type" example:"table"`
-	Category    string `json:"category" example:"data"`
+// UpdatePermissionRequest represents permission update request
+type UpdatePermissionRequest struct {
+	DisplayName *string            `json:"display_name" binding:"omitempty"`
+	Description *string            `json:"description" binding:"omitempty"`
+	Action      *consts.ActionName `json:"action" binding:"omitempty"`
+	ResourceID  *int               `json:"resource_id" binding:"omitempty,min_ptr=1"`
+	Status      *int               `json:"status" binding:"omitempty"`
+}
+
+func (req *UpdatePermissionRequest) Validate() error {
+	if req.DisplayName != nil {
+		if *req.DisplayName != "" {
+			*req.DisplayName = strings.TrimSpace(*req.DisplayName)
+		}
+	}
+
+	if req.Action != nil {
+		if *req.Action == "" {
+			return fmt.Errorf("action cannot be empty")
+		}
+		if _, ok := consts.ValidActions[consts.ActionName(*req.Action)]; !ok {
+			return fmt.Errorf("invalid action: %s", *req.Action)
+		}
+	}
+
+	if req.Status != nil {
+		return validateStatusField(req.Status, true)
+	}
+
+	return nil
+}
+
+func (req *UpdatePermissionRequest) PatchPermissionModel(target *database.Permission) {
+	if req.DisplayName != nil {
+		target.DisplayName = *req.DisplayName
+	}
+	if req.Description != nil {
+		target.Description = *req.Description
+	}
+	if req.Action != nil {
+		target.Action = req.Action.String()
+	}
+	if req.Status != nil {
+		target.Status = *req.Status
+	}
+}
+
+// PermissionResponse represents permission summary information
+type PermissionResponse struct {
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	DisplayName string    `json:"display_name"`
+	Action      string    `json:"action"`
+	Resource    string    `json:"resource_name"`
+	IsSystem    bool      `json:"is_system"`
+	Status      int       `json:"status"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // ConvertFromPermission converts database Permission to PermissionResponse DTO
-func (p *PermissionResponse) ConvertFromPermission(permission *database.Permission) {
-	p.ID = permission.ID
-	p.Name = permission.Name
-	p.DisplayName = permission.DisplayName
-	p.Description = permission.Description
-	p.Action = permission.Action
-	p.ResourceID = permission.ResourceID
-	p.IsSystem = permission.IsSystem
-	p.Status = permission.Status
-	p.CreatedAt = permission.CreatedAt
-	p.UpdatedAt = permission.UpdatedAt
+func (resp *PermissionResponse) ConvertFromPermission(permission *database.Permission) {
+	resp.ID = permission.ID
+	resp.Name = permission.Name
+	resp.DisplayName = permission.DisplayName
+	resp.Action = permission.Action
+	resp.IsSystem = permission.IsSystem
+	resp.Status = permission.Status
+	resp.UpdatedAt = permission.UpdatedAt
 
 	if permission.Resource != nil {
-		p.Resource = &ResourceResponse{
-			ID:          permission.Resource.ID,
-			Name:        permission.Resource.Name,
-			DisplayName: permission.Resource.DisplayName,
-			Type:        permission.Resource.Type,
-			Category:    permission.Resource.Category,
-		}
+		resp.Resource = permission.Resource.Name
 	}
+}
+
+type PermissionDetailResponse struct {
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	DisplayName string    `json:"display_name"`
+	Description string    `json:"description"`
+	Action      string    `json:"action"`
+	IsSystem    bool      `json:"is_system"`
+	Status      int       `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+
+	Resource *ResourceResponse `json:"resource,omitempty"`
+}
+
+func (resp *PermissionDetailResponse) ConvertFromPermission(permission *database.Permission) {
+	resp.ID = permission.ID
+	resp.Name = permission.Name
+	resp.DisplayName = permission.DisplayName
+	resp.Description = permission.Description
+	resp.Action = permission.Action
+	resp.IsSystem = permission.IsSystem
+	resp.Status = permission.Status
+	resp.CreatedAt = permission.CreatedAt
+	resp.UpdatedAt = permission.UpdatedAt
+
+	if permission.Resource != nil {
+		var resourceResp ResourceResponse
+		resourceResp.ConvertFromResource(permission.Resource)
+		resp.Resource = &resourceResp
+	}
+}
+
+type ListPermissionResponse struct {
+	Items      []PermissionResponse `json:"items"`
+	Pagination PaginationInfo       `json:"pagination"`
+}
+
+type ResourceResponse struct {
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	DisplayName string `json:"display_name"`
+	Type        string `json:"type"`
+	Category    string `json:"category"`
+	IsSystem    bool   `json:"is_system"`
+}
+
+func (resp *ResourceResponse) ConvertFromResource(resource *database.Resource) {
+	resp.ID = resource.ID
+	resp.Name = resource.Name
+	resp.DisplayName = resource.DisplayName
+	resp.Type = resource.Type
+	resp.Category = resource.Category
+	resp.IsSystem = resource.IsSystem
 }

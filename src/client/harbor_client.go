@@ -22,8 +22,8 @@ var (
 )
 
 type HarborClient struct {
-	host      string
-	project   string
+	registry  string
+	namespace string
 	username  string
 	password  string
 	clientSet *harbor.ClientSet
@@ -31,13 +31,13 @@ type HarborClient struct {
 
 func GetHarborClient() *HarborClient {
 	harborOnce.Do(func() {
-		host := config.GetString("harbor.host")
-		project := config.GetString("harbor.project")
+		registry := config.GetString("harbor.registry")
+		namespace := config.GetString("harbor.namespace")
 		username := config.GetString("harbor.username")
 		password := config.GetString("harbor.password")
 
 		// Build complete Harbor URL
-		harborURL := fmt.Sprintf("http://%s", host)
+		harborURL := fmt.Sprintf("http://%s", registry)
 
 		clientSet, err := harbor.NewClientSet(&harbor.ClientSetConfig{
 			URL:      harborURL,
@@ -49,8 +49,8 @@ func GetHarborClient() *HarborClient {
 			// If client creation fails, log error but continue using nil client
 			// Will return error in actual methods
 			harborClient = &HarborClient{
-				host:      host,
-				project:   project,
+				registry:  registry,
+				namespace: namespace,
 				username:  username,
 				password:  password,
 				clientSet: nil,
@@ -59,8 +59,8 @@ func GetHarborClient() *HarborClient {
 		}
 
 		harborClient = &HarborClient{
-			host:      host,
-			project:   project,
+			registry:  registry,
+			namespace: namespace,
 			username:  username,
 			password:  password,
 			clientSet: clientSet,
@@ -78,7 +78,7 @@ func (h *HarborClient) GetLatestTag(image string) (string, error) {
 	defer cancel()
 
 	params := &artifact.ListArtifactsParams{
-		ProjectName:    h.project,
+		ProjectName:    h.namespace,
 		RepositoryName: image,
 		Context:        ctx,
 	}
@@ -110,7 +110,7 @@ func (h *HarborClient) GetLatestTag(image string) (string, error) {
 	return allTags[0].Name, nil
 }
 
-func (h *HarborClient) CheckImageExists(image, tag string) (bool, error) {
+func (h *HarborClient) CheckImageExists(repository, tag string) (bool, error) {
 	if h.clientSet == nil {
 		return false, fmt.Errorf("harbor client is not initialized")
 	}
@@ -119,8 +119,8 @@ func (h *HarborClient) CheckImageExists(image, tag string) (bool, error) {
 	defer cancel()
 
 	params := &artifact.ListArtifactsParams{
-		ProjectName:    h.project,
-		RepositoryName: image,
+		ProjectName:    h.namespace,
+		RepositoryName: repository,
 		Context:        ctx,
 	}
 
@@ -133,7 +133,7 @@ func (h *HarborClient) CheckImageExists(image, tag string) (bool, error) {
 		return false, nil
 	}
 
-	if tag == "" || tag == "latest" {
+	if tag == "" || tag == consts.DefaultContainerTag {
 		return true, nil
 	}
 

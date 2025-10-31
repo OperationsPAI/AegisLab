@@ -110,8 +110,6 @@ Note: v1 API design is chaotic and does not follow a unified standard. It will g
 
 // SetupV2Routes sets up API v2 routes - stable version of the API
 func SetupV2Routes(router *gin.Engine) {
-
-	// Start rate limiting cleanup routine
 	middleware.StartCleanupRoutine()
 
 	v2 := router.Group("/api/v2")
@@ -131,46 +129,32 @@ func SetupV2Routes(router *gin.Engine) {
 		}
 	}
 
-	// Relation management routes
-	relations := v2.Group("/relations", middleware.JWTAuth(), middleware.StrictRateLimit)
-	{
-		relations.GET("", middleware.RequireSystemRead, v2handlers.ListRelations)                    // List relationships
-		relations.GET("/statistics", middleware.RequireSystemRead, v2handlers.GetRelationStatistics) // Relationship statistics
-
-		// Admin operations
-		adminRelations := relations.Group("", middleware.RequireSystemAdmin)
-		{
-			adminRelations.POST("/batch", v2handlers.BatchRelationOperations) // Batch operations
-
-			// User-Role relationships
-			adminRelations.POST("/user-roles", v2handlers.AssignUserRole)   // Assign role to user
-			adminRelations.DELETE("/user-roles", v2handlers.RemoveUserRole) // Remove role from user
-
-			// Role-Permission relationships
-			adminRelations.POST("/role-permissions", v2handlers.AssignRolePermissions)   // Assign permissions to role
-			adminRelations.DELETE("/role-permissions", v2handlers.RemoveRolePermissions) // Remove permissions from role
-
-			// User-Permission relationships (direct)
-			adminRelations.POST("/user-permissions", v2handlers.AssignUserPermission)   // Assign permission to user
-			adminRelations.DELETE("/user-permissions", v2handlers.RemoveUserPermission) // Remove permission from user
-		}
-	}
-
 	// Authentication and Authorization API Group (partially implemented, others for future expansion)
 	roles := v2.Group("/roles", middleware.JWTAuth()) // Role Management - Role Entity
 	{
-		roles.GET("", middleware.RequireRoleRead, v2handlers.ListRoles)              // List roles
-		roles.GET("/:id", middleware.RequireRoleRead, v2handlers.GetRole)            // Get role by ID
-		roles.GET("/:id/users", middleware.RequireRoleRead, v2handlers.GetRoleUsers) // Get users with this role
-		roles.POST("/search", middleware.RequireRoleRead, v2handlers.SearchRoles)    // Search roles
+		permissions := roles.Group("/:id/permissions") // Role-Permission relationships
+		{
+			permissions.POST("", v2handlers.AssignPermissionsToRole)     // Assign permissions to role
+			permissions.DELETE("", v2handlers.RemovePermissionsFromRole) // Remove permissions from role
+		}
+
+		users := roles.Group("/:id/users") // Role-User relationships
+		{
+			users.GET("", v2handlers.ListUsersFromRole) // List users with this role
+		}
+
+		roleRead := roles.Group("", middleware.RequireRoleRead)
+		{
+			roleRead.GET("/:id", v2handlers.GetRole)         // Get role by ID
+			roleRead.GET("", v2handlers.ListRoles)           // List roles
+			roleRead.POST("/search", v2handlers.SearchRoles) // Search roles
+		}
 
 		// Write operations (admin only)
 		roleWrite := roles.Group("", middleware.RequireRoleWrite)
 		{
-			roleWrite.POST("", v2handlers.CreateRole)                                  // Create role
-			roleWrite.PUT("/:id", v2handlers.UpdateRole)                               // Update role
-			roleWrite.POST("/:id/permissions", v2handlers.AssignPermissionsToRole)     // Assign permissions to role
-			roleWrite.DELETE("/:id/permissions", v2handlers.RemovePermissionsFromRole) // Remove permissions from role
+			roleWrite.POST("", v2handlers.CreateRole)      // Create role
+			roleWrite.PATCH("/:id", v2handlers.UpdateRole) // Update role
 		}
 
 		// Delete operations (admin only)
@@ -179,36 +163,55 @@ func SetupV2Routes(router *gin.Engine) {
 
 	users := v2.Group("/users", middleware.JWTAuth()) // User Management - User Entity
 	{
-		users.GET("", middleware.RequireUserRead, v2handlers.ListUsers)               // List users
-		users.GET("/:id", middleware.RequireAdminOrUserOwnership, v2handlers.GetUser) // Get user by ID
-		users.POST("/search", middleware.RequireUserRead, v2handlers.SearchUsers)     // Search users
+		roles := users.Group("/:id/roles") // User-Role relationships
+		{
+			roles.POST("", v2handlers.AssignGlobalRole)            // Assign role to user
+			roles.DELETE("/:role_id", v2handlers.RemoveGlobalRole) // Remove role from user
+		}
+
+		projects := users.Group("/:id/projects") // User-Project relationships
+		{
+			projects.POST("", v2handlers.AssignUserToProject)                 // Assign user to project
+			projects.DELETE("/:project_id", v2handlers.RemoveUserFromProject) // Remove user from project
+		}
+
+		userRead := users.Group("", middleware.RequireUserRead)
+		{
+			userRead.GET("", middleware.RequireUserRead, v2handlers.ListUsers)               // List users
+			userRead.GET("/:id", middleware.RequireAdminOrUserOwnership, v2handlers.GetUser) // Get user by ID
+			userRead.POST("/search", middleware.RequireUserRead, v2handlers.SearchUsers)     // Search users
+		}
 
 		// Write operations
 		userWrite := users.Group("", middleware.RequireUserWrite)
 		{
-			userWrite.POST("", v2handlers.CreateUser)                                       // Create user
-			userWrite.PUT("/:id", v2handlers.UpdateUser)                                    // Update user
-			userWrite.POST("/:id/projects", v2handlers.AssignUserToProject)                 // Assign user to project
-			userWrite.DELETE("/:id/projects/:project_id", v2handlers.RemoveUserFromProject) // Remove user from project
+			userWrite.POST("", v2handlers.CreateUser)    // Create user
+			userWrite.PUT("/:id", v2handlers.UpdateUser) // Update user
 		}
 
 		// Delete operations (admin only)
 		users.DELETE("/:id", middleware.RequireUserDelete, v2handlers.DeleteUser) // Delete user
 	}
 
-	permissions := v2.Group("/permissions", middleware.JWTAuth(), middleware.RequirePermissionRead) // Permission Management - Permission Entity
+	permissions := v2.Group("/permissions", middleware.JWTAuth()) // Permission Management - Permission Entity
 	{
-		permissions.GET("", v2handlers.ListPermissions)                                // List permissions
-		permissions.GET("/:id", v2handlers.GetPermission)                              // Get permission by ID
-		permissions.POST("/search", v2handlers.SearchPermissions)                      // Search permissions
-		permissions.GET("/:id/roles", v2handlers.GetPermissionRoles)                   // Get roles with this permission
-		permissions.GET("/resource/:resource_id", v2handlers.GetPermissionsByResource) // Get permissions by resource
+		roles := permissions.Group("/:id/roles") // Permission-Role relationships
+		{
+			roles.GET("", v2handlers.ListPermissionRoles) // List roles assigned to permission
+		}
+
+		permRead := permissions.Group("", middleware.RequirePermissionRead)
+		{
+			permRead.GET("", v2handlers.ListPermissions)           // List permissions
+			permRead.GET("/:id", v2handlers.GetPermission)         // Get permission by ID
+			permRead.POST("/search", v2handlers.SearchPermissions) // Search permissions
+		}
 
 		// Write operations (admin only)
 		permWrite := permissions.Group("", middleware.RequirePermissionWrite)
 		{
-			permWrite.POST("", v2handlers.CreatePermission)    // Create permission
-			permWrite.PUT("/:id", v2handlers.UpdatePermission) // Update permission
+			permWrite.POST("", v2handlers.CreatePermission)      // Create permission
+			permWrite.PATCH("/:id", v2handlers.UpdatePermission) // Update permission
 		}
 
 		// Delete operations (admin only)
@@ -216,6 +219,12 @@ func SetupV2Routes(router *gin.Engine) {
 	}
 
 	resources := v2.Group("/resources") // Resource Management - Resource Entity
+	{
+		permissions := resources.Group("/:id/permissions") // Resource-Permission relationships
+		{
+			permissions.GET("", v2handlers.ListResourcePermissions) // List permissions assigned to resource
+		}
+	}
 
 	// Core Business Entity API Group
 
@@ -239,27 +248,29 @@ func SetupV2Routes(router *gin.Engine) {
 	// Container Management - Container Entity
 	containers := v2.Group("/containers", middleware.JWTAuth())
 	{
-		// Create operation
-		// POST /api/v2/containers - Create a new container
-		containers.POST("", middleware.RequireContainerWrite, v2handlers.CreateContainer)
+		versions := containers.Group("/:container_id/versions")
+		{
+			versions.GET("/:version_id", middleware.RequireContainerVersionRead, v2handlers.GetContainerVersion)
+			versions.POST("", middleware.RequireContainerVersionWrite, v2handlers.CreateContainerVersion)
+			versions.PATCH("/:version_id", middleware.RequireContainerVersionWrite, v2handlers.UpdateContainerVersion)
+			versions.DELETE("/:version_id", middleware.RequireContainerVersionDelete, v2handlers.DeleteContainerVersion)
+		}
 
-		// Read operations
-		// GET /api/v2/containers?page=1&size=20&type=algorithm&status=true
-		containers.GET("", middleware.RequireContainerRead, v2handlers.ListContainers)
+		containerRead := containers.Group("", middleware.RequireContainerRead)
+		{
+			containerRead.GET("/:container_id", v2handlers.GetContainer) // Get container by ID
+			containerRead.GET("", v2handlers.ListContainers)             // List containers
+			containerRead.POST("/search", v2handlers.SearchContainers)   // Advanced search
+		}
 
-		// GET /api/v2/containers/{id}
-		containers.GET("/:id", middleware.RequireContainerRead, v2handlers.GetContainer)
+		containerWrite := containers.Group("", middleware.RequireContainerWrite)
+		{
+			containerWrite.POST("", v2handlers.CreateContainer)
+			containerWrite.PATCH("/:container_id", middleware.RequireContainerWrite, v2handlers.UpdateContainer)
+		}
 
-		// POST /api/v2/containers/search - Advanced search with complex filters
-		containers.POST("/search", middleware.RequireContainerRead, v2handlers.SearchContainers)
-
-		// Update operation
-		// PUT /api/v2/containers/{id} - Update container
-		containers.PUT("/:id", middleware.RequireContainerWrite, v2handlers.UpdateContainer)
-
-		// Delete operation
-		// DELETE /api/v2/containers/{id} - Delete container (soft delete)
-		containers.DELETE("/:id", middleware.RequireContainerDelete, v2handlers.DeleteContainer)
+		containers.POST("/build", v2handlers.BuildContainer)
+		containers.DELETE("/:container_id", middleware.RequireContainerDelete, v2handlers.DeleteContainer)
 	}
 
 	// Algorithm Management - Algorithms (Algorithm is a special type of container)

@@ -1,4 +1,34 @@
 definitions:
+  consts.ActionName:
+    enum:
+    - read
+    - write
+    - delete
+    - execute
+    - manage
+    type: string
+    x-enum-comments:
+      ActionDelete: delete action
+      ActionExecute: execute action
+      ActionManage: manage action
+      ActionRead: read action
+      ActionWrite: write action
+    x-enum-varnames:
+    - ActionRead
+    - ActionWrite
+    - ActionDelete
+    - ActionExecute
+    - ActionManage
+  consts.ContainerType:
+    enum:
+    - algorithm
+    - benchmark
+    - pedestal
+    type: string
+    x-enum-varnames:
+    - ContainerTypeAlgorithm
+    - ContainerTypeBenchmark
+    - ContainerTypePedestal
   consts.EventType:
     enum:
     - algorithm.run.succeed
@@ -66,7 +96,7 @@ definitions:
     - RestartService
     - RunAlgorithm
     - FaultInjection
-    - BuildImage
+    - BuildContainer
     - BuildDataset
     - CollectResult
     type: string
@@ -74,62 +104,27 @@ definitions:
     - TaskTypeRestartService
     - TaskTypeRunAlgorithm
     - TaskTypeFaultInjection
-    - TaskTypeBuildImage
+    - TaskTypeBuildContainer
     - TaskTypeBuildDataset
     - TaskTypeCollectResult
   database.Container:
     properties:
-      command:
-        description: Startup command
-        type: string
       created_at:
-        description: Creation time
         type: string
-      env_vars:
-        description: List of environment variable names
-        type: string
-      helm_config:
-        $ref: '#/definitions/database.HelmConfig'
-      helm_config_id:
-        description: Associated Helm configuration, nullable
-        type: integer
       id:
-        description: Unique identifier
         type: integer
-      image:
-        description: Full image name (not stored in DB, used for display)
-        type: string
       is_public:
-        description: Whether publicly visible
         type: boolean
       name:
-        description: Name with size limit
         type: string
-      registry:
-        description: Image registry with size limit
-        type: string
-      repository:
-        description: Image repository with size limit
+      readme:
         type: string
       status:
-        description: 'Status: -1:deleted 0:disabled 1:active'
         type: integer
-      tag:
-        description: Image tag with size limit
-        type: string
       type:
-        description: Image type
         type: string
       updated_at:
-        description: Update time
         type: string
-      user:
-        allOf:
-        - $ref: '#/definitions/database.User'
-        description: Foreign key association
-      user_id:
-        description: Container must belong to a user
-        type: integer
     type: object
   database.Dataset:
     properties:
@@ -235,36 +230,6 @@ definitions:
         description: Update time
         type: string
     type: object
-  database.HelmConfig:
-    properties:
-      chart_name:
-        description: Helm chart information
-        type: string
-      chart_version:
-        description: Chart version
-        type: string
-      full_chart:
-        description: Full chart reference (not stored in DB, used for display)
-        type: string
-      id:
-        description: Unique identifier
-        type: integer
-      ns_prefix:
-        description: Deployment configuration
-        type: string
-      port_template:
-        description: Port template for dynamic port assignment, e.g., "31%03d"
-        type: string
-      repo_name:
-        description: Repository name
-        type: string
-      repo_url:
-        description: Repository URL
-        type: string
-      values:
-        description: Helm values in JSON format
-        type: string
-    type: object
   database.Label:
     properties:
       category:
@@ -366,42 +331,6 @@ definitions:
         type: string
       updated_at:
         description: Update time
-        type: string
-    type: object
-  database.User:
-    properties:
-      avatar:
-        description: Avatar URL with size limit
-        type: string
-      created_at:
-        description: Creation time
-        type: string
-      email:
-        description: Email (unique) with size limit
-        type: string
-      full_name:
-        description: Full name with size limit
-        type: string
-      id:
-        description: Unique identifier
-        type: integer
-      is_active:
-        description: Whether active
-        type: boolean
-      last_login_at:
-        description: Last login time
-        type: string
-      phone:
-        description: Phone number
-        type: string
-      status:
-        description: 'Status: -1:deleted 0:disabled 1:enabled'
-        type: integer
-      updated_at:
-        description: Update time
-        type: string
-      username:
-        description: Username (unique) with size limit
         type: string
     type: object
   dto.AdvancedSearchRequest:
@@ -568,6 +497,8 @@ definitions:
     properties:
       algorithm_id:
         type: integer
+      algorithm_version_id:
+        type: integer
       datapack_id:
         type: integer
       dataset_id:
@@ -585,32 +516,18 @@ definitions:
         type: object
       name:
         type: string
-      tag:
+      version:
         type: string
     required:
     - name
     type: object
   dto.AlgorithmResponse:
     properties:
-      command:
-        type: string
       created_at:
-        type: string
-      default_tag:
-        type: string
-      env_vars:
         type: string
       id:
         type: integer
-      image:
-        type: string
-      is_public:
-        type: boolean
       name:
-        type: string
-      status:
-        type: integer
-      type:
         type: string
       updated_at:
         type: string
@@ -704,53 +621,47 @@ definitions:
         type: object
     type: object
   dto.AssignPermissionToRoleRequest:
+    properties:
+      permission_ids:
+        items:
+          type: integer
+        minItems: 1
+        type: array
+    required:
+    - permission_ids
     type: object
-  dto.AssignRolePermissionRequest:
+  dto.AssignRoleToUserRequest:
+    properties:
+      role_id:
+        example: 1
+        type: integer
+    required:
+    - role_id
     type: object
   dto.AssignUserPermissionRequest:
     properties:
+      container_id:
+        type: integer
       expires_at:
-        example: "2024-12-31T23:59:59Z"
         type: string
       grant_type:
         enum:
         - grant
         - deny
-        example: grant
         type: string
       permission_id:
-        example: 1
         type: integer
       project_id:
-        example: 1
-        type: integer
-      user_id:
-        example: 1
         type: integer
     required:
     - grant_type
     - permission_id
-    - user_id
-    type: object
-  dto.AssignUserRoleRequest:
-    properties:
-      role_id:
-        example: 2
-        type: integer
-      user_id:
-        example: 1
-        type: integer
-    required:
-    - role_id
-    - user_id
     type: object
   dto.AssignUserToProjectRequest:
     properties:
       project_id:
-        example: 1
         type: integer
       role_id:
-        example: 2
         type: integer
     required:
     - project_id
@@ -840,15 +751,44 @@ definitions:
       message:
         type: string
     type: object
-  dto.BatchRelationRequest:
+  dto.BuildContainerRequest:
     properties:
-      operations:
-        items:
-          $ref: '#/definitions/dto.RelationOperation'
-        minItems: 1
-        type: array
+      build_options:
+        $ref: '#/definitions/dto.BuildOptions'
+      github_branch:
+        type: string
+      github_commit:
+        type: string
+      github_repository:
+        description: GitHub repository information
+        type: string
+      github_token:
+        type: string
+      image_name:
+        description: Container Meta
+        type: string
+      sub_path:
+        type: string
+      tag:
+        type: string
     required:
-    - operations
+    - github_repository
+    - image_name
+    type: object
+  dto.BuildOptions:
+    properties:
+      build_args:
+        type: object
+      context_dir:
+        default: .
+        type: string
+      dockerfile_path:
+        default: Dockerfile
+        type: string
+      force_rebuild:
+        type: boolean
+      target:
+        type: string
     type: object
   dto.ChangePasswordRequest:
     properties:
@@ -863,18 +803,35 @@ definitions:
     - new_password
     - old_password
     type: object
-  dto.ContainerResponse:
+  dto.ContainerDetailResponse:
     properties:
-      command:
-        type: string
       created_at:
-        type: string
-      env_vars:
         type: string
       id:
         type: integer
-      image:
+      is_public:
+        type: boolean
+      name:
         type: string
+      readme:
+        type: string
+      status:
+        type: integer
+      type:
+        $ref: '#/definitions/consts.ContainerType'
+      updated_at:
+        type: string
+      versions:
+        items:
+          $ref: '#/definitions/dto.ContainerVersionResponse'
+        type: array
+    type: object
+  dto.ContainerResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
       is_public:
         type: boolean
       name:
@@ -882,76 +839,9 @@ definitions:
       status:
         type: integer
       type:
-        type: string
+        $ref: '#/definitions/consts.ContainerType'
       updated_at:
         type: string
-      user:
-        allOf:
-        - $ref: '#/definitions/dto.UserResponse'
-        description: Related entities (only included when specifically requested)
-    type: object
-  dto.ContainerSearchRequest:
-    properties:
-      command:
-        type: string
-      created_at:
-        allOf:
-        - $ref: '#/definitions/dto.DateRange'
-        description: Common filters shortcuts
-      exclude_fields:
-        items:
-          type: string
-        type: array
-      filters:
-        description: Filters
-        items:
-          $ref: '#/definitions/dto.SearchFilter'
-        type: array
-      image:
-        type: string
-      include:
-        description: Include related entities
-        items:
-          type: string
-        type: array
-      include_fields:
-        description: Include/Exclude fields
-        items:
-          type: string
-        type: array
-      is_active:
-        type: boolean
-      keyword:
-        description: Search keyword (for general text search)
-        type: string
-      name:
-        description: Container-specific filters
-        type: string
-      page:
-        description: Pagination
-        minimum: 1
-        type: integer
-      project_id:
-        type: integer
-      size:
-        maximum: 1000
-        minimum: 1
-        type: integer
-      sort:
-        description: Sort
-        items:
-          $ref: '#/definitions/dto.SortOption'
-        type: array
-      status:
-        type: integer
-      tag:
-        type: string
-      type:
-        type: string
-      updated_at:
-        $ref: '#/definitions/dto.DateRange'
-      user_id:
-        type: integer
     type: object
   dto.ContainerStatistics:
     properties:
@@ -962,50 +852,122 @@ definitions:
       total:
         type: integer
     type: object
+  dto.ContainerVersionDetailResponse:
+    properties:
+      command:
+        type: string
+      env_vars:
+        type: string
+      github_link:
+        type: string
+      helm_config:
+        $ref: '#/definitions/dto.HelmConfigDetailResponse'
+      id:
+        type: integer
+      image_ref:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+      usage:
+        type: integer
+    type: object
+  dto.ContainerVersionResponse:
+    properties:
+      id:
+        type: integer
+      image_ref:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+      usage:
+        type: integer
+    type: object
+  dto.CreateContainerRequest:
+    properties:
+      is_public:
+        type: boolean
+      name:
+        type: string
+      readme:
+        type: string
+      type:
+        $ref: '#/definitions/consts.ContainerType'
+      version:
+        $ref: '#/definitions/dto.CreateContainerVersionRequest'
+    required:
+    - name
+    - type
+    type: object
+  dto.CreateContainerVersionRequest:
+    properties:
+      command:
+        type: string
+      env_vars:
+        items:
+          type: string
+        type: array
+      github_link:
+        type: string
+      helm_config:
+        $ref: '#/definitions/dto.CreateHelmConfigRequest'
+      image_ref:
+        type: string
+      name:
+        type: string
+    required:
+    - image_ref
+    - name
+    type: object
+  dto.CreateHelmConfigRequest:
+    properties:
+      chart_name:
+        type: string
+      ns_prefix:
+        type: string
+      port_template:
+        type: string
+      repo_name:
+        type: string
+      repo_url:
+        type: string
+      values:
+        type: object
+    required:
+    - chart_name
+    - ns_prefix
+    - repo_name
+    - repo_url
+    type: object
   dto.CreatePermissionRequest:
     properties:
       action:
-        example: read
-        type: string
+        $ref: '#/definitions/consts.ActionName'
       description:
-        example: Permission to read dataset information
         type: string
       display_name:
-        example: Read Datasets
-        type: string
-      name:
-        example: read_datasets
         type: string
       resource_id:
-        example: 1
+        minimum: 1
         type: integer
     required:
     - action
-    - display_name
-    - name
     - resource_id
     type: object
   dto.CreateRoleRequest:
     properties:
       description:
-        example: Role for data analysis operations
         type: string
       display_name:
-        example: Data Analyst
         type: string
       name:
-        example: data_analyst
-        type: string
-      type:
-        enum:
-        - system
-        - custom
-        example: custom
         type: string
     required:
     - display_name
     - name
-    - type
     type: object
   dto.CreateUserRequest:
     properties:
@@ -1847,6 +1809,22 @@ definitions:
         description: Response generation time
         type: integer
     type: object
+  dto.GenericResponse-dto_ContainerDetailResponse:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.ContainerDetailResponse'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
+        type: integer
+    type: object
   dto.GenericResponse-dto_ContainerResponse:
     properties:
       code:
@@ -1855,6 +1833,38 @@ definitions:
       data:
         allOf:
         - $ref: '#/definitions/dto.ContainerResponse'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
+        type: integer
+    type: object
+  dto.GenericResponse-dto_ContainerVersionDetailResponse:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.ContainerVersionDetailResponse'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
+        type: integer
+    type: object
+  dto.GenericResponse-dto_ContainerVersionResponse:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.ContainerVersionResponse'
         description: Generic type data
       message:
         description: Response message
@@ -2137,6 +2147,54 @@ definitions:
         description: Response generation time
         type: integer
     type: object
+  dto.GenericResponse-dto_ListPermissionResponse:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.ListPermissionResponse'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
+        type: integer
+    type: object
+  dto.GenericResponse-dto_ListResponse-dto_ContainerResponse:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.ListResponse-dto_ContainerResponse'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
+        type: integer
+    type: object
+  dto.GenericResponse-dto_ListRoleResponse:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.ListRoleResponse'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
+        type: integer
+    type: object
   dto.GenericResponse-dto_ListTasksResp:
     properties:
       code:
@@ -2218,14 +2276,14 @@ definitions:
         description: Response generation time
         type: integer
     type: object
-  dto.GenericResponse-dto_PermissionListResponse:
+  dto.GenericResponse-dto_PermissionDetailResponse:
     properties:
       code:
         description: Status code
         type: integer
       data:
         allOf:
-        - $ref: '#/definitions/dto.PermissionListResponse'
+        - $ref: '#/definitions/dto.PermissionDetailResponse'
         description: Generic type data
       message:
         description: Response message
@@ -2299,46 +2357,14 @@ definitions:
         description: Response generation time
         type: integer
     type: object
-  dto.GenericResponse-dto_RelationListResponse:
+  dto.GenericResponse-dto_RoleDetailResponse:
     properties:
       code:
         description: Status code
         type: integer
       data:
         allOf:
-        - $ref: '#/definitions/dto.RelationListResponse'
-        description: Generic type data
-      message:
-        description: Response message
-        type: string
-      timestamp:
-        description: Response generation time
-        type: integer
-    type: object
-  dto.GenericResponse-dto_RelationStatisticsResponse:
-    properties:
-      code:
-        description: Status code
-        type: integer
-      data:
-        allOf:
-        - $ref: '#/definitions/dto.RelationStatisticsResponse'
-        description: Generic type data
-      message:
-        description: Response message
-        type: string
-      timestamp:
-        description: Response generation time
-        type: integer
-    type: object
-  dto.GenericResponse-dto_RoleListResponse:
-    properties:
-      code:
-        description: Status code
-        type: integer
-      data:
-        allOf:
-        - $ref: '#/definitions/dto.RoleListResponse'
+        - $ref: '#/definitions/dto.RoleDetailResponse'
         description: Generic type data
       message:
         description: Response message
@@ -2786,6 +2812,22 @@ definitions:
         type: string
       version:
         type: string
+    type: object
+  dto.HelmConfigDetailResponse:
+    properties:
+      full_chart:
+        type: string
+      id:
+        type: integer
+      ns_prefix:
+        type: string
+      port_template:
+        type: string
+      repo_url:
+        type: string
+      values:
+        additionalProperties: {}
+        type: object
     type: object
   dto.InfoPayloadTemplate:
     properties:
@@ -3264,6 +3306,33 @@ definitions:
       total:
         type: integer
     type: object
+  dto.ListPermissionResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.PermissionResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationInfo'
+    type: object
+  dto.ListResponse-dto_ContainerResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.ContainerResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationInfo'
+    type: object
+  dto.ListRoleResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.RoleResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationInfo'
+    type: object
   dto.LoginRequest:
     properties:
       password:
@@ -3376,140 +3445,47 @@ definitions:
       outDegree:
         type: integer
     type: object
-  dto.PermissionListResponse:
+  dto.PermissionDetailResponse:
     properties:
-      items:
-        items:
-          $ref: '#/definitions/dto.PermissionResponse'
-        type: array
-      pagination:
-        $ref: '#/definitions/dto.PaginationInfo'
+      action:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      display_name:
+        type: string
+      id:
+        type: integer
+      is_system:
+        type: boolean
+      name:
+        type: string
+      resource:
+        $ref: '#/definitions/dto.ResourceResponse'
+      status:
+        type: integer
+      updated_at:
+        type: string
     type: object
   dto.PermissionResponse:
     properties:
       action:
-        example: read
-        type: string
-      created_at:
-        example: "2024-01-01T00:00:00Z"
-        type: string
-      description:
-        example: Permission to read dataset information
         type: string
       display_name:
-        example: Read Datasets
         type: string
       id:
-        example: 1
         type: integer
       is_system:
-        example: false
         type: boolean
       name:
-        example: read_datasets
         type: string
-      resource:
-        $ref: '#/definitions/dto.ResourceResponse'
-      resource_id:
-        example: 1
-        type: integer
-      roles:
-        description: Roles that have this permission
-        items:
-          $ref: '#/definitions/dto.RoleResponse'
-        type: array
+      resource_name:
+        type: string
       status:
-        example: 1
         type: integer
       updated_at:
-        example: "2024-01-01T00:00:00Z"
         type: string
-    type: object
-  dto.PermissionSearchRequest:
-    properties:
-      actions:
-        description: Action filter
-        items:
-          type: string
-        type: array
-      created_at:
-        allOf:
-        - $ref: '#/definitions/dto.DateRange'
-        description: Common filters shortcuts
-      description_pattern:
-        description: Fuzzy match for description
-        type: string
-      display_name_pattern:
-        description: Fuzzy match for display name
-        type: string
-      exclude_fields:
-        items:
-          type: string
-        type: array
-      filters:
-        description: Filters
-        items:
-          $ref: '#/definitions/dto.SearchFilter'
-        type: array
-      include:
-        description: Include related entities
-        items:
-          type: string
-        type: array
-      include_fields:
-        description: Include/Exclude fields
-        items:
-          type: string
-        type: array
-      is_active:
-        type: boolean
-      is_system:
-        description: Is system permission
-        type: boolean
-      keyword:
-        description: Search keyword (for general text search)
-        type: string
-      name_pattern:
-        description: Permission-specific filter shortcuts
-        type: string
-      page:
-        description: Pagination
-        minimum: 1
-        type: integer
-      project_id:
-        type: integer
-      resource_ids:
-        description: Resource ID filter
-        items:
-          type: integer
-        type: array
-      resource_names:
-        description: Resource name filter
-        items:
-          type: string
-        type: array
-      role_ids:
-        description: Role IDs that have this permission
-        items:
-          type: integer
-        type: array
-      size:
-        maximum: 1000
-        minimum: 1
-        type: integer
-      sort:
-        description: Sort
-        items:
-          $ref: '#/definitions/dto.SortOption'
-        type: array
-      status:
-        items:
-          type: integer
-        type: array
-      updated_at:
-        $ref: '#/definitions/dto.DateRange'
-      user_id:
-        type: integer
     type: object
   dto.ProjectResponse:
     properties:
@@ -3695,143 +3671,29 @@ definitions:
     - password
     - username
     type: object
-  dto.RelationEntity:
-    properties:
-      id:
-        example: 1
-        type: integer
-      name:
-        example: admin
-        type: string
-      type:
-        example: user
-        type: string
-    type: object
-  dto.RelationListResponse:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/dto.RelationResponse'
-        type: array
-      pagination:
-        $ref: '#/definitions/dto.PaginationInfo'
-    type: object
-  dto.RelationOperation:
-    properties:
-      action:
-        enum:
-        - assign
-        - remove
-        example: assign
-        type: string
-      source_id:
-        example: 1
-        type: integer
-      target_id:
-        example: 2
-        type: integer
-      type:
-        example: user_role
-        type: string
-    required:
-    - action
-    - source_id
-    - target_id
-    - type
-    type: object
-  dto.RelationResponse:
-    properties:
-      created_at:
-        example: "2024-01-01T00:00:00Z"
-        type: string
-      id:
-        example: 1
-        type: integer
-      source:
-        $ref: '#/definitions/dto.RelationEntity'
-      target:
-        $ref: '#/definitions/dto.RelationEntity'
-      type:
-        example: user_role
-        type: string
-      updated_at:
-        example: "2024-01-01T00:00:00Z"
-        type: string
-    type: object
-  dto.RelationStatisticsResponse:
-    properties:
-      container_labels:
-        example: 150
-        type: integer
-      dataset_labels:
-        example: 200
-        type: integer
-      fault_injection_labels:
-        example: 120
-        type: integer
-      project_labels:
-        example: 80
-        type: integer
-      role_permissions:
-        example: 100
-        type: integer
-      user_permissions:
-        example: 25
-        type: integer
-      user_projects:
-        example: 75
-        type: integer
-      user_roles:
-        example: 50
-        type: integer
-    type: object
   dto.RemovePermissionFromRoleRequest:
-    type: object
-  dto.RemoveRolePermissionRequest:
-    type: object
-  dto.RemoveUserPermissionRequest:
     properties:
-      permission_id:
-        example: 1
-        type: integer
-      project_id:
-        example: 1
-        type: integer
-      user_id:
-        example: 1
-        type: integer
+      permission_ids:
+        items:
+          type: integer
+        minItems: 1
+        type: array
     required:
-    - permission_id
-    - user_id
-    type: object
-  dto.RemoveUserRoleRequest:
-    properties:
-      role_id:
-        example: 2
-        type: integer
-      user_id:
-        example: 1
-        type: integer
-    required:
-    - role_id
-    - user_id
+    - permission_ids
     type: object
   dto.ResourceResponse:
     properties:
       category:
-        example: data
         type: string
       display_name:
-        example: Datasets
         type: string
       id:
-        example: 1
         type: integer
+      is_system:
+        type: boolean
       name:
-        example: datasets
         type: string
       type:
-        example: table
         type: string
     type: object
   dto.RetryPolicy:
@@ -3843,64 +3705,58 @@ definitions:
         description: Maximum number of retry attempts
         type: integer
     type: object
-  dto.RoleListResponse:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/dto.RoleResponse'
-        type: array
-      pagination:
-        $ref: '#/definitions/dto.PaginationInfo'
-    type: object
-  dto.RoleResponse:
+  dto.RoleDetailResponse:
     properties:
       created_at:
-        example: "2024-01-01T00:00:00Z"
         type: string
       description:
-        example: Role for data analysis operations
         type: string
       display_name:
-        example: Data Analyst
         type: string
       id:
-        example: 1
         type: integer
       is_system:
-        example: false
         type: boolean
       name:
-        example: data_analyst
         type: string
       permissions:
         items:
           $ref: '#/definitions/dto.PermissionResponse'
         type: array
       status:
-        example: 1
         type: integer
       type:
-        example: custom
         type: string
       updated_at:
-        example: "2024-01-01T00:00:00Z"
         type: string
       user_count:
-        example: 5
         type: integer
     type: object
-  dto.RoleSearchRequest:
+  dto.RoleResponse:
     properties:
+      display_name:
+        type: string
+      id:
+        type: integer
+      is_system:
+        type: boolean
+      name:
+        type: string
+      status:
+        type: integer
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.SearchContainerRequest:
+    properties:
+      command:
+        type: string
       created_at:
         allOf:
         - $ref: '#/definitions/dto.DateRange'
         description: Common filters shortcuts
-      description_pattern:
-        description: Description fuzzy match
-        type: string
-      display_name_pattern:
-        description: Display name fuzzy match
-        type: string
       exclude_fields:
         items:
           type: string
@@ -3910,6 +3766,8 @@ definitions:
         items:
           $ref: '#/definitions/dto.SearchFilter'
         type: array
+      image:
+        type: string
       include:
         description: Include related entities
         items:
@@ -3922,24 +3780,16 @@ definitions:
         type: array
       is_active:
         type: boolean
-      is_system:
-        description: Whether system role
-        type: boolean
       keyword:
         description: Search keyword (for general text search)
         type: string
-      name_pattern:
-        description: Role-specific filter shortcuts
+      name:
+        description: Container-specific filters
         type: string
       page:
         description: Pagination
         minimum: 1
         type: integer
-      permission_ids:
-        description: Permission ID filter
-        items:
-          type: integer
-        type: array
       project_id:
         type: integer
       size:
@@ -3952,20 +3802,13 @@ definitions:
           $ref: '#/definitions/dto.SortOption'
         type: array
       status:
-        items:
-          type: integer
-        type: array
-      types:
-        description: Role type filter
-        items:
-          type: string
-        type: array
+        type: integer
+      tag:
+        type: string
+      type:
+        type: string
       updated_at:
         $ref: '#/definitions/dto.DateRange'
-      user_count:
-        allOf:
-        - $ref: '#/definitions/dto.NumberRange'
-        description: User count range
       user_id:
         type: integer
     type: object
@@ -3989,6 +3832,92 @@ definitions:
     required:
     - field
     - operator
+    type: object
+  dto.SearchPermissionRequest:
+    properties:
+      actions:
+        description: Action filter
+        items:
+          type: string
+        type: array
+      created_at:
+        allOf:
+        - $ref: '#/definitions/dto.DateRange'
+        description: Common filters shortcuts
+      description_pattern:
+        description: Fuzzy match for description
+        type: string
+      display_name_pattern:
+        description: Fuzzy match for display name
+        type: string
+      exclude_fields:
+        items:
+          type: string
+        type: array
+      filters:
+        description: Filters
+        items:
+          $ref: '#/definitions/dto.SearchFilter'
+        type: array
+      include:
+        description: Include related entities
+        items:
+          type: string
+        type: array
+      include_fields:
+        description: Include/Exclude fields
+        items:
+          type: string
+        type: array
+      is_active:
+        type: boolean
+      is_system:
+        description: Is system permission
+        type: boolean
+      keyword:
+        description: Search keyword (for general text search)
+        type: string
+      name_pattern:
+        description: Permission-specific filter shortcuts
+        type: string
+      page:
+        description: Pagination
+        minimum: 1
+        type: integer
+      project_id:
+        type: integer
+      resource_ids:
+        description: Resource ID filter
+        items:
+          type: integer
+        type: array
+      resource_names:
+        description: Resource name filter
+        items:
+          type: string
+        type: array
+      role_ids:
+        description: Role IDs that have this permission
+        items:
+          type: integer
+        type: array
+      size:
+        maximum: 1000
+        minimum: 1
+        type: integer
+      sort:
+        description: Sort
+        items:
+          $ref: '#/definitions/dto.SortOption'
+        type: array
+      status:
+        items:
+          type: integer
+        type: array
+      updated_at:
+        $ref: '#/definitions/dto.DateRange'
+      user_id:
+        type: integer
     type: object
   dto.SearchResponse-dto_AlgorithmResponse:
     properties:
@@ -4125,6 +4054,81 @@ definitions:
         type: array
       pagination:
         $ref: '#/definitions/dto.PaginationInfo'
+    type: object
+  dto.SearchRoleRequest:
+    properties:
+      created_at:
+        allOf:
+        - $ref: '#/definitions/dto.DateRange'
+        description: Common filters shortcuts
+      description_pattern:
+        description: Description fuzzy match
+        type: string
+      display_name_pattern:
+        description: Display name fuzzy match
+        type: string
+      exclude_fields:
+        items:
+          type: string
+        type: array
+      filters:
+        description: Filters
+        items:
+          $ref: '#/definitions/dto.SearchFilter'
+        type: array
+      include:
+        description: Include related entities
+        items:
+          type: string
+        type: array
+      include_fields:
+        description: Include/Exclude fields
+        items:
+          type: string
+        type: array
+      is_active:
+        type: boolean
+      is_system:
+        description: Whether system role
+        type: boolean
+      keyword:
+        description: Search keyword (for general text search)
+        type: string
+      name_pattern:
+        description: Role-specific filter shortcuts
+        type: string
+      page:
+        description: Pagination
+        minimum: 1
+        type: integer
+      permission_ids:
+        description: Permission ID filter
+        items:
+          type: integer
+        type: array
+      project_id:
+        type: integer
+      size:
+        maximum: 1000
+        minimum: 1
+        type: integer
+      sort:
+        description: Sort
+        items:
+          $ref: '#/definitions/dto.SortOption'
+        type: array
+      status:
+        items:
+          type: integer
+        type: array
+      updated_at:
+        $ref: '#/definitions/dto.DateRange'
+      user_count:
+        allOf:
+        - $ref: '#/definitions/dto.NumberRange'
+        description: User count range
+      user_id:
+        type: integer
     type: object
   dto.ServiceCoverageItem:
     properties:
@@ -4569,66 +4573,69 @@ definitions:
         allOf:
         - $ref: '#/definitions/consts.TaskType'
         description: Task type (determines how it's processed)
+      user_id:
+        description: ID of the user who created the task (optional)
+        type: integer
     type: object
   dto.UpdateContainerRequest:
-    description: Request structure for updating container information
     properties:
-      command:
-        description: '@Description Container startup command (optional)'
-        type: string
-      env_vars:
-        description: '@Description Environment variables (optional)'
-        type: string
-      image:
-        description: '@Description Docker image name (optional)'
-        type: string
       is_public:
-        description: '@Description Whether the container is public (optional)'
         type: boolean
-      name:
-        description: '@Description Container name (optional)'
+      readme:
         type: string
       status:
-        description: '@Description Container status (optional)'
         type: integer
-      tag:
-        description: '@Description Docker image tag (optional)'
+    type: object
+  dto.UpdateContainerVersionRequest:
+    properties:
+      command:
         type: string
-      type:
-        description: '@Description Container type (optional)'
-        enum:
-        - algorithm
-        - benchmark
+      env_vars:
+        items:
+          type: string
+        type: array
+      github_link:
         type: string
+      helm_config:
+        $ref: '#/definitions/dto.UpdateHelmConfigRequest'
+      status:
+        type: integer
+    type: object
+  dto.UpdateHelmConfigRequest:
+    properties:
+      chart_name:
+        type: string
+      ns_prefix:
+        type: string
+      port_template:
+        type: string
+      repo_name:
+        type: string
+      repo_url:
+        type: string
+      values:
+        type: object
     type: object
   dto.UpdatePermissionRequest:
     properties:
       action:
-        example: read
-        type: string
+        $ref: '#/definitions/consts.ActionName'
       description:
-        example: Updated permission description
         type: string
       display_name:
-        example: Read All Datasets
         type: string
       resource_id:
-        example: 2
         type: integer
       status:
-        example: 1
         type: integer
     type: object
   dto.UpdateRoleRequest:
     properties:
       description:
-        example: Updated role description
         type: string
       display_name:
-        example: Senior Data Analyst
         type: string
       status:
-        example: 1
         type: integer
     type: object
   dto.UpdateUserRequest:
@@ -5097,141 +5104,6 @@ paths:
       summary: Analyze trace data
       tags:
       - trace
-  /api/v1/containers:
-    post:
-      consumes:
-      - multipart/form-data
-      description: Build Docker images by uploading files, specifying GitHub repositories,
-        or Harbor images. Supports zip and tar.gz file uploads, or automatically pulls
-        code from GitHub for building, or directly updates the database from existing
-        Harbor images. The system automatically validates required files (Dockerfile)
-        and sets execution permissions.
-      parameters:
-      - default: algorithm
-        description: Container type, specifies the purpose of the container
-        enum:
-        - algorithm
-        - benchmark
-        in: formData
-        name: type
-        type: string
-      - description: Container name, used to identify the container, will be used
-          as the image build identifier, defaults to the name field in info.toml
-        in: formData
-        name: name
-        type: string
-      - description: 'Docker image name. When source_type is harbor, specify the existing
-          image name in Harbor; otherwise, supports the following formats: 1) image-name
-          (automatically adds default Harbor address and namespace) 2) namespace/image-name
-          (automatically adds default Harbor address)'
-        in: formData
-        name: image
-        required: true
-        type: string
-      - default: latest
-        description: Docker image tag. When source_type is harbor, specify the existing
-          image tag in Harbor; otherwise, used for version control
-        in: formData
-        name: tag
-        type: string
-      - default: bash /entrypoint.sh
-        description: Docker image startup command, defaults to bash /entrypoint.sh
-        in: formData
-        name: command
-        type: string
-      - collectionFormat: csv
-        description: List of environment variable names, supports multiple variables
-        in: formData
-        items:
-          type: string
-        name: env_vars
-        type: array
-      - default: file
-        description: Build source type, specifies the source of the code
-        enum:
-        - file
-        - github
-        - harbor
-        in: formData
-        name: source_type
-        type: string
-      - description: Source file (supports zip or tar.gz format), required when source_type
-          is file, file size limit 5MB
-        in: formData
-        name: file
-        type: file
-      - description: GitHub access token, used for private repositories, not required
-          for public repositories
-        in: formData
-        name: github_token
-        type: string
-      - description: 'GitHub repository address, format: owner/repo, required when
-          source_type is github'
-        in: formData
-        name: github_repo
-        type: string
-      - default: main
-        description: GitHub branch name, specifies the branch to build
-        in: formData
-        name: github_branch
-        type: string
-      - description: GitHub commit hash (supports short hash), if specified, branch
-          parameter is ignored
-        in: formData
-        name: github_commit
-        type: string
-      - default: .
-        description: Subdirectory path in the repository, if the source code is not
-          in the root directory
-        in: formData
-        name: github_path
-        type: string
-      - default: .
-        description: Docker build context path, relative to the source root directory
-        in: formData
-        name: context_dir
-        type: string
-      - default: Dockerfile
-        description: Dockerfile path, relative to the source root directory
-        in: formData
-        name: dockerfile_path
-        type: string
-      - description: Dockerfile build target (used for multi-stage builds)
-        in: formData
-        name: target
-        type: string
-      - default: false
-        description: Whether to force rebuild the image, ignore cache
-        in: formData
-        name: force_rebuild
-        type: boolean
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Successfully submitted container build task, returns task tracking
-            information
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_SubmitResp'
-        "400":
-          description: 'Request parameter error: unsupported file format (only zip,
-            tar.gz), file size exceeds limit (5MB), parameter validation failed, invalid
-            GitHub repository address, invalid Harbor image parameter, invalid force_rebuild
-            value, etc.'
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "404":
-          description: 'Resource not found: build context path does not exist, missing
-            required files (Dockerfile, entrypoint.sh), image not found in Harbor'
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      summary: Submit container build task
-      tags:
-      - container
   /api/v1/datasets:
     delete:
       description: Delete dataset data
@@ -6172,7 +6044,7 @@ paths:
       summary: Upload detector algorithm results
       tags:
       - Algorithms
-  /api/v2/algorithms/{algorithm_id}/results:
+  /api/v2/algorithms/{algorithm_id}/versions/{version_id}/executions/{execution_id}results:
     post:
       consumes:
       - application/json
@@ -6185,8 +6057,14 @@ paths:
         name: algorithm_id
         required: true
         type: integer
-      - description: Execution ID (optional, will create new if not provided)
-        in: query
+      - description: Algorithm Version ID
+        in: path
+        name: version_id
+        required: true
+        type: integer
+      - description: Execution ID (optional, if not provided a new execution will
+          be created)
+        in: path
         name: execution_id
         type: integer
       - description: Label tag (optional, only used when creating new execution)
@@ -6498,7 +6376,7 @@ paths:
       - Authentication
   /api/v2/containers:
     get:
-      description: Get a simple list of containers with basic filtering
+      description: Get paginated list of containers with optional filtering
       parameters:
       - default: 1
         description: Page number
@@ -6527,9 +6405,13 @@ paths:
         "200":
           description: Containers retrieved successfully
           schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_SearchResponse-dto_ContainerResponse'
+            $ref: '#/definitions/dto.GenericResponse-dto_ListResponse-dto_ContainerResponse'
         "400":
-          description: Invalid request
+          description: Invalid request format or parameters
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "403":
@@ -6547,124 +6429,36 @@ paths:
       - Containers
     post:
       consumes:
-      - multipart/form-data
-      description: Create a new container with build configuration or update existing
-        one if it already exists. Containers are associated with the authenticated
-        user. If a container with the same name, type, image, and tag already exists,
-        it will be updated instead of creating a new one.
+      - application/json
+      description: Create a new container without build configuration.
       parameters:
-      - default: algorithm
-        description: Container type
-        enum:
-        - algorithm
-        - benchmark
-        in: formData
-        name: type
+      - description: Container creation request
+        in: body
+        name: request
         required: true
-        type: string
-      - description: Container name
-        in: formData
-        name: name
-        required: true
-        type: string
-      - description: Docker image name
-        in: formData
-        name: image
-        required: true
-        type: string
-      - default: latest
-        description: Docker image tag
-        in: formData
-        name: tag
-        type: string
-      - default: /bin/bash
-        description: Container startup command
-        in: formData
-        name: command
-        type: string
-      - collectionFormat: csv
-        description: Environment variables (can be specified multiple times)
-        in: formData
-        items:
-          type: string
-        name: env_vars
-        type: array
-      - default: false
-        description: Whether the container is public
-        in: formData
-        name: is_public
-        type: boolean
-      - default: file
-        description: Build source type
-        enum:
-        - file
-        - github
-        - harbor
-        in: formData
-        name: build_source_type
-        type: string
-      - description: Source code file (zip or tar.gz format, max 5MB) - required when
-          build_source_type=file
-        in: formData
-        name: file
-        type: file
-      - description: GitHub repository (owner/repo) - required when build_source_type=github
-        in: formData
-        name: github_repository
-        type: string
-      - default: main
-        description: GitHub branch name
-        in: formData
-        name: github_branch
-        type: string
-      - description: GitHub commit hash (if specified, branch is ignored)
-        in: formData
-        name: github_commit
-        type: string
-      - default: .
-        description: Path within repository
-        in: formData
-        name: github_path
-        type: string
-      - description: GitHub access token for private repositories
-        in: formData
-        name: github_token
-        type: string
-      - description: Harbor image name - required when build_source_type=harbor
-        in: formData
-        name: harbor_image
-        type: string
-      - description: Harbor image tag - required when build_source_type=harbor
-        in: formData
-        name: harbor_tag
-        type: string
-      - default: .
-        description: Docker build context directory
-        in: formData
-        name: context_dir
-        type: string
-      - default: Dockerfile
-        description: Dockerfile path relative to source root
-        in: formData
-        name: dockerfile_path
-        type: string
+        schema:
+          $ref: '#/definitions/dto.CreateContainerRequest'
       produces:
       - application/json
       responses:
-        "200":
-          description: Container information updated successfully from Harbor
+        "201":
+          description: Container created successfully
           schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_SubmitResp'
-        "202":
-          description: Container creation/update task submitted successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_SubmitResp'
+            $ref: '#/definitions/dto.GenericResponse-dto_ContainerResponse'
         "400":
           description: Invalid request
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
         "403":
           description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "409":
+          description: Conflict error
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
@@ -6673,27 +6467,31 @@ paths:
             $ref: '#/definitions/dto.GenericResponse-any'
       security:
       - BearerAuth: []
-      summary: Create or update container
+      summary: Create container
       tags:
       - Containers
-  /api/v2/containers/{id}:
+  /api/v2/containers/{container_id}:
     delete:
       description: Delete a container (soft delete by setting status to false)
       parameters:
       - description: Container ID
         in: path
-        name: id
+        name: container_id
         required: true
         type: integer
       produces:
       - application/json
       responses:
-        "200":
+        "204":
           description: Container deleted successfully
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "400":
           description: Invalid container ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "403":
@@ -6718,7 +6516,7 @@ paths:
       parameters:
       - description: Container ID
         in: path
-        name: id
+        name: container_id
         required: true
         type: integer
       produces:
@@ -6727,9 +6525,13 @@ paths:
         "200":
           description: Container retrieved successfully
           schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_ContainerResponse'
+            $ref: '#/definitions/dto.GenericResponse-dto_ContainerDetailResponse'
         "400":
           description: Invalid container ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "403":
@@ -6749,14 +6551,14 @@ paths:
       summary: Get container by ID
       tags:
       - Containers
-    put:
+    patch:
       consumes:
       - application/json
       description: Update an existing container's information
       parameters:
       - description: Container ID
         in: path
-        name: id
+        name: container_id
         required: true
         type: integer
       - description: Container update request
@@ -6768,12 +6570,16 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           description: Container updated successfully
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_ContainerResponse'
         "400":
-          description: Invalid request
+          description: Invalid container ID/request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "403":
@@ -6793,6 +6599,235 @@ paths:
       summary: Update container
       tags:
       - Containers
+  /api/v2/containers/{container_id}/versions:
+    post:
+      consumes:
+      - application/json
+      description: Create a new container version for an existing container.
+      parameters:
+      - description: Container ID
+        in: path
+        name: container_id
+        required: true
+        type: integer
+      - description: Container version creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateContainerVersionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Container version created successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_ContainerVersionResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "409":
+          description: Conflict error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Create container version
+      tags:
+      - Containers
+  /api/v2/containers/{container_id}/versions/{version_id}:
+    delete:
+      description: Delete a container version (soft delete by setting status to false)
+      parameters:
+      - description: Container ID
+        in: path
+        name: container_id
+        required: true
+        type: integer
+      - description: Container Version ID
+        in: path
+        name: version_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Container version deleted successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid container ID/container version ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Container or version not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Delete container version
+      tags:
+      - Containers
+    get:
+      description: Get detailed information about a specific container version
+      parameters:
+      - description: Container ID
+        in: path
+        name: container_id
+        required: true
+        type: integer
+      - description: Container Version ID
+        in: path
+        name: version_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Container version retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_ContainerVersionDetailResponse'
+        "400":
+          description: Invalid container ID/container version ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Container or version not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get container version by ID
+      tags:
+      - Containers
+    patch:
+      consumes:
+      - application/json
+      description: Update an existing container version's information
+      parameters:
+      - description: Container ID
+        in: path
+        name: container_id
+        required: true
+        type: integer
+      - description: Container Version ID
+        in: path
+        name: version_id
+        required: true
+        type: integer
+      - description: Container version update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateContainerVersionRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Container version updated successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_ContainerVersionResponse'
+        "400":
+          description: Invalid container ID/container version ID/request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Container not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Update container version
+      tags:
+      - Containers
+  /api/v2/containers/build:
+    post:
+      consumes:
+      - application/json
+      description: Build a container from provided source code (e.g., GitHub repository).
+      parameters:
+      - description: Container build request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.BuildContainerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Container build task submitted successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SubmitResp'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: Required files not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Build container
+      tags:
+      - Containers
   /api/v2/containers/search:
     post:
       description: Search containers with complex filtering, sorting and pagination.
@@ -6803,7 +6838,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.ContainerSearchRequest'
+          $ref: '#/definitions/dto.SearchContainerRequest'
       produces:
       - application/json
       responses:
@@ -7827,31 +7862,31 @@ paths:
         in: query
         name: action
         type: string
-      - description: Filter by resource ID
-        in: query
-        name: resource_id
-        type: integer
-      - description: Filter by status
-        in: query
-        name: status
-        type: integer
       - description: Filter by system permission
         in: query
         name: is_system
         type: boolean
-      - description: Filter by permission name
+      - description: Filter by status
         in: query
-        name: name
-        type: string
+        name: status
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: Permissions retrieved successfully
           schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_PermissionListResponse'
+            $ref: '#/definitions/dto.GenericResponse-dto_ListPermissionResponse'
         "400":
-          description: Invalid request parameters
+          description: Invalid request format or parameters
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
@@ -7882,7 +7917,15 @@ paths:
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_PermissionResponse'
         "400":
-          description: Invalid request
+          description: Invalid request format or parameters
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "409":
@@ -7910,12 +7953,16 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "204":
           description: Permission deleted successfully
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "400":
           description: Invalid permission ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "403":
@@ -7949,9 +7996,17 @@ paths:
         "200":
           description: Permission retrieved successfully
           schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_PermissionResponse'
+            $ref: '#/definitions/dto.GenericResponse-dto_PermissionDetailResponse'
         "400":
           description: Invalid permission ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "404":
@@ -7986,12 +8041,20 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           description: Permission updated successfully
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_PermissionResponse'
         "400":
-          description: Invalid request
+          description: Invalid permission ID or request format/parameters
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "404":
@@ -8009,7 +8072,7 @@ paths:
       - Permissions
   /api/v2/permissions/{id}/roles:
     get:
-      description: Get list of roles that have been assigned a specific permission
+      description: Get list of roles assigned to a specific permission
       parameters:
       - description: Permission ID
         in: path
@@ -8027,6 +8090,14 @@ paths:
           description: Invalid permission ID
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
         "404":
           description: Permission not found
           schema:
@@ -8037,36 +8108,7 @@ paths:
             $ref: '#/definitions/dto.GenericResponse-any'
       security:
       - BearerAuth: []
-      summary: Get permission roles
-      tags:
-      - Permissions
-  /api/v2/permissions/resource/{resource_id}:
-    get:
-      description: Get list of permissions associated with a specific resource
-      parameters:
-      - description: Resource ID
-        in: path
-        name: resource_id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Permissions retrieved successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-array_dto_PermissionResponse'
-        "400":
-          description: Invalid resource ID
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      security:
-      - BearerAuth: []
-      summary: Get permissions by resource
+      summary: List roles from permission
       tags:
       - Permissions
   /api/v2/permissions/search:
@@ -8080,7 +8122,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.PermissionSearchRequest'
+          $ref: '#/definitions/dto.SearchPermissionRequest'
       produces:
       - application/json
       responses:
@@ -8090,6 +8132,14 @@ paths:
             $ref: '#/definitions/dto.GenericResponse-dto_SearchResponse-dto_PermissionResponse'
         "400":
           description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
@@ -8154,49 +8204,28 @@ paths:
       summary: Get project by ID
       tags:
       - Projects
-  /api/v2/relations:
+  /api/v2/resources/{id}/permissions:
     get:
-      description: Get paginated list of relationships with optional filtering
+      description: Get list of permissions assigned to a specific resource
       parameters:
-      - default: 1
-        description: Page number
-        in: query
-        name: page
-        type: integer
-      - default: 20
-        description: Page size
-        in: query
-        name: size
-        type: integer
-      - description: Relationship type
-        in: query
-        name: type
-        type: string
-      - description: Source entity type
-        in: query
-        name: source_type
-        type: string
-      - description: Target entity type
-        in: query
-        name: target_type
-        type: string
-      - description: Source entity ID
-        in: query
-        name: source_id
-        type: integer
-      - description: Target entity ID
-        in: query
-        name: target_id
+      - description: Resource ID
+        in: path
+        name: id
+        required: true
         type: integer
       produces:
       - application/json
       responses:
         "200":
-          description: Relations retrieved successfully
+          description: Permissions retrieved successfully
           schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_RelationListResponse'
+            $ref: '#/definitions/dto.GenericResponse-array_dto_PermissionResponse'
         "400":
-          description: Invalid request parameters
+          description: Invalid resource ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
@@ -8205,265 +8234,9 @@ paths:
             $ref: '#/definitions/dto.GenericResponse-any'
       security:
       - BearerAuth: []
-      summary: List relationships
+      summary: List permissions from resource
       tags:
-      - Relations
-  /api/v2/relations/batch:
-    post:
-      consumes:
-      - application/json
-      description: Perform multiple relationship operations in a single request
-      parameters:
-      - description: Batch relation operations request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/dto.BatchRelationRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Batch operations completed successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      security:
-      - BearerAuth: []
-      summary: Batch relationship operations
-      tags:
-      - Relations
-  /api/v2/relations/role-permissions:
-    delete:
-      consumes:
-      - application/json
-      description: Remove multiple permissions from a role
-      parameters:
-      - description: Role permission removal request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/dto.RemoveRolePermissionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Permissions removed successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      security:
-      - BearerAuth: []
-      summary: Remove permissions from role
-      tags:
-      - Relations
-    post:
-      consumes:
-      - application/json
-      description: Assign multiple permissions to a role
-      parameters:
-      - description: Role permission assignment request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/dto.AssignRolePermissionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Permissions assigned successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "404":
-          description: Role or permission not found
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      security:
-      - BearerAuth: []
-      summary: Assign permissions to role
-      tags:
-      - Relations
-  /api/v2/relations/statistics:
-    get:
-      description: Get statistics about all relationship types in the system
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Statistics retrieved successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_RelationStatisticsResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      security:
-      - BearerAuth: []
-      summary: Get relationship statistics
-      tags:
-      - Relations
-  /api/v2/relations/user-permissions:
-    delete:
-      consumes:
-      - application/json
-      description: Remove a permission directly from a user
-      parameters:
-      - description: User permission removal request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/dto.RemoveUserPermissionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Permission removed successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      security:
-      - BearerAuth: []
-      summary: Remove permission from user
-      tags:
-      - Relations
-    post:
-      consumes:
-      - application/json
-      description: Assign a permission directly to a user (with optional project scope)
-      parameters:
-      - description: User permission assignment request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/dto.AssignUserPermissionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Permission assigned successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "404":
-          description: User or permission not found
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      security:
-      - BearerAuth: []
-      summary: Assign permission to user
-      tags:
-      - Relations
-  /api/v2/relations/user-roles:
-    delete:
-      consumes:
-      - application/json
-      description: Remove a role from a user (global role removal)
-      parameters:
-      - description: User role removal request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/dto.RemoveUserRoleRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Role removed successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "404":
-          description: User or role not found
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      security:
-      - BearerAuth: []
-      summary: Remove role from user
-      tags:
-      - Relations
-    post:
-      consumes:
-      - application/json
-      description: Assign a role to a user (global role assignment)
-      parameters:
-      - description: User role assignment request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/dto.AssignUserRoleRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Role assigned successfully
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "404":
-          description: User or role not found
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/dto.GenericResponse-any'
-      security:
-      - BearerAuth: []
-      summary: Assign role to user
-      tags:
-      - Relations
+      - Resources
   /api/v2/roles:
     get:
       description: Get paginated list of roles with optional filtering
@@ -8478,31 +8251,31 @@ paths:
         in: query
         name: size
         type: integer
-      - description: Filter by role type
-        in: query
-        name: type
-        type: string
-      - description: Filter by status
-        in: query
-        name: status
-        type: integer
       - description: Filter by system role
         in: query
         name: is_system
         type: boolean
-      - description: Filter by role name
+      - description: Filter by status
         in: query
-        name: name
-        type: string
+        name: status
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: Roles retrieved successfully
           schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_RoleListResponse'
+            $ref: '#/definitions/dto.GenericResponse-dto_ListRoleResponse'
         "400":
           description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
@@ -8533,7 +8306,15 @@ paths:
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_RoleResponse'
         "400":
-          description: Invalid request
+          description: Invalid request format
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "409":
@@ -8569,8 +8350,12 @@ paths:
           description: Invalid role ID
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
         "403":
-          description: Cannot delete system role
+          description: Permission denied or cannot delete system role
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "404":
@@ -8600,9 +8385,17 @@ paths:
         "200":
           description: Role retrieved successfully
           schema:
-            $ref: '#/definitions/dto.GenericResponse-dto_RoleResponse'
+            $ref: '#/definitions/dto.GenericResponse-dto_RoleDetailResponse'
         "400":
           description: Invalid role ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "404":
@@ -8618,7 +8411,7 @@ paths:
       summary: Get role by ID
       tags:
       - Roles
-    put:
+    patch:
       consumes:
       - application/json
       description: Update role information (partial update supported)
@@ -8637,12 +8430,20 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           description: Role updated successfully
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_RoleResponse'
         "400":
           description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "404":
@@ -8683,7 +8484,15 @@ paths:
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "400":
-          description: Invalid request
+          description: Invalid role ID or request format
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "404":
@@ -8723,7 +8532,15 @@ paths:
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "400":
-          description: Invalid request
+          description: Invalid role ID or request format
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "404":
@@ -8759,6 +8576,14 @@ paths:
           description: Invalid role ID
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
         "404":
           description: Role not found
           schema:
@@ -8769,7 +8594,7 @@ paths:
             $ref: '#/definitions/dto.GenericResponse-any'
       security:
       - BearerAuth: []
-      summary: Get role users
+      summary: List users from role
       tags:
       - Roles
   /api/v2/roles/search:
@@ -8783,7 +8608,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.RoleSearchRequest'
+          $ref: '#/definitions/dto.SearchRoleRequest'
       produces:
       - application/json
       responses:
@@ -8792,7 +8617,15 @@ paths:
           schema:
             $ref: '#/definitions/dto.GenericResponse-dto_SearchResponse-dto_RoleResponse'
         "400":
-          description: Invalid request
+          description: Invalid request format or search parameters
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
@@ -9221,6 +9054,99 @@ paths:
       summary: Update user
       tags:
       - Users
+  /api/v2/users/{id}/permissions:
+    post:
+      consumes:
+      - application/json
+      description: Assign a permission directly to a user (with optional project scope)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: User permission assignment request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AssignUserPermissionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Permission assigned successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Assign permission to user
+      tags:
+      - Relations
+  /api/v2/users/{id}/permissions/{permission_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Remove a permission directly from a user
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Permission ID
+        in: path
+        name: permission_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Permission removed successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid user or permission ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: User or permission not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Remove permission from user
+      tags:
+      - Relations
   /api/v2/users/{id}/projects:
     post:
       consumes:
@@ -9246,11 +9172,19 @@ paths:
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "400":
-          description: Invalid request
+          description: Invalid user ID or request format
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "404":
-          description: User not found
+          description: User or project not found
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
@@ -9279,12 +9213,24 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "204":
           description: User removed from project successfully
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "400":
-          description: Invalid ID
+          description: Invalid user or project ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: User or project not found
           schema:
             $ref: '#/definitions/dto.GenericResponse-any'
         "500":
@@ -9296,6 +9242,103 @@ paths:
       summary: Remove user from project
       tags:
       - Users
+  /api/v2/users/{id}/roles:
+    post:
+      consumes:
+      - application/json
+      description: Assign a role to a user (global role assignment)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: User role assignment request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AssignRoleToUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role assigned successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid user ID or request format
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: User or role not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Assign role to user
+      tags:
+      - Relations
+  /api/v2/users/{id}/roles/{role_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Remove a role from a user (global role removal)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Role ID
+        in: path
+        name: role_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Role removed successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "400":
+          description: Invalid user or role ID
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "403":
+          description: Permission denied
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "404":
+          description: User or role not found
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Remove role from user
+      tags:
+      - Relations
   /api/v2/users/search:
     post:
       consumes:

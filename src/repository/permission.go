@@ -3,185 +3,190 @@ package repository
 import (
 	"errors"
 	"fmt"
+	"time"
 
+	"aegis/consts"
 	"aegis/database"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
-// CreatePermission creates a permission
-func CreatePermission(permission *database.Permission) error {
-	if err := database.DB.Create(permission).Error; err != nil {
-		return fmt.Errorf("failed to create permission: %v", err)
+// BatchUpsertPermissions performs batch upsert of permissions
+func BatchUpsertPermissions(db *gorm.DB, perimissons []database.Permission) error {
+	if len(perimissons) == 0 {
+		return fmt.Errorf("no permissions to upsert")
 	}
+
+	if err := db.Omit(commonOmitFields).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "name"}},
+		DoNothing: true,
+	}).Create(&perimissons).Error; err != nil {
+		return fmt.Errorf("failed to batch upsert permissions: %v", err)
+	}
+
 	return nil
+}
+
+// CreatePermission creates a permission
+func CreatePermission(db *gorm.DB, permission *database.Permission) error {
+	return createModel(db.Omit(commonOmitFields), permission)
 }
 
 // GetPermissionByID gets permission by ID
-func GetPermissionByID(id int) (*database.Permission, error) {
-	var permission database.Permission
-	if err := database.DB.Preload("Resource").First(&permission, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("permission with id %d not found", id)
-		}
-		return nil, fmt.Errorf("failed to get permission: %v", err)
-	}
-	return &permission, nil
+func GetPermissionByID(db *gorm.DB, id int) (*database.Permission, error) {
+	return findModel[database.Permission](db.Preload("Resource"), "id = ? and status != ?", id, consts.CommonDeleted)
 }
 
 // GetPermissionByName gets permission by name
-func GetPermissionByName(name string) (*database.Permission, error) {
-	var permission database.Permission
-	if err := database.DB.Preload("Resource").Where("name = ?", name).First(&permission).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("permission '%s' not found", name)
-		}
-		return nil, fmt.Errorf("failed to get permission: %v", err)
+func GetPermissionByName(db *gorm.DB, name string) (*database.Permission, error) {
+	return findModel[database.Permission](db.Preload("Resource"), "name = ? and status != ?", name, consts.CommonDeleted)
+}
+
+// GetPermissionsByAction gets permissions by action
+func GetPermissionsByAction(db *gorm.DB, action string) ([]database.Permission, error) {
+	var permissions []database.Permission
+	if err := db.Preload("Resource").
+		Where("action = ? AND status = ?", action, consts.CommonEnabled).
+		Order("name").
+		Find(&permissions).Error; err != nil {
+		return nil, fmt.Errorf("failed to get permissions by action: %v", err)
 	}
-	return &permission, nil
+	return permissions, nil
+}
+
+// GetPermissionsByResource gets permissions by resource
+func GetPermissionsByResource(db *gorm.DB, resourceID int) ([]database.Permission, error) {
+	var permissions []database.Permission
+	if err := db.
+		Where("resource_id = ? AND status = ?", resourceID, consts.CommonEnabled).
+		Order("action").
+		Find(&permissions).Error; err != nil {
+		return nil, fmt.Errorf("failed to get permissions by resource: %v", err)
+	}
+	return permissions, nil
+}
+
+// GetSystemPermissions gets system permissions
+func GetSystemPermissions(db *gorm.DB) ([]database.Permission, error) {
+	var permissions []database.Permission
+	if err := db.Preload("Resource").
+		Where("is_system = ? AND status = ?", true, consts.CommonEnabled).
+		Order("resource_id, action").
+		Find(&permissions).Error; err != nil {
+		return nil, fmt.Errorf("failed to get system permissions: %v", err)
+	}
+	return permissions, nil
 }
 
 // UpdatePermission updates permission information
-func UpdatePermission(permission *database.Permission) error {
-	if err := database.DB.Save(permission).Error; err != nil {
-		return fmt.Errorf("failed to update permission: %v", err)
-	}
-	return nil
-}
-
-// DeletePermission soft deletes permission (sets status to -1)
-func DeletePermission(id int) error {
-	if err := database.DB.Model(&database.Permission{}).Where("id = ?", id).Update("status", -1).Error; err != nil {
-		return fmt.Errorf("failed to delete permission: %v", err)
-	}
-	return nil
+func UpdatePermission(db *gorm.DB, permission *database.Permission) error {
+	return updateModel(db.Omit(commonOmitFields), permission)
 }
 
 // ListPermissions gets permission list
-func ListPermissions(page, pageSize int, action string, resourceID *int, status *int) ([]database.Permission, int64, error) {
+func ListPermissions(db *gorm.DB, limit, offset int, action string, isSystem *bool, status *int) ([]database.Permission, int64, error) {
 	var permissions []database.Permission
 	var total int64
 
-	query := database.DB.Model(&database.Permission{}).Preload("Resource")
-
+	query := db.Model(&database.Permission{})
+	if action != "" {
+		query = query.Where("action = ?", action)
+	}
+	if isSystem != nil {
+		query = query.Where("is_system = ?", *isSystem)
+	}
 	if status != nil {
 		query = query.Where("status = ?", *status)
 	}
 
-	if action != "" {
-		query = query.Where("action = ?", action)
-	}
-
-	if resourceID != nil {
-		query = query.Where("resource_id = ?", *resourceID)
-	}
-
-	// Get total count
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to count permissions: %v", err)
 	}
 
-	// Paginated query
-	offset := (page - 1) * pageSize
-	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&permissions).Error; err != nil {
+	if err := query.Limit(limit).Offset(offset).Order("updated_at DESC").Find(&permissions).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to list permissions: %v", err)
 	}
 
 	return permissions, total, nil
 }
 
-// GetPermissionsByResource gets permissions by resource
-func GetPermissionsByResource(resourceID int) ([]database.Permission, error) {
-	var permissions []database.Permission
-	if err := database.DB.Where("resource_id = ? AND status = 1", resourceID).
-		Order("action").Find(&permissions).Error; err != nil {
-		return nil, fmt.Errorf("failed to get permissions by resource: %v", err)
-	}
-	return permissions, nil
-}
-
-// GetPermissionsByAction gets permissions by action
-func GetPermissionsByAction(action string) ([]database.Permission, error) {
-	var permissions []database.Permission
-	if err := database.DB.Preload("Resource").Where("action = ? AND status = 1", action).
-		Order("name").Find(&permissions).Error; err != nil {
-		return nil, fmt.Errorf("failed to get permissions by action: %v", err)
-	}
-	return permissions, nil
-}
-
-// GetSystemPermissions gets system permissions
-func GetSystemPermissions() ([]database.Permission, error) {
-	var permissions []database.Permission
-	if err := database.DB.Preload("Resource").Where("is_system = true AND status = 1").
-		Order("resource_id, action").Find(&permissions).Error; err != nil {
-		return nil, fmt.Errorf("failed to get system permissions: %v", err)
-	}
-	return permissions, nil
-}
-
 // CheckUserPermission checks if user has specific permission
-func CheckUserPermission(userID int, action string, resourceName string, projectID *int) (bool, error) {
-	// 1. First check direct permissions
-	var directPermCount int64
-	directQuery := database.DB.Table("user_permissions").
-		Joins("JOIN permissions ON user_permissions.permission_id = permissions.id").
+func CheckUserPermission(db *gorm.DB, userID int, action string, resourceName string, projectID, containerID *int) (bool, error) {
+	// Find the target permission
+	var permission database.Permission
+	if err := database.DB.
+		Select("permissions.*").
 		Joins("JOIN resources ON permissions.resource_id = resources.id").
-		Where("user_permissions.user_id = ? AND permissions.action = ? AND resources.name = ?", userID, action, resourceName).
-		Where("user_permissions.grant_type = 'grant'").
-		Where("user_permissions.expires_at IS NULL OR user_permissions.expires_at > NOW()")
+		Where("permissions.action = ? AND resources.name = ?", action, resourceName).
+		First(&permission).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to find target permission: %w", err)
+	}
+	permissionID := permission.ID
+
+	// Build queries to check direct and role-based permissions
+	directQuery := db.
+		Select("up.permission_id").
+		Table("user_permissions up").
+		Where("up.user_id = ? AND up.permission_id = ?", userID, permissionID).
+		Where("up.grant_type = 'grant'").
+		Where("up.expires_at IS NULL OR up.expires_at > ?", time.Now())
 
 	if projectID != nil {
-		directQuery = directQuery.Where("(user_permissions.project_id = ? OR user_permissions.project_id IS NULL)", *projectID)
+		directQuery = directQuery.Where("up.project_id IS NULL OR up.project_id = ?", *projectID)
 	} else {
-		directQuery = directQuery.Where("user_permissions.project_id IS NULL")
+		directQuery = directQuery.Where("up.project_id IS NULL")
 	}
 
-	if err := directQuery.Count(&directPermCount).Error; err != nil {
-		return false, fmt.Errorf("failed to check direct permissions: %v", err)
+	if containerID != nil {
+		directQuery = directQuery.Where("up.container_id IS NULL OR up.container_id = ?", *containerID)
+	} else {
+		directQuery = directQuery.Where("up.container_id IS NULL")
 	}
 
-	if directPermCount > 0 {
-		return true, nil
-	}
+	globalRoleQuery := db.
+		Select("rp.permission_id").
+		Table("role_permissions rp").
+		Joins("JOIN user_roles ur ON rp.role_id = ur.role_id").
+		Where("ur.user_id = ? AND rp.permission_id = ?", userID, permissionID)
 
-	// 2. Check role permissions (global roles)
-	var globalRolePermCount int64
-	globalRoleQuery := database.DB.Table("user_roles").
-		Joins("JOIN role_permissions ON user_roles.role_id = role_permissions.role_id").
-		Joins("JOIN permissions ON role_permissions.permission_id = permissions.id").
-		Joins("JOIN resources ON permissions.resource_id = resources.id").
-		Where("user_roles.user_id = ? AND permissions.action = ? AND resources.name = ?", userID, action, resourceName)
+	finalQuery := db.Table("(? UNION ALL ?) as fixed", directQuery, globalRoleQuery)
 
-	if err := globalRoleQuery.Count(&globalRolePermCount).Error; err != nil {
-		return false, fmt.Errorf("failed to check global role permissions: %v", err)
-	}
-
-	if globalRolePermCount > 0 {
-		return true, nil
-	}
-
-	// 3. Check project role permissions
+	// Project role permissions
 	if projectID != nil {
-		var projectRolePermCount int64
-		projectRoleQuery := database.DB.Table("user_projects").
-			Joins("JOIN role_permissions ON user_projects.role_id = role_permissions.role_id").
-			Joins("JOIN permissions ON role_permissions.permission_id = permissions.id").
-			Joins("JOIN resources ON permissions.resource_id = resources.id").
-			Where("user_projects.user_id = ? AND user_projects.project_id = ? AND permissions.action = ? AND resources.name = ?",
-				userID, *projectID, action, resourceName).
-			Where("user_projects.status = 1")
+		projectRoleQuery := db.
+			Select("rp.permission_id").
+			Table("role_permissions rp").
+			Joins("JOIN user_projects upr ON rp.role_id = upr.role_id").
+			Where("upr.user_id = ? AND upr.project_id = ? AND rp.permission_id = ?",
+				userID, *projectID, permissionID).
+			Where("upr.status = ?", consts.CommonEnabled)
 
-		if err := projectRoleQuery.Count(&projectRolePermCount).Error; err != nil {
-			return false, fmt.Errorf("failed to check project role permissions: %v", err)
-		}
-
-		if projectRolePermCount > 0 {
-			return true, nil
-		}
+		finalQuery = db.Table("(? UNION ALL ?) as extra", finalQuery, projectRoleQuery)
 	}
 
-	return false, nil
+	// Container role permissions
+	if containerID != nil {
+		containerRoleQuery := db.
+			Select("rp.permission_id").
+			Table("role_permissions rp").
+			Joins("JOIN user_containers uc ON rp.role_id = uc.role_id").
+			Where("uc.user_id = ? AND uc.container_id = ? AND rp.permission_id = ?",
+				userID, *containerID, permissionID).
+			Where("uc.status = ?", consts.CommonEnabled)
+
+		finalQuery = db.Table("(? UNION ALL ?) as extra", finalQuery, containerRoleQuery)
+	}
+
+	var count int64
+	if err := finalQuery.Limit(1).Count(&count).Error; err != nil {
+		return false, fmt.Errorf("failed to check user permission: %w", err)
+	}
+
+	return count > 0, nil
 }
 
 // GetUserPermissions gets all permissions for a user
@@ -242,96 +247,16 @@ func GetUserPermissions(userID int, projectID *int) ([]database.Permission, erro
 	return permissions, nil
 }
 
-// GrantPermissionToUser grants direct permission to user
-func GrantPermissionToUser(userID, permissionID int, projectID *int) error {
-	userPermission := &database.UserPermission{
-		UserID:       userID,
-		PermissionID: permissionID,
-		ProjectID:    projectID,
-		GrantType:    "grant",
-	}
-
-	if err := database.DB.Create(userPermission).Error; err != nil {
-		return fmt.Errorf("failed to grant permission to user: %v", err)
-	}
-	return nil
-}
-
-// RevokePermissionFromUser revokes direct permission from user
-func RevokePermissionFromUser(userID, permissionID int, projectID *int) error {
-	query := database.DB.Where("user_id = ? AND permission_id = ?", userID, permissionID)
-
-	if projectID != nil {
-		query = query.Where("project_id = ?", *projectID)
-	} else {
-		query = query.Where("project_id IS NULL")
-	}
-
-	if err := query.Delete(&database.UserPermission{}).Error; err != nil {
-		return fmt.Errorf("failed to revoke permission from user: %v", err)
-	}
-	return nil
-}
-
 // GetPermissionRoles retrieves all roles that have a specific permission
-func GetPermissionRoles(permissionID int) ([]database.Role, error) {
+func GetPermissionRoles(db *gorm.DB, permissionID int) ([]database.Role, error) {
 	var roles []database.Role
 
-	err := database.DB.Table("roles").
+	if err := db.Table("roles").
 		Joins("JOIN role_permissions ON roles.id = role_permissions.role_id").
-		Where("role_permissions.permission_id = ? AND roles.status != -1", permissionID).
-		Find(&roles).Error
-
-	if err != nil {
+		Where("role_permissions.permission_id = ? AND roles.status != ?", permissionID, consts.CommonDeleted).
+		Find(&roles).Error; err != nil {
 		return nil, fmt.Errorf("failed to get roles for permission %d: %v", permissionID, err)
 	}
 
 	return roles, nil
-}
-
-// GetPermissionsByResourcePaginated retrieves permissions filtered by resource with pagination
-func GetPermissionsByResourcePaginated(resourceID int, page, pageSize int) ([]database.Permission, int64, error) {
-	var permissions []database.Permission
-	var total int64
-
-	query := database.DB.Model(&database.Permission{}).Where("resource_id = ? AND status != -1", resourceID)
-
-	// Get total count
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to count permissions for resource %d: %v", resourceID, err)
-	}
-
-	// Get paginated results
-	offset := (page - 1) * pageSize
-	if err := query.Offset(offset).Limit(pageSize).Find(&permissions).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to get permissions for resource %d: %v", resourceID, err)
-	}
-
-	return permissions, total, nil
-}
-
-// CountPermissionsByAction returns count of permissions grouped by action
-func CountPermissionsByAction() (map[string]int64, error) {
-	type ActionCount struct {
-		Action string `json:"action"`
-		Count  int64  `json:"count"`
-	}
-
-	var results []ActionCount
-	err := database.DB.Model(&database.Permission{}).
-		Select("action, COUNT(*) as count").
-		Where("status != -1").
-		Group("action").
-		Find(&results).Error
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to count permissions by action: %v", err)
-	}
-
-	actionCounts := make(map[string]int64)
-	for _, result := range results {
-		actionCounts[result.Action] = result.Count
-	}
-
-	return actionCounts, nil
 }

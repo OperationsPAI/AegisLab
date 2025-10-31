@@ -9,7 +9,6 @@ import (
 
 // SetupSystemRoutes sets up system routes
 func SetupSystemRoutes(router *gin.Engine) {
-
 	audit := router.Group("/system/audit", middleware.JWTAuth(), middleware.RequireAuditRead)
 	{
 		audit.GET("", system.ListAuditLogs)
