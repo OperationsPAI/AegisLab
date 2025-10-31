@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"aegis/consts"
+	"aegis/database"
 	"aegis/dto"
 	"aegis/executor"
 	"aegis/middleware"
@@ -302,8 +303,11 @@ func QueryInjection(c *gin.Context) {
 //	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v1/injections [post]
 func SubmitFaultInjection(c *gin.Context) {
-	groupID := c.GetString("groupID")
-	logrus.Infof("SubmitFaultInjection called, groupID: %s", groupID)
+	userID, exists := middleware.GetCurrentUserID(c)
+	if !exists {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
+		return
+	}
 
 	// Get the span context from gin.Context
 	ctx, ok := c.Get(middleware.SpanContextKey)
@@ -316,11 +320,7 @@ func SubmitFaultInjection(c *gin.Context) {
 	spanCtx := ctx.(context.Context)
 	span := trace.SpanFromContext(spanCtx)
 
-	userID, exists := middleware.GetCurrentUserID(c)
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
-		return
-	}
+	groupID := c.GetString("groupID")
 
 	handleError := func(err error, message string, statusCode int) {
 		logrus.Error(err)
@@ -348,15 +348,15 @@ func SubmitFaultInjection(c *gin.Context) {
 		return
 	}
 
-	container, tag, err := repository.GetContainerWithTag(consts.ContainerTypePedestal, req.ContainerName, req.ContainerTag, userID)
+	containerVersion, err := repository.GetContainerVersion(consts.ContainerTypePedestal, req.ContainerName, userID, req.ContainerTag)
 	if err != nil {
 		handleError(err, "Algorithm not found: "+req.ContainerName, http.StatusNotFound)
 		return
 	}
 
-	if container.HelmConfig == nil || !utils.CheckNsPrefixExists(container.HelmConfig.NsPrefix) {
-		handleError(fmt.Errorf("invalid pedestal container config: %+v", container.HelmConfig), "Invalid pedestal container configuration", http.StatusBadRequest)
-		return
+	helmConfing, err := repository.GetHelmConfigByContainerVersionID(database.DB, containerVersion.ID)
+	if err != nil {
+		handleError(fmt.Errorf("invalid pedestal container config: %+v", helmConfing), "Invalid pedestal container configuration", http.StatusBadRequest)
 	}
 
 	configs, err := req.ParseInjectionSpecs()
@@ -384,10 +384,10 @@ func SubmitFaultInjection(c *gin.Context) {
 	traces := make([]dto.Trace, 0, len(newConfigs))
 	for _, config := range newConfigs {
 		payload := map[string]any{
-			consts.RestartContainer:     container,
-			consts.RestartContainerTag:  tag,
-			consts.RestartIntarval:      req.Interval,
-			consts.RestartFaultDuration: config.FaultDuration,
+			consts.RestartContainerVersion: containerVersion,
+			consts.RestartHelmConfig:       helmConfing,
+			consts.RestartIntarval:         req.Interval,
+			consts.RestartFaultDuration:    config.FaultDuration,
 			consts.RestartInjectPayload: map[string]any{
 				consts.InjectAlgorithms:  req.Algorithms,
 				consts.InjectBenchmark:   req.Benchmark,
@@ -397,7 +397,6 @@ func SubmitFaultInjection(c *gin.Context) {
 				consts.InjectConf:        config.Conf,
 				consts.InjectNode:        config.Node,
 				consts.InjectLabels:      config.Labels,
-				consts.InjectUserID:      userID,
 			},
 		}
 
@@ -408,6 +407,7 @@ func SubmitFaultInjection(c *gin.Context) {
 			ExecuteTime: config.ExecuteTime.Unix(),
 			GroupID:     groupID,
 			ProjectID:   &project.ID,
+			UserID:      &userID,
 		}
 		task.SetGroupCtx(spanCtx)
 

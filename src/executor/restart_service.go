@@ -16,21 +16,20 @@ import (
 	"math/rand"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
 )
 
-type installRelease = func(ctx context.Context, releaseName string, namespaceIdx int, container *database.Container, tag string) error
+type installRelease = func(ctx context.Context, releaseName string, namespaceIdx int, containerVersion database.ContainerVersion, helmConfig database.HelmConfig) error
 
 type restartPayload struct {
-	container     database.Container
-	containerTag  string
-	interval      int
-	faultDuration int
-	injectPayload map[string]any
+	containerVersion database.ContainerVersion
+	helmConfig       database.HelmConfig
+	interval         int
+	faultDuration    int
+	injectPayload    map[string]any
 }
 
 var installReleaseMap = map[string]installRelease{
@@ -97,7 +96,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 
 		t := time.Now()
 		deltaTime := time.Duration(payload.interval) * consts.DefaultTimeUnit
-		nsPrefix := payload.container.HelmConfig.NsPrefix
+		nsPrefix := payload.helmConfig.NsPrefix
 		namespace := monitor.GetNamespaceToRestart(t.Add(deltaTime), nsPrefix, task.TraceID)
 		if namespace == "" {
 			// Failed to acquire namespace lock, immediately release rate limit token
@@ -155,7 +154,7 @@ func executeRestartService(ctx context.Context, task *dto.UnifiedTask) error {
 			return fmt.Errorf("no install function for namespace prefix: %s", nsPrefix)
 		}
 
-		if err := installFunc(childCtx, namespace, index, &payload.container, payload.containerTag); err != nil {
+		if err := installFunc(childCtx, namespace, index, payload.containerVersion, payload.helmConfig); err != nil {
 			if err := monitor.ReleaseLock(namespace, task.TraceID); err != nil {
 				logrus.Errorf("failed to release lock for namespace %s: %v", namespace, err)
 			}
@@ -260,6 +259,7 @@ func rescheduleTask(ctx context.Context, task *dto.UnifiedTask, reason string) e
 		TraceID:      task.TraceID,
 		GroupID:      task.GroupID,
 		ProjectID:    task.ProjectID,
+		UserID:       task.UserID,
 		TraceCarrier: task.TraceCarrier,
 	}); err != nil {
 		span.RecordError(err)
@@ -274,14 +274,14 @@ func parseRestartPayload(ctx context.Context, payload map[string]any) (*restartP
 	return tracing.WithSpanReturnValue(ctx, func(childCtx context.Context) (*restartPayload, error) {
 		message := "invalid or missing '%s' in task payload"
 
-		container, err := utils.ConvertToType[database.Container](payload[consts.RestartContainer])
+		containerVersion, err := utils.ConvertToType[database.ContainerVersion](payload[consts.RestartContainerVersion])
 		if err != nil {
-			return nil, fmt.Errorf(message, consts.RestartContainer)
+			return nil, fmt.Errorf(message, consts.RestartContainerVersion)
 		}
 
-		containerTag, ok := payload[consts.RestartContainerTag].(string)
-		if !ok || containerTag == "" {
-			return nil, fmt.Errorf(message, consts.RestartContainerTag)
+		helmConfig, err := utils.ConvertToType[database.HelmConfig](payload[consts.RestartHelmConfig])
+		if err != nil {
+			return nil, fmt.Errorf(message, consts.RestartHelmConfig)
 		}
 
 		intervalFloat, ok := payload[consts.RestartIntarval].(float64)
@@ -302,11 +302,11 @@ func parseRestartPayload(ctx context.Context, payload map[string]any) (*restartP
 		}
 
 		return &restartPayload{
-			container:     container,
-			containerTag:  containerTag,
-			interval:      interval,
-			faultDuration: faultDuration,
-			injectPayload: injectPayload,
+			containerVersion: containerVersion,
+			helmConfig:       helmConfig,
+			interval:         interval,
+			faultDuration:    faultDuration,
+			injectPayload:    injectPayload,
 		}, nil
 	})
 }
@@ -328,14 +328,12 @@ func extractNamespace(namespace string) (string, int, error) {
 	return match[1], num, nil
 }
 
-func installTS(ctx context.Context, releaseName string, namespaceIdx int, container *database.Container, tag string) error {
+func installTS(ctx context.Context, releaseName string, namespaceIdx int, containerVersion database.ContainerVersion, helmConfig database.HelmConfig) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		helmClient, err := client.NewHelmClient(releaseName)
 		if err != nil {
 			return fmt.Errorf("failed to create Helm client: %v", err)
 		}
-
-		helmConfig := container.HelmConfig
 
 		// Add Train Ticket repository
 		if err := helmClient.AddRepo(helmConfig.RepoName, helmConfig.RepoURL); err != nil {
@@ -347,12 +345,11 @@ func installTS(ctx context.Context, releaseName string, namespaceIdx int, contai
 			return fmt.Errorf("failed to update repositories: %v", err)
 		}
 
-		organization := strings.Split(container.Repository, "/")[0]
 		baseValues := map[string]any{
 			"global": map[string]any{
 				"image": map[string]any{
-					"repository": fmt.Sprintf("%s/%s", container.Registry, organization),
-					"tag":        tag,
+					"repository": fmt.Sprintf("%s/%s", containerVersion.Registry, containerVersion.Namespace),
+					"tag":        containerVersion.Tag,
 				},
 			},
 			"services": map[string]any{

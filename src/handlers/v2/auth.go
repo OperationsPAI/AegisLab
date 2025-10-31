@@ -34,7 +34,7 @@ func Login(c *gin.Context) {
 	}
 
 	// Get user by username
-	user, err := repository.GetUserByUsername(req.Username)
+	user, err := repository.GetUserByUsername(database.DB, req.Username)
 	if err != nil {
 		dto.ErrorResponse(c, http.StatusUnauthorized, "Invalid credentials")
 		return
@@ -97,7 +97,7 @@ func Register(c *gin.Context) {
 	}
 
 	// Check if user already exists
-	if _, err := repository.GetUserByUsername(req.Username); err == nil {
+	if _, err := repository.GetUserByUsername(database.DB, req.Username); err == nil {
 		dto.ErrorResponse(c, http.StatusConflict, "Username is already taken")
 		return
 	}
@@ -124,7 +124,7 @@ func Register(c *gin.Context) {
 		IsActive: true,
 	}
 
-	if err := repository.CreateUser(user); err != nil {
+	if err := repository.CreateUser(database.DB, user); err != nil {
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to create user")
 		return
 	}
@@ -239,7 +239,7 @@ func ChangePassword(c *gin.Context) {
 		return
 	}
 
-	user, err := repository.GetUserByID(userID)
+	user, err := repository.GetUserByID(database.DB, userID)
 	if err != nil {
 		dto.ErrorResponse(c, http.StatusUnauthorized, "User not found")
 		return
@@ -286,7 +286,7 @@ func GetProfile(c *gin.Context) {
 		return
 	}
 
-	user, err := repository.GetUserByID(userID)
+	user, err := repository.GetUserByID(database.DB, userID)
 	if err != nil {
 		dto.ErrorResponse(c, http.StatusUnauthorized, "User not found")
 		return

@@ -32,8 +32,8 @@ import (
 	"aegis/config"
 	"aegis/database"
 	"aegis/executor"
-	"aegis/repository"
 	"aegis/router"
+	"aegis/service"
 	"aegis/utils"
 
 	cli "github.com/LGU-SE-Internal/chaos-experiment/client"
@@ -108,14 +108,8 @@ func main() {
 			logrus.Println("Running as producer")
 			database.InitDB()
 
-			// Initialize system data (roles, permissions, users, projects)
-			if err := repository.InitializeSystemData(); err != nil {
-				logrus.Errorf("Failed to initialize system data: %v", err)
-				logrus.Warn("System will continue running without initial system data")
-			} else {
-				logrus.Info("System data initialized successfully")
-			}
-
+			service.InitializeSystemData(ctx)
+			utils.InitValidator()
 			client.InitTraceProvider()
 			engine := router.New()
 			port := viper.GetString("port")
@@ -135,14 +129,7 @@ func main() {
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
 			database.InitDB()
 
-			// Initialize system data (roles, permissions, users, projects)
-			if err := repository.InitializeSystemData(); err != nil {
-				logrus.Errorf("Failed to initialize system data: %v", err)
-				logrus.Warn("System will continue running without initial system data")
-			} else {
-				logrus.Info("System data initialized successfully")
-			}
-
+			service.InitializeSystemData(ctx)
 			client.InitTraceProvider()
 			go k8s.Init(ctx, executor.Exec)
 			go executor.StartScheduler(ctx)
@@ -160,14 +147,8 @@ func main() {
 			engine := router.New()
 			database.InitDB()
 
-			// Initialize system data (roles, permissions, users, projects)
-			if err := repository.InitializeSystemData(); err != nil {
-				logrus.Errorf("Failed to initialize system data: %v", err)
-				logrus.Warn("System will continue running without initial system data")
-			} else {
-				logrus.Info("System data initialized successfully")
-			}
-
+			service.InitializeSystemData(ctx)
+			utils.InitValidator()
 			client.InitTraceProvider()
 			go k8s.Init(ctx, executor.Exec)
 			go executor.ConsumeTasks()

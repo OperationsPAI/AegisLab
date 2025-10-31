@@ -27,11 +27,6 @@ func SetupV1Routes(router *gin.Engine) {
 		analyzer.GET("/traces", handlers.AnalyzeTraces)
 	}
 
-	containers := r.Group("/containers")
-	{
-		containers.POST("", handlers.SubmitContainerBuilding)
-	}
-
 	datasets := r.Group("/datasets")
 	{
 		datasets.DELETE("", handlers.DeleteDataset)

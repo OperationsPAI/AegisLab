@@ -3,16 +3,9 @@ package v2
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"strconv"
-	"strings"
-	"time"
 
-	"aegis/client"
 	"aegis/config"
 	"aegis/consts"
 	"aegis/database"
@@ -20,11 +13,355 @@ import (
 	"aegis/executor"
 	"aegis/middleware"
 	"aegis/repository"
-	"aegis/utils"
+	"aegis/service"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 )
+
+// BuildContainer handles container building with source code
+//
+//	@Summary Build container
+//	@Description Build a container from provided source code (e.g., GitHub repository).
+//	@Tags Containers
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.BuildContainerRequest true "Container build request"
+//	@Success 200 {object} dto.GenericResponse[dto.SubmitResp] "Container build task submitted successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 404 {object} dto.GenericResponse[any] "Required files not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/containers/build [post]
+func BuildContainer(c *gin.Context) {
+	var req dto.BuildContainerRequest
+	if err := c.ShouldBind(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
+	}
+
+	sourcePath, err := service.ProcessGitHubSource(&req)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to process build source: "+err.Error())
+		return
+	}
+
+	if err := req.ValidateInfoContent(sourcePath); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := req.Options.ValidateRequiredFiles(sourcePath); err != nil {
+		dto.ErrorResponse(c, http.StatusNotFound, err.Error())
+		return
+	}
+
+	ctx, ok := c.Get(middleware.SpanContextKey)
+	if !ok {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get span context")
+		return
+	}
+	spanCtx := ctx.(context.Context)
+
+	imageRef := fmt.Sprintf("%s/%s/%s:%s", config.GetString("harbor.registry"), config.GetString("harbor.namespace"), req.ImageName, req.Tag)
+	task := &dto.UnifiedTask{
+		Type: consts.TaskTypeBuildContainer,
+		Payload: map[string]any{
+			consts.BuildImageRef:     imageRef,
+			consts.BuildSourcePath:   sourcePath,
+			consts.BuildBuildOptions: req.Options,
+		},
+		Immediate: true,
+	}
+	task.SetGroupCtx(spanCtx)
+
+	taskID, traceID, err := executor.SubmitTask(spanCtx, task)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to submit container building task: %s", err.Error()))
+		return
+	}
+
+	dto.JSONResponse(c, http.StatusOK,
+		"Container building task submitted successfully",
+		dto.SubmitResp{Traces: []dto.Trace{{TraceID: traceID, HeadTaskID: taskID, Index: 0}}},
+	)
+}
+
+// CreateContainer handles container creation for v2 API
+//
+//	@Summary Create container
+//	@Description Create a new container without build configuration.
+//	@Tags Containers
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param request body dto.CreateContainerRequest true "Container creation request"
+//	@Success 201 {object} dto.GenericResponse[dto.ContainerResponse] "Container created successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 401 {object} dto.GenericResponse[any] "Authentication required"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 409 {object} dto.GenericResponse[any] "Conflict error"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/containers [post]
+func CreateContainer(c *gin.Context) {
+	userID, exists := middleware.GetCurrentUserID(c)
+	if !exists {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	var req dto.CreateContainerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
+	}
+
+	resp, err := service.CreateContainer(&req, userID)
+	if !handleServiceError(c, err) {
+		dto.JSONResponse[any](c, http.StatusCreated, "Container created successfully", resp)
+	}
+}
+
+// CreateContainerVersion handles container version creation for v2 API
+//
+//	@Summary Create container version
+//	@Description Create a new container version for an existing container.
+//	@Tags Containers
+//	@Accept json
+//	@Produce json
+//	@Security BearerAuth
+//	@Param container_id path int true "Container ID"
+//	@Param request body dto.CreateContainerVersionRequest true "Container version creation request"
+//	@Success 201 {object} dto.GenericResponse[dto.ContainerVersionResponse] "Container version created successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Failure 401 {object} dto.GenericResponse[any] "Authentication required"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 409 {object} dto.GenericResponse[any] "Conflict error"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/containers/{container_id}/versions [post]
+func CreateContainerVersion(c *gin.Context) {
+	userID, exists := middleware.GetCurrentUserID(c)
+	if !exists {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	containerIDStr := c.Param("container_id")
+	containerID, err := strconv.Atoi(containerIDStr)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container ID")
+		return
+	}
+
+	var req dto.CreateContainerVersionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
+	}
+
+	resp, err := service.CreateContainerVersion(&req, containerID, userID)
+	if !handleServiceError(c, err) {
+		dto.JSONResponse[any](c, http.StatusCreated, "Container version created successfully", resp)
+	}
+}
+
+// DeleteContainer handles container deletion
+//
+//	@Summary Delete container
+//	@Description Delete a container (soft delete by setting status to false)
+//	@Tags Containers
+//	@Produce json
+//	@Security BearerAuth
+//	@Param container_id path int true "Container ID"
+//	@Success 204 {object} dto.GenericResponse[any] "Container deleted successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid container ID"
+//	@Failure 401 {object} dto.GenericResponse[any] "Authentication required"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 404 {object} dto.GenericResponse[any] "Container not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/containers/{container_id} [delete]
+func DeleteContainer(c *gin.Context) {
+	containerIDStr := c.Param("container_id")
+	containerID, err := strconv.Atoi(containerIDStr)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container ID")
+		return
+	}
+
+	err = service.DeleteContainer(containerID)
+	if !handleServiceError(c, err) {
+		dto.JSONResponse[any](c, http.StatusCreated, "Container deleted successfully", nil)
+	}
+}
+
+// DeleteContainerVersion handles container version deletion
+//
+//	@Summary Delete container version
+//	@Description Delete a container version (soft delete by setting status to false)
+//	@Tags Containers
+//	@Produce json
+//	@Security BearerAuth
+//	@Param container_id path int true "Container ID"
+//	@Param version_id path int true "Container Version ID"
+//	@Success 204 {object} dto.GenericResponse[any] "Container version deleted successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid container ID/container version ID"
+//	@Failure 401 {object} dto.GenericResponse[any] "Authentication required"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 404 {object} dto.GenericResponse[any] "Container or version not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/containers/{container_id}/versions/{version_id} [delete]
+func DeleteContainerVersion(c *gin.Context) {
+	containerIDStr := c.Param("container_id")
+	containerID, err := strconv.Atoi(containerIDStr)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container ID")
+		return
+	}
+
+	versionIDStr := c.Param("version_id")
+	versionID, err := strconv.Atoi(versionIDStr)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container version ID")
+		return
+	}
+
+	err = service.DeleteContainerVersion(containerID, versionID)
+	if !handleServiceError(c, err) {
+		dto.JSONResponse[any](c, http.StatusNoContent, "Container version deleted successfully", nil)
+	}
+}
+
+// GetContainer handles getting a single container by ID
+//
+//	@Summary Get container by ID
+//	@Description Get detailed information about a specific container
+//	@Tags Containers
+//	@Produce json
+//	@Security BearerAuth
+//	@Param container_id path int true "Container ID"
+//	@Success 200 {object} dto.GenericResponse[dto.ContainerDetailResponse] "Container retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid container ID"
+//	@Failure 401 {object} dto.GenericResponse[any] "Authentication required"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 404 {object} dto.GenericResponse[any] "Container not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/containers/{container_id} [get]
+func GetContainer(c *gin.Context) {
+	containerIDStr := c.Param("container_id")
+	containerID, err := strconv.Atoi(containerIDStr)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container ID")
+		return
+	}
+
+	resp, err := service.GetContainerDetail(containerID)
+	if err != nil {
+		switch err {
+		case consts.ErrNotFound:
+			dto.ErrorResponse(c, http.StatusNotFound, "Container not found")
+		default:
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get container: "+err.Error())
+		}
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
+}
+
+// GetContainerVersion handles getting a single container version by ID
+//
+//	@Summary Get container version by ID
+//	@Description Get detailed information about a specific container version
+//	@Tags Containers
+//	@Produce json
+//	@Security BearerAuth
+//	@Param container_id path int true "Container ID"
+//	@Param version_id path int true "Container Version ID"
+//	@Success 200 {object} dto.GenericResponse[dto.ContainerVersionDetailResponse] "Container version retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid container ID/container version ID"
+//	@Failure 401 {object} dto.GenericResponse[any] "Authentication required"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 404 {object} dto.GenericResponse[any] "Container or version not found"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/containers/{container_id}/versions/{version_id} [get]
+func GetContainerVersion(c *gin.Context) {
+	containerIDStr := c.Param("container_id")
+	containerID, err := strconv.Atoi(containerIDStr)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container ID")
+		return
+	}
+
+	versionIDStr := c.Param("version_id")
+	versionID, err := strconv.Atoi(versionIDStr)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container version ID")
+		return
+	}
+
+	resp, err := service.GetContainerVersionDetail(containerID, versionID)
+	if err != nil {
+		switch err {
+		case consts.ErrNotFound:
+			dto.ErrorResponse(c, http.StatusNotFound, "Container or version not found")
+		default:
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get container version: "+err.Error())
+		}
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
+}
+
+// ListContainers handles listing containers with pagination and filtering
+//
+//	@Summary List containers
+//	@Description Get paginated list of containers with optional filtering
+//	@Tags Containers
+//	@Produce json
+//	@Security BearerAuth
+//	@Param page query int false "Page number" default(1)
+//	@Param size query int false "Page size" default(20)
+//	@Param type query string false "Container type filter" Enums(algorithm,benchmark)
+//	@Param status query bool false "Container status filter"
+//	@Success 200 {object} dto.GenericResponse[dto.ListResponse[dto.ContainerResponse]] "Containers retrieved successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request format or parameters"
+//	@Failure 401 {object} dto.GenericResponse[any] "Authentication required"
+//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
+//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
+//	@Router /api/v2/containers [get]
+func ListContainers(c *gin.Context) {
+	var req dto.ListContainerRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
+	}
+
+	resp, err := service.ListContainers(&req)
+	if handleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
+}
 
 // SearchContainers handles complex container search with advanced filtering
 //
@@ -33,14 +370,14 @@ import (
 //	@Tags Containers
 //	@Produce json
 //	@Security BearerAuth
-//	@Param request body dto.ContainerSearchRequest true "Container search request"
+//	@Param request body dto.SearchContainerRequest true "Container search request"
 //	@Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.ContainerResponse]] "Containers retrieved successfully"
 //	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
 //	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
 //	@Router /api/v2/containers/search [post]
 func SearchContainers(c *gin.Context) {
-	var req dto.ContainerSearchRequest
+	var req dto.SearchContainerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
@@ -50,7 +387,7 @@ func SearchContainers(c *gin.Context) {
 	searchReq := req.ConvertToSearchRequest()
 
 	// Validate search request
-	if err := searchReq.ValidateSearchRequest(); err != nil {
+	if err := searchReq.Validate(); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid search parameters: "+err.Error())
 		return
 	}
@@ -66,7 +403,7 @@ func SearchContainers(c *gin.Context) {
 	var containerResponses []dto.ContainerResponse
 	for _, container := range searchResult.Items {
 		var containerResponse dto.ContainerResponse
-		containerResponse.ConvertFromContainer(&container, false)
+		containerResponse.ConvertFromContainer(&container)
 		containerResponses = append(containerResponses, containerResponse)
 	}
 
@@ -81,651 +418,6 @@ func SearchContainers(c *gin.Context) {
 	dto.SuccessResponse(c, response)
 }
 
-// ListContainers handles simple container listing
-//
-//	@Summary List containers
-//	@Description Get a simple list of containers with basic filtering
-//	@Tags Containers
-//	@Produce json
-//	@Security BearerAuth
-//	@Param page query int false "Page number" default(1)
-//	@Param size query int false "Page size" default(20)
-//	@Param type query string false "Container type filter" Enums(algorithm,benchmark)
-//	@Param status query bool false "Container status filter"
-//	@Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.ContainerResponse]] "Containers retrieved successfully"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/containers [get]
-func ListContainers(c *gin.Context) {
-
-	// Create a basic search request from query parameters
-	req := dto.ContainerSearchRequest{
-		AdvancedSearchRequest: dto.AdvancedSearchRequest{
-			SearchRequest: dto.SearchRequest{
-				Page: 1,
-				Size: 20,
-			},
-		},
-	}
-
-	// Parse pagination from query parameters
-	if pageStr := c.Query("page"); pageStr != "" {
-		if page, err := parseIntParam(pageStr); err == nil && page > 0 {
-			req.Page = page
-		}
-	}
-	if sizeStr := c.Query("size"); sizeStr != "" {
-		if size, err := parseIntParam(sizeStr); err == nil && size > 0 && size <= 1000 {
-			req.Size = size
-		}
-	}
-
-	// Parse filters from query parameters
-	if containerType := c.Query("type"); containerType != "" {
-		req.Type = &containerType
-	}
-	if statusStr := c.Query("status"); statusStr != "" {
-		if status, err := strconv.Atoi(statusStr); err == nil {
-			req.Status = &status
-		}
-	}
-
-	// Convert to SearchRequest
-	searchReq := req.ConvertToSearchRequest()
-
-	// Add default sorting by name
-	searchReq.AddSort("name", dto.SortASC)
-
-	// Validate search request
-	if err := searchReq.ValidateSearchRequest(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid search parameters: "+err.Error())
-		return
-	}
-
-	// Execute search using query builder
-	searchResult, err := repository.ExecuteSearch(database.DB, searchReq, database.Container{})
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get container list: "+err.Error())
-		return
-	}
-
-	// Convert database containers to response DTOs
-	var containerResponses []dto.ContainerResponse
-	for _, container := range searchResult.Items {
-		var containerResponse dto.ContainerResponse
-		containerResponse.ConvertFromContainer(&container, false)
-		containerResponses = append(containerResponses, containerResponse)
-	}
-
-	// Build final response
-	response := dto.SearchResponse[dto.ContainerResponse]{
-		Items:      containerResponses,
-		Pagination: searchResult.Pagination,
-		Filters:    searchResult.Filters,
-		Sort:       searchResult.Sort,
-	}
-
-	dto.SuccessResponse(c, response)
-}
-
-// GetContainer handles getting a single container by ID
-//
-//	@Summary Get container by ID
-//	@Description Get detailed information about a specific container
-//	@Tags Containers
-//	@Produce json
-//	@Security BearerAuth
-//	@Param id path int true "Container ID"
-//	@Success 200 {object} dto.GenericResponse[dto.ContainerResponse] "Container retrieved successfully"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid container ID"
-//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-//	@Failure 404 {object} dto.GenericResponse[any] "Container not found"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/containers/{id} [get]
-func GetContainer(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container ID")
-		return
-	}
-
-	var container database.Container
-	if err := database.DB.First(&container, id).Error; err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			dto.ErrorResponse(c, http.StatusNotFound, "Container not found")
-		} else {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get container: "+err.Error())
-		}
-		return
-	}
-
-	var response dto.ContainerResponse
-	response.ConvertFromContainer(&container, false)
-
-	dto.SuccessResponse(c, response)
-}
-
-// CreateContainer handles container creation for v2 API
-//
-//	@Summary Create or update container
-//	@Description Create a new container with build configuration or update existing one if it already exists. Containers are associated with the authenticated user. If a container with the same name, type, image, and tag already exists, it will be updated instead of creating a new one.
-//	@Tags Containers
-//	@Accept multipart/form-data
-//	@Produce json
-//	@Security BearerAuth
-//	@Param type formData string true "Container type" Enums(algorithm,benchmark) default(algorithm)
-//	@Param name formData string true "Container name"
-//	@Param image formData string true "Docker image name"
-//	@Param tag formData string false "Docker image tag" default(latest)
-//	@Param command formData string false "Container startup command" default(/bin/bash)
-//	@Param env_vars formData []string false "Environment variables (can be specified multiple times)"
-//	@Param is_public formData boolean false "Whether the container is public" default(false)
-//	@Param build_source_type formData string false "Build source type" Enums(file,github,harbor) default(file)
-//	@Param file formData file false "Source code file (zip or tar.gz format, max 5MB) - required when build_source_type=file"
-//	@Param github_repository formData string false "GitHub repository (owner/repo) - required when build_source_type=github"
-//	@Param github_branch formData string false "GitHub branch name" default(main)
-//	@Param github_commit formData string false "GitHub commit hash (if specified, branch is ignored)"
-//	@Param github_path formData string false "Path within repository" default(.)
-//	@Param github_token formData string false "GitHub access token for private repositories"
-//	@Param harbor_image formData string false "Harbor image name - required when build_source_type=harbor"
-//	@Param harbor_tag formData string false "Harbor image tag - required when build_source_type=harbor"
-//	@Param context_dir formData string false "Docker build context directory" default(.)
-//	@Param dockerfile_path formData string false "Dockerfile path relative to source root" default(Dockerfile)
-//	@Success 202 {object} dto.GenericResponse[dto.SubmitResp] "Container creation/update task submitted successfully"
-//	@Success 200 {object} dto.GenericResponse[dto.SubmitResp] "Container information updated successfully from Harbor"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/containers [post]
-func CreateContainer(c *gin.Context) {
-	// Get user ID from context
-	userID, exists := c.Get("user_id")
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	// Parse multipart form
-	err := c.Request.ParseMultipartForm(32 << 20) // 32MB max memory
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Failed to parse multipart form: "+err.Error())
-		return
-	}
-
-	// Build CreateContainerRequest from form fields
-	req := dto.CreateContainerRequest{
-		ContainerType: consts.ContainerType(c.PostForm("type")),
-		Name:          c.PostForm("name"),
-		Image:         c.PostForm("image"),
-		Tag:           c.DefaultPostForm("tag", "latest"),
-		Command:       c.DefaultPostForm("command", "/bin/bash"),
-		EnvVars:       c.PostFormArray("env_vars"),
-		IsPublic:      c.PostForm("is_public") == "true",
-	}
-
-	// Validate required fields
-	if req.ContainerType == "" {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Missing required field: type")
-		return
-	}
-	if req.Name == "" {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Missing required field: name")
-		return
-	}
-	if req.Image == "" {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Missing required field: image")
-		return
-	}
-
-	// Handle build source
-	buildSourceType := c.DefaultPostForm("build_source_type", "file")
-	if buildSourceType != "" {
-		req.BuildSource = &dto.BuildSource{
-			Type: consts.BuildSourceType(buildSourceType),
-		}
-
-		switch consts.BuildSourceType(buildSourceType) {
-		case consts.BuildSourceTypeFile:
-			req.BuildSource.File = &dto.FileSource{}
-		case consts.BuildSourceTypeGitHub:
-			repository := c.PostForm("github_repository")
-			if repository == "" && buildSourceType == "github" {
-				dto.ErrorResponse(c, http.StatusBadRequest, "github_repository is required when build_source_type is github")
-				return
-			}
-			req.BuildSource.GitHub = &dto.GitHubSource{
-				Repository: repository,
-				Branch:     c.DefaultPostForm("github_branch", "main"),
-				Commit:     c.PostForm("github_commit"),
-				Path:       c.DefaultPostForm("github_path", "."),
-				Token:      c.PostForm("github_token"),
-			}
-		case consts.BuildSourceTypeHarbor:
-			harborImage := c.PostForm("harbor_image")
-			harborTag := c.PostForm("harbor_tag")
-			if harborImage == "" && buildSourceType == "harbor" {
-				dto.ErrorResponse(c, http.StatusBadRequest, "harbor_image is required when build_source_type is harbor")
-				return
-			}
-			if harborTag == "" && buildSourceType == "harbor" {
-				dto.ErrorResponse(c, http.StatusBadRequest, "harbor_tag is required when build_source_type is harbor")
-				return
-			}
-			req.BuildSource.Harbor = &dto.HarborSource{
-				Image: harborImage,
-				Tag:   harborTag,
-			}
-		}
-	}
-
-	// Handle build options
-	contextDir := c.PostForm("context_dir")
-	dockerfilePath := c.PostForm("dockerfile_path")
-	if contextDir != "" || dockerfilePath != "" {
-		req.BuildOptions = &dto.BuildOptions{
-			ContextDir:     c.DefaultPostForm("context_dir", "."),
-			DockerfilePath: c.DefaultPostForm("dockerfile_path", "Dockerfile"),
-		}
-	}
-
-	// Validate request
-	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
-		return
-	}
-
-	// Check if container with same name, type, image, tag already exists for this user
-	var existingContainer database.Container
-	result := database.DB.Where("name = ? AND type = ? AND image = ? AND tag = ? AND user_id = ? AND status = true",
-		req.Name, req.ContainerType, req.Image, req.Tag, userID).First(&existingContainer)
-
-	var isUpdate bool
-	if result.Error == nil {
-		// Container already exists, we'll update it
-		isUpdate = true
-		logrus.WithFields(logrus.Fields{
-			"user_id": userID,
-			"name":    req.Name,
-			"type":    req.ContainerType,
-			"image":   req.Image,
-			"tag":     req.Tag,
-		}).Info("Container already exists, will be updated")
-	}
-
-	// Handle different source types
-	var code int
-	var sourcePath string
-	switch req.BuildSource.Type {
-	case consts.BuildSourceTypeFile:
-		code, sourcePath, err = processFileSourceV2(c, &req)
-		if err != nil {
-			dto.ErrorResponse(c, code, err.Error())
-			return
-		}
-	case consts.BuildSourceTypeGitHub:
-		code, sourcePath, err = processGitHubSourceV2(&req)
-		if err != nil {
-			dto.ErrorResponse(c, code, err.Error())
-			return
-		}
-	case consts.BuildSourceTypeHarbor:
-		code, err = processHarborSourceV2(&req)
-		if err != nil {
-			// Provide more detailed error information for Harbor image check failure
-			errorMsg := fmt.Sprintf("Harbor image check failed: %s", err.Error())
-			logrus.WithFields(logrus.Fields{
-				"algorithm": req.Name,
-				"image":     req.BuildSource.Harbor.Image,
-				"tag":       req.BuildSource.Harbor.Tag,
-				"error":     err.Error(),
-			}).Error(errorMsg)
-			dto.ErrorResponse(c, code, errorMsg)
-			return
-		}
-		sourcePath = ""
-	default:
-		dto.ErrorResponse(c, http.StatusBadRequest, "Unsupported source type")
-		return
-	}
-
-	// For non-Harbor sources, validate info content and required files
-	if req.BuildSource.Type != consts.BuildSourceTypeHarbor {
-		if code, err := req.ValidateInfoContent(sourcePath); err != nil {
-			dto.ErrorResponse(c, code, err.Error())
-			return
-		}
-
-		if err := validateRequiredFilesV2(sourcePath, req.BuildOptions); err != nil {
-			dto.ErrorResponse(c, http.StatusNotFound, err.Error())
-			return
-		}
-	}
-
-	// Get span context for tracing
-	ctx, ok := c.Get(middleware.SpanContextKey)
-	if !ok {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get span context")
-		return
-	}
-	spanCtx := ctx.(context.Context)
-
-	// Handle Harbor direct update
-	if req.BuildSource.Type == consts.BuildSourceTypeHarbor {
-		taskID, traceID, err := processHarborDirectUpdateV2(spanCtx, &req, userID.(int), isUpdate)
-		if err != nil {
-			errorMsg := fmt.Sprintf("Failed to process harbor direct update: %s", err.Error())
-			logrus.WithFields(logrus.Fields{
-				"algorithm": req.Name,
-				"image":     req.BuildSource.Harbor.Image,
-				"tag":       req.BuildSource.Harbor.Tag,
-				"error":     err.Error(),
-			}).Error(errorMsg)
-			dto.ErrorResponse(c, http.StatusInternalServerError, errorMsg)
-			return
-		}
-
-		message := "Container information created successfully from Harbor"
-		if isUpdate {
-			message = "Container information updated successfully from Harbor (existing record was overwritten)"
-		}
-
-		logrus.WithFields(logrus.Fields{
-			"algorithm": req.Name,
-			"image":     req.BuildSource.Harbor.Image,
-			"tag":       req.BuildSource.Harbor.Tag,
-			"task_id":   taskID,
-			"trace_id":  traceID,
-		}).Info(message)
-
-		dto.JSONResponse(c, http.StatusOK,
-			message,
-			dto.SubmitResp{Traces: []dto.Trace{{TraceID: traceID, HeadTaskID: taskID, Index: 0}}},
-		)
-		return
-	}
-
-	// Submit build task
-	task := &dto.UnifiedTask{
-		Type: consts.TaskTypeBuildImage,
-		Payload: map[string]any{
-			consts.BuildContainerType: req.ContainerType,
-			consts.BuildName:          req.Name,
-			consts.BuildImage:         req.Image,
-			consts.BuildTag:           req.Tag,
-			consts.BuildCommand:       req.Command,
-			consts.BuildImageEnvVars:  req.EnvVars,
-			consts.BuildSourcePath:    sourcePath,
-			consts.BuildBuildOptions:  req.BuildOptions,
-		},
-		Immediate: true,
-		ProjectID: nil, // No project association for user containers
-	}
-	task.SetGroupCtx(spanCtx)
-
-	taskID, traceID, err := executor.SubmitTask(spanCtx, task)
-	if err != nil {
-		errorMsg := fmt.Sprintf("Failed to submit container building task: %s", err.Error())
-		logrus.WithFields(logrus.Fields{
-			"algorithm": req.Name,
-			"image":     req.Image,
-			"tag":       req.Tag,
-			"error":     err.Error(),
-		}).Error(errorMsg)
-		dto.ErrorResponse(c, http.StatusInternalServerError, errorMsg)
-		return
-	}
-
-	message := "Container building task submitted successfully"
-	if isUpdate {
-		message = "Container building task submitted successfully (existing record will be overwritten)"
-	}
-
-	logrus.WithFields(logrus.Fields{
-		"algorithm": req.Name,
-		"image":     req.Image,
-		"tag":       req.Tag,
-		"task_id":   taskID,
-		"trace_id":  traceID,
-	}).Info(message)
-
-	dto.JSONResponse(c, http.StatusAccepted,
-		message,
-		dto.SubmitResp{Traces: []dto.Trace{{TraceID: traceID, HeadTaskID: taskID, Index: 0}}},
-	)
-}
-
-// Helper functions for v2 container creation
-func processFileSourceV2(c *gin.Context, req *dto.CreateContainerRequest) (int, string, error) {
-	file, header, err := c.Request.FormFile("file")
-	if err != nil {
-		return http.StatusBadRequest, "", fmt.Errorf("failed to get uploaded file: %v", err)
-	}
-	defer file.Close()
-
-	const maxSize = 5 * 1024 * 1024 // 5MB
-	if header.Size > maxSize {
-		return http.StatusBadRequest, "", fmt.Errorf("file size exceeds %dMB limit", maxSize/(1024*1024))
-	}
-
-	req.BuildSource.File = &dto.FileSource{
-		Filename: header.Filename,
-		Size:     header.Size,
-	}
-
-	fileName := header.Filename
-	fileExt := strings.ToLower(filepath.Ext(fileName))
-
-	isZip := fileExt == ".zip"
-	isTarGz := (fileExt == ".gz" && strings.HasSuffix(strings.ToLower(fileName), ".tar.gz")) ||
-		(fileExt == ".tgz")
-
-	if !isZip && !isTarGz {
-		return http.StatusBadRequest, "", fmt.Errorf("only zip and tar.gz files are allowed")
-	}
-
-	tempDir, err := os.MkdirTemp("", "container-upload-*")
-	if err != nil {
-		return http.StatusInternalServerError, "", fmt.Errorf("failed to create temporary directory: %v", err)
-	}
-
-	filePath := filepath.Join(tempDir, header.Filename)
-	out, err := os.Create(filePath)
-	if err != nil {
-		return http.StatusInternalServerError, "", fmt.Errorf("failed to create file: %v", err)
-	}
-	defer out.Close()
-
-	if _, err := io.Copy(out, file); err != nil {
-		return http.StatusInternalServerError, "", fmt.Errorf("failed to save file: %v", err)
-	}
-
-	targetDir := filepath.Join(config.GetString("container.storage_path"), string(req.ContainerType), req.Name, fmt.Sprintf("build_%d", time.Now().Unix()))
-	if err = os.MkdirAll(targetDir, 0755); err != nil {
-		return http.StatusInternalServerError, "", fmt.Errorf("failed to create target directory: %v", err)
-	}
-
-	var extractErr error
-	if isZip {
-		extractErr = utils.ExtractZip(filePath, targetDir)
-	} else if isTarGz {
-		extractErr = utils.ExtractTarGz(filePath, targetDir)
-	}
-
-	if extractErr != nil {
-		return http.StatusInternalServerError, "", fmt.Errorf("failed to extract file: %v", extractErr)
-	}
-
-	if err := os.RemoveAll(tempDir); err != nil {
-		// Log warning but don't fail the request
-		logrus.WithField("temp_dir", tempDir).Warnf("failed to remove temporary directory %s: %v", tempDir, err)
-	}
-
-	return 0, targetDir, nil
-}
-
-func processGitHubSourceV2(req *dto.CreateContainerRequest) (int, string, error) {
-	github := req.BuildSource.GitHub
-
-	targetDir := filepath.Join(config.GetString("container.storage_path"), string(req.ContainerType), req.Name, fmt.Sprintf("build_%d", time.Now().Unix()))
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
-		return http.StatusInternalServerError, "", fmt.Errorf("failed to create target directory: %v", err)
-	}
-
-	var gitCmd []string
-	repoURL := fmt.Sprintf("https://github.com/%s.git", github.Repository)
-
-	if github.Token != "" {
-		repoURL = fmt.Sprintf("https://%s@github.com/%s.git", github.Token, github.Repository)
-	}
-
-	gitCmd = []string{"git", "clone"}
-	if github.Commit != "" {
-		gitCmd = append(gitCmd, repoURL, targetDir)
-	} else {
-		gitCmd = append(gitCmd, "--branch", github.Branch, "--single-branch", repoURL, targetDir)
-	}
-
-	if github.Commit != "" {
-		cmd := exec.Command(gitCmd[0], gitCmd[1:]...)
-		if err := cmd.Run(); err != nil {
-			return http.StatusInternalServerError, "", fmt.Errorf("failed to clone repository: %v", err)
-		}
-
-		// Checkout specific commit
-		cmd = exec.Command("git", "-C", targetDir, "checkout", github.Commit)
-		if err := cmd.Run(); err != nil {
-			return http.StatusBadRequest, "", fmt.Errorf("failed to checkout commit %s: %v", github.Commit, err)
-		}
-	} else {
-		cmd := exec.Command(gitCmd[0], gitCmd[1:]...)
-		if err := cmd.Run(); err != nil {
-			return http.StatusInternalServerError, "", fmt.Errorf("failed to clone repository: %v", err)
-		}
-	}
-
-	// If a specific path is provided, copy only that subdirectory
-	if github.Path != "" && github.Path != "." {
-		sourcePath := filepath.Join(targetDir, github.Path)
-		if _, err := os.Stat(sourcePath); os.IsNotExist(err) {
-			return http.StatusNotFound, "", fmt.Errorf("specified path '%s' does not exist in repository", github.Path)
-		}
-
-		newTargetDir := filepath.Join(config.GetString("container.storage_path"), string(req.ContainerType), req.Name, fmt.Sprintf("build_final_%d", time.Now().Unix()))
-		if err := utils.CopyDir(sourcePath, newTargetDir); err != nil {
-			return http.StatusInternalServerError, "", fmt.Errorf("failed to copy subdirectory: %v", err)
-		}
-
-		// Clean up the full clone
-		if err := os.RemoveAll(targetDir); err != nil {
-			logrus.WithField("target_dir", targetDir).Warnf("failed to remove temporary directory: %v", err)
-		}
-
-		targetDir = newTargetDir
-	}
-
-	return 0, targetDir, nil
-}
-
-func processHarborSourceV2(req *dto.CreateContainerRequest) (int, error) {
-	harbor := req.BuildSource.Harbor
-
-	// Extract image name from full image path
-	imageName := harbor.Image
-	if strings.Contains(imageName, "/") {
-		parts := strings.Split(imageName, "/")
-		imageName = parts[len(parts)-1]
-	}
-
-	harborClient := client.GetHarborClient()
-	exists, err := harborClient.CheckImageExists(imageName, harbor.Tag)
-	if err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("failed to check harbor image: %v", err)
-	}
-
-	if !exists {
-		return http.StatusNotFound, fmt.Errorf("image %s:%s not found in harbor", imageName, harbor.Tag)
-	}
-
-	return http.StatusOK, nil
-}
-
-func validateRequiredFilesV2(sourcePath string, buildOptions *dto.BuildOptions) error {
-	contextDir := "."
-	dockerfilePath := "Dockerfile"
-
-	if buildOptions != nil {
-		if buildOptions.ContextDir != "" {
-			contextDir = buildOptions.ContextDir
-		}
-		if buildOptions.DockerfilePath != "" {
-			dockerfilePath = buildOptions.DockerfilePath
-		}
-	}
-
-	buildContextPath := filepath.Join(sourcePath, contextDir)
-	if _, err := os.Stat(buildContextPath); os.IsNotExist(err) {
-		return fmt.Errorf("build context path '%s' does not exist", contextDir)
-	}
-
-	buildDockerfilePath := filepath.Join(sourcePath, dockerfilePath)
-	if _, err := os.Stat(buildDockerfilePath); os.IsNotExist(err) {
-		return fmt.Errorf("dockerfile '%s' does not exist", dockerfilePath)
-	}
-
-	return nil
-}
-
-func processHarborDirectUpdateV2(ctx context.Context, req *dto.CreateContainerRequest, userID int, isUpdate bool) (string, string, error) {
-	taskID := fmt.Sprintf("harbor-%d", time.Now().UnixNano())
-	traceID := fmt.Sprintf("trace-%d", time.Now().UnixNano())
-
-	// Convert environment variables array to string
-	envVarsStr := ""
-	if len(req.EnvVars) > 0 {
-		envVarsStr = strings.Join(req.EnvVars, ",")
-	}
-
-	container := &database.Container{
-		Type:     string(req.ContainerType),
-		Name:     req.Name,
-		Image:    req.BuildSource.Harbor.Image,
-		Command:  req.Command,
-		EnvVars:  envVarsStr,
-		UserID:   userID,
-		IsPublic: req.IsPublic,
-		Status:   consts.ContainerEnabled,
-	}
-
-	var err error
-	if isUpdate {
-		// Update existing container
-		var existingContainer database.Container
-		if err := database.DB.Where("name = ? AND type = ? AND image = ? AND tag = ? AND user_id = ? AND status = true",
-			req.Name, req.ContainerType, req.BuildSource.Harbor.Image, req.BuildSource.Harbor.Tag, userID).First(&existingContainer).Error; err != nil {
-			return "", "", fmt.Errorf("failed to find existing container record: %v", err)
-		}
-
-		// Update the existing record
-		container.ID = existingContainer.ID
-		container.CreatedAt = existingContainer.CreatedAt
-		container.UpdatedAt = time.Now()
-
-		err = database.DB.Save(container).Error
-	} else {
-		// Create new container
-		err = database.DB.Create(container).Error
-	}
-
-	if err != nil {
-		return "", "", fmt.Errorf("failed to save container record: %v", err)
-	}
-
-	return taskID, traceID, nil
-}
-
-// TODO 修改逻辑
 // UpdateContainer handles container updates
 //
 //	@Summary Update container
@@ -734,119 +426,92 @@ func processHarborDirectUpdateV2(ctx context.Context, req *dto.CreateContainerRe
 //	@Accept json
 //	@Produce json
 //	@Security BearerAuth
-//	@Param id path int true "Container ID"
+//	@Param container_id path int true "Container ID"
 //	@Param request body dto.UpdateContainerRequest true "Container update request"
-//	@Success 200 {object} dto.GenericResponse[dto.ContainerResponse] "Container updated successfully"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
+//	@Success 202 {object} dto.GenericResponse[dto.ContainerResponse] "Container updated successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid container ID/request"
+//	@Failure 401 {object} dto.GenericResponse[any] "Authentication required"
 //	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
 //	@Failure 404 {object} dto.GenericResponse[any] "Container not found"
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/containers/{id} [put]
+//	@Router /api/v2/containers/{container_id} [patch]
 func UpdateContainer(c *gin.Context) {
-	// Parse container ID
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
+	containerIDStr := c.Param("container_id")
+	containerID, err := strconv.Atoi(containerIDStr)
 	if err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container ID")
 		return
 	}
 
-	// Get existing container
-	var container database.Container
-	if err := database.DB.First(&container, id).Error; err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			dto.ErrorResponse(c, http.StatusNotFound, "Container not found")
-		} else {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get container: "+err.Error())
-		}
-		return
-	}
-
-	// Parse request body
 	var req dto.UpdateContainerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 
-	// Update fields if provided
-	if req.Name != nil {
-		container.Name = *req.Name
-	}
-	if req.Type != nil {
-		container.Type = string(*req.Type)
-	}
-	if req.Image != nil {
-		container.Image = *req.Image
-	}
-	if req.Command != nil {
-		container.Command = *req.Command
-	}
-	if req.EnvVars != nil {
-		container.EnvVars = *req.EnvVars
-	}
-	if req.IsPublic != nil {
-		container.IsPublic = *req.IsPublic
-	}
-	if req.Status != nil {
-		container.Status = *req.Status
-	}
-
-	// Save updated container
-	if err := database.DB.Save(&container).Error; err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to update container: "+err.Error())
+	resp, err := service.UpdateContainer(&req, containerID)
+	if err != nil {
+		switch err {
+		case consts.ErrNotFound:
+			dto.ErrorResponse(c, http.StatusNotFound, "Container not found")
+		default:
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to update container: "+err.Error())
+		}
 		return
 	}
 
-	// Build response
-	var response dto.ContainerResponse
-	response.ConvertFromContainer(&container, false)
-
-	dto.SuccessResponse(c, response)
+	dto.JSONResponse[any](c, http.StatusAccepted, "Container updated successfully", resp)
 }
 
-// DeleteContainer handles container deletion
+// UpdateContainerVersion handles container version updates
 //
-//	@Summary Delete container
-//	@Description Delete a container (soft delete by setting status to false)
+//	@Summary Update container version
+//	@Description Update an existing container version's information
 //	@Tags Containers
+//	@Accept json
 //	@Produce json
 //	@Security BearerAuth
-//	@Param id path int true "Container ID"
-//	@Success 200 {object} dto.GenericResponse[any] "Container deleted successfully"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid container ID"
+//	@Param container_id path int true "Container ID"
+//	@Param version_id path int true "Container Version ID"
+//	@Param request body dto.UpdateContainerVersionRequest true "Container version update request"
+//	@Success 202 {object} dto.GenericResponse[dto.ContainerVersionResponse] "Container version updated successfully"
+//	@Failure 400 {object} dto.GenericResponse[any] "Invalid container ID/container version ID/request"
+//	@Failure 401 {object} dto.GenericResponse[any] "Authentication required"
 //	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
 //	@Failure 404 {object} dto.GenericResponse[any] "Container not found"
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/containers/{id} [delete]
-func DeleteContainer(c *gin.Context) {
-	// Parse container ID
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
+//	@Router /api/v2/containers/{container_id}/versions/{version_id} [patch]
+func UpdateContainerVersion(c *gin.Context) {
+	containerIDStr := c.Param("container_id")
+	containerID, err := strconv.Atoi(containerIDStr)
 	if err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container ID")
 		return
 	}
 
-	// Get existing container
-	var container database.Container
-	if err := database.DB.First(&container, id).Error; err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			dto.ErrorResponse(c, http.StatusNotFound, "Container not found")
-		} else {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get container: "+err.Error())
+	versionIDStr := c.Param("version_id")
+	versionID, err := strconv.Atoi(versionIDStr)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container version ID")
+		return
+	}
+
+	var req dto.UpdateContainerVersionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	resp, err := service.UpdateContainerVersion(&req, containerID, versionID)
+	if err != nil {
+		switch err {
+		case consts.ErrNotFound:
+			dto.ErrorResponse(c, http.StatusNotFound, "Model not found")
+		default:
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to update container: "+err.Error())
 		}
 		return
 	}
 
-	// Soft delete by setting status to disabled
-	container.Status = consts.ContainerDisabled
-	container.UpdatedAt = time.Now()
-
-	if err := database.DB.Save(&container).Error; err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to delete container: "+err.Error())
-		return
-	}
-
-	dto.SuccessResponse(c, gin.H{"message": "Container deleted successfully"})
+	dto.JSONResponse[any](c, http.StatusAccepted, "Container version updated successfully", resp)
 }

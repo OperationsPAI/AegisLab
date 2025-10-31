@@ -6,12 +6,10 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"aegis/config"
 	"aegis/consts"
-	"aegis/database"
 	"aegis/dto"
 	"aegis/repository"
 	"aegis/tracing"
@@ -34,17 +32,11 @@ import (
 )
 
 type containerPayload struct {
-	containerType consts.ContainerType
-	name          string
-	image         string
-	tag           string
-	command       string
-	envVars       string
-	sourcePath    string
-	buildOptions  dto.BuildOptions
+	imageRef     string
+	sourcePath   string
+	buildOptions dto.BuildOptions
 }
 
-// TODO 校验type和权限
 func rescheduleBuildTask(ctx context.Context, task *dto.UnifiedTask, reason string) error {
 	span := trace.SpanFromContext(ctx)
 
@@ -69,7 +61,7 @@ func rescheduleBuildTask(ctx context.Context, task *dto.UnifiedTask, reason stri
 
 	repository.PublishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 		TaskID:    task.TaskID,
-		TaskType:  consts.TaskTypeBuildImage,
+		TaskType:  consts.TaskTypeBuildContainer,
 		EventName: consts.EventNoTokenAvailable,
 		Payload:   eventPayload,
 	})
@@ -80,12 +72,12 @@ func rescheduleBuildTask(ctx context.Context, task *dto.UnifiedTask, reason stri
 		task.TaskID,
 		reason,
 		consts.TaskStautsRescheduled,
-		consts.TaskTypeBuildImage,
+		consts.TaskTypeBuildContainer,
 	)
 
 	if _, _, err := SubmitTask(ctx, &dto.UnifiedTask{
 		TaskID:       task.TaskID,
-		Type:         consts.TaskTypeBuildImage,
+		Type:         consts.TaskTypeBuildContainer,
 		Immediate:    false,
 		ExecuteTime:  executeTime.Unix(),
 		ReStartNum:   task.ReStartNum + 1,
@@ -104,10 +96,14 @@ func rescheduleBuildTask(ctx context.Context, task *dto.UnifiedTask, reason stri
 	return nil
 }
 
-func executeBuildImage(ctx context.Context, task *dto.UnifiedTask) error {
+func executeBuildContainer(ctx context.Context, task *dto.UnifiedTask) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 		span.AddEvent(fmt.Sprintf("Starting build attempt %d", task.ReStartNum+1))
+		logEntry := logrus.WithFields(logrus.Fields{
+			"task_id":  task.TaskID,
+			"trace_id": task.TraceID,
+		})
 
 		rateLimiter := utils.NewBuildContainerRateLimiter()
 
@@ -120,10 +116,7 @@ func executeBuildImage(ctx context.Context, task *dto.UnifiedTask) error {
 
 		if !acquired {
 			span.AddEvent("no token available, waiting")
-			logrus.WithFields(logrus.Fields{
-				"task_id":  task.TaskID,
-				"trace_id": task.TraceID,
-			}).Info("No build container token available, waiting...")
+			logEntry.Info("No build container token available, waiting...")
 
 			acquired, err = rateLimiter.WaitForToken(childCtx, task.TaskID, task.TraceID)
 			if err != nil {
@@ -144,16 +137,12 @@ func executeBuildImage(ctx context.Context, task *dto.UnifiedTask) error {
 		defer func() {
 			if tokenAcquired {
 				if releaseErr := rateLimiter.ReleaseToken(ctx, task.TaskID, task.TraceID); releaseErr != nil {
-					logrus.WithFields(logrus.Fields{
-						"task_id":  task.TaskID,
-						"trace_id": task.TraceID,
-						"error":    releaseErr,
-					}).Error("Failed to release build container token")
+					logEntry.Error("Failed to release build container token")
 				}
 			}
 		}()
 
-		payload, err := parseBuildPayload(task.Payload)
+		payload, err := parseContainerPayload(task.Payload)
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to parse build payload")
@@ -169,19 +158,7 @@ func executeBuildImage(ctx context.Context, task *dto.UnifiedTask) error {
 			task.Type,
 		)
 
-		if err := buildImagendPush(childCtx, payload); err != nil {
-			return err
-		}
-
-		if err := repository.CreateContainer(&database.Container{
-			Type:    string(payload.containerType),
-			Name:    payload.name,
-			Image:   payload.image,
-			Command: payload.command,
-			EnvVars: payload.envVars,
-		}, payload.tag); err != nil {
-			span.RecordError(err)
-			span.AddEvent("failed to create container record")
+		if err := buildImageAndPush(childCtx, payload); err != nil {
 			return err
 		}
 
@@ -189,10 +166,7 @@ func executeBuildImage(ctx context.Context, task *dto.UnifiedTask) error {
 			TaskID:    task.TaskID,
 			TaskType:  task.Type,
 			EventName: consts.EventImageBuildSucceed,
-			Payload: dto.AlgorithmItem{
-				Name: payload.name,
-				Tag:  payload.tag,
-			},
+			Payload:   payload.imageRef,
 		})
 
 		updateTaskStatus(
@@ -213,37 +187,12 @@ func executeBuildImage(ctx context.Context, task *dto.UnifiedTask) error {
 	})
 }
 
-func parseBuildPayload(payload map[string]any) (*containerPayload, error) {
+func parseContainerPayload(payload map[string]any) (*containerPayload, error) {
 	message := "missing or invalid '%s' key in payload"
 
-	containerType, ok := payload[consts.BuildContainerType].(string)
-	if !ok || containerType == "" {
-		return nil, fmt.Errorf(message, consts.BuildContainerType)
-	}
-
-	name, ok := payload[consts.BuildName].(string)
-	if !ok || name == "" {
-		return nil, fmt.Errorf(message, consts.BuildName)
-	}
-
-	image, ok := payload[consts.BuildImage].(string)
-	if !ok || image == "" {
-		return nil, fmt.Errorf(message, consts.BuildImage)
-	}
-
-	tag, ok := payload[consts.BuildTag].(string)
-	if !ok || tag == "" {
-		return nil, fmt.Errorf(message, consts.BuildTag)
-	}
-
-	command, ok := payload[consts.BuildCommand].(string)
-	if !ok || command == "" {
-		return nil, fmt.Errorf(message, consts.BuildCommand)
-	}
-
-	envVarsArray, err := utils.ConvertToType[[]string](payload[consts.BuildImageEnvVars])
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert '%s' to []string: %v)", consts.BuildImageEnvVars, err)
+	imageRef, ok := payload[consts.BuildImageRef].(string)
+	if !ok || imageRef == "" {
+		return nil, fmt.Errorf(message, consts.BuildImageRef)
 	}
 
 	sourcePath, ok := payload[consts.BuildSourcePath].(string)
@@ -253,22 +202,17 @@ func parseBuildPayload(payload map[string]any) (*containerPayload, error) {
 
 	buildOptions, err := utils.ConvertToType[dto.BuildOptions](payload[consts.BuildBuildOptions])
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert '%s' to BuildOptions: %v", consts.BuildBuildOptions, err)
+		return nil, fmt.Errorf("invalid build configuration in payload: %v", err)
 	}
 
 	return &containerPayload{
-		containerType: consts.ContainerType(containerType),
-		name:          name,
-		image:         image,
-		tag:           tag,
-		command:       command,
-		envVars:       strings.Join(envVarsArray, ","),
-		sourcePath:    sourcePath,
-		buildOptions:  buildOptions,
+		imageRef:     imageRef,
+		sourcePath:   sourcePath,
+		buildOptions: buildOptions,
 	}, nil
 }
 
-func buildImagendPush(ctx context.Context, payload *containerPayload) error {
+func buildImageAndPush(ctx context.Context, payload *containerPayload) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 
@@ -294,12 +238,11 @@ func buildImagendPush(ctx context.Context, payload *containerPayload) error {
 			authprovider.NewDockerAuthProvider(dockerConfig, nil),
 		}
 
-		fullImage := fmt.Sprintf("%s:%s", payload.image, payload.tag)
 		exports := []buildkitclient.ExportEntry{
 			{
 				Type: buildkitclient.ExporterImage,
 				Attrs: map[string]string{
-					"name": fullImage,
+					"name": payload.imageRef,
 					"push": "true",
 				},
 			},

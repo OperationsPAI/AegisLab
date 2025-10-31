@@ -15,19 +15,17 @@ import (
 	"aegis/consts"
 	"aegis/database"
 	"aegis/dto"
-	"aegis/repository"
 	"aegis/tracing"
 	"aegis/utils"
 )
 
 type datasetPayload struct {
-	benchmark   string
-	name        string
-	preDuration int
-	envVars     map[string]string
-	startTime   time.Time
-	endTime     time.Time
-	userID      int
+	containerVersion database.ContainerVersion
+	injectionName    string
+	preDuration      int
+	envVars          map[string]string
+	startTime        time.Time
+	endTime          time.Time
 }
 
 func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
@@ -47,26 +45,18 @@ func executeBuildDataset(ctx context.Context, task *dto.UnifiedTask) error {
 			return err
 		}
 
-		container, tag, err := repository.GetContainerWithTag(consts.ContainerTypeBenchmark, payload.benchmark, "", payload.userID)
-		if err != nil {
-			span.RecordError(err)
-			span.AddEvent("failed to get container info for benchmark")
-			return fmt.Errorf("failed to get container info for benchmark %s: %v", payload.benchmark, err)
-		}
-
 		jobName := task.TaskID
-		fullImage := fmt.Sprintf("%s:%s", container.Image, tag)
 		labels := map[string]string{
 			consts.LabelTaskID:    task.TaskID,
 			consts.LabelTraceID:   task.TraceID,
 			consts.LabelGroupID:   task.GroupID,
-			consts.LabelProjectID: getProjectIDString(task.ProjectID),
-			consts.LabelUserID:    strconv.Itoa(payload.userID),
+			consts.LabelProjectID: getDefaultIDString(task.ProjectID),
+			consts.LabelUserID:    getDefaultIDString(task.UserID),
 			consts.LabelTaskType:  string(consts.TaskTypeBuildDataset),
-			consts.LabelDataset:   payload.name,
+			consts.LabelDataset:   payload.injectionName,
 		}
 
-		return createDatasetJob(ctx, jobName, fullImage, annotations, labels, payload, container)
+		return createDatasetJob(ctx, jobName, payload.containerVersion.ImageRef, annotations, labels, payload)
 	})
 }
 
@@ -74,13 +64,13 @@ func parseDatasetPayload(payload map[string]any) (*datasetPayload, error) {
 	return tracing.WithSpanReturnValue(context.Background(), func(ctx context.Context) (*datasetPayload, error) {
 		message := "missing or invalid '%s' key in payload"
 
-		benchmark, ok := payload[consts.BuildBenchmark].(string)
-		if !ok || benchmark == "" {
-			return nil, fmt.Errorf(message, consts.BuildBenchmark)
+		containerVersion, err := utils.ConvertToType[database.ContainerVersion](payload[consts.BuildContainerVersion])
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert '%s' to ContainerVersion: %v", consts.BuildContainerVersion, err)
 		}
 
-		name, ok := payload[consts.BuildDataset].(string)
-		if !ok || name == "" {
+		injectionName, ok := payload[consts.BuildDataset].(string)
+		if !ok || injectionName == "" {
 			return nil, fmt.Errorf(message, consts.BuildDataset)
 		}
 
@@ -112,30 +102,15 @@ func parseDatasetPayload(payload map[string]any) (*datasetPayload, error) {
 
 			startTime = *startTimePtr
 			endTime = *endTimePtr
-		} else {
-			datasetItem, err := repository.GetDatasetByName(name, consts.DatapackInjectSuccess, consts.DatapackBuildFailed, consts.DatapackBuildSuccess)
-			if err != nil {
-				return nil, fmt.Errorf("query database for dataset failed: %v", err)
-			}
-
-			startTime = datasetItem.StartTime
-			endTime = datasetItem.EndTime
 		}
-
-		userIDFloat, ok := payload[consts.BuildUserID].(float64)
-		if !ok || userIDFloat <= 0 {
-			return nil, fmt.Errorf(message, consts.BuildUserID)
-		}
-		userID := int(userIDFloat)
 
 		return &datasetPayload{
-			benchmark:   benchmark,
-			name:        name,
-			preDuration: preDuration,
-			envVars:     envVars,
-			startTime:   startTime,
-			endTime:     endTime,
-			userID:      userID,
+			containerVersion: containerVersion,
+			injectionName:    injectionName,
+			preDuration:      preDuration,
+			envVars:          envVars,
+			startTime:        startTime,
+			endTime:          endTime,
 		}, nil
 	})
 }
@@ -156,11 +131,11 @@ func parseTimePtrFromPayload(payload map[string]any, key string) (*time.Time, er
 	})
 }
 
-func createDatasetJob(ctx context.Context, jobName, image string, annotations, labels map[string]string, payload *datasetPayload, container *database.Container) error {
+func createDatasetJob(ctx context.Context, jobName, image string, annotations, labels map[string]string, payload *datasetPayload) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
 
-		jobEnvVars, err := getDatasetJobEnvVars(payload, container)
+		jobEnvVars, err := getDatasetJobEnvVars(payload)
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to get job environment variables")
@@ -170,7 +145,7 @@ func createDatasetJob(ctx context.Context, jobName, image string, annotations, l
 		return k8s.CreateJob(ctx, &k8s.JobConfig{
 			JobName:     jobName,
 			Image:       image,
-			Command:     strings.Split(container.Command, " "),
+			Command:     strings.Split(payload.containerVersion.Command, " "),
 			EnvVars:     jobEnvVars,
 			Annotations: annotations,
 			Labels:      labels,
@@ -178,7 +153,7 @@ func createDatasetJob(ctx context.Context, jobName, image string, annotations, l
 	})
 }
 
-func getDatasetJobEnvVars(payload *datasetPayload, container *database.Container) ([]corev1.EnvVar, error) {
+func getDatasetJobEnvVars(payload *datasetPayload) ([]corev1.EnvVar, error) {
 	tz := config.GetString("system.timezone")
 	if tz == "" {
 		tz = "Asia/Shanghai"
@@ -192,8 +167,8 @@ func getDatasetJobEnvVars(payload *datasetPayload, container *database.Container
 		{Name: "ABNORMAL_START", Value: strconv.FormatInt(payload.startTime.Unix(), 10)},
 		{Name: "ABNORMAL_END", Value: strconv.FormatInt(payload.endTime.Unix(), 10)},
 		{Name: "WORKSPACE", Value: "/app"},
-		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.name)},
-		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.name)},
+		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.injectionName)},
+		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.injectionName)},
 	}
 
 	envNameIndexMap := make(map[string]int, len(jobEnvVars))
@@ -216,8 +191,8 @@ func getDatasetJobEnvVars(payload *datasetPayload, container *database.Container
 		}
 
 		// Check if all required environment variables are provided
-		if container.EnvVars != "" {
-			envVarsArray := strings.Split(container.EnvVars, ",")
+		if payload.containerVersion.EnvVars != "" {
+			envVarsArray := strings.Split(payload.containerVersion.EnvVars, ",")
 			for _, envVar := range envVarsArray {
 				if _, exists := extraEnvVarMap[envVar]; !exists {
 					return nil, fmt.Errorf("environment variable %s is required but not provided in dataset build payload", envVar)
@@ -225,8 +200,8 @@ func getDatasetJobEnvVars(payload *datasetPayload, container *database.Container
 			}
 		}
 	} else {
-		if container.EnvVars != "" {
-			return nil, fmt.Errorf("environment variables %s are required but not provided in dataset build payload", container.EnvVars)
+		if payload.containerVersion.EnvVars != "" {
+			return nil, fmt.Errorf("environment variables %s are required but not provided in dataset build payload", payload.containerVersion.EnvVars)
 		}
 	}
 

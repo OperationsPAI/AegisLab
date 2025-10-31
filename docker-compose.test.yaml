@@ -75,13 +75,13 @@ services:
     environment:
       GOPRIVATE: "github.com/LGU-SE-Internal/chaos-experiment"
       ENV: "test"
-    command: ["both", "-p", "8082", "-c", "/app/config.test.toml"]
+    command: ["both", "-p", "8080", "-c", "/app/config.test.toml"]
     volumes:
       - /home/nn/.kube/config:/root/.kube/config
       - ./src/config.test.toml:/app/config.test.toml
       - /home/nn/workspace/AegisLab/helm/files/initial_data:/app/initial_data
-      - /home/nn/workspace/AegisLab/logs:/app/logs
-      - /home/nn/workspace/AegisLab/containers:/app/containers
+      - /home/nn/workspace/AegisLab/logs/test:/app/logs
+      - /home/nn/workspace/AegisLab/containers/test:/app/containers
       - /mnt/jfs/rcabench_dataset:/mnt/jfs/rcabench_dataset
       - /mnt/jfs/experiment_storage:/mnt/jfs/experiment_storage
     working_dir: /app

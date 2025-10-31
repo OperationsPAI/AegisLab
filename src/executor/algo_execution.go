@@ -24,11 +24,10 @@ import (
 )
 
 type executionPayload struct {
-	algorithm    database.Container
-	algorithmTag string
-	dataset      string
-	envVars      map[string]string
-	labels       *dto.ExecutionLabels
+	algorithmVersion database.ContainerVersion
+	dataset          string
+	envVars          map[string]string
+	labels           *dto.ExecutionLabels
 }
 
 func rescheduleAlgoExecutionTask(ctx context.Context, task *dto.UnifiedTask, reason string) error {
@@ -81,6 +80,7 @@ func rescheduleAlgoExecutionTask(ctx context.Context, task *dto.UnifiedTask, rea
 		TraceID:      task.TraceID,
 		GroupID:      task.GroupID,
 		ProjectID:    task.ProjectID,
+		UserID:       task.UserID,
 		TraceCarrier: task.TraceCarrier,
 	}); err != nil {
 		span.RecordError(err)
@@ -165,12 +165,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			return fmt.Errorf("failed to query database for dataset %s: %v", payload.dataset, err)
 		}
 
-		tagLabel, err := repository.CreateOrGetLabel(consts.ContainerTag, payload.algorithmTag, consts.ContainerCategory, "")
-		if err != nil {
-			return fmt.Errorf("failed to get label for algorithm tag: %v", err)
-		}
-
-		executionID, err := repository.CreateExecutionResult(task.TaskID, payload.algorithm.ID, tagLabel.ID, record.ID, 0, payload.labels)
+		executionID, err := repository.CreateExecutionResult(task.TaskID, payload.algorithmVersion.ID, record.ID, 0, payload.labels)
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to create execution result")
@@ -178,8 +173,8 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 		}
 
 		itemJson, err := json.Marshal(dto.AlgorithmItem{
-			Name:    payload.algorithm.Name,
-			Tag:     payload.algorithmTag,
+			Name:    payload.algorithmVersion.Container.Name,
+			Version: payload.algorithmVersion.Name,
 			EnvVars: payload.envVars,
 		})
 		if err != nil {
@@ -191,24 +186,21 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 		annotations[consts.AnnotationAlgorithm] = string(itemJson)
 
 		jobName := task.TaskID
-		fullImage := fmt.Sprintf("%s:%s", payload.algorithm.Image, payload.algorithmTag)
 		labels := map[string]string{
 			consts.LabelTaskID:      task.TaskID,
 			consts.LabelTraceID:     task.TraceID,
 			consts.LabelGroupID:     task.GroupID,
-			consts.LabelProjectID:   getProjectIDString(task.ProjectID),
+			consts.LabelProjectID:   getDefaultIDString(task.ProjectID),
+			consts.LabelUserID:      getDefaultIDString(task.UserID),
 			consts.LabelTaskType:    string(consts.TaskTypeRunAlgorithm),
 			consts.LabelDataset:     payload.dataset,
 			consts.LabelExecutionID: strconv.Itoa(executionID),
 		}
 
-		if err := createAlgoJob(childCtx, jobName, fullImage, annotations, labels, executionID, payload, &payload.algorithm, record); err != nil {
-			// Job creation failed, token will be released by defer function
+		if err := createAlgoJob(childCtx, jobName, payload.algorithmVersion.ImageRef, annotations, labels, executionID, payload, record); err != nil {
 			return err
 		}
 
-		// If Kubernetes Job is successfully created, mark token doesn't need to be released here
-		// Token will be released in Job success or failure callback
 		tokenAcquired = false
 		return nil
 	})
@@ -218,14 +210,9 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 	message := "missing or invalid '%s' key in payload"
 
-	algorithm, err := utils.ConvertToType[database.Container](payload[consts.ExecuteAlgorithm])
+	algorithmVersion, err := utils.ConvertToType[database.ContainerVersion](payload[consts.ExecuteAlgorithmVersion])
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert '%s' to AlgorithmItem: %v", consts.ExecuteAlgorithm, err)
-	}
-
-	algorithmTag, ok := payload[consts.ExecuteAlgorithmTag].(string)
-	if !ok || algorithmTag == "" {
-		return nil, fmt.Errorf(message, consts.ExecuteAlgorithmTag)
+		return nil, fmt.Errorf("failed to convert '%s' to ContainerVersion: %v", consts.ExecuteAlgorithmVersion, err)
 	}
 
 	dataset, ok := payload[consts.ExecuteDataset].(string)
@@ -248,19 +235,18 @@ func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 	}
 
 	return &executionPayload{
-		algorithm:    algorithm,
-		algorithmTag: algorithmTag,
-		dataset:      dataset,
-		envVars:      envVars,
-		labels:       labels,
+		algorithmVersion: algorithmVersion,
+		dataset:          dataset,
+		envVars:          envVars,
+		labels:           labels,
 	}, nil
 }
 
-func createAlgoJob(ctx context.Context, jobName, image string, annotations, labels map[string]string, executionID int, payload *executionPayload, container *database.Container, record *dto.DatasetItemWithID) error {
+func createAlgoJob(ctx context.Context, jobName, image string, annotations, labels map[string]string, executionID int, payload *executionPayload, record *dto.DatasetItemWithID) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
 
-		jobEnvVars, err := getAlgoJobEnvVars(executionID, payload, container, record)
+		jobEnvVars, err := getAlgoJobEnvVars(executionID, payload, &payload.algorithmVersion, record)
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to get job environment variables")
@@ -292,7 +278,7 @@ func createAlgoJob(ctx context.Context, jobName, image string, annotations, labe
 		return k8s.CreateJob(ctx, &k8s.JobConfig{
 			JobName:        jobName,
 			Image:          image,
-			Command:        strings.Split(container.Command, " "),
+			Command:        strings.Split(payload.algorithmVersion.Command, " "),
 			Annotations:    annotations,
 			Labels:         labels,
 			EnvVars:        jobEnvVars,
@@ -301,7 +287,7 @@ func createAlgoJob(ctx context.Context, jobName, image string, annotations, labe
 	})
 }
 
-func getAlgoJobEnvVars(executionID int, payload *executionPayload, container *database.Container, record *dto.DatasetItemWithID) ([]corev1.EnvVar, error) {
+func getAlgoJobEnvVars(executionID int, payload *executionPayload, containerVersion *database.ContainerVersion, record *dto.DatasetItemWithID) ([]corev1.EnvVar, error) {
 	tz := config.GetString("system.timezone")
 	if tz == "" {
 		tz = "Asia/Shanghai"
@@ -316,8 +302,8 @@ func getAlgoJobEnvVars(executionID int, payload *executionPayload, container *da
 	timestamp := now.Format("20060102_150405")
 
 	outputPath := fmt.Sprintf("/data/%s", payload.dataset)
-	if container.Name != config.GetString("algo.detector") {
-		outputPath = fmt.Sprintf("/data/%s/%s/%s", payload.dataset, container.Name, timestamp)
+	if containerVersion.Container.Name != config.GetString("algo.detector") {
+		outputPath = fmt.Sprintf("/data/%s/%s/%s", payload.dataset, containerVersion.Container.Name, timestamp)
 	}
 
 	jobEnvVars := []corev1.EnvVar{
@@ -333,7 +319,8 @@ func getAlgoJobEnvVars(executionID int, payload *executionPayload, container *da
 		{Name: "OUTPUT_PATH", Value: outputPath},
 		{Name: "RCABENCH_USERNAME", Value: "admin"},
 		{Name: "RCABENCH_PASSWORD", Value: "admin123"},
-		{Name: "ALGORITHM_ID", Value: strconv.Itoa(container.ID)},
+		{Name: "ALGORITHM_ID", Value: strconv.Itoa(containerVersion.ContainerID)},
+		{Name: "ALGORITHM_VERSION_ID", Value: strconv.Itoa(containerVersion.ID)},
 		{Name: "EXECUTION_ID", Value: strconv.Itoa(executionID)},
 	}
 
@@ -357,8 +344,8 @@ func getAlgoJobEnvVars(executionID int, payload *executionPayload, container *da
 		}
 
 		// Check if all required environment variables are provided
-		if container.EnvVars != "" {
-			envVarsArray := strings.Split(container.EnvVars, ",")
+		if containerVersion.EnvVars != "" {
+			envVarsArray := strings.Split(containerVersion.EnvVars, ",")
 			for _, envVar := range envVarsArray {
 				if _, exists := extraEnvVarMap[envVar]; !exists {
 					return nil, fmt.Errorf("environment variable %s is required but not provided in algorithm exeuciton payload", envVar)
@@ -366,8 +353,8 @@ func getAlgoJobEnvVars(executionID int, payload *executionPayload, container *da
 			}
 		}
 	} else {
-		if container.EnvVars != "" {
-			return nil, fmt.Errorf("environment variables %s are required but not provided in algorithm execution payload", container.EnvVars)
+		if containerVersion.EnvVars != "" {
+			return nil, fmt.Errorf("environment variables %s are required but not provided in algorithm execution payload", containerVersion.EnvVars)
 		}
 	}
 

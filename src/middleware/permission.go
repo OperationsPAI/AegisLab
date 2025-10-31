@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"aegis/database"
 	"aegis/dto"
 	"aegis/repository"
 
@@ -19,7 +20,12 @@ func RequirePermission(action, resourceName string) gin.HandlerFunc {
 			return
 		}
 
-		userID, _ := GetCurrentUserID(c)
+		userID, exists := GetCurrentUserID(c)
+		if !exists {
+			dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
+			c.Abort()
+			return
+		}
 
 		// Get project ID from URL parameters if available
 		var projectID *int
@@ -29,8 +35,15 @@ func RequirePermission(action, resourceName string) gin.HandlerFunc {
 			}
 		}
 
+		var containerID *int
+		if containerIDStr := c.Param("container_id"); containerIDStr != "" {
+			if id, err := strconv.Atoi(containerIDStr); err == nil {
+				containerID = &id
+			}
+		}
+
 		// Check user permission
-		hasPermission, err := repository.CheckUserPermission(userID, action, resourceName, projectID)
+		hasPermission, err := repository.CheckUserPermission(database.DB, userID, action, resourceName, projectID, containerID)
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
 			c.Abort()
@@ -56,7 +69,12 @@ func RequireAnyPermission(permissions []PermissionCheck) gin.HandlerFunc {
 			return
 		}
 
-		userID, _ := GetCurrentUserID(c)
+		userID, exists := GetCurrentUserID(c)
+		if !exists {
+			dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
+			c.Abort()
+			return
+		}
 
 		// Get project ID from URL parameters if available
 		var projectID *int
@@ -66,10 +84,17 @@ func RequireAnyPermission(permissions []PermissionCheck) gin.HandlerFunc {
 			}
 		}
 
+		var containerID *int
+		if containerIDStr := c.Param("container_id"); containerIDStr != "" {
+			if id, err := strconv.Atoi(containerIDStr); err == nil {
+				containerID = &id
+			}
+		}
+
 		// Check if user has any of the required permissions
 		hasAnyPermission := false
 		for _, perm := range permissions {
-			hasPermission, err := repository.CheckUserPermission(userID, perm.Action, perm.ResourceName, projectID)
+			hasPermission, err := repository.CheckUserPermission(database.DB, userID, perm.Action, perm.ResourceName, projectID, containerID)
 			if err != nil {
 				continue // Log error in production
 			}
@@ -98,7 +123,12 @@ func RequireAllPermissions(permissions []PermissionCheck) gin.HandlerFunc {
 			return
 		}
 
-		userID, _ := GetCurrentUserID(c)
+		userID, exists := GetCurrentUserID(c)
+		if !exists {
+			dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
+			c.Abort()
+			return
+		}
 
 		// Get project ID from URL parameters if available
 		var projectID *int
@@ -108,9 +138,16 @@ func RequireAllPermissions(permissions []PermissionCheck) gin.HandlerFunc {
 			}
 		}
 
+		var containerID *int
+		if containerIDStr := c.Param("container_id"); containerIDStr != "" {
+			if id, err := strconv.Atoi(containerIDStr); err == nil {
+				containerID = &id
+			}
+		}
+
 		// Check if user has all required permissions
 		for _, perm := range permissions {
-			hasPermission, err := repository.CheckUserPermission(userID, perm.Action, perm.ResourceName, projectID)
+			hasPermission, err := repository.CheckUserPermission(database.DB, userID, perm.Action, perm.ResourceName, projectID, containerID)
 			if err != nil {
 				dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
 				c.Abort()
@@ -127,6 +164,7 @@ func RequireAllPermissions(permissions []PermissionCheck) gin.HandlerFunc {
 	}
 }
 
+// TODO
 // RequireOwnership creates a middleware that requires user to be owner of resource
 func RequireOwnership(resourceType string, ownerIDParam string) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -136,7 +174,12 @@ func RequireOwnership(resourceType string, ownerIDParam string) gin.HandlerFunc 
 			return
 		}
 
-		currentUserID, _ := GetCurrentUserID(c)
+		userID, exists := GetCurrentUserID(c)
+		if !exists {
+			dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
+			c.Abort()
+			return
+		}
 
 		// Get owner ID from URL parameters
 		ownerIDStr := c.Param(ownerIDParam)
@@ -154,7 +197,7 @@ func RequireOwnership(resourceType string, ownerIDParam string) gin.HandlerFunc 
 		}
 
 		// Check if current user is the owner
-		if currentUserID != ownerID {
+		if userID != ownerID {
 			dto.ErrorResponse(c, http.StatusForbidden, "Access denied: You can only access your own "+resourceType)
 			c.Abort()
 			return
@@ -173,10 +216,15 @@ func RequireAdminOrOwnership(ownerIDParam string) gin.HandlerFunc {
 			return
 		}
 
-		currentUserID, _ := GetCurrentUserID(c)
+		userID, exists := GetCurrentUserID(c)
+		if !exists {
+			dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
+			c.Abort()
+			return
+		}
 
 		// Check if user is admin
-		hasAdminPermission, err := repository.CheckUserPermission(currentUserID, "admin", "system", nil)
+		hasAdminPermission, err := repository.CheckUserPermission(database.DB, userID, "admin", "system", nil, nil)
 		if err == nil && hasAdminPermission {
 			// User is admin, allow access
 			c.Next()
@@ -198,7 +246,7 @@ func RequireAdminOrOwnership(ownerIDParam string) gin.HandlerFunc {
 			return
 		}
 
-		if currentUserID != ownerID {
+		if userID != ownerID {
 			dto.ErrorResponse(c, http.StatusForbidden, "Access denied: Admin privileges or ownership required")
 			c.Abort()
 			return
@@ -261,6 +309,11 @@ var (
 	RequireContainerRead   = RequirePermission("read", "container")
 	RequireContainerWrite  = RequirePermission("write", "container")
 	RequireContainerDelete = RequirePermission("delete", "container")
+
+	// Container Version management permissions
+	RequireContainerVersionRead   = RequirePermission("read", "container_version")
+	RequireContainerVersionWrite  = RequirePermission("write", "container_version")
+	RequireContainerVersionDelete = RequirePermission("delete", "container_version")
 
 	// Task management permissions
 	RequireTaskRead   = RequirePermission("read", "task")

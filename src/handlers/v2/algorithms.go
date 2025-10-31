@@ -18,13 +18,12 @@ import (
 )
 
 type algorithmTaskParams struct {
-	projectID    *int
-	algorithm    *database.Container
-	algorithmTag string
-	envVars      map[string]string
-	datapacks    []database.FaultInjectionSchedule
-	datasetID    *int
-	labels       *dto.ExecutionLabels
+	projectID        *int
+	algorithmVersion *database.ContainerVersion
+	envVars          map[string]string
+	datapacks        []database.FaultInjectionSchedule
+	datasetID        *int
+	labels           *dto.ExecutionLabels
 }
 
 // SearchAlgorithms handles complex algorithm search with advanced filtering
@@ -53,7 +52,7 @@ func SearchAlgorithms(c *gin.Context) {
 	searchReq.AddFilter("type", dto.OpEqual, string(consts.ContainerTypeAlgorithm))
 
 	// Validate search request
-	if err := searchReq.ValidateSearchRequest(); err != nil {
+	if err := searchReq.Validate(); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid search parameters: "+err.Error())
 		return
 	}
@@ -68,7 +67,8 @@ func SearchAlgorithms(c *gin.Context) {
 	// Convert database containers to response DTOs
 	var algorithmResponses []dto.AlgorithmResponse
 	for _, container := range searchResult.Items {
-		algorithmResponse := dto.ToAlgorithmResponse(container)
+		var algorithmResponse dto.AlgorithmResponse
+		algorithmResponse.ConvertFromContainer(container)
 		algorithmResponses = append(algorithmResponses, algorithmResponse)
 	}
 
@@ -131,7 +131,7 @@ func ListAlgorithms(c *gin.Context) {
 	searchReq.AddSort("name", dto.SortASC)
 
 	// Validate search request
-	if err := searchReq.ValidateSearchRequest(); err != nil {
+	if err := searchReq.Validate(); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid search parameters: "+err.Error())
 		return
 	}
@@ -146,7 +146,8 @@ func ListAlgorithms(c *gin.Context) {
 	// Convert database containers to response DTOs
 	var algorithmResponses []dto.AlgorithmResponse
 	for _, container := range searchResult.Items {
-		algorithmResponse := dto.ToAlgorithmResponse(container)
+		var algorithmResponse dto.AlgorithmResponse
+		algorithmResponse.ConvertFromContainer(container)
 		algorithmResponses = append(algorithmResponses, algorithmResponse)
 	}
 
@@ -275,7 +276,8 @@ func UploadDetectorResults(c *gin.Context) {
 //	@Produce json
 //	@Security BearerAuth
 //	@Param algorithm_id path int true "Algorithm ID"
-//	@Param execution_id query int false "Execution ID (optional, will create new if not provided)"
+//	@Param version_id path int true "Algorithm Version ID"
+//	@Param execution_id path int false "Execution ID (optional, if not provided a new execution will be created)"
 //	@Param label query string false "Label tag (optional, only used when creating new execution)"
 //	@Param request body dto.GranularityResultEnhancedRequest true "Granularity results with optional execution creation"
 //	@Success 200 {object} dto.GenericResponse[dto.AlgorithmResultUploadResponse] "Results uploaded successfully"
@@ -283,7 +285,7 @@ func UploadDetectorResults(c *gin.Context) {
 //	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
 //	@Failure 404 {object} dto.GenericResponse[any] "Algorithm or datapack not found"
 //	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/algorithms/{algorithm_id}/results [post]
+//	@Router /api/v2/algorithms/{algorithm_id}/versions/{version_id}/executions/{execution_id}results [post]
 func UploadGranularityResults(c *gin.Context) {
 	// Parse algorithm_id parameter
 	algorithmID, err := parseIntParam(c.Param("algorithm_id"))
@@ -292,17 +294,16 @@ func UploadGranularityResults(c *gin.Context) {
 		return
 	}
 
+	algorithmVersionID, err := parseIntParam(c.Param("version_id"))
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid algorithm version ID: "+err.Error())
+		return
+	}
+
 	// Parse optional execution_id query parameter
 	var executionID int
 	executionIDParam := c.Query("execution_id")
 	hasExecutionID := executionIDParam != ""
-
-	tag := c.Query("tag")
-	tagLabel, err := repository.CreateOrGetLabel(consts.ContainerTag, tag, consts.ContainerCategory, "")
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get tag label: "+err.Error())
-		return
-	}
 
 	if hasExecutionID {
 		executionID, err = parseIntParam(executionIDParam)
@@ -361,7 +362,7 @@ func UploadGranularityResults(c *gin.Context) {
 		}
 
 		// Create new execution record using repository function
-		executionID, err = repository.CreateExecutionResult("", algorithmID, tagLabel.ID, req.DatapackID, req.Duration, labels)
+		executionID, err = repository.CreateExecutionResult("", algorithmVersionID, req.DatapackID, req.Duration, labels)
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to create execution record: "+err.Error())
 			return
@@ -486,20 +487,19 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 			return
 		}
 
-		algorithm, tag, err := repository.GetContainerWithTag(consts.ContainerTypeAlgorithm, execution.Algorithm.Name, execution.Algorithm.Tag, userID)
+		algorithmVersion, err := repository.GetContainerVersion(consts.ContainerTypeAlgorithm, execution.Algorithm.Name, userID, "")
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusNotFound, "Algorithm not found: "+execution.Algorithm.Name)
 			return
 		}
 
 		executions, err := submitAlgorithmTasks(spanCtx, groupID, &algorithmTaskParams{
-			projectID:    &project.ID,
-			algorithm:    algorithm,
-			algorithmTag: tag,
-			envVars:      execution.Algorithm.EnvVars,
-			datapacks:    datapacks,
-			datasetID:    datasetID,
-			labels:       req.Labels,
+			projectID:        &project.ID,
+			algorithmVersion: algorithmVersion,
+			envVars:          execution.Algorithm.EnvVars,
+			datapacks:        datapacks,
+			datasetID:        datasetID,
+			labels:           req.Labels,
 		})
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to submit algorithm execution tasks: "+err.Error())
@@ -590,10 +590,9 @@ func submitAlgorithmTasks(ctx context.Context, groupID string, params *algorithm
 	var executions []dto.AlgorithmExecutionResponse
 	for _, datapack := range params.datapacks {
 		payload := map[string]any{
-			consts.ExecuteAlgorithm:    *params.algorithm,
-			consts.ExecuteAlgorithmTag: params.algorithmTag,
-			consts.ExecuteDataset:      datapack.InjectionName, // Use datapack name as dataset field
-			consts.ExecuteEnvVars:      params.envVars,
+			consts.ExecuteAlgorithmVersion: params.algorithmVersion,
+			consts.ExecuteDataset:          datapack.InjectionName, // Use datapack name as dataset field
+			consts.ExecuteEnvVars:          params.envVars,
 		}
 
 		if params.labels != nil {
@@ -615,11 +614,12 @@ func submitAlgorithmTasks(ctx context.Context, groupID string, params *algorithm
 		}
 
 		execution := dto.AlgorithmExecutionResponse{
-			TraceID:     traceID,
-			TaskID:      taskID,
-			AlgorithmID: params.algorithm.ID,
-			DatapackID:  &datapack.ID,
-			Status:      "submitted",
+			TraceID:            traceID,
+			TaskID:             taskID,
+			AlgorithmID:        params.algorithmVersion.ContainerID,
+			AlgorithmVersionID: params.algorithmVersion.ID,
+			DatapackID:         &datapack.ID,
+			Status:             "submitted",
 		}
 
 		// Set DatasetID if this is from a dataset

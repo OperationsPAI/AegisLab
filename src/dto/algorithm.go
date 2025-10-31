@@ -12,7 +12,7 @@ import (
 // AlgorithmItem represents an algorithm configuration
 type AlgorithmItem struct {
 	Name    string            `json:"name" binding:"required"`
-	Tag     string            `json:"tag" binding:"omitempty"`
+	Version string            `json:"version" binding:"omitempty"`
 	EnvVars map[string]string `json:"env_vars" binding:"omitempty" swaggertype:"object"`
 }
 
@@ -189,32 +189,17 @@ func (req *SubmitBatchDatapackExecutionReq) Validate() error {
 
 // AlgorithmResponse represents algorithm response for v2 API
 type AlgorithmResponse struct {
-	ID         int       `json:"id"`
-	Name       string    `json:"name"`
-	Type       string    `json:"type"`
-	Image      string    `json:"image"`
-	DefaultTag string    `json:"default_tag"`
-	Command    string    `json:"command"`
-	EnvVars    string    `json:"env_vars"`
-	IsPublic   bool      `json:"is_public"`
-	Status     int       `json:"status"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func ToAlgorithmResponse(container database.Container) AlgorithmResponse {
-	return AlgorithmResponse{
-		ID:         container.ID,
-		Name:       container.Name,
-		Type:       container.Type,
-		Image:      container.Image,
-		DefaultTag: container.DefaultTag,
-		Command:    container.Command,
-		EnvVars:    container.EnvVars,
-		Status:     container.Status,
-		CreatedAt:  container.CreatedAt,
-		UpdatedAt:  container.UpdatedAt,
-	}
+func (a *AlgorithmResponse) ConvertFromContainer(container database.Container) {
+	a.ID = container.ID
+	a.Name = container.Name
+	a.CreatedAt = container.CreatedAt
+	a.UpdatedAt = container.UpdatedAt
 }
 
 // AlgorithmExecutionRequest represents v2 algorithm execution request
@@ -298,12 +283,13 @@ func (req *BatchAlgorithmExecutionRequest) Validate() error {
 
 // AlgorithmExecutionResponse represents algorithm execution response
 type AlgorithmExecutionResponse struct {
-	TraceID     string `json:"trace_id"`
-	TaskID      string `json:"task_id"`
-	AlgorithmID int    `json:"algorithm_id"`
-	DatapackID  *int   `json:"datapack_id,omitempty"`
-	DatasetID   *int   `json:"dataset_id,omitempty"`
-	Status      string `json:"status"`
+	TraceID            string `json:"trace_id"`
+	TaskID             string `json:"task_id"`
+	AlgorithmID        int    `json:"algorithm_id"`
+	AlgorithmVersionID int    `json:"algorithm_version_id"`
+	DatapackID         *int   `json:"datapack_id,omitempty"`
+	DatasetID          *int   `json:"dataset_id,omitempty"`
+	Status             string `json:"status"`
 }
 
 // BatchAlgorithmExecutionResponse represents batch algorithm execution response

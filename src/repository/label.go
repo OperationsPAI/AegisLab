@@ -11,9 +11,9 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-type RemoveRelationsFromId func(int) error
+type RemoveLabelRelationsFromId func(int) error
 
-var RemoveRelationsFromLabel = map[string]RemoveRelationsFromId{
+var RemoveRelationsFromLabel = map[string]RemoveLabelRelationsFromId{
 	"container": RemoveAllContainersFromLabel,
 	"dataset":   RemoveAllDatasetsFromLabel,
 	"execution": RemoveAllExecutionsFromLabel,

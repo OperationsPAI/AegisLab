@@ -1,19 +1,16 @@
 package dto
 
 import (
+	"encoding/json"
 	"fmt"
-	"net/http"
-	"os"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"aegis/config"
 	"aegis/consts"
 	"aegis/database"
 	"aegis/utils"
-
-	"github.com/BurntSushi/toml"
 )
 
 const (
@@ -21,201 +18,104 @@ const (
 	InfoNameField = "name"
 )
 
-type GetContainerFilterOptions struct {
-	Type   consts.ContainerType
-	Name   string
-	Status *int
+// BuildContainerRequest represents the request for building a container into platform registry
+type BuildContainerRequest struct {
+	// Container Meta
+	ImageName string `json:"image_name" binding:"required"`
+	Tag       string `json:"tag" binding:"omitempty"`
+
+	// GitHub repository information
+	GithubRepository string `json:"github_repository" binding:"required"`
+	GithubBranch     string `json:"github_branch" binding:"omitempty"`
+	GithubCommit     string `json:"github_commit" binding:"omitempty"`
+	GithubToken      string `json:"github_token" binding:"omitempty"`
+	SubPath          string `json:"sub_path" binding:"omitempty"`
+
+	Options *BuildOptions `json:"build_options" binding:"omitempty"`
 }
 
-type ListContainersFilterOptions struct {
-	Status *bool
-	Type   consts.ContainerType
-	Names  []string
+type BuildOptions struct {
+	ContextDir     string            `json:"context_dir" binding:"omitempty" default:"."`
+	DockerfilePath string            `json:"dockerfile_path" binding:"omitempty" default:"Dockerfile"`
+	Target         string            `json:"target" binding:"omitempty"`
+	BuildArgs      map[string]string `json:"build_args" binding:"omitempty" swaggertype:"object"`
+	ForceRebuild   *bool             `json:"force_rebuild" binding:"omitempty"`
 }
 
-type ContainerInfo struct {
-	Container database.Container `json:"container"`
-	Tags      []database.Label   `json:"tags"`
-}
+func (req *BuildContainerRequest) Validate() error {
+	req.ImageName = strings.TrimSpace(req.ImageName)
+	req.GithubRepository = strings.TrimSpace(req.GithubRepository)
 
-func (c *ContainerInfo) IsTagExists(tag string) bool {
-	tagMaps := make(map[string]struct{}, len(c.Tags))
-	for _, tag := range c.Tags {
-		tagMaps[tag.Value] = struct{}{}
+	if req.ImageName == "" {
+		return fmt.Errorf("container image name cannot be empty")
 	}
-
-	_, exists := tagMaps[tag]
-	return exists
-}
-
-func (c *ContainerInfo) GetLatestTag() string {
-	if len(c.Tags) > 0 {
-		return c.Tags[0].Value
+	if req.Tag != "" {
+		req.Tag = strings.TrimSpace(req.Tag)
 	}
-
-	return ""
-}
-
-// ContainerResponse represents container response for v2 API
-type ContainerResponse struct {
-	ID        int       `json:"id"`
-	Name      string    `json:"name"`
-	Type      string    `json:"type"`
-	Image     string    `json:"image"`
-	Command   string    `json:"command"`
-	EnvVars   string    `json:"env_vars"`
-	IsPublic  bool      `json:"is_public"`
-	Status    int       `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-
-	// Related entities (only included when specifically requested)
-	User *UserResponse `json:"user,omitempty"`
-}
-
-// ConvertFromContainer converts database Container to ContainerResponse DTO
-func (c *ContainerResponse) ConvertFromContainer(container *database.Container, includeUser bool) {
-	c.ID = container.ID
-	c.Name = container.Name
-	c.Type = string(container.Type)
-	c.Image = container.Image
-	c.Command = container.Command
-	c.EnvVars = container.EnvVars
-	c.IsPublic = container.IsPublic
-	c.Status = container.Status
-	c.CreatedAt = container.CreatedAt
-	c.UpdatedAt = container.UpdatedAt
-
-	if includeUser && container.User != nil {
-		c.User = &UserResponse{}
-		c.User.ConvertFromUser(container.User)
-	}
-}
-
-// BuildSource represents the source configuration for container building
-// @Description Build source configuration with different source types
-type BuildSource struct {
-	// @Description Build source type (file, github, or harbor)
-	Type consts.BuildSourceType `json:"type" binding:"required" swaggertype:"string"`
-	// @Description File source configuration (for file uploads)
-	File *FileSource `json:"file" binding:"omitempty"`
-	// @Description GitHub source configuration
-	GitHub *GitHubSource `json:"github" binding:"omitempty"`
-	// @Description Harbor source configuration
-	Harbor *HarborSource `json:"harbor" binding:"omitempty"`
-}
-
-func (s *BuildSource) Validate() error {
-	if s.Type == consts.BuildSourceTypeGitHub {
-		return s.GitHub.Validate()
-	}
-
-	if s.Type == consts.BuildSourceTypeHarbor {
-		return s.Harbor.Validate()
-	}
-
-	return nil
-}
-
-// FileSource File source configuration
-// @Description File source configuration for uploads
-type FileSource struct {
-	// Files uploaded via multipart/form-data are automatically processed
-	// This is just for documentation purposes
-	// @Description Filename of the uploaded file
-	Filename string `json:"file_name,omitempty"`
-	// @Description Size of the uploaded file in bytes
-	Size int64 `json:"size,omitempty"`
-}
-
-// GitHubSource GitHub source configuration
-// @Description GitHub source configuration
-type GitHubSource struct {
-	// @Description GitHub repository in format 'owner/repo'
-	Repository string `json:"repository" binding:"required"`
-	// @Description GitHub access token (optional)
-	Token string `json:"token" binding:"omitempty"`
-	// @Description Branch name (optional, defaults to main)
-	Branch string `json:"branch" binding:"omitempty"`
-	// @Description Specific commit hash (optional)
-	Commit string `json:"commit" binding:"omitempty"`
-	// @Description Path within the repository (optional)
-	Path string `json:"path" binding:"omitempty"`
-}
-
-func (s *GitHubSource) Validate() error {
-	parts := strings.Split(s.Repository, "/")
+	parts := strings.Split(req.GithubRepository, "/")
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 		return fmt.Errorf("invalid repository format, expected 'owner/repo'")
 	}
-
-	if s.Token != "" {
-		if err := utils.IsValidGitHubToken(s.Token); err != nil {
+	if req.GithubBranch != "" {
+		req.GithubBranch = strings.TrimSpace(req.GithubBranch)
+		if err := utils.IsValidGitHubBranch(req.GithubBranch); err != nil {
+			return err
+		}
+	}
+	if req.GithubCommit != "" {
+		req.GithubCommit = strings.TrimSpace(req.GithubCommit)
+		if err := utils.IsValidGitHubCommit(req.GithubCommit); err != nil {
+			return err
+		}
+	}
+	if req.GithubToken != "" {
+		req.GithubToken = strings.TrimSpace(req.GithubToken)
+		if err := utils.IsValidGitHubToken(req.GithubToken); err != nil {
 			return err
 		}
 	}
 
-	if s.Branch != "" {
-		if err := utils.IsValidGitHubBranch(s.Branch); err != nil {
-			return err
-		}
+	if req.Tag == "" {
+		req.Tag = "latest"
+	}
+	if req.GithubBranch == "" {
+		req.GithubBranch = "main"
+	}
+	if req.SubPath == "" {
+		req.SubPath = "."
 	}
 
-	if s.Commit != "" {
-		if err := utils.IsValidGitHubCommit(s.Commit); err != nil {
+	return req.Options.Validate()
+}
+
+func (req *BuildContainerRequest) ValidateInfoContent(sourcePath string) error {
+	if req.ImageName == "" {
+		tomlPath := filepath.Join(sourcePath, InfoFileName)
+		content, err := utils.ReadTomlFile(tomlPath)
+		if err != nil {
 			return err
 		}
-	}
 
-	// Validate path format
-	if err := utils.IsValidGitHubPath(s.Path); err != nil {
-		return err
+		if name, ok := content[InfoNameField].(string); ok && name != "" {
+			req.ImageName = name
+		} else {
+			return fmt.Errorf("%s does not contain a valid name field", InfoFileName)
+		}
 	}
 
 	return nil
-}
-
-// HarborSource Harbor source configuration
-// @Description Harbor source configuration
-type HarborSource struct {
-	// @Description Harbor image name
-	Image string `json:"image" binding:"required"`
-	// @Description Image tag (optional, defaults to latest)
-	Tag string `json:"tag" binding:"omitempty"`
-}
-
-func (s *HarborSource) Validate() error {
-	if s.Image == "" {
-		return fmt.Errorf("image name cannot be empty")
-	}
-
-	if s.Tag != "" {
-		if err := utils.IsValidDockerTag(s.Tag); err != nil {
-			return fmt.Errorf("invalid Docker tag: %s, %v", s.Tag, err)
-		}
-	}
-
-	return nil
-}
-
-// BuildOptions Build options
-// @Description Build options for container creation
-type BuildOptions struct {
-	// @Description Context directory for build (optional)
-	ContextDir string `json:"context_dir" binding:"omitempty"`
-	// @Description Path to Dockerfile (optional, defaults to Dockerfile)
-	DockerfilePath string `json:"dockerfile_path" binding:"omitempty"`
-	// @Description Build target (optional)
-	Target string `json:"target" binding:"omitempty"`
-	// @Description Build arguments (optional)
-	BuildArgs map[string]string `json:"build_args" binding:"omitempty" swaggertype:"object"`
-	// @Description Build labels (optional)
-	Labels map[string]string `json:"labels" binding:"omitempty" swaggertype:"object"`
-	// @Description Force rebuild even if image exists
-	ForceRebuild bool `json:"force_rebuild" binding:"omitempty"`
 }
 
 func (opts *BuildOptions) Validate() error {
+	if opts.ContextDir != "" {
+		opts.ContextDir = strings.TrimSpace(opts.ContextDir)
+	}
+	if opts.DockerfilePath != "" {
+		opts.DockerfilePath = strings.TrimSpace(opts.DockerfilePath)
+	}
+	if opts.Target != "" {
+		opts.Target = strings.TrimSpace(opts.Target)
+	}
 	if opts.BuildArgs != nil {
 		for key := range opts.BuildArgs {
 			if key == "" {
@@ -224,270 +124,516 @@ func (opts *BuildOptions) Validate() error {
 		}
 	}
 
-	if opts.Labels != nil {
-		for key := range opts.Labels {
-			if key == "" {
-				return fmt.Errorf("label key cannot be empty")
-			}
-		}
+	if opts.ContextDir == "" {
+		opts.ContextDir = "."
+	}
+	if opts.DockerfilePath == "" {
+		opts.DockerfilePath = "Dockerfile"
+	}
+	if opts.ForceRebuild == nil {
+		opts.ForceRebuild = utils.BoolPtr(false)
 	}
 
 	return nil
 }
 
-type SubmitContainerBuildingReq struct {
-	ContainerType consts.ContainerType `json:"type" binding:"required,oneof=algorithm benchmark"`
-	Name          string               `json:"name" binding:"required"`
-	Image         string               `json:"image" binding:"required"`
-	Tag           string               `json:"tag" binding:"omitempty"`
-	Command       string               `json:"command" binding:"omitempty"`
-	EnvVars       []string             `json:"env_vars" binding:"omitempty" swaggertype:"array"`
-	Source        BuildSource          `json:"source" binding:"required"`
-	BuildOptions  *BuildOptions        `json:"build_options" binding:"omitempty"`
-}
-
-func (req *SubmitContainerBuildingReq) Validate() error {
-	if req.ContainerType != "" {
-		if _, exists := ValidContainerTypes[req.ContainerType]; !exists {
-			return fmt.Errorf("invalid container type: %s", req.ContainerType)
-		}
+func (opts *BuildOptions) ValidateRequiredFiles(sourcePath string) error {
+	contextPath := filepath.Join(sourcePath, opts.ContextDir)
+	if utils.CheckFileExists(contextPath) {
+		return fmt.Errorf("build context path '%s' does not exist", contextPath)
 	}
 
-	if req.Image == "" {
-		return fmt.Errorf("docker image cannot be empty")
-	} else {
-		if len(req.Image) > 255 {
-			return fmt.Errorf("image name %s too long (max 255 characters)", req.Image)
-		}
-
-		if !strings.Contains(req.Image, "/") {
-			req.Image = fmt.Sprintf("%s/%s/%s", config.GetString("harbor.host"), config.GetString("harbor.project"), req.Image)
-		} else if !strings.Contains(req.Image, ".") {
-			req.Image = fmt.Sprintf("%s/%s", config.GetString("harbor.host"), req.Image)
-		}
-	}
-
-	if req.Tag != "" {
-		if err := utils.IsValidDockerTag(req.Tag); err != nil {
-			return fmt.Errorf("invalid docker tag: %s, %v", req.Tag, err)
-		}
-	}
-
-	if req.EnvVars != nil {
-		for i, envVar := range req.EnvVars {
-			if err := utils.IsValidEnvVar(envVar); err != nil {
-				return fmt.Errorf("invalid environment variable %s at index %d: %v", envVar, i, err)
-			}
-		}
-	}
-
-	if err := req.Source.Validate(); err != nil {
-		return fmt.Errorf("invalid build source: %v", err)
-	}
-
-	if err := req.BuildOptions.Validate(); err != nil {
-		return fmt.Errorf("invalid build options: %v", err)
+	dockerfilePath := filepath.Join(sourcePath, opts.DockerfilePath)
+	if !utils.CheckFileExists(dockerfilePath) {
+		return fmt.Errorf("dockerfile not found at path: %s", dockerfilePath)
 	}
 
 	return nil
 }
 
-func (req *SubmitContainerBuildingReq) ValidateInfoContent(sourcePath string) (int, error) {
-	if req.Name == "" {
-		content, err := getInfoFileContent(sourcePath)
-		if err != nil {
-			return http.StatusInternalServerError, err
-		}
-
-		if name, ok := content[InfoNameField].(string); ok && name != "" {
-			req.Name = name
-		} else {
-			return http.StatusNotFound, fmt.Errorf("%s does not contain a valid name field", InfoFileName)
-		}
-	}
-
-	if req.Name == "" {
-		return http.StatusBadRequest, fmt.Errorf("container name cannot be empty")
-	}
-
-	if req.Name == config.GetString("algo.detector") {
-		return http.StatusBadRequest, fmt.Errorf("name '%s' is reserved and cannot be used for building images", config.GetString("algo.detector"))
-	}
-
-	return http.StatusOK, nil
-}
-
-func getInfoFileContent(sourcePath string) (map[string]any, error) {
-	tomlPath := filepath.Join(sourcePath, InfoFileName)
-
-	data, err := os.ReadFile(tomlPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read %s file: %v", InfoFileName, err)
-	}
-
-	var config map[string]any
-	if err := toml.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse %s file: %v", InfoFileName, err)
-	}
-
-	return config, nil
-}
-
-var ValidContainerTypes = map[consts.ContainerType]struct{}{
-	consts.ContainerTypeAlgorithm: {},
-	consts.ContainerTypeBenchmark: {},
-}
-
-// CreateContainerRequest represents the v2 API request for creating a container
-// Containers are associated with users, not projects
-// @Description Container creation request for v2 API
 type CreateContainerRequest struct {
-	// @Description Container type (algorithm or benchmark)
-	// @example algorithm
-	ContainerType consts.ContainerType `json:"type" binding:"required,oneof=algorithm benchmark" swaggertype:"string"`
-	// @Description Container name
-	// @example my-container
-	Name string `json:"name" binding:"required"`
-	// @Description Docker image name
-	// @example my-image
-	Image string `json:"image" binding:"required"`
-	// @Description Docker image tag
-	// @example latest
-	Tag string `json:"tag" binding:"omitempty"`
-	// @Description Container startup command
-	// @example /bin/bash
-	Command string `json:"command" binding:"omitempty"`
-	// @Description Environment variables
-	EnvVars []string `json:"env_vars" binding:"omitempty"`
-	// @Description Whether the container is public
-	IsPublic bool `json:"is_public" binding:"omitempty"`
-	// @Description Container build source configuration
-	BuildSource *BuildSource `json:"build_source" binding:"omitempty"`
-	// @Description Container build options
-	BuildOptions *BuildOptions `json:"build_options" binding:"omitempty"`
+	Name     string               `json:"name" binding:"required"`
+	Type     consts.ContainerType `json:"type" binding:"required"`
+	README   string               `json:"readme" binding:"omitempty"`
+	IsPublic *bool                `json:"is_public" binding:"omitempty"`
+
+	VersionRequest *CreateContainerVersionRequest `json:"version" binding:"omitempty"`
 }
 
 func (req *CreateContainerRequest) Validate() error {
-	if req.ContainerType != "" {
-		if _, exists := ValidContainerTypes[req.ContainerType]; !exists {
-			return fmt.Errorf("invalid container type: %s", req.ContainerType)
-		}
-	}
+	req.Name = strings.TrimSpace(req.Name)
 
 	if req.Name == "" {
 		return fmt.Errorf("container name cannot be empty")
 	}
+	if req.Type == "" {
+		return fmt.Errorf("container type cannot be empty")
+	}
+	if req.IsPublic == nil {
+		req.IsPublic = utils.BoolPtr(true)
+	}
 
-	if req.Image == "" {
-		return fmt.Errorf("docker image cannot be empty")
-	} else {
-		if len(req.Image) > 255 {
-			return fmt.Errorf("image name %s too long (max 255 characters)", req.Image)
-		}
-
-		// Auto-complete image name with Harbor host and project if needed
-		if !strings.Contains(req.Image, "/") {
-			req.Image = fmt.Sprintf("%s/%s/%s", config.GetString("harbor.host"), config.GetString("harbor.project"), req.Image)
-		} else if !strings.Contains(req.Image, ".") {
-			req.Image = fmt.Sprintf("%s/%s", config.GetString("harbor.host"), req.Image)
+	if req.Type != "" {
+		if _, exists := consts.ValidContainerTypes[req.Type]; !exists {
+			return fmt.Errorf("invalid container type: %s", req.Type)
 		}
 	}
 
-	if req.Tag != "" {
-		if err := utils.IsValidDockerTag(req.Tag); err != nil {
-			return fmt.Errorf("invalid docker tag: %s, %v", req.Tag, err)
-		}
-	}
-
-	if req.BuildSource != nil {
-		if err := req.BuildSource.Validate(); err != nil {
-			return fmt.Errorf("invalid build source: %v", err)
-		}
-	}
-
-	if req.BuildOptions != nil {
-		if err := req.BuildOptions.Validate(); err != nil {
-			return fmt.Errorf("invalid build options: %v", err)
+	if req.VersionRequest != nil {
+		if err := req.VersionRequest.Validate(); err != nil {
+			return fmt.Errorf("invalid container version request: %v", err)
 		}
 	}
 
 	return nil
 }
 
-// ValidateInfoContent validates the info.toml content in the source path
-func (req *CreateContainerRequest) ValidateInfoContent(sourcePath string) (int, error) {
-	infoFilePath := filepath.Join(sourcePath, InfoFileName)
-
-	if _, err := os.Stat(infoFilePath); os.IsNotExist(err) {
-		return http.StatusNotFound, fmt.Errorf("required %s file not found in source", InfoFileName)
+func (req *CreateContainerRequest) ConvertToContainer() *database.Container {
+	return &database.Container{
+		Name:     req.Name,
+		Type:     string(req.Type),
+		README:   req.README,
+		IsPublic: *req.IsPublic,
+		Status:   consts.CommonEnabled,
 	}
+}
 
-	config, err := getInfoFileContent(sourcePath)
-	if err != nil {
-		return http.StatusBadRequest, err
-	}
+type CreateContainerVersionRequest struct {
+	Name              string                   `json:"name" binding:"required"`
+	GithubLink        string                   `json:"github_link" binding:"omitempty"`
+	ImageRef          string                   `json:"image_ref" binding:"required"`
+	Command           string                   `json:"command" binding:"omitempty"`
+	EnvVars           []string                 `json:"env_vars" binding:"omitempty"`
+	HelmConfigRequest *CreateHelmConfigRequest `json:"helm_config" binding:"omitempty"`
+}
 
-	// If name is not provided in request, get it from info.toml
+func (req *CreateContainerVersionRequest) Validate() error {
+	req.Name = strings.TrimSpace(req.Name)
+	req.ImageRef = strings.TrimSpace(req.ImageRef)
+
 	if req.Name == "" {
-		if nameValue, exists := config[InfoNameField]; exists {
-			if nameStr, ok := nameValue.(string); ok && nameStr != "" {
-				req.Name = nameStr
-			} else {
-				return http.StatusBadRequest, fmt.Errorf("invalid or empty 'name' field in %s", InfoFileName)
-			}
-		} else {
-			return http.StatusBadRequest, fmt.Errorf("missing 'name' field in %s and not provided in request", InfoFileName)
+		return fmt.Errorf("name cannot be empty")
+	}
+	if req.ImageRef == "" {
+		return fmt.Errorf("docker image reference cannot be empty")
+	}
+
+	if req.GithubLink != "" {
+		req.GithubLink = strings.TrimSpace(req.GithubLink)
+		if err := utils.IsValidGitHubLink(req.GithubLink); err != nil {
+			return fmt.Errorf("invalid github link: %s, %v", req.GithubLink, err)
+		}
+	}
+	if _, _, _, err := utils.ParseSemanticVersion(req.Name); err != nil {
+		return fmt.Errorf("invalid semantic version: %s, %v", req.Name, err)
+	}
+	if _, _, _, _, err := utils.ParseFullImageRefernce(req.ImageRef); err != nil {
+		return fmt.Errorf("invalid docker image reference: %s, %v", req.ImageRef, err)
+	}
+
+	if req.HelmConfigRequest != nil {
+		if err := req.HelmConfigRequest.Validate(); err != nil {
+			return fmt.Errorf("invalid helm config: %v", err)
 		}
 	}
 
-	return http.StatusOK, nil
+	return nil
+}
+
+func (req *CreateContainerVersionRequest) ConvertToContainerVersion() *database.ContainerVersion {
+	version := &database.ContainerVersion{
+		Name:     req.Name,
+		ImageRef: req.ImageRef,
+		Command:  req.Command,
+		EnvVars:  strings.Join(req.EnvVars, ","),
+		Status:   consts.CommonEnabled,
+	}
+
+	return version
+}
+
+type CreateHelmConfigRequest struct {
+	ChartName    string         `json:"chart_name" binding:"required"`
+	RepoName     string         `json:"repo_name" binding:"required"`
+	RepoURL      string         `json:"repo_url" binding:"required"`
+	NsPrefix     string         `json:"ns_prefix" binding:"required"`
+	PortTemplate string         `json:"port_template" binding:"omitempty"`
+	Values       map[string]any `json:"values" binding:"omitempty" swaggertype:"object"`
+}
+
+func (req *CreateHelmConfigRequest) Validate() error {
+	req.ChartName = strings.TrimSpace(req.ChartName)
+	req.RepoName = strings.TrimSpace(req.RepoName)
+	req.RepoURL = strings.TrimSpace(req.RepoURL)
+	req.NsPrefix = strings.TrimSpace(req.NsPrefix)
+
+	if req.ChartName == "" {
+		return fmt.Errorf("chart name cannot be empty")
+	}
+	if req.RepoName == "" {
+		return fmt.Errorf("repository name cannot be empty")
+	}
+	if req.RepoURL == "" {
+		return fmt.Errorf("repository URL cannot be empty")
+	}
+	if req.NsPrefix == "" {
+		return fmt.Errorf("namespace prefix cannot be empty")
+	}
+
+	if _, err := url.ParseRequestURI(req.RepoURL); err != nil {
+		return fmt.Errorf("invalid repository URL: %s, %v", req.RepoURL, err)
+	}
+	if !utils.CheckNsPrefixExists(req.NsPrefix) {
+		return fmt.Errorf("invalid namespace prefix: %s", req.NsPrefix)
+	}
+	if req.PortTemplate != "" {
+		req.PortTemplate = strings.TrimSpace(req.PortTemplate)
+		if !strings.Contains(req.PortTemplate, "{{.port}}") {
+			return fmt.Errorf("port template must contain '{{.port}}' placeholder")
+		}
+	}
+
+	return nil
+}
+
+func (req *CreateHelmConfigRequest) ConvertToHelmConfig() (*database.HelmConfig, error) {
+	var valuesJSON string
+
+	if len(req.Values) > 0 {
+		data, err := json.Marshal(req.Values)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize helm values to JSON: %v", err)
+		}
+		valuesJSON = string(data)
+	} else {
+		valuesJSON = "{}"
+	}
+
+	return &database.HelmConfig{
+		ChartName:    req.ChartName,
+		RepoName:     req.RepoName,
+		RepoURL:      req.RepoURL,
+		NsPrefix:     req.NsPrefix,
+		PortTemplate: req.PortTemplate,
+		Values:       valuesJSON,
+	}, nil
+}
+
+// ListContainerRequest represents container list query parameters
+type ListContainerRequest struct {
+	PaginationRequest
+	Type   consts.ContainerType `json:"type" binding:"omitempty"`
+	Status *int                 `json:"status" binding:"omitempty"`
+}
+
+func (req *ListContainerRequest) Validate() error {
+	if req.Type != "" {
+		if _, exists := consts.ValidContainerTypes[req.Type]; !exists {
+			return fmt.Errorf("invalid container type: %s", req.Type)
+		}
+	}
+
+	return validateStatusField(req.Status, false)
+}
+
+// SearchContainerRequest represents advanced role search with complex filtering
+type SearchContainerRequest struct {
+	AdvancedSearchRequest
+
+	// Container-specific filters
+	Name    *string `json:"name,omitempty"`
+	Image   *string `json:"image,omitempty"`
+	Tag     *string `json:"tag,omitempty"`
+	Type    *string `json:"type,omitempty"`
+	Command *string `json:"command,omitempty"`
+	Status  *int    `json:"status,omitempty"`
+}
+
+// ConvertToSearchRequest converts SearchContainerRequest to SearchRequest
+func (csr *SearchContainerRequest) ConvertToSearchRequest() *SearchRequest {
+	sr := csr.AdvancedSearchRequest.ConvertAdvancedToSearch()
+
+	// Add container-specific filters
+	if csr.Name != nil {
+		sr.AddFilter("name", OpLike, *csr.Name)
+	}
+	if csr.Image != nil {
+		sr.AddFilter("image", OpLike, *csr.Image)
+	}
+	if csr.Tag != nil {
+		sr.AddFilter("tag", OpEqual, *csr.Tag)
+	}
+	if csr.Type != nil {
+		sr.AddFilter("type", OpEqual, *csr.Type)
+	}
+	if csr.Command != nil {
+		sr.AddFilter("command", OpLike, *csr.Command)
+	}
+
+	return sr
 }
 
 // UpdateContainerRequest represents the request for updating a container
-// @Description Request structure for updating container information
 type UpdateContainerRequest struct {
-	// @Description Container name (optional)
-	Name *string `json:"name" binding:"omitempty"`
-	// @Description Container type (optional)
-	Type *consts.ContainerType `json:"type" binding:"omitempty,oneof=algorithm benchmark" swaggertype:"string"`
-	// @Description Docker image name (optional)
-	Image *string `json:"image" binding:"omitempty"`
-	// @Description Docker image tag (optional)
-	Tag *string `json:"tag" binding:"omitempty"`
-	// @Description Container startup command (optional)
-	Command *string `json:"command" binding:"omitempty"`
-	// @Description Environment variables (optional)
-	EnvVars *string `json:"env_vars" binding:"omitempty"`
-	// @Description Whether the container is public (optional)
-	IsPublic *bool `json:"is_public" binding:"omitempty"`
-	// @Description Container status (optional)
-	Status *int `json:"status" binding:"omitempty"`
+	README   *string `json:"readme" binding:"omitempty"`
+	IsPublic *bool   `json:"is_public" binding:"omitempty"`
+	Status   *int    `json:"status" binding:"omitempty"`
 }
 
 func (req *UpdateContainerRequest) Validate() error {
-	if req.Name != nil && *req.Name == "" {
-		return fmt.Errorf("container name cannot be empty")
+	if req.Status != nil {
+		return validateStatusField(req.Status, true)
+	}
+	return nil
+}
+
+func (req *UpdateContainerRequest) PatchContainerModel(target *database.Container) {
+	if req.README != nil {
+		target.README = *req.README
+	}
+	if req.IsPublic != nil {
+		target.IsPublic = *req.IsPublic
+	}
+	if req.Status != nil {
+		target.Status = *req.Status
+	}
+}
+
+// UpdateContainerVersionRequest represents the request for updating a container version
+type UpdateContainerVersionRequest struct {
+	GithubLink        *string                  `json:"github_link" binding:"omitempty"`
+	Command           *string                  `json:"command" binding:"omitempty"`
+	EnvVars           *[]string                `json:"env_vars" binding:"omitempty"`
+	Status            *int                     `json:"status" binding:"omitempty"`
+	HelmConfigRequest *UpdateHelmConfigRequest `json:"helm_config" binding:"omitempty"`
+}
+
+func (req *UpdateContainerVersionRequest) Validate() error {
+	if req.GithubLink != nil {
+		trimmedLink := strings.TrimSpace(*req.GithubLink)
+		*req.GithubLink = trimmedLink
+
+		if trimmedLink != "" {
+			if err := utils.IsValidGitHubLink(trimmedLink); err != nil {
+				return fmt.Errorf("invalid GitHub link '%s': %v", trimmedLink, err)
+			}
+		}
+	}
+	if req.Command != nil {
+		*req.Command = strings.TrimSpace(*req.Command)
+	}
+	if req.Status != nil {
+		if _, exists := consts.ValidCommonStatus[*req.Status]; !exists {
+			return fmt.Errorf("invalid status value: %d", *req.Status)
+		}
 	}
 
-	if req.Type != nil {
-		if _, exists := ValidContainerTypes[*req.Type]; !exists {
-			return fmt.Errorf("invalid container type: %s", *req.Type)
+	if req.HelmConfigRequest != nil {
+		if err := req.HelmConfigRequest.Validate(); err != nil {
+			return fmt.Errorf("invalid helm config: %v", err)
 		}
 	}
 
-	if req.Image != nil {
-		if *req.Image == "" {
-			return fmt.Errorf("docker image cannot be empty")
+	return nil
+}
+
+func (req *UpdateContainerVersionRequest) PatchContainerVersionModel(target *database.ContainerVersion) {
+	if req.GithubLink != nil {
+		target.GithubLink = *req.GithubLink
+	}
+	if req.Command != nil {
+		target.Command = *req.Command
+	}
+	if req.EnvVars != nil {
+		target.EnvVars = strings.Join(*req.EnvVars, ",")
+	}
+	if req.Status != nil {
+		target.Status = *req.Status
+	}
+}
+
+type UpdateHelmConfigRequest struct {
+	RepoURL      *string         `json:"repo_url" binding:"omitempty"`
+	RepoName     *string         `json:"repo_name" binding:"omitempty"`
+	ChartName    *string         `json:"chart_name" binding:"omitempty"`
+	NsPrefix     *string         `json:"ns_prefix" binding:"omitempty"`
+	PortTemplate *string         `json:"port_template" binding:"omitempty"`
+	Values       *map[string]any `json:"values" binding:"omitempty" swaggertype:"object"`
+}
+
+func (req *UpdateHelmConfigRequest) Validate() error {
+	if req.RepoURL != nil {
+		trimmedURL := strings.TrimSpace(*req.RepoURL)
+		*req.RepoURL = trimmedURL
+
+		if trimmedURL == "" {
+			return fmt.Errorf("repository URL cannot be empty if provided")
 		}
-		if len(*req.Image) > 255 {
-			return fmt.Errorf("image name %s too long (max 255 characters)", *req.Image)
+		if _, err := url.Parse(trimmedURL); err != nil {
+			return fmt.Errorf("invalid repository URL format: %s. Error: %v", trimmedURL, err)
+		}
+	}
+	if req.RepoName != nil {
+		*req.RepoName = strings.TrimSpace(*req.RepoName)
+	}
+	if req.ChartName != nil {
+		*req.ChartName = strings.TrimSpace(*req.ChartName)
+	}
+	if req.NsPrefix != nil {
+		trimmedPrefix := strings.TrimSpace(*req.NsPrefix)
+		*req.NsPrefix = trimmedPrefix
+
+		if trimmedPrefix == "" {
+			return fmt.Errorf("namespace prefix cannot be empty if provided")
+		}
+		if !utils.CheckNsPrefixExists(trimmedPrefix) {
+			return fmt.Errorf("invalid namespace prefix: '%s'. It must exist or adhere to naming rules", trimmedPrefix)
+		}
+	}
+	if req.PortTemplate != nil {
+		trimmedTemplate := strings.TrimSpace(*req.PortTemplate)
+		*req.PortTemplate = trimmedTemplate
+
+		if trimmedTemplate != "" {
+			const placeholder = "{{.port}}"
+			if !strings.Contains(trimmedTemplate, placeholder) {
+				return fmt.Errorf("port template '%s' must contain the dynamic placeholder '%s'", trimmedTemplate, placeholder)
+			}
 		}
 	}
 
-	if req.Tag != nil && *req.Tag != "" {
-		if err := utils.IsValidDockerTag(*req.Tag); err != nil {
-			return fmt.Errorf("invalid docker tag: %s, %v", *req.Tag, err)
+	return nil
+}
+
+func (req *UpdateHelmConfigRequest) PatchHelmConfigModel(target *database.HelmConfig) error {
+	if req.RepoURL != nil {
+		target.RepoURL = *req.RepoURL
+	}
+	if req.RepoName != nil {
+		target.RepoName = *req.RepoName
+	}
+	if req.ChartName != nil {
+		target.ChartName = *req.ChartName
+	}
+	if req.NsPrefix != nil {
+		target.NsPrefix = *req.NsPrefix
+	}
+	if req.PortTemplate != nil {
+		target.PortTemplate = *req.PortTemplate
+	}
+	if req.Values != nil {
+		if len(*req.Values) > 0 {
+			data, err := json.Marshal(*req.Values)
+			if err != nil {
+				return fmt.Errorf("failed to serialize helm values to JSON: %v", err)
+			}
+			target.Values = string(data)
+		} else {
+			target.Values = "{}"
 		}
+	}
+
+	return nil
+}
+
+// ContainerResponse is basic container info used
+type ContainerResponse struct {
+	ID        int                  `json:"id"`
+	Name      string               `json:"name"`
+	Type      consts.ContainerType `json:"type"`
+	IsPublic  bool                 `json:"is_public"`
+	Status    int                  `json:"status"`
+	CreatedAt time.Time            `json:"created_at"`
+	UpdatedAt time.Time            `json:"updated_at"`
+}
+
+// ConvertFromContainer converts database Container to ContainerResponse DTO
+func (c *ContainerResponse) ConvertFromContainer(container *database.Container) {
+	c.ID = container.ID
+	c.Name = container.Name
+	c.Type = consts.ContainerType(container.Type)
+	c.IsPublic = container.IsPublic
+	c.Status = container.Status
+	c.CreatedAt = container.CreatedAt
+	c.UpdatedAt = container.UpdatedAt
+}
+
+// ContainerDetailResponse is used for single resource retrieval.
+type ContainerDetailResponse struct {
+	ContainerResponse
+
+	README string `json:"readme"`
+
+	Versions []ContainerVersionResponse `json:"versions"`
+}
+
+func (c *ContainerDetailResponse) ConvertFromContainer(container *database.Container) {
+	c.ContainerResponse.ConvertFromContainer(container)
+	c.README = container.README
+}
+
+type ContainerVersionResponse struct {
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	ImageRef  string    `json:"image_ref"`
+	Usage     int       `json:"usage"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (c *ContainerVersionResponse) ConvertFromContainerVersion(version *database.ContainerVersion) {
+	c.ID = version.ID
+	c.Name = version.Name
+	c.ImageRef = version.ImageRef
+	c.Usage = version.Usage
+	c.UpdatedAt = version.UpdatedAt
+}
+
+type ContainerVersionDetailResponse struct {
+	ContainerVersionResponse
+
+	GithubLink string `json:"github_link"`
+	Command    string `json:"command"`
+	EnvVars    string `json:"env_vars"`
+
+	HelmConfig *HelmConfigDetailResponse `json:"helm_config,omitempty"`
+}
+
+func (c *ContainerVersionDetailResponse) ConvertFromContainerVersion(version *database.ContainerVersion) {
+	c.ContainerVersionResponse.ConvertFromContainerVersion(version)
+	c.GithubLink = version.GithubLink
+	c.Command = version.Command
+	c.EnvVars = version.EnvVars
+}
+
+type ListContainerVersionResponse struct {
+	Items      []ContainerResponse `json:"items"`
+	Pagination PaginationInfo      `json:"pagination"`
+}
+
+type HelmConfigDetailResponse struct {
+	ID           int            `json:"id"`
+	RepoURL      string         `json:"repo_url"`
+	FullChart    string         `json:"full_chart"`
+	NsPrefix     string         `json:"ns_prefix"`
+	PortTemplate string         `json:"port_template"`
+	Values       map[string]any `json:"values"`
+}
+
+func (h *HelmConfigDetailResponse) ConvertFromHelmConfig(cfg *database.HelmConfig) error {
+	h.ID = cfg.ID
+	h.RepoURL = cfg.RepoURL
+	h.FullChart = cfg.FullChart
+	h.NsPrefix = cfg.NsPrefix
+	h.PortTemplate = cfg.PortTemplate
+
+	if cfg.Values != "" {
+		var valuesMap map[string]any
+		if err := json.Unmarshal([]byte(cfg.Values), &valuesMap); err != nil {
+			return fmt.Errorf("failed to unmarshal Helm values JSON for config ID %d: %w", cfg.ID, err)
+		}
+		h.Values = valuesMap
+	} else {
+		h.Values = make(map[string]any)
 	}
 
 	return nil

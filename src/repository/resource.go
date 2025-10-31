@@ -4,49 +4,47 @@ import (
 	"errors"
 	"fmt"
 
+	"aegis/consts"
 	"aegis/database"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
-// CreateResource creates a resource
-func CreateResource(resource *database.Resource) error {
-	if err := database.DB.Create(resource).Error; err != nil {
-		return fmt.Errorf("failed to create resource: %v", err)
+// BatchUpsertResources upserts multiple resources
+func BatchUpsertResources(db *gorm.DB, resources []database.Resource) error {
+	if len(resources) == 0 {
+		return fmt.Errorf("no resources to upsert")
 	}
+
+	if err := db.Omit(commonOmitFields).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "name"}},
+		DoNothing: true,
+	}).Create(&resources).Error; err != nil {
+		return fmt.Errorf("failed to batch upsert resources: %w", err)
+	}
+
 	return nil
+}
+
+// CreateResource creates a resource
+func CreateResource(db *gorm.DB, resource *database.Resource) error {
+	return createModel(db.Omit(commonOmitFields), resource)
 }
 
 // GetResourceByID gets resource by ID
-func GetResourceByID(id int) (*database.Resource, error) {
-	var resource database.Resource
-	if err := database.DB.Preload("Parent").First(&resource, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("resource with id %d not found", id)
-		}
-		return nil, fmt.Errorf("failed to get resource: %v", err)
-	}
-	return &resource, nil
+func GetResourceByID(db *gorm.DB, id int) (*database.Resource, error) {
+	return findModel[database.Resource](db, "id = ? and status != ?", id, consts.CommonDeleted)
 }
 
 // GetResourceByName gets resource by name
-func GetResourceByName(name string) (*database.Resource, error) {
-	var resource database.Resource
-	if err := database.DB.Preload("Parent").Where("name = ?", name).First(&resource).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("resource '%s' not found", name)
-		}
-		return nil, fmt.Errorf("failed to get resource: %v", err)
-	}
-	return &resource, nil
+func GetResourceByName(db *gorm.DB, name string) (*database.Resource, error) {
+	return findModel[database.Resource](db, "name = ? and status != ?", name, consts.CommonDeleted)
 }
 
 // UpdateResource updates resource information
-func UpdateResource(resource *database.Resource) error {
-	if err := database.DB.Save(resource).Error; err != nil {
-		return fmt.Errorf("failed to update resource: %v", err)
-	}
-	return nil
+func UpdateResource(db *gorm.DB, resource *database.Resource) error {
+	return updateModel(db.Omit(commonOmitFields), resource)
 }
 
 // DeleteResource soft deletes resource (sets status to -1)
@@ -92,6 +90,23 @@ func ListResources(page, pageSize int, resourceType string, category string, par
 	}
 
 	return resources, total, nil
+}
+
+// GetResourcesByNamesWithTx gets resources by names within a transaction
+func GetResourcesByNamesWithTx(tx *gorm.DB, names []string) ([]database.Resource, error) {
+	if len(names) == 0 {
+		return nil, fmt.Errorf("no resource names provided")
+	}
+
+	var allResourcesInDB []database.Resource
+	if err := tx.Model(&database.Resource{}).
+		Select("id, name").
+		Where("name IN ?", names).
+		Find(&allResourcesInDB).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch resources by names: %v", err)
+	}
+
+	return allResourcesInDB, nil
 }
 
 // GetResourcesByType gets resources by type

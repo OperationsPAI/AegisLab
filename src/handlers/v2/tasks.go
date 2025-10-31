@@ -152,7 +152,7 @@ func ListTasks(c *gin.Context) {
 	searchReq.AddSort("created_at", dto.SortDESC)
 
 	// Validate search request
-	if err := searchReq.ValidateSearchRequest(); err != nil {
+	if err := searchReq.Validate(); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid search parameters: "+err.Error())
 		return
 	}
@@ -218,7 +218,7 @@ func SearchTasks(c *gin.Context) {
 	searchReq := req.ConvertToSearchRequest()
 
 	// Validate search request
-	if err := searchReq.ValidateSearchRequest(); err != nil {
+	if err := searchReq.Validate(); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid search parameters: "+err.Error())
 		return
 	}
@@ -293,7 +293,7 @@ func GetQueuedTasks(c *gin.Context) {
 
 	// Convert and validate search request
 	searchReq := req.ConvertAdvancedToSearch()
-	if err := searchReq.ValidateSearchRequest(); err != nil {
+	if err := searchReq.Validate(); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid search parameters: "+err.Error())
 		return
 	}

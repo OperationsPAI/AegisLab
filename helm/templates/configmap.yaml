@@ -42,8 +42,8 @@ data:
     host = "{{ .Release.Name }}-redis:6379"
 
     [harbor]
-    host = "{{ .Values.configmap.harbor.host }}"
-    project = "{{ .Values.configmap.harbor.project }}"
+    registry = "{{ .Values.configmap.harbor.registry }}"
+    namespace = "{{ .Values.configmap.harbor.namespace }}"
     username = "{{ .Values.configmap.harbor.username }}"
     password = "{{ .Values.configmap.harbor.password }}"
 

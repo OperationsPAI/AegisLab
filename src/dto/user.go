@@ -73,8 +73,8 @@ type UserProjectResponse struct {
 
 // AssignUserToProjectRequest represents user-project assignment request
 type AssignUserToProjectRequest struct {
-	ProjectID int `json:"project_id" binding:"required" example:"1"`
-	RoleID    int `json:"role_id" binding:"required" example:"2"`
+	ProjectID int `json:"project_id" binding:"required"`
+	RoleID    int `json:"role_id" binding:"required"`
 }
 
 // AssignRoleToUserRequest represents role assignment request
@@ -192,7 +192,7 @@ func (u *UserResponse) ConvertFromUser(user *database.User) {
 // ConvertFromUserProject converts database UserProject to UserProjectResponse DTO
 func (up *UserProjectResponse) ConvertFromUserProject(userProject *database.UserProject) {
 	up.ProjectID = userProject.ProjectID
-	up.JoinedAt = userProject.JoinedAt
+	up.JoinedAt = userProject.CreatedAt
 	up.Status = userProject.Status
 
 	if userProject.Project != nil {

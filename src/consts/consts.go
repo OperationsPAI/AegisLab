@@ -4,22 +4,28 @@ import "time"
 
 const InitialFilename = "data.json"
 
+const (
+	DefaultContainerVersion = "v1.0.0"
+	DefaultContainerTag     = "latest"
+)
+
 // ResourceName is the type for resource names, used for permission checks
 type ResourceName string
 
 // System resource name constants
 const (
-	ResourceProject        ResourceName = "project"         // project resource
-	ResourceDataset        ResourceName = "dataset"         // dataset resource
-	ResourceFaultInjection ResourceName = "fault_injection" // fault injection resource
-	ResourceContainer      ResourceName = "container"       // container resource
-	ResourceTask           ResourceName = "task"            // task resource
-	ResourceUser           ResourceName = "user"            // user resource
-	ResourceRole           ResourceName = "role"            // role resource
-	ResourcePermission     ResourceName = "permission"      // permission resource
-	ResourceLabel          ResourceName = "label"           // label resource
-	ResourceSystem         ResourceName = "system"          // system resource
-	ResourceAudit          ResourceName = "audit"           // audit resource
+	ResourceProject          ResourceName = "project"           // project resource
+	ResourceDataset          ResourceName = "dataset"           // dataset resource
+	ResourceFaultInjection   ResourceName = "fault_injection"   // fault injection resource
+	ResourceContainer        ResourceName = "container"         // container resource
+	ResourceContainerVersion ResourceName = "container_version" // container version resource
+	ResourceTask             ResourceName = "task"              // task resource
+	ResourceUser             ResourceName = "user"              // user resource
+	ResourceRole             ResourceName = "role"              // role resource
+	ResourcePermission       ResourceName = "permission"        // permission resource
+	ResourceLabel            ResourceName = "label"             // label resource
+	ResourceSystem           ResourceName = "system"            // system resource
+	ResourceAudit            ResourceName = "audit"             // audit resource
 )
 
 // String returns the string representation of the resource name
@@ -79,24 +85,6 @@ func (a ActionName) String() string {
 	return string(a)
 }
 
-/*
-Permission check usage example:
-
-// Basic permission check (type-safe approach recommended)
-checker := repository.NewPermissionChecker(userID, nil)
-
-// Use type-safe constants for permission checks
-canRead, err := checker.CanReadResource(consts.ResourceContainer)
-canWrite, err := checker.CanWriteResource(consts.ResourceTask)
-canDelete, err := checker.CanDeleteResource(consts.ResourceProject)
-
-// General permission check
-hasPermission, err := checker.HasPermissionTyped(consts.ActionRead, consts.ResourceContainer)
-
-// Compatible string approach (not recommended, but still supported)
-canRead, err := checker.CanRead("container")
-*/
-
 // Define task types
 type TaskType string
 
@@ -128,6 +116,13 @@ const (
 	DatapackInjectSuccess = 2
 	DatapackBuildFailed   = 3
 	DatapackBuildSuccess  = 4
+)
+
+// common status: 0:disabled 1:enabled -1:deleted
+const (
+	CommonDisabled = 0
+	CommonEnabled  = 1
+	CommonDeleted  = -1
 )
 
 // project status: 0:disabled 1:enabled -1:deleted
@@ -182,7 +177,7 @@ const (
 	TaskTypeRestartService TaskType = "RestartService"
 	TaskTypeRunAlgorithm   TaskType = "RunAlgorithm"
 	TaskTypeFaultInjection TaskType = "FaultInjection"
-	TaskTypeBuildImage     TaskType = "BuildImage"
+	TaskTypeBuildContainer TaskType = "BuildContainer"
 	TaskTypeBuildDataset   TaskType = "BuildDataset"
 	TaskTypeCollectResult  TaskType = "CollectResult"
 )
@@ -194,22 +189,17 @@ const (
 
 // Payload keys for different task types
 const (
-	BuildBenchmark   = "benchmark"
-	BuildDataset     = "name"
-	BuildPreDuration = "pre_duration"
-	BuildStartTime   = "start_time"
-	BuildEndTime     = "end_time"
-	BuildEnvVars     = "env_vars"
-	BuildUserID      = "user_id"
+	BuildContainerVersion = "container_version"
+	BuildDataset          = "injection_name"
+	BuildPreDuration      = "pre_duration"
+	BuildStartTime        = "start_time"
+	BuildEndTime          = "end_time"
+	BuildEnvVars          = "env_vars"
+	BuildUserID           = "user_id"
 
-	BuildContainerType = "container_type"
-	BuildName          = "name"
-	BuildImage         = "image"
-	BuildTag           = "tag"
-	BuildCommand       = "command"
-	BuildImageEnvVars  = "env_vars"
-	BuildSourcePath    = "source_path"
-	BuildBuildOptions  = "build_options"
+	BuildImageRef     = "image_ref"
+	BuildSourcePath   = "source_path"
+	BuildBuildOptions = "build_options"
 
 	BuildOptionContextDir     = "context_dir"
 	BuildOptionDockerfilePath = "dockerfile_path"
@@ -227,10 +217,9 @@ const (
 
 	AnnotationAlgorithm = "algorithm"
 
-	ExecuteAlgorithm    = "algorithm"
-	ExecuteAlgorithmTag = "algorithm_tag"
-	ExecuteDataset      = "dataset"
-	ExecuteEnvVars      = "env_vars"
+	ExecuteAlgorithmVersion = "algorithm_version"
+	ExecuteDataset          = "dataset"
+	ExecuteEnvVars          = "env_vars"
 
 	InjectAlgorithms  = "algorithms"
 	InjectBenchmark   = "benchmark"
@@ -243,11 +232,11 @@ const (
 	InjectLabels      = "labels"
 	InjectUserID      = "user_idf"
 
-	RestartContainer     = "container"
-	RestartContainerTag  = "container_tag"
-	RestartIntarval      = "interval"
-	RestartFaultDuration = "fault_duration"
-	RestartInjectPayload = "inject_payload"
+	RestartContainerVersion = "container_version"
+	RestartHelmConfig       = "helm_config"
+	RestartIntarval         = "interval"
+	RestartFaultDuration    = "fault_duration"
+	RestartInjectPayload    = "inject_payload"
 )
 
 // Environment variable names
@@ -381,10 +370,6 @@ const (
 )
 
 const (
-	DefaultContainerTag = "latest"
-)
-
-const (
 	DurationNodeKey       = "0"
 	NamespaceDefaultValue = 1
 	NamespaceNodeKey      = "1"
@@ -398,6 +383,21 @@ const (
 	TaskTypeKey = "task.task_type"
 	// TaskStatusKey is the key for the task status attribute.
 	TaskStatusKey = "task.task_status"
+)
+
+// RoleName is the type for role constants
+type RoleName string
+
+// Role constants for system roles
+const (
+	RoleSuperAdmin         RoleName = "super_admin"         // Super Admin
+	RoleAdmin              RoleName = "admin"               // Admin
+	RoleContainerAdmin     RoleName = "container_admin"     // Container Admin
+	RoleContainerDeveloper RoleName = "container_developer" // Container Developer
+	RoleContainerViewer    RoleName = "container_viewer"    // Container Viewer
+	RoleProjectAdmin       RoleName = "project_admin"       // Project Admin
+	RoleProjectDeveloper   RoleName = "project_developer"   // Project Developer
+	RoleProjectViewer      RoleName = "project_viewer"      // Project Viewer
 )
 
 // PermissionName is the type for permission constants
@@ -425,6 +425,11 @@ const (
 	PermissionDeleteContainer PermissionName = "delete_container" // Delete container
 	PermissionManageContainer PermissionName = "manage_container" // Manage container
 
+	PermissionReadContainerVersion   PermissionName = "read_container_version"   // Read container version
+	PermissionWriteContainerVersion  PermissionName = "write_container_version"  // Write container version
+	PermissionDeleteContainerVersion PermissionName = "delete_container_version" // Delete container version
+	PermissionManageContainerVersion PermissionName = "manage_container_version" // Manage container version
+
 	PermissionReadTask    PermissionName = "read_task"    // Read task
 	PermissionWriteTask   PermissionName = "write_task"   // Write task
 	PermissionDeleteTask  PermissionName = "delete_task"  // Delete task
@@ -432,16 +437,4 @@ const (
 
 	PermissionReadRole       PermissionName = "read_role"       // Read role
 	PermissionReadPermission PermissionName = "read_permission" // Read permission
-)
-
-// RoleName is the type for role constants
-type RoleName string
-
-// Role constants for system roles
-const (
-	RoleSuperAdmin   RoleName = "super_admin"   // Super Admin
-	RoleAdmin        RoleName = "admin"         // Admin
-	RoleProjectAdmin RoleName = "project_admin" // Project Admin
-	RoleDeveloper    RoleName = "developer"     // Developer
-	RoleViewer       RoleName = "viewer"        // Viewer
 )

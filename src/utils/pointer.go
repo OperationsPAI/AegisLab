@@ -10,6 +10,10 @@ func IntPtr(i int) *int {
 	return &i
 }
 
+func StringPtr(s string) *string {
+	return &s
+}
+
 func GetBoolValue(ptr *bool, defaultValue bool) bool {
 	if ptr == nil {
 		return defaultValue

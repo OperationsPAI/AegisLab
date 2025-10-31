@@ -34,7 +34,7 @@ func CreateUser(c *gin.Context) {
 	}
 
 	// Check if user already exists
-	if _, err := repository.GetUserByUsername(req.Username); err == nil {
+	if _, err := repository.GetUserByUsername(database.DB, req.Username); err == nil {
 		dto.ErrorResponse(c, http.StatusConflict, "Username already exists")
 		return
 	}
@@ -62,7 +62,7 @@ func CreateUser(c *gin.Context) {
 		IsActive: true,
 	}
 
-	if err := repository.CreateUser(user); err != nil {
+	if err := repository.CreateUser(database.DB, user); err != nil {
 		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to create user: "+err.Error())
 		return
 	}
@@ -94,7 +94,7 @@ func GetUser(c *gin.Context) {
 		return
 	}
 
-	user, err := repository.GetUserByID(id)
+	user, err := repository.GetUserByID(database.DB, id)
 	if err != nil {
 		dto.ErrorResponse(c, http.StatusNotFound, "User not found")
 		return
@@ -212,7 +212,7 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	user, err := repository.GetUserByID(id)
+	user, err := repository.GetUserByID(database.DB, id)
 	if err != nil {
 		dto.ErrorResponse(c, http.StatusNotFound, "User not found")
 		return
@@ -302,7 +302,7 @@ func SearchUsers(c *gin.Context) {
 	searchReq := req.ConvertToSearchRequest()
 
 	// Validate search request
-	if err := searchReq.ValidateSearchRequest(); err != nil {
+	if err := searchReq.Validate(); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid search parameters: "+err.Error())
 		return
 	}
@@ -365,84 +365,4 @@ func SearchUsers(c *gin.Context) {
 	}
 
 	dto.SuccessResponse(c, response)
-}
-
-// AssignUserToProject handles user-project assignment
-//
-//	@Summary Assign user to project
-//	@Description Assign a user to a project with a specific role
-//	@Tags Users
-//	@Accept json
-//	@Produce json
-//	@Security BearerAuth
-//	@Param id path int true "User ID"
-//	@Param request body dto.AssignUserToProjectRequest true "Project assignment request"
-//	@Success 200 {object} dto.GenericResponse[any] "User assigned to project successfully"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-//	@Failure 404 {object} dto.GenericResponse[any] "User not found"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/users/{id}/projects [post]
-func AssignUserToProject(c *gin.Context) {
-	idStr := c.Param("id")
-	userID, err := strconv.Atoi(idStr)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid user ID")
-		return
-	}
-
-	var req dto.AssignUserToProjectRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
-		return
-	}
-
-	// Check if user exists
-	if _, err := repository.GetUserByID(userID); err != nil {
-		dto.ErrorResponse(c, http.StatusNotFound, "User not found")
-		return
-	}
-
-	if err := repository.AddUserToProject(userID, req.ProjectID, req.RoleID); err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to assign user to project: "+err.Error())
-		return
-	}
-
-	dto.SuccessResponse(c, "User assigned to project successfully")
-}
-
-// RemoveUserFromProject handles user-project removal
-//
-//	@Summary Remove user from project
-//	@Description Remove a user from a project
-//	@Tags Users
-//	@Produce json
-//	@Security BearerAuth
-//	@Param id path int true "User ID"
-//	@Param project_id path int true "Project ID"
-//	@Success 200 {object} dto.GenericResponse[any] "User removed from project successfully"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid ID"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/users/{id}/projects/{project_id} [delete]
-func RemoveUserFromProject(c *gin.Context) {
-	userIDStr := c.Param("id")
-	projectIDStr := c.Param("project_id")
-
-	userID, err := strconv.Atoi(userIDStr)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid user ID")
-		return
-	}
-
-	projectID, err := strconv.Atoi(projectIDStr)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid project ID")
-		return
-	}
-
-	if err := repository.RemoveUserFromProject(userID, projectID); err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to remove user from project: "+err.Error())
-		return
-	}
-
-	dto.SuccessResponse(c, "User removed from project successfully")
 }

@@ -1,6 +1,7 @@
 package system
 
 import (
+	"aegis/database"
 	"aegis/dto"
 	"aegis/repository"
 	"runtime"
@@ -48,7 +49,7 @@ func GetStatistics(c *gin.Context) {
 
 	// Get real role statistics - using available repository functions
 	roleStats := dto.ProjectStatistics{} // Reusing structure for roles
-	if allRoles, _, err := repository.ListRoles(1, 10000, "", nil); err == nil {
+	if allRoles, _, err := repository.ListRoles(database.DB, 1, 10000, nil, nil); err == nil {
 		roleStats.Total = len(allRoles)
 		for _, role := range allRoles {
 			if role.Status == 1 {
@@ -64,7 +65,7 @@ func GetStatistics(c *gin.Context) {
 
 	// Get real permission statistics
 	permStats := dto.TaskStatistics{} // Reusing structure for permissions
-	if allPerms, _, err := repository.ListPermissions(1, 10000, "", nil, nil); err == nil {
+	if allPerms, _, err := repository.ListPermissions(database.DB, 1, 10000, "", nil, nil); err == nil {
 		permStats.Total = len(allPerms)
 		for _, perm := range allPerms {
 			if perm.Status == 1 {

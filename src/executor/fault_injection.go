@@ -29,7 +29,6 @@ type injectionPayload struct {
 	conf        *chaos.InjectionConf
 	node        *chaos.Node
 	labels      []dto.LabelItem
-	userID      int
 }
 
 // Execute fault injection task
@@ -72,8 +71,8 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 				consts.LabelTaskID:      task.TaskID,
 				consts.LabelTraceID:     task.TraceID,
 				consts.LabelGroupID:     task.GroupID,
-				consts.LabelProjectID:   getProjectIDString(task.ProjectID),
-				consts.LabelUserID:      strconv.Itoa(payload.userID),
+				consts.LabelProjectID:   getDefaultIDString(task.ProjectID),
+				consts.LabelUserID:      getDefaultIDString(task.UserID),
 				consts.LabelBenchmark:   payload.benchmark,
 				consts.LabelPreDuration: strconv.Itoa(payload.preDuration),
 			})
@@ -168,12 +167,6 @@ func parseInjectionPayload(ctx context.Context, payload map[string]any) (*inject
 			return nil, fmt.Errorf(message, consts.InjectLabels)
 		}
 
-		userIDFloat, ok := payload[consts.InjectUserID].(float64)
-		if !ok || userIDFloat <= 0 {
-			return nil, fmt.Errorf(message, consts.InjectUserID)
-		}
-		userID := int(userIDFloat)
-
 		return &injectionPayload{
 			benchmark:   benchmark,
 			faultType:   faultType,
@@ -183,7 +176,6 @@ func parseInjectionPayload(ctx context.Context, payload map[string]any) (*inject
 			conf:        conf,
 			node:        node,
 			labels:      labels,
-			userID:      userID,
 		}, nil
 	})
 }

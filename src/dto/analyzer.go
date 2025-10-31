@@ -8,7 +8,7 @@ import (
 
 var ValidFirstTaskTypes = map[consts.TaskType]struct{}{
 	consts.TaskTypeBuildDataset:   {},
-	consts.TaskTypeBuildImage:     {},
+	consts.TaskTypeBuildContainer: {},
 	consts.TaskTypeRestartService: {},
 	consts.TaskTypeRunAlgorithm:   {},
 }

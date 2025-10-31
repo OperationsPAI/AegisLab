@@ -89,15 +89,15 @@ func addDetectorJoins(query *gorm.DB) *gorm.DB {
 		Joins(`JOIN (
             SELECT 
                 er.id,
-                cl.container_id AS algorithm_id,
+                c.id AS algorithm_id,
                 er.datapack_id,
                 ROW_NUMBER() OVER (
-                    PARTITION BY cl.container_id, er.datapack_id 
+                    PARTITION BY c.id, er.datapack_id 
                     ORDER BY er.created_at DESC, er.id DESC
                 ) as rn
             FROM execution_results er
-            JOIN container_labels cl ON er.algorithm_label_id = cl.id
-            JOIN containers c ON c.id = cl.container_id
+            JOIN container_versions cv ON er.algorithm_version_id = cv.id
+            JOIN containers c ON c.id = cv.container_id
             WHERE er.status = 2 AND c.name = ?
         ) er_ranked ON fis.id = er_ranked.datapack_id AND er_ranked.rn = 1`, config.GetString("algo.detector")).
 		Joins("JOIN detectors d ON er_ranked.id = d.execution_id")
@@ -164,14 +164,14 @@ func createExecutionResultViews() {
 		er.status,
 		er.created_at,
 		c.name AS algorithm,
-		c.registry,
-		c.repository,
-		l.label_value AS tag,
+		cv.registry,
+		cv.namespace,
+		cv.repository,
+		cv.tag,
 		fis.injection_name AS dataset,
 		COALESCE(p.name, 'No Project') AS project_name`).
-		Joins("JOIN container_labels cl ON er.algorithm_label_id = cl.id").
-		Joins("JOIN containers c ON c.id = cl.container_id").
-		Joins("JOIN labels l ON l.id = cl.label_id").
+		Joins("JOIN container_versions cv ON er.algorithm_version_id = cv.id").
+		Joins("JOIN containers c ON c.id = cv.container_id").
 		Joins("JOIN fault_injection_schedules fis ON fis.id = er.datapack_id").
 		Joins(`JOIN (
         	SELECT id AS task_id, project_id
