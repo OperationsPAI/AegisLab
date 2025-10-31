@@ -15,8 +15,8 @@
       "install-hooks": [
         "husky install && husky add .husky/pre-commit 'make pre-commit' && husky add .husky/pre-push 'make pre-push'"
       ],
-      "lint-go": [
-        "cd src && golangci-lint run"
+      "lint-staged-go": [
+        "make lint-staged-go"
       ],
       "lint-py": [
         "ruff check --fix --show-fixes --exclude algorithms"

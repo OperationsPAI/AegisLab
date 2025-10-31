@@ -463,7 +463,11 @@ check-redis: ## 🔍 check Redis status
 # Development Tools
 # =============================================================================
 
-local-debug: ## 🐛 Start local debugging environment
+local-debug:  ## 🐛 Start local debugging environment
+	@printf "$(BLUE)⌛️ Starting local application...$(RESET)\n"; \
+	cd $(SRC_DIR) && go run main.go both --port 8082
+
+local-deploy: ## 🛠️  Setup local development environment with basic services
 	@printf "$(BLUE)🚀 Starting basic services...$(RESET)\n"
 	@if ! docker compose down; then \
 		printf "$(RED)❌ Docker Compose stop failed$(RESET)\n"; \
@@ -519,15 +523,8 @@ local-debug: ## 🐛 Start local debugging environment
 		printf "$(YELLOW)⏸️  Local application not started, you can start it manually later:$(RESET)\n"; \
 		printf "$(GRAY)cd $(SRC_DIR) && go run main.go both --port 8082$(RESET)\n"; \
 	else \
-		printf "$(BLUE)⌛️ Starting local application...$(RESET)\n"; \
-		cd $(SRC_DIR) && go run main.go both --port 8082; \
+		$(MAKE) local-debug; \
 	fi
-
-local-debug-auto: ## 🤖 Start local debugging environment (auto mode, no interaction)
-	@$(MAKE) local-debug BACKUP_DATA=yes START_APP=yes
-
-local-debug-minimal: ## 🚀 Start local debugging environment (minimal mode, no backup, no auto start)
-	@$(MAKE) local-debug BACKUP_DATA=no START_APP=no
 
 update-dependencies: ## 📦 Update latest version of dependencies
 	@printf "$(BLUE)📦 Updating latest version of chaos-experiment library...$(RESET)\n"
@@ -640,7 +637,7 @@ ports: ## 🔌 Port forward services
 
 pre-commit:
 	@printf "$(BLUE)Running pre-commit checks...$(RESET)\n"
-	@devbox run lint-go
+	@devbox run lint-staged-go
 	@if [ $$? -ne 0 ]; then \
 		echo "❌ Lint failed. Please fix the issues before committing."; \
 		exit 1; \
@@ -663,6 +660,20 @@ pre-push: ## 🚀 Run pre-push checks (validates tags and runs tests)
 		fi; \
 	done
 	@printf "$(GREEN)✅ Pre-push checks passed!$(RESET)\n"
+
+lint-staged-go: ## 🔍 Lint staged Go files
+	@printf "$(BLUE)🔍 Checking Uncommitted Go Issues...$(RESET)\n"
+	@if [ -z "$$(git status --porcelain | grep '\.go$$')" ]; then \
+		printf "$(YELLOW)No uncommitted Go file changes found to lint$(RESET)\n"; \
+		exit 0; \
+	fi
+	@printf "$(CYAN)⚙️  Linting new issues found in uncommitted changes...$(RESET)\n"
+	@cd src && golangci-lint run \
+		--issues-exit-code=1 \
+		--path-prefix=src \
+		--whole-files \
+		--new-from-rev=HEAD~1
+
 
 # =============================================================================
 # SDK Generation
