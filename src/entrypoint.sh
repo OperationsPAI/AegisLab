@@ -28,9 +28,5 @@ set -o pipefail
 #     done
 # fi
 
-# Set default values
-MODE=${1:-"producer"}
-PORT=${2:-"8081"}
-
-# Execute command with arguments
-/app/exp $MODE --port $PORT
+echo "Executing /app/exp with command: $@"
+exec /app/exp "$@"

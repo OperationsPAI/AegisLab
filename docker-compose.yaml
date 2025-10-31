@@ -1,9 +1,8 @@
+name: aegislab-dev
 services:
   redis:
     image: redis:8.0-M02-alpine3.20
     container_name: redis
-    volumes:
-      - redis_data:/data
     network_mode: host
     restart: always
 
@@ -45,6 +44,5 @@ services:
       - BUILDKIT_DEBUG=1
 
 volumes:
-  redis_data:
   mysql_data:
   buildkit_cache:

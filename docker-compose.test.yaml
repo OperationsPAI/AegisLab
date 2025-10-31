@@ -1,0 +1,92 @@
+name: aegislab-test
+services:
+  redis:
+    image: redis:8.0-M02-alpine3.20
+    container_name: redis
+    ports:
+      - "10000:6379"
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+
+  mysql:
+    image: mysql:8.0.43
+    container_name: mysql
+    environment:
+      MYSQL_DATABASE: rcabench_test
+      MYSQL_ROOT_PASSWORD: yourpassword
+    command: >
+      --default-authentication-plugin=caching_sha2_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "10001:3306"
+    restart: always
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-pyourpassword",
+        ]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    ports:
+      - "10002:4318"
+    restart: always
+
+  buildkitd:
+    image: moby/buildkit:buildx-stable-1
+    container_name: buildkitd
+    privileged: true
+    ports:
+      - "10003:1234"
+    command: |
+      --addr tcp://0.0.0.0:1234
+      --allow-insecure-entitlement security.insecure
+      --allow-insecure-entitlement network.host
+    volumes:
+      - /etc/ssl/certs:/etc/ssl/certs:ro
+    restart: always
+    environment:
+      - BUILDKIT_DEBUG=1
+
+  exp:
+    build:
+      context: .
+      dockerfile: ./src/Dockerfile
+    container_name: exp
+    ports:
+      - "10004:8080"
+    environment:
+      GOPRIVATE: "github.com/LGU-SE-Internal/chaos-experiment"
+      ENV: "test"
+    command: ["both", "-p", "8082", "-c", "/app/config.test.toml"]
+    volumes:
+      - /home/nn/.kube/config:/root/.kube/config
+      - ./src/config.test.toml:/app/config.test.toml
+      - /home/nn/workspace/AegisLab/helm/files/initial_data:/app/initial_data
+      - /home/nn/workspace/AegisLab/logs:/app/logs
+      - /home/nn/workspace/AegisLab/containers:/app/containers
+      - /mnt/jfs/rcabench_dataset:/mnt/jfs/rcabench_dataset
+      - /mnt/jfs/experiment_storage:/mnt/jfs/experiment_storage
+    working_dir: /app
+    depends_on:
+      redis:
+        condition: service_started
+      mysql:
+        condition: service_healthy

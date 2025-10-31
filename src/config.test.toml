@@ -1,15 +1,15 @@
 name = "AegisLab"
 version = "0.1.0"
 
-port = 8082
-workspace = "/home/nn/workspace/AegisLab"
+port = 8080
+workspace = "/app"
 
 [system]
 env_mode = "dev"
 timezone = "Asia/Shanghai"
 
 [initialization]
-data_path = "/home/nn/workspace/AegisLab/helm/files/initial_data"
+data_path = "/app/initial_data"
 
 [debugging]
 enable = false
@@ -25,15 +25,15 @@ count = 1
 clickhouse_host = "10.10.10.58"
 mysql_user = "root"
 mysql_password = "yourpassword"
-mysql_host = "localhost"
+mysql_host = "mysql"
 mysql_port = "3306"
-mysql_db = "rcabench"
+mysql_db = "rcabench_test"
 
 [jaeger]
-endpoint = "localhost:4318"
+endpoint = "jaeger:4318"
 
 [redis]
-host = "localhost:6379"
+host = "redis:6379"
 
 [harbor]
 registry = "10.10.10.240"
@@ -64,7 +64,7 @@ source_type = "secret"
 secret_name = "kube-config"
 
 [logging]
-dir = "/home/nn/workspace/AegisLab/logs"
+dir = "/app/logs"
 
 [logging.job]
 dir = "jobs"
@@ -74,10 +74,10 @@ log_retention_days = 7
 detector = "detector"
 
 [container]
-storage_path = "/home/nn/workspace/AegisLab/containers"
+storage_path = "/app/containers"
 
 [buildkit]
-address = "localhost:1234"
+address = "buildkitd:1234"
 
 [rate_limiting]
 max_concurrent_builds = 3
