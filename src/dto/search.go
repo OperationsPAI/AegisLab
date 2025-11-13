@@ -62,8 +62,8 @@ type SortOption struct {
 	Direction SortDirection `json:"direction" binding:"required"` // Sort direction
 }
 
-// SearchRequest represents a complex search request
-type SearchRequest struct {
+// SearchReq represents a complex search request
+type SearchReq struct {
 	// Pagination
 	Page int `json:"page" form:"page" binding:"min=1"`
 	Size int `json:"size" form:"size" binding:"min=1,max=1000"`
@@ -97,9 +97,9 @@ type NumberRange struct {
 	Max *float64 `json:"max,omitempty"`
 }
 
-// AdvancedSearchRequest extends SearchRequest with common filter shortcuts
-type AdvancedSearchRequest struct {
-	SearchRequest
+// AdvancedSearchReq extends SearchRequest with common filter shortcuts
+type AdvancedSearchReq struct {
+	SearchReq
 
 	// Common filters shortcuts
 	CreatedAt *DateRange `json:"created_at,omitempty"`
@@ -110,21 +110,21 @@ type AdvancedSearchRequest struct {
 	ProjectID *int       `json:"project_id,omitempty"`
 }
 
-// ListResponse represents the response for list operations
-type ListResponse[T any] struct {
+// ListResp represents the response for list operations
+type ListResp[T any] struct {
 	Items      []T             `json:"items"`
 	Pagination *PaginationInfo `json:"pagination"`
 }
 
-// SearchResponse represents the response for search operations
-type SearchResponse[T any] struct {
+// SearchResp represents the response for search operations
+type SearchResp[T any] struct {
 	Items      []T             `json:"items"`
 	Pagination *PaginationInfo `json:"pagination"`
 	Filters    []SearchFilter  `json:"applied_filters,omitempty"`
 	Sort       []SortOption    `json:"applied_sort,omitempty"`
 }
 
-func (sr *SearchRequest) Validate() error {
+func (sr *SearchReq) Validate() error {
 	// Set defaults
 	if sr.Page == 0 {
 		sr.Page = 1
@@ -175,12 +175,12 @@ func (sr *SearchRequest) Validate() error {
 }
 
 // GetOffset calculates the offset for pagination
-func (sr *SearchRequest) GetOffset() int {
+func (sr *SearchReq) GetOffset() int {
 	return (sr.Page - 1) * sr.Size
 }
 
 // HasFilter checks if a specific filter exists
-func (sr *SearchRequest) HasFilter(field string) bool {
+func (sr *SearchReq) HasFilter(field string) bool {
 	for _, filter := range sr.Filters {
 		if filter.Field == field {
 			return true
@@ -190,7 +190,7 @@ func (sr *SearchRequest) HasFilter(field string) bool {
 }
 
 // GetFilter gets a specific filter by field name
-func (sr *SearchRequest) GetFilter(field string) *SearchFilter {
+func (sr *SearchReq) GetFilter(field string) *SearchFilter {
 	for _, filter := range sr.Filters {
 		if filter.Field == field {
 			return &filter
@@ -200,7 +200,7 @@ func (sr *SearchRequest) GetFilter(field string) *SearchFilter {
 }
 
 // AddFilter adds a new filter
-func (sr *SearchRequest) AddFilter(field string, operator FilterOperator, value interface{}) {
+func (sr *SearchReq) AddFilter(field string, operator FilterOperator, value interface{}) {
 	// Convert value to string
 	valueStr := fmt.Sprintf("%v", value)
 
@@ -212,7 +212,7 @@ func (sr *SearchRequest) AddFilter(field string, operator FilterOperator, value 
 }
 
 // AddSort adds a new sort option
-func (sr *SearchRequest) AddSort(field string, direction SortDirection) {
+func (sr *SearchReq) AddSort(field string, direction SortDirection) {
 	sr.Sort = append(sr.Sort, SortOption{
 		Field:     field,
 		Direction: direction,
@@ -220,8 +220,8 @@ func (sr *SearchRequest) AddSort(field string, direction SortDirection) {
 }
 
 // ConvertAdvancedToSearch converts AdvancedSearchRequest to SearchRequest with additional filters
-func (asr *AdvancedSearchRequest) ConvertAdvancedToSearch() *SearchRequest {
-	sr := &asr.SearchRequest
+func (asr *AdvancedSearchReq) ConvertAdvancedToSearch() *SearchReq {
+	sr := &asr.SearchReq
 
 	// Convert common filters to SearchFilter format
 	if asr.CreatedAt != nil {
@@ -273,7 +273,7 @@ func (asr *AdvancedSearchRequest) ConvertAdvancedToSearch() *SearchRequest {
 
 // TaskSearchRequest represents task search request
 type TaskSearchRequest struct {
-	AdvancedSearchRequest
+	AdvancedSearchReq
 
 	// Task-specific filters
 	TaskID    *string `json:"task_id,omitempty"`
@@ -285,8 +285,8 @@ type TaskSearchRequest struct {
 }
 
 // ConvertToSearchRequest converts TaskSearchRequest to SearchRequest
-func (tsr *TaskSearchRequest) ConvertToSearchRequest() *SearchRequest {
-	sr := tsr.AdvancedSearchRequest.ConvertAdvancedToSearch()
+func (tsr *TaskSearchRequest) ConvertToSearchRequest() *SearchReq {
+	sr := tsr.AdvancedSearchReq.ConvertAdvancedToSearch()
 
 	// Add task-specific filters
 	if tsr.TaskID != nil {
@@ -311,9 +311,9 @@ func (tsr *TaskSearchRequest) ConvertToSearchRequest() *SearchRequest {
 	return sr
 }
 
-// AlgorithmSearchRequest represents algorithm search request
-type AlgorithmSearchRequest struct {
-	AdvancedSearchRequest
+// AlgorithmSearchReq represents algorithm search request
+type AlgorithmSearchReq struct {
+	AdvancedSearchReq
 
 	// Algorithm-specific filters
 	Name  *string `json:"name,omitempty"`
@@ -323,8 +323,8 @@ type AlgorithmSearchRequest struct {
 }
 
 // ConvertToSearchRequest converts AlgorithmSearchRequest to SearchRequest
-func (asr *AlgorithmSearchRequest) ConvertToSearchRequest() *SearchRequest {
-	sr := asr.AdvancedSearchRequest.ConvertAdvancedToSearch()
+func (asr *AlgorithmSearchReq) ConvertToSearchRequest() *SearchReq {
+	sr := asr.AdvancedSearchReq.ConvertAdvancedToSearch()
 
 	// Add algorithm-specific filters
 	if asr.Name != nil {
@@ -342,7 +342,7 @@ func (asr *AlgorithmSearchRequest) ConvertToSearchRequest() *SearchRequest {
 
 	// Default to only active algorithms
 	if !sr.HasFilter("status") {
-		sr.AddFilter("status", OpEqual, consts.ContainerEnabled)
+		sr.AddFilter("status", OpEqual, consts.CommonEnabled)
 	}
 
 	return sr

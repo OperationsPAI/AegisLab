@@ -43,42 +43,44 @@ func InitDB() {
 	connectWithRetry(mysqlConfig)
 
 	if err = DB.AutoMigrate(
-		&Label{},
-
+		// Core entities
 		&Container{},
-		&ContainerLabel{},
 		&ContainerVersion{},
 		&HelmConfig{},
 		&Dataset{},
-		&DatasetLabel{},
-		&Task{},
-		&ExecutionResult{},
-		&ExecutionResultLabel{},
-		&GranularityResult{},
-		&Detector{},
-		&FaultInjectionSchedule{},
-		&DatasetFaultInjection{},
-		&FaultInjectionLabel{},
-
+		&DatasetVersion{},
 		&Project{},
-		&ProjectDataset{},
-		&ProjectContainer{},
-		&ProjectLabel{},
+		&Label{},
 		&User{},
 		&Role{},
 		&Permission{},
 		&Resource{},
+		&AuditLog{},
+
+		// Many-to-many relationship tables
+		&ContainerLabel{},
+		&DatasetLabel{},
+		&ProjectLabel{},
+		&DatasetVersionInjection{},
+		&TaskLabel{},
+
 		&UserContainer{},
+		&UserDataset{},
 		&UserProject{},
 		&UserRole{},
 		&RolePermission{},
 		&UserPermission{},
+
+		// Business entities
+		&Task{},
+		&FaultInjection{},
+		&Execution{},
+		&DetectorResult{},
+		&GranularityResult{},
 	); err != nil {
 		logrus.Fatalf("Failed to migrate database: %v", err)
 	}
 
-	createExecutionResultViews()
-	createFaultInjectionViews()
 	createDetectorViews()
 }
 

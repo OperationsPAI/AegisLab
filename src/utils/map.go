@@ -3,28 +3,20 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"maps"
+	maps0 "maps"
 	"reflect"
 	"strings"
 )
-
-func CloneMap(src map[string]any) map[string]any {
-	dst := make(map[string]any, len(src))
-	maps.Copy(dst, src)
-	return dst
-}
 
 // DeepMergeClone creates a new map that is the deep merge of multiple maps.
 // Later maps take precedence over earlier maps for conflicting keys
 func DeepMergeClone(maps ...map[string]any) map[string]any {
 	result := make(map[string]any)
-
 	for _, m := range maps {
 		if m != nil {
 			result = deepMerge(result, m)
 		}
 	}
-
 	return result
 }
 
@@ -43,35 +35,46 @@ func deepMerge(dst, src map[string]any) map[string]any {
 				}
 			}
 		}
-
 		dst[key] = srcVal
 	}
 
 	return dst
 }
 
-func GetMapField(m map[string]any, keys ...string) (string, bool) {
-	current := m
-	for i, key := range keys {
-		val, exists := current[key]
-		if !exists {
-			return "", false
-		}
-
-		if i == len(keys)-1 {
-			strVal, ok := val.(string)
-			return strVal, ok
-		}
-
-		nextMap, ok := val.(map[string]any)
-		if !ok {
-			return "", false
-		}
-		current = nextMap
+// GetPointerIntFromMap retrieves an integer value from a map by key and returns a pointer to it.
+func GetPointerIntFromMap(payload map[string]any, key string) (*int, error) {
+	val, ok := payload[key]
+	if !ok {
+		return nil, nil
 	}
-	return "", false
+
+	if val == nil {
+		return nil, nil
+	}
+
+	if intVal, ok := val.(int); ok {
+		return &intVal, nil
+	}
+
+	if floatVal, ok := val.(float64); ok {
+		if floatVal == float64(int(floatVal)) {
+			intVal := int(floatVal)
+			return &intVal, nil
+		}
+	}
+
+	if strVal, ok := val.(string); ok {
+		var intVal int
+		_, err := fmt.Sscanf(strVal, "%d", &intVal)
+		if err == nil {
+			return &intVal, nil
+		}
+	}
+
+	return nil, fmt.Errorf("value for key '%s' is not a valid integer type (got %T)", key, val)
 }
 
+// MapToStruct maps a nested map (or the entire map if key is empty) to a struct of type T
 func MapToStruct[T any](payload map[string]any, key, errorMsgTemplate string) (*T, error) {
 	var rawValue any
 	if key == "" {
@@ -105,6 +108,16 @@ func MapToStruct[T any](payload map[string]any, key, errorMsgTemplate string) (*
 	return &result, nil
 }
 
+// MergeSimpleMaps creates a new map that is the shallow merge of multiple maps.
+func MergeSimpleMaps[K comparable, V any](maps ...map[K]V) map[K]V {
+	result := make(map[K]V)
+	for _, m := range maps {
+		maps0.Copy(result, m)
+	}
+	return result
+}
+
+// StructToMap converts a struct to a map[string]any using reflection
 func StructToMap(obj any) map[string]any {
 	result := make(map[string]any)
 

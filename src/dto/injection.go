@@ -3,7 +3,6 @@ package dto
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,613 +14,69 @@ import (
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 )
 
-type InjectionConfig struct {
-	Index         int
-	FaultType     int
-	FaultDuration int
-	DisplayData   string
-	Conf          *chaos.InjectionConf
-	Node          *chaos.Node
-	ExecuteTime   time.Time
-	Labels        []LabelItem
-}
-
 type InjectionItem struct {
-	ID            int       `json:"id"`
-	FaultType     int       `json:"fault_type"`
-	DisplayConfig string    `json:"display_config"`
-	EngineConfig  string    `json:"engine_config"`
-	PreDuration   int       `json:"pre_duration"`
-	StartTime     time.Time `json:"start_time"`
-	EndTime       time.Time `json:"end_time"`
-	Status        int       `json:"status"`
-	Benchmark     string    `json:"benchmark"`
-	Env           string    `json:"env"`
-	Batch         string    `json:"batch"`
-	Tag           string    `json:"tag"`
-	InjectionName string    `json:"injection_name"`
-	CreatedAt     time.Time `json:"created_at"`
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	PreDuration int       `json:"pre_duration"`
+	StartTime   time.Time `json:"start_time,omitempty"`
+	EndTime     time.Time `json:"end_time,omitempty"`
 }
 
-type InjectCancelResp struct{}
-
-type InjectionConfReq struct {
-	Namespace string `form:"namespace" binding:"required"`
-	Mode      string `form:"mode" binding:"omitempty,oneof=display engine"`
-}
-
-func (req *InjectionConfReq) setDefaults() {
-	if req.Mode == "" {
-		req.Mode = "engine"
+func NewInjectionItem(injection *database.FaultInjection) InjectionItem {
+	return InjectionItem{
+		ID:          injection.ID,
+		Name:        injection.Name,
+		PreDuration: injection.PreDuration,
+		StartTime:   *injection.StartTime,
+		EndTime:     *injection.EndTime,
 	}
 }
 
-func (req *InjectionConfReq) Validate() error {
-	req.setDefaults()
-	return nil
+// BatchDeleteInjectionReq represents the request to batch delete injections
+type BatchDeleteInjectionReq struct {
+	IDs    []int       `json:"ids,omitempty"`    // List of injection IDs for deletion
+	Labels []LabelItem `json:"labels,omitempty"` // List of label keys to match for deletion
 }
 
-type ListDisplayConfigsReq struct {
-	TraceIDs []string `form:"trace_ids" binding:"omitempty"`
-}
+func (req *BatchDeleteInjectionReq) Validate() error {
+	hasIDs := len(req.IDs) > 0
+	hasLabels := len(req.Labels) > 0
 
-func (req *ListDisplayConfigsReq) Validate() error {
-	req.TraceIDs = utils.FilterEmptyStrings(req.TraceIDs)
-	for _, traceID := range req.TraceIDs {
-		if !utils.IsValidUUID(traceID) {
-			return fmt.Errorf("invalid trace_id format: %s", traceID)
-		}
+	criteriaCount := 0
+	if hasIDs {
+		criteriaCount++
+	}
+	if hasLabels {
+		criteriaCount++
 	}
 
-	return nil
-}
-
-type InjectionFilterOptions struct {
-	ProjectName string `form:"project_name" binding:"omitempty"`
-
-	Env       string `form:"env" binding:"omitempty"`
-	Batch     string `form:"batch" binding:"omitempty"`
-	Tag       string `form:"tag" binding:"omitempty"`
-	Benchmark string `form:"benchmark" binding:"omitempty"`
-	Status    *int   `form:"status" binding:"omitempty"`
-	FaultType *int   `form:"fault_type" binding:"omitempty"`
-}
-
-func (opts *InjectionFilterOptions) Validate() error {
-	if opts.Benchmark != "" {
-		if _, exists := utils.GetValidBenchmarkMap()[opts.Benchmark]; !exists {
-			return fmt.Errorf("invalid benchmark: %s", opts.Benchmark)
-		}
+	if criteriaCount == 0 {
+		return fmt.Errorf("must provide one of: ids, labels, or tags")
+	}
+	if criteriaCount > 1 {
+		return fmt.Errorf("can only specify one deletion criteria (ids, labels, or tags)")
 	}
 
-	if opts.Status != nil {
-		status := *opts.Status
-		if status < 0 {
-			return fmt.Errorf("status must be a non-negative integer")
-		}
-
-		if _, exists := DatasetStatusMap[status]; !exists {
-			return fmt.Errorf("invalid status: %d", opts.Status)
-		}
-	}
-
-	if opts.FaultType != nil {
-		if _, exists := chaos.ChaosTypeMap[chaos.ChaosType(*opts.FaultType)]; !exists {
-			return fmt.Errorf("invalid fault type: %d", opts.FaultType)
-		}
-	}
-
-	return nil
-}
-
-type ListInjectionsReq struct {
-	InjectionFilterOptions
-	ListOptionsQuery
-	PaginationQuery
-	TimeRangeQuery
-}
-
-func (req *ListInjectionsReq) Validate() error {
-	if err := req.InjectionFilterOptions.Validate(); err != nil {
-		return err
-	}
-
-	if err := req.ListOptionsQuery.Validate(); err != nil {
-		return err
-	}
-
-	if err := req.PaginationQuery.Validate(); err != nil {
-		return err
-	}
-
-	hasLimit := req.ListOptionsQuery.Limit > 0
-	hasPagination := req.PaginationQuery.PageNum > 0 && req.PaginationQuery.PageSize > 0
-
-	if hasLimit && hasPagination {
-		return fmt.Errorf("cannot use both limit and pagination (page_num/page_size) at the same time")
-	}
-
-	if err := req.TimeRangeQuery.Validate(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-type QueryInjectionReq struct {
-	Name   string `form:"name" binding:"omitempty"`
-	TaskID string `form:"task_id" binding:"omitempty"`
-}
-
-func (req *QueryInjectionReq) Validate() error {
-	if req.Name == "" && req.TaskID == "" {
-		return fmt.Errorf("either name or task_id must be provided")
-	}
-
-	if req.Name != "" && req.TaskID != "" {
-		return fmt.Errorf("only one of name or task_id should be provided")
-	}
-
-	if req.TaskID != "" {
-		if !utils.IsValidUUID(req.TaskID) {
-			return fmt.Errorf("invalid task_id format: %s", req.TaskID)
-		}
-	}
-
-	return nil
-}
-
-type LabelItem struct {
-	Key   string `json:"key" binding:"required"`
-	Value string `json:"value" binding:"omitemtpy"`
-}
-
-type SubmitInjectionReq struct {
-	ProjectName string `json:"project_name" binding:"required"`
-
-	ContainerName string          `json:"container_name" binding:"required"`
-	ContainerTag  string          `json:"container_tag" binding:"omitempty"`
-	Interval      int             `json:"interval" binding:"required,min=1"`
-	PreDuration   int             `json:"pre_duration" binding:"required,min=1"`
-	Specs         []chaos.Node    `json:"specs" binding:"required"`
-	Benchmark     string          `json:"benchmark" binding:"required"`
-	Algorithms    []AlgorithmItem `json:"algorithms" binding:"omitempty"`
-	Labels        []LabelItem     `json:"labels" binding:"omitempty"`
-}
-
-func (req *SubmitInjectionReq) ParseInjectionSpecs() ([]InjectionConfig, error) {
-	configs := make([]InjectionConfig, 0, len(req.Specs))
-	for idx, spec := range req.Specs {
-		childNode, exists := spec.Children[strconv.Itoa(spec.Value)]
-		if !exists {
-			return nil, fmt.Errorf("failed to find key %d in the children", spec.Value)
-		}
-
-		faultDuration := childNode.Children[consts.DurationNodeKey].Value
-
-		conf, err := chaos.NodeToStruct[chaos.InjectionConf](&spec)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert node to injecton conf: %v", err)
-		}
-
-		displayConfig, err := conf.GetDisplayConfig()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get display config: %v", err)
-		}
-
-		displayData, err := json.Marshal(displayConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal injection spec to display config: %v", err)
-		}
-
-		configs = append(configs, InjectionConfig{
-			Index:         idx,
-			FaultType:     spec.Value,
-			FaultDuration: faultDuration,
-			DisplayData:   string(displayData),
-			Conf:          conf,
-			Node:          &spec,
-			Labels:        req.Labels,
-		})
-	}
-
-	return configs, nil
-}
-
-func (req *SubmitInjectionReq) Validate() error {
-	if req.ProjectName == "" {
-		return fmt.Errorf("project name must not be blank")
-	}
-
-	if req.Interval <= req.PreDuration {
-		return fmt.Errorf("interval must be greater than pre_duration")
-	}
-
-	if len(req.Specs) == 0 {
-		return fmt.Errorf("specs must not be empty")
-	}
-
-	if req.Benchmark == "" {
-		return fmt.Errorf("benchmark must not be blank")
-	} else {
-		if _, exists := utils.GetValidBenchmarkMap()[req.Benchmark]; !exists {
-			return fmt.Errorf("invalid benchmark: %s", req.Benchmark)
-		}
-	}
-
-	if req.Algorithms != nil {
-		for _, algorithm := range req.Algorithms {
-			if algorithm.Name == "" {
-				return fmt.Errorf("algorithm must not be empty")
-			}
-
-			detector := config.GetString("algo.detector")
-			if algorithm.Name == detector {
-				return fmt.Errorf("algorithm %s is not allowed for fault injection", detector)
+	if hasIDs {
+		for i, id := range req.IDs {
+			if id <= 0 {
+				return fmt.Errorf("invalid id at index %d: %d", i, id)
 			}
 		}
 	}
 
-	if req.Labels == nil {
-		req.Labels = make([]LabelItem, 0)
-	}
-
-	return nil
-}
-
-// analysis
-
-type FaultInjectionNoIssuesReq struct {
-	Env   string `form:"env" binding:"omitempty"`
-	Batch string `form:"batch" binding:"omitempty"`
-
-	TimeRangeQuery
-}
-
-func (req *FaultInjectionNoIssuesReq) Validate() error {
-	return req.TimeRangeQuery.Validate()
-}
-
-type FaultInjectionWithIssuesReq struct {
-	Env   string `form:"env" binding:"omitempty"`
-	Batch string `form:"batch" binding:"omitempty"`
-
-	TimeRangeQuery
-}
-
-func (req *FaultInjectionWithIssuesReq) Validate() error {
-	return req.TimeRangeQuery.Validate()
-}
-
-type KeyResourceResp map[string]string
-
-type NsResourcesResp map[string]chaos.Resources
-
-type InjectionFieldMappingResp struct {
-	StatusMap        map[int]string                 `json:"status" swaggertype:"object"`
-	FaultTypeMap     map[chaos.ChaosType]string     `json:"fault_type" swaggertype:"object"`
-	FaultResourceMap map[string]chaos.ResourceField `json:"fault_resource" swaggertype:"object"`
-}
-
-type ListInjectionsResp ListResp[InjectionItem]
-
-type QueryInjectionResp struct {
-	database.FaultInjectionSchedule
-	GroundTruth chaos.Groundtruth `json:"ground_truth,omitempty"`
-}
-
-type SubmitInjectionResp struct {
-	SubmitResp
-	DuplicatedCount int `json:"duplicated_count"`
-	OriginalCount   int `json:"original_count"`
-}
-
-// FaultInjectionNoIssuesResp Fault injection response without issues
-type FaultInjectionNoIssuesResp struct {
-	DatasetID     int        `json:"dataset_id"`
-	EngineConfig  chaos.Node `json:"engine_config"`
-	InjectionName string     `json:"injection_name"`
-}
-
-// FaultInjectionWithIssuesResp Fault injection response with issues
-type FaultInjectionWithIssuesResp struct {
-	DatasetID           int        `json:"dataset_id"`
-	EngineConfig        chaos.Node `json:"engine_config"`
-	InjectionName       string     `json:"injection_name"`
-	Issues              string     `json:"issues"`
-	AbnormalAvgDuration float64    `json:"abnormal_avg_duration"`
-	NormalAvgDuration   float64    `json:"normal_avg_duration"`
-	AbnormalSuccRate    float64    `json:"abnormal_succ_rate"`
-	NormalSuccRate      float64    `json:"normal_succ_rate"`
-	AbnormalP99         float64    `json:"abnormal_p99"`
-	NormalP99           float64    `json:"normal_p99"`
-}
-
-// InjectionStatsResp Fault injection statistics response
-type InjectionStatsResp struct {
-	NoIssuesRecords      int64 `json:"no_issues_records"`
-	WithIssuesRecords    int64 `json:"with_issues_records"`
-	NoIssuesInjections   int64 `json:"no_issues_injections"`
-	WithIssuesInjections int64 `json:"with_issues_injections"`
-}
-
-// V2 API DTOs for FaultInjectionSchedule
-
-// InjectionV2Response represents the response structure for injection
-type InjectionV2Response struct {
-	ID            int       `json:"id"`
-	TaskID        string    `json:"task_id"`
-	FaultType     int       `json:"fault_type"`
-	DisplayConfig string    `json:"display_config"`
-	EngineConfig  string    `json:"engine_config"`
-	PreDuration   int       `json:"pre_duration"`
-	StartTime     time.Time `json:"start_time"`
-	EndTime       time.Time `json:"end_time"`
-	Status        int       `json:"status"`
-	Description   string    `json:"description"`
-	Benchmark     string    `json:"benchmark"`
-	InjectionName string    `json:"injection_name"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
-
-	// Optional relations
-	Task   *TaskV2Response  `json:"task,omitempty"`
-	Labels []database.Label `json:"labels,omitempty"` // Associated labels
-}
-
-// InjectionV2ListReq represents the request for listing injections
-type InjectionV2ListReq struct {
-	Page      int      `form:"page" binding:"omitempty,min=1"`
-	Size      int      `form:"size" binding:"omitempty,min=1"`
-	TaskID    string   `form:"task_id" binding:"omitempty"`
-	FaultType *int     `form:"fault_type" binding:"omitempty"`
-	Status    *int     `form:"status" binding:"omitempty"`
-	Benchmark string   `form:"benchmark" binding:"omitempty"`
-	Search    string   `form:"search" binding:"omitempty"`
-	Tags      []string `form:"tags" binding:"omitempty"` // Tag values to filter by
-	SortBy    string   `form:"sort_by" binding:"omitempty,oneof=id task_id fault_type status benchmark injection_name created_at updated_at"`
-	SortOrder string   `form:"sort_order" binding:"omitempty,oneof=asc desc"`
-	Include   string   `form:"include" binding:"omitempty"`
-}
-
-// InjectionV2UpdateReq represents the request for updating injection
-type InjectionV2UpdateReq struct {
-	TaskID        *string    `json:"task_id" binding:"omitempty"`
-	FaultType     *int       `json:"fault_type" binding:"omitempty"`
-	DisplayConfig *string    `json:"display_config" binding:"omitempty"`
-	EngineConfig  *string    `json:"engine_config" binding:"omitempty"`
-	PreDuration   *int       `json:"pre_duration" binding:"omitempty"`
-	StartTime     *time.Time `json:"start_time" binding:"omitempty"`
-	EndTime       *time.Time `json:"end_time" binding:"omitempty"`
-	Status        *int       `json:"status" binding:"omitempty"`
-	Description   *string    `json:"description" binding:"omitempty"`
-	Benchmark     *string    `json:"benchmark" binding:"omitempty"`
-	InjectionName *string    `json:"injection_name" binding:"omitempty"`
-}
-
-// InjectionV2SearchReq represents the request for advanced search
-type InjectionV2SearchReq struct {
-	Page          *int        `json:"page" binding:"omitempty"`
-	Size          *int        `json:"size" binding:"omitempty"`
-	TaskIDs       []string    `json:"task_ids" binding:"omitempty"`
-	FaultTypes    []int       `json:"fault_types" binding:"omitempty"`
-	Statuses      []int       `json:"statuses" binding:"omitempty"`
-	Benchmarks    []string    `json:"benchmarks" binding:"omitempty"`
-	Search        string      `json:"search" binding:"omitempty"`
-	Tags          []string    `json:"tags" binding:"omitempty"`   // Tag values to filter by
-	Labels        []LabelItem `json:"labels" binding:"omitempty"` // Custom labels to filter by
-	StartTimeGte  *time.Time  `json:"start_time_gte" binding:"omitempty"`
-	StartTimeLte  *time.Time  `json:"start_time_lte" binding:"omitempty"`
-	EndTimeGte    *time.Time  `json:"end_time_gte" binding:"omitempty"`
-	EndTimeLte    *time.Time  `json:"end_time_lte" binding:"omitempty"`
-	CreatedAtGte  *time.Time  `json:"created_at_gte" binding:"omitempty"`
-	CreatedAtLte  *time.Time  `json:"created_at_lte" binding:"omitempty"`
-	SortBy        string      `json:"sort_by" binding:"omitempty,oneof=id task_id fault_type status benchmark injection_name created_at updated_at"`
-	SortOrder     string      `json:"sort_order" binding:"omitempty,oneof=asc desc"`
-	IncludeLabels bool        `json:"include_labels" binding:"omitempty"` // Whether to include labels in the response
-	IncludeTask   bool        `json:"include_task" binding:"omitempty"`   // Whether to include task details in the response
-}
-
-func (req *InjectionV2SearchReq) Validate() error {
-	if req.Page != nil && *req.Page < 1 {
-		return fmt.Errorf("page must be greater than 0")
-	}
-	if req.Size != nil && *req.Size < 1 {
-		return fmt.Errorf("size must be greater than 0")
-	}
-
-	if req.StartTimeGte != nil && req.StartTimeLte != nil && req.StartTimeGte.After(*req.StartTimeLte) {
-		return fmt.Errorf("start_time_gte must be before start_time_lte")
-	}
-	if req.EndTimeGte != nil && req.EndTimeLte != nil && req.EndTimeGte.After(*req.EndTimeLte) {
-		return fmt.Errorf("end_time_gte must be before end_time_lte")
-	}
-	if req.CreatedAtGte != nil && req.CreatedAtLte != nil && req.CreatedAtGte.After(*req.CreatedAtLte) {
-		return fmt.Errorf("created_at_gte must be before created_at_lte")
-	}
-
-	return nil
-}
-
-// InjectionSearchResponse represents the search response
-type InjectionSearchResponse struct {
-	Items      []InjectionV2Response `json:"items"`
-	Pagination PaginationInfo        `json:"pagination"`
-}
-
-type LabelInjectionListReq struct {
-	Key         string `form:"key" binding:"required,max=255"`
-	Value       string `form:"value" binding:"required,max=255"`
-	IncludeTask bool   `form:"include_task" binding:"omitempty"`
-}
-
-func (req *LabelInjectionListReq) Validate() error {
-	if req.Key == "" {
-		return fmt.Errorf("key must not be empty")
-	}
-
-	if req.Value == "" {
-		return fmt.Errorf("value must not be empty")
-	}
-
-	return nil
-}
-
-// ToInjectionV2Response converts database model to response DTO
-func ToInjectionV2Response(injection *database.FaultInjectionSchedule, includeTask bool) *InjectionV2Response {
-	response := &InjectionV2Response{
-		ID:            injection.ID,
-		TaskID:        injection.TaskID,
-		FaultType:     injection.FaultType,
-		DisplayConfig: injection.DisplayConfig,
-		EngineConfig:  injection.EngineConfig,
-		PreDuration:   injection.PreDuration,
-		StartTime:     utils.GetTimeValue(injection.StartTime, time.Time{}),
-		EndTime:       utils.GetTimeValue(injection.EndTime, time.Time{}),
-		Status:        injection.Status,
-		Description:   injection.Description,
-		Benchmark:     injection.Benchmark,
-		InjectionName: injection.InjectionName,
-		CreatedAt:     injection.CreatedAt,
-		UpdatedAt:     injection.UpdatedAt,
-	}
-
-	if includeTask && injection.Task != nil {
-		response.Task = ToTaskV2Response(injection.Task)
-	}
-
-	return response
-}
-
-// ToInjectionV2ResponseWithLabels converts database model to response DTO with labels
-func ToInjectionV2ResponseWithLabels(injection *database.FaultInjectionSchedule, includeTask bool, labels []database.Label) *InjectionV2Response {
-	response := ToInjectionV2Response(injection, includeTask)
-	response.Labels = labels
-	return response
-}
-
-// TaskV2Response represents a simplified task response for injection
-type TaskV2Response struct {
-	ID        string    `json:"id"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-// ToTaskV2Response converts task model to response DTO
-func ToTaskV2Response(task *database.Task) *TaskV2Response {
-	return &TaskV2Response{
-		ID:        task.ID,
-		Status:    task.Status,
-		CreatedAt: task.CreatedAt,
-		UpdatedAt: task.UpdatedAt,
-	}
-}
-
-// InjectionV2CreateItem represents a single injection creation request
-type InjectionV2CreateItem struct {
-	TaskID        *string    `json:"task_id" binding:"omitempty"`
-	FaultType     int        `json:"fault_type" binding:"required"`
-	DisplayConfig string     `json:"display_config" binding:"required"`
-	EngineConfig  string     `json:"engine_config" binding:"required"`
-	PreDuration   int        `json:"pre_duration" binding:"required,min=0"`
-	StartTime     *time.Time `json:"start_time" binding:"omitempty"`
-	EndTime       *time.Time `json:"end_time" binding:"omitempty"`
-	Status        int        `json:"status" binding:"omitempty"`
-	Description   string     `json:"description" binding:"omitempty"`
-	Benchmark     string     `json:"benchmark" binding:"required"`
-	InjectionName string     `json:"injection_name" binding:"required"`
-}
-
-func (item *InjectionV2CreateItem) ToEntity() database.FaultInjectionSchedule {
-	return database.FaultInjectionSchedule{
-		TaskID:        utils.GetStringValue(item.TaskID, ""),
-		FaultType:     item.FaultType,
-		DisplayConfig: item.DisplayConfig,
-		EngineConfig:  item.EngineConfig,
-		PreDuration:   item.PreDuration,
-		StartTime:     utils.GetTimePtr(item.StartTime, time.Now()),
-		EndTime:       utils.GetTimePtr(item.EndTime, time.Now().Add(time.Hour)),
-		Status:        utils.GetIntValue(&item.Status, 0),
-		Description:   item.Description,
-		Benchmark:     item.Benchmark,
-		InjectionName: item.InjectionName,
-	}
-}
-
-// InjectionV2CreateReq represents the batch creation request for injections
-type InjectionV2CreateReq struct {
-	Injections []InjectionV2CreateItem `json:"injections" binding:"required,min=1,max=100"`
-}
-
-// Validate validates the injection creation request
-func (req *InjectionV2CreateReq) Validate() error {
-	if len(req.Injections) == 0 {
-		return fmt.Errorf("at least one injection must be provided")
-	}
-
-	if len(req.Injections) > 100 {
-		return fmt.Errorf("cannot create more than 100 injections at once")
-	}
-
-	for i, injection := range req.Injections {
-		if injection.InjectionName == "" {
-			return fmt.Errorf("injection_name is required for injection %d", i+1)
-		}
-
-		if injection.Benchmark == "" {
-			return fmt.Errorf("benchmark is required for injection %d", i+1)
-		}
-
-		if injection.DisplayConfig == "" {
-			return fmt.Errorf("display_config is required for injection %d", i+1)
-		}
-
-		if injection.EngineConfig == "" {
-			return fmt.Errorf("engine_config is required for injection %d", i+1)
-		}
-
-		if injection.PreDuration < 0 {
-			return fmt.Errorf("pre_duration must be non-negative for injection %d", i+1)
-		}
-
-		// Validate time range if both start and end time are provided
-		if injection.StartTime != nil && injection.EndTime != nil {
-			if injection.EndTime.Before(*injection.StartTime) {
-				return fmt.Errorf("end_time must be after start_time for injection %d", i+1)
+	if hasLabels {
+		for i, label := range req.Labels {
+			if strings.TrimSpace(label.Key) == "" {
+				return fmt.Errorf("empty label key at index %d", i)
+			}
+			if strings.TrimSpace(label.Value) == "" {
+				return fmt.Errorf("empty label value at index %d", i)
 			}
 		}
 	}
 
 	return nil
-}
-
-// InjectionV2CreateResponse represents the response for batch injection creation
-type InjectionV2CreateResponse struct {
-	CreatedCount int                    `json:"created_count"`
-	CreatedItems []InjectionV2Response  `json:"created_items"`
-	FailedCount  int                    `json:"failed_count,omitempty"`
-	FailedItems  []InjectionCreateError `json:"failed_items,omitempty"`
-	Message      string                 `json:"message"`
-}
-
-// InjectionCreateError represents an error during injection creation
-type InjectionCreateError struct {
-	Index int                   `json:"index"`
-	Error string                `json:"error"`
-	Item  InjectionV2CreateItem `json:"item"`
-}
-
-// InjectionV2LabelManageReq Manage labels in injection
-type InjectionV2LabelManageReq struct {
-	AddTags    []string `json:"add_tags"`    // List of tag values to add
-	RemoveTags []string `json:"remove_tags"` // List of tag values to remove
-}
-
-// InjectionV2CustomLabelManageReq Manage custom labels (key-value pairs) in injection
-type InjectionV2CustomLabelManageReq struct {
-	AddLabels    []LabelItem `json:"add_labels"`    // List of labels to add
-	RemoveLabels []string    `json:"remove_labels"` // List of label keys to remove
 }
 
 // TriggerDatasetBuildItemResponse represents the response for a single injection in batch trigger
@@ -673,78 +128,485 @@ type TriggerFailedDatapackRebuildProgressEvent struct {
 	FinalResponse *TriggerFailedDatapackRebuildResponse `json:"final_response,omitempty"` // Final response (only for "complete" type)
 }
 
-// InjectionV2BatchDeleteReq represents the request for batch deletion of injections
-type InjectionV2BatchDeleteReq struct {
-	IDs    []int    `json:"ids,omitempty"`    // List of injection IDs to delete
-	Labels []string `json:"labels,omitempty"` // List of label keys to match for deletion (key1:value1,key2:value2)
+type InjectionFieldMappingResp struct {
+	StatusMap        map[int]string                 `json:"status" swaggertype:"object"`
+	FaultTypeMap     map[chaos.ChaosType]string     `json:"fault_type" swaggertype:"object"`
+	FaultResourceMap map[string]chaos.ResourceField `json:"fault_resource" swaggertype:"object"`
 }
 
-// Validate validates the batch delete request
-func (req *InjectionV2BatchDeleteReq) Validate() error {
-	hasIDs := len(req.IDs) > 0
-	hasLabels := len(req.Labels) > 0
+type ListInjectionFilters struct {
+	FaultType      *chaos.ChaosType
+	Benchmark      string
+	State          *consts.DatapackState
+	Status         *consts.StatusType
+	LabelConditons []map[string]string
+}
 
-	if !hasIDs && !hasLabels {
-		return fmt.Errorf("either ids or labels must be provided")
+// ListInjectionReq represents the request to list injections with various filters
+type ListInjectionReq struct {
+	PaginationReq
+	FaultType *chaos.ChaosType      `form:"fault_type" binding:"omitempty"`
+	Benchmark string                `form:"benchmark" binding:"omitempty"`
+	State     *consts.DatapackState `form:"state" binding:"omitempty"`
+	Status    *consts.StatusType    `form:"status" binding:"omitempty"`
+	Labels    []string              `form:"labels" binding:"omitempty"`
+}
+
+func (req *ListInjectionReq) Validate() error {
+	if err := validateBenchmarkName(req.Benchmark); err != nil {
+		return err
+	}
+	if err := validateChaosType(req.FaultType); err != nil {
+		return err
+	}
+	if err := validateDatapackState(req.State); err != nil {
+		return err
+	}
+	if err := validateStatusField(req.Status, false); err != nil {
+		return err
+	}
+	if err := validateLabelsField(req.Labels); err != nil {
+		return err
 	}
 
-	if hasIDs && hasLabels {
-		return fmt.Errorf("cannot specify both ids and labels, choose one")
+	return nil
+}
+
+func (req *ListInjectionReq) ToFilterOptions() *ListInjectionFilters {
+	labelCondtions := make([]map[string]string, 0, len(req.Labels))
+	for _, item := range req.Labels {
+		parts := strings.SplitN(item, ":", 2)
+		labelCondtions = append(labelCondtions, map[string]string{
+			"key":   parts[0],
+			"value": parts[1],
+		})
 	}
 
-	if hasIDs {
-		for i, id := range req.IDs {
-			if id <= 0 {
-				return fmt.Errorf("invalid id at index %d: %d", i, id)
+	return &ListInjectionFilters{
+		FaultType:      req.FaultType,
+		Benchmark:      req.Benchmark,
+		State:          req.State,
+		Status:         req.Status,
+		LabelConditons: labelCondtions,
+	}
+}
+
+// InjectionV2SearchReq represents the request to search injections with various filters
+type SearchInjectionReq struct {
+	Page          *int        `json:"page" binding:"omitempty"`
+	Size          *int        `json:"size" binding:"omitempty"`
+	TaskIDs       []string    `json:"task_ids" binding:"omitempty"`
+	FaultTypes    []int       `json:"fault_types" binding:"omitempty"`
+	Statuses      []int       `json:"statuses" binding:"omitempty"`
+	Benchmarks    []string    `json:"benchmarks" binding:"omitempty"`
+	Search        string      `json:"search" binding:"omitempty"`
+	Tags          []string    `json:"tags" binding:"omitempty"`   // Tag values to filter by
+	Labels        []LabelItem `json:"labels" binding:"omitempty"` // Custom labels to filter by
+	StartTimeGte  *time.Time  `json:"start_time_gte" binding:"omitempty"`
+	StartTimeLte  *time.Time  `json:"start_time_lte" binding:"omitempty"`
+	EndTimeGte    *time.Time  `json:"end_time_gte" binding:"omitempty"`
+	EndTimeLte    *time.Time  `json:"end_time_lte" binding:"omitempty"`
+	CreatedAtGte  *time.Time  `json:"created_at_gte" binding:"omitempty"`
+	CreatedAtLte  *time.Time  `json:"created_at_lte" binding:"omitempty"`
+	SortBy        string      `json:"sort_by" binding:"omitempty,oneof=id task_id fault_type status benchmark injection_name created_at updated_at"`
+	SortOrder     string      `json:"sort_order" binding:"omitempty,oneof=asc desc"`
+	IncludeLabels bool        `json:"include_labels" binding:"omitempty"` // Whether to include labels in the response
+	IncludeTask   bool        `json:"include_task" binding:"omitempty"`   // Whether to include task details in the response
+}
+
+func (req *SearchInjectionReq) Validate() error {
+	if req.Page != nil && *req.Page < 1 {
+		return fmt.Errorf("page must be greater than 0")
+	}
+	if req.Size != nil && *req.Size < 1 {
+		return fmt.Errorf("size must be greater than 0")
+	}
+
+	if req.StartTimeGte != nil && req.StartTimeLte != nil && req.StartTimeGte.After(*req.StartTimeLte) {
+		return fmt.Errorf("start_time_gte must be before start_time_lte")
+	}
+	if req.EndTimeGte != nil && req.EndTimeLte != nil && req.EndTimeGte.After(*req.EndTimeLte) {
+		return fmt.Errorf("end_time_gte must be before end_time_lte")
+	}
+	if req.CreatedAtGte != nil && req.CreatedAtLte != nil && req.CreatedAtGte.After(*req.CreatedAtLte) {
+		return fmt.Errorf("created_at_gte must be before created_at_lte")
+	}
+
+	return nil
+}
+
+type SubmitInjectionReq struct {
+	ProjectName string          `json:"project_name" binding:"required"`
+	Pedestal    *ContainerSpec  `json:"pedestal" binding:"required"`
+	Benchmark   *ContainerSpec  `json:"benchmark" binding:"required"`
+	Interval    int             `json:"interval" binding:"required,min=1"`
+	PreDuration int             `json:"pre_duration" binding:"required,min=1"`
+	Specs       []chaos.Node    `json:"specs" binding:"required"`
+	Algorithms  []ContainerSpec `json:"algorithms" binding:"omitempty"`
+	Labels      []LabelItem     `json:"labels" binding:"omitempty"`
+}
+
+func (req *SubmitInjectionReq) Validate() error {
+	if req.Pedestal == nil {
+		return fmt.Errorf("pedestal must not be nil")
+	} else {
+		if err := req.Pedestal.Validate(); err != nil {
+			return fmt.Errorf("invalid pedestal: %w", err)
+		}
+	}
+
+	if req.Benchmark == nil {
+		return fmt.Errorf("benchmark must not be nil")
+	} else {
+		if err := req.Benchmark.Validate(); err != nil {
+			return fmt.Errorf("invalid benchmark: %w", err)
+		}
+		if err := validateBenchmarkName(req.Benchmark.Name); err != nil {
+			return err
+		}
+	}
+
+	if req.ProjectName == "" {
+		return fmt.Errorf("project name must not be blank")
+	}
+	if req.Interval <= req.PreDuration {
+		return fmt.Errorf("interval must be greater than pre_duration")
+	}
+	if len(req.Specs) == 0 {
+		return fmt.Errorf("specs must not be empty")
+	}
+
+	if req.Algorithms != nil {
+		for idx, algorithm := range req.Algorithms {
+			if err := algorithm.Validate(); err != nil {
+				return fmt.Errorf("invalid algorithm at index %d: %w", idx, err)
+			}
+			if algorithm.Name == config.GetString("algo.detector") {
+				return fmt.Errorf("algorithm name %s is reserved and cannot be used", config.GetString("algo.detector"))
 			}
 		}
 	}
 
-	if hasLabels {
-		for i, label := range req.Labels {
-			if label == "" {
-				return fmt.Errorf("empty label at index %d", i)
-			}
-			// Validate label format (key:value)
-			if !strings.Contains(label, ":") {
-				return fmt.Errorf("invalid label format at index %d: %s, expected format 'key:value'", i, label)
-			}
+	if req.Labels == nil {
+		req.Labels = make([]LabelItem, 0)
+	}
+
+	return nil
+}
+
+type InjectionResp struct {
+	ID            int        `json:"id"`
+	Name          string     `json:"name"`
+	FaultType     string     `json:"fault_type"`
+	DisplayConfig *string    `json:"display_config,omitempty"`
+	PreDuration   int        `json:"pre_duration"`
+	StartTime     *time.Time `json:"start_time,omitempty"`
+	EndTime       *time.Time `json:"end_time,omitempty"`
+	State         string     `json:"state"`
+	Status        string     `json:"status"`
+	TaskID        string     `json:"task_id"`
+	BenchmarkID   int        `json:"benchmark_id"`
+	BenchmarkName string     `json:"benchmark_name"`
+	PedestalID    int        `json:"pedestal_id"`
+	PedestalName  string     `json:"pedestal_name"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+
+	Labels []LabelItem `json:"labels,omitempty"`
+}
+
+func NewInjectionResp(injection *database.FaultInjection) *InjectionResp {
+	resp := &InjectionResp{
+		ID:            injection.ID,
+		Name:          injection.Name,
+		FaultType:     chaos.ChaosTypeMap[injection.FaultType],
+		DisplayConfig: injection.DisplayConfig,
+		PreDuration:   injection.PreDuration,
+		StartTime:     injection.StartTime,
+		EndTime:       injection.EndTime,
+		State:         consts.GetDatapackStateName(injection.State),
+		Status:        consts.GetStatusTypeName(injection.Status),
+		TaskID:        injection.TaskID,
+		BenchmarkID:   injection.BenchmarkID,
+		BenchmarkName: injection.Benchmark.Container.Name,
+		PedestalID:    injection.PedestalID,
+		PedestalName:  injection.Pedestal.Container.Name,
+		CreatedAt:     injection.CreatedAt,
+		UpdatedAt:     injection.UpdatedAt,
+	}
+
+	// Get labels from associated Task instead of directly from injection
+	if injection.Task != nil && len(injection.Task.Labels) > 0 {
+		resp.Labels = make([]LabelItem, 0, len(injection.Task.Labels))
+		for _, l := range injection.Task.Labels {
+			resp.Labels = append(resp.Labels, LabelItem{
+				Key:   l.Key,
+				Value: l.Value,
+			})
+		}
+	}
+	return resp
+}
+
+type InjectionDetailResp struct {
+	InjectionResp
+
+	Description  string             `json:"description,omitempty"`
+	EngineConfig string             `json:"engine_config"`
+	GroundTruth  *chaos.Groundtruth `json:"ground_truth,omitempty"`
+}
+
+func NewInjectionDetailResp(entity *database.FaultInjection) *InjectionDetailResp {
+	injectionResp := NewInjectionResp(entity)
+	resp := &InjectionDetailResp{
+		InjectionResp: *injectionResp,
+		Description:   entity.Description,
+		EngineConfig:  entity.EngineConfig,
+	}
+	return resp
+}
+
+// InjectionMetadataResp represents the metadata response for injections
+type InjectionMetadataResp struct {
+	Config           *chaos.Node                    `json:"config"`
+	FaultTypeMap     map[chaos.ChaosType]string     `json:"fault_type_map"`
+	FaultResourceMap map[string]chaos.ResourceField `json:"fault_resource_map"`
+	NsResources      chaos.Resources                `json:"ns_resources"`
+}
+
+type SubmitInjectionItem struct {
+	TraceID string `json:"trace_id"`
+	TaskID  string `json:"task_id"`
+	Index   int    `json:"index"`
+}
+
+type SubmitInjectionResp struct {
+	GroupID         string                `json:"group_id"`
+	Items           []SubmitInjectionItem `json:"items"`
+	DuplicatedCount int                   `json:"duplicated_count"`
+	OriginalCount   int                   `json:"original_count"`
+}
+
+type SubmitDatapackBuildingReq struct {
+	ProjectName string         `json:"project_name" binding:"required"`
+	Specs       []BuildingSpec `json:"specs" binding:"required"`
+	Labels      []LabelItem    `json:"labels" binding:"omitempty"`
+}
+
+func (req *SubmitDatapackBuildingReq) Validate() error {
+	if req.ProjectName == "" {
+		return fmt.Errorf("project_name is required")
+	}
+
+	if len(req.Specs) == 0 {
+		return fmt.Errorf("at least one datapack spec is required")
+	}
+
+	for _, spec := range req.Specs {
+		if err := spec.Validate(); err != nil {
+			return fmt.Errorf("invalid datapack spec: %w", err)
+		}
+	}
+
+	return validateLabelItemsFiled(req.Labels)
+}
+
+// ManageInjectionLabelReq Represents the request to manage labels for an injection
+type ManageInjectionLabelReq struct {
+	AddLabels    []LabelItem `json:"add_labels"`    // List of labels to add
+	RemoveLabels []string    `json:"remove_labels"` // List of label keys to remove
+}
+
+func (req *ManageInjectionLabelReq) Validate() error {
+	if len(req.AddLabels) == 0 && len(req.RemoveLabels) == 0 {
+		return fmt.Errorf("at least one of add_labels or remove_labels must be provided")
+	}
+
+	if err := validateLabelItemsFiled(req.AddLabels); err != nil {
+		return err
+	}
+
+	for i, key := range req.RemoveLabels {
+		if strings.TrimSpace(key) == "" {
+			return fmt.Errorf("empty label key at index %d in remove_labels", i)
 		}
 	}
 
 	return nil
 }
 
-// InjectionV2BatchDeleteResponse represents the response for batch deletion
-type InjectionV2BatchDeleteResponse struct {
-	SuccessCount   int                           `json:"success_count"`
-	SuccessItems   []InjectionV2DeletedItem      `json:"success_items"`
-	FailedCount    int                           `json:"failed_count"`
-	FailedItems    []InjectionV2DeleteError      `json:"failed_items,omitempty"`
-	CascadeDeleted InjectionV2CascadeDeleteStats `json:"cascade_deleted"`
-	Message        string                        `json:"message"`
+// analysis
+type ListInjectionNoIssuesReq struct {
+	Labels []string `form:"labels" binding:"omitempty"`
+	TimeRangeQuery
 }
 
-// InjectionV2DeletedItem represents a successfully deleted injection
-type InjectionV2DeletedItem struct {
-	ID            int    `json:"id"`
-	InjectionName string `json:"injection_name"`
-	Benchmark     string `json:"benchmark"`
+func (req *ListInjectionNoIssuesReq) Validate() error {
+	if err := validateLabelsField(req.Labels); err != nil {
+		return err
+	}
+	return req.TimeRangeQuery.Validate()
 }
 
-// InjectionV2DeleteError represents an error during injection deletion
-type InjectionV2DeleteError struct {
-	ID            int    `json:"id,omitempty"`
-	InjectionName string `json:"injection_name,omitempty"`
-	Error         string `json:"error"`
+type ListInjectionWithIssuesReq struct {
+	Labels []string `form:"labels" binding:"omitempty"`
+	TimeRangeQuery
 }
 
-// InjectionV2CascadeDeleteStats represents statistics of cascade deleted records
-type InjectionV2CascadeDeleteStats struct {
-	ExecutionResults       int `json:"execution_results"`
-	ExecutionResultLabels  int `json:"execution_result_labels"`
-	GranularityResults     int `json:"granularity_results"`
-	FaultInjectionLabels   int `json:"fault_injection_labels"`
-	DatasetFaultInjections int `json:"dataset_fault_injections"`
-	Detectors              int `json:"detectors"`
+func (req *ListInjectionWithIssuesReq) Validate() error {
+	if err := validateLabelsField(req.Labels); err != nil {
+		return err
+	}
+	return req.TimeRangeQuery.Validate()
+}
+
+type InjectionNoIssuesResp struct {
+	ID           int         `json:"datapack_id"`
+	Name         string      `json:"datapack_name"`
+	EngineConfig *chaos.Node `json:"engine_config"`
+}
+
+func NewInjectionNoIssuesResp(entity database.FaultInjectionNoIssues) (*InjectionNoIssuesResp, error) {
+	var engineConfig *chaos.Node
+	err := json.Unmarshal([]byte(entity.EngineConfig), engineConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal engine config: %w", err)
+	}
+
+	return &InjectionNoIssuesResp{
+		ID:           entity.ID,
+		Name:         entity.Name,
+		EngineConfig: engineConfig,
+	}, nil
+}
+
+// InjectionWithIssuesResp represents the response for fault injections with issues
+type InjectionWithIssuesResp struct {
+	ID                  int        `json:"datapack_id"`
+	Name                string     `json:"datapack_name"`
+	EngineConfig        chaos.Node `json:"engine_config"`
+	Issues              string     `json:"issues"`
+	AbnormalAvgDuration float64    `json:"abnormal_avg_duration"`
+	NormalAvgDuration   float64    `json:"normal_avg_duration"`
+	AbnormalSuccRate    float64    `json:"abnormal_succ_rate"`
+	NormalSuccRate      float64    `json:"normal_succ_rate"`
+	AbnormalP99         float64    `json:"abnormal_p99"`
+	NormalP99           float64    `json:"normal_p99"`
+}
+
+func NewInjectionWithIssuesResp(entity database.FaultInjectionWithIssues) (*InjectionWithIssuesResp, error) {
+	var engineConfig chaos.Node
+	err := json.Unmarshal([]byte(entity.EngineConfig), &engineConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal engine config: %w", err)
+	}
+	return &InjectionWithIssuesResp{
+		ID:                  entity.ID,
+		Name:                entity.Name,
+		EngineConfig:        engineConfig,
+		Issues:              entity.Issues,
+		AbnormalAvgDuration: entity.AbnormalAvgDuration,
+		NormalAvgDuration:   entity.NormalAvgDuration,
+		AbnormalSuccRate:    entity.AbnormalSuccRate,
+		NormalSuccRate:      entity.NormalSuccRate,
+		AbnormalP99:         entity.AbnormalP99,
+		NormalP99:           entity.NormalP99,
+	}, nil
+}
+
+// datapack
+type BuildingSpec struct {
+	Benchmark   *ContainerSpec `json:"benchmark" binding:"required"`
+	Datapack    *string        `json:"datapack" binding:"omitempty"`
+	Dataset     *DatasetRef    `json:"dataset" binding:"omitempty"`
+	PreDuration *int           `json:"pre_duration" binding:"omitempty"`
+}
+
+func (spec *BuildingSpec) Validate() error {
+	hasDatapack := spec.Datapack != nil
+	hasDataset := spec.Dataset != nil
+
+	if !hasDatapack && !hasDataset {
+		return fmt.Errorf("either datapack or dataset must be specified")
+	}
+	if hasDatapack && hasDataset {
+		return fmt.Errorf("cannot specify both datapack and dataset")
+	}
+
+	if hasDatapack {
+		if *spec.Datapack == "" {
+			return fmt.Errorf("datapack name cannot be empty")
+		}
+	}
+
+	if hasDataset {
+		if err := spec.Dataset.Validate(); err != nil {
+			return fmt.Errorf("invalid dataset: %w", err)
+		}
+	}
+
+	if spec.Benchmark != nil {
+		return fmt.Errorf("benchmark must not be nil")
+	} else {
+		if err := spec.Benchmark.Validate(); err != nil {
+			return fmt.Errorf("invalid benchmark: %w", err)
+		}
+		if err := validateBenchmarkName(spec.Benchmark.Name); err != nil {
+			return err
+		}
+	}
+
+	if spec.PreDuration != nil && *spec.PreDuration <= 0 {
+		return fmt.Errorf("pre_duration must be greater than 0")
+	}
+
+	return nil
+}
+
+type SubmitBuildingItem struct {
+	Index   int    `json:"index"`
+	TraceID string `json:"trace_id"`
+	TaskID  string `json:"task_id"`
+}
+
+// SubmitDatapackResp represents the response for submitting datapack building tasks
+type SubmitDatapackBuildingResp struct {
+	GroupID string               `json:"group_id"`
+	Items   []SubmitBuildingItem `json:"items"`
+}
+
+// validateBenchmark checks if the benchmark name is valid
+func validateBenchmarkName(benchmark string) error {
+	if benchmark == "" {
+		return fmt.Errorf("benchmark must not be blank")
+	} else {
+		if _, exists := utils.GetValidBenchmarkMap()[benchmark]; !exists {
+			return fmt.Errorf("invalid benchmark: %s", benchmark)
+		}
+	}
+
+	return nil
+}
+
+// validateChaosType checks if the provided chaos type is valid
+func validateChaosType(faultType *chaos.ChaosType) error {
+	if faultType != nil {
+		if _, exists := chaos.ChaosTypeMap[*faultType]; !exists {
+			return fmt.Errorf("invalid fault type: %d", faultType)
+		}
+	}
+	return nil
+}
+
+// validateDatapackState checks if the provided datapack state is valid
+func validateDatapackState(state *consts.DatapackState) error {
+	if state != nil {
+		if *state < 0 {
+			return fmt.Errorf("state must be a non-negative integer")
+		}
+		if _, exists := consts.ValidDatapackStates[consts.DatapackState(*state)]; !exists {
+			return fmt.Errorf("invalid state: %d", *state)
+		}
+	}
+	return nil
 }

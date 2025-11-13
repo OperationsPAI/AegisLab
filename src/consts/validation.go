@@ -8,18 +8,13 @@ var ValidActions = map[ActionName]struct{}{
 	ActionExecute: {},
 }
 
-var ValidCommonStatus = map[int]struct{}{
-	CommonDeleted:  {},
-	CommonDisabled: {},
-	CommonEnabled:  {},
+var ValidAuditLogStates = map[AuditLogState]struct{}{
+	AuditLogStateFailed:  {},
+	AuditLogStateSuccess: {},
 }
 
-func GetValidStatusKeys() []int {
-	keys := make([]int, 0, len(ValidCommonStatus))
-	for k := range ValidCommonStatus {
-		keys = append(keys, k)
-	}
-	return keys
+var ValidBenchmarks = map[string]struct{}{
+	"clickhouse": {},
 }
 
 var ValidContainerTypes = map[ContainerType]struct{}{
@@ -28,8 +23,52 @@ var ValidContainerTypes = map[ContainerType]struct{}{
 	ContainerTypePedestal:  {},
 }
 
+var ValidDatapackStates = map[DatapackState]struct{}{
+	DatapackInitial:       {},
+	DatapackInjectFailed:  {},
+	DatapackInjectSuccess: {},
+	DatapackBuildFailed:   {},
+	DatapackBuildSuccess:  {},
+}
+
+var ValidExecutionStates = map[ExecuteState]struct{}{
+	ExecutionInitial: {},
+	ExecutionFailed:  {},
+	ExecutionSuccess: {},
+}
+
+var ValidGrantTypes = map[GrantType]struct{}{
+	GrantTypeGrant: {},
+	GrantTypeDeny:  {},
+}
+
+var ValidLabelCategories = map[LabelCategory]struct{}{
+	SystemCategory:    {},
+	ContainerCategory: {},
+	DatasetCategory:   {},
+	ProjectCategory:   {},
+	InjectionCategory: {},
+	ExecutionCategory: {},
+}
+
+var ValidResourceTypes = map[ResourceType]struct{}{
+	ResourceTypeSystem: {},
+	ResourceTypeTable:  {},
+}
+
+var ValidResourceCategories = map[ResourceCategory]struct{}{
+	ResourceCore:  {},
+	ResourceAdmin: {},
+}
+
+var ValidStatuses = map[StatusType]struct{}{
+	CommonDeleted:  {},
+	CommonDisabled: {},
+	CommonEnabled:  {},
+}
+
 var ValidTaskEvents = map[TaskType][]EventType{
-	TaskTypeBuildDataset: {
+	TaskTypeBuildDatapack: {
 		EventDatapackBuildSucceed,
 	},
 	TaskTypeCollectResult: {
@@ -45,10 +84,28 @@ var ValidTaskEvents = map[TaskType][]EventType{
 	TaskTypeRunAlgorithm: {
 		EventAlgoRunSucceed,
 	},
-	TaskTypeRestartService: {
+	TaskTypeRestartPedestal: {
 		EventNoNamespaceAvailable,
-		EventRestartServiceStarted,
-		EventRestartServiceCompleted,
-		EventRestartServiceFailed,
+		EventRestartPedestalStarted,
+		EventRestartPedestalCompleted,
+		EventRestartPedestalFailed,
 	},
+}
+
+var ValidTaskStates = map[TaskState]struct{}{
+	TaskCancelled:   {},
+	TaskError:       {},
+	TaskPending:     {},
+	TaskRescheduled: {},
+	TaskRunning:     {},
+	TaskCompleted:   {},
+}
+
+var ValidTaskTypes = map[TaskType]struct{}{
+	TaskTypeBuildContainer:  {},
+	TaskTypeRestartPedestal: {},
+	TaskTypeBuildDatapack:   {},
+	TaskTypeFaultInjection:  {},
+	TaskTypeRunAlgorithm:    {},
+	TaskTypeCollectResult:   {},
 }

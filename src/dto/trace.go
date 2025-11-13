@@ -3,9 +3,9 @@ package dto
 import (
 	"aegis/consts"
 	"encoding/json"
-	"reflect"
-
-	"github.com/sirupsen/logrus"
+	"fmt"
+	"strings"
+	"time"
 )
 
 type StreamEvent struct {
@@ -19,55 +19,15 @@ type StreamEvent struct {
 	Payload   any              `json:"payload,omitempty" swaggertype:"object"`
 }
 
-type DatasetOptions struct {
-	Dataset string `json:"dataset"`
-}
-
-type ExecutionOptions struct {
-	Algorithm   AlgorithmItem `json:"algorithm"`
-	Dataset     string        `json:"dataset"`
-	ExecutionID int           `json:"execution_id"`
-	Timestamp   string        `json:"timestamp"`
-}
-
-type InfoPayloadTemplate struct {
-	Status string `json:"status"`
-	Msg    string `json:"msg"`
-}
-
-type JobMessage struct {
-	JobName   string `json:"job_name"`
-	Namespace string `json:"namespace"`
-	LogFile   string `json:"log_file,omitempty"`
-}
-
-var PayloadTypeRegistry = map[consts.EventType]reflect.Type{
-	// Algorithm execution events
-	consts.EventAlgoRunSucceed: reflect.TypeOf(ExecutionOptions{}),
-	consts.EventAlgoRunFailed:  reflect.TypeOf(ExecutionOptions{}),
-
-	// Dataset Build events
-	consts.EventDatapackBuildSucceed: reflect.TypeOf(DatasetOptions{}),
-	consts.EventDatapackBuildFailed:  reflect.TypeOf(DatasetOptions{}),
-
-	// Task status events
-	consts.EventTaskStatusUpdate: reflect.TypeOf(InfoPayloadTemplate{}),
-
-	// K8s Job events
-	consts.EventJobSucceed: reflect.TypeOf(JobMessage{}),
-	consts.EventJobFailed:  reflect.TypeOf(JobMessage{}),
-}
-
 func (s *StreamEvent) ToRedisStream() map[string]any {
 	payload, err := json.Marshal(s.Payload)
 	if err != nil {
-		logrus.Errorf("Failed to marshal payload: %v", err)
 		return nil
 	}
 
 	return map[string]any{
 		consts.RdbEventTaskID:   s.TaskID,
-		consts.RdbEventTaskType: string(s.TaskType),
+		consts.RdbEventTaskType: consts.GetTaskTypeName(s.TaskType),
 		consts.RdbEventFileName: s.FileName,
 		consts.RdbEventFn:       s.FnName,
 		consts.RdbEventLine:     s.Line,
@@ -84,15 +44,52 @@ func (s *StreamEvent) ToSSE() (string, error) {
 	return string(jsonData), nil
 }
 
-type GetCompletedMapReq struct {
-	TimeRangeQuery
+type DatapackResult struct {
+	Datapack  *InjectionItem `json:"datapack"`
+	Timestamp string         `json:"timestamp"`
 }
 
-type GetCompletedMapResp struct {
-	AnomalyTraces   []string `json:"has_anomaly"` // List of trace IDs with detected anomalies
-	NoAnomalyTraces []string `json:"no_anomaly"`  // List of trace IDs without anomalies
+type ExecutionResult struct {
+	Algorithm   *ContainerVersionItem `json:"algorithm"`
+	Datapack    *InjectionItem        `json:"datapack"`
+	ExecutionID int                   `json:"execution_id"`
+	Timestamp   string                `json:"timestamp"`
 }
 
-func (req *GetCompletedMapReq) Validate() error {
-	return req.TimeRangeQuery.Validate()
+type InfoPayloadTemplate struct {
+	State string `json:"task_state"`
+	Msg   string `json:"msg"`
+}
+
+type JobMessage struct {
+	JobName   string `json:"job_name"`
+	Namespace string `json:"namespace"`
+	LogFile   string `json:"log_file,omitempty"`
+}
+
+type TraceQuery struct {
+	TraceID       string          `json:"trace_id"`
+	FirstTaskType consts.TaskType `json:"first_task_type"`
+	StartTime     time.Time       `json:"start_time"`
+	EndTime       time.Time       `json:"end_time"`
+}
+
+type GetTraceStreamReq struct {
+	LastID string `form:"last_id" binding:"required"`
+}
+
+func (req *GetTraceStreamReq) Validate() error {
+	if req.LastID == "" {
+		req.LastID = "0"
+	}
+
+	if req.LastID == "0" {
+		return nil
+	}
+
+	if strings.Count(req.LastID, "-") != 1 {
+		return fmt.Errorf("invalid last_id format: must be '0' or a valid stream ID (e.g., 1678886400000-0)")
+	}
+
+	return nil
 }

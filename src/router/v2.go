@@ -129,133 +129,36 @@ func SetupV2Routes(router *gin.Engine) {
 		}
 	}
 
-	// Authentication and Authorization API Group (partially implemented, others for future expansion)
-	roles := v2.Group("/roles", middleware.JWTAuth()) // Role Management - Role Entity
-	{
-		permissions := roles.Group("/:id/permissions") // Role-Permission relationships
-		{
-			permissions.POST("", v2handlers.AssignPermissionsToRole)     // Assign permissions to role
-			permissions.DELETE("", v2handlers.RemovePermissionsFromRole) // Remove permissions from role
-		}
-
-		users := roles.Group("/:id/users") // Role-User relationships
-		{
-			users.GET("", v2handlers.ListUsersFromRole) // List users with this role
-		}
-
-		roleRead := roles.Group("", middleware.RequireRoleRead)
-		{
-			roleRead.GET("/:id", v2handlers.GetRole)         // Get role by ID
-			roleRead.GET("", v2handlers.ListRoles)           // List roles
-			roleRead.POST("/search", v2handlers.SearchRoles) // Search roles
-		}
-
-		// Write operations (admin only)
-		roleWrite := roles.Group("", middleware.RequireRoleWrite)
-		{
-			roleWrite.POST("", v2handlers.CreateRole)      // Create role
-			roleWrite.PATCH("/:id", v2handlers.UpdateRole) // Update role
-		}
-
-		// Delete operations (admin only)
-		roles.DELETE("/:id", middleware.RequireRoleDelete, v2handlers.DeleteRole) // Delete role
-	}
-
-	users := v2.Group("/users", middleware.JWTAuth()) // User Management - User Entity
-	{
-		roles := users.Group("/:id/roles") // User-Role relationships
-		{
-			roles.POST("", v2handlers.AssignGlobalRole)            // Assign role to user
-			roles.DELETE("/:role_id", v2handlers.RemoveGlobalRole) // Remove role from user
-		}
-
-		projects := users.Group("/:id/projects") // User-Project relationships
-		{
-			projects.POST("", v2handlers.AssignUserToProject)                 // Assign user to project
-			projects.DELETE("/:project_id", v2handlers.RemoveUserFromProject) // Remove user from project
-		}
-
-		userRead := users.Group("", middleware.RequireUserRead)
-		{
-			userRead.GET("", middleware.RequireUserRead, v2handlers.ListUsers)               // List users
-			userRead.GET("/:id", middleware.RequireAdminOrUserOwnership, v2handlers.GetUser) // Get user by ID
-			userRead.POST("/search", middleware.RequireUserRead, v2handlers.SearchUsers)     // Search users
-		}
-
-		// Write operations
-		userWrite := users.Group("", middleware.RequireUserWrite)
-		{
-			userWrite.POST("", v2handlers.CreateUser)    // Create user
-			userWrite.PUT("/:id", v2handlers.UpdateUser) // Update user
-		}
-
-		// Delete operations (admin only)
-		users.DELETE("/:id", middleware.RequireUserDelete, v2handlers.DeleteUser) // Delete user
-	}
-
-	permissions := v2.Group("/permissions", middleware.JWTAuth()) // Permission Management - Permission Entity
-	{
-		roles := permissions.Group("/:id/roles") // Permission-Role relationships
-		{
-			roles.GET("", v2handlers.ListPermissionRoles) // List roles assigned to permission
-		}
-
-		permRead := permissions.Group("", middleware.RequirePermissionRead)
-		{
-			permRead.GET("", v2handlers.ListPermissions)           // List permissions
-			permRead.GET("/:id", v2handlers.GetPermission)         // Get permission by ID
-			permRead.POST("/search", v2handlers.SearchPermissions) // Search permissions
-		}
-
-		// Write operations (admin only)
-		permWrite := permissions.Group("", middleware.RequirePermissionWrite)
-		{
-			permWrite.POST("", v2handlers.CreatePermission)      // Create permission
-			permWrite.PATCH("/:id", v2handlers.UpdatePermission) // Update permission
-		}
-
-		// Delete operations (admin only)
-		permissions.DELETE("/:id", middleware.RequirePermissionDelete, v2handlers.DeletePermission) // Delete permission
-	}
-
-	resources := v2.Group("/resources") // Resource Management - Resource Entity
-	{
-		permissions := resources.Group("/:id/permissions") // Resource-Permission relationships
-		{
-			permissions.GET("", v2handlers.ListResourcePermissions) // List permissions assigned to resource
-		}
-	}
-
-	// Core Business Entity API Group
-
-	// Task Management - Task Entity
-	tasks := v2.Group("/tasks", middleware.JWTAuth())
-	{
-		// Read operations
-		// GET /api/v2/tasks?page=1&size=20&task_type=RestartService&status=Completed
-		tasks.GET("", middleware.RequireTaskRead, v2handlers.ListTasks)
-
-		// GET /api/v2/tasks/{id}?include=logs
-		tasks.GET("/:id", middleware.RequireTaskRead, v2handlers.GetTask)
-
-		// POST /api/v2/tasks/search - Advanced search with complex filters
-		tasks.POST("/search", middleware.RequireTaskRead, v2handlers.SearchTasks)
-
-		// POST /api/v2/tasks/queue - Get tasks in ready/delayed queues (admin only for system-wide view)
-		tasks.POST("/queue", middleware.RequireSystemRead, v2handlers.GetQueuedTasks)
-	}
+	// =====================================================================
+	// Admin Entity API Group
+	// =====================================================================
 
 	// Container Management - Container Entity
 	containers := v2.Group("/containers", middleware.JWTAuth())
 	{
+		// Container Version sub-resource routes
 		versions := containers.Group("/:container_id/versions")
 		{
-			versions.GET("/:version_id", middleware.RequireContainerVersionRead, v2handlers.GetContainerVersion)
-			versions.POST("", middleware.RequireContainerVersionWrite, v2handlers.CreateContainerVersion)
-			versions.PATCH("/:version_id", middleware.RequireContainerVersionWrite, v2handlers.UpdateContainerVersion)
+
+			// Container Version Read operations
+			versionRead := versions.Group("", middleware.RequireContainerVersionRead)
+			{
+				versionRead.GET("/:version_id", v2handlers.GetContainerVersion) // Get container version by ID
+				versionRead.GET("", v2handlers.ListContainerVersions)           // List container versions
+			}
+
+			// Container Version Write operations
+			versionWrite := versions.Group("", middleware.RequireContainerVersionWrite)
+			{
+				versionWrite.POST("", v2handlers.CreateContainerVersion)              // Create container version
+				versionWrite.PATCH("/:version_id", v2handlers.UpdateContainerVersion) // Update container version
+			}
+
+			// Container Version Delete operations
 			versions.DELETE("/:version_id", middleware.RequireContainerVersionDelete, v2handlers.DeleteContainerVersion)
 		}
 
+		// Container Read operations
 		containerRead := containers.Group("", middleware.RequireContainerRead)
 		{
 			containerRead.GET("/:container_id", v2handlers.GetContainer) // Get container by ID
@@ -263,120 +166,335 @@ func SetupV2Routes(router *gin.Engine) {
 			containerRead.POST("/search", v2handlers.SearchContainers)   // Advanced search
 		}
 
+		// Container Write operations
 		containerWrite := containers.Group("", middleware.RequireContainerWrite)
 		{
-			containerWrite.POST("", v2handlers.CreateContainer)
-			containerWrite.PATCH("/:container_id", middleware.RequireContainerWrite, v2handlers.UpdateContainer)
+			containerWrite.POST("", v2handlers.CreateContainer)                                   // Create container
+			containers.POST("/build", v2handlers.SubmitContainerBuilding)                         // Build container
+			containerWrite.PATCH("/:container_id", v2handlers.UpdateContainer)                    // Update container
+			containerWrite.PATCH("/:container_id/labels", v2handlers.ManageContainerCustomLabels) // Manage container labels
 		}
 
-		containers.POST("/build", v2handlers.BuildContainer)
-		containers.DELETE("/:container_id", middleware.RequireContainerDelete, v2handlers.DeleteContainer)
-	}
-
-	// Algorithm Management - Algorithms (Algorithm is a special type of container)
-	algorithms := v2.Group("/algorithms", middleware.JWTAuth())
-	{
-		// Read operations
-		// GET /api/v2/algorithms?page=1&size=10 - Only active algorithms with type=algorithm
-		algorithms.GET("", middleware.RequireContainerRead, v2handlers.ListAlgorithms)
-
-		// POST /api/v2/algorithms/search - Advanced search for algorithms (containers with type=algorithm)
-		algorithms.POST("/search", middleware.RequireContainerRead, v2handlers.SearchAlgorithms)
-
-		// Algorithm execution operations
-		// POST /api/v2/algorithms/execute - Submit single algorithm execution (supports both datapack and dataset)
-		algorithms.POST("/execute", middleware.RequireContainerWrite, v2handlers.SubmitAlgorithmExecution)
-
-		// Algorithm result upload operations
-		// POST /api/v2/algorithms/{algorithm_id}/executions/{execution_id}/detectors - Upload detector results
-		algorithms.POST("/:algorithm_id/executions/:execution_id/detectors", middleware.RequireContainerWrite, v2handlers.UploadDetectorResults)
-
-		// POST /api/v2/algorithms/{algorithm_id}/results - Upload granularity results (supports auto-execution creation via query param)
-		algorithms.POST("/:algorithm_id/results", middleware.RequireContainerWrite, v2handlers.UploadGranularityResults)
-	}
-
-	// Other Business Entity API Group
-	injections := v2.Group("/injections", middleware.JWTAuth()) // Fault Injection Management - FaultInjectionSchedule Entity
-	{
-		// Create operations
-		injections.POST("", middleware.RequireFaultInjectionWrite, v2handlers.CreateInjection) // Create injections (batch supported)
-
-		// Read operations
-		injections.GET("", middleware.RequireFaultInjectionRead, v2handlers.ListInjections)           // List injections
-		injections.GET("/:id", middleware.RequireFaultInjectionRead, v2handlers.GetInjection)         // Get injection by ID
-		injections.POST("/search", middleware.RequireFaultInjectionRead, v2handlers.SearchInjections) // Advanced search
-
-		// Write operations
-		injections.PUT("/:id", middleware.RequireFaultInjectionWrite, v2handlers.UpdateInjection)                        // Update injection
-		injections.PATCH("/:name/tags", middleware.RequireFaultInjectionWrite, v2handlers.ManageInjectionTags)           // Manage injection labels
-		injections.PATCH("/:name/labels", middleware.RequireFaultInjectionWrite, v2handlers.ManageInjectionCustomLabels) // Manage injection custom labels
-		injections.DELETE("/:id", middleware.RequireFaultInjectionDelete, v2handlers.DeleteInjection)                    // Delete injection (soft delete)
-		injections.POST("/batch-delete", middleware.RequireFaultInjectionDelete, v2handlers.BatchDeleteInjections)       // Batch delete injections
-
+		// Container Delete operations
+		containers.DELETE("/:container_id", middleware.RequireContainerDelete, v2handlers.DeleteContainer) // Delete container
 	}
 
 	// Dataset Management - Dataset Entity
 	datasets := v2.Group("/datasets", middleware.JWTAuth())
 	{
-		datasets.GET("", middleware.RequireDatasetRead, v2handlers.ListDatasets)
-		datasets.GET("/:id", middleware.RequireDatasetRead, v2handlers.GetDataset)
-		datasets.GET("/:id/download", middleware.RequireDatasetRead, v2handlers.DownloadDataset)
-		datasets.POST("/search", middleware.RequireDatasetRead, v2handlers.SearchDatasets)
-		datasets.POST("", middleware.RequireDatasetWrite, v2handlers.CreateDataset)
-		datasets.PUT("/:id", middleware.RequireDatasetWrite, v2handlers.UpdateDataset)
-		datasets.PATCH("/:id/injections", middleware.RequireDatasetWrite, v2handlers.ManageDatasetInjections)
-		datasets.PATCH("/:id/labels", middleware.RequireDatasetWrite, v2handlers.ManageDatasetLabels)
-		datasets.DELETE("/:id", middleware.RequireDatasetDelete, v2handlers.DeleteDataset)
-	}
+		// Dataset Version sub-resource routes
+		versions := datasets.Group("/:dataset_id/versions")
+		{
+			versionRead := versions.Group("", middleware.RequireDatasetVersionRead)
+			{
+				versionRead.GET("/:version_id", v2handlers.GetDatasetVersion) // Get dataset version by ID
+				versionRead.GET("", v2handlers.ListDatasetVersions)           // List dataset versions
+			}
 
-	// Execution Result Management - ExecutionResult Entity
-	executions := v2.Group("/executions")
-	labels := v2.Group("/labels") // Label Management - Label Entity
-	{
-		labels.POST("", v2handlers.CreateLabels)
+			versionWrite := versions.Group("", middleware.RequireDatasetVersionWrite)
+			{
+				versionWrite.POST("", v2handlers.CreateDatasetVersion)                                   // Create dataset version
+				versionWrite.PATCH("/:version_id", v2handlers.UpdateDatasetVersion)                      // Update dataset version
+				versionWrite.PATCH("/:version_id/injections", v2handlers.ManageDatasetVersionInjections) // Manage dataset version injections
+			}
+
+			versions.DELETE("/:version_id", middleware.RequireDatasetVersionDelete, v2handlers.DeleteDatasetVersion) // Delete dataset version
+		}
+
+		// Dataset Read operations
+		datasetRead := datasets.Group("", middleware.RequireDatasetRead)
+		{
+			datasetRead.GET("/:id", v2handlers.GetDataset)                      // Get dataset by ID
+			datasetRead.GET("", v2handlers.ListDatasets)                        // List datasets
+			datasetRead.GET("/:id/download", v2handlers.DownloadDatasetVersion) // Download dataset version
+		}
+
+		// Dataset Write operations
+		datasetWrite := datasets.Group("", middleware.RequireDatasetWrite)
+		{
+			datasetWrite.POST("", v2handlers.CreateDataset)                         // Create dataset
+			datasetWrite.PUT("/:id", v2handlers.UpdateDataset)                      // Update dataset
+			datasetWrite.PATCH("/:id/labels", v2handlers.ManageDatasetCustomLabels) // Manage dataset labels
+		}
+
+		// Dataset Delete operations
+		datasets.DELETE("/:id", middleware.RequireDatasetDelete, v2handlers.DeleteDataset) // Delete dataset
 	}
 
 	// Project Management - Project Entity
 	projects := v2.Group("/projects", middleware.JWTAuth())
 	{
-		projects.GET("/:id", v2handlers.GetProject)
+		// Project Read operations
+		projectRead := projects.Group("", middleware.RequireProjectRead)
+		{
+			projectRead.GET("/:id", v2handlers.GetProjectDetail) // Get project by ID
+			projectRead.GET("", v2handlers.ListProjects)         // List projects
+		}
+
+		// Project Write operations
+		projectWrite := projects.Group("", middleware.RequireProjectWrite)
+		{
+			projectWrite.POST("", v2handlers.CreateProject)                         // Create project
+			projectWrite.PATCH("/:id", v2handlers.UpdateProject)                    // Update project
+			projectWrite.PATCH("/:id/labels", v2handlers.ManageProjectCustomLabels) // Manage project labels
+		}
+
+		// Project Delete operations
+		projects.DELETE("/:id", middleware.RequireProjectDelete, v2handlers.DeleteProject) // Delete project
 	}
+
+	// Label Management - Label Entity
+	labels := v2.Group("/labels", middleware.JWTAuth())
+	{
+		// Label Read operations
+		labelRead := labels.Group("", middleware.RequireLabelRead)
+		{
+			labelRead.GET("/:id", v2handlers.GetLabelDetail) // Get label by ID
+			labelRead.GET("", v2handlers.ListLabels)         // List labels
+		}
+
+		// Label Write operations
+		labelWrite := labels.Group("", middleware.RequireLabelWrite)
+		{
+			labelWrite.POST("", v2handlers.CreateLabel)      // Create label
+			labelWrite.PATCH("/:id", v2handlers.UpdateLabel) // Update label
+		}
+
+		// Label Delete operations
+		labels.DELETE("/:id", middleware.RequireLabelDelete, v2handlers.DeleteLabel)              // Delete label
+		labels.POST("/batch-delete", middleware.RequireLabelDelete, v2handlers.BatchDeleteLabels) // Batch delete labels
+	}
+
+	// User Management - User Entity
+	users := v2.Group("/users", middleware.JWTAuth())
+	{
+		// User-Role relationship routes
+		roles := users.Group("/:id/roles")
+		{
+			roles.POST("", middleware.RequireUserWrite, v2handlers.AssignUserRole)              // Assign role to user
+			roles.DELETE("/:role_id", middleware.RequireUserWrite, v2handlers.RemoveGlobalRole) // Remove role from user
+		}
+
+		// User-Project relationship routes
+		projects := users.Group("/:id/projects")
+		{
+			projects.POST("", middleware.RequireUserWrite, v2handlers.AssignUserProject)               // Assign user to project
+			projects.DELETE("/:project_id", middleware.RequireUserWrite, v2handlers.RemoveUserProject) // Remove user from project
+		}
+
+		// User-Permission relationship routes
+		permissions := users.Group("/:id/permissions")
+		{
+			permissions.POST("", middleware.RequireUserWrite, v2handlers.AssignUserPermission)   // Assign permission to user
+			permissions.DELETE("", middleware.RequireUserWrite, v2handlers.RemoveUserPermission) // Remove permission from user
+		}
+
+		// User-Container relationship routes
+		containers := users.Group("/:id/containers")
+		{
+			containers.POST("", middleware.RequireUserWrite, v2handlers.AssignUserContainer)   // Assign container to user
+			containers.DELETE("", middleware.RequireUserWrite, v2handlers.RemoveUserContainer) // Remove container from user
+		}
+
+		// User-Dataset relationship routes
+		datasets := users.Group("/:id/datasets")
+		{
+			datasets.POST("", middleware.RequireUserWrite, v2handlers.AssignUserDataset)   // Assign dataset to user
+			datasets.DELETE("", middleware.RequireUserWrite, v2handlers.RemoveUserDataset) // Remove dataset from user
+		}
+
+		// User Read operations
+		userRead := users.Group("", middleware.RequireUserRead)
+		{
+			userRead.GET("", v2handlers.ListUsersV2)                                                 // List users
+			userRead.GET("/:id", middleware.RequireAdminOrUserOwnership, v2handlers.GetUserDetailV2) // Get user by ID
+			userRead.POST("/search", v2handlers.SearchUsers)                                         // Search users
+		}
+
+		// User Write operations
+		userWrite := users.Group("", middleware.RequireUserWrite)
+		{
+			userWrite.POST("", v2handlers.CreateUser)    // Create user
+			userWrite.PUT("/:id", v2handlers.UpdateUser) // Update user
+		}
+
+		// User Delete operations
+		users.DELETE("/:id", middleware.RequireUserDelete, v2handlers.DeleteUser) // Delete user
+	}
+
+	// =====================================================================
+	// Authentication and Authorization API Group
+	// =====================================================================
+
+	// Role Management - Role Entity
+	roles := v2.Group("/roles", middleware.JWTAuth())
+	{
+		// Role-Permission relationship routes
+		permissions := roles.Group("/:id/permissions")
+		{
+			permissions.POST("", middleware.RequireRoleWrite, v2handlers.AssignRolePermission)        // Assign permissions to role
+			permissions.DELETE("", middleware.RequireRoleWrite, v2handlers.RemovePermissionsFromRole) // Remove permissions from role
+		}
+
+		// Role-User relationship routes
+		users := roles.Group("/:id/users")
+		{
+			users.GET("", middleware.RequireRoleRead, v2handlers.ListUsersFromRole) // List users with this role
+		}
+
+		// Role Read operations
+		roleRead := roles.Group("", middleware.RequireRoleRead)
+		{
+			roleRead.GET("/:id", v2handlers.GetRole)         // Get role by ID
+			roleRead.GET("", v2handlers.ListRoles)           // List roles
+			roleRead.POST("/search", v2handlers.SearchRoles) // Search roles
+		}
+
+		// Role Write operations
+		roleWrite := roles.Group("", middleware.RequireRoleWrite)
+		{
+			roleWrite.POST("", v2handlers.CreateRole)      // Create role
+			roleWrite.PATCH("/:id", v2handlers.UpdateRole) // Update role
+		}
+
+		// Role Delete operations
+		roles.DELETE("/:id", middleware.RequireRoleDelete, v2handlers.DeleteRole) // Delete role
+	}
+
+	// Permission Management - Permission Entity
+	permissions := v2.Group("/permissions", middleware.JWTAuth())
+	{
+		// Permission-Role relationship routes
+		roles := permissions.Group("/:id/roles")
+		{
+			roles.GET("", middleware.RequirePermissionRead, v2handlers.ListRolesFromPermission) // List roles assigned to permission
+		}
+
+		// Permission Read operations
+		permRead := permissions.Group("", middleware.RequirePermissionRead)
+		{
+			permRead.GET("", v2handlers.ListPermissions)           // List permissions
+			permRead.GET("/:id", v2handlers.GetPermission)         // Get permission by ID
+			permRead.POST("/search", v2handlers.SearchPermissions) // Search permissions
+		}
+
+		// Permission Write operations
+		permWrite := permissions.Group("", middleware.RequirePermissionWrite)
+		{
+			permWrite.POST("", v2handlers.CreatePermission)      // Create permission
+			permWrite.PATCH("/:id", v2handlers.UpdatePermission) // Update permission
+		}
+
+		// Permission Delete operations
+		permissions.DELETE("/:id", middleware.RequirePermissionDelete, v2handlers.DeletePermission) // Delete permission
+	}
+
+	// Resource Management - Resource Entity
+	resources := v2.Group("/resources", middleware.JWTAuth())
+	{
+		// Resource-Permission relationship routes
+		permissions := resources.Group("/:id/permissions")
+		{
+			permissions.GET("", v2handlers.ListResourcePermissions) // List permissions assigned to resource
+		}
+
+		// Resource Read operations
+		resources.GET("/:id", v2handlers.GetResourceDetail) // Get resource by ID
+		resources.GET("", v2handlers.ListResources)         // List resources
+	}
+
+	// =====================================================================
+	// Core Business Entity API Group
+	// =====================================================================
+
+	// Task Management - Task Entity
+	tasks := v2.Group("/tasks", middleware.JWTAuth())
+	{
+		// Task Read operations
+		taskRead := tasks.Group("", middleware.RequireTaskRead)
+		{
+			taskRead.GET("", v2handlers.ListTasks)   // List tasks
+			taskRead.GET("/:id", v2handlers.GetTask) // Get task by ID
+		}
+
+		// Task Delete operations
+		tasks.POST("/batch-delete", middleware.RequireTaskDelete, v2handlers.BatchDeleteTasks) // Batch delete tasks
+	}
+
+	// Fault Injection Management - FaultInjectionSchedule Entity
+	injections := v2.Group("/injections", middleware.JWTAuth())
+	{
+		// Injection Analysis sub-group
+		analysis := injections.Group("/analysis", middleware.RequireFaultInjectionRead)
+		{
+			analysis.GET("/no-issues", v2handlers.ListFaultInjectionNoIssues)     // Get fault injections with no issues
+			analysis.GET("/with-issues", v2handlers.ListFaultInjectionWithIssues) // Get fault injections with issues
+		}
+
+		// Injection Read operations
+		injectionRead := injections.Group("", middleware.RequireFaultInjectionRead)
+		{
+			injectionRead.GET("", v2handlers.ListInjections)                // List injections
+			injectionRead.GET("/:id", v2handlers.GetInjection)              // Get injection by ID
+			injectionRead.GET("/metadata", v2handlers.GetInjectionMetadata) // Get injection metadata
+			injectionRead.POST("/search", v2handlers.SearchInjections)      // Advanced search
+		}
+
+		// Injection Write operations
+		injectionWrite := injections.Group("", middleware.RequireFaultInjectionWrite)
+		{
+			injectionWrite.POST("/inject", v2handlers.SubmitFaultInjection)               // Submit new injection
+			injectionWrite.POST("/build", v2handlers.SubmitDatapackBuilding)              // Submit new datapack building
+			injectionWrite.PATCH("/:name/labels", v2handlers.ManageInjectionCustomLabels) // Manage injection custom labels
+		}
+
+		// Injection Delete operations
+		injections.POST("/batch-delete", middleware.RequireFaultInjectionDelete, v2handlers.BatchDeleteInjections) // Batch delete injections
+	}
+
+	// Execution Result Management - ExecutionResult Entity
+	executions := v2.Group("/executions", middleware.JWTAuth())
+	{
+		// Execution Read operations
+		executions.GET("", v2handlers.ListExecutions)                      // List executions
+		executions.GET("/:id", v2handlers.GetExecution)                    // Get execution by ID
+		executions.GET("/labels", v2handlers.ListAvaliableExecutionLabels) // List available execution labels
+
+		// Execution Write operations
+		executions.POST("/execute", v2handlers.SubmitAlgorithmExecution)                           // Submit algorithm execution
+		executions.POST("/:execution_id/detector_results", v2handlers.UploadDetectorResults)       // Upload detector results
+		executions.POST("/:execution_id/granularity_results", v2handlers.UploadGranularityResults) // Upload granularity results
+		executions.PATCH("/:id/labels", v2handlers.ManageExecutionCustomLabels)                    // Manage execution custom labels
+
+		// Execution Delete operations
+		executions.POST("/batch-delete", v2handlers.BatchDeleteExecutions) // Batch delete executions
+	}
+
+	// Trace Management - Trace Entity
+	traces := v2.Group("/traces", middleware.JWTAuth())
+	{
+		traces.GET("/:trace_id/stream", v2handlers.GetTraceStream) // Get trace stream (SSE)
+	}
+
+	// =====================================================================
+	// Analyzer Service API Group
+	// =====================================================================
+
+	// Analyzer related routes (placeholder for future expansion)
+	analyzer := v2.Group("/analyzer", middleware.JWTAuth())
+	_ = analyzer // Temporarily unused to avoid compilation errors
+
+	// =====================================================================
+	// Evaluation API Group
+	// =====================================================================
 
 	// Evaluation API Group
 	evaluations := v2.Group("/evaluations", middleware.JWTAuth())
 	{
-		// GET /api/v2/evaluations/label-keys - Get available label keys for filtering (requires system read permission)
-		evaluations.GET("/label-keys", middleware.RequireDatasetRead, v2handlers.GetAvailableLabelKeys)
+		// POST /api/v2/evaluations/datasets - Get algorithm evaluations on multiple datasets (requires dataset read permission)
+		evaluations.POST("/datasets", middleware.RequireDatasetRead, v2handlers.ListDatasetEvaluationResults)
 
-		// POST /api/v2/evaluations/datasets - Get algorithm evaluations on multiple datasets (requires system read permission)
-		evaluations.POST("/datasets", middleware.RequireDatasetRead, v2handlers.GetDatasetEvaluationResults)
-
-		// POST /api/v2/evaluations/datapacks - Get algorithm evaluations on multiple datapacks (requires system read permission)
-		evaluations.POST("/datapacks", middleware.RequireDatasetRead, v2handlers.GetDatapackEvaluationResults)
-
-		// POST /api/v2/evaluations/datapacks/detector - Get detector results for multiple datapacks (requires system read permission)
-		evaluations.POST("/datapacks/detector", middleware.RequireDatasetRead, v2handlers.GetDatapackDetectorResults)
+		// POST /api/v2/evaluations/datapacks - Get algorithm evaluations on multiple datapacks (requires dataset read permission)
+		evaluations.POST("/datapacks", middleware.RequireDatasetRead, v2handlers.ListDatapackEvaluationResults)
 	}
-
-	// Trace Management
-	traces := v2.Group("/traces", middleware.JWTAuth())
-	{
-		traces.GET("/:id/stream", v2handlers.GetTraceStream)
-	}
-
-	// Analysis and Detection related API Group (for future expansion)
-	detectors := v2.Group("/detectors")     // Detector Management - Detector Entity
-	granularity := v2.Group("/granularity") // Granularity Result Management - GranularityResult Entity
-	analyzer := v2.Group("/analyzer")       // Analyzer related
-
-	// Temporarily use empty assignment to avoid compilation errors, specific routes will be implemented gradually later
-	_ = injections
-	_ = executions
-	_ = labels
-	_ = projects
-	_ = resources
-	_ = detectors
-	_ = granularity
-	_ = traces
-	_ = analyzer
 }

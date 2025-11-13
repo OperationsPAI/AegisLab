@@ -18,13 +18,13 @@ import (
 
 // GetHealth handles system health check
 //
-//	@Summary System health check
-//	@Description Get system health status and service information
-//	@Tags System
-//	@Produce json
-//	@Success 200 {object} dto.GenericResponse[dto.HealthCheckResponse] "Health check successful"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /system/health [get]
+//	@Summary		System health check
+//	@Description	Get system health status and service information
+//	@Tags			System
+//	@Produce		json
+//	@Success		200	{object}	dto.GenericResponse[dto.HealthCheckResp]	"Health check successful"
+//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Router			/system/health [get]
 func GetHealth(c *gin.Context) {
 	start := time.Now()
 
@@ -61,7 +61,7 @@ func GetHealth(c *gin.Context) {
 		overallStatus = "unhealthy"
 	}
 
-	response := dto.HealthCheckResponse{
+	response := dto.HealthCheckResp{
 		Status:    overallStatus,
 		Timestamp: time.Now(),
 		Version:   "1.0.0",

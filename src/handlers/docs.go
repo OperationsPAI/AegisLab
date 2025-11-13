@@ -10,10 +10,11 @@ import "github.com/gin-gonic/gin"
 //	@Tags			Documentation
 //	@Accept			json
 //	@Produce		json
-//	@Success		200	{object}	dto.StreamEvent				"Server-Sent Event payload structure"
-//	@Success		200	{object}	dto.DatasetOptions			"Dataset configuration options"
-//	@Success		200	{object}	dto.ExecutionOptions		"Execution configuration"
-//	@Success		200	{object}	dto.InfoPayloadTemplate		"Information payload template"
-//	@Success		200	{object}	consts.SSEEventName			"SSE event name constants"
+//	@Success		200	{object}	dto.StreamEvent			"Server-Sent Event payload structure"
+//	@Success		200	{object}	dto.DatapackResult		"Datapack result structure"
+//	@Success		200	{object}	dto.ExecutionResult		"Execution result structure"
+//	@Success		200	{object}	dto.InfoPayloadTemplate	"Information payload template"
+//	@Success		200	{object}	dto.JobMessage			"k8s Job message structure"
+//	@Success		200	{object}	consts.SSEEventName		"SSE event name constants"
 //	@Router			/api/_docs/models [get]
 func SwaggerModelsDoc(c *gin.Context) {}

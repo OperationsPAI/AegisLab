@@ -1,398 +1,214 @@
 package v2
 
 import (
+	"aegis/consts"
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 
-	"aegis/database"
 	"aegis/dto"
-	"aegis/repository"
+	"aegis/handlers"
+	"aegis/middleware"
+	producer "aegis/service/prodcuer"
 	"aegis/utils"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 )
-
-// GetInjection
-//
-//	@Summary Get injection by ID
-//	@Description Get detailed information about a specific injection
-//	@Tags Injections
-//	@Produce json
-//	@Security BearerAuth
-//	@Param id path int true "Injection ID"
-//	@Param include query string false "Include related data (task)"
-//	@Success 200 {object} dto.GenericResponse[dto.InjectionV2Response] "Injection retrieved successfully"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid injection ID"
-//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-//	@Failure 404 {object} dto.GenericResponse[any] "Injection not found"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/injections/{id} [get]
-func GetInjection(c *gin.Context) {
-
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid injection ID")
-		return
-	}
-
-	include := c.Query("include")
-	includeTask := strings.Contains(include, "task")
-
-	// Build query with preloads
-	query := database.DB.Model(&database.FaultInjectionSchedule{})
-	if includeTask {
-		query = query.Preload("Task")
-	}
-
-	var injection database.FaultInjectionSchedule
-	if err := query.First(&injection, id).Error; err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			dto.ErrorResponse(c, http.StatusNotFound, "Injection not found")
-		} else {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get injection: "+err.Error())
-		}
-		return
-	}
-
-	response := dto.ToInjectionV2Response(&injection, includeTask)
-	dto.SuccessResponse(c, response)
-}
-
-// CreateInjection
-//
-//	@Summary Create injections
-//	@Description Create one or multiple injection records with automatic labeling based on task_id
-//	@Tags Injections
-//	@Accept json
-//	@Produce json
-//	@Security BearerAuth
-//	@Param injections body dto.InjectionV2CreateReq true "Injection creation request"
-//	@Success 200 {object} dto.GenericResponse[dto.InjectionV2CreateResponse] "Injections created successfully"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/injections [post]
-func CreateInjection(c *gin.Context) {
-	var req dto.InjectionV2CreateReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
-		return
-	}
-
-	// Validate request
-	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
-		return
-	}
-
-	// Create injections
-	createdInjections, failedItems, err := repository.CreateInjectionsV2(req.Injections)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to create injections: "+err.Error())
-		return
-	}
-
-	// Convert to response DTOs
-	createdItems := make([]dto.InjectionV2Response, len(createdInjections))
-	for i, injection := range createdInjections {
-		createdItems[i] = *dto.ToInjectionV2Response(&injection, false)
-	}
-
-	// Build response message
-	message := fmt.Sprintf("Successfully created %d injection(s)", len(createdInjections))
-	if len(failedItems) > 0 {
-		message += fmt.Sprintf(", %d failed", len(failedItems))
-	}
-
-	response := dto.InjectionV2CreateResponse{
-		CreatedCount: len(createdInjections),
-		CreatedItems: createdItems,
-		FailedCount:  len(failedItems),
-		FailedItems:  failedItems,
-		Message:      message,
-	}
-
-	dto.SuccessResponse(c, response)
-}
-
-// ListInjections
-//
-//	@Summary List injections
-//	@Description Get a paginated list of injections with filtering and sorting
-//	@Tags Injections
-//	@Produce json
-//	@Security BearerAuth
-//	@Param page query int false "Page number (default 1)"
-//	@Param size query int false "Page size (default 20, max 100)"
-//	@Param task_id query string false "Filter by task ID"
-//	@Param fault_type query int false "Filter by fault type"
-//	@Param status query int false "Filter by status"
-//	@Param benchmark query string false "Filter by benchmark"
-//	@Param search query string false "Search in injection name and description"
-//	@Param tags query []string false "Filter by tags (array of tag values)"
-//	@Param sort_by query string false "Sort field (id,task_id,fault_type,status,benchmark,injection_name,created_at,updated_at)"
-//	@Param sort_order query string false "Sort order (asc,desc)"
-//	@Param include query string false "Include related data (task)"
-//	@Success 200 {object} dto.GenericResponse[dto.InjectionSearchResponse] "Injections retrieved successfully"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request parameters"
-//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/injections [get]
-func ListInjections(c *gin.Context) {
-	var req dto.InjectionV2ListReq
-	if err := c.ShouldBindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters: "+err.Error())
-		return
-	}
-
-	// Set defaults
-	if req.Page == 0 {
-		req.Page = 1
-	}
-	if req.Size == 0 {
-		req.Size = 20
-	}
-	if req.SortBy == "" {
-		req.SortBy = "created_at"
-	}
-	if req.SortOrder == "" {
-		req.SortOrder = "desc"
-	}
-
-	// Call repository
-	injections, total, err := repository.ListInjectionsV2(req.Page, req.Size, req.TaskID, req.FaultType, req.Status, req.Benchmark, req.Search, req.Tags)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to list injections: "+err.Error())
-		return
-	}
-
-	includeTask := strings.Contains(req.Include, "task")
-	items, err := toInjectionV2ResponsesWithLabels(injections, includeTask)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to convert injections: "+err.Error())
-		return
-	}
-
-	// Create pagination info
-	pagination := dto.PaginationInfo{
-		Page:       req.Page,
-		Size:       req.Size,
-		Total:      total,
-		TotalPages: int((total + int64(req.Size) - 1) / int64(req.Size)),
-	}
-
-	response := dto.InjectionSearchResponse{
-		Items:      items,
-		Pagination: pagination,
-	}
-
-	dto.SuccessResponse(c, response)
-}
-
-// UpdateInjection
-//
-//	@Summary Update injection
-//	@Description Update injection information
-//	@Tags Injections
-//	@Accept json
-//	@Produce json
-//	@Security BearerAuth
-//	@Param id path int true "Injection ID"
-//	@Param injection body dto.InjectionV2UpdateReq true "Injection update request"
-//	@Success 200 {object} dto.GenericResponse[dto.InjectionV2Response] "Injection updated successfully"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-//	@Failure 404 {object} dto.GenericResponse[any] "Injection not found"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/injections/{id} [put]
-func UpdateInjection(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid injection ID")
-		return
-	}
-
-	var req dto.InjectionV2UpdateReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
-		return
-	}
-
-	// Check if injection exists
-	_, err = repository.GetInjectionByIDV2(id)
-	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			dto.ErrorResponse(c, http.StatusNotFound, "Injection not found")
-		} else {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get injection: "+err.Error())
-		}
-		return
-	}
-
-	// Build update map
-	updates := make(map[string]interface{})
-	if req.TaskID != nil {
-		updates["task_id"] = *req.TaskID
-	}
-	if req.FaultType != nil {
-		updates["fault_type"] = *req.FaultType
-	}
-	if req.DisplayConfig != nil {
-		updates["display_config"] = *req.DisplayConfig
-	}
-	if req.EngineConfig != nil {
-		updates["engine_config"] = *req.EngineConfig
-	}
-	if req.PreDuration != nil {
-		updates["pre_duration"] = *req.PreDuration
-	}
-	if req.StartTime != nil {
-		updates["start_time"] = *req.StartTime
-	}
-	if req.EndTime != nil {
-		updates["end_time"] = *req.EndTime
-	}
-	if req.Status != nil {
-		updates["status"] = *req.Status
-	}
-	if req.Description != nil {
-		updates["description"] = *req.Description
-	}
-	if req.Benchmark != nil {
-		updates["benchmark"] = *req.Benchmark
-	}
-	if req.InjectionName != nil {
-		updates["injection_name"] = *req.InjectionName
-	}
-
-	if len(updates) == 0 {
-		dto.ErrorResponse(c, http.StatusBadRequest, "No fields to update")
-		return
-	}
-
-	// Update injection
-	if err := repository.UpdateInjectionV2(id, updates); err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to update injection: "+err.Error())
-		return
-	}
-
-	// Get updated injection
-	injection, err := repository.GetInjectionByIDV2(id)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get updated injection: "+err.Error())
-		return
-	}
-
-	response := dto.ToInjectionV2Response(injection, false)
-	dto.SuccessResponse(c, response)
-}
-
-// DeleteInjection
-//
-//	@Summary Delete injection
-//	@Description Soft delete an injection (sets status to -1)
-//	@Tags Injections
-//	@Produce json
-//	@Security BearerAuth
-//	@Param id path int true "Injection ID"
-//	@Success 200 {object} dto.GenericResponse[any] "Injection deleted successfully"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid injection ID"
-//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-//	@Failure 404 {object} dto.GenericResponse[any] "Injection not found"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/injections/{id} [delete]
-func DeleteInjection(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid injection ID")
-		return
-	}
-
-	// Check if injection exists
-	if _, err := repository.GetInjectionByIDV2(id); err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			dto.ErrorResponse(c, http.StatusNotFound, "Injection not found")
-		} else {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get injection: "+err.Error())
-		}
-		return
-	}
-
-	// Soft delete
-	if err := repository.DeleteInjectionV2(id); err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to delete injection: "+err.Error())
-		return
-	}
-
-	dto.SuccessResponse(c, gin.H{"message": "Injection deleted successfully"})
-}
 
 // BatchDeleteInjections
 //
-//	@Summary Batch delete injections
-//	@Description Batch delete injections by IDs or labels with cascading deletion of related records
-//	@Tags Injections
-//	@Accept json
-//	@Produce json
-//	@Security BearerAuth
-//	@Param batch_delete body dto.InjectionV2BatchDeleteReq true "Batch delete request"
-//	@Success 200 {object} dto.GenericResponse[dto.InjectionV2BatchDeleteResponse] "Injections deleted successfully"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/injections/batch-delete [post]
+//	@Summary		Batch delete injections
+//	@Description	Batch delete injections by IDs or labels or tags with cascading deletion of related records
+//	@Tags			Injections
+//	@ID				batch_delete_injections
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			batch_delete	body		dto.BatchDeleteInjectionReq	true	"Batch delete request"
+//	@Success		200				{object}	dto.GenericResponse[any]	"Injections deleted successfully"
+//	@Failure		400				{object}	dto.GenericResponse[any]	"Invalid request"
+//	@Failure		401				{object}	dto.GenericResponse[any]	"Authentication required"
+//	@Failure		403				{object}	dto.GenericResponse[any]	"Permission denied"
+//	@Failure		500				{object}	dto.GenericResponse[any]	"Internal server error"
+//	@Router			/api/v2/injections/batch-delete [post]
 func BatchDeleteInjections(c *gin.Context) {
-	var req dto.InjectionV2BatchDeleteReq
+	var req dto.BatchDeleteInjectionReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
 
-	// Validate request
 	if err := req.Validate(); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
-	var response dto.InjectionV2BatchDeleteResponse
 	var err error
-
-	// Delete by IDs or by labels
 	if len(req.IDs) > 0 {
-		response, err = repository.BatchDeleteInjectionsV2(req.IDs)
+		err = producer.BatchDeleteInjectionsByIDs(req.IDs)
 	} else {
-		response, err = repository.BatchDeleteInjectionsByLabelsV2(req.Labels)
+		err = producer.BatchDeleteInjectionsByLabels(req.Labels)
 	}
 
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to delete injections: "+err.Error())
+	if handlers.HandleServiceError(c, err) {
 		return
 	}
 
-	dto.SuccessResponse(c, response)
+	dto.JSONResponse[any](c, http.StatusNoContent, "Injections deleted successfully", nil)
 }
 
+// GetInjection handles getting a single injection by ID
+//
+//	@Summary		Get injection by ID
+//	@Description	Get detailed information about a specific injection
+//	@Tags			Injections
+//	@ID				get_injection_by_id
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		int												true	"Injection ID"
+//	@Success		200	{object}	dto.GenericResponse[dto.InjectionDetailResp]	"Injection retrieved successfully"
+//	@Failure		400	{object}	dto.GenericResponse[any]						"Invalid injection ID"
+//	@Failure		401	{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403	{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		404	{object}	dto.GenericResponse[any]						"Injection not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Router			/api/v2/injections/{id} [get]
+func GetInjection(c *gin.Context) {
+	idStr := c.Param(consts.URLPathID)
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid injection ID")
+		return
+	}
+
+	resp, err := producer.GetInjectionDetail(id)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
+}
+
+// GetInjectionMetadata
+//
+//	@Summary		Get Injection Metadata
+//	@Description	Get injection-related metadata including configuration, field mappings, and namespace resources
+//	@Tags			Injections
+//	@ID				get_injection_metadata
+//	@Produce		json
+//	@Param			namespace	query		string											true	"Namespace prefix for config and resources metadata"
+//	@Success		200			{object}	dto.GenericResponse[dto.InjectionMetadataResp]	"Successfully returned metadata"
+//	@Failure		400			{object}	dto.GenericResponse[any]						"Invalid namespace prefix"
+//	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]						"Resource not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Router			/api/v2/injections/metadata [get]
+func GetInjectionMetadata(c *gin.Context) {
+	nsPrefix := c.Query("namespace")
+	if !utils.CheckNsPrefixExists(nsPrefix) {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid namespace prefix")
+		return
+	}
+
+	confNode, err := chaos.StructToNode[chaos.InjectionConf](nsPrefix)
+	if err != nil {
+		handlers.HandleServiceError(c, err)
+		return
+	}
+
+	faultResourceMap, err := chaos.GetChaosResourceMap()
+	if err != nil {
+		handlers.HandleServiceError(c, err)
+		return
+	}
+
+	resourcesMap, err := chaos.GetNsResources()
+	if err != nil {
+		handlers.HandleServiceError(c, err)
+		return
+	}
+
+	resources, exists := resourcesMap[nsPrefix]
+	if !exists {
+		dto.ErrorResponse(c, http.StatusNotFound, "Namespace resources not found")
+		return
+	}
+
+	dto.SuccessResponse(c, &dto.InjectionMetadataResp{
+		Config:           confNode,
+		FaultTypeMap:     chaos.ChaosTypeMap,
+		FaultResourceMap: faultResourceMap,
+		NsResources:      resources,
+	})
+}
+
+// ListInjections handles listing injections with pagination and filtering
+//
+//	@Summary		List injections
+//	@Description	Get a paginated list of injections with pagination and filtering
+//	@Tags			Injections
+//	@ID				list_injections
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			page		query		int														false	"Page number"	default(1)
+//	@Param			size		query		int														false	"Page size"		default(20)
+//	@Param			fault_type	query		int														false	"Filter by fault type"
+//	@Param			benchmark	query		string													false	"Filter by benchmark"
+//	@Param			event		query		int														false	"Filter by event"
+//	@Param			status		query		int														false	"Filter by status"
+//	@Param			labels		query		[]string												false	"Filter by labels (array of key:value strings, e.g., 'type:chaos')"
+//	@Success		200			{object}	dto.GenericResponse[dto.ListResp[dto.InjectionResp]]	"Injections retrieved successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]								"Invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]								"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]								"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]								"Internal server error"
+//	@Router			/api/v2/injections [get]
+func ListInjections(c *gin.Context) {
+	var req dto.ListInjectionReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
+	}
+
+	resp, err := producer.ListInjections(&req)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
+}
+
+// TODO: implement the actual search logic
 // SearchInjection
 //
-//	@Summary Search injections
-//	@Description Advanced search for injections with complex filtering including custom labels
-//	@Tags Injections
-//	@Accept json
-//	@Produce json
-//	@Security BearerAuth
-//	@Param search body dto.InjectionV2SearchReq true "Search criteria"
-//	@Success 200 {object} dto.GenericResponse[dto.SearchResponse[dto.InjectionV2Response]] "Search results"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/injections/search [post]
+//	@Summary		Search injections
+//	@Description	Advanced search for injections with complex filtering including custom labels
+//	@Tags			Injections
+//	@ID				search_injections
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			search	body		dto.SearchInjectionReq									true	"Search criteria"
+//	@Success		200		{object}	dto.GenericResponse[dto.SearchResp[dto.InjectionResp]]	"Search results"
+//	@Failure		400		{object}	dto.GenericResponse[any]								"Invalid request"
+//	@Failure		401		{object}	dto.GenericResponse[any]								"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]								"Permission denied"
+//	@Failure		500		{object}	dto.GenericResponse[any]								"Internal server error"
+//	@Router			/api/v2/injections/search [post]
 func SearchInjections(c *gin.Context) {
-	var req dto.InjectionV2SearchReq
+	var req dto.SearchInjectionReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
@@ -402,242 +218,235 @@ func SearchInjections(c *gin.Context) {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
-
-	withPagination := req.Page != nil && req.Size != nil
-	if withPagination {
-		if *req.Page == 0 {
-			req.Page = utils.IntPtr(1)
-		}
-		if *req.Size == 0 {
-			req.Size = utils.IntPtr(20)
-		}
-	}
-
-	// Call repository
-	injections, total, err := repository.SearchInjectionsV2(&req)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to search injections: "+err.Error())
-		return
-	}
-
-	var items []dto.InjectionV2Response
-	if req.IncludeLabels {
-		items, err = toInjectionV2ResponsesWithLabels(injections, req.IncludeTask)
-		if err != nil {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to convert injections: "+err.Error())
-			return
-		}
-	} else {
-		for _, injection := range injections {
-			items = append(items, *dto.ToInjectionV2Response(&injection, req.IncludeTask))
-		}
-	}
-
-	response := dto.SearchResponse[dto.InjectionV2Response]{
-		Items: items,
-	}
-	if withPagination {
-		response.Pagination = &dto.PaginationInfo{
-			Page:       *req.Page,
-			Size:       *req.Size,
-			Total:      total,
-			TotalPages: int((total + int64(*req.Size) - 1) / int64(*req.Size)),
-		}
-	}
-
-	dto.SuccessResponse(c, response)
-}
-
-// ManageInjectionTags manages injection tags
-//
-//	@Summary Manage injection tags
-//	@Description Add or remove tags for an injection
-//	@Tags Injections
-//	@Accept json
-//	@Produce json
-//	@Security BearerAuth
-//	@Param name path string true "Injection Name"
-//	@Param manage body dto.InjectionV2LabelManageReq true "Tag management request"
-//	@Success 200 {object} dto.GenericResponse[dto.InjectionV2Response] "Tags managed successfully"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-//	@Failure 404 {object} dto.GenericResponse[any] "Injection not found"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/injections/{name}/tags [patch]
-func ManageInjectionTags(c *gin.Context) {
-	injectionName := c.Param("name")
-	if injectionName == "" {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Injection name is required")
-		return
-	}
-
-	var req dto.InjectionV2LabelManageReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
-		return
-	}
-
-	// Check if injection exists
-	injection, err := repository.GetInjectionByNameV2(injectionName)
-	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			dto.ErrorResponse(c, http.StatusNotFound, "Injection not found")
-		} else {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get injection: "+err.Error())
-		}
-		return
-	}
-
-	// Start transaction
-	tx := database.DB.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
-
-	// Remove tags
-	for _, tagValue := range req.RemoveTags {
-		if err := repository.RemoveTagFromInjection(injection.ID, tagValue); err != nil {
-			tx.Rollback()
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to remove tag: "+err.Error())
-			return
-		}
-	}
-
-	// Add tags
-	for _, tagValue := range req.AddTags {
-		if err := repository.AddTagToInjection(injection.ID, tagValue); err != nil {
-			tx.Rollback()
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to add tag: "+err.Error())
-			return
-		}
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to commit transaction: "+err.Error())
-		return
-	}
-
-	// Return updated injection with labels
-	response := dto.ToInjectionV2Response(injection, false)
-
-	// Load labels
-	labels, err := repository.GetInjectionLabels(injection.ID)
-	if err == nil {
-		response.Labels = labels
-	}
-
-	dto.SuccessResponse(c, response)
 }
 
 // ManageInjectionCustomLabels manages injection custom labels (key-value pairs)
 //
-//	@Summary Manage injection custom labels
-//	@Description Add or remove custom labels (key-value pairs) for an injection
-//	@Tags Injections
-//	@Accept json
-//	@Produce json
-//	@Security BearerAuth
-//	@Param name path string true "Injection Name"
-//	@Param manage body dto.InjectionV2CustomLabelManageReq true "Custom label management request"
-//	@Success 200 {object} dto.GenericResponse[dto.InjectionV2Response] "Custom labels managed successfully"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid request"
-//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-//	@Failure 404 {object} dto.GenericResponse[any] "Injection not found"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/injections/{name}/labels [patch]
+//	@Summary		Manage injection custom labels
+//	@Description	Add or remove custom labels (key-value pairs) for an injection
+//	@Tags			Injections
+//	@ID				update_injection_labels
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int										true	"Injection ID"
+//	@Param			manage	body		dto.ManageInjectionLabelReq				true	"Custom label management request"
+//	@Success		200		{object}	dto.GenericResponse[dto.InjectionResp]	"Custom labels managed successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]				"Invalid injection ID or request format/parameters"
+//	@Failure		401		{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]				"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]				"Injection not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Router			/api/v2/injections/{id}/labels [patch]
 func ManageInjectionCustomLabels(c *gin.Context) {
-	injectionName := c.Param("name")
-	if injectionName == "" {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Injection name is required")
-		return
-	}
-
-	var req dto.InjectionV2CustomLabelManageReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
-		return
-	}
-
-	// Validate request
-	if len(req.AddLabels) == 0 && len(req.RemoveLabels) == 0 {
-		dto.ErrorResponse(c, http.StatusBadRequest, "At least one operation (add or remove) must be specified")
-		return
-	}
-
-	// Check if injection exists
-	injection, err := repository.GetInjectionByNameV2(injectionName)
+	idStr := c.Param(consts.URLPathID)
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			dto.ErrorResponse(c, http.StatusNotFound, "Injection not found")
-		} else {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get injection: "+err.Error())
-		}
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid injection ID")
 		return
 	}
 
-	// Start transaction
-	tx := database.DB.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
-
-	// Remove custom labels by key
-	for _, key := range req.RemoveLabels {
-		if err := repository.RemoveCustomLabelFromInjection(injection.ID, key); err != nil {
-			tx.Rollback()
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to remove custom label with key '"+key+"': "+err.Error())
-			return
-		}
-	}
-
-	// Add custom labels with override behavior
-	for _, labelItem := range req.AddLabels {
-		if err := repository.AddCustomLabelToInjectionWithOverride(injection.ID, labelItem.Key, labelItem.Value); err != nil {
-			tx.Rollback()
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to add custom label '"+labelItem.Key+"': "+err.Error())
-			return
-		}
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to commit transaction: "+err.Error())
+	var req dto.ManageInjectionLabelReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 
-	// Return updated injection with labels
-	response := dto.ToInjectionV2Response(injection, false)
-
-	// Load labels
-	labels, err := repository.GetInjectionLabels(injection.ID)
-	if err == nil {
-		response.Labels = labels
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
 	}
 
-	dto.SuccessResponse(c, response)
+	resp, err := producer.ManageInjectionLabels(&req, id)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
 }
 
-func toInjectionV2ResponsesWithLabels(injections []database.FaultInjectionSchedule, includeTask bool) ([]dto.InjectionV2Response, error) {
-	injectionIDs := make([]int, len(injections))
-	for i, injection := range injections {
-		injectionIDs[i] = injection.ID
+// SubmitFaultInjection submits batch fault injections
+//
+//	@Summary		Submit batch fault injections
+//	@Description	Submit multiple fault injection tasks in batch
+//	@Tags			Injections
+//	@ID				inject_fault
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		dto.SubmitInjectionReq							true	"Fault injection request body"
+//	@Success		200		{object}	dto.GenericResponse[dto.SubmitInjectionResp]	"Fault injection submitted successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]						"Invalid request format or parameters"
+//	@Failure		401		{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]						"Resource not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Router			/api/v2/injections/inject [post]
+func SubmitFaultInjection(c *gin.Context) {
+	groupID := c.GetString("groupID")
+	userID, exists := middleware.GetCurrentUserID(c)
+	if !exists {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
+		return
 	}
 
-	// Batch load labels using optimized method (SEARCH)
-	labelsMap, err := repository.GetInjectionLabelsMap(injectionIDs)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to load injection labels: %v", err)
+	ctx, ok := c.Get(middleware.SpanContextKey)
+	if !ok {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
+		return
 	}
 
-	// Convert to response
-	items := make([]dto.InjectionV2Response, len(injections))
-	for i, injection := range injections {
-		labels := labelsMap[injection.ID]
-		items[i] = *dto.ToInjectionV2ResponseWithLabels(&injection, includeTask, labels)
+	spanCtx := ctx.(context.Context)
+	span := trace.SpanFromContext(spanCtx)
+
+	var req dto.SubmitInjectionReq
+	if err := c.BindJSON(&req); err != nil {
+		span.SetStatus(codes.Error, "validation error in SubmitFaultInjection: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
 	}
 
-	return items, nil
+	if err := req.Validate(); err != nil {
+		span.SetStatus(codes.Error, "validation error in SubmitFaultInjection: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
+	}
+
+	resp, err := producer.ProduceRestartPedestalTasks(spanCtx, &req, groupID, userID)
+	if handlers.HandleServiceError(c, err) {
+		span.SetStatus(codes.Error, "panic in SubmitFaultInjection")
+		return
+	}
+
+	span.SetStatus(codes.Ok, fmt.Sprintf("Successfully submitted %d fault injections with groupID: %s", len(resp.Items), groupID))
+	dto.SuccessResponse(c, resp)
+}
+
+// SubmitDatapackBuilding submits batch datapack buildings
+//
+//	@Summary		Submit batch datapack buildings
+//	@Description.	Submit multiple datapack building tasks in batch
+//	@Tags			Injections
+//	@ID				build_datapack
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		dto.SubmitDatapackBuildingReq						true	"Datapack building request body"
+//	@Success		202		{object}	dto.GenericResponse[dto.SubmitDatapackBuildingResp]	"Datapack building submitted successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
+//	@Failure		401		{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]							"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]							"Resource not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Router			/api/v2/injections/build [post]
+func SubmitDatapackBuilding(c *gin.Context) {
+	groupID := c.GetString("groupID")
+	userID, exists := middleware.GetCurrentUserID(c)
+	if !exists {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	ctx, ok := c.Get(middleware.SpanContextKey)
+	if !ok {
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+
+	spanCtx := ctx.(context.Context)
+	span := trace.SpanFromContext(spanCtx)
+
+	var req dto.SubmitDatapackBuildingReq
+	if err := c.BindJSON(&req); err != nil {
+		span.SetStatus(codes.Error, "validation error in SubmitDatapackBuilding: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		span.SetStatus(codes.Error, "validation error in SubmitDatapackBuilding: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
+	}
+
+	resp, err := producer.ProduceDatapackBuildingTasks(spanCtx, &req, groupID, userID)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	span.SetStatus(codes.Ok, fmt.Sprintf("Successfully submitted %d datapack buildings with groupID: %s", len(resp.Items), groupID))
+	dto.SuccessResponse(c, resp)
+}
+
+// ListFaultInjectionNoIssues
+//
+//	@Summary		Query Fault Injection Records Without Issues
+//	@Description	Query all fault injection records without issues based on time range, returning detailed records including configuration information
+//	@Tags			Injections
+//	@ID				list_successful_injections
+//	@Produce		json
+//	@Param			labels				query		[]string											false	"Filter by labels (array of key:value strings, e.g., 'type:chaos')"
+//	@Param			lookback			query		string												false	"Time range query, supports custom relative time (1h/24h/7d) or custom, default not set"
+//	@Param			custom_start_time	query		string												false	"Custom start time, RFC3339 format, required when lookback=custom"	Format(date-time)
+//	@Param			custom_end_time		query		string												false	"Custom end time, RFC3339 format, required when lookback=custom"	Format(date-time)
+//	@Success		200					{object}	dto.GenericResponse[[]dto.InjectionNoIssuesResp]	"Successfully returned fault injection records without issues"
+//	@Failure		400					{object}	dto.GenericResponse[any]							"Request parameter error, such as incorrect time format or parameter validation failure, etc."
+//	@Failure		500					{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Router			/api/v2/injections/analysis/no-issues [get]
+func ListFaultInjectionNoIssues(c *gin.Context) {
+	var req dto.ListInjectionNoIssuesReq
+	if err := c.BindQuery(&req); err != nil {
+		logrus.Errorf("failed to bind query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		logrus.Errorf("invalid query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	items, err := producer.ListInjectionsNoIssues(&req)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, items)
+}
+
+// ListFaultInjectionWithIssues
+//
+//	@Summary		Query Fault Injection Records With Issues
+//	@Description	Query all fault injection records with issues based on time range
+//	@Tags			Injections
+//	@ID				list_failed_injections
+//	@Produce		json
+//	@Param			labels				query		[]string	false	"Filter by labels (array of key:value strings, e.g., 'type:chaos')"
+//	@Param			lookback			query		string		false	"Time range query, supports custom relative time (1h/24h/7d) or custom, default not set"
+//	@Param			custom_start_time	query		string		false	"Custom start time, RFC3339 format, required when lookback=custom"	Format(date-time)
+//	@Param			custom_end_time		query		string		false	"Custom end time, RFC3339 format, required when lookback=custom"	Format(date-time)
+//	@Success		200					{object}	dto.GenericResponse[[]dto.InjectionWithIssuesResp]
+//	@Failure		400					{object}	dto.GenericResponse[any]	"Request parameter error, such as incorrect time format or parameter validation failure, etc."
+//	@Failure		500					{object}	dto.GenericResponse[any]	"Internal server error"
+//	@Router			/api/v2/injections/analysis/with-issues [get]
+func ListFaultInjectionWithIssues(c *gin.Context) {
+	var req dto.ListInjectionWithIssuesReq
+	if err := c.BindQuery(&req); err != nil {
+		logrus.Errorf("failed to bind query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		logrus.Errorf("invalid query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	items, err := producer.ListInjectionsWithIssues(&req)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, items)
 }

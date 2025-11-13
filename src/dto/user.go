@@ -2,89 +2,54 @@ package dto
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
+	"aegis/consts"
 	"aegis/database"
 )
 
-// CreateUserRequest represents user creation request
-type CreateUserRequest struct {
-	Username string `json:"username" binding:"required" example:"newuser"`
-	Email    string `json:"email" binding:"required,email" example:"user@example.com"`
-	Password string `json:"password" binding:"required,min=8" example:"password123"`
-	FullName string `json:"full_name" binding:"required" example:"John Doe"`
-	Phone    string `json:"phone,omitempty" example:"+1234567890"`
-	Avatar   string `json:"avatar,omitempty" example:"https://example.com/avatar.jpg"`
+// ===================== User CRUD DTOs =====================
+
+// CreateUserReq represents user creation request
+type CreateUserReq struct {
+	Username string `json:"username" binding:"required"`
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=8"`
+	FullName string `json:"full_name" binding:"required"`
+	Phone    string `json:"phone" binding:"omitempty"`
+	Avatar   string `json:"avatar" binding:"omitempty"`
 }
 
-// UpdateUserRequest represents user update request
-type UpdateUserRequest struct {
-	Email    string `json:"email,omitempty" binding:"omitempty,email" example:"newemail@example.com"`
-	FullName string `json:"full_name,omitempty" example:"Jane Doe"`
-	Phone    string `json:"phone,omitempty" example:"+0987654321"`
-	Avatar   string `json:"avatar,omitempty" example:"https://example.com/new-avatar.jpg"`
-	Status   *int   `json:"status,omitempty" example:"1"`
-	IsActive *bool  `json:"is_active,omitempty" example:"true"`
+func (req *CreateUserReq) Validate() error {
+	req.Username = strings.TrimSpace(req.Username)
+	req.Email = strings.TrimSpace(req.Email)
+
+	if req.Username == "" {
+		return fmt.Errorf("username cannot be empty")
+	}
+	if req.Email == "" {
+		return fmt.Errorf("email cannot be empty")
+	}
+	if len(req.Password) < 8 {
+		return fmt.Errorf("password must be at least 8 characters")
+	}
+	return nil
 }
 
-// UserListRequest represents user list query parameters
-type UserListRequest struct {
-	Page     int    `form:"page,default=1" binding:"min=1" example:"1"`
-	Size     int    `form:"size,default=20" binding:"min=1,max=100" example:"20"`
-	Status   *int   `form:"status" example:"1"`
-	IsActive *bool  `form:"is_active" example:"true"`
-	Username string `form:"username" example:"admin"`
-	Email    string `form:"email" example:"admin@example.com"`
-	FullName string `form:"full_name" example:"Administrator"`
+// ListUserReq represents user list query parameters
+type ListUserReq struct {
+	PaginationReq
+	IsActive *bool              `form:"is_active"`
+	Status   *consts.StatusType `form:"status"`
 }
 
-// UserResponse represents user response with role and project information
-type UserResponse struct {
-	ID           int                   `json:"id" example:"1"`
-	Username     string                `json:"username" example:"admin"`
-	Email        string                `json:"email" example:"admin@example.com"`
-	FullName     string                `json:"full_name" example:"Administrator"`
-	Avatar       string                `json:"avatar,omitempty" example:"https://example.com/avatar.jpg"`
-	Phone        string                `json:"phone,omitempty" example:"+1234567890"`
-	Status       int                   `json:"status" example:"1"`
-	IsActive     bool                  `json:"is_active" example:"true"`
-	LastLoginAt  *time.Time            `json:"last_login_at,omitempty" example:"2024-01-01T12:00:00Z"`
-	CreatedAt    time.Time             `json:"created_at" example:"2024-01-01T00:00:00Z"`
-	UpdatedAt    time.Time             `json:"updated_at" example:"2024-01-01T00:00:00Z"`
-	GlobalRoles  []RoleResponse        `json:"global_roles,omitempty"`
-	ProjectRoles []UserProjectResponse `json:"project_roles,omitempty"`
-	Permissions  []PermissionResponse  `json:"permissions,omitempty"`
+func (req *ListUserReq) Validate() error {
+	return validateStatusField(req.Status, false)
 }
 
-// UserListResponse represents paginated user list response
-type UserListResponse struct {
-	Items      []UserResponse `json:"items"`
-	Pagination PaginationInfo `json:"pagination"`
-}
-
-// UserProjectResponse represents user-project relationship
-type UserProjectResponse struct {
-	ProjectID   int          `json:"project_id" example:"1"`
-	ProjectName string       `json:"project_name" example:"Project Alpha"`
-	Role        RoleResponse `json:"role"`
-	JoinedAt    time.Time    `json:"joined_at" example:"2024-01-01T00:00:00Z"`
-	Status      int          `json:"status" example:"1"`
-}
-
-// AssignUserToProjectRequest represents user-project assignment request
-type AssignUserToProjectRequest struct {
-	ProjectID int `json:"project_id" binding:"required"`
-	RoleID    int `json:"role_id" binding:"required"`
-}
-
-// AssignRoleToUserRequest represents role assignment request
-type AssignRoleToUserRequest struct {
-	RoleID int `json:"role_id" binding:"required" example:"1"`
-}
-
-// UserSearchRequest represents advanced user search with complex filtering
-type UserSearchRequest struct {
-	AdvancedSearchRequest
+type UserSearchReq struct {
+	AdvancedSearchReq
 
 	// User-specific filter shortcuts
 	UsernamePattern string     `json:"username_pattern,omitempty"` // Username fuzzy match
@@ -96,8 +61,8 @@ type UserSearchRequest struct {
 	LastLoginRange  *DateRange `json:"last_login_range,omitempty"` // Last login time range
 }
 
-// ConvertToSearchRequest converts UserSearchRequest to SearchRequest with user-specific filters
-func (usr *UserSearchRequest) ConvertToSearchRequest() *SearchRequest {
+// ConvertToSearchReq converts UserSearchReq to SearchReq with user-specific filters
+func (usr *UserSearchReq) ConvertToSearchReq() *SearchReq {
 	sr := usr.ConvertAdvancedToSearch()
 
 	// Add user-specific filters
@@ -162,44 +127,261 @@ func (usr *UserSearchRequest) ConvertToSearchRequest() *SearchRequest {
 	return sr
 }
 
-// UserSearchFilters represents simple search filters for backward compatibility
-type UserSearchFilters struct {
-	Username    []string `json:"username,omitempty"`
-	Email       []string `json:"email,omitempty"`
-	FullName    []string `json:"full_name,omitempty"`
-	Status      []int    `json:"status,omitempty"`
-	IsActive    []bool   `json:"is_active,omitempty"`
-	RoleIDs     []int    `json:"role_ids,omitempty"`
-	ProjectIDs  []int    `json:"project_ids,omitempty"`
-	Departments []string `json:"departments,omitempty"`
+// UpdateUserReq represents user update request
+type UpdateUserReq struct {
+	Email    *string            `json:"email,omitempty" binding:"omitempty,email"`
+	FullName *string            `json:"full_name,omitempty" binding:"omitempty"`
+	Phone    *string            `json:"phone,omitempty" binding:"omitempty"`
+	Avatar   *string            `json:"avatar,omitempty" binding:"omitempty"`
+	IsActive *bool              `json:"is_active,omitempty" binding:"omitempty"`
+	Status   *consts.StatusType `json:"status,omitempty" binding:"omitempty"`
 }
 
-// ConvertFromUser converts database User to UserResponse DTO
-func (u *UserResponse) ConvertFromUser(user *database.User) {
-	u.ID = user.ID
-	u.Username = user.Username
-	u.Email = user.Email
-	u.FullName = user.FullName
-	u.Avatar = user.Avatar
-	u.Phone = user.Phone
-	u.Status = user.Status
-	u.IsActive = user.IsActive
-	u.LastLoginAt = user.LastLoginAt
-	u.CreatedAt = user.CreatedAt
-	u.UpdatedAt = user.UpdatedAt
+func (req *UpdateUserReq) Validate() error {
+	return validateStatusField(req.Status, true)
 }
 
-// ConvertFromUserProject converts database UserProject to UserProjectResponse DTO
-func (up *UserProjectResponse) ConvertFromUserProject(userProject *database.UserProject) {
-	up.ProjectID = userProject.ProjectID
-	up.JoinedAt = userProject.CreatedAt
-	up.Status = userProject.Status
+func (req *UpdateUserReq) PatchUserModel(target *database.User) {
+	if req.Email != nil {
+		target.Email = *req.Email
+	}
+	if req.FullName != nil {
+		target.FullName = *req.FullName
+	}
+	if req.Phone != nil {
+		target.Phone = *req.Phone
+	}
+	if req.Avatar != nil {
+		target.Avatar = *req.Avatar
+	}
+	if req.Status != nil {
+		target.Status = *req.Status
+	}
+	if req.IsActive != nil {
+		target.IsActive = *req.IsActive
+	}
+}
+
+// UserResp represents basic user response
+type UserResp struct {
+	ID          int        `json:"id"`
+	Username    string     `json:"username"`
+	Email       string     `json:"email"`
+	FullName    string     `json:"full_name"`
+	Avatar      string     `json:"avatar,omitempty"`
+	Phone       string     `json:"phone,omitempty"`
+	IsActive    bool       `json:"is_active"`
+	Status      string     `json:"status"`
+	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+}
+
+func NewUserResp(user *database.User) *UserResp {
+	return &UserResp{
+		ID:          user.ID,
+		Username:    user.Username,
+		Email:       user.Email,
+		FullName:    user.FullName,
+		Avatar:      user.Avatar,
+		Phone:       user.Phone,
+		IsActive:    user.IsActive,
+		Status:      consts.GetStatusTypeName(user.Status),
+		LastLoginAt: user.LastLoginAt,
+		CreatedAt:   user.CreatedAt,
+		UpdatedAt:   user.UpdatedAt,
+	}
+}
+
+// UserDetailResp represents detailed user response with roles and projects
+type UserDetailResp struct {
+	UserResp
+
+	GlobalRoles    []RoleResp          `json:"global_roles,omitempty"`
+	Permissions    []PermissionResp    `json:"permissions,omitempty"`
+	ContainerRoles []UserContainerInfo `json:"container_roles,omitempty"`
+	DatasetRoles   []UserDatasetInfo   `json:"dataset_roles,omitempty"`
+	ProjectRoles   []UserProjectInfo   `json:"project_roles,omitempty"`
+}
+
+func NewUserDetailResp(user *database.User) *UserDetailResp {
+	return &UserDetailResp{
+		UserResp: *NewUserResp(user),
+	}
+}
+
+type UserProfileResp struct {
+	ID          int        `json:"id"`
+	Username    string     `json:"username"`
+	Email       string     `json:"email"`
+	FullName    string     `json:"full_name"`
+	Avatar      string     `json:"avatar,omitempty"`
+	Phone       string     `json:"phone,omitempty"`
+	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+
+	ContainerRoles []UserContainerInfo `json:"container_roles,omitempty"`
+	DatasetRoles   []UserDatasetInfo   `json:"dataset_roles,omitempty"`
+	ProjectRoles   []UserProjectInfo   `json:"project_roles,omitempty"`
+}
+
+func NewUserProfileResp(user *database.User) *UserProfileResp {
+	return &UserProfileResp{
+		ID:          user.ID,
+		Username:    user.Username,
+		Email:       user.Email,
+		FullName:    user.FullName,
+		Avatar:      user.Avatar,
+		Phone:       user.Phone,
+		LastLoginAt: user.LastLoginAt,
+		CreatedAt:   user.CreatedAt,
+	}
+}
+
+// ===================== User-Permission DTOs =====================
+
+// AssignUserPermissionItem represents a single user-permission assignment item
+type AssignUserPermissionItem struct {
+	PermissionID int               `json:"permission_id" binding:"required,min=1"`
+	GrantType    *consts.GrantType `json:"grant_type" binding:"required"`
+	ExpiresAt    *time.Time        `json:"expires_at" binding:"omitempty"`
+	ContainerID  *int              `json:"container_id" binding:"omitempty,min_ptr=1"`
+	DatasetID    *int              `json:"dataset_id" binding:"omitempty,min_ptr=1"`
+	ProjectID    *int              `json:"project_id" binding:"omitempty,min_ptr=1"`
+}
+
+func (item *AssignUserPermissionItem) Validate() error {
+	if item.GrantType == nil {
+		return fmt.Errorf("grant_type is required")
+	}
+	if _, valid := consts.ValidGrantTypes[*item.GrantType]; !valid {
+		return fmt.Errorf("invalid grant_type: %d", item.GrantType)
+	}
+	if item.ExpiresAt != nil && item.ExpiresAt.Before(time.Now()) {
+		return fmt.Errorf("expires_at cannot be in the past")
+	}
+	return nil
+}
+
+func (item *AssignUserPermissionItem) ConvertToUserPermission() *database.UserPermission {
+	return &database.UserPermission{
+		PermissionID: item.PermissionID,
+		GrantType:    *item.GrantType,
+		ExpiresAt:    item.ExpiresAt,
+		ContainerID:  item.ContainerID,
+		DatasetID:    item.DatasetID,
+		ProjectID:    item.ProjectID,
+	}
+}
+
+// AssignUserPermissionReq represents direct user-permission assignment req
+type AssignUserPermissionReq struct {
+	Items []AssignUserPermissionItem `json:"items" binding:"required"`
+}
+
+func (req *AssignUserPermissionReq) Validate() error {
+	if len(req.Items) == 0 {
+		return fmt.Errorf("items cannot be empty")
+	}
+	for idx, item := range req.Items {
+		if err := item.Validate(); err != nil {
+			return fmt.Errorf("invalid item %d: %v", idx, err)
+		}
+	}
+	return nil
+}
+
+// RemoveUserPermissionReq represents direct user-permission removal req
+type RemoveUserPermissionReq struct {
+	PermissionIDs []int `json:"permission_ids" binding:"required"`
+}
+
+func (req *RemoveUserPermissionReq) Validate() error {
+	if len(req.PermissionIDs) == 0 {
+		return fmt.Errorf("permission_ids cannot be empty")
+	}
+	for _, id := range req.PermissionIDs {
+		if id <= 0 {
+			return fmt.Errorf("invalid permission ID: %d", id)
+		}
+	}
+	return nil
+}
+
+// ===================== User-Container Relationship DTOs =====================
+
+// UserContainerResponse represents user-container relationship
+type UserContainerInfo struct {
+	ContainerID   int       `json:"container_id"`
+	ContainerName string    `json:"container_name"`
+	RoleName      string    `json:"role_name"`
+	JoinedAt      time.Time `json:"joined_at"`
+}
+
+func NewUserContainerInfo(userContainer *database.UserContainer) *UserContainerInfo {
+	resp := &UserContainerInfo{
+		ContainerID: userContainer.ContainerID,
+		JoinedAt:    userContainer.CreatedAt,
+	}
+
+	if userContainer.Container != nil {
+		resp.ContainerName = userContainer.Container.Name
+	}
+	if userContainer.Role != nil {
+		resp.RoleName = userContainer.Role.Name
+	}
+
+	return resp
+}
+
+// ===================== User-Project Relationship DTOs =====================
+
+// UserDatasetInfo represents user-dataset relationship
+type UserDatasetInfo struct {
+	DatasetID   int       `json:"dataset_id"`
+	DatasetName string    `json:"dataset_name"`
+	RoleName    string    `json:"role_name"`
+	JoinedAt    time.Time `json:"joined_at"`
+}
+
+func NewUserDatasetInfo(userDataset *database.UserDataset) *UserDatasetInfo {
+	resp := &UserDatasetInfo{
+		DatasetID: userDataset.DatasetID,
+		JoinedAt:  userDataset.CreatedAt,
+	}
+
+	if userDataset.Dataset != nil {
+		resp.DatasetName = userDataset.Dataset.Name
+	}
+	if userDataset.Role != nil {
+		resp.RoleName = userDataset.Role.Name
+	}
+
+	return resp
+}
+
+// ===================== User-Project Relationship DTOs =====================
+
+// UserProjectResponse represents user-project relationship
+type UserProjectInfo struct {
+	ProjectID   int       `json:"project_id"`
+	ProjectName string    `json:"project_name"`
+	RoleName    string    `json:"role_name"`
+	JoinedAt    time.Time `json:"joined_at"`
+}
+
+func NewUserProjectInfo(userProject *database.UserProject) *UserProjectInfo {
+	resp := &UserProjectInfo{
+		ProjectID: userProject.ProjectID,
+		JoinedAt:  userProject.CreatedAt,
+	}
 
 	if userProject.Project != nil {
-		up.ProjectName = userProject.Project.Name
+		resp.ProjectName = userProject.Project.Name
+	}
+	if userProject.Role != nil {
+		resp.RoleName = userProject.Role.Name
 	}
 
-	if userProject.Role != nil {
-		up.Role.ConvertFromRole(userProject.Role)
-	}
+	return resp
 }

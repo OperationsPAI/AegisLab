@@ -8,98 +8,111 @@ import (
 	"aegis/database"
 )
 
-// LoginRequest represents user login request
-type LoginRequest struct {
-	Username string `json:"username" binding:"required" example:"admin"`
-	Password string `json:"password" binding:"required" example:"password123"`
-}
+const (
+	usernamePattern = `^[a-zA-Z0-9_]{3,20}$`
+)
 
-// LoginResponse represents user login response
-type LoginResponse struct {
-	Token     string    `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
-	ExpiresAt time.Time `json:"expires_at" example:"2024-12-31T23:59:59Z"`
-	User      UserInfo  `json:"user"`
-}
-
-// RegisterRequest represents user registration request
-type RegisterRequest struct {
+// RegisterReq represents user registration request
+type RegisterReq struct {
 	Username string `json:"username" binding:"required" example:"newuser"`
 	Email    string `json:"email" binding:"required,email" example:"user@example.com"`
 	Password string `json:"password" binding:"required,min=8" example:"password123"`
-	FullName string `json:"full_name" binding:"required" example:"John Doe"`
-	Phone    string `json:"phone,omitempty" example:"+1234567890"`
 }
 
 // Validate validates the registration request
-func (r *RegisterRequest) Validate() error {
+func (req *RegisterReq) Validate() error {
 	// Username validation
-	usernameRegex := regexp.MustCompile(`^[a-zA-Z0-9_]{3,20}$`)
-	if !usernameRegex.MatchString(r.Username) {
+	usernameRegex := regexp.MustCompile(usernamePattern)
+	if !usernameRegex.MatchString(req.Username) {
 		return fmt.Errorf("username must be 3-20 characters and contain only letters, numbers, and underscores")
 	}
 
 	// Password validation
-	if len(r.Password) < 8 {
-		return fmt.Errorf("password must be at least 8 characters long")
+	if len(req.Password) == 0 {
+		return fmt.Errorf("password is required")
 	}
-
-	// Phone validation (if provided)
-	if r.Phone != "" {
-		phoneRegex := regexp.MustCompile(`^\+?[1-9]\d{1,14}$`)
-		if !phoneRegex.MatchString(r.Phone) {
-			return fmt.Errorf("invalid phone number format")
-		}
+	if len(req.Password) < 8 {
+		return fmt.Errorf("password must be at least 8 characters long")
 	}
 
 	return nil
 }
 
-// TokenRefreshRequest represents token refresh request
-type TokenRefreshRequest struct {
+// LoginReq represents user login request
+type LoginReq struct {
+	Username string `json:"username" binding:"required" example:"admin"`
+	Password string `json:"password" binding:"required" example:"password123"`
+}
+
+func (req *LoginReq) Validate() error {
+	usernameRegex := regexp.MustCompile(usernamePattern)
+	if !usernameRegex.MatchString(req.Username) {
+		return fmt.Errorf("Invalid username name or password")
+	}
+	if req.Password == "" {
+		return fmt.Errorf("Invalid username name or password")
+	}
+	return nil
+}
+
+// TokenRefreshReq represents token refresh request
+type TokenRefreshReq struct {
 	Token string `json:"token" binding:"required" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
 }
 
-// TokenRefreshResponse represents token refresh response
-type TokenRefreshResponse struct {
-	Token     string    `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
-	ExpiresAt time.Time `json:"expires_at" example:"2024-12-31T23:59:59Z"`
+func (req *TokenRefreshReq) Validate() error {
+	if req.Token == "" {
+		return fmt.Errorf("Invalid token")
+	}
+	return nil
 }
 
-// ChangePasswordRequest represents password change request
-type ChangePasswordRequest struct {
+// ChangePasswordReq represents password change request
+type ChangePasswordReq struct {
 	OldPassword string `json:"old_password" binding:"required" example:"oldpassword123"`
 	NewPassword string `json:"new_password" binding:"required,min=8" example:"newpassword123"`
 }
 
+func (req *ChangePasswordReq) Validate() error {
+	if req.OldPassword == "" {
+		return fmt.Errorf("old_password is required")
+	}
+	if len(req.OldPassword) < 8 {
+		return fmt.Errorf("old_password must be at least 8 characters long")
+	}
+	if req.NewPassword == "" {
+		return fmt.Errorf("new_password is required")
+	}
+	if len(req.NewPassword) < 8 {
+		return fmt.Errorf("new_password must be at least 8 characters long")
+	}
+	return nil
+}
+
+// LoginResp represents user login response
+type LoginResp struct {
+	Token     string    `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+	ExpiresAt time.Time `json:"expires_at" example:"2024-12-31T23:59:59Z"`
+	User      UserInfo  `json:"user"`
+}
+
+// TokenRefreshResp represents token refresh response
+type TokenRefreshResp struct {
+	Token     string    `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+	ExpiresAt time.Time `json:"expires_at" example:"2024-12-31T23:59:59Z"`
+}
+
 // UserInfo represents basic user information
 type UserInfo struct {
-	ID        int       `json:"id" example:"1"`
-	Username  string    `json:"username" example:"admin"`
-	Email     string    `json:"email" example:"admin@example.com"`
-	FullName  string    `json:"full_name" example:"Administrator"`
-	Avatar    string    `json:"avatar,omitempty" example:"https://example.com/avatar.jpg"`
-	Phone     string    `json:"phone,omitempty" example:"+1234567890"`
-	Status    int       `json:"status" example:"1"`
-	IsActive  bool      `json:"is_active" example:"true"`
-	CreatedAt time.Time `json:"created_at" example:"2024-01-01T00:00:00Z"`
-	UpdatedAt time.Time `json:"updated_at" example:"2024-01-01T00:00:00Z"`
+	ID       int    `json:"id" example:"1"`
+	Username string `json:"username" example:"admin"`
+	Avatar   string `json:"avatar,omitempty" example:"https://example.com/avatar.jpg"`
 }
 
-// ConvertFromUser converts database User to UserInfo DTO
-func (u *UserInfo) ConvertFromUser(user *database.User) {
-	u.ID = user.ID
-	u.Username = user.Username
-	u.Email = user.Email
-	u.FullName = user.FullName
-	u.Avatar = user.Avatar
-	u.Phone = user.Phone
-	u.Status = user.Status
-	u.IsActive = user.IsActive
-	u.CreatedAt = user.CreatedAt
-	u.UpdatedAt = user.UpdatedAt
-}
-
-// LogoutRequest represents user logout request
-type LogoutRequest struct {
-	Token string `json:"token" binding:"required" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+func NewUserInfo(user *database.User) *UserInfo {
+	return &UserInfo{
+		ID:       user.ID,
+		Username: user.Username,
+		Avatar:   user.Avatar,
+	}
 }

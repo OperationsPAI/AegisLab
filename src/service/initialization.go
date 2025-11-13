@@ -12,16 +12,18 @@ import (
 	"aegis/consts"
 	"aegis/database"
 	"aegis/repository"
+	producer "aegis/service/prodcuer"
+	"aegis/utils"
 
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
 type InitialDataContainer struct {
-	Type     string                    `json:"type"`
+	Type     consts.ContainerType      `json:"type"`
 	Name     string                    `json:"name"`
 	IsPublic bool                      `json:"is_public"`
-	Status   int                       `json:"status"`
+	Status   consts.StatusType         `json:"status"`
 	Versions []InitialContainerVersion `json:"versions"`
 }
 
@@ -40,7 +42,7 @@ type InitialContainerVersion struct {
 	ImageRef   string             `json:"image_ref"`
 	Command    string             `json:"command"`
 	EnvVars    string             `json:"env_vars"`
-	Status     int                `json:"status"`
+	Status     consts.StatusType  `json:"status"`
 	HelmConfig *InitialHelmConfig `json:"helm_config"`
 }
 
@@ -67,7 +69,7 @@ type InitialHelmConfig struct {
 func (hc *InitialHelmConfig) ConvertToDBHelmConfig() (*database.HelmConfig, error) {
 	valuesBytes, err := json.Marshal(hc.Values)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal helm values: %v", err)
+		return nil, fmt.Errorf("failed to marshal helm values: %w", err)
 	}
 
 	return &database.HelmConfig{
@@ -81,12 +83,12 @@ func (hc *InitialHelmConfig) ConvertToDBHelmConfig() (*database.HelmConfig, erro
 }
 
 type InitialDataUser struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	FullName string `json:"full_name"`
-	Status   int    `json:"status"`
-	IsActive bool   `json:"is_active"`
+	Username string            `json:"username"`
+	Email    string            `json:"email"`
+	Password string            `json:"password"`
+	FullName string            `json:"full_name"`
+	Status   consts.StatusType `json:"status"`
+	IsActive bool              `json:"is_active"`
 }
 
 func (u *InitialDataUser) ConvertToDBUser() *database.User {
@@ -106,8 +108,17 @@ type InitialData struct {
 	AdminUser  InitialDataUser        `json:"admin_user"`
 }
 
-// InitializeSystemData initializes system data (roles, permissions, resources)
-func InitializeSystemData(ctx context.Context) {
+var ResourceIDMap map[consts.ResourceName]int
+
+// InitConcurrencyLock initializes the concurrency lock counter
+func InitConcurrencyLock(ctx context.Context) {
+	if err := repository.InitConcurrencyLock(ctx); err != nil {
+		logrus.Fatalf("error setting concurrency lock to 0: %v", err)
+	}
+}
+
+// InitializeData initializes data (roles, permissions, resources)
+func InitializeData(ctx context.Context) {
 	if !repository.IsInitialDataSeeded(ctx) {
 		if err := initialize(); err != nil {
 			logrus.Errorf("Failed to initialize system data: %v", err)
@@ -129,27 +140,25 @@ func initialize() error {
 	filePath := filepath.Join(dataPath, consts.InitialFilename)
 	initialData, err := loadInitialDataFromFile(filePath)
 	if err != nil {
-		return fmt.Errorf("failed to load initial data from file: %v", err)
+		return fmt.Errorf("failed to load initial data from file: %w", err)
 	}
 
-	systemResources := []database.Resource{
-		{Name: consts.ResourceProject.String(), DisplayName: "Project", Type: "table", Category: "core", IsSystem: true, Status: 1},
-		{Name: consts.ResourceDataset.String(), DisplayName: "Dataset", Type: "table", Category: "core", IsSystem: true, Status: 1},
-		{Name: consts.ResourceFaultInjection.String(), DisplayName: "Fault Injection", Type: "table", Category: "core", IsSystem: true, Status: 1},
-		{Name: consts.ResourceContainer.String(), DisplayName: "Container", Type: "table", Category: "core", IsSystem: true, Status: 1},
-		{Name: consts.ResourceContainerVersion.String(), DisplayName: "Container Version", Type: "table", Category: "core", IsSystem: true, Status: 1},
-		{Name: consts.ResourceTask.String(), DisplayName: "Task", Type: "table", Category: "core", IsSystem: true, Status: 1},
-		{Name: consts.ResourceUser.String(), DisplayName: "User", Type: "table", Category: "admin", IsSystem: true, Status: 1},
-		{Name: consts.ResourceRole.String(), DisplayName: "Role", Type: "table", Category: "admin", IsSystem: true, Status: 1},
-		{Name: consts.ResourcePermission.String(), DisplayName: "Permission", Type: "table", Category: "admin", IsSystem: true, Status: 1},
-		{Name: consts.ResourceLabel.String(), DisplayName: "Label", Type: "table", Category: "admin", IsSystem: true, Status: 1},
-		{Name: consts.ResourceSystem.String(), DisplayName: "System", Type: "system", Category: "admin", IsSystem: true, Status: 1},
-		{Name: consts.ResourceAudit.String(), DisplayName: "Audit", Type: "table", Category: "admin", IsSystem: true, Status: 1},
-	}
-
-	systemResourceNames := make([]string, len(systemResources))
-	for _, res := range systemResources {
-		systemResourceNames = append(systemResourceNames, res.Name)
+	resources := []database.Resource{
+		{Name: consts.ResourceSystem, Type: consts.ResourceTypeSystem, Category: consts.ResourceAdmin},
+		{Name: consts.ResourceAudit, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
+		{Name: consts.ResourceContainer, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
+		{Name: consts.ResourceContainerVersion, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
+		{Name: consts.ResourceDataset, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
+		{Name: consts.ResourceDatasetVersion, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
+		{Name: consts.ResourceProject, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
+		{Name: consts.ResourceLabel, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
+		{Name: consts.ResourceUser, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
+		{Name: consts.ResourceRole, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
+		{Name: consts.ResourcePermission, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
+		{Name: consts.ResourceTask, Type: consts.ResourceTypeTable, Category: consts.ResourceCore},
+		{Name: consts.ResourceTrace, Type: consts.ResourceTypeTable, Category: consts.ResourceCore},
+		{Name: consts.ResourceInjection, Type: consts.ResourceTypeTable, Category: consts.ResourceCore},
+		{Name: consts.ResourceExecution, Type: consts.ResourceTypeTable, Category: consts.ResourceCore},
 	}
 
 	systemRoles := make([]database.Role, 0)
@@ -169,29 +178,51 @@ func initialize() error {
 
 	return database.DB.Transaction(func(tx *gorm.DB) error {
 		// Create system resources
-		if err := repository.BatchUpsertResources(tx, systemResources); err != nil {
-			return fmt.Errorf("failed to create system resources: %v", err)
+		if err := repository.BatchUpsertResources(tx, resources); err != nil {
+			return fmt.Errorf("failed to create system resources: %w", err)
 		}
 
-		allResourcesInDB, err := repository.GetResourcesByNamesWithTx(tx, systemResourceNames)
+		resourceNames := make([]consts.ResourceName, 0, len(resources))
+		for _, res := range resources {
+			resourceNames = append(resourceNames, res.Name)
+		}
+
+		allResourcesInDB, err := repository.ListResourcesByNames(tx, resourceNames)
 		if err != nil {
-			return fmt.Errorf("failed to get system resources from database: %v", err)
+			return fmt.Errorf("failed to get system resources from database: %w", err)
 		}
 
-		resourceIDMap := make(map[string]int)
+		if len(allResourcesInDB) != len(resources) {
+			return fmt.Errorf("mismatch in number of resources created and fetched")
+		}
+
+		resourceMap := make(map[consts.ResourceName]*database.Resource, len(allResourcesInDB))
 		for _, res := range allResourcesInDB {
-			resourceIDMap[res.Name] = res.ID
+			ResourceIDMap[res.Name] = res.ID
+			resourceMap[res.Name] = &res
+		}
+
+		resourceMap[consts.ResourceContainerVersion].ParentID = utils.IntPtr(ResourceIDMap[consts.ResourceContainer])
+		resourceMap[consts.ResourceDatasetVersion].ParentID = utils.IntPtr(ResourceIDMap[consts.ResourceDataset])
+
+		toUpdatedResources := []database.Resource{
+			*resourceMap[consts.ResourceContainerVersion],
+			*resourceMap[consts.ResourceDatasetVersion],
+		}
+
+		if err := repository.BatchUpsertResources(tx, toUpdatedResources); err != nil {
+			return fmt.Errorf("failed to update resource parent IDs: %w", err)
 		}
 
 		// Create system permissions
 		var permissionsToCreate []database.Permission
-		for _, resource := range systemResources {
+		for _, resource := range allResourcesInDB {
 			for _, action := range actions {
 				permission := database.Permission{
-					Name:        getPermissionName(action, resource.Name),
-					DisplayName: getPermissionDisplayName(action, resource.DisplayName),
-					Action:      action.String(),
-					ResourceID:  resourceIDMap[resource.Name],
+					Name:        producer.GetPermissionName(action, resource.Name),
+					DisplayName: producer.GetPermissionDisplayName(action, resource.DisplayName),
+					Action:      string(action),
+					ResourceID:  ResourceIDMap[resource.Name],
 					IsSystem:    true,
 					Status:      consts.CommonEnabled,
 				}
@@ -200,32 +231,32 @@ func initialize() error {
 		}
 
 		if err := repository.BatchUpsertPermissions(tx, permissionsToCreate); err != nil {
-			return fmt.Errorf("failed to create system permissions: %v", err)
+			return fmt.Errorf("failed to create system permissions: %w", err)
 		}
 
 		// Create system roles
 		if err := repository.BatchUpsertRoles(tx, systemRoles); err != nil {
-			return fmt.Errorf("failed to create system roles: %v", err)
+			return fmt.Errorf("failed to create system roles: %w", err)
 		}
 
 		// Assign permissions to system roles
 		if err := assignSystemRolePermissions(tx); err != nil {
-			return fmt.Errorf("failed to assign system role permissions: %v", err)
+			return fmt.Errorf("failed to assign system role permissions: %w", err)
 		}
 
 		// Create super admin user and default project
 		adminUser, err := initializeAdminUserAndProjects(tx, initialData)
 		if err != nil {
-			return fmt.Errorf("failed to initialize admin user and projects: %v", err)
+			return fmt.Errorf("failed to initialize admin user and projects: %w", err)
 		}
 
 		if err := initializeContainers(tx, initialData, adminUser.ID); err != nil {
-			return fmt.Errorf("failed to initialize containers: %v", err)
+			return fmt.Errorf("failed to initialize containers: %w", err)
 		}
 
 		// Initialize execution result labels
 		if err := initializeExecutionLabels(tx); err != nil {
-			return fmt.Errorf("failed to initialize execution labels: %v", err)
+			return fmt.Errorf("failed to initialize execution labels: %w", err)
 		}
 
 		return nil
@@ -236,12 +267,12 @@ func initialize() error {
 func loadInitialDataFromFile(filePath string) (*InitialData, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read initial data file: %v", err)
+		return nil, fmt.Errorf("failed to read initial data file: %w", err)
 	}
 
 	var initialData InitialData
 	if err := json.Unmarshal(data, &initialData); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal initial data: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal initial data: %w", err)
 	}
 
 	return &initialData, nil
@@ -328,7 +359,7 @@ func initializeAdminUserAndProjects(tx *gorm.DB, data *InitialData) (*database.U
 		if errors.Is(err, consts.ErrAlreadyExists) {
 			return nil, fmt.Errorf("admin user already exists")
 		}
-		return nil, fmt.Errorf("failed to create admin user: %v", err)
+		return nil, fmt.Errorf("failed to create admin user: %w", err)
 	}
 
 	superAdminRole, err := repository.GetRoleByName(tx, "super_admin")
@@ -336,7 +367,7 @@ func initializeAdminUserAndProjects(tx *gorm.DB, data *InitialData) (*database.U
 		if errors.Is(err, consts.ErrNotFound) {
 			return nil, fmt.Errorf("super_admin role not found, ensure system roles are initialized first")
 		}
-		return nil, fmt.Errorf("failed to get super_admin role: %v", err)
+		return nil, fmt.Errorf("failed to get super_admin role: %w", err)
 	}
 
 	userRole := database.UserRole{
@@ -347,7 +378,7 @@ func initializeAdminUserAndProjects(tx *gorm.DB, data *InitialData) (*database.U
 		if errors.Is(err, consts.ErrAlreadyExists) {
 			return nil, fmt.Errorf("admin user already has super_admin role")
 		}
-		return nil, fmt.Errorf("failed to assign super_admin role to admin user: %v", err)
+		return nil, fmt.Errorf("failed to assign super_admin role to admin user: %w", err)
 	}
 
 	// 3. Create default projects
@@ -356,7 +387,7 @@ func initializeAdminUserAndProjects(tx *gorm.DB, data *InitialData) (*database.U
 			if errors.Is(err, consts.ErrAlreadyExists) {
 				return nil, fmt.Errorf("project %s already exists", project.Name)
 			}
-			return nil, fmt.Errorf("failed to create project %s: %v", project.Name, err)
+			return nil, fmt.Errorf("failed to create project %s: %w", project.Name, err)
 		}
 
 		if err := repository.CreateUserProject(tx, &database.UserProject{
@@ -365,7 +396,7 @@ func initializeAdminUserAndProjects(tx *gorm.DB, data *InitialData) (*database.U
 			RoleID:    superAdminRole.ID,
 			Status:    consts.CommonEnabled,
 		}); err != nil {
-			return nil, fmt.Errorf("failed to add admin user to project %s: %v", project.Name, err)
+			return nil, fmt.Errorf("failed to add admin user to project %s: %w", project.Name, err)
 		}
 	}
 
@@ -386,16 +417,16 @@ func initializeContainers(tx *gorm.DB, data *InitialData, userID int) error {
 			if versionData.HelmConfig != nil {
 				helmConfig, err := versionData.HelmConfig.ConvertToDBHelmConfig()
 				if err != nil {
-					return fmt.Errorf("failed to convert helm config for container %s version %s: %v",
+					return fmt.Errorf("failed to convert helm config for container %s version %s: %w",
 						containerData.Name, versionData.Name, err)
 				}
 				helmConfigs = append(helmConfigs, helmConfig)
 			}
 		}
 
-		_, err := createContainerCore(tx, container, versions, helmConfigs, userID)
+		_, err := producer.CreateContainerCore(tx, container, versions, helmConfigs, userID)
 		if err != nil {
-			return fmt.Errorf("failed to create container %s: %v", containerData.Name, err)
+			return fmt.Errorf("failed to create container %s: %w", containerData.Name, err)
 		}
 	}
 
@@ -414,9 +445,14 @@ func initializeExecutionLabels(tx *gorm.DB) error {
 	}
 
 	for _, labelInfo := range sourceLabels {
-		_, err := repository.CreateOrGetLabelWithTx(tx, consts.ExecutionLabelSource, labelInfo.value, consts.LabelExecution, labelInfo.description)
+		_, err := producer.CreateLabelCore(tx, &database.Label{
+			Key:         consts.ExecutionLabelSource,
+			Value:       labelInfo.value,
+			Category:    consts.ExecutionCategory,
+			Description: labelInfo.description,
+		})
 		if err != nil {
-			return fmt.Errorf("failed to initialize execution label %s=%s: %v",
+			return fmt.Errorf("failed to initialize execution label %s=%s: %w",
 				consts.ExecutionLabelSource, labelInfo.value, err)
 		}
 	}

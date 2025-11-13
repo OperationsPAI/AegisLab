@@ -45,1704 +45,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/analyzers/injections": {
-            "get": {
-                "description": "Analyze fault injection data using various filtering conditions, returning statistical information including efficiency, diversity, distance between seeds, etc.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "analyzer"
-                ],
-                "summary": "Analyze fault injection data",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Project name filter",
-                        "name": "project_name",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            "dev",
-                            "prod"
-                        ],
-                        "type": "string",
-                        "default": "prod",
-                        "description": "Environment label filter",
-                        "name": "env",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Batch label filter",
-                        "name": "batch",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            "train",
-                            "test"
-                        ],
-                        "type": "string",
-                        "default": "train",
-                        "description": "Classification label filter",
-                        "name": "tag",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            "clickhouse"
-                        ],
-                        "type": "string",
-                        "default": "clickhouse",
-                        "description": "Benchmark type filter",
-                        "name": "benchmark",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 0,
-                        "description": "Status filter, refer to field mapping interface (/mapping) for specific values",
-                        "name": "status",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 0,
-                        "description": "Fault type filter, refer to field mapping interface (/mapping) for specific values",
-                        "name": "fault_type",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Time range query, supports custom relative time (1h/24h/7d) or custom, default is not set",
-                        "name": "lookback",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Custom start time, RFC3339 format, required when lookback=custom",
-                        "name": "custom_start_time",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Custom end time, RFC3339 format, required when lookback=custom",
-                        "name": "custom_end_time",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Returns fault injection analysis statistics",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_AnalyzeInjectionsResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Request parameter error, such as incorrect parameter format, validation failure, etc.",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/analyzers/traces": {
-            "get": {
-                "description": "Analyze trace data using various filtering conditions, returning statistical information including traces ending with fault injection",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "trace"
-                ],
-                "summary": "Analyze trace data",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "First task type filter",
-                        "name": "first_task_type",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Time range query, supports custom relative time (1h/24h/7d) or custom, default is not set",
-                        "name": "lookback",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Custom start time, RFC3339 format, required when lookback=custom",
-                        "name": "custom_start_time",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Custom end time, RFC3339 format, required when lookback=custom",
-                        "name": "custom_end_time",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Returns trace analysis statistics",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_TraceStats"
-                        }
-                    },
-                    "400": {
-                        "description": "Request parameter error, such as incorrect parameter format, validation failure, etc.",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/datasets": {
-            "post": {
-                "description": "Batch build datasets based on specified time range and benchmark container",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "dataset"
-                ],
-                "summary": "Batch build datasets",
-                "parameters": [
-                    {
-                        "description": "List of dataset build requests; each request includes dataset name, time range, benchmark, and environment variable configuration",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.SubmitDatasetBuildingReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": "Successfully submitted dataset building tasks; returns group ID and trace information list",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad request parameters: 1) Invalid JSON format 2) Empty dataset name 3) Invalid time range 4) Benchmark does not exist 5) Unsupported environment variable name",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Delete dataset data",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "dataset"
-                ],
-                "summary": "Delete dataset data",
-                "parameters": [
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "Dataset name list",
-                        "name": "names",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetDeleteResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/datasets/download": {
-            "get": {
-                "description": "Package specified datasets into a ZIP file for download, automatically excluding result.csv and detector conclusion files. Supports downloading by group ID or dataset name (mutually exclusive). Directory structure: when downloading by group ID: datasets/{groupId}/{datasetName}/...; when by name: datasets/{datasetName}/...",
-                "produces": [
-                    "application/zip"
-                ],
-                "tags": [
-                    "dataset"
-                ],
-                "summary": "Download dataset archive file",
-                "parameters": [
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "List of task group IDs, format: group1,group2,group3. Mutually exclusive with names parameter; group_ids takes precedence",
-                        "name": "group_ids",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "List of dataset names, format: dataset1,dataset2,dataset3. Mutually exclusive with group_ids parameter",
-                        "name": "names",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "ZIP file stream; the Content-Disposition header contains filename datasets.zip",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad request parameters: 1) Parameter binding failed 2) Both parameters are empty 3) Both parameters provided",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "403": {
-                        "description": "Permission error: requested dataset path is not within allowed scope",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/debug/ns/status": {
-            "get": {
-                "description": "Get namespace lock status information",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "debug"
-                ],
-                "summary": "Get namespace lock status",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/evaluations/executions": {
-            "get": {
-                "description": "Get all records in ExecutionResult with status ExecutionSuccess, supports time range filtering and quantity filtering",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "evaluation"
-                ],
-                "summary": "Get successful algorithm execution records",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Start time, format: 2006-01-02T15:04:05Z07:00",
-                        "name": "start_time",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "End time, format: 2006-01-02T15:04:05Z07:00",
-                        "name": "end_time",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Limit",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Offset for pagination",
-                        "name": "offset",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successfully returns the list of successful algorithm execution records",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SuccessfulExecutionsResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Request parameter error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/evaluations/groundtruth": {
-            "post": {
-                "description": "Get ground truth data for the given dataset array, used as benchmark data for algorithm evaluation. Supports batch query for ground truth information of multiple datasets",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "evaluation"
-                ],
-                "summary": "Get ground truth for datasets",
-                "parameters": [
-                    {
-                        "description": "Ground truth query request, contains dataset list",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.GroundTruthReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successfully returns ground truth information for datasets",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_GroundTruthResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Request parameter error, such as incorrect JSON format or empty dataset array",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/evaluations/raw-data": {
-            "post": {
-                "description": "Supports three query modes: 1) Directly pass an array of algorithm-dataset pairs for precise query; 2) Pass lists of algorithms and datasets for Cartesian product query; 3) Query by execution ID list. The three modes are mutually exclusive, only one can be selected",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "evaluation"
-                ],
-                "summary": "Get raw evaluation data",
-                "parameters": [
-                    {
-                        "description": "Raw data query request, supports three modes: pairs array, (algorithms+datasets) Cartesian product, or execution_ids list",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.RawDataReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successfully returns the list of raw evaluation data",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_RawDataResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Request parameter error, such as incorrect JSON format, query mode conflict or empty parameter",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/injections": {
-            "get": {
-                "description": "Fault injection record query interface supporting sorting and filtering. Returns the original database record list without data conversion.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "injection"
-                ],
-                "summary": "Get Fault Injection Record List",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Project name filter",
-                        "name": "project_name",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            "dev",
-                            "prod"
-                        ],
-                        "type": "string",
-                        "default": "prod",
-                        "description": "Environment label filter",
-                        "name": "env",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Batch label filter",
-                        "name": "batch",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            "train",
-                            "test"
-                        ],
-                        "type": "string",
-                        "default": "train",
-                        "description": "Category label filter",
-                        "name": "tag",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            "clickhouse"
-                        ],
-                        "type": "string",
-                        "default": "clickhouse",
-                        "description": "Benchmark type filter",
-                        "name": "benchmark",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 0,
-                        "description": "Status filter, refer to field mapping interface (/mapping) for specific values",
-                        "name": "status",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 0,
-                        "description": "Fault type filter, refer to field mapping interface (/mapping) for specific values",
-                        "name": "fault_type",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "default": "created_at",
-                        "description": "Sort field, default created_at",
-                        "name": "sort_field",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            "asc",
-                            "desc"
-                        ],
-                        "type": "string",
-                        "default": "desc",
-                        "description": "Sort order, default desc",
-                        "name": "sort_order",
-                        "in": "query"
-                    },
-                    {
-                        "minimum": 0,
-                        "type": "integer",
-                        "default": 0,
-                        "description": "Result quantity limit, used to control the number of returned records",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "minimum": 0,
-                        "type": "integer",
-                        "default": 0,
-                        "description": "Pagination query, page number",
-                        "name": "page_num",
-                        "in": "query"
-                    },
-                    {
-                        "minimum": 0,
-                        "type": "integer",
-                        "default": 0,
-                        "description": "Pagination query, records per page",
-                        "name": "page_size",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Time range query, supports custom relative time (1h/24h/7d) or custom, default not set",
-                        "name": "lookback",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Custom start time, RFC3339 format, required when lookback=custom",
-                        "name": "custom_start_time",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Custom end time, RFC3339 format, required when lookback=custom",
-                        "name": "custom_end_time",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successfully returned fault injection record list",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_ListInjectionsResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Request parameter error, such as incorrect parameter format, validation failure, etc.",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Submit fault injection task, supporting batch submission of multiple fault configurations, the system will automatically deduplicate and return submission results",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "injection"
-                ],
-                "summary": "Submit Fault Injection Task",
-                "parameters": [
-                    {
-                        "description": "Fault injection request body",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.SubmitInjectionReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": "Successfully submitted fault injection task",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SubmitInjectionResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Request parameter error, such as incorrect JSON format, parameter validation failure, or invalid algorithm, etc.",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/injections/analysis/no-issues": {
-            "get": {
-                "description": "Query all fault injection records without issues based on time range, returning detailed records including configuration information",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "injection"
-                ],
-                "summary": "Query Fault Injection Records Without Issues",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Environment label filter",
-                        "name": "env",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Batch label filter",
-                        "name": "batch",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Time range query, supports custom relative time (1h/24h/7d) or custom, default not set",
-                        "name": "lookback",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Custom start time, RFC3339 format, required when lookback=custom",
-                        "name": "custom_start_time",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Custom end time, RFC3339 format, required when lookback=custom",
-                        "name": "custom_end_time",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successfully returned fault injection records without issues",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-array_dto_FaultInjectionNoIssuesResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Request parameter error, such as incorrect time format or parameter validation failure, etc.",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/injections/analysis/stats": {
-            "get": {
-                "description": "Get statistical information of fault injection records, including counts of records with issues, without issues, and total records",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "injection"
-                ],
-                "summary": "Get Fault Injection Statistics",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Time range query, supports custom relative time (1h/24h/7d) or custom, default not set",
-                        "name": "lookback",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Custom start time, RFC3339 format, required when lookback=custom",
-                        "name": "custom_start_time",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Custom end time, RFC3339 format, required when lookback=custom",
-                        "name": "custom_end_time",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successfully returned fault injection statistics",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionStatsResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Request parameter error, such as incorrect time format or parameter validation failure, etc.",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/injections/analysis/with-issues": {
-            "get": {
-                "description": "Query all fault injection records with issues based on time range",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "injection"
-                ],
-                "summary": "Query Fault Injection Records With Issues",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Environment label filter",
-                        "name": "env",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Batch label filter",
-                        "name": "batch",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Time range query, supports custom relative time (1h/24h/7d) or custom, default not set",
-                        "name": "lookback",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Custom start time, RFC3339 format, required when lookback=custom",
-                        "name": "custom_start_time",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Custom end time, RFC3339 format, required when lookback=custom",
-                        "name": "custom_end_time",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-array_dto_FaultInjectionWithIssuesResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Request parameter error, such as incorrect time format or parameter validation failure, etc.",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/injections/conf": {
-            "get": {
-                "description": "Get fault injection configuration for the specified namespace, supporting different display modes for configuration tree structure",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "injection"
-                ],
-                "summary": "Get Fault Injection Configuration",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Namespace, specifies the namespace to get configuration for",
-                        "name": "namespace",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "enum": [
-                            "display",
-                            "engine"
-                        ],
-                        "type": "string",
-                        "default": "engine",
-                        "description": "Display mode",
-                        "name": "mode",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successfully returned configuration tree structure",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-handler_Node"
-                        }
-                    },
-                    "400": {
-                        "description": "Request parameter error, such as missing namespace or mode parameter",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/injections/configs": {
-            "get": {
-                "description": "Get fault injection configuration information based on multiple TraceIDs, used to view configuration details of submitted fault injection tasks",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "injection"
-                ],
-                "summary": "Get Injected Fault Configuration List",
-                "parameters": [
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "multi",
-                        "description": "TraceID list, supports multiple values, used to query corresponding configuration information",
-                        "name": "trace_ids",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successfully returned configuration list",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "400": {
-                        "description": "Request parameter error, such as missing TraceID parameter or incorrect format",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/injections/mapping": {
-            "get": {
-                "description": "Get string-to-number mapping relationships for status and fault types, used for frontend display and API parameter validation",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "injection"
-                ],
-                "summary": "Get Field Mapping",
-                "responses": {
-                    "200": {
-                        "description": "Successfully returned field mapping relationships",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionFieldMappingResp"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/injections/ns-resources": {
-            "get": {
-                "description": "Get mapping of all namespaces and their corresponding resource information, or query resource information for a specific namespace. Returns a mapping table from namespace to resources, used for fault injection configuration and resource management",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "injection"
-                ],
-                "summary": "Get Namespace Resource Mapping",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Namespace name, returns resource mappings for all namespaces if not specified",
-                        "name": "namespace",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Returns resource information for the specified namespace when a namespace is provided",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-handler_Resources"
-                        }
-                    },
-                    "404": {
-                        "description": "The specified namespace does not exist",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error, unable to get resource mapping",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/injections/query": {
-            "get": {
-                "description": "Query fault injection record details by name or task ID, at least one of the two parameters must be provided",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "injection"
-                ],
-                "summary": "Query Single Fault Injection Record",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Fault injection name",
-                        "name": "name",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Task ID",
-                        "name": "task_id",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successfully returned fault injection record details",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_QueryInjectionResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Request parameter error, such as missing parameters, incorrect format, or validation failure, etc.",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/injections/{task_id}/cancel": {
-            "put": {
-                "description": "Cancel the specified fault injection task",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "injection"
-                ],
-                "summary": "Cancel Fault Injection Task",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Task ID",
-                        "name": "task_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectCancelResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/tasks": {
-            "get": {
-                "description": "Paginate and get task list by multiple conditions. Supports exact query by task ID, trace ID, group ID, or filter by type, status, etc.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "task"
-                ],
-                "summary": "Get task list",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Task ID - exact match (mutually exclusive with trace_id, group_id)",
-                        "name": "task_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Trace ID - find all tasks in the same trace (mutually exclusive with task_id, group_id)",
-                        "name": "trace_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Group ID - find all tasks in the same group (mutually exclusive with task_id, trace_id)",
-                        "name": "group_id",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            "RestartService",
-                            "FaultInjection",
-                            "BuildDataset",
-                            "RunAlgorithm",
-                            "CollectResult",
-                            "BuildImage"
-                        ],
-                        "type": "string",
-                        "description": "Task type filter",
-                        "name": "task_type",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            "Pending",
-                            "Running",
-                            "Completed",
-                            "Error",
-                            "Cancelled",
-                            "Scheduled",
-                            "Rescheduled"
-                        ],
-                        "type": "string",
-                        "description": "Task status filter",
-                        "name": "status",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Immediate execution - true: immediate, false: delayed",
-                        "name": "immediate",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "default": "created_at",
-                        "description": "Sort field, default created_at",
-                        "name": "sort_field",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            "asc",
-                            "desc"
-                        ],
-                        "type": "string",
-                        "default": "desc",
-                        "description": "Sort order, default desc",
-                        "name": "sort_order",
-                        "in": "query"
-                    },
-                    {
-                        "minimum": 1,
-                        "type": "integer",
-                        "description": "Result limit, controls number of records returned",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Time range query, supports relative time (1h/24h/7d) or custom, default unset",
-                        "name": "lookback",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Custom start time, RFC3339 format, required if lookback=custom",
-                        "name": "custom_start_time",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Custom end time, RFC3339 format, required if lookback=custom",
-                        "name": "custom_end_time",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successfully returned fault injection record list",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_ListTasksResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Request parameter error, e.g. invalid format or validation failed",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/tasks/queue": {
-            "get": {
-                "description": "Paginate and get the list of tasks waiting in the queue",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "task"
-                ],
-                "summary": "Get queued tasks",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Page number",
-                        "name": "page_num",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 10,
-                        "description": "Page size",
-                        "name": "page_size",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_PaginationResp-dto_UnifiedTask"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/tasks/{task_id}": {
-            "get": {
-                "description": "Get detailed information of a task by task ID, including basic info and execution logs",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "task"
-                ],
-                "summary": "Get task detail",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Task ID",
-                        "name": "task_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_TaskDetailResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid task ID",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "Task not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/algorithms": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get a simple list of all active algorithms without complex filtering",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Algorithms"
-                ],
-                "summary": "List algorithms",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Page number",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 20,
-                        "description": "Page size",
-                        "name": "size",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Algorithms retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_AlgorithmResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "403": {
-                        "description": "Permission denied",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/algorithms/execute": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Submit multiple algorithm execution tasks in batch. Supports mixing datapack (v1 compatible) and dataset (v2 feature) executions.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Algorithms"
-                ],
-                "summary": "Submit batch algorithm execution",
-                "parameters": [
-                    {
-                        "description": "Batch algorithm execution request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.BatchAlgorithmExecutionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": "Batch algorithm execution submitted successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_BatchAlgorithmExecutionResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "403": {
-                        "description": "Permission denied",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "Project, algorithm, datapack or dataset not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/algorithms/search": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Search algorithms with complex filtering, sorting and pagination. Algorithms are containers with type 'algorithm'",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Algorithms"
-                ],
-                "summary": "Search algorithms",
-                "parameters": [
-                    {
-                        "description": "Algorithm search request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.AlgorithmSearchRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Algorithms retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_AlgorithmResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "403": {
-                        "description": "Permission denied",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/algorithms/{algorithm_id}/executions/{execution_id}/detectors": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Upload detection results for detector algorithms via API instead of file collection",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Algorithms"
-                ],
-                "summary": "Upload detector algorithm results",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Algorithm ID",
-                        "name": "algorithm_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Execution ID",
-                        "name": "execution_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Detector results",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.DetectorResultRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Results uploaded successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_AlgorithmResultUploadResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "403": {
-                        "description": "Permission denied",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "Algorithm or execution not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/algorithms/{algorithm_id}/versions/{version_id}/executions/{execution_id}results": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Upload granularity results for regular algorithms. Supports two modes: 1) Create new execution with algorithm_id and datapack_id, 2) Use existing execution_id via query parameter",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Algorithms"
-                ],
-                "summary": "Upload granularity algorithm results",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Algorithm ID",
-                        "name": "algorithm_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Algorithm Version ID",
-                        "name": "version_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Execution ID (optional, if not provided a new execution will be created)",
-                        "name": "execution_id",
-                        "in": "path"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Label tag (optional, only used when creating new execution)",
-                        "name": "label",
-                        "in": "query"
-                    },
-                    {
-                        "description": "Granularity results with optional execution creation",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.GranularityResultEnhancedRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Results uploaded successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_AlgorithmResultUploadResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "403": {
-                        "description": "Permission denied",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "Algorithm or datapack not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v2/auth/change-password": {
             "post": {
                 "security": [
@@ -1761,6 +63,7 @@ const docTemplate = `{
                     "Authentication"
                 ],
                 "summary": "Change user password",
+                "operationId": "change_password",
                 "parameters": [
                     {
                         "description": "Password change request",
@@ -1768,7 +71,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.ChangePasswordRequest"
+                            "$ref": "#/definitions/dto.ChangePasswordReq"
                         }
                     }
                 ],
@@ -1780,13 +83,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid request format/parameters",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized or invalid old password",
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -1813,6 +116,7 @@ const docTemplate = `{
                     "Authentication"
                 ],
                 "summary": "User login",
+                "operationId": "login",
                 "parameters": [
                     {
                         "description": "Login credentials",
@@ -1820,7 +124,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.LoginRequest"
+                            "$ref": "#/definitions/dto.LoginReq"
                         }
                     }
                 ],
@@ -1828,17 +132,17 @@ const docTemplate = `{
                     "200": {
                         "description": "Login successful",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_LoginResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_LoginResp"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid request format",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "401": {
-                        "description": "Invalid credentials",
+                        "description": "Invalid user name or password",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -1855,9 +159,6 @@ const docTemplate = `{
         "/api/v2/auth/logout": {
             "post": {
                 "description": "Logout user and invalidate token",
-                "consumes": [
-                    "application/json"
-                ],
                 "produces": [
                     "application/json"
                 ],
@@ -1865,17 +166,7 @@ const docTemplate = `{
                     "Authentication"
                 ],
                 "summary": "User logout",
-                "parameters": [
-                    {
-                        "description": "Logout request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.LogoutRequest"
-                        }
-                    }
-                ],
+                "operationId": "logout",
                 "responses": {
                     "200": {
                         "description": "Logout successful",
@@ -1884,7 +175,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid authorization header",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid token",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -1913,15 +210,16 @@ const docTemplate = `{
                     "Authentication"
                 ],
                 "summary": "Get current user profile",
+                "operationId": "get_current_user_profile",
                 "responses": {
                     "200": {
                         "description": "Profile retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_UserResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_UserDetailResp"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -1948,6 +246,7 @@ const docTemplate = `{
                     "Authentication"
                 ],
                 "summary": "Refresh JWT token",
+                "operationId": "refresh_auth_token",
                 "parameters": [
                     {
                         "description": "Token refresh request",
@@ -1955,7 +254,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.TokenRefreshRequest"
+                            "$ref": "#/definitions/dto.TokenRefreshReq"
                         }
                     }
                 ],
@@ -1963,11 +262,11 @@ const docTemplate = `{
                     "200": {
                         "description": "Token refreshed successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_TokenRefreshResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_TokenRefreshResp"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid request format",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -2000,6 +299,7 @@ const docTemplate = `{
                     "Authentication"
                 ],
                 "summary": "User registration",
+                "operationId": "register_user",
                 "parameters": [
                     {
                         "description": "Registration details",
@@ -2007,7 +307,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.RegisterRequest"
+                            "$ref": "#/definitions/dto.RegisterReq"
                         }
                     }
                 ],
@@ -2019,7 +319,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request or validation error",
+                        "description": "Invalid request format/parameters",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -2046,7 +346,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get paginated list of containers with optional filtering",
+                "description": "Get paginated list of containers with pagination and filtering",
                 "produces": [
                     "application/json"
                 ],
@@ -2054,6 +354,7 @@ const docTemplate = `{
                     "Containers"
                 ],
                 "summary": "List containers",
+                "operationId": "list_containers",
                 "parameters": [
                     {
                         "type": "integer",
@@ -2071,16 +372,17 @@ const docTemplate = `{
                     },
                     {
                         "enum": [
-                            "algorithm",
-                            "benchmark"
+                            0,
+                            1,
+                            2
                         ],
-                        "type": "string",
+                        "type": "integer",
                         "description": "Container type filter",
                         "name": "type",
                         "in": "query"
                     },
                     {
-                        "type": "boolean",
+                        "type": "integer",
                         "description": "Container status filter",
                         "name": "status",
                         "in": "query"
@@ -2090,7 +392,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Containers retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_ListResponse-dto_ContainerResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListResp-dto_ContainerResp"
                         }
                     },
                     "400": {
@@ -2136,6 +438,7 @@ const docTemplate = `{
                     "Containers"
                 ],
                 "summary": "Create container",
+                "operationId": "create_container",
                 "parameters": [
                     {
                         "description": "Container creation request",
@@ -2143,7 +446,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.CreateContainerRequest"
+                            "$ref": "#/definitions/dto.CreateContainerReq"
                         }
                     }
                 ],
@@ -2151,7 +454,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Container created successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerResp"
                         }
                     },
                     "400": {
@@ -2194,7 +497,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Build a container from provided source code (e.g., GitHub repository).",
+                "description": "Submit a container build task to build a container image from provided source files.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2204,7 +507,8 @@ const docTemplate = `{
                 "tags": [
                     "Containers"
                 ],
-                "summary": "Build container",
+                "summary": "Submit container building",
+                "operationId": "build_container_image",
                 "parameters": [
                     {
                         "description": "Container build request",
@@ -2212,7 +516,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.BuildContainerRequest"
+                            "$ref": "#/definitions/dto.SubmitBuildContainerReq"
                         }
                     }
                 ],
@@ -2220,11 +524,23 @@ const docTemplate = `{
                     "200": {
                         "description": "Container build task submitted successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SubmitResp"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SubmitContainerBuildResp"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -2259,6 +575,7 @@ const docTemplate = `{
                     "Containers"
                 ],
                 "summary": "Search containers",
+                "operationId": "search_containers",
                 "parameters": [
                     {
                         "description": "Container search request",
@@ -2266,7 +583,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.SearchContainerRequest"
+                            "$ref": "#/definitions/dto.SearchContainerReq"
                         }
                     }
                 ],
@@ -2274,7 +591,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Containers retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_ContainerResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResp-dto_ContainerResp"
                         }
                     },
                     "400": {
@@ -2313,6 +630,7 @@ const docTemplate = `{
                     "Containers"
                 ],
                 "summary": "Get container by ID",
+                "operationId": "get_container_by_id",
                 "parameters": [
                     {
                         "type": "integer",
@@ -2326,7 +644,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Container retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerDetailResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerDetailResp"
                         }
                     },
                     "400": {
@@ -2367,7 +685,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Delete a container (soft delete by setting status to false)",
+                "description": "Delete a container (soft delete by setting status to -1)",
                 "produces": [
                     "application/json"
                 ],
@@ -2375,6 +693,7 @@ const docTemplate = `{
                     "Containers"
                 ],
                 "summary": "Delete container",
+                "operationId": "delete_container",
                 "parameters": [
                     {
                         "type": "integer",
@@ -2440,6 +759,7 @@ const docTemplate = `{
                     "Containers"
                 ],
                 "summary": "Update container",
+                "operationId": "update_container",
                 "parameters": [
                     {
                         "type": "integer",
@@ -2454,7 +774,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.UpdateContainerRequest"
+                            "$ref": "#/definitions/dto.UpdateContainerReq"
                         }
                     }
                 ],
@@ -2462,7 +782,7 @@ const docTemplate = `{
                     "202": {
                         "description": "Container updated successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerResp"
                         }
                     },
                     "400": {
@@ -2498,7 +818,161 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/containers/{container_id}/labels": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Add or remove custom labels (key-value pairs) for a container",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Containers"
+                ],
+                "summary": "Manage container custom labels",
+                "operationId": "update_container_labels",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Container ID",
+                        "name": "container_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Label management request",
+                        "name": "manage",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ManageContainerLabelReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Labels managed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid container ID or invalid request format/parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Container not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/containers/{container_id}/versions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get paginated list of container versions for a specific container",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Containers"
+                ],
+                "summary": "List container versions",
+                "operationId": "list_container_versions",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Container ID",
+                        "name": "container_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Container version status filter",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Container versions retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListResp-dto_ContainerVersionResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
             "post": {
                 "security": [
                     {
@@ -2516,6 +990,7 @@ const docTemplate = `{
                     "Containers"
                 ],
                 "summary": "Create container version",
+                "operationId": "create_container_version",
                 "parameters": [
                     {
                         "type": "integer",
@@ -2530,7 +1005,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.CreateContainerVersionRequest"
+                            "$ref": "#/definitions/dto.CreateContainerVersionReq"
                         }
                     }
                 ],
@@ -2538,11 +1013,11 @@ const docTemplate = `{
                     "201": {
                         "description": "Container version created successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerVersionResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerVersionResp"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid container ID or invalid request format or parameters",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -2589,6 +1064,7 @@ const docTemplate = `{
                     "Containers"
                 ],
                 "summary": "Get container version by ID",
+                "operationId": "get_container_version_by_id",
                 "parameters": [
                     {
                         "type": "integer",
@@ -2609,7 +1085,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Container version retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerVersionDetailResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerVersionDetailResp"
                         }
                     },
                     "400": {
@@ -2658,6 +1134,7 @@ const docTemplate = `{
                     "Containers"
                 ],
                 "summary": "Delete container version",
+                "operationId": "delete_container_version",
                 "parameters": [
                     {
                         "type": "integer",
@@ -2682,7 +1159,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid container ID/container version ID",
+                        "description": "Invalid container ID or container version ID",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -2730,6 +1207,7 @@ const docTemplate = `{
                     "Containers"
                 ],
                 "summary": "Update container version",
+                "operationId": "update_container_version",
                 "parameters": [
                     {
                         "type": "integer",
@@ -2751,7 +1229,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.UpdateContainerVersionRequest"
+                            "$ref": "#/definitions/dto.UpdateContainerVersionReq"
                         }
                     }
                 ],
@@ -2759,7 +1237,7 @@ const docTemplate = `{
                     "202": {
                         "description": "Container version updated successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerVersionResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ContainerVersionResp"
                         }
                     },
                     "400": {
@@ -2802,7 +1280,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get a paginated list of datasets with filtering and sorting",
+                "description": "Get paginated list of datasets with pagination and filtering",
                 "produces": [
                     "application/json"
                 ],
@@ -2810,59 +1288,32 @@ const docTemplate = `{
                     "Datasets"
                 ],
                 "summary": "List datasets",
+                "operationId": "list_datasets",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Page number (default 1)",
+                        "default": 1,
+                        "description": "Page number",
                         "name": "page",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "Page size (default 20, max 100)",
+                        "default": 20,
+                        "description": "Page size",
                         "name": "size",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Filter by dataset type",
+                        "description": "Dataset type filter",
                         "name": "type",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "Filter by status",
+                        "description": "Dataset status filter",
                         "name": "status",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Filter by public status",
-                        "name": "is_public",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Search in name and description",
-                        "name": "search",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Sort field (id,name,created_at,updated_at)",
-                        "name": "sort_by",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Sort order (asc,desc)",
-                        "name": "sort_order",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Include related data (injections,labels)",
-                        "name": "include",
                         "in": "query"
                     }
                 ],
@@ -2870,11 +1321,17 @@ const docTemplate = `{
                     "200": {
                         "description": "Datasets retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetSearchResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListResp-dto_DatasetResp"
                         }
                     },
                     "400": {
-                        "description": "Invalid request parameters",
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -2899,7 +1356,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a new dataset with optional injection and label associations",
+                "description": "Create a new dataset with an initial version",
                 "consumes": [
                     "application/json"
                 ],
@@ -2910,14 +1367,15 @@ const docTemplate = `{
                     "Datasets"
                 ],
                 "summary": "Create dataset",
+                "operationId": "create_dataset",
                 "parameters": [
                     {
                         "description": "Dataset creation request",
-                        "name": "dataset",
+                        "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.DatasetV2CreateReq"
+                            "$ref": "#/definitions/dto.CreateDatasetReq"
                         }
                     }
                 ],
@@ -2925,11 +1383,17 @@ const docTemplate = `{
                     "201": {
                         "description": "Dataset created successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetV2Response"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetResp"
                         }
                     },
                     "400": {
                         "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -2941,7 +1405,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "Dataset already exists",
+                        "description": "Conflict error",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -2955,64 +1419,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/datasets/search": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Advanced search for datasets with complex filtering",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Datasets"
-                ],
-                "summary": "Search datasets",
-                "parameters": [
-                    {
-                        "description": "Search criteria",
-                        "name": "search",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.DatasetV2SearchReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Search results",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_DatasetV2Response"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "403": {
-                        "description": "Permission denied",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/datasets/{id}": {
+        "/api/v2/datasets/{dataset_id}": {
             "get": {
                 "security": [
                     {
@@ -3027,32 +1434,21 @@ const docTemplate = `{
                     "Datasets"
                 ],
                 "summary": "Get dataset by ID",
+                "operationId": "get_dataset_by_id",
                 "parameters": [
                     {
                         "type": "integer",
                         "description": "Dataset ID",
-                        "name": "id",
+                        "name": "dataset_id",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Include related fault injections",
-                        "name": "include_injections",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Include related labels",
-                        "name": "include_labels",
-                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "Dataset retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetV2Response"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetDetailResp"
                         }
                     },
                     "400": {
@@ -3061,70 +1457,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
-                    "403": {
-                        "description": "Permission denied",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "Dataset not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Update dataset information, injection and label associations",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Datasets"
-                ],
-                "summary": "Update dataset",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Dataset ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Dataset update request",
-                        "name": "dataset",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.DatasetV2UpdateReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Dataset updated successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetV2Response"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -3155,7 +1489,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Soft delete a dataset (sets status to -1)",
+                "description": "Delete a dataset (soft delete by setting status to -1)",
                 "produces": [
                     "application/json"
                 ],
@@ -3163,17 +1497,18 @@ const docTemplate = `{
                     "Datasets"
                 ],
                 "summary": "Delete dataset",
+                "operationId": "delete_dataset",
                 "parameters": [
                     {
                         "type": "integer",
                         "description": "Dataset ID",
-                        "name": "id",
+                        "name": "dataset_id",
                         "in": "path",
                         "required": true
                     }
                 ],
                 "responses": {
-                    "200": {
+                    "204": {
                         "description": "Dataset deleted successfully",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
@@ -3181,6 +1516,87 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid dataset ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Dataset not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing dataset's information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datasets"
+                ],
+                "summary": "Update dataset",
+                "operationId": "update_dataset",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Dataset ID",
+                        "name": "dataset_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dataset update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateDatasetReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Dataset updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid dataset ID/request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -3206,26 +1622,573 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/datasets/{id}/download": {
+        "/api/v2/datasets/{dataset_id}/labels": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Add or remove custom labels (key-value pairs) for a dataset",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datasets"
+                ],
+                "summary": "Manage dataset custom labels",
+                "operationId": "update_dataset_labels",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Dataset ID",
+                        "name": "dataset_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Label management request",
+                        "name": "manage",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ManageDatasetLabelReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Labels managed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid dataset ID or invalid request format/parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Dataset not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/datasets/{dataset_id}/version/{version_id}/injections": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Add or remove injections for a dataset",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datasets"
+                ],
+                "summary": "Manage dataset injections",
+                "operationId": "link_injections_to_dataset_version",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Dataset ID",
+                        "name": "dataset_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Dataset Version ID",
+                        "name": "version_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Injection management request",
+                        "name": "manage",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ManageDatasetVersionInjectionReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Injections managed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetVersionDetailResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid dataset ID or invalid request format/parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Dataset not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/datasets/{dataset_id}/versions": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Download dataset file by ID",
+                "description": "Get paginated list of dataset versions for a specific dataset",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datasets"
+                ],
+                "summary": "List dataset versions",
+                "operationId": "list_dataset_versions",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Dataset ID",
+                        "name": "dataset_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Dataset version status filter",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dataset versions retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListResp-dto_DatasetVersionResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new dataset version for an existing dataset.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datasets"
+                ],
+                "summary": "Create dataset version",
+                "operationId": "create_dataset_version",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Dataset ID",
+                        "name": "dataset_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dataset version creation request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateDatasetVersionReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Dataset version created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetVersionResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/datasets/{dataset_id}/versions/{version_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get detailed information about a specific dataset version",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datasets"
+                ],
+                "summary": "Get dataset version by ID",
+                "operationId": "get_dataset_version_by_id",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Dataset ID",
+                        "name": "dataset_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Dataset Version ID",
+                        "name": "version_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dataset version retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetVersionDetailResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid dataset ID/dataset version ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Dataset or version not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete a dataset version (soft delete by setting status to false)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datasets"
+                ],
+                "summary": "Delete dataset version",
+                "operationId": "delete_dataset_version",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Dataset ID",
+                        "name": "dataset_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Dataset Version ID",
+                        "name": "version_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Dataset version deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid dataset ID/dataset version ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Dataset or version not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing dataset version's information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datasets"
+                ],
+                "summary": "Update dataset version",
+                "operationId": "update_dataset_version",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Dataset ID",
+                        "name": "dataset_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Dataset Version ID",
+                        "name": "version_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dataset version update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateDatasetVersionReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Dataset version updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetVersionResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid dataset ID/dataset version ID/request format/request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Dataset not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/datasets/{dataset_id}/versions/{version_id}/download": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Download dataset file by version ID",
                 "produces": [
                     "application/octet-stream"
                 ],
                 "tags": [
                     "Datasets"
                 ],
-                "summary": "Download dataset",
+                "summary": "Download dataset version",
+                "operationId": "download_dataset_version",
                 "parameters": [
                     {
                         "type": "integer",
                         "description": "Dataset ID",
-                        "name": "id",
+                        "name": "dataset_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Dataset Version ID",
+                        "name": "version_id",
                         "in": "path",
                         "required": true
                     }
@@ -3238,147 +2201,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid dataset ID",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "403": {
-                        "description": "Permission denied",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "Dataset not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/datasets/{id}/injections": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Add or remove injection associations for a dataset",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Datasets"
-                ],
-                "summary": "Manage dataset injections",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Dataset ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Injection management request",
-                        "name": "manage",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.DatasetV2InjectionManageReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Injections managed successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetV2Response"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "403": {
-                        "description": "Permission denied",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "Dataset not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/datasets/{id}/labels": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Add, remove labels or create new labels for a dataset",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Datasets"
-                ],
-                "summary": "Manage dataset labels",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Dataset ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Label management request",
-                        "name": "manage",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.DatasetV2LabelManageReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Labels managed successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetV2Response"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid dataset ID/dataset version ID",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -3411,7 +2234,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get execution results with predictions and ground truth for multiple algorithm-datapack pairs in a single request. Returns the latest execution for each pair if multiple executions exist.",
+                "description": "Retrieve evaluation data for multiple algorithm-datapack pairs.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3419,9 +2242,10 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "evaluation"
+                    "Evaluations"
                 ],
-                "summary": "Get Batch Algorithm Datapack Evaluation",
+                "summary": "List Datapack Evaluation Results",
+                "operationId": "evaluate_algorithm_on_datapacks",
                 "parameters": [
                     {
                         "description": "Batch evaluation request containing multiple algorithm-datapack pairs",
@@ -3429,94 +2253,31 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.DatapackEvaluationBatchReq"
+                            "$ref": "#/definitions/dto.BatchEvaluateDatapackReq"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Batch algorithm datapack evaluation data",
+                        "description": "Batch algorithm datapack evaluation data retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_DatapackEvaluationBatchResp"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_BatchEvaluateDatapackResp"
                         }
                     },
                     "400": {
-                        "description": "Bad request",
+                        "description": "Invalid request format/parameters",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/evaluations/datapacks/detector": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get detector analysis results for multiple datapacks. If a datapack has multiple executions, returns the latest one.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "evaluation"
-                ],
-                "summary": "Get Datapack Detector Results",
-                "parameters": [
-                    {
-                        "description": "Datapack detector request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.DatapackDetectorReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Datapack detector results",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_DatapackDetectorResp"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -3537,7 +2298,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get execution results with predictions and ground truth for multiple algorithm-dataset pairs in a single request. Returns the latest execution for each datapack if multiple executions exist.",
+                "description": "Retrieve evaluation data for multiple algorithm-dataset pairs.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3545,9 +2306,10 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "evaluation"
+                    "Evaluations"
                 ],
-                "summary": "Get Batch Algorithm Dataset Evaluation",
+                "summary": "List Dataset Evaluation Results",
+                "operationId": "evaluate_algorithm_on_datasets",
                 "parameters": [
                     {
                         "description": "Batch evaluation request containing multiple algorithm-dataset pairs",
@@ -3555,31 +2317,31 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.DatasetEvaluationBatchReq"
+                            "$ref": "#/definitions/dto.BatchEvaluateDatapackReq"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Batch algorithm dataset evaluation data",
+                        "description": "Batch algorithm dataset evaluation data retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_DatasetEvaluationBatchResp"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_BatchEvaluateDatasetResp"
                         }
                     },
                     "400": {
-                        "description": "Bad request",
+                        "description": "Invalid request format/parameters",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -3593,14 +2355,102 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/evaluations/label-keys": {
+        "/api/v2/executions": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get the list of available label keys that can be used for filtering execution results",
+                "description": "Get a paginated list of executions with pagination and filtering",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Executions"
+                ],
+                "summary": "List executions",
+                "operationId": "list_executions",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by event",
+                        "name": "event",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Filter by labels (array of key:value strings, e.g., 'type:test')",
+                        "name": "labels",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Executions retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListResp-dto_ExecutionResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/executions/batch-delete": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Batch delete executions by IDs or labels with cascading deletion of related records",
                 "consumes": [
                     "application/json"
                 ],
@@ -3608,24 +2458,452 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "evaluation"
+                    "Executions"
                 ],
-                "summary": "Get Available Label Keys",
+                "summary": "Batch delete executions",
+                "operationId": "batch_delete_executions",
+                "parameters": [
+                    {
+                        "description": "Batch delete request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.BatchDeleteExecutionReq"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "Available label keys",
+                        "description": "Executions deleted successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-array_string"
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/executions/execute": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Submit multiple algorithm execution tasks in batch. Supports mixing datapack (v1 compatible) and dataset (v2 feature) executions.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Algorithms"
+                ],
+                "summary": "Submit batch algorithm execution",
+                "operationId": "run_algorithm",
+                "parameters": [
+                    {
+                        "description": "Algorithm execution request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.SubmitExecutionReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Algorithm execution submitted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SubmitExecutionResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Project, algorithm, datapack or dataset not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/executions/labels": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "List all available label keys for executions",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Executions"
+                ],
+                "summary": "List execution labels",
+                "operationId": "list_execution_labels",
+                "responses": {
+                    "200": {
+                        "description": "Available label keys",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-array_dto_LabelItem"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/executions/{execution_id}/detector_results": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Upload detection results for detector algorithm via API instead of file collection",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Executions"
+                ],
+                "summary": "Upload detector results",
+                "operationId": "upload_detection_results",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Execution ID",
+                        "name": "execution_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Detector results",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UploadDetectorResultReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Results uploaded successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_UploadExecutionResultResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid executionID or invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Execution not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/executions/{execution_id}/granularity_results": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Upload granularity results for regular algorithms via API instead of file collection",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Executions"
+                ],
+                "summary": "Upload granularity results",
+                "operationId": "upload_localization_results",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Execution ID",
+                        "name": "execution_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Granularity results",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UploadGranularityResultReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Results uploaded successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_UploadExecutionResultResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid exeuction ID or invalid request form or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Execution not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/executions/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get detailed information about a specific execution",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Executions"
+                ],
+                "summary": "Get execution by ID",
+                "operationId": "get_execution_by_id",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Execution ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Execution retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ExecutionDetailResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid execution ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Execution not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/executions/{id}/labels": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Add or remove custom labels (key-value pairs) for an execution",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Executions"
+                ],
+                "summary": "Manage execution custom labels",
+                "operationId": "update_execution_labels",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Execution ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Custom label management request",
+                        "name": "manage",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ManageExecutionLabelReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Custom labels managed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ExecutionResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid execution ID or request format/parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Execution not found",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -3646,7 +2924,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get a paginated list of injections with filtering and sorting",
+                "description": "Get a paginated list of injections with pagination and filtering",
                 "produces": [
                     "application/json"
                 ],
@@ -3654,23 +2932,20 @@ const docTemplate = `{
                     "Injections"
                 ],
                 "summary": "List injections",
+                "operationId": "list_injections",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Page number (default 1)",
+                        "default": 1,
+                        "description": "Page number",
                         "name": "page",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "Page size (default 20, max 100)",
+                        "default": 20,
+                        "description": "Page size",
                         "name": "size",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by task ID",
-                        "name": "task_id",
                         "in": "query"
                     },
                     {
@@ -3680,21 +2955,21 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "description": "Filter by status",
-                        "name": "status",
-                        "in": "query"
-                    },
-                    {
                         "type": "string",
                         "description": "Filter by benchmark",
                         "name": "benchmark",
                         "in": "query"
                     },
                     {
-                        "type": "string",
-                        "description": "Search in injection name and description",
-                        "name": "search",
+                        "type": "integer",
+                        "description": "Filter by event",
+                        "name": "event",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by status",
+                        "name": "status",
                         "in": "query"
                     },
                     {
@@ -3703,26 +2978,8 @@ const docTemplate = `{
                             "type": "string"
                         },
                         "collectionFormat": "csv",
-                        "description": "Filter by tags (array of tag values)",
-                        "name": "tags",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Sort field (id,task_id,fault_type,status,benchmark,injection_name,created_at,updated_at)",
-                        "name": "sort_by",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Sort order (asc,desc)",
-                        "name": "sort_order",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Include related data (task)",
-                        "name": "include",
+                        "description": "Filter by labels (array of key:value strings, e.g., 'type:chaos')",
+                        "name": "labels",
                         "in": "query"
                     }
                 ],
@@ -3730,11 +2987,17 @@ const docTemplate = `{
                     "200": {
                         "description": "Injections retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionSearchResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListResp-dto_InjectionResp"
                         }
                     },
                     "400": {
-                        "description": "Invalid request parameters",
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -3752,50 +3015,125 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Create one or multiple injection records with automatic labeling based on task_id",
-                "consumes": [
-                    "application/json"
-                ],
+            }
+        },
+        "/api/v2/injections/analysis/no-issues": {
+            "get": {
+                "description": "Query all fault injection records without issues based on time range, returning detailed records including configuration information",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Injections"
                 ],
-                "summary": "Create injections",
+                "summary": "Query Fault Injection Records Without Issues",
+                "operationId": "list_successful_injections",
                 "parameters": [
                     {
-                        "description": "Injection creation request",
-                        "name": "injections",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.InjectionV2CreateReq"
-                        }
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Filter by labels (array of key:value strings, e.g., 'type:chaos')",
+                        "name": "labels",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Time range query, supports custom relative time (1h/24h/7d) or custom, default not set",
+                        "name": "lookback",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Custom start time, RFC3339 format, required when lookback=custom",
+                        "name": "custom_start_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Custom end time, RFC3339 format, required when lookback=custom",
+                        "name": "custom_end_time",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Injections created successfully",
+                        "description": "Successfully returned fault injection records without issues",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionV2CreateResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-array_dto_InjectionNoIssuesResp"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Request parameter error, such as incorrect time format or parameter validation failure, etc.",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
-                    "403": {
-                        "description": "Permission denied",
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/injections/analysis/with-issues": {
+            "get": {
+                "description": "Query all fault injection records with issues based on time range",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Injections"
+                ],
+                "summary": "Query Fault Injection Records With Issues",
+                "operationId": "list_failed_injections",
+                "parameters": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Filter by labels (array of key:value strings, e.g., 'type:chaos')",
+                        "name": "labels",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Time range query, supports custom relative time (1h/24h/7d) or custom, default not set",
+                        "name": "lookback",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Custom start time, RFC3339 format, required when lookback=custom",
+                        "name": "custom_start_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Custom end time, RFC3339 format, required when lookback=custom",
+                        "name": "custom_end_time",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-array_dto_InjectionWithIssuesResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Request parameter error, such as incorrect time format or parameter validation failure, etc.",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -3816,7 +3154,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Batch delete injections by IDs or labels with cascading deletion of related records",
+                "description": "Batch delete injections by IDs or labels or tags with cascading deletion of related records",
                 "consumes": [
                     "application/json"
                 ],
@@ -3827,6 +3165,7 @@ const docTemplate = `{
                     "Injections"
                 ],
                 "summary": "Batch delete injections",
+                "operationId": "batch_delete_injections",
                 "parameters": [
                     {
                         "description": "Batch delete request",
@@ -3834,7 +3173,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.InjectionV2BatchDeleteReq"
+                            "$ref": "#/definitions/dto.BatchDeleteInjectionReq"
                         }
                     }
                 ],
@@ -3842,7 +3181,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Injections deleted successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionV2BatchDeleteResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "400": {
@@ -3851,8 +3190,208 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
                     "403": {
                         "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/injections/build": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Injections"
+                ],
+                "summary": "Submit batch datapack buildings",
+                "operationId": "build_datapack",
+                "parameters": [
+                    {
+                        "description": "Datapack building request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.SubmitDatapackBuildingReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Datapack building submitted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SubmitDatapackBuildingResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/injections/inject": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Submit multiple fault injection tasks in batch",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Injections"
+                ],
+                "summary": "Submit batch fault injections",
+                "operationId": "inject_fault",
+                "parameters": [
+                    {
+                        "description": "Fault injection request body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.SubmitInjectionReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Fault injection submitted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SubmitInjectionResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/injections/metadata": {
+            "get": {
+                "description": "Get injection-related metadata including configuration, field mappings, and namespace resources",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Injections"
+                ],
+                "summary": "Get Injection Metadata",
+                "operationId": "get_injection_metadata",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Namespace prefix for config and resources metadata",
+                        "name": "namespace",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully returned metadata",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionMetadataResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid namespace prefix",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -3884,6 +3423,7 @@ const docTemplate = `{
                     "Injections"
                 ],
                 "summary": "Search injections",
+                "operationId": "search_injections",
                 "parameters": [
                     {
                         "description": "Search criteria",
@@ -3891,7 +3431,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.InjectionV2SearchReq"
+                            "$ref": "#/definitions/dto.SearchInjectionReq"
                         }
                     }
                 ],
@@ -3899,11 +3439,17 @@ const docTemplate = `{
                     "200": {
                         "description": "Search results",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_InjectionV2Response"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResp-dto_InjectionResp"
                         }
                     },
                     "400": {
                         "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -3938,6 +3484,7 @@ const docTemplate = `{
                     "Injections"
                 ],
                 "summary": "Get injection by ID",
+                "operationId": "get_injection_by_id",
                 "parameters": [
                     {
                         "type": "integer",
@@ -3945,19 +3492,13 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Include related data (task)",
-                        "name": "include",
-                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "Injection retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionV2Response"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionDetailResp"
                         }
                     },
                     "400": {
@@ -3966,126 +3507,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
-                    "403": {
-                        "description": "Permission denied",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "Injection not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Update injection information",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Injections"
-                ],
-                "summary": "Update injection",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Injection ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Injection update request",
-                        "name": "injection",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.InjectionV2UpdateReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Injection updated successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionV2Response"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "403": {
-                        "description": "Permission denied",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "Injection not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Soft delete an injection (sets status to -1)",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Injections"
-                ],
-                "summary": "Delete injection",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Injection ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Injection deleted successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid injection ID",
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -4111,7 +3534,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/injections/{name}/labels": {
+        "/api/v2/injections/{id}/labels": {
             "patch": {
                 "security": [
                     {
@@ -4129,11 +3552,12 @@ const docTemplate = `{
                     "Injections"
                 ],
                 "summary": "Manage injection custom labels",
+                "operationId": "update_injection_labels",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Injection Name",
-                        "name": "name",
+                        "type": "integer",
+                        "description": "Injection ID",
+                        "name": "id",
                         "in": "path",
                         "required": true
                     },
@@ -4143,7 +3567,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.InjectionV2CustomLabelManageReq"
+                            "$ref": "#/definitions/dto.ManageInjectionLabelReq"
                         }
                     }
                 ],
@@ -4151,81 +3575,17 @@ const docTemplate = `{
                     "200": {
                         "description": "Custom labels managed successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionV2Response"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionResp"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid injection ID or request format/parameters",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
-                    "403": {
-                        "description": "Permission denied",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "Injection not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/injections/{name}/tags": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Add or remove tags for an injection",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Injections"
-                ],
-                "summary": "Manage injection tags",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Injection Name",
-                        "name": "name",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Tag management request",
-                        "name": "manage",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.InjectionV2LabelManageReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Tags managed successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_InjectionV2Response"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -4252,6 +3612,100 @@ const docTemplate = `{
             }
         },
         "/api/v2/labels": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get paginated list of labels with filtering",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Labels"
+                ],
+                "summary": "List labels",
+                "operationId": "list_labels",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by label key",
+                        "name": "key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by label value",
+                        "name": "value",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by category",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by system label",
+                        "name": "is_system",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Labels retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListResp-dto_LabelResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
             "post": {
                 "security": [
                     {
@@ -4269,6 +3723,8 @@ const docTemplate = `{
                     "Labels"
                 ],
                 "summary": "Create label",
+                "operationId": "create_label",
+                "deprecated": true,
                 "parameters": [
                     {
                         "description": "Label creation request",
@@ -4276,7 +3732,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.LabelCreateReq"
+                            "$ref": "#/definitions/dto.CreateLabelReq"
                         }
                     }
                 ],
@@ -4284,17 +3740,296 @@ const docTemplate = `{
                     "201": {
                         "description": "Label created successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_LabelResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_LabelResp"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid request format/parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "409": {
                         "description": "Label already exists",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/labels/batch-delete": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Batch delete labels by IDs with cascading deletion of related records",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Labels"
+                ],
+                "summary": "Batch delete labels",
+                "operationId": "batch_delete_labels",
+                "parameters": [
+                    {
+                        "description": "Batch delete request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.BatchDeleteLabelReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Labels deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/labels/{label_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get detailed information about a specific label",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Labels"
+                ],
+                "summary": "Get label by ID",
+                "operationId": "get_label_by_id",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Label ID",
+                        "name": "label_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Label retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_LabelDetailResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid label ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Label not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete a label and remove all its associations",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Labels"
+                ],
+                "summary": "Delete label",
+                "operationId": "delete_label",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Label ID",
+                        "name": "label_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Label deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid label ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Label not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing label's information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Labels"
+                ],
+                "summary": "Update label",
+                "operationId": "update_label",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Label ID",
+                        "name": "label_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Label update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateLabelReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Label updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_LabelResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid label ID or invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Label not found",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -4323,6 +4058,7 @@ const docTemplate = `{
                     "Permissions"
                 ],
                 "summary": "List permissions",
+                "operationId": "list_permissions",
                 "parameters": [
                     {
                         "type": "integer",
@@ -4361,7 +4097,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Permissions retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_ListPermissionResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_PermissionResp"
                         }
                     },
                     "400": {
@@ -4407,6 +4143,7 @@ const docTemplate = `{
                     "Permissions"
                 ],
                 "summary": "Create a new permission",
+                "operationId": "create_permission",
                 "parameters": [
                     {
                         "description": "Permission creation request",
@@ -4414,7 +4151,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.CreatePermissionRequest"
+                            "$ref": "#/definitions/dto.CreatePermissionReq"
                         }
                     }
                 ],
@@ -4422,7 +4159,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Permission created successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_PermissionResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_PermissionResp"
                         }
                     },
                     "400": {
@@ -4476,6 +4213,7 @@ const docTemplate = `{
                     "Permissions"
                 ],
                 "summary": "Search permissions",
+                "operationId": "search_permissions",
                 "parameters": [
                     {
                         "description": "Permission search request",
@@ -4483,7 +4221,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.SearchPermissionRequest"
+                            "$ref": "#/definitions/dto.SearchPermissionReq"
                         }
                     }
                 ],
@@ -4491,7 +4229,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Permissions retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_PermissionResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResp-dto_PermissionResp"
                         }
                     },
                     "400": {
@@ -4536,6 +4274,7 @@ const docTemplate = `{
                     "Permissions"
                 ],
                 "summary": "Get permission by ID",
+                "operationId": "get_permission_by_id",
                 "parameters": [
                     {
                         "type": "integer",
@@ -4549,7 +4288,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Permission retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_PermissionDetailResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_PermissionDetailResp"
                         }
                     },
                     "400": {
@@ -4601,6 +4340,7 @@ const docTemplate = `{
                     "Permissions"
                 ],
                 "summary": "Update permission",
+                "operationId": "update_permission",
                 "parameters": [
                     {
                         "type": "integer",
@@ -4615,7 +4355,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.UpdatePermissionRequest"
+                            "$ref": "#/definitions/dto.UpdatePermissionReq"
                         }
                     }
                 ],
@@ -4623,7 +4363,7 @@ const docTemplate = `{
                     "202": {
                         "description": "Permission updated successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_PermissionResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_PermissionResp"
                         }
                     },
                     "400": {
@@ -4672,6 +4412,7 @@ const docTemplate = `{
                     "Permissions"
                 ],
                 "summary": "Delete permission",
+                "operationId": "delete_permission",
                 "parameters": [
                     {
                         "type": "integer",
@@ -4721,7 +4462,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/permissions/{id}/roles": {
+        "/api/v2/permissions/{permission_id}/roles": {
             "get": {
                 "security": [
                     {
@@ -4736,11 +4477,12 @@ const docTemplate = `{
                     "Permissions"
                 ],
                 "summary": "List roles from permission",
+                "operationId": "list_roles_with_permission",
                 "parameters": [
                     {
                         "type": "integer",
                         "description": "Permission ID",
-                        "name": "id",
+                        "name": "permission_id",
                         "in": "path",
                         "required": true
                     }
@@ -4749,7 +4491,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Roles retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-array_dto_RoleResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-array_dto_RoleResp"
                         }
                     },
                     "400": {
@@ -4785,7 +4527,153 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/projects/{id}": {
+        "/api/v2/projects": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get paginated list of projects with filtering",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "List projects",
+                "operationId": "list_projects",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by public status",
+                        "name": "is_public",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Projects retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListResp-dto_ProjectResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new project with specified details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Create a new project",
+                "operationId": "create_project",
+                "parameters": [
+                    {
+                        "description": "Project creation request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateProjectReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Project created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ProjectResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "409": {
+                        "description": "Project already exists",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{project_id}": {
             "get": {
                 "security": [
                     {
@@ -4800,48 +4688,31 @@ const docTemplate = `{
                     "Projects"
                 ],
                 "summary": "Get project by ID",
+                "operationId": "get_project_by_id",
                 "parameters": [
                     {
                         "type": "integer",
                         "description": "Project ID",
-                        "name": "id",
+                        "name": "project_id",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Include related containers",
-                        "name": "include_containers",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Include related datasets",
-                        "name": "include_datasets",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Include related fault injections",
-                        "name": "include_injections",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Include related labels",
-                        "name": "include_labels",
-                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "Project retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_ProjectV2Response"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ProjectDetailResp"
                         }
                     },
                     "400": {
                         "description": "Invalid project ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -4854,6 +4725,364 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Project not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete a project",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Delete project",
+                "operationId": "delete_project",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Project deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid project ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Project not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing project's information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Update project",
+                "operationId": "update_project",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Project update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateProjectReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Project updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ProjectResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid project ID or invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Project not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{project_id}/labels": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Add or remove custom labels (key-value pairs) for a project",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Manage project custom labels",
+                "operationId": "update_project_labels",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Label management request",
+                        "name": "manage",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ManageProjectLabelReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Labels managed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ProjectResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid project ID or invalid request format/parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Project not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/resources": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get paginated list of resources with filtering",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Resources"
+                ],
+                "summary": "List resources",
+                "operationId": "list_resources",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by resource type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by resource category",
+                        "name": "category",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Resources retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListResp-dto_ResourceResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/resources/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get detailed information about a specific resource",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Resources"
+                ],
+                "summary": "Get resource by ID",
+                "operationId": "get_resource_by_id",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Resource ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Resource retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ResourceResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid resource ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -4882,6 +5111,7 @@ const docTemplate = `{
                     "Resources"
                 ],
                 "summary": "List permissions from resource",
+                "operationId": "list_resource_permissions",
                 "parameters": [
                     {
                         "type": "integer",
@@ -4895,17 +5125,29 @@ const docTemplate = `{
                     "200": {
                         "description": "Permissions retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-array_dto_PermissionResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-array_dto_PermissionResp"
                         }
                     },
                     "400": {
-                        "description": "Invalid resource ID",
+                        "description": "Invalid resource ID or request form",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "401": {
                         "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -4934,6 +5176,7 @@ const docTemplate = `{
                     "Roles"
                 ],
                 "summary": "List roles",
+                "operationId": "list_roles",
                 "parameters": [
                     {
                         "type": "integer",
@@ -4966,7 +5209,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Roles retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_ListRoleResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListRoleResp"
                         }
                     },
                     "400": {
@@ -5012,6 +5255,7 @@ const docTemplate = `{
                     "Roles"
                 ],
                 "summary": "Create a new role",
+                "operationId": "create_role",
                 "parameters": [
                     {
                         "description": "Role creation request",
@@ -5019,7 +5263,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.CreateRoleRequest"
+                            "$ref": "#/definitions/dto.CreateRoleReq"
                         }
                     }
                 ],
@@ -5027,7 +5271,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Role created successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_RoleResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_RoleResp"
                         }
                     },
                     "400": {
@@ -5081,6 +5325,7 @@ const docTemplate = `{
                     "Roles"
                 ],
                 "summary": "Search roles",
+                "operationId": "search_roles",
                 "parameters": [
                     {
                         "description": "Role search request",
@@ -5088,7 +5333,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.SearchRoleRequest"
+                            "$ref": "#/definitions/dto.SearchRoleReq"
                         }
                     }
                 ],
@@ -5096,7 +5341,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Roles retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_RoleResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResp-dto_RoleResp"
                         }
                     },
                     "400": {
@@ -5141,6 +5386,7 @@ const docTemplate = `{
                     "Roles"
                 ],
                 "summary": "Get role by ID",
+                "operationId": "get_role_by_id",
                 "parameters": [
                     {
                         "type": "integer",
@@ -5154,7 +5400,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Role retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_RoleDetailResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_RoleDetailResp"
                         }
                     },
                     "400": {
@@ -5203,6 +5449,7 @@ const docTemplate = `{
                     "Roles"
                 ],
                 "summary": "Delete role",
+                "operationId": "delete_role",
                 "parameters": [
                     {
                         "type": "integer",
@@ -5268,6 +5515,7 @@ const docTemplate = `{
                     "Roles"
                 ],
                 "summary": "Update role",
+                "operationId": "update_role",
                 "parameters": [
                     {
                         "type": "integer",
@@ -5282,7 +5530,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.UpdateRoleRequest"
+                            "$ref": "#/definitions/dto.UpdateRoleReq"
                         }
                     }
                 ],
@@ -5290,7 +5538,7 @@ const docTemplate = `{
                     "202": {
                         "description": "Role updated successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_RoleResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_RoleResp"
                         }
                     },
                     "400": {
@@ -5326,7 +5574,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/roles/{id}/permissions": {
+        "/api/v2/roles/{role_id}/permissions/assign": {
             "post": {
                 "security": [
                     {
@@ -5344,11 +5592,12 @@ const docTemplate = `{
                     "Roles"
                 ],
                 "summary": "Assign permissions to role",
+                "operationId": "grant_permissions_to_role",
                 "parameters": [
                     {
                         "type": "integer",
                         "description": "Role ID",
-                        "name": "id",
+                        "name": "role_id",
                         "in": "path",
                         "required": true
                     },
@@ -5358,7 +5607,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.AssignPermissionToRoleRequest"
+                            "$ref": "#/definitions/dto.AssignRolePermissionReq"
                         }
                     }
                 ],
@@ -5400,8 +5649,10 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
-            "delete": {
+            }
+        },
+        "/api/v2/roles/{role_id}/permissions/remove": {
+            "post": {
                 "security": [
                     {
                         "BearerAuth": []
@@ -5418,11 +5669,12 @@ const docTemplate = `{
                     "Roles"
                 ],
                 "summary": "Remove permissions from role",
+                "operationId": "revoke_permissions_from_role",
                 "parameters": [
                     {
                         "type": "integer",
                         "description": "Role ID",
-                        "name": "id",
+                        "name": "role_id",
                         "in": "path",
                         "required": true
                     },
@@ -5432,7 +5684,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.RemovePermissionFromRoleRequest"
+                            "$ref": "#/definitions/dto.RemoveRolePermissionReq"
                         }
                     }
                 ],
@@ -5476,7 +5728,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/roles/{id}/users": {
+        "/api/v2/roles/{role_id}/users": {
             "get": {
                 "security": [
                     {
@@ -5491,11 +5743,12 @@ const docTemplate = `{
                     "Roles"
                 ],
                 "summary": "List users from role",
+                "operationId": "list_users_by_role",
                 "parameters": [
                     {
                         "type": "integer",
                         "description": "Role ID",
-                        "name": "id",
+                        "name": "role_id",
                         "in": "path",
                         "required": true
                     }
@@ -5504,7 +5757,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Users retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-array_dto_UserResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-array_dto_UserResp"
                         }
                     },
                     "400": {
@@ -5555,6 +5808,7 @@ const docTemplate = `{
                     "Tasks"
                 ],
                 "summary": "List tasks",
+                "operationId": "list_tasks",
                 "parameters": [
                     {
                         "type": "integer",
@@ -5568,24 +5822,6 @@ const docTemplate = `{
                         "default": 20,
                         "description": "Page size",
                         "name": "size",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by task ID",
-                        "name": "task_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by trace ID",
-                        "name": "trace_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by group ID",
-                        "name": "group_id",
                         "in": "query"
                     },
                     {
@@ -5603,36 +5839,57 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "enum": [
-                            "Pending",
-                            "Running",
-                            "Completed",
-                            "Error",
-                            "Cancelled",
-                            "Scheduled",
-                            "Rescheduled"
-                        ],
-                        "type": "string",
-                        "description": "Filter by status",
-                        "name": "status",
-                        "in": "query"
-                    },
-                    {
                         "type": "boolean",
                         "description": "Filter by immediate execution",
                         "name": "immediate",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by trace ID (uuid format)",
+                        "name": "trace_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by group ID (uuid format)",
+                        "name": "group_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by project ID",
+                        "name": "project_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by event ID",
+                        "name": "event",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "Tasks retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_TaskResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListResp-dto_TaskResp"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -5652,14 +5909,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/tasks/queue": {
+        "/api/v2/tasks/batch-delete": {
             "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get tasks in queue (ready and delayed) with pagination and filtering",
+                "description": "Batch delete tasks by IDs",
                 "consumes": [
                     "application/json"
                 ],
@@ -5669,78 +5926,34 @@ const docTemplate = `{
                 "tags": [
                     "Tasks"
                 ],
-                "summary": "Get queued tasks",
+                "summary": "Batch delete tasks",
+                "operationId": "batch_delete_tasks",
                 "parameters": [
                     {
-                        "description": "Search request with pagination",
-                        "name": "request",
+                        "description": "Batch delete request",
+                        "name": "batch_delete",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.AdvancedSearchRequest"
+                            "$ref": "#/definitions/dto.BatchDeleteTaskReq"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Queued tasks retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_TaskResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
+                        "description": "Tasks deleted successfully",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
-                    "500": {
-                        "description": "Internal server error",
+                    "400": {
+                        "description": "Invalid request format or parameters",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
-                    }
-                }
-            }
-        },
-        "/api/v2/tasks/search": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Search tasks with complex filtering, sorting and pagination",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Tasks"
-                ],
-                "summary": "Search tasks",
-                "parameters": [
-                    {
-                        "description": "Task search request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.TaskSearchRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Tasks retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_TaskResponse"
-                        }
                     },
-                    "400": {
-                        "description": "Invalid request",
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -5760,14 +5973,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/tasks/{id}": {
+        "/api/v2/tasks/{task_id}": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get detailed information about a specific task including logs",
+                "description": "Get detailed information about a specific task",
                 "produces": [
                     "application/json"
                 ],
@@ -5775,34 +5988,31 @@ const docTemplate = `{
                     "Tasks"
                 ],
                 "summary": "Get task by ID",
+                "operationId": "get_task_by_id",
                 "parameters": [
                     {
                         "type": "string",
                         "description": "Task ID",
-                        "name": "id",
+                        "name": "task_id",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "multi",
-                        "description": "Include additional data (logs)",
-                        "name": "include",
-                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "Task retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_TaskDetailResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_TaskDetailResp"
                         }
                     },
                     "400": {
                         "description": "Invalid task ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -5828,7 +6038,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/traces/{id}/stream": {
+        "/api/v2/traces/{trace_id}/stream": {
             "get": {
                 "security": [
                     {
@@ -5846,11 +6056,12 @@ const docTemplate = `{
                     "Traces"
                 ],
                 "summary": "Stream trace events in real-time",
+                "operationId": "stream_trace_events",
                 "parameters": [
                     {
                         "type": "string",
                         "description": "Trace ID",
-                        "name": "id",
+                        "name": "trace_id",
                         "in": "path",
                         "required": true
                     },
@@ -5864,7 +6075,19 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid trace ID or invalid request format/parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -5885,7 +6108,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get paginated list of users with optional filtering",
+                "description": "Get paginated list of users with filtering",
                 "produces": [
                     "application/json"
                 ],
@@ -5893,6 +6116,7 @@ const docTemplate = `{
                     "Users"
                 ],
                 "summary": "List users",
+                "operationId": "list_users",
                 "parameters": [
                     {
                         "type": "integer",
@@ -5909,18 +6133,6 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "description": "Filter by status",
-                        "name": "status",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Filter by active status",
-                        "name": "is_active",
-                        "in": "query"
-                    },
-                    {
                         "type": "string",
                         "description": "Filter by username",
                         "name": "username",
@@ -5933,9 +6145,15 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "string",
-                        "description": "Filter by full name",
-                        "name": "full_name",
+                        "type": "boolean",
+                        "description": "Filter by active status",
+                        "name": "is_active",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by status",
+                        "name": "status",
                         "in": "query"
                     }
                 ],
@@ -5943,11 +6161,23 @@ const docTemplate = `{
                     "200": {
                         "description": "Users retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_UserListResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListResp-dto_UserResp"
                         }
                     },
                     "400": {
-                        "description": "Invalid request parameters",
+                        "description": "Invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -5977,6 +6207,7 @@ const docTemplate = `{
                     "Users"
                 ],
                 "summary": "Create a new user",
+                "operationId": "create_user",
                 "parameters": [
                     {
                         "description": "User creation request",
@@ -5984,7 +6215,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.CreateUserRequest"
+                            "$ref": "#/definitions/dto.CreateUserReq"
                         }
                     }
                 ],
@@ -5992,11 +6223,11 @@ const docTemplate = `{
                     "201": {
                         "description": "User created successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_UserResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_UserResp"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid request format or parameters",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -6034,6 +6265,7 @@ const docTemplate = `{
                     "Users"
                 ],
                 "summary": "Search users",
+                "operationId": "search_users",
                 "parameters": [
                     {
                         "description": "User search request",
@@ -6041,7 +6273,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.UserSearchRequest"
+                            "$ref": "#/definitions/dto.UserSearchReq"
                         }
                     }
                 ],
@@ -6049,233 +6281,11 @@ const docTemplate = `{
                     "200": {
                         "description": "Users retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResponse-dto_UserResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SearchResp-dto_UserResp"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/users/{id}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get detailed information about a specific user",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Users"
-                ],
-                "summary": "Get user by ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "User ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "User retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_UserResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid user ID",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "User not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Update user information (partial update supported)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Users"
-                ],
-                "summary": "Update user",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "User ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "User update request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.UpdateUserRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "User updated successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_UserResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "User not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Delete a user (soft delete by setting status to -1)",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Users"
-                ],
-                "summary": "Delete user",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "User ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "User deleted successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid user ID",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "User not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/users/{id}/permissions": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Assign a permission directly to a user (with optional project scope)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Relations"
-                ],
-                "summary": "Assign permission to user",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "User ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "User permission assignment request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.AssignUserPermissionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Permission assigned successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid request format or search parameters",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -6301,14 +6311,77 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/users/{id}/permissions/{permission_id}": {
+        "/api/v2/users/{id}": {
             "delete": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Remove a permission directly from a user",
+                "description": "Delete a user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Delete user",
+                "operationId": "delete_user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "User deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid user ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing user's information",
                 "consumes": [
                     "application/json"
                 ],
@@ -6316,9 +6389,10 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Relations"
+                    "Users"
                 ],
-                "summary": "Remove permission from user",
+                "summary": "Update user",
+                "operationId": "update_user",
                 "parameters": [
                     {
                         "type": "integer",
@@ -6328,15 +6402,532 @@ const docTemplate = `{
                         "required": true
                     },
                     {
+                        "description": "User update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateUserReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "User updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_UserResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid user ID/request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/users/{id}/detail": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get detailed information about a specific user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get user by ID",
+                "operationId": "get_user_by_id",
+                "parameters": [
+                    {
                         "type": "integer",
-                        "description": "Permission ID",
-                        "name": "permission_id",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_UserDetailResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid user ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/users/{user_id}/containers/{container_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Remove a user from a container",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Remove user from container",
+                "operationId": "remove_user_from_container",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Container ID",
+                        "name": "container_id",
                         "in": "path",
                         "required": true
                     }
                 ],
                 "responses": {
                     "204": {
+                        "description": "User removed from container successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid user or container ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "User or container not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/users/{user_id}/containers/{container_id}/roles/{role_id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Assign a user to a container with a specific role",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Assign user to container",
+                "operationId": "assign_user_to_container",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Container ID",
+                        "name": "container_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Role ID",
+                        "name": "role_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User assigned to container successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid user ID or container ID or role ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "User or container or role not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/users/{user_id}/datasets/{dataset_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Remove a user from a dataset",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Remove user from dataset",
+                "operationId": "remove_user_from_dataset",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Dataset ID",
+                        "name": "dataset_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "User removed from dataset successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid user or dataset ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "User or dataset not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/users/{user_id}/datasets/{dataset_id}/roles/{role_id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Assign a user to a dataset with a specific role",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Assign user to dataset",
+                "operationId": "assign_user_to_dataset",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Dataset ID",
+                        "name": "dataset_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Role ID",
+                        "name": "role_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User assigned to dataset successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid user ID or dataset ID or role ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "User or dataset or role not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/users/{user_id}/permissions/assign": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Assign permissions directly to a user (with optional container/dataset/project scope)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Assign permission to user",
+                "operationId": "grant_user_permissions",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "User permission assignment request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AssignUserPermissionReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Permission assigned successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid user ID or invalid request format or parameters",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/users/{user_id}/permissions/remove": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Remove permissions directly from a user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Remove permission from user",
+                "operationId": "revoke_user_permissions",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "User permission removal request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.RemoveUserPermissionReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
                         "description": "Permission removed successfully",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
@@ -6360,12 +6951,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
-                    "404": {
-                        "description": "User or permission not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
@@ -6375,83 +6960,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/users/{id}/projects": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Assign a user to a project with a specific role",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Users"
-                ],
-                "summary": "Assign user to project",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "User ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Project assignment request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.AssignUserToProjectRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "User assigned to project successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid user ID or request format",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "401": {
-                        "description": "Authentication required",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "403": {
-                        "description": "Permission denied",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "404": {
-                        "description": "User or project not found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/users/{id}/projects/{project_id}": {
+        "/api/v2/users/{user_id}/projects/{project_id}": {
             "delete": {
                 "security": [
                     {
@@ -6466,11 +6975,12 @@ const docTemplate = `{
                     "Users"
                 ],
                 "summary": "Remove user from project",
+                "operationId": "remove_user_from_project",
                 "parameters": [
                     {
                         "type": "integer",
                         "description": "User ID",
-                        "name": "id",
+                        "name": "user_id",
                         "in": "path",
                         "required": true
                     },
@@ -6522,51 +7032,54 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/users/{id}/roles": {
+        "/api/v2/users/{user_id}/projects/{project_id}/roles/{role_id}": {
             "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Assign a role to a user (global role assignment)",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Assign a user to a project with a specific role",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Relations"
+                    "Users"
                 ],
-                "summary": "Assign role to user",
+                "summary": "Assign user to project",
+                "operationId": "assign_user_to_project",
                 "parameters": [
                     {
                         "type": "integer",
                         "description": "User ID",
-                        "name": "id",
+                        "name": "user_id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "User role assignment request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.AssignRoleToUserRequest"
-                        }
+                        "type": "integer",
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Role ID",
+                        "name": "role_id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Role assigned successfully",
+                        "description": "User assigned to project successfully",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "400": {
-                        "description": "Invalid user ID or request format",
+                        "description": "Invalid user ID or project ID or role ID",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -6584,7 +7097,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "User or role not found",
+                        "description": "User or project or role not found",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -6598,7 +7111,79 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/users/{id}/roles/{role_id}": {
+        "/api/v2/users/{user_id}/role/{role_id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Assign a role to a user (global role assignment)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Relations"
+                ],
+                "summary": "Assign global role to user",
+                "operationId": "assign_role_to_user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Role ID",
+                        "name": "role_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Role assigned successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid user ID or role ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Resource not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/users/{user_id}/roles/{role_id}": {
             "delete": {
                 "security": [
                     {
@@ -6606,9 +7191,6 @@ const docTemplate = `{
                     }
                 ],
                 "description": "Remove a role from a user (global role removal)",
-                "consumes": [
-                    "application/json"
-                ],
                 "produces": [
                     "application/json"
                 ],
@@ -6616,11 +7198,12 @@ const docTemplate = `{
                     "Relations"
                 ],
                 "summary": "Remove role from user",
+                "operationId": "remove_role_from_user",
                 "parameters": [
                     {
                         "type": "integer",
                         "description": "User ID",
-                        "name": "id",
+                        "name": "user_id",
                         "in": "path",
                         "required": true
                     },
@@ -6674,6 +7257,11 @@ const docTemplate = `{
         },
         "/system/audit": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get paginated list of audit logs with optional filtering",
                 "produces": [
                     "application/json"
@@ -6698,27 +7286,33 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "description": "Filter by user ID",
-                        "name": "user_id",
-                        "in": "query"
-                    },
-                    {
                         "type": "string",
                         "description": "Filter by action",
                         "name": "action",
                         "in": "query"
                     },
                     {
-                        "type": "string",
-                        "description": "Filter by resource",
-                        "name": "resource",
+                        "type": "integer",
+                        "description": "Filter by user ID",
+                        "name": "user_id",
                         "in": "query"
                     },
                     {
-                        "type": "boolean",
-                        "description": "Filter by success status",
-                        "name": "success",
+                        "type": "integer",
+                        "description": "Filter by resource ID",
+                        "name": "resource_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by state",
+                        "name": "state",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by status",
+                        "name": "status",
                         "in": "query"
                     },
                     {
@@ -6738,60 +7332,23 @@ const docTemplate = `{
                     "200": {
                         "description": "Audit logs retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_AuditLogListResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListResp-dto_AuditLogResp"
                         }
                     },
                     "400": {
-                        "description": "Invalid request parameters",
+                        "description": "Invalid request format/parameters",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
-                    "500": {
-                        "description": "Internal server error",
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Create a new audit log entry",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "System"
-                ],
-                "summary": "Create audit log",
-                "parameters": [
-                    {
-                        "description": "Audit log data",
-                        "name": "audit_log",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.AuditLogRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Audit log created successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_AuditLogResponse"
-                        }
                     },
-                    "400": {
-                        "description": "Invalid request",
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -6807,6 +7364,11 @@ const docTemplate = `{
         },
         "/system/audit/{id}": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get a specific audit log entry by ID",
                 "produces": [
                     "application/json"
@@ -6828,11 +7390,23 @@ const docTemplate = `{
                     "200": {
                         "description": "Audit log retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_AuditLogResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_AuditLogDetailResp"
                         }
                     },
                     "400": {
                         "description": "Invalid ID",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -6866,7 +7440,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Health check successful",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_HealthCheckResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_HealthCheckResp"
                         }
                     },
                     "500": {
@@ -6880,6 +7454,11 @@ const docTemplate = `{
         },
         "/system/monitor/info": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get basic system information and status",
                 "produces": [
                     "application/json"
@@ -6895,6 +7474,18 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-dto_SystemInfo"
                         }
                     },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
@@ -6906,6 +7497,11 @@ const docTemplate = `{
         },
         "/system/monitor/metrics": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Query monitoring metrics for system performance",
                 "consumes": [
                     "application/json"
@@ -6924,7 +7520,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.MonitoringQueryRequest"
+                            "$ref": "#/definitions/dto.MonitoringQueryReq"
                         }
                     }
                 ],
@@ -6932,11 +7528,23 @@ const docTemplate = `{
                     "200": {
                         "description": "Metrics retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_MonitoringMetricsResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_MonitoringMetricsResp"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid request format",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
@@ -6950,21 +7558,87 @@ const docTemplate = `{
                 }
             }
         },
-        "/system/statistics": {
+        "/system/monitor/namespace/locks": {
             "get": {
-                "description": "Get comprehensive system statistics and metrics",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve the list of currently locked namespaces",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "System"
                 ],
-                "summary": "Get system statistics",
+                "summary": "List namespace locks",
                 "responses": {
                     "200": {
-                        "description": "Statistics retrieved successfully",
+                        "description": "Successfully retrieved the list of locks",
                         "schema": {
-                            "$ref": "#/definitions/dto.GenericResponse-dto_SystemStatisticsResponse"
+                            "$ref": "#/definitions/dto.GenericResponse-dto_ListNamespaceLockResp"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/system/monitor/task/queue": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "List tasks in queue (ready and delayed)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "List queued tasks",
+                "responses": {
+                    "200": {
+                        "description": "Queued tasks retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_QueuedTasksResp"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "No queued tasks found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     },
                     "500": {
@@ -7003,11 +7677,11 @@ const docTemplate = `{
             ]
         },
         "consts.ContainerType": {
-            "type": "string",
+            "type": "integer",
             "enum": [
-                "algorithm",
-                "benchmark",
-                "pedestal"
+                0,
+                1,
+                2
             ],
             "x-enum-varnames": [
                 "ContainerTypeAlgorithm",
@@ -7028,14 +7702,14 @@ const docTemplate = `{
                 "datapack.no_anomaly",
                 "datapack.no_detector_data",
                 "image.build.succeed",
-                "task.status.update",
+                "task.state.update",
                 "task.retry.status",
                 "task.started",
                 "no.token.available",
                 "no.namespace.available",
-                "restart.service.started",
-                "restart.service.completed",
-                "restart.service.failed",
+                "restart.pedestal.started",
+                "restart.pedestal.completed",
+                "restart.pedestal.failed",
                 "fault.injection.started",
                 "fault.injection.completed",
                 "fault.injection.failed",
@@ -7055,14 +7729,14 @@ const docTemplate = `{
                 "EventDatapackNoAnomaly",
                 "EventDatapackNoDetectorData",
                 "EventImageBuildSucceed",
-                "EventTaskStatusUpdate",
+                "EventTaskStateUpdate",
                 "EventTaskRetryStatus",
                 "EventTaskStarted",
                 "EventNoTokenAvailable",
                 "EventNoNamespaceAvailable",
-                "EventRestartServiceStarted",
-                "EventRestartServiceCompleted",
-                "EventRestartServiceFailed",
+                "EventRestartPedestalStarted",
+                "EventRestartPedestalCompleted",
+                "EventRestartPedestalFailed",
                 "EventFaultInjectionStarted",
                 "EventFaultInjectionCompleted",
                 "EventFaultInjectionFailed",
@@ -7070,6 +7744,90 @@ const docTemplate = `{
                 "EventReleaseLock",
                 "EventJobSucceed",
                 "EventJobFailed"
+            ]
+        },
+        "consts.GrantType": {
+            "type": "integer",
+            "enum": [
+                0,
+                1
+            ],
+            "x-enum-varnames": [
+                "GrantTypeGrant",
+                "GrantTypeDeny"
+            ]
+        },
+        "consts.LabelCategory": {
+            "type": "integer",
+            "enum": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5
+            ],
+            "x-enum-varnames": [
+                "SystemCategory",
+                "ContainerCategory",
+                "DatasetCategory",
+                "ProjectCategory",
+                "InjectionCategory",
+                "ExecutionCategory"
+            ]
+        },
+        "consts.ResourceName": {
+            "type": "string",
+            "enum": [
+                "system",
+                "audit",
+                "container",
+                "container_version",
+                "dataset",
+                "dataset_version",
+                "project",
+                "label",
+                "user",
+                "role",
+                "permission",
+                "task",
+                "trace",
+                "injection",
+                "execution"
+            ],
+            "x-enum-comments": {
+                "ResourceAudit": "audit resource",
+                "ResourceContainer": "container resource",
+                "ResourceContainerVersion": "container version resource",
+                "ResourceDataset": "dataset resource",
+                "ResourceDatasetVersion": "dataset version resource",
+                "ResourceExecution": "execution resource",
+                "ResourceInjection": "fault injection resource",
+                "ResourceLabel": "label resource",
+                "ResourcePermission": "permission resource",
+                "ResourceProject": "project resource",
+                "ResourceRole": "role resource",
+                "ResourceSystem": "system resource",
+                "ResourceTask": "task resource",
+                "ResourceTrace": "trace resource",
+                "ResourceUser": "user resource"
+            },
+            "x-enum-varnames": [
+                "ResourceSystem",
+                "ResourceAudit",
+                "ResourceContainer",
+                "ResourceContainerVersion",
+                "ResourceDataset",
+                "ResourceDatasetVersion",
+                "ResourceProject",
+                "ResourceLabel",
+                "ResourceUser",
+                "ResourceRole",
+                "ResourcePermission",
+                "ResourceTask",
+                "ResourceTrace",
+                "ResourceInjection",
+                "ResourceExecution"
             ]
         },
         "consts.SSEEventName": {
@@ -7083,764 +7841,41 @@ const docTemplate = `{
                 "EventUpdate"
             ]
         },
-        "consts.TaskType": {
-            "type": "string",
+        "consts.StatusType": {
+            "type": "integer",
             "enum": [
-                "RestartService",
-                "RunAlgorithm",
-                "FaultInjection",
-                "BuildContainer",
-                "BuildDataset",
-                "CollectResult"
+                -1,
+                0,
+                1
             ],
             "x-enum-varnames": [
-                "TaskTypeRestartService",
-                "TaskTypeRunAlgorithm",
-                "TaskTypeFaultInjection",
-                "TaskTypeBuildContainer",
-                "TaskTypeBuildDataset",
-                "TaskTypeCollectResult"
+                "CommonDeleted",
+                "CommonDisabled",
+                "CommonEnabled"
             ]
         },
-        "database.Container": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "is_public": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "readme": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "integer"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "database.Dataset": {
-            "type": "object",
-            "properties": {
-                "checksum": {
-                    "description": "File checksum",
-                    "type": "string"
-                },
-                "created_at": {
-                    "description": "Creation time",
-                    "type": "string"
-                },
-                "data_source": {
-                    "description": "Data source description",
-                    "type": "string"
-                },
-                "dataset_version": {
-                    "description": "Dataset version with size limit",
-                    "type": "string"
-                },
-                "description": {
-                    "description": "Dataset description",
-                    "type": "string"
-                },
-                "download_url": {
-                    "description": "Download link with size limit",
-                    "type": "string"
-                },
-                "fault_injections": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/database.FaultInjectionSchedule"
-                    }
-                },
-                "file_count": {
-                    "description": "File count with validation",
-                    "type": "integer"
-                },
-                "format": {
-                    "description": "Data format (json, csv, parquet, etc.)",
-                    "type": "string"
-                },
-                "id": {
-                    "description": "Unique identifier",
-                    "type": "integer"
-                },
-                "is_public": {
-                    "description": "Whether public",
-                    "type": "boolean"
-                },
-                "labels": {
-                    "description": "Many-to-many relationships - use explicit intermediate tables for better control",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/database.Label"
-                    }
-                },
-                "name": {
-                    "description": "Dataset name with size limit",
-                    "type": "string"
-                },
-                "status": {
-                    "description": "Status: -1:deleted 0:disabled 1:enabled",
-                    "type": "integer"
-                },
-                "type": {
-                    "description": "Dataset type (e.g., \"microservice\", \"database\", \"network\")",
-                    "type": "string"
-                },
-                "updated_at": {
-                    "description": "Update time",
-                    "type": "string"
-                }
-            }
-        },
-        "database.FaultInjectionSchedule": {
-            "type": "object",
-            "properties": {
-                "benchmark": {
-                    "description": "Benchmark database, add index and size limit",
-                    "type": "string"
-                },
-                "created_at": {
-                    "description": "Creation time, add time index",
-                    "type": "string"
-                },
-                "description": {
-                    "description": "Description (optional field)",
-                    "type": "string"
-                },
-                "display_config": {
-                    "description": "User-facing display configuration",
-                    "type": "string"
-                },
-                "end_time": {
-                    "description": "Expected fault end time, nullable",
-                    "type": "string"
-                },
-                "engine_config": {
-                    "description": "System-facing runtime configuration",
-                    "type": "string"
-                },
-                "fault_type": {
-                    "description": "Fault type, add composite index",
-                    "type": "integer"
-                },
-                "id": {
-                    "description": "Unique identifier",
-                    "type": "integer"
-                },
-                "injection_name": {
-                    "description": "Name injected in k8s resources with size limit",
-                    "type": "string"
-                },
-                "pre_duration": {
-                    "description": "Normal data duration",
-                    "type": "integer"
-                },
-                "start_time": {
-                    "description": "Expected fault start time, nullable with validation",
-                    "type": "string"
-                },
-                "status": {
-                    "description": "Status: -1:deleted 0:disabled 1:enabled",
-                    "type": "integer"
-                },
-                "task": {
-                    "description": "Foreign key association",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/database.Task"
-                        }
-                    ]
-                },
-                "task_id": {
-                    "description": "Associated task ID, add composite index",
-                    "type": "string"
-                },
-                "updated_at": {
-                    "description": "Update time",
-                    "type": "string"
-                }
-            }
-        },
-        "database.Label": {
-            "type": "object",
-            "properties": {
-                "category": {
-                    "description": "Label category (dataset, fault_injection, algorithm, container, etc.)",
-                    "type": "string"
-                },
-                "color": {
-                    "description": "Label color (hex format)",
-                    "type": "string"
-                },
-                "created_at": {
-                    "description": "Creation time",
-                    "type": "string"
-                },
-                "description": {
-                    "description": "Label description",
-                    "type": "string"
-                },
-                "id": {
-                    "description": "Unique identifier",
-                    "type": "integer"
-                },
-                "is_system": {
-                    "description": "Whether system label",
-                    "type": "boolean"
-                },
-                "key": {
-                    "description": "Label key",
-                    "type": "string"
-                },
-                "status": {
-                    "description": "Status: -1:deleted 0:disabled 1:enabled",
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "description": "Update time",
-                    "type": "string"
-                },
-                "usage": {
-                    "description": "Usage count",
-                    "type": "integer"
-                },
-                "value": {
-                    "description": "Label value",
-                    "type": "string"
-                }
-            }
-        },
-        "database.Project": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "description": "Creation time",
-                    "type": "string"
-                },
-                "description": {
-                    "description": "Project description",
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "is_public": {
-                    "description": "Whether publicly visible",
-                    "type": "boolean"
-                },
-                "name": {
-                    "description": "Project name with size limit",
-                    "type": "string"
-                },
-                "status": {
-                    "description": "Status: -1:deleted 0:disabled 1:enabled",
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "description": "Update time",
-                    "type": "string"
-                }
-            }
-        },
-        "database.Task": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "description": "Creation time with index",
-                    "type": "string"
-                },
-                "cron_expr": {
-                    "description": "Cron expression with size limit",
-                    "type": "string"
-                },
-                "execute_time": {
-                    "description": "Execution time timestamp",
-                    "type": "integer"
-                },
-                "group_id": {
-                    "description": "Group ID with size limit",
-                    "type": "string"
-                },
-                "id": {
-                    "description": "Task ID with size limit",
-                    "type": "string"
-                },
-                "immediate": {
-                    "description": "Whether to execute immediately",
-                    "type": "boolean"
-                },
-                "payload": {
-                    "description": "Task payload",
-                    "type": "string"
-                },
-                "project": {
-                    "description": "Foreign key association",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/database.Project"
-                        }
-                    ]
-                },
-                "project_id": {
-                    "description": "Task can belong to a project (optional)",
-                    "type": "integer"
-                },
-                "status": {
-                    "description": "Status: Pending, Running, Completed, Error, Cancelled, Rescheduled",
-                    "type": "string"
-                },
-                "trace_id": {
-                    "description": "Trace ID with size limit",
-                    "type": "string"
-                },
-                "type": {
-                    "description": "Task type with size limit",
-                    "type": "string"
-                },
-                "updated_at": {
-                    "description": "Update time",
-                    "type": "string"
-                }
-            }
-        },
-        "dto.AdvancedSearchRequest": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "description": "Common filters shortcuts",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.DateRange"
-                        }
-                    ]
-                },
-                "exclude_fields": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "filters": {
-                    "description": "Filters",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.SearchFilter"
-                    }
-                },
-                "include": {
-                    "description": "Include related entities",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "include_fields": {
-                    "description": "Include/Exclude fields",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "keyword": {
-                    "description": "Search keyword (for general text search)",
-                    "type": "string"
-                },
-                "page": {
-                    "description": "Pagination",
-                    "type": "integer",
-                    "minimum": 1
-                },
-                "project_id": {
-                    "type": "integer"
-                },
-                "size": {
-                    "type": "integer",
-                    "maximum": 1000,
-                    "minimum": 1
-                },
-                "sort": {
-                    "description": "Sort",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.SortOption"
-                    }
-                },
-                "status": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "updated_at": {
-                    "$ref": "#/definitions/dto.DateRange"
-                },
-                "user_id": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.AlgorithmDatapackReq": {
-            "type": "object",
-            "required": [
-                "algorithm",
-                "datapack"
+        "consts.TaskType": {
+            "type": "integer",
+            "enum": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6
             ],
-            "properties": {
-                "algorithm": {
-                    "type": "string"
-                },
-                "datapack": {
-                    "type": "string"
-                },
-                "tag": {
-                    "description": "Tag filter for filtering execution results",
-                    "type": "string"
-                }
-            }
+            "x-enum-varnames": [
+                "TaskTypeBuildContainer",
+                "TaskTypeRestartPedestal",
+                "TaskTypeFaultInjection",
+                "TaskTypeRunAlgorithm",
+                "TaskTypeBuildDatapack",
+                "TaskTypeCollectResult",
+                "TaskTypeCronJob"
+            ]
         },
-        "dto.AlgorithmDatapackResp": {
-            "type": "object",
-            "properties": {
-                "algorithm": {
-                    "description": "Algorithm name",
-                    "type": "string"
-                },
-                "datapack": {
-                    "description": "Datapack name",
-                    "type": "string"
-                },
-                "executed_at": {
-                    "description": "Execution time",
-                    "type": "string"
-                },
-                "execution_duration": {
-                    "description": "Execution duration in seconds",
-                    "type": "number"
-                },
-                "execution_id": {
-                    "description": "Execution ID (0 if no execution found)",
-                    "type": "integer"
-                },
-                "found": {
-                    "description": "Whether execution result was found",
-                    "type": "boolean"
-                },
-                "groundtruth": {
-                    "description": "Ground truth for this datapack",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/handler.Groundtruth"
-                        }
-                    ]
-                },
-                "predictions": {
-                    "description": "Algorithm predictions",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.GranularityRecord"
-                    }
-                }
-            }
-        },
-        "dto.AlgorithmDatasetPair": {
-            "type": "object",
-            "properties": {
-                "algorithm": {
-                    "type": "string"
-                },
-                "dataset": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.AlgorithmDatasetReq": {
-            "type": "object",
-            "required": [
-                "algorithm",
-                "dataset"
-            ],
-            "properties": {
-                "algorithm": {
-                    "type": "string"
-                },
-                "dataset": {
-                    "type": "string"
-                },
-                "dataset_version": {
-                    "description": "Dataset version (optional, defaults to \"v1.0\")",
-                    "type": "string"
-                },
-                "tag": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.AlgorithmDatasetResp": {
-            "type": "object",
-            "properties": {
-                "algorithm": {
-                    "description": "Algorithm name",
-                    "type": "string"
-                },
-                "dataset": {
-                    "description": "Dataset name",
-                    "type": "string"
-                },
-                "dataset_version": {
-                    "description": "Dataset version",
-                    "type": "string"
-                },
-                "executed_count": {
-                    "description": "Number of successfully executed datapacks",
-                    "type": "integer"
-                },
-                "items": {
-                    "description": "Evaluation items for each datapack",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.DatapackEvaluationItem"
-                    }
-                },
-                "total_count": {
-                    "description": "Total number of datapacks in dataset",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.AlgorithmExecutionRequest": {
-            "type": "object",
-            "required": [
-                "algorithm",
-                "project_name"
-            ],
-            "properties": {
-                "algorithm": {
-                    "$ref": "#/definitions/dto.AlgorithmItem"
-                },
-                "datapack": {
-                    "type": "string"
-                },
-                "dataset": {
-                    "type": "string"
-                },
-                "dataset_version": {
-                    "type": "string"
-                },
-                "env_vars": {
-                    "type": "object"
-                },
-                "project_name": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.AlgorithmExecutionResponse": {
-            "type": "object",
-            "properties": {
-                "algorithm_id": {
-                    "type": "integer"
-                },
-                "algorithm_version_id": {
-                    "type": "integer"
-                },
-                "datapack_id": {
-                    "type": "integer"
-                },
-                "dataset_id": {
-                    "type": "integer"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "task_id": {
-                    "type": "string"
-                },
-                "trace_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.AlgorithmItem": {
-            "type": "object",
-            "required": [
-                "name"
-            ],
-            "properties": {
-                "env_vars": {
-                    "type": "object"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.AlgorithmResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.AlgorithmResultUploadResponse": {
-            "type": "object",
-            "properties": {
-                "algorithm_id": {
-                    "type": "integer"
-                },
-                "execution_id": {
-                    "type": "integer"
-                },
-                "has_anomalies": {
-                    "description": "Only included for detector results",
-                    "type": "boolean"
-                },
-                "message": {
-                    "type": "string"
-                },
-                "result_count": {
-                    "type": "integer"
-                },
-                "uploaded_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.AlgorithmSearchRequest": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "description": "Common filters shortcuts",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.DateRange"
-                        }
-                    ]
-                },
-                "exclude_fields": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "filters": {
-                    "description": "Filters",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.SearchFilter"
-                    }
-                },
-                "image": {
-                    "type": "string"
-                },
-                "include": {
-                    "description": "Include related entities",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "include_fields": {
-                    "description": "Include/Exclude fields",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "keyword": {
-                    "description": "Search keyword (for general text search)",
-                    "type": "string"
-                },
-                "name": {
-                    "description": "Algorithm-specific filters",
-                    "type": "string"
-                },
-                "page": {
-                    "description": "Pagination",
-                    "type": "integer",
-                    "minimum": 1
-                },
-                "project_id": {
-                    "type": "integer"
-                },
-                "size": {
-                    "type": "integer",
-                    "maximum": 1000,
-                    "minimum": 1
-                },
-                "sort": {
-                    "description": "Sort",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.SortOption"
-                    }
-                },
-                "status": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "tag": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "$ref": "#/definitions/dto.DateRange"
-                },
-                "user_id": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.AnalyzeInjectionsResp": {
-            "type": "object",
-            "properties": {
-                "efficiency": {
-                    "type": "string"
-                },
-                "stats": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "$ref": "#/definitions/dto.InjectionStats"
-                    }
-                }
-            }
-        },
-        "dto.AssignPermissionToRoleRequest": {
+        "dto.AssignRolePermissionReq": {
             "type": "object",
             "required": [
                 "permission_ids"
@@ -7855,19 +7890,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.AssignRoleToUserRequest": {
-            "type": "object",
-            "required": [
-                "role_id"
-            ],
-            "properties": {
-                "role_id": {
-                    "type": "integer",
-                    "example": 1
-                }
-            }
-        },
-        "dto.AssignUserPermissionRequest": {
+        "dto.AssignUserPermissionItem": {
             "type": "object",
             "required": [
                 "grant_type",
@@ -7877,95 +7900,54 @@ const docTemplate = `{
                 "container_id": {
                     "type": "integer"
                 },
+                "dataset_id": {
+                    "type": "integer"
+                },
                 "expires_at": {
                     "type": "string"
                 },
                 "grant_type": {
-                    "type": "string",
-                    "enum": [
-                        "grant",
-                        "deny"
-                    ]
+                    "$ref": "#/definitions/consts.GrantType"
                 },
                 "permission_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 1
                 },
                 "project_id": {
                     "type": "integer"
                 }
             }
         },
-        "dto.AssignUserToProjectRequest": {
+        "dto.AssignUserPermissionReq": {
             "type": "object",
             "required": [
-                "project_id",
-                "role_id"
+                "items"
             ],
-            "properties": {
-                "project_id": {
-                    "type": "integer"
-                },
-                "role_id": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.AttributeCoverageItem": {
-            "type": "object",
-            "properties": {
-                "coverage": {
-                    "type": "number"
-                },
-                "num": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.AuditLogListResponse": {
-            "type": "object",
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.AuditLogResponse"
+                        "$ref": "#/definitions/dto.AssignUserPermissionItem"
                     }
-                },
-                "pagination": {
-                    "$ref": "#/definitions/dto.PaginationInfo"
                 }
             }
         },
-        "dto.AuditLogRequest": {
+        "dto.AuditLogDetailResp": {
             "type": "object",
-            "required": [
-                "action",
-                "resource"
-            ],
             "properties": {
                 "action": {
+                    "type": "string"
+                },
+                "created_at": {
                     "type": "string"
                 },
                 "details": {
                     "type": "string"
                 },
-                "resource": {
-                    "type": "string"
-                },
-                "resource_id": {
+                "duration": {
                     "type": "integer"
-                }
-            }
-        },
-        "dto.AuditLogResponse": {
-            "type": "object",
-            "properties": {
-                "action": {
-                    "type": "string"
                 },
-                "details": {
-                    "type": "string"
-                },
-                "error": {
+                "error_msg": {
                     "type": "string"
                 },
                 "id": {
@@ -7975,15 +7957,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "resource": {
-                    "type": "string"
+                    "$ref": "#/definitions/consts.ResourceName"
                 },
                 "resource_id": {
+                    "type": "integer"
+                },
+                "state": {
                     "type": "string"
                 },
-                "success": {
-                    "type": "boolean"
-                },
-                "timestamp": {
+                "status": {
                     "type": "string"
                 },
                 "user_agent": {
@@ -7997,81 +7979,169 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.BatchAlgorithmExecutionRequest": {
+        "dto.AuditLogResp": {
             "type": "object",
-            "required": [
-                "executions",
-                "project_name"
-            ],
             "properties": {
-                "executions": {
+                "action": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "ip_address": {
+                    "type": "string"
+                },
+                "resource": {
+                    "$ref": "#/definitions/consts.ResourceName"
+                },
+                "resource_id": {
+                    "type": "integer"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "user_agent": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.BatchDeleteExecutionReq": {
+            "type": "object",
+            "properties": {
+                "ids": {
+                    "description": "List of injection IDs for deletion",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.AlgorithmExecutionRequest"
+                        "type": "integer"
                     }
                 },
                 "labels": {
-                    "description": "预置的执行标签",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.ExecutionLabels"
-                        }
-                    ]
-                },
-                "project_name": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.BatchAlgorithmExecutionResponse": {
-            "type": "object",
-            "properties": {
-                "executions": {
+                    "description": "List of label keys to match for deletion",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.AlgorithmExecutionResponse"
+                        "$ref": "#/definitions/dto.LabelItem"
                     }
-                },
-                "group_id": {
-                    "type": "string"
-                },
-                "message": {
-                    "type": "string"
                 }
             }
         },
-        "dto.BuildContainerRequest": {
+        "dto.BatchDeleteInjectionReq": {
+            "type": "object",
+            "properties": {
+                "ids": {
+                    "description": "List of injection IDs for deletion",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "labels": {
+                    "description": "List of label keys to match for deletion",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelItem"
+                    }
+                }
+            }
+        },
+        "dto.BatchDeleteLabelReq": {
+            "type": "object",
+            "properties": {
+                "ids": {
+                    "description": "List of injection IDs for deletion",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "dto.BatchDeleteTaskReq": {
             "type": "object",
             "required": [
-                "github_repository",
-                "image_name"
+                "ids"
             ],
             "properties": {
-                "build_options": {
-                    "$ref": "#/definitions/dto.BuildOptions"
+                "ids": {
+                    "description": "List of task IDs for deletion",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "dto.BatchEvaluateDatapackReq": {
+            "type": "object",
+            "required": [
+                "specs"
+            ],
+            "properties": {
+                "specs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.EvaluateDatapackSpec"
+                    }
+                }
+            }
+        },
+        "dto.BatchEvaluateDatapackResp": {
+            "type": "object",
+            "properties": {
+                "failed_count": {
+                    "type": "integer"
                 },
-                "github_branch": {
-                    "type": "string"
+                "failed_items": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
-                "github_commit": {
-                    "type": "string"
+                "success_count": {
+                    "type": "integer"
                 },
-                "github_repository": {
-                    "description": "GitHub repository information",
-                    "type": "string"
+                "success_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.EvaluateDatapackItem"
+                    }
+                }
+            }
+        },
+        "dto.BatchEvaluateDatasetResp": {
+            "type": "object",
+            "properties": {
+                "failed_count": {
+                    "type": "integer"
                 },
-                "github_token": {
-                    "type": "string"
+                "failed_items": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
-                "image_name": {
-                    "description": "Container Meta",
-                    "type": "string"
+                "success_count": {
+                    "type": "integer"
                 },
-                "sub_path": {
-                    "type": "string"
-                },
-                "tag": {
-                    "type": "string"
+                "success_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.EvaluateDatasetItem"
+                    }
                 }
             }
         },
@@ -8097,7 +8167,27 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.ChangePasswordRequest": {
+        "dto.BuildingSpec": {
+            "type": "object",
+            "required": [
+                "benchmark"
+            ],
+            "properties": {
+                "benchmark": {
+                    "$ref": "#/definitions/dto.ContainerSpec"
+                },
+                "datapack": {
+                    "type": "string"
+                },
+                "dataset": {
+                    "$ref": "#/definitions/dto.DatasetRef"
+                },
+                "pre_duration": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.ChangePasswordReq": {
             "type": "object",
             "required": [
                 "new_password",
@@ -8115,7 +8205,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.ContainerDetailResponse": {
+        "dto.ContainerDetailResp": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -8127,6 +8217,12 @@ const docTemplate = `{
                 "is_public": {
                     "type": "boolean"
                 },
+                "labels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelItem"
+                    }
+                },
                 "name": {
                     "type": "string"
                 },
@@ -8134,7 +8230,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "type": "integer"
+                    "$ref": "#/definitions/consts.StatusType"
                 },
                 "type": {
                     "$ref": "#/definitions/consts.ContainerType"
@@ -8145,12 +8241,26 @@ const docTemplate = `{
                 "versions": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.ContainerVersionResponse"
+                        "$ref": "#/definitions/dto.ContainerVersionResp"
                     }
                 }
             }
         },
-        "dto.ContainerResponse": {
+        "dto.ContainerRef": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ContainerResp": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -8162,11 +8272,17 @@ const docTemplate = `{
                 "is_public": {
                     "type": "boolean"
                 },
+                "labels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelItem"
+                    }
+                },
                 "name": {
                     "type": "string"
                 },
                 "status": {
-                    "type": "integer"
+                    "$ref": "#/definitions/consts.StatusType"
                 },
                 "type": {
                     "$ref": "#/definitions/consts.ContainerType"
@@ -8176,21 +8292,24 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.ContainerStatistics": {
+        "dto.ContainerSpec": {
             "type": "object",
+            "required": [
+                "name"
+            ],
             "properties": {
-                "active": {
-                    "type": "integer"
+                "env_vars": {
+                    "type": "object"
                 },
-                "deleted": {
-                    "type": "integer"
+                "name": {
+                    "type": "string"
                 },
-                "total": {
-                    "type": "integer"
+                "version": {
+                    "type": "string"
                 }
             }
         },
-        "dto.ContainerVersionDetailResponse": {
+        "dto.ContainerVersionDetailResp": {
             "type": "object",
             "properties": {
                 "command": {
@@ -8203,7 +8322,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "helm_config": {
-                    "$ref": "#/definitions/dto.HelmConfigDetailResponse"
+                    "$ref": "#/definitions/dto.HelmConfigDetailResp"
                 },
                 "id": {
                     "type": "integer"
@@ -8222,7 +8341,42 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.ContainerVersionResponse": {
+        "dto.ContainerVersionItem": {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string"
+                },
+                "container_id": {
+                    "type": "integer"
+                },
+                "container_name": {
+                    "type": "string"
+                },
+                "env_vars": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "env_vars_keys": {
+                    "type": "string"
+                },
+                "extra": {
+                    "$ref": "#/definitions/dto.PedestalInfo"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image_ref": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ContainerVersionResp": {
             "type": "object",
             "properties": {
                 "id": {
@@ -8242,7 +8396,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.CreateContainerRequest": {
+        "dto.CreateContainerReq": {
             "type": "object",
             "required": [
                 "name",
@@ -8262,11 +8416,11 @@ const docTemplate = `{
                     "$ref": "#/definitions/consts.ContainerType"
                 },
                 "version": {
-                    "$ref": "#/definitions/dto.CreateContainerVersionRequest"
+                    "$ref": "#/definitions/dto.CreateContainerVersionReq"
                 }
             }
         },
-        "dto.CreateContainerVersionRequest": {
+        "dto.CreateContainerVersionReq": {
             "type": "object",
             "required": [
                 "image_ref",
@@ -8289,6 +8443,53 @@ const docTemplate = `{
                     "$ref": "#/definitions/dto.CreateHelmConfigRequest"
                 },
                 "image_ref": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CreateDatasetReq": {
+            "type": "object",
+            "required": [
+                "name",
+                "type"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "is_public": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "version": {
+                    "$ref": "#/definitions/dto.CreateDatasetVersionReq"
+                }
+            }
+        },
+        "dto.CreateDatasetVersionReq": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "checksum": {
+                    "type": "string"
+                },
+                "data_source": {
+                    "type": "string"
+                },
+                "download_url": {
+                    "type": "string"
+                },
+                "format": {
                     "type": "string"
                 },
                 "name": {
@@ -8325,7 +8526,31 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.CreatePermissionRequest": {
+        "dto.CreateLabelReq": {
+            "type": "object",
+            "required": [
+                "key",
+                "value"
+            ],
+            "properties": {
+                "category": {
+                    "$ref": "#/definitions/consts.LabelCategory"
+                },
+                "color": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CreatePermissionReq": {
             "type": "object",
             "required": [
                 "action",
@@ -8347,7 +8572,24 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.CreateRoleRequest": {
+        "dto.CreateProjectReq": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "is_public": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CreateRoleReq": {
             "type": "object",
             "required": [
                 "display_name",
@@ -8365,7 +8607,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.CreateUserRequest": {
+        "dto.CreateUserReq": {
             "type": "object",
             "required": [
                 "email",
@@ -8375,604 +8617,164 @@ const docTemplate = `{
             ],
             "properties": {
                 "avatar": {
-                    "type": "string",
-                    "example": "https://example.com/avatar.jpg"
+                    "type": "string"
                 },
                 "email": {
-                    "type": "string",
-                    "example": "user@example.com"
+                    "type": "string"
                 },
                 "full_name": {
-                    "type": "string",
-                    "example": "John Doe"
+                    "type": "string"
                 },
                 "password": {
                     "type": "string",
-                    "minLength": 8,
-                    "example": "password123"
+                    "minLength": 8
                 },
                 "phone": {
-                    "type": "string",
-                    "example": "+1234567890"
+                    "type": "string"
                 },
                 "username": {
-                    "type": "string",
-                    "example": "newuser"
+                    "type": "string"
                 }
             }
         },
-        "dto.DatapackDetectorItem": {
+        "dto.DatapackResult": {
             "type": "object",
             "properties": {
                 "datapack": {
-                    "description": "Datapack name (from FaultInjectionSchedule)",
+                    "$ref": "#/definitions/dto.InjectionItem"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.DatasetDetailResp": {
+            "type": "object",
+            "properties": {
+                "created_at": {
                     "type": "string"
                 },
-                "executed_at": {
-                    "description": "Execution time",
+                "description": {
                     "type": "string"
                 },
-                "execution_id": {
-                    "description": "Execution ID (0 if no execution found)",
+                "id": {
                     "type": "integer"
                 },
-                "found": {
-                    "description": "Whether detector result was found",
+                "is_public": {
                     "type": "boolean"
                 },
-                "results": {
-                    "description": "Detector analysis results",
+                "labels": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.DetectorRecord"
-                    }
-                }
-            }
-        },
-        "dto.DatapackDetectorReq": {
-            "type": "object",
-            "required": [
-                "datapacks"
-            ],
-            "properties": {
-                "datapacks": {
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/dto.LabelItem"
                     }
                 },
-                "tag": {
-                    "description": "Tag filter for filtering execution results",
-                    "type": "string"
-                }
-            }
-        },
-        "dto.DatapackDetectorResp": {
-            "type": "object",
-            "properties": {
-                "found_count": {
-                    "description": "Number of datapacks with detector results",
-                    "type": "integer"
-                },
-                "items": {
-                    "description": "Detector results for each datapack",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.DatapackDetectorItem"
-                    }
-                },
-                "not_found_count": {
-                    "description": "Number of datapacks without detector results",
-                    "type": "integer"
-                },
-                "total_count": {
-                    "description": "Total number of requested datapacks",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.DatapackEvaluationBatchReq": {
-            "type": "object",
-            "required": [
-                "items"
-            ],
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.AlgorithmDatapackReq"
-                    }
-                }
-            }
-        },
-        "dto.DatapackEvaluationItem": {
-            "type": "object",
-            "properties": {
-                "datapack_name": {
-                    "description": "Datapack name (from FaultInjectionSchedule)",
+                "name": {
                     "type": "string"
                 },
-                "executed_at": {
-                    "description": "Execution time",
+                "status": {
                     "type": "string"
                 },
-                "execution_duration": {
-                    "description": "Execution duration in seconds",
-                    "type": "number"
+                "type": {
+                    "type": "string"
                 },
-                "execution_id": {
-                    "description": "Execution ID",
-                    "type": "integer"
+                "updated_at": {
+                    "type": "string"
                 },
-                "groundtruth": {
-                    "description": "Ground truth for this datapack",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/handler.Groundtruth"
-                        }
-                    ]
-                },
-                "predictions": {
-                    "description": "Algorithm predictions",
+                "versions": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.GranularityRecord"
+                        "$ref": "#/definitions/dto.DatasetVersionResp"
                     }
                 }
             }
         },
-        "dto.DatasetBuildPayload": {
+        "dto.DatasetRef": {
             "type": "object",
             "required": [
                 "name"
             ],
             "properties": {
-                "benchmark": {
-                    "type": "string"
-                },
-                "env_vars": {
-                    "type": "object"
-                },
                 "name": {
                     "type": "string"
-                },
-                "pre_duration": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.DatasetDeleteResp": {
-            "type": "object",
-            "properties": {
-                "failed_names": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "success_count": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.DatasetEvaluationBatchReq": {
-            "type": "object",
-            "required": [
-                "items"
-            ],
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.AlgorithmDatasetReq"
-                    }
-                }
-            }
-        },
-        "dto.DatasetOptions": {
-            "type": "object",
-            "properties": {
-                "dataset": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.DatasetSearchResponse": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "description": "Result list",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.DatasetV2Response"
-                    }
-                },
-                "pagination": {
-                    "description": "Pagination info",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.PaginationInfo"
-                        }
-                    ]
-                }
-            }
-        },
-        "dto.DatasetStatistics": {
-            "type": "object",
-            "properties": {
-                "private": {
-                    "type": "integer"
-                },
-                "public": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                },
-                "total_size": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.DatasetV2CreateReq": {
-            "type": "object",
-            "required": [
-                "name",
-                "type"
-            ],
-            "properties": {
-                "data_source": {
-                    "description": "Data source description",
-                    "type": "string",
-                    "maxLength": 500
-                },
-                "description": {
-                    "description": "Dataset description",
-                    "type": "string",
-                    "maxLength": 1000
-                },
-                "format": {
-                    "description": "Data format",
-                    "type": "string",
-                    "maxLength": 50
-                },
-                "injection_refs": {
-                    "description": "Associated fault injection references (ID or name)",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.InjectionRef"
-                    }
-                },
-                "is_public": {
-                    "description": "Whether public, optional, defaults to false",
-                    "type": "boolean"
-                },
-                "label_ids": {
-                    "description": "Associated label ID list",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "name": {
-                    "description": "Dataset name",
-                    "type": "string",
-                    "maxLength": 255
-                },
-                "new_labels": {
-                    "description": "New label list",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.DatasetV2LabelCreateReq"
-                    }
-                },
-                "type": {
-                    "description": "Dataset type",
-                    "type": "string",
-                    "maxLength": 50
                 },
                 "version": {
-                    "description": "Dataset version, optional, defaults to v1.0",
-                    "type": "string",
-                    "maxLength": 50
-                }
-            }
-        },
-        "dto.DatasetV2InjectionManageReq": {
-            "type": "object",
-            "properties": {
-                "add_injections": {
-                    "description": "List of fault injection IDs to add",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "remove_injections": {
-                    "description": "List of fault injection IDs to remove",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                }
-            }
-        },
-        "dto.DatasetV2LabelCreateReq": {
-            "type": "object",
-            "required": [
-                "key",
-                "value"
-            ],
-            "properties": {
-                "category": {
-                    "description": "Label category",
-                    "type": "string",
-                    "maxLength": 50
-                },
-                "color": {
-                    "description": "Label color (hex format)",
-                    "type": "string",
-                    "maxLength": 7
-                },
-                "description": {
-                    "description": "Label description",
-                    "type": "string",
-                    "maxLength": 500
-                },
-                "key": {
-                    "description": "Label key",
-                    "type": "string",
-                    "maxLength": 100
-                },
-                "value": {
-                    "description": "Label value",
-                    "type": "string",
-                    "maxLength": 255
-                }
-            }
-        },
-        "dto.DatasetV2LabelManageReq": {
-            "type": "object",
-            "properties": {
-                "add_labels": {
-                    "description": "List of label IDs to add",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "new_labels": {
-                    "description": "New label list",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.DatasetV2LabelCreateReq"
-                    }
-                },
-                "remove_labels": {
-                    "description": "List of label IDs to remove",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                }
-            }
-        },
-        "dto.DatasetV2Response": {
-            "type": "object",
-            "properties": {
-                "checksum": {
-                    "description": "File checksum",
                     "type": "string"
-                },
+                }
+            }
+        },
+        "dto.DatasetResp": {
+            "type": "object",
+            "properties": {
                 "created_at": {
-                    "description": "Creation time",
-                    "type": "string"
-                },
-                "data_source": {
-                    "description": "Data source description",
-                    "type": "string"
-                },
-                "description": {
-                    "description": "Dataset description",
-                    "type": "string"
-                },
-                "download_url": {
-                    "description": "Download URL",
-                    "type": "string"
-                },
-                "file_count": {
-                    "description": "File count",
-                    "type": "integer"
-                },
-                "format": {
-                    "description": "Data format",
                     "type": "string"
                 },
                 "id": {
-                    "description": "Unique identifier",
                     "type": "integer"
                 },
-                "injections": {
-                    "description": "Associated fault injections",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.InjectionV2Response"
-                    }
-                },
                 "is_public": {
-                    "description": "Whether public",
                     "type": "boolean"
                 },
                 "labels": {
-                    "description": "Associated labels",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/database.Label"
+                        "$ref": "#/definitions/dto.LabelItem"
                     }
                 },
                 "name": {
-                    "description": "Dataset name",
                     "type": "string"
                 },
                 "status": {
-                    "description": "Status",
-                    "type": "integer"
+                    "type": "string"
                 },
                 "type": {
-                    "description": "Dataset type",
                     "type": "string"
                 },
                 "updated_at": {
-                    "description": "Update time",
-                    "type": "string"
-                },
-                "version": {
-                    "description": "Dataset version",
                     "type": "string"
                 }
             }
         },
-        "dto.DatasetV2SearchReq": {
+        "dto.DatasetVersionDetailResp": {
             "type": "object",
             "properties": {
-                "date_range": {
-                    "description": "Date range filter",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.DateRangeFilter"
-                        }
-                    ]
-                },
-                "include": {
-                    "description": "Included related data",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "is_public": {
-                    "description": "Whether public",
-                    "type": "boolean"
-                },
-                "label_keys": {
-                    "description": "Filter by label key",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "label_values": {
-                    "description": "Filter by label value",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "page": {
-                    "description": "Page number",
-                    "type": "integer",
-                    "minimum": 1
-                },
-                "search": {
-                    "description": "Search keywords",
+                "checksum": {
                     "type": "string"
                 },
-                "size": {
-                    "description": "Page size",
-                    "type": "integer",
-                    "maximum": 100,
-                    "minimum": 1
-                },
-                "size_range": {
-                    "description": "Size range filter",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.SizeRangeFilter"
-                        }
-                    ]
-                },
-                "sort_by": {
-                    "description": "Sort field",
+                "download_url": {
                     "type": "string"
                 },
-                "sort_order": {
-                    "description": "Sort direction",
-                    "type": "string"
-                },
-                "statuses": {
-                    "description": "Status list",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "types": {
-                    "description": "Dataset type list",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "dto.DatasetV2UpdateReq": {
-            "type": "object",
-            "properties": {
-                "data_source": {
-                    "description": "Data source description",
-                    "type": "string",
-                    "maxLength": 500
-                },
-                "description": {
-                    "description": "Dataset description",
-                    "type": "string",
-                    "maxLength": 1000
+                "file_count": {
+                    "type": "integer"
                 },
                 "format": {
-                    "description": "Data format",
-                    "type": "string",
-                    "maxLength": 50
+                    "type": "string"
                 },
-                "injection_refs": {
-                    "description": "Update associated fault injection references (complete replacement)",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.InjectionRef"
-                    }
-                },
-                "is_public": {
-                    "description": "Whether public",
-                    "type": "boolean"
-                },
-                "label_ids": {
-                    "description": "Update associated label ID list (complete replacement)",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                "id": {
+                    "type": "integer"
                 },
                 "name": {
-                    "description": "Dataset name",
-                    "type": "string",
-                    "maxLength": 255
+                    "type": "string"
                 },
-                "new_labels": {
-                    "description": "New label list",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.DatasetV2LabelCreateReq"
-                    }
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.DatasetVersionResp": {
+            "type": "object",
+            "properties": {
+                "download_url": {
+                    "type": "string"
                 },
-                "type": {
-                    "description": "Dataset type",
-                    "type": "string",
-                    "maxLength": 50
+                "id": {
+                    "type": "integer"
                 },
-                "version": {
-                    "description": "Dataset version",
-                    "type": "string",
-                    "maxLength": 50
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -8983,70 +8785,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "to": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.DateRangeFilter": {
-            "type": "object",
-            "properties": {
-                "end_time": {
-                    "description": "End time",
-                    "type": "string"
-                },
-                "start_time": {
-                    "description": "Start time",
-                    "type": "string"
-                }
-            }
-        },
-        "dto.DetectorRecord": {
-            "type": "object",
-            "properties": {
-                "abnormal_avg_duration": {
-                    "type": "number",
-                    "example": 0.5
-                },
-                "abnormal_p90": {
-                    "type": "number",
-                    "example": 1.2
-                },
-                "abnormal_p95": {
-                    "type": "number",
-                    "example": 1.5
-                },
-                "abnormal_p99": {
-                    "type": "number",
-                    "example": 2
-                },
-                "abnormal_succ_rate": {
-                    "type": "number",
-                    "example": 0.8
-                },
-                "issue": {
-                    "type": "string"
-                },
-                "normal_avg_duration": {
-                    "type": "number",
-                    "example": 0.3
-                },
-                "normal_p90": {
-                    "type": "number",
-                    "example": 0.8
-                },
-                "normal_p95": {
-                    "type": "number",
-                    "example": 1
-                },
-                "normal_p99": {
-                    "type": "number",
-                    "example": 1.3
-                },
-                "normal_succ_rate": {
-                    "type": "number",
-                    "example": 0.95
-                },
-                "span_name": {
                     "type": "string"
                 }
             }
@@ -9096,42 +8834,271 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.DetectorResultRequest": {
+        "dto.EvaluateDatapackItem": {
             "type": "object",
-            "required": [
-                "duration",
-                "results"
-            ],
             "properties": {
-                "duration": {
-                    "description": "Execution duration in seconds",
-                    "type": "number"
+                "algorithm": {
+                    "type": "string"
                 },
-                "results": {
+                "algorithm_version": {
+                    "type": "string"
+                },
+                "datapack": {
+                    "type": "string"
+                },
+                "execution_refs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ExecutionGranularityRef"
+                    }
+                },
+                "groundtruth": {
+                    "$ref": "#/definitions/handler.Groundtruth"
+                }
+            }
+        },
+        "dto.EvaluateDatapackRef": {
+            "type": "object",
+            "properties": {
+                "datapack": {
+                    "type": "string"
+                },
+                "detector_results": {
+                    "description": "Detector results",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/dto.DetectorResultItem"
                     }
-                }
-            }
-        },
-        "dto.ExecutionLabels": {
-            "type": "object",
-            "properties": {
-                "tag": {
-                    "description": "user-defined tag",
+                },
+                "executed_at": {
+                    "description": "Execution time",
                     "type": "string"
+                },
+                "execution_duration": {
+                    "description": "Execution duration in seconds",
+                    "type": "number"
+                },
+                "execution_id": {
+                    "description": "Execution ID",
+                    "type": "integer"
+                },
+                "predictions": {
+                    "description": "Algorithm predictions",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.GranularityResultItem"
+                    }
                 }
             }
         },
-        "dto.ExecutionOptions": {
+        "dto.EvaluateDatapackSpec": {
+            "type": "object",
+            "required": [
+                "algorithm",
+                "datapack"
+            ],
+            "properties": {
+                "algorithm": {
+                    "$ref": "#/definitions/dto.ContainerRef"
+                },
+                "datapack": {
+                    "type": "string"
+                },
+                "filter_labels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelItem"
+                    }
+                }
+            }
+        },
+        "dto.EvaluateDatasetItem": {
             "type": "object",
             "properties": {
                 "algorithm": {
-                    "$ref": "#/definitions/dto.AlgorithmItem"
+                    "description": "Algorithm name",
+                    "type": "string"
+                },
+                "algorithm_version": {
+                    "description": "Algorithm version",
+                    "type": "string"
                 },
                 "dataset": {
+                    "description": "Dataset name",
                     "type": "string"
+                },
+                "dataset_version": {
+                    "description": "Dataset version",
+                    "type": "string"
+                },
+                "evalaute_refs": {
+                    "description": "Evaluation refs for each dataset",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.EvaluateDatapackRef"
+                    }
+                },
+                "executed_count": {
+                    "description": "Number of successfully executed datapacks",
+                    "type": "integer"
+                },
+                "total_count": {
+                    "description": "Total number of datapacks in dataset",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.ExecutionDetailResp": {
+            "type": "object",
+            "properties": {
+                "algorithm_id": {
+                    "type": "integer"
+                },
+                "algorithm_name": {
+                    "type": "string"
+                },
+                "algorithm_version": {
+                    "type": "string"
+                },
+                "algorithm_version_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "datapack_id": {
+                    "type": "integer"
+                },
+                "datapack_name": {
+                    "type": "string"
+                },
+                "detector_results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DetectorResultItem"
+                    }
+                },
+                "duration": {
+                    "type": "number"
+                },
+                "granularity_results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.GranularityResultItem"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "labels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelItem"
+                    }
+                },
+                "state": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "task_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ExecutionGranularityRef": {
+            "type": "object",
+            "properties": {
+                "detector_results": {
+                    "description": "Detector results",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DetectorResultItem"
+                    }
+                },
+                "executed_at": {
+                    "description": "Execution time",
+                    "type": "string"
+                },
+                "execution_duration": {
+                    "description": "Execution duration in seconds",
+                    "type": "number"
+                },
+                "execution_id": {
+                    "description": "Execution ID",
+                    "type": "integer"
+                },
+                "predictions": {
+                    "description": "Algorithm predictions",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.GranularityResultItem"
+                    }
+                }
+            }
+        },
+        "dto.ExecutionResp": {
+            "type": "object",
+            "properties": {
+                "algorithm_id": {
+                    "type": "integer"
+                },
+                "algorithm_name": {
+                    "type": "string"
+                },
+                "algorithm_version": {
+                    "type": "string"
+                },
+                "algorithm_version_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "datapack_id": {
+                    "type": "integer"
+                },
+                "datapack_name": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "labels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelItem"
+                    }
+                },
+                "state": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "task_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ExecutionResult": {
+            "type": "object",
+            "properties": {
+                "algorithm": {
+                    "$ref": "#/definitions/dto.ContainerVersionItem"
+                },
+                "datapack": {
+                    "$ref": "#/definitions/dto.InjectionItem"
                 },
                 "execution_id": {
                     "type": "integer"
@@ -9141,66 +9108,20 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.ExecutionStatistics": {
+        "dto.ExecutionSpec": {
             "type": "object",
+            "required": [
+                "algorithm"
+            ],
             "properties": {
-                "failed": {
-                    "type": "integer"
+                "algorithm": {
+                    "$ref": "#/definitions/dto.ContainerSpec"
                 },
-                "successful": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.FaultInjectionNoIssuesResp": {
-            "type": "object",
-            "properties": {
-                "dataset_id": {
-                    "type": "integer"
-                },
-                "engine_config": {
-                    "$ref": "#/definitions/handler.Node"
-                },
-                "injection_name": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.FaultInjectionWithIssuesResp": {
-            "type": "object",
-            "properties": {
-                "abnormal_avg_duration": {
-                    "type": "number"
-                },
-                "abnormal_p99": {
-                    "type": "number"
-                },
-                "abnormal_succ_rate": {
-                    "type": "number"
-                },
-                "dataset_id": {
-                    "type": "integer"
-                },
-                "engine_config": {
-                    "$ref": "#/definitions/handler.Node"
-                },
-                "injection_name": {
+                "datapack": {
                     "type": "string"
                 },
-                "issues": {
-                    "type": "string"
-                },
-                "normal_avg_duration": {
-                    "type": "number"
-                },
-                "normal_p99": {
-                    "type": "number"
-                },
-                "normal_succ_rate": {
-                    "type": "number"
+                "dataset": {
+                    "$ref": "#/definitions/dto.DatasetRef"
                 }
             }
         },
@@ -9287,7 +9208,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-array_dto_FaultInjectionNoIssuesResp": {
+        "dto.GenericResponse-array_dto_InjectionNoIssuesResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9298,7 +9219,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.FaultInjectionNoIssuesResp"
+                        "$ref": "#/definitions/dto.InjectionNoIssuesResp"
                     }
                 },
                 "message": {
@@ -9311,7 +9232,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-array_dto_FaultInjectionWithIssuesResp": {
+        "dto.GenericResponse-array_dto_InjectionWithIssuesResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9322,7 +9243,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.FaultInjectionWithIssuesResp"
+                        "$ref": "#/definitions/dto.InjectionWithIssuesResp"
                     }
                 },
                 "message": {
@@ -9335,7 +9256,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-array_dto_PermissionResponse": {
+        "dto.GenericResponse-array_dto_LabelItem": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9346,7 +9267,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.PermissionResponse"
+                        "$ref": "#/definitions/dto.LabelItem"
                     }
                 },
                 "message": {
@@ -9359,7 +9280,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-array_dto_RoleResponse": {
+        "dto.GenericResponse-array_dto_PermissionResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9370,7 +9291,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.RoleResponse"
+                        "$ref": "#/definitions/dto.PermissionResp"
                     }
                 },
                 "message": {
@@ -9383,7 +9304,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-array_dto_UserResponse": {
+        "dto.GenericResponse-array_dto_RoleResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9394,7 +9315,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.UserResponse"
+                        "$ref": "#/definitions/dto.RoleResp"
                     }
                 },
                 "message": {
@@ -9407,7 +9328,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-array_string": {
+        "dto.GenericResponse-array_dto_UserResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9418,7 +9339,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/dto.UserResp"
                     }
                 },
                 "message": {
@@ -9431,7 +9352,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_AlgorithmResultUploadResponse": {
+        "dto.GenericResponse-dto_AuditLogDetailResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9442,7 +9363,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.AlgorithmResultUploadResponse"
+                            "$ref": "#/definitions/dto.AuditLogDetailResp"
                         }
                     ]
                 },
@@ -9456,7 +9377,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_AnalyzeInjectionsResp": {
+        "dto.GenericResponse-dto_BatchEvaluateDatapackResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9467,7 +9388,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.AnalyzeInjectionsResp"
+                            "$ref": "#/definitions/dto.BatchEvaluateDatapackResp"
                         }
                     ]
                 },
@@ -9481,7 +9402,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_AuditLogListResponse": {
+        "dto.GenericResponse-dto_BatchEvaluateDatasetResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9492,7 +9413,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.AuditLogListResponse"
+                            "$ref": "#/definitions/dto.BatchEvaluateDatasetResp"
                         }
                     ]
                 },
@@ -9506,7 +9427,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_AuditLogResponse": {
+        "dto.GenericResponse-dto_ContainerDetailResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9517,7 +9438,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.AuditLogResponse"
+                            "$ref": "#/definitions/dto.ContainerDetailResp"
                         }
                     ]
                 },
@@ -9531,7 +9452,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_BatchAlgorithmExecutionResponse": {
+        "dto.GenericResponse-dto_ContainerResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9542,7 +9463,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.BatchAlgorithmExecutionResponse"
+                            "$ref": "#/definitions/dto.ContainerResp"
                         }
                     ]
                 },
@@ -9556,7 +9477,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_ContainerDetailResponse": {
+        "dto.GenericResponse-dto_ContainerVersionDetailResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9567,7 +9488,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.ContainerDetailResponse"
+                            "$ref": "#/definitions/dto.ContainerVersionDetailResp"
                         }
                     ]
                 },
@@ -9581,7 +9502,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_ContainerResponse": {
+        "dto.GenericResponse-dto_ContainerVersionResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9592,7 +9513,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.ContainerResponse"
+                            "$ref": "#/definitions/dto.ContainerVersionResp"
                         }
                     ]
                 },
@@ -9606,7 +9527,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_ContainerVersionDetailResponse": {
+        "dto.GenericResponse-dto_DatasetDetailResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9617,7 +9538,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.ContainerVersionDetailResponse"
+                            "$ref": "#/definitions/dto.DatasetDetailResp"
                         }
                     ]
                 },
@@ -9631,7 +9552,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_ContainerVersionResponse": {
+        "dto.GenericResponse-dto_DatasetResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9642,7 +9563,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.ContainerVersionResponse"
+                            "$ref": "#/definitions/dto.DatasetResp"
                         }
                     ]
                 },
@@ -9656,7 +9577,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_DatapackDetectorResp": {
+        "dto.GenericResponse-dto_DatasetVersionDetailResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9667,7 +9588,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.DatapackDetectorResp"
+                            "$ref": "#/definitions/dto.DatasetVersionDetailResp"
                         }
                     ]
                 },
@@ -9681,31 +9602,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_DatapackEvaluationBatchResp": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "Status code",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "Generic type data",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.AlgorithmDatapackResp"
-                    }
-                },
-                "message": {
-                    "description": "Response message",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "Response generation time",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.GenericResponse-dto_DatasetDeleteResp": {
+        "dto.GenericResponse-dto_DatasetVersionResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9716,7 +9613,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.DatasetDeleteResp"
+                            "$ref": "#/definitions/dto.DatasetVersionResp"
                         }
                     ]
                 },
@@ -9730,31 +9627,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_DatasetEvaluationBatchResp": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "Status code",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "Generic type data",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.AlgorithmDatasetResp"
-                    }
-                },
-                "message": {
-                    "description": "Response message",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "Response generation time",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.GenericResponse-dto_DatasetSearchResponse": {
+        "dto.GenericResponse-dto_ExecutionDetailResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9765,7 +9638,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.DatasetSearchResponse"
+                            "$ref": "#/definitions/dto.ExecutionDetailResp"
                         }
                     ]
                 },
@@ -9779,7 +9652,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_DatasetV2Response": {
+        "dto.GenericResponse-dto_ExecutionResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9790,7 +9663,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.DatasetV2Response"
+                            "$ref": "#/definitions/dto.ExecutionResp"
                         }
                     ]
                 },
@@ -9804,7 +9677,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_GroundTruthResp": {
+        "dto.GenericResponse-dto_HealthCheckResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9815,7 +9688,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.GroundTruthResp"
+                            "$ref": "#/definitions/dto.HealthCheckResp"
                         }
                     ]
                 },
@@ -9829,7 +9702,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_HealthCheckResponse": {
+        "dto.GenericResponse-dto_InjectionDetailResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9840,7 +9713,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.HealthCheckResponse"
+                            "$ref": "#/definitions/dto.InjectionDetailResp"
                         }
                     ]
                 },
@@ -9854,7 +9727,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_InjectCancelResp": {
+        "dto.GenericResponse-dto_InjectionMetadataResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9865,7 +9738,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.InjectCancelResp"
+                            "$ref": "#/definitions/dto.InjectionMetadataResp"
                         }
                     ]
                 },
@@ -9879,7 +9752,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_InjectionFieldMappingResp": {
+        "dto.GenericResponse-dto_InjectionResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9890,7 +9763,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.InjectionFieldMappingResp"
+                            "$ref": "#/definitions/dto.InjectionResp"
                         }
                     ]
                 },
@@ -9904,7 +9777,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_InjectionSearchResponse": {
+        "dto.GenericResponse-dto_LabelDetailResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9915,7 +9788,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.InjectionSearchResponse"
+                            "$ref": "#/definitions/dto.LabelDetailResp"
                         }
                     ]
                 },
@@ -9929,7 +9802,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_InjectionStatsResp": {
+        "dto.GenericResponse-dto_LabelResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9940,7 +9813,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.InjectionStatsResp"
+                            "$ref": "#/definitions/dto.LabelResp"
                         }
                     ]
                 },
@@ -9954,7 +9827,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_InjectionV2BatchDeleteResponse": {
+        "dto.GenericResponse-dto_ListNamespaceLockResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9965,7 +9838,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.InjectionV2BatchDeleteResponse"
+                            "$ref": "#/definitions/dto.ListNamespaceLockResp"
                         }
                     ]
                 },
@@ -9979,7 +9852,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_InjectionV2CreateResponse": {
+        "dto.GenericResponse-dto_ListResp-dto_AuditLogResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -9990,7 +9863,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.InjectionV2CreateResponse"
+                            "$ref": "#/definitions/dto.ListResp-dto_AuditLogResp"
                         }
                     ]
                 },
@@ -10004,7 +9877,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_InjectionV2Response": {
+        "dto.GenericResponse-dto_ListResp-dto_ContainerResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10015,7 +9888,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.InjectionV2Response"
+                            "$ref": "#/definitions/dto.ListResp-dto_ContainerResp"
                         }
                     ]
                 },
@@ -10029,7 +9902,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_LabelResponse": {
+        "dto.GenericResponse-dto_ListResp-dto_ContainerVersionResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10040,7 +9913,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.LabelResponse"
+                            "$ref": "#/definitions/dto.ListResp-dto_ContainerVersionResp"
                         }
                     ]
                 },
@@ -10054,7 +9927,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_ListInjectionsResp": {
+        "dto.GenericResponse-dto_ListResp-dto_DatasetResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10065,7 +9938,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.ListInjectionsResp"
+                            "$ref": "#/definitions/dto.ListResp-dto_DatasetResp"
                         }
                     ]
                 },
@@ -10079,7 +9952,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_ListPermissionResponse": {
+        "dto.GenericResponse-dto_ListResp-dto_DatasetVersionResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10090,7 +9963,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.ListPermissionResponse"
+                            "$ref": "#/definitions/dto.ListResp-dto_DatasetVersionResp"
                         }
                     ]
                 },
@@ -10104,7 +9977,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_ListResponse-dto_ContainerResponse": {
+        "dto.GenericResponse-dto_ListResp-dto_ExecutionResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10115,7 +9988,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.ListResponse-dto_ContainerResponse"
+                            "$ref": "#/definitions/dto.ListResp-dto_ExecutionResp"
                         }
                     ]
                 },
@@ -10129,7 +10002,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_ListRoleResponse": {
+        "dto.GenericResponse-dto_ListResp-dto_InjectionResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10140,7 +10013,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.ListRoleResponse"
+                            "$ref": "#/definitions/dto.ListResp-dto_InjectionResp"
                         }
                     ]
                 },
@@ -10154,31 +10027,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_ListTasksResp": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "Status code",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "Generic type data",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/database.Task"
-                    }
-                },
-                "message": {
-                    "description": "Response message",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "Response generation time",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.GenericResponse-dto_LoginResponse": {
+        "dto.GenericResponse-dto_ListResp-dto_LabelResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10189,7 +10038,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.LoginResponse"
+                            "$ref": "#/definitions/dto.ListResp-dto_LabelResp"
                         }
                     ]
                 },
@@ -10203,7 +10052,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_MonitoringMetricsResponse": {
+        "dto.GenericResponse-dto_ListResp-dto_ProjectResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10214,7 +10063,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.MonitoringMetricsResponse"
+                            "$ref": "#/definitions/dto.ListResp-dto_ProjectResp"
                         }
                     ]
                 },
@@ -10228,7 +10077,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_NsResourcesResp": {
+        "dto.GenericResponse-dto_ListResp-dto_ResourceResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10239,7 +10088,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.NsResourcesResp"
+                            "$ref": "#/definitions/dto.ListResp-dto_ResourceResp"
                         }
                     ]
                 },
@@ -10253,7 +10102,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_PaginationResp-dto_UnifiedTask": {
+        "dto.GenericResponse-dto_ListResp-dto_TaskResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10264,7 +10113,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.PaginationResp-dto_UnifiedTask"
+                            "$ref": "#/definitions/dto.ListResp-dto_TaskResp"
                         }
                     ]
                 },
@@ -10278,7 +10127,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_PermissionDetailResponse": {
+        "dto.GenericResponse-dto_ListResp-dto_UserResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10289,7 +10138,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.PermissionDetailResponse"
+                            "$ref": "#/definitions/dto.ListResp-dto_UserResp"
                         }
                     ]
                 },
@@ -10303,7 +10152,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_PermissionResponse": {
+        "dto.GenericResponse-dto_ListRoleResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10314,7 +10163,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.PermissionResponse"
+                            "$ref": "#/definitions/dto.ListRoleResp"
                         }
                     ]
                 },
@@ -10328,7 +10177,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_ProjectV2Response": {
+        "dto.GenericResponse-dto_LoginResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10339,7 +10188,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.ProjectV2Response"
+                            "$ref": "#/definitions/dto.LoginResp"
                         }
                     ]
                 },
@@ -10353,7 +10202,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_QueryInjectionResp": {
+        "dto.GenericResponse-dto_MonitoringMetricsResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10364,7 +10213,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.QueryInjectionResp"
+                            "$ref": "#/definitions/dto.MonitoringMetricsResp"
                         }
                     ]
                 },
@@ -10378,31 +10227,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_RawDataResp": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "Status code",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "Generic type data",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.RawDataItem"
-                    }
-                },
-                "message": {
-                    "description": "Response message",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "Response generation time",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.GenericResponse-dto_RoleDetailResponse": {
+        "dto.GenericResponse-dto_PermissionDetailResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10413,7 +10238,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.RoleDetailResponse"
+                            "$ref": "#/definitions/dto.PermissionDetailResp"
                         }
                     ]
                 },
@@ -10427,7 +10252,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_RoleResponse": {
+        "dto.GenericResponse-dto_PermissionResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10438,7 +10263,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.RoleResponse"
+                            "$ref": "#/definitions/dto.PermissionResp"
                         }
                     ]
                 },
@@ -10452,7 +10277,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_SearchResponse-dto_AlgorithmResponse": {
+        "dto.GenericResponse-dto_ProjectDetailResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10463,7 +10288,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.SearchResponse-dto_AlgorithmResponse"
+                            "$ref": "#/definitions/dto.ProjectDetailResp"
                         }
                     ]
                 },
@@ -10477,7 +10302,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_SearchResponse-dto_ContainerResponse": {
+        "dto.GenericResponse-dto_ProjectResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10488,7 +10313,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.SearchResponse-dto_ContainerResponse"
+                            "$ref": "#/definitions/dto.ProjectResp"
                         }
                     ]
                 },
@@ -10502,7 +10327,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_SearchResponse-dto_DatasetV2Response": {
+        "dto.GenericResponse-dto_QueuedTasksResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10513,7 +10338,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.SearchResponse-dto_DatasetV2Response"
+                            "$ref": "#/definitions/dto.QueuedTasksResp"
                         }
                     ]
                 },
@@ -10527,7 +10352,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_SearchResponse-dto_InjectionV2Response": {
+        "dto.GenericResponse-dto_ResourceResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10538,7 +10363,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.SearchResponse-dto_InjectionV2Response"
+                            "$ref": "#/definitions/dto.ResourceResp"
                         }
                     ]
                 },
@@ -10552,7 +10377,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_SearchResponse-dto_PermissionResponse": {
+        "dto.GenericResponse-dto_RoleDetailResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10563,7 +10388,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.SearchResponse-dto_PermissionResponse"
+                            "$ref": "#/definitions/dto.RoleDetailResp"
                         }
                     ]
                 },
@@ -10577,7 +10402,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_SearchResponse-dto_RoleResponse": {
+        "dto.GenericResponse-dto_RoleResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10588,7 +10413,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.SearchResponse-dto_RoleResponse"
+                            "$ref": "#/definitions/dto.RoleResp"
                         }
                     ]
                 },
@@ -10602,7 +10427,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_SearchResponse-dto_TaskResponse": {
+        "dto.GenericResponse-dto_SearchResp-dto_ContainerResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10613,7 +10438,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.SearchResponse-dto_TaskResponse"
+                            "$ref": "#/definitions/dto.SearchResp-dto_ContainerResp"
                         }
                     ]
                 },
@@ -10627,7 +10452,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_SearchResponse-dto_UserResponse": {
+        "dto.GenericResponse-dto_SearchResp-dto_InjectionResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10638,7 +10463,157 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.SearchResponse-dto_UserResponse"
+                            "$ref": "#/definitions/dto.SearchResp-dto_InjectionResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_SearchResp-dto_PermissionResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.SearchResp-dto_PermissionResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_SearchResp-dto_RoleResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.SearchResp-dto_RoleResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_SearchResp-dto_UserResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.SearchResp-dto_UserResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_SubmitContainerBuildResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.SubmitContainerBuildResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_SubmitDatapackBuildingResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.SubmitDatapackBuildingResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_SubmitExecutionResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.SubmitExecutionResp"
                         }
                     ]
                 },
@@ -10677,55 +10652,6 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_SubmitResp": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "Status code",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "Generic type data",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.SubmitResp"
-                        }
-                    ]
-                },
-                "message": {
-                    "description": "Response message",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "Response generation time",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.GenericResponse-dto_SuccessfulExecutionsResp": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "Status code",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "Generic type data",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.SuccessfulExecutionItem"
-                    }
-                },
-                "message": {
-                    "description": "Response message",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "Response generation time",
-                    "type": "integer"
-                }
-            }
-        },
         "dto.GenericResponse-dto_SystemInfo": {
             "type": "object",
             "properties": {
@@ -10738,31 +10664,6 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/dto.SystemInfo"
-                        }
-                    ]
-                },
-                "message": {
-                    "description": "Response message",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "Response generation time",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.GenericResponse-dto_SystemStatisticsResponse": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "Status code",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "Generic type data",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.SystemStatisticsResponse"
                         }
                     ]
                 },
@@ -10801,7 +10702,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_TaskDetailResponse": {
+        "dto.GenericResponse-dto_TokenRefreshResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10812,7 +10713,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.TaskDetailResponse"
+                            "$ref": "#/definitions/dto.TokenRefreshResp"
                         }
                     ]
                 },
@@ -10826,7 +10727,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_TokenRefreshResponse": {
+        "dto.GenericResponse-dto_UploadExecutionResultResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10837,7 +10738,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.TokenRefreshResponse"
+                            "$ref": "#/definitions/dto.UploadExecutionResultResp"
                         }
                     ]
                 },
@@ -10851,7 +10752,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_TraceStats": {
+        "dto.GenericResponse-dto_UserDetailResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10862,7 +10763,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.TraceStats"
+                            "$ref": "#/definitions/dto.UserDetailResp"
                         }
                     ]
                 },
@@ -10901,7 +10802,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GenericResponse-dto_UserListResponse": {
+        "dto.GenericResponse-dto_UserResp": {
             "type": "object",
             "properties": {
                 "code": {
@@ -10912,7 +10813,7 @@ const docTemplate = `{
                     "description": "Generic type data",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/dto.UserListResponse"
+                            "$ref": "#/definitions/dto.UserResp"
                         }
                     ]
                 },
@@ -10923,121 +10824,6 @@ const docTemplate = `{
                 "timestamp": {
                     "description": "Response generation time",
                     "type": "integer"
-                }
-            }
-        },
-        "dto.GenericResponse-dto_UserResponse": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "Status code",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "Generic type data",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.UserResponse"
-                        }
-                    ]
-                },
-                "message": {
-                    "description": "Response message",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "Response generation time",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.GenericResponse-handler_Node": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "Status code",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "Generic type data",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/handler.Node"
-                        }
-                    ]
-                },
-                "message": {
-                    "description": "Response message",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "Response generation time",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.GenericResponse-handler_Resources": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "description": "Status code",
-                    "type": "integer"
-                },
-                "data": {
-                    "description": "Generic type data",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/handler.Resources"
-                        }
-                    ]
-                },
-                "message": {
-                    "description": "Response message",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "Response generation time",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.GranularityRecord": {
-            "type": "object",
-            "properties": {
-                "confidence": {
-                    "type": "number"
-                },
-                "level": {
-                    "type": "string"
-                },
-                "rank": {
-                    "type": "integer"
-                },
-                "result": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.GranularityResultEnhancedRequest": {
-            "type": "object",
-            "required": [
-                "duration",
-                "results"
-            ],
-            "properties": {
-                "datapack_id": {
-                    "description": "Required if no execution_id",
-                    "type": "integer"
-                },
-                "duration": {
-                    "description": "Execution duration in seconds",
-                    "type": "number"
-                },
-                "results": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.GranularityResultItem"
-                    }
                 }
             }
         },
@@ -11050,43 +10836,20 @@ const docTemplate = `{
             ],
             "properties": {
                 "confidence": {
-                    "type": "number",
-                    "maximum": 1,
-                    "minimum": 0
+                    "type": "number"
                 },
                 "level": {
                     "type": "string"
                 },
                 "rank": {
-                    "type": "integer",
-                    "minimum": 1
+                    "type": "integer"
                 },
                 "result": {
                     "type": "string"
                 }
             }
         },
-        "dto.GroundTruthReq": {
-            "type": "object",
-            "required": [
-                "datasets"
-            ],
-            "properties": {
-                "datasets": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "dto.GroundTruthResp": {
-            "type": "object",
-            "additionalProperties": {
-                "$ref": "#/definitions/handler.Groundtruth"
-            }
-        },
-        "dto.HealthCheckResponse": {
+        "dto.HealthCheckResp": {
             "type": "object",
             "properties": {
                 "services": {
@@ -11106,7 +10869,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.HelmConfigDetailResponse": {
+        "dto.HelmConfigDetailResp": {
             "type": "object",
             "properties": {
                 "full_chart": {
@@ -11130,288 +10893,54 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.HelmConfigItem": {
+            "type": "object",
+            "properties": {
+                "chart_name": {
+                    "type": "string"
+                },
+                "full_chart": {
+                    "type": "string"
+                },
+                "ns_prefix": {
+                    "type": "string"
+                },
+                "port_template": {
+                    "type": "string"
+                },
+                "repo_name": {
+                    "type": "string"
+                },
+                "repo_url": {
+                    "type": "string"
+                },
+                "values": {
+                    "type": "object",
+                    "additionalProperties": {}
+                }
+            }
+        },
         "dto.InfoPayloadTemplate": {
             "type": "object",
             "properties": {
                 "msg": {
                     "type": "string"
                 },
-                "status": {
+                "task_state": {
                     "type": "string"
                 }
             }
         },
-        "dto.InjectCancelResp": {
-            "type": "object"
-        },
-        "dto.InjectionCreateError": {
+        "dto.InjectionDetailResp": {
             "type": "object",
             "properties": {
-                "error": {
-                    "type": "string"
-                },
-                "index": {
+                "benchmark_id": {
                     "type": "integer"
                 },
-                "item": {
-                    "$ref": "#/definitions/dto.InjectionV2CreateItem"
-                }
-            }
-        },
-        "dto.InjectionDiversity": {
-            "type": "object",
-            "properties": {
-                "attribute_coverages": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "object",
-                        "additionalProperties": {
-                            "$ref": "#/definitions/dto.AttributeCoverageItem"
-                        }
-                    }
-                },
-                "fault_distribution": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "integer"
-                    }
-                },
-                "fault_service_coverages": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "$ref": "#/definitions/dto.ServiceCoverageItem"
-                    }
-                },
-                "pair_distribution": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.PairStats"
-                    }
-                },
-                "service_distribution": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "integer"
-                    }
-                }
-            }
-        },
-        "dto.InjectionFieldMappingResp": {
-            "type": "object",
-            "properties": {
-                "fault_resource": {
-                    "type": "object"
-                },
-                "fault_type": {
-                    "type": "object"
-                },
-                "status": {
-                    "type": "object"
-                }
-            }
-        },
-        "dto.InjectionItem": {
-            "type": "object",
-            "properties": {
-                "batch": {
-                    "type": "string"
-                },
-                "benchmark": {
+                "benchmark_name": {
                     "type": "string"
                 },
                 "created_at": {
-                    "type": "string"
-                },
-                "display_config": {
-                    "type": "string"
-                },
-                "end_time": {
-                    "type": "string"
-                },
-                "engine_config": {
-                    "type": "string"
-                },
-                "env": {
-                    "type": "string"
-                },
-                "fault_type": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "injection_name": {
-                    "type": "string"
-                },
-                "pre_duration": {
-                    "type": "integer"
-                },
-                "start_time": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "integer"
-                },
-                "tag": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.InjectionRef": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "description": "Injection ID",
-                    "type": "integer"
-                },
-                "name": {
-                    "description": "Injection name",
-                    "type": "string"
-                }
-            }
-        },
-        "dto.InjectionSearchResponse": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.InjectionV2Response"
-                    }
-                },
-                "pagination": {
-                    "$ref": "#/definitions/dto.PaginationInfo"
-                }
-            }
-        },
-        "dto.InjectionStatistics": {
-            "type": "object",
-            "properties": {
-                "completed": {
-                    "type": "integer"
-                },
-                "failed": {
-                    "type": "integer"
-                },
-                "running": {
-                    "type": "integer"
-                },
-                "scheduled": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.InjectionStats": {
-            "type": "object",
-            "properties": {
-                "diversity": {
-                    "$ref": "#/definitions/dto.InjectionDiversity"
-                }
-            }
-        },
-        "dto.InjectionStatsResp": {
-            "type": "object",
-            "properties": {
-                "no_issues_injections": {
-                    "type": "integer"
-                },
-                "no_issues_records": {
-                    "type": "integer"
-                },
-                "with_issues_injections": {
-                    "type": "integer"
-                },
-                "with_issues_records": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.InjectionV2BatchDeleteReq": {
-            "type": "object",
-            "properties": {
-                "ids": {
-                    "description": "List of injection IDs to delete",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "labels": {
-                    "description": "List of label keys to match for deletion (key1:value1,key2:value2)",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "dto.InjectionV2BatchDeleteResponse": {
-            "type": "object",
-            "properties": {
-                "cascade_deleted": {
-                    "$ref": "#/definitions/dto.InjectionV2CascadeDeleteStats"
-                },
-                "failed_count": {
-                    "type": "integer"
-                },
-                "failed_items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.InjectionV2DeleteError"
-                    }
-                },
-                "message": {
-                    "type": "string"
-                },
-                "success_count": {
-                    "type": "integer"
-                },
-                "success_items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.InjectionV2DeletedItem"
-                    }
-                }
-            }
-        },
-        "dto.InjectionV2CascadeDeleteStats": {
-            "type": "object",
-            "properties": {
-                "dataset_fault_injections": {
-                    "type": "integer"
-                },
-                "detectors": {
-                    "type": "integer"
-                },
-                "execution_result_labels": {
-                    "type": "integer"
-                },
-                "execution_results": {
-                    "type": "integer"
-                },
-                "fault_injection_labels": {
-                    "type": "integer"
-                },
-                "granularity_results": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.InjectionV2CreateItem": {
-            "type": "object",
-            "required": [
-                "benchmark",
-                "display_config",
-                "engine_config",
-                "fault_type",
-                "injection_name",
-                "pre_duration"
-            ],
-            "properties": {
-                "benchmark": {
                     "type": "string"
                 },
                 "description": {
@@ -11427,170 +10956,28 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "fault_type": {
-                    "type": "integer"
-                },
-                "injection_name": {
                     "type": "string"
                 },
-                "pre_duration": {
-                    "type": "integer",
-                    "minimum": 0
+                "ground_truth": {
+                    "$ref": "#/definitions/handler.Groundtruth"
                 },
-                "start_time": {
-                    "type": "string"
-                },
-                "status": {
+                "id": {
                     "type": "integer"
                 },
-                "task_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.InjectionV2CreateReq": {
-            "type": "object",
-            "required": [
-                "injections"
-            ],
-            "properties": {
-                "injections": {
-                    "type": "array",
-                    "maxItems": 100,
-                    "minItems": 1,
-                    "items": {
-                        "$ref": "#/definitions/dto.InjectionV2CreateItem"
-                    }
-                }
-            }
-        },
-        "dto.InjectionV2CreateResponse": {
-            "type": "object",
-            "properties": {
-                "created_count": {
-                    "type": "integer"
-                },
-                "created_items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.InjectionV2Response"
-                    }
-                },
-                "failed_count": {
-                    "type": "integer"
-                },
-                "failed_items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.InjectionCreateError"
-                    }
-                },
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.InjectionV2CustomLabelManageReq": {
-            "type": "object",
-            "properties": {
-                "add_labels": {
-                    "description": "List of labels to add",
+                "labels": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/dto.LabelItem"
                     }
                 },
-                "remove_labels": {
-                    "description": "List of label keys to remove",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "dto.InjectionV2DeleteError": {
-            "type": "object",
-            "properties": {
-                "error": {
+                "name": {
                     "type": "string"
                 },
-                "id": {
+                "pedestal_id": {
                     "type": "integer"
                 },
-                "injection_name": {
+                "pedestal_name": {
                     "type": "string"
-                }
-            }
-        },
-        "dto.InjectionV2DeletedItem": {
-            "type": "object",
-            "properties": {
-                "benchmark": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "injection_name": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.InjectionV2LabelManageReq": {
-            "type": "object",
-            "properties": {
-                "add_tags": {
-                    "description": "List of tag values to add",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "remove_tags": {
-                    "description": "List of tag values to remove",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "dto.InjectionV2Response": {
-            "type": "object",
-            "properties": {
-                "benchmark": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "display_config": {
-                    "type": "string"
-                },
-                "end_time": {
-                    "type": "string"
-                },
-                "engine_config": {
-                    "type": "string"
-                },
-                "fault_type": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "injection_name": {
-                    "type": "string"
-                },
-                "labels": {
-                    "description": "Associated labels",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/database.Label"
-                    }
                 },
                 "pre_duration": {
                     "type": "integer"
@@ -11598,16 +10985,11 @@ const docTemplate = `{
                 "start_time": {
                     "type": "string"
                 },
-                "status": {
-                    "type": "integer"
+                "state": {
+                    "type": "string"
                 },
-                "task": {
-                    "description": "Optional relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.TaskV2Response"
-                        }
-                    ]
+                "status": {
+                    "type": "string"
                 },
                 "task_id": {
                     "type": "string"
@@ -11617,111 +10999,73 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.InjectionV2SearchReq": {
+        "dto.InjectionItem": {
             "type": "object",
             "properties": {
-                "benchmarks": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "created_at_gte": {
+                "end_time": {
                     "type": "string"
                 },
-                "created_at_lte": {
-                    "type": "string"
-                },
-                "end_time_gte": {
-                    "type": "string"
-                },
-                "end_time_lte": {
-                    "type": "string"
-                },
-                "fault_types": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "include_labels": {
-                    "description": "Whether to include labels in the response",
-                    "type": "boolean"
-                },
-                "include_task": {
-                    "description": "Whether to include task details in the response",
-                    "type": "boolean"
-                },
-                "labels": {
-                    "description": "Custom labels to filter by",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.LabelItem"
-                    }
-                },
-                "page": {
+                "id": {
                     "type": "integer"
                 },
-                "search": {
+                "name": {
                     "type": "string"
                 },
-                "size": {
+                "pre_duration": {
                     "type": "integer"
                 },
-                "sort_by": {
-                    "type": "string",
-                    "enum": [
-                        "id",
-                        "task_id",
-                        "fault_type",
-                        "status",
-                        "benchmark",
-                        "injection_name",
-                        "created_at",
-                        "updated_at"
-                    ]
-                },
-                "sort_order": {
-                    "type": "string",
-                    "enum": [
-                        "asc",
-                        "desc"
-                    ]
-                },
-                "start_time_gte": {
+                "start_time": {
                     "type": "string"
-                },
-                "start_time_lte": {
-                    "type": "string"
-                },
-                "statuses": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "tags": {
-                    "description": "Tag values to filter by",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "task_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 }
             }
         },
-        "dto.InjectionV2UpdateReq": {
+        "dto.InjectionMetadataResp": {
             "type": "object",
             "properties": {
-                "benchmark": {
+                "config": {
+                    "$ref": "#/definitions/handler.Node"
+                },
+                "fault_resource_map": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/handler.ResourceField"
+                    }
+                },
+                "fault_type_map": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "ns_resources": {
+                    "$ref": "#/definitions/handler.Resources"
+                }
+            }
+        },
+        "dto.InjectionNoIssuesResp": {
+            "type": "object",
+            "properties": {
+                "datapack_id": {
+                    "type": "integer"
+                },
+                "datapack_name": {
                     "type": "string"
                 },
-                "description": {
+                "engine_config": {
+                    "$ref": "#/definitions/handler.Node"
+                }
+            }
+        },
+        "dto.InjectionResp": {
+            "type": "object",
+            "properties": {
+                "benchmark_id": {
+                    "type": "integer"
+                },
+                "benchmark_name": {
+                    "type": "string"
+                },
+                "created_at": {
                     "type": "string"
                 },
                 "display_config": {
@@ -11730,13 +11074,25 @@ const docTemplate = `{
                 "end_time": {
                     "type": "string"
                 },
-                "engine_config": {
+                "fault_type": {
                     "type": "string"
                 },
-                "fault_type": {
+                "id": {
                     "type": "integer"
                 },
-                "injection_name": {
+                "labels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelItem"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "pedestal_id": {
+                    "type": "integer"
+                },
+                "pedestal_name": {
                     "type": "string"
                 },
                 "pre_duration": {
@@ -11745,57 +11101,70 @@ const docTemplate = `{
                 "start_time": {
                     "type": "string"
                 },
+                "state": {
+                    "type": "string"
+                },
                 "status": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "task_id": {
                     "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
-        "dto.LabelCreateReq": {
+        "dto.InjectionWithIssuesResp": {
             "type": "object",
-            "required": [
-                "key",
-                "value"
-            ],
             "properties": {
-                "category": {
+                "abnormal_avg_duration": {
+                    "type": "number"
+                },
+                "abnormal_p99": {
+                    "type": "number"
+                },
+                "abnormal_succ_rate": {
+                    "type": "number"
+                },
+                "datapack_id": {
+                    "type": "integer"
+                },
+                "datapack_name": {
                     "type": "string"
                 },
-                "color": {
-                    "type": "string",
-                    "maxLength": 10
+                "engine_config": {
+                    "$ref": "#/definitions/handler.Node"
                 },
-                "description": {
-                    "type": "string",
-                    "maxLength": 1000
+                "issues": {
+                    "type": "string"
                 },
-                "key": {
-                    "type": "string",
-                    "maxLength": 255
+                "normal_avg_duration": {
+                    "type": "number"
                 },
-                "value": {
-                    "type": "string",
-                    "maxLength": 255
+                "normal_p99": {
+                    "type": "number"
+                },
+                "normal_succ_rate": {
+                    "type": "number"
                 }
             }
         },
-        "dto.LabelItem": {
+        "dto.JobMessage": {
             "type": "object",
-            "required": [
-                "key"
-            ],
             "properties": {
-                "key": {
+                "job_name": {
                     "type": "string"
                 },
-                "value": {
+                "log_file": {
+                    "type": "string"
+                },
+                "namespace": {
                     "type": "string"
                 }
             }
         },
-        "dto.LabelResponse": {
+        "dto.LabelDetailResp": {
             "type": "object",
             "properties": {
                 "category": {
@@ -11819,6 +11188,9 @@ const docTemplate = `{
                 "key": {
                     "type": "string"
                 },
+                "status": {
+                    "type": "string"
+                },
                 "updated_at": {
                     "type": "string"
                 },
@@ -11830,27 +11202,67 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.ListInjectionsResp": {
+        "dto.LabelItem": {
             "type": "object",
             "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.InjectionItem"
-                    }
+                "key": {
+                    "type": "string"
                 },
-                "total": {
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.LabelResp": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "color": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
                     "type": "integer"
+                },
+                "is_system": {
+                    "type": "boolean"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "usage": {
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "string"
                 }
             }
         },
-        "dto.ListPermissionResponse": {
+        "dto.ListNamespaceLockResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "object"
+                }
+            }
+        },
+        "dto.ListResp-dto_AuditLogResp": {
             "type": "object",
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.PermissionResponse"
+                        "$ref": "#/definitions/dto.AuditLogResp"
                     }
                 },
                 "pagination": {
@@ -11858,13 +11270,13 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.ListResponse-dto_ContainerResponse": {
+        "dto.ListResp-dto_ContainerResp": {
             "type": "object",
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.ContainerResponse"
+                        "$ref": "#/definitions/dto.ContainerResp"
                     }
                 },
                 "pagination": {
@@ -11872,13 +11284,13 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.ListRoleResponse": {
+        "dto.ListResp-dto_ContainerVersionResp": {
             "type": "object",
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.RoleResponse"
+                        "$ref": "#/definitions/dto.ContainerVersionResp"
                     }
                 },
                 "pagination": {
@@ -11886,7 +11298,147 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.LoginRequest": {
+        "dto.ListResp-dto_DatasetResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DatasetResp"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
+        "dto.ListResp-dto_DatasetVersionResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DatasetVersionResp"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
+        "dto.ListResp-dto_ExecutionResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ExecutionResp"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
+        "dto.ListResp-dto_InjectionResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.InjectionResp"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
+        "dto.ListResp-dto_LabelResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelResp"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
+        "dto.ListResp-dto_ProjectResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ProjectResp"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
+        "dto.ListResp-dto_ResourceResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ResourceResp"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
+        "dto.ListResp-dto_TaskResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.TaskResp"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
+        "dto.ListResp-dto_UserResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.UserResp"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
+        "dto.ListRoleResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.RoleResp"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
+        "dto.LoginReq": {
             "type": "object",
             "required": [
                 "password",
@@ -11903,7 +11455,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.LoginResponse": {
+        "dto.LoginResp": {
             "type": "object",
             "properties": {
                 "expires_at": {
@@ -11919,15 +11471,117 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.LogoutRequest": {
+        "dto.ManageContainerLabelReq": {
             "type": "object",
-            "required": [
-                "token"
-            ],
             "properties": {
-                "token": {
-                    "type": "string",
-                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                "add_labels": {
+                    "description": "List of labels to add",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelItem"
+                    }
+                },
+                "remove_labels": {
+                    "description": "List of label keys to remove",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "dto.ManageDatasetLabelReq": {
+            "type": "object",
+            "properties": {
+                "add_labels": {
+                    "description": "List of labels to add",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelItem"
+                    }
+                },
+                "remove_labels": {
+                    "description": "List of label keys to remove",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "dto.ManageDatasetVersionInjectionReq": {
+            "type": "object",
+            "properties": {
+                "add_injections": {
+                    "description": "List of injection IDs to add",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "remove_injections": {
+                    "description": "List of injection IDs to remove",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "dto.ManageExecutionLabelReq": {
+            "type": "object",
+            "properties": {
+                "add_labels": {
+                    "description": "List of labels to add",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelItem"
+                    }
+                },
+                "remove_labels": {
+                    "description": "List of label keys to remove",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "dto.ManageInjectionLabelReq": {
+            "type": "object",
+            "properties": {
+                "add_labels": {
+                    "description": "List of labels to add",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelItem"
+                    }
+                },
+                "remove_labels": {
+                    "description": "List of label keys to remove",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "dto.ManageProjectLabelReq": {
+            "type": "object",
+            "properties": {
+                "add_labels": {
+                    "description": "List of labels to add",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelItem"
+                    }
+                },
+                "remove_labels": {
+                    "description": "List of label keys to remove",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -11945,7 +11599,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.MonitoringMetricsResponse": {
+        "dto.MonitoringMetricsResp": {
             "type": "object",
             "properties": {
                 "labels": {
@@ -11965,7 +11619,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.MonitoringQueryRequest": {
+        "dto.MonitoringQueryReq": {
             "type": "object",
             "required": [
                 "query"
@@ -11983,12 +11637,6 @@ const docTemplate = `{
                 "step": {
                     "type": "string"
                 }
-            }
-        },
-        "dto.NsResourcesResp": {
-            "type": "object",
-            "additionalProperties": {
-                "$ref": "#/definitions/handler.Resources"
             }
         },
         "dto.NumberRange": {
@@ -12023,38 +11671,24 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.PaginationResp-dto_UnifiedTask": {
+        "dto.PedestalInfo": {
             "type": "object",
             "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.UnifiedTask"
-                    }
+                "helm_config": {
+                    "$ref": "#/definitions/dto.HelmConfigItem"
                 },
-                "total": {
-                    "type": "integer"
-                },
-                "total_pages": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.PairStats": {
-            "type": "object",
-            "properties": {
-                "inDegree": {
-                    "type": "integer"
-                },
-                "name": {
+                "namespace": {
                     "type": "string"
                 },
-                "outDegree": {
-                    "type": "integer"
+                "registry": {
+                    "type": "string"
+                },
+                "tag": {
+                    "type": "string"
                 }
             }
         },
-        "dto.PermissionDetailResponse": {
+        "dto.PermissionDetailResp": {
             "type": "object",
             "properties": {
                 "action": {
@@ -12079,17 +11713,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "resource": {
-                    "$ref": "#/definitions/dto.ResourceResponse"
+                    "$ref": "#/definitions/dto.ResourceResp"
                 },
                 "status": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "updated_at": {
                     "type": "string"
                 }
             }
         },
-        "dto.PermissionResponse": {
+        "dto.PermissionResp": {
             "type": "object",
             "properties": {
                 "action": {
@@ -12108,253 +11742,122 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "resource_name": {
-                    "type": "string"
+                    "$ref": "#/definitions/consts.ResourceName"
                 },
                 "status": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "updated_at": {
                     "type": "string"
                 }
             }
         },
-        "dto.ProjectResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "is_public": {
-                    "type": "boolean"
-                },
-                "members": {
-                    "description": "Related entities (only included when specifically requested)",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.UserProjectResponse"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.ProjectStatistics": {
-            "type": "object",
-            "properties": {
-                "active": {
-                    "type": "integer"
-                },
-                "inactive": {
-                    "type": "integer"
-                },
-                "new_today": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.ProjectV2Response": {
+        "dto.ProjectDetailResp": {
             "type": "object",
             "properties": {
                 "containers": {
-                    "description": "Associated containers",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/database.Container"
+                        "$ref": "#/definitions/dto.ContainerResp"
                     }
                 },
                 "created_at": {
-                    "description": "Creation time",
                     "type": "string"
                 },
-                "datasets": {
-                    "description": "Associated datasets",
+                "datapacks": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/database.Dataset"
+                        "$ref": "#/definitions/dto.InjectionResp"
+                    }
+                },
+                "datasets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DatasetResp"
                     }
                 },
                 "description": {
-                    "description": "Project description",
                     "type": "string"
                 },
                 "id": {
-                    "description": "Unique identifier",
                     "type": "integer"
                 },
-                "injections": {
-                    "description": "Associated fault injections",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.InjectionV2Response"
-                    }
-                },
                 "is_public": {
-                    "description": "Whether public",
                     "type": "boolean"
                 },
                 "labels": {
-                    "description": "Associated labels",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/database.Label"
+                        "$ref": "#/definitions/dto.LabelItem"
                     }
                 },
                 "name": {
-                    "description": "Project name",
                     "type": "string"
                 },
                 "status": {
-                    "description": "Status",
-                    "type": "integer"
+                    "type": "string"
                 },
                 "updated_at": {
-                    "description": "Update time",
                     "type": "string"
+                },
+                "user_count": {
+                    "type": "integer"
                 }
             }
         },
-        "dto.QueryInjectionResp": {
+        "dto.ProjectResp": {
             "type": "object",
             "properties": {
-                "benchmark": {
-                    "description": "Benchmark database, add index and size limit",
-                    "type": "string"
-                },
                 "created_at": {
-                    "description": "Creation time, add time index",
                     "type": "string"
                 },
                 "description": {
-                    "description": "Description (optional field)",
                     "type": "string"
-                },
-                "display_config": {
-                    "description": "User-facing display configuration",
-                    "type": "string"
-                },
-                "end_time": {
-                    "description": "Expected fault end time, nullable",
-                    "type": "string"
-                },
-                "engine_config": {
-                    "description": "System-facing runtime configuration",
-                    "type": "string"
-                },
-                "fault_type": {
-                    "description": "Fault type, add composite index",
-                    "type": "integer"
-                },
-                "ground_truth": {
-                    "$ref": "#/definitions/handler.Groundtruth"
                 },
                 "id": {
-                    "description": "Unique identifier",
                     "type": "integer"
                 },
-                "injection_name": {
-                    "description": "Name injected in k8s resources with size limit",
-                    "type": "string"
+                "is_public": {
+                    "type": "boolean"
                 },
-                "pre_duration": {
-                    "description": "Normal data duration",
-                    "type": "integer"
+                "labels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelItem"
+                    }
                 },
-                "start_time": {
-                    "description": "Expected fault start time, nullable with validation",
+                "name": {
                     "type": "string"
                 },
                 "status": {
-                    "description": "Status: -1:deleted 0:disabled 1:enabled",
-                    "type": "integer"
-                },
-                "task": {
-                    "description": "Foreign key association",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/database.Task"
-                        }
-                    ]
-                },
-                "task_id": {
-                    "description": "Associated task ID, add composite index",
                     "type": "string"
                 },
                 "updated_at": {
-                    "description": "Update time",
                     "type": "string"
                 }
             }
         },
-        "dto.RawDataItem": {
+        "dto.QueuedTasksResp": {
             "type": "object",
             "properties": {
-                "algorithm": {
-                    "type": "string"
-                },
-                "dataset": {
-                    "type": "string"
-                },
-                "entries": {
+                "delayed_tasks": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.GranularityRecord"
+                        "$ref": "#/definitions/dto.TaskResp"
                     }
                 },
-                "execution_id": {
-                    "type": "integer"
-                },
-                "groundtruth": {
-                    "$ref": "#/definitions/handler.Groundtruth"
-                }
-            }
-        },
-        "dto.RawDataReq": {
-            "type": "object",
-            "properties": {
-                "custom_end_time": {
-                    "type": "string"
-                },
-                "custom_start_time": {
-                    "type": "string"
-                },
-                "execution_ids": {
+                "ready_tasks": {
                     "type": "array",
                     "items": {
-                        "type": "integer"
-                    }
-                },
-                "lookback": {
-                    "type": "string"
-                },
-                "pairs": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.AlgorithmDatasetPair"
+                        "$ref": "#/definitions/dto.TaskResp"
                     }
                 }
             }
         },
-        "dto.RegisterRequest": {
+        "dto.RegisterReq": {
             "type": "object",
             "required": [
                 "email",
-                "full_name",
                 "password",
                 "username"
             ],
@@ -12363,18 +11866,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "user@example.com"
                 },
-                "full_name": {
-                    "type": "string",
-                    "example": "John Doe"
-                },
                 "password": {
                     "type": "string",
                     "minLength": 8,
                     "example": "password123"
-                },
-                "phone": {
-                    "type": "string",
-                    "example": "+1234567890"
                 },
                 "username": {
                     "type": "string",
@@ -12382,7 +11877,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.RemovePermissionFromRoleRequest": {
+        "dto.RemoveRolePermissionReq": {
             "type": "object",
             "required": [
                 "permission_ids"
@@ -12397,7 +11892,21 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.ResourceResponse": {
+        "dto.RemoveUserPermissionReq": {
+            "type": "object",
+            "required": [
+                "permission_ids"
+            ],
+            "properties": {
+                "permission_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "dto.ResourceResp": {
             "type": "object",
             "properties": {
                 "category": {
@@ -12409,31 +11918,18 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
-                "is_system": {
-                    "type": "boolean"
-                },
                 "name": {
                     "type": "string"
+                },
+                "parent_id": {
+                    "type": "integer"
                 },
                 "type": {
                     "type": "string"
                 }
             }
         },
-        "dto.RetryPolicy": {
-            "type": "object",
-            "properties": {
-                "backoff_sec": {
-                    "description": "Seconds to wait between retries",
-                    "type": "integer"
-                },
-                "max_attempts": {
-                    "description": "Maximum number of retry attempts",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.RoleDetailResponse": {
+        "dto.RoleDetailResp": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -12457,11 +11953,11 @@ const docTemplate = `{
                 "permissions": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.PermissionResponse"
+                        "$ref": "#/definitions/dto.PermissionResp"
                     }
                 },
                 "status": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "type": {
                     "type": "string"
@@ -12474,7 +11970,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.RoleResponse": {
+        "dto.RoleResp": {
             "type": "object",
             "properties": {
                 "display_name": {
@@ -12490,7 +11986,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "type": {
                     "type": "string"
@@ -12500,7 +11996,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.SearchContainerRequest": {
+        "dto.SearchContainerReq": {
             "type": "object",
             "properties": {
                 "command": {
@@ -12624,7 +12120,105 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.SearchPermissionRequest": {
+        "dto.SearchInjectionReq": {
+            "type": "object",
+            "properties": {
+                "benchmarks": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "created_at_gte": {
+                    "type": "string"
+                },
+                "created_at_lte": {
+                    "type": "string"
+                },
+                "end_time_gte": {
+                    "type": "string"
+                },
+                "end_time_lte": {
+                    "type": "string"
+                },
+                "fault_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "include_labels": {
+                    "description": "Whether to include labels in the response",
+                    "type": "boolean"
+                },
+                "include_task": {
+                    "description": "Whether to include task details in the response",
+                    "type": "boolean"
+                },
+                "labels": {
+                    "description": "Custom labels to filter by",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelItem"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "search": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "sort_by": {
+                    "type": "string",
+                    "enum": [
+                        "id",
+                        "task_id",
+                        "fault_type",
+                        "status",
+                        "benchmark",
+                        "injection_name",
+                        "created_at",
+                        "updated_at"
+                    ]
+                },
+                "sort_order": {
+                    "type": "string",
+                    "enum": [
+                        "asc",
+                        "desc"
+                    ]
+                },
+                "start_time_gte": {
+                    "type": "string"
+                },
+                "start_time_lte": {
+                    "type": "string"
+                },
+                "statuses": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "tags": {
+                    "description": "Tag values to filter by",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "task_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "dto.SearchPermissionReq": {
             "type": "object",
             "properties": {
                 "actions": {
@@ -12747,7 +12341,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.SearchResponse-dto_AlgorithmResponse": {
+        "dto.SearchResp-dto_ContainerResp": {
             "type": "object",
             "properties": {
                 "applied_filters": {
@@ -12765,7 +12359,7 @@ const docTemplate = `{
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.AlgorithmResponse"
+                        "$ref": "#/definitions/dto.ContainerResp"
                     }
                 },
                 "pagination": {
@@ -12773,7 +12367,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.SearchResponse-dto_ContainerResponse": {
+        "dto.SearchResp-dto_InjectionResp": {
             "type": "object",
             "properties": {
                 "applied_filters": {
@@ -12791,7 +12385,7 @@ const docTemplate = `{
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.ContainerResponse"
+                        "$ref": "#/definitions/dto.InjectionResp"
                     }
                 },
                 "pagination": {
@@ -12799,7 +12393,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.SearchResponse-dto_DatasetV2Response": {
+        "dto.SearchResp-dto_PermissionResp": {
             "type": "object",
             "properties": {
                 "applied_filters": {
@@ -12817,7 +12411,7 @@ const docTemplate = `{
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.DatasetV2Response"
+                        "$ref": "#/definitions/dto.PermissionResp"
                     }
                 },
                 "pagination": {
@@ -12825,7 +12419,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.SearchResponse-dto_InjectionV2Response": {
+        "dto.SearchResp-dto_RoleResp": {
             "type": "object",
             "properties": {
                 "applied_filters": {
@@ -12843,7 +12437,7 @@ const docTemplate = `{
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.InjectionV2Response"
+                        "$ref": "#/definitions/dto.RoleResp"
                     }
                 },
                 "pagination": {
@@ -12851,7 +12445,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.SearchResponse-dto_PermissionResponse": {
+        "dto.SearchResp-dto_UserResp": {
             "type": "object",
             "properties": {
                 "applied_filters": {
@@ -12869,7 +12463,7 @@ const docTemplate = `{
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.PermissionResponse"
+                        "$ref": "#/definitions/dto.UserResp"
                     }
                 },
                 "pagination": {
@@ -12877,85 +12471,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.SearchResponse-dto_RoleResponse": {
-            "type": "object",
-            "properties": {
-                "applied_filters": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.SearchFilter"
-                    }
-                },
-                "applied_sort": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.SortOption"
-                    }
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.RoleResponse"
-                    }
-                },
-                "pagination": {
-                    "$ref": "#/definitions/dto.PaginationInfo"
-                }
-            }
-        },
-        "dto.SearchResponse-dto_TaskResponse": {
-            "type": "object",
-            "properties": {
-                "applied_filters": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.SearchFilter"
-                    }
-                },
-                "applied_sort": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.SortOption"
-                    }
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.TaskResponse"
-                    }
-                },
-                "pagination": {
-                    "$ref": "#/definitions/dto.PaginationInfo"
-                }
-            }
-        },
-        "dto.SearchResponse-dto_UserResponse": {
-            "type": "object",
-            "properties": {
-                "applied_filters": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.SearchFilter"
-                    }
-                },
-                "applied_sort": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.SortOption"
-                    }
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.UserResponse"
-                    }
-                },
-                "pagination": {
-                    "$ref": "#/definitions/dto.PaginationInfo"
-                }
-            }
-        },
-        "dto.SearchRoleRequest": {
+        "dto.SearchRoleReq": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -13065,36 +12581,6 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.ServiceCoverageItem": {
-            "type": "object",
-            "properties": {
-                "coverage": {
-                    "type": "number"
-                },
-                "notCovered": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "num": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.SizeRangeFilter": {
-            "type": "object",
-            "properties": {
-                "max_size": {
-                    "description": "Maximum size (bytes)",
-                    "type": "integer"
-                },
-                "min_size": {
-                    "description": "Minimum size (bytes)",
-                    "type": "integer"
-                }
-            }
-        },
         "dto.SortDirection": {
             "type": "string",
             "enum": [
@@ -13144,20 +12630,181 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.SubmitDatasetBuildingReq": {
+        "dto.SubmitBuildContainerReq": {
             "type": "object",
             "required": [
-                "payloads",
-                "project_name"
+                "github_repository",
+                "image_name"
             ],
             "properties": {
-                "payloads": {
+                "build_options": {
+                    "$ref": "#/definitions/dto.BuildOptions"
+                },
+                "github_branch": {
+                    "type": "string"
+                },
+                "github_commit": {
+                    "type": "string"
+                },
+                "github_repository": {
+                    "description": "GitHub repository information",
+                    "type": "string"
+                },
+                "github_token": {
+                    "type": "string"
+                },
+                "image_name": {
+                    "description": "Container Meta",
+                    "type": "string"
+                },
+                "sub_path": {
+                    "type": "string"
+                },
+                "tag": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.SubmitBuildingItem": {
+            "type": "object",
+            "properties": {
+                "index": {
+                    "type": "integer"
+                },
+                "task_id": {
+                    "type": "string"
+                },
+                "trace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.SubmitContainerBuildResp": {
+            "type": "object",
+            "properties": {
+                "group_id": {
+                    "type": "string"
+                },
+                "task_id": {
+                    "type": "string"
+                },
+                "trace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.SubmitDatapackBuildingReq": {
+            "type": "object",
+            "required": [
+                "project_name",
+                "specs"
+            ],
+            "properties": {
+                "labels": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.DatasetBuildPayload"
+                        "$ref": "#/definitions/dto.LabelItem"
                     }
                 },
                 "project_name": {
+                    "type": "string"
+                },
+                "specs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.BuildingSpec"
+                    }
+                }
+            }
+        },
+        "dto.SubmitDatapackBuildingResp": {
+            "type": "object",
+            "properties": {
+                "group_id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SubmitBuildingItem"
+                    }
+                }
+            }
+        },
+        "dto.SubmitExecutionItem": {
+            "type": "object",
+            "properties": {
+                "algorithm_id": {
+                    "type": "integer"
+                },
+                "algorithm_version_id": {
+                    "type": "integer"
+                },
+                "datapack_id": {
+                    "type": "integer"
+                },
+                "dataset_id": {
+                    "type": "integer"
+                },
+                "index": {
+                    "type": "integer"
+                },
+                "task_id": {
+                    "type": "string"
+                },
+                "trace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.SubmitExecutionReq": {
+            "type": "object",
+            "required": [
+                "project_name",
+                "specs"
+            ],
+            "properties": {
+                "labels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.LabelItem"
+                    }
+                },
+                "project_name": {
+                    "type": "string"
+                },
+                "specs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ExecutionSpec"
+                    }
+                }
+            }
+        },
+        "dto.SubmitExecutionResp": {
+            "type": "object",
+            "properties": {
+                "group_id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SubmitExecutionItem"
+                    }
+                }
+            }
+        },
+        "dto.SubmitInjectionItem": {
+            "type": "object",
+            "properties": {
+                "index": {
+                    "type": "integer"
+                },
+                "task_id": {
+                    "type": "string"
+                },
+                "trace_id": {
                     "type": "string"
                 }
             }
@@ -13166,8 +12813,8 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "benchmark",
-                "container_name",
                 "interval",
+                "pedestal",
                 "pre_duration",
                 "project_name",
                 "specs"
@@ -13176,17 +12823,11 @@ const docTemplate = `{
                 "algorithms": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.AlgorithmItem"
+                        "$ref": "#/definitions/dto.ContainerSpec"
                     }
                 },
                 "benchmark": {
-                    "type": "string"
-                },
-                "container_name": {
-                    "type": "string"
-                },
-                "container_tag": {
-                    "type": "string"
+                    "$ref": "#/definitions/dto.ContainerSpec"
                 },
                 "interval": {
                     "type": "integer",
@@ -13197,6 +12838,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/dto.LabelItem"
                     }
+                },
+                "pedestal": {
+                    "$ref": "#/definitions/dto.ContainerSpec"
                 },
                 "pre_duration": {
                     "type": "integer",
@@ -13222,48 +12866,13 @@ const docTemplate = `{
                 "group_id": {
                     "type": "string"
                 },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.SubmitInjectionItem"
+                    }
+                },
                 "original_count": {
-                    "type": "integer"
-                },
-                "traces": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.Trace"
-                    }
-                }
-            }
-        },
-        "dto.SubmitResp": {
-            "type": "object",
-            "properties": {
-                "group_id": {
-                    "type": "string"
-                },
-                "traces": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.Trace"
-                    }
-                }
-            }
-        },
-        "dto.SuccessfulExecutionItem": {
-            "type": "object",
-            "properties": {
-                "algorithm": {
-                    "description": "Algorithm name",
-                    "type": "string"
-                },
-                "created_at": {
-                    "description": "Creation time",
-                    "type": "string"
-                },
-                "dataset": {
-                    "description": "Dataset name",
-                    "type": "string"
-                },
-                "id": {
-                    "description": "Execution ID",
                     "type": "integer"
                 }
             }
@@ -13285,54 +12894,17 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.SystemStatisticsResponse": {
-            "type": "object",
-            "properties": {
-                "containers": {
-                    "$ref": "#/definitions/dto.ContainerStatistics"
-                },
-                "datasets": {
-                    "$ref": "#/definitions/dto.DatasetStatistics"
-                },
-                "executions": {
-                    "$ref": "#/definitions/dto.ExecutionStatistics"
-                },
-                "generated_at": {
-                    "type": "string"
-                },
-                "injections": {
-                    "$ref": "#/definitions/dto.InjectionStatistics"
-                },
-                "projects": {
-                    "$ref": "#/definitions/dto.ProjectStatistics"
-                },
-                "tasks": {
-                    "$ref": "#/definitions/dto.TaskStatistics"
-                },
-                "users": {
-                    "$ref": "#/definitions/dto.UserStatistics"
-                }
-            }
-        },
         "dto.TaskDetailResp": {
-            "type": "object",
-            "properties": {
-                "logs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "task": {
-                    "$ref": "#/definitions/dto.TaskItem"
-                }
-            }
-        },
-        "dto.TaskDetailResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
                     "type": "string"
+                },
+                "cron_expr": {
+                    "type": "string"
+                },
+                "execute_time": {
+                    "type": "integer"
                 },
                 "group_id": {
                     "type": "string"
@@ -13348,87 +12920,18 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
-                },
-                "project": {
-                    "description": "Related entities (only included when specifically requested)",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.ProjectResponse"
-                        }
-                    ]
-                },
-                "project_id": {
-                    "type": "integer"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "trace_id": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.TaskItem": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
                 },
                 "payload": {
                     "type": "object"
                 },
-                "status": {
-                    "type": "string"
-                },
-                "trace_id": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.TaskResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "group_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "immediate": {
-                    "type": "boolean"
-                },
-                "logs": {
-                    "description": "Only included when specifically requested",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "project": {
-                    "description": "Related entities (only included when specifically requested)",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.ProjectResponse"
-                        }
-                    ]
-                },
                 "project_id": {
                     "type": "integer"
+                },
+                "project_name": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
                 },
                 "status": {
                     "type": "string"
@@ -13444,128 +12947,43 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.TaskSearchRequest": {
+        "dto.TaskResp": {
             "type": "object",
             "properties": {
                 "created_at": {
-                    "description": "Common filters shortcuts",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.DateRange"
-                        }
-                    ]
+                    "type": "string"
                 },
-                "exclude_fields": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
+                "cron_expr": {
+                    "type": "string"
                 },
-                "filters": {
-                    "description": "Filters",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.SearchFilter"
-                    }
+                "execute_time": {
+                    "type": "integer"
                 },
                 "group_id": {
-                    "type": "string"
-                },
-                "immediate": {
-                    "type": "boolean"
-                },
-                "include": {
-                    "description": "Include related entities",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "include_fields": {
-                    "description": "Include/Exclude fields",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "keyword": {
-                    "description": "Search keyword (for general text search)",
-                    "type": "string"
-                },
-                "page": {
-                    "description": "Pagination",
-                    "type": "integer",
-                    "minimum": 1
-                },
-                "project_id": {
-                    "type": "integer"
-                },
-                "size": {
-                    "type": "integer",
-                    "maximum": 1000,
-                    "minimum": 1
-                },
-                "sort": {
-                    "description": "Sort",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.SortOption"
-                    }
-                },
-                "status": {
-                    "type": "string"
-                },
-                "task_id": {
-                    "description": "Task-specific filters",
-                    "type": "string"
-                },
-                "task_type": {
-                    "type": "string"
-                },
-                "trace_id": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "$ref": "#/definitions/dto.DateRange"
-                },
-                "user_id": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.TaskStatistics": {
-            "type": "object",
-            "properties": {
-                "completed": {
-                    "type": "integer"
-                },
-                "failed": {
-                    "type": "integer"
-                },
-                "pending": {
-                    "type": "integer"
-                },
-                "running": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.TaskV2Response": {
-            "type": "object",
-            "properties": {
-                "created_at": {
                     "type": "string"
                 },
                 "id": {
                     "type": "string"
                 },
+                "immediate": {
+                    "type": "boolean"
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "project_name": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
                 "status": {
+                    "type": "string"
+                },
+                "trace_id": {
+                    "type": "string"
+                },
+                "type": {
                     "type": "string"
                 },
                 "updated_at": {
@@ -13573,7 +12991,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.TokenRefreshRequest": {
+        "dto.TokenRefreshReq": {
             "type": "object",
             "required": [
                 "token"
@@ -13585,7 +13003,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.TokenRefreshResponse": {
+        "dto.TokenRefreshResp": {
             "type": "object",
             "properties": {
                 "expires_at": {
@@ -13598,150 +13016,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.Trace": {
-            "type": "object",
-            "properties": {
-                "head_task_id": {
-                    "type": "string"
-                },
-                "index": {
-                    "type": "integer"
-                },
-                "trace_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.TraceStats": {
-            "type": "object",
-            "properties": {
-                "avg_duration": {
-                    "type": "number"
-                },
-                "end_count_map": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "object",
-                        "additionalProperties": {
-                            "type": "integer"
-                        }
-                    }
-                },
-                "fault_injection_traces": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "max_duration": {
-                    "type": "number"
-                },
-                "min_duration": {
-                    "type": "number"
-                },
-                "total": {
-                    "type": "integer"
-                },
-                "trace_completed_list": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "trace_errors": {},
-                "trace_status_time_map": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "object",
-                        "additionalProperties": {
-                            "type": "number"
-                        }
-                    }
-                }
-            }
-        },
-        "dto.UnifiedTask": {
-            "type": "object",
-            "properties": {
-                "cron_expr": {
-                    "description": "Cron expression for recurring tasks",
-                    "type": "string"
-                },
-                "execute_time": {
-                    "description": "Unix timestamp for delayed execution",
-                    "type": "integer"
-                },
-                "group_carrier": {
-                    "description": "Carrier for group context",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/propagation.MapCarrier"
-                        }
-                    ]
-                },
-                "group_id": {
-                    "description": "ID for grouping tasks",
-                    "type": "string"
-                },
-                "immediate": {
-                    "description": "Whether to execute immediately",
-                    "type": "boolean"
-                },
-                "payload": {
-                    "description": "Task-specific data",
-                    "type": "object"
-                },
-                "project_id": {
-                    "description": "ID for the project (optional)",
-                    "type": "integer"
-                },
-                "restart_num": {
-                    "description": "Number of restarts for the task",
-                    "type": "integer"
-                },
-                "retry_policy": {
-                    "description": "Policy for retrying failed tasks",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.RetryPolicy"
-                        }
-                    ]
-                },
-                "status": {
-                    "description": "Status of the task",
-                    "type": "string"
-                },
-                "task_id": {
-                    "description": "Unique identifier for the task",
-                    "type": "string"
-                },
-                "trace_carrier": {
-                    "description": "Carrier for trace context",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/propagation.MapCarrier"
-                        }
-                    ]
-                },
-                "trace_id": {
-                    "description": "ID for tracing related tasks",
-                    "type": "string"
-                },
-                "type": {
-                    "description": "Task type (determines how it's processed)",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/consts.TaskType"
-                        }
-                    ]
-                },
-                "user_id": {
-                    "description": "ID of the user who created the task (optional)",
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.UpdateContainerRequest": {
+        "dto.UpdateContainerReq": {
             "type": "object",
             "properties": {
                 "is_public": {
@@ -13751,11 +13026,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "type": "integer"
+                    "$ref": "#/definitions/consts.StatusType"
                 }
             }
         },
-        "dto.UpdateContainerVersionRequest": {
+        "dto.UpdateContainerVersionReq": {
             "type": "object",
             "properties": {
                 "command": {
@@ -13774,7 +13049,38 @@ const docTemplate = `{
                     "$ref": "#/definitions/dto.UpdateHelmConfigRequest"
                 },
                 "status": {
-                    "type": "integer"
+                    "$ref": "#/definitions/consts.StatusType"
+                }
+            }
+        },
+        "dto.UpdateDatasetReq": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "is_public": {
+                    "type": "boolean"
+                },
+                "status": {
+                    "$ref": "#/definitions/consts.StatusType"
+                }
+            }
+        },
+        "dto.UpdateDatasetVersionReq": {
+            "type": "object",
+            "properties": {
+                "checksum": {
+                    "type": "string"
+                },
+                "download_url": {
+                    "type": "string"
+                },
+                "format": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/consts.StatusType"
                 }
             }
         },
@@ -13801,7 +13107,21 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.UpdatePermissionRequest": {
+        "dto.UpdateLabelReq": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/consts.StatusType"
+                }
+            }
+        },
+        "dto.UpdatePermissionReq": {
             "type": "object",
             "properties": {
                 "action": {
@@ -13817,11 +13137,25 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "status": {
-                    "type": "integer"
+                    "$ref": "#/definitions/consts.StatusType"
                 }
             }
         },
-        "dto.UpdateRoleRequest": {
+        "dto.UpdateProjectReq": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "is_public": {
+                    "type": "boolean"
+                },
+                "status": {
+                    "$ref": "#/definitions/consts.StatusType"
+                }
+            }
+        },
+        "dto.UpdateRoleReq": {
             "type": "object",
             "properties": {
                 "description": {
@@ -13831,36 +13165,185 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "type": "integer"
+                    "$ref": "#/definitions/consts.StatusType"
                 }
             }
         },
-        "dto.UpdateUserRequest": {
+        "dto.UpdateUserReq": {
             "type": "object",
             "properties": {
                 "avatar": {
-                    "type": "string",
-                    "example": "https://example.com/new-avatar.jpg"
+                    "type": "string"
                 },
                 "email": {
-                    "type": "string",
-                    "example": "newemail@example.com"
+                    "type": "string"
                 },
                 "full_name": {
-                    "type": "string",
-                    "example": "Jane Doe"
+                    "type": "string"
                 },
                 "is_active": {
-                    "type": "boolean",
-                    "example": true
+                    "type": "boolean"
                 },
                 "phone": {
-                    "type": "string",
-                    "example": "+0987654321"
+                    "type": "string"
                 },
                 "status": {
-                    "type": "integer",
-                    "example": 1
+                    "$ref": "#/definitions/consts.StatusType"
+                }
+            }
+        },
+        "dto.UploadDetectorResultReq": {
+            "type": "object",
+            "required": [
+                "duration",
+                "results"
+            ],
+            "properties": {
+                "duration": {
+                    "description": "Execution duration in seconds",
+                    "type": "number"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DetectorResultItem"
+                    }
+                }
+            }
+        },
+        "dto.UploadExecutionResultResp": {
+            "type": "object",
+            "properties": {
+                "has_anomalies": {
+                    "description": "Only included for detector results",
+                    "type": "boolean"
+                },
+                "result_count": {
+                    "type": "integer"
+                },
+                "uploaded_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UploadGranularityResultReq": {
+            "type": "object",
+            "required": [
+                "duration",
+                "results"
+            ],
+            "properties": {
+                "duration": {
+                    "description": "Execution duration in seconds",
+                    "type": "number"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.GranularityResultItem"
+                    }
+                }
+            }
+        },
+        "dto.UserContainerInfo": {
+            "type": "object",
+            "properties": {
+                "container_id": {
+                    "type": "integer"
+                },
+                "container_name": {
+                    "type": "string"
+                },
+                "joined_at": {
+                    "type": "string"
+                },
+                "role_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UserDatasetInfo": {
+            "type": "object",
+            "properties": {
+                "dataset_id": {
+                    "type": "integer"
+                },
+                "dataset_name": {
+                    "type": "string"
+                },
+                "joined_at": {
+                    "type": "string"
+                },
+                "role_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UserDetailResp": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "container_roles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.UserContainerInfo"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "dataset_roles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.UserDatasetInfo"
+                    }
+                },
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "global_roles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.RoleResp"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "last_login_at": {
+                    "type": "string"
+                },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.PermissionResp"
+                    }
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "project_roles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.UserProjectInfo"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         },
@@ -13871,37 +13354,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "https://example.com/avatar.jpg"
                 },
-                "created_at": {
-                    "type": "string",
-                    "example": "2024-01-01T00:00:00Z"
-                },
-                "email": {
-                    "type": "string",
-                    "example": "admin@example.com"
-                },
-                "full_name": {
-                    "type": "string",
-                    "example": "Administrator"
-                },
                 "id": {
                     "type": "integer",
                     "example": 1
-                },
-                "is_active": {
-                    "type": "boolean",
-                    "example": true
-                },
-                "phone": {
-                    "type": "string",
-                    "example": "+1234567890"
-                },
-                "status": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "updated_at": {
-                    "type": "string",
-                    "example": "2024-01-01T00:00:00Z"
                 },
                 "username": {
                     "type": "string",
@@ -13909,112 +13364,62 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.UserListResponse": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.UserResponse"
-                    }
-                },
-                "pagination": {
-                    "$ref": "#/definitions/dto.PaginationInfo"
-                }
-            }
-        },
-        "dto.UserProjectResponse": {
+        "dto.UserProjectInfo": {
             "type": "object",
             "properties": {
                 "joined_at": {
-                    "type": "string",
-                    "example": "2024-01-01T00:00:00Z"
+                    "type": "string"
                 },
                 "project_id": {
-                    "type": "integer",
-                    "example": 1
+                    "type": "integer"
                 },
                 "project_name": {
-                    "type": "string",
-                    "example": "Project Alpha"
+                    "type": "string"
                 },
-                "role": {
-                    "$ref": "#/definitions/dto.RoleResponse"
-                },
-                "status": {
-                    "type": "integer",
-                    "example": 1
+                "role_name": {
+                    "type": "string"
                 }
             }
         },
-        "dto.UserResponse": {
+        "dto.UserResp": {
             "type": "object",
             "properties": {
                 "avatar": {
-                    "type": "string",
-                    "example": "https://example.com/avatar.jpg"
+                    "type": "string"
                 },
                 "created_at": {
-                    "type": "string",
-                    "example": "2024-01-01T00:00:00Z"
+                    "type": "string"
                 },
                 "email": {
-                    "type": "string",
-                    "example": "admin@example.com"
+                    "type": "string"
                 },
                 "full_name": {
-                    "type": "string",
-                    "example": "Administrator"
-                },
-                "global_roles": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.RoleResponse"
-                    }
+                    "type": "string"
                 },
                 "id": {
-                    "type": "integer",
-                    "example": 1
+                    "type": "integer"
                 },
                 "is_active": {
-                    "type": "boolean",
-                    "example": true
+                    "type": "boolean"
                 },
                 "last_login_at": {
-                    "type": "string",
-                    "example": "2024-01-01T12:00:00Z"
-                },
-                "permissions": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.PermissionResponse"
-                    }
+                    "type": "string"
                 },
                 "phone": {
-                    "type": "string",
-                    "example": "+1234567890"
-                },
-                "project_roles": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.UserProjectResponse"
-                    }
+                    "type": "string"
                 },
                 "status": {
-                    "type": "integer",
-                    "example": 1
+                    "type": "string"
                 },
                 "updated_at": {
-                    "type": "string",
-                    "example": "2024-01-01T00:00:00Z"
+                    "type": "string"
                 },
                 "username": {
-                    "type": "string",
-                    "example": "admin"
+                    "type": "string"
                 }
             }
         },
-        "dto.UserSearchRequest": {
+        "dto.UserSearchReq": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -14134,26 +13539,6 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.UserStatistics": {
-            "type": "object",
-            "properties": {
-                "active": {
-                    "type": "integer"
-                },
-                "inactive": {
-                    "type": "integer"
-                },
-                "new_this_week": {
-                    "type": "integer"
-                },
-                "new_today": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
         "handler.Groundtruth": {
             "type": "object",
             "properties": {
@@ -14232,6 +13617,17 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.ResourceField": {
+            "type": "object",
+            "properties": {
+                "index_name": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "handler.Resources": {
             "type": "object",
             "properties": {
@@ -14277,12 +13673,6 @@ const docTemplate = `{
                         "$ref": "#/definitions/handler.Pair"
                     }
                 }
-            }
-        },
-        "propagation.MapCarrier": {
-            "type": "object",
-            "additionalProperties": {
-                "type": "string"
             }
         }
     },

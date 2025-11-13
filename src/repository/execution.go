@@ -1,349 +1,481 @@
 package repository
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"aegis/consts"
 	"aegis/database"
-	"aegis/dto"
 )
 
-const BATCH_SIZE = 500 // 服务器端分批大小
+const BATCH_SIZE = 500
 
-func CheckExecutionResultExists(id int) (bool, error) {
-	var execution database.ExecutionResult
-	if err := database.DB.Where("id = ?", id).First(&execution).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return false, nil
-		}
-		return false, fmt.Errorf("failed to check execution result: %v", err)
-	}
+// =====================================================================
+// Execution Repository Functions
+// =====================================================================
 
-	return true, nil
-}
-
-func CreateExecutionResult(taskID string, algorithmVersionID, datapackID int, duration float64, labels *dto.ExecutionLabels) (int, error) {
-	executionResult := &database.ExecutionResult{
-		AlgorithmVersionID: algorithmVersionID,
-		DatapackID:         datapackID,
-		Duration:           duration,
-		Status:             consts.ExecutionSuccess,
-	}
-
-	// Set TaskID to nil if it's empty, otherwise set the value
-	if taskID != "" {
-		executionResult.TaskID = &taskID
-	}
-
-	if err := database.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(executionResult).Error; err != nil {
-			return fmt.Errorf("failed to create execution result: %v", err)
-		}
-
+// BatchDeleteExecutions marks multiple executions as deleted in batch
+func BatchDeleteExecutions(db *gorm.DB, executions []int) error {
+	if len(executions) == 0 {
 		return nil
-	}); err != nil {
-		return 0, err
 	}
 
-	// Add label to indicate the source of this execution result
-	var labelValue, labelDescription string
-	if taskID != "" {
-		// TaskID is provided, this is system-managed
-		labelValue = consts.ExecutionSourceSystem
-		labelDescription = consts.ExecutionSystemDescription
-	} else {
-		// TaskID is empty, this is manual upload
-		labelValue = consts.ExecutionSourceManual
-		labelDescription = consts.ExecutionManualDescription
+	if err := db.Model(&database.Execution{}).
+		Where("id IN (?) AND status != ?", executions, consts.CommonDeleted).
+		Update("status", consts.CommonDeleted).Error; err != nil {
+		return fmt.Errorf("failed to batch delete executions: %w", err)
 	}
 
-	if err := AddExecutionResultLabel(executionResult.ID, consts.ExecutionLabelSource, labelValue, labelDescription); err != nil {
-		fmt.Printf("Warning: Failed to create execution result label: %v\n", err)
-	}
-
-	// Add user-defined labels if provided
-	if labels != nil && labels.Tag != "" {
-		if err := AddExecutionResultLabel(executionResult.ID, consts.LabelKeyTag, labels.Tag, "User-defined tag"); err != nil {
-			fmt.Printf("Warning: Failed to create tag label: %v\n", err)
-		}
-	}
-
-	return executionResult.ID, nil
+	return nil
 }
 
-func UpdateExecutionResult(id int, updates map[string]any) error {
-	result := database.DB.Model(&database.ExecutionResult{}).Where("id = ?", id).Updates(updates)
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return fmt.Errorf("injection not found or no changes made")
+// CreateExecution creates a new execution result record
+func CreateExecution(db *gorm.DB, execution *database.Execution) error {
+	if err := db.Create(execution).Error; err != nil {
+		return fmt.Errorf("failed to create execution result: %w", err)
 	}
 	return nil
 }
 
-func ListExecutionRawDataByIds(params dto.RawDataReq) ([]dto.RawDataItem, error) {
-	opts, err := params.TimeRangeQuery.Convert()
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert time range query: %v", err)
+// GetExecutionByID retrieves an execution result by its ID with preloaded associations
+func GetExecutionByID(db *gorm.DB, id int) (*database.Execution, error) {
+	var result database.Execution
+	if err := db.
+		Preload("Algorithm.Container").
+		Preload("Datapack.Benchmark.Container").
+		Preload("Datapack.Pedestal.Container").
+		Preload("Dataset").
+		Preload("Task.Project").
+		Preload("Labels").
+		Where("id = ? AND status != ?", id, consts.CommonDeleted).
+		First(&result).Error; err != nil {
+		return nil, fmt.Errorf("failed to find execution result with id %d: %w", id, err)
 	}
-
-	query := database.DB.
-		Where("id IN (?) and status = (?)", params.ExecutionIDs, consts.ExecutionSuccess)
-	query = opts.AddTimeFilter(query, "created_at")
-
-	var execResults []database.ExecutionResultProject
-	if err := query.Find(&execResults).Error; err != nil {
-		return nil, fmt.Errorf("failed to query execution results: %v", err)
-	}
-
-	execResultMap := make(map[int]database.ExecutionResultProject, len(execResults))
-	for _, execResult := range execResults {
-		execResultMap[execResult.ID] = execResult
-	}
-
-	for _, id := range params.ExecutionIDs {
-		if _, exists := execResultMap[id]; !exists {
-			return nil, fmt.Errorf("execution ID %d not found in the database", id)
-		}
-	}
-
-	datasets := make([]string, 0, len(execResults))
-	for _, execResult := range execResults {
-		datasets = append(datasets, execResult.Dataset)
-	}
-
-	var granularityResults []database.GranularityResult
-	if err := database.DB.
-		Model(&database.GranularityResult{}).
-		Where("execution_id IN (?)", params.ExecutionIDs).
-		Find(&granularityResults).Error; err != nil {
-		return nil, fmt.Errorf("failed to query granularity results: %v", err)
-	}
-
-	granMap := make(map[int][]dto.GranularityRecord, len(execResultMap))
-	for _, gran := range granularityResults {
-		var record dto.GranularityRecord
-		record.Convert(gran)
-
-		if _, exists := granMap[gran.ExecutionID]; !exists {
-			granMap[gran.ExecutionID] = []dto.GranularityRecord{record}
-		} else {
-			granMap[gran.ExecutionID] = append(granMap[gran.ExecutionID], record)
-		}
-	}
-
-	groundtruthMap, err := GetGroundtruthMap(datasets)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get ground truth map: %v", err)
-	}
-
-	var items []dto.RawDataItem
-	for id, execResult := range execResultMap {
-		if granRecords, exists := granMap[execResult.ID]; exists {
-			items = append(items, dto.RawDataItem{
-				Algorithm:   execResult.Algorithm,
-				Dataset:     execResult.Dataset,
-				ExecutionID: id,
-				Entries:     granRecords,
-				Groundtruth: groundtruthMap[execResult.Dataset],
-			})
-		}
-	}
-
-	return items, nil
+	return &result, nil
 }
 
-func ListExecutionRawDatasByPairs(params dto.RawDataReq) ([]dto.RawDataItem, error) {
-	datasets := make([]string, 0, len(params.Pairs))
-	for _, pair := range params.Pairs {
-		datasets = append(datasets, pair.Dataset)
+// ListExecutions lists executions based on filters and pagination
+func ListExecutions(db *gorm.DB, limit, offset int, event *consts.ExecuteState, status *consts.StatusType, labelConditons []map[string]string) ([]database.Execution, int64, error) {
+	var executions []database.Execution
+	var total int64
+
+	query := db.Model(&database.Execution{}).
+		Preload("Algorithm.Container").
+		Preload("Datapack.Benchmark.Container").
+		Preload("Datapack.Pedestal.Container").
+		Preload("Dataset").
+		Preload("Task.Project").
+		Preload("Labels")
+	if event != nil {
+		query = query.Where("event = ?", *event)
+	}
+	if status != nil {
+		query = query.Where("status = ?", *status)
 	}
 
-	execIDMap, err := getLatestExecutionMapByPair(params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get latest execution IDs: %v", err)
-	}
+	if len(labelConditons) > 0 {
+		for _, condition := range labelConditons {
+			subQuery := db.Table("task_labels tl").
+				Select("e.id").
+				Joins("JOIN executions e ON e.task_id = tl.task_id").
+				Joins("JOIN labels ON labels.id = tl.label_id").
+				Where("labels.label_key = ? AND labels.label_value = ?", condition["key"], condition["value"])
 
-	var execIDs []int
-	for id := range execIDMap {
-		execIDs = append(execIDs, id)
-	}
-
-	var granularityResults []database.GranularityResult
-	if err := database.DB.
-		Model(&database.GranularityResult{}).
-		Where("execution_id IN (?)", execIDs).
-		Find(&granularityResults).Error; err != nil {
-		return nil, fmt.Errorf("failed to query granularity results: %v", err)
-	}
-
-	granMap := make(map[int][]dto.GranularityRecord, len(execIDs))
-	for _, gran := range granularityResults {
-		var record dto.GranularityRecord
-		record.Convert(gran)
-
-		if _, exists := granMap[gran.ExecutionID]; !exists {
-			granMap[gran.ExecutionID] = []dto.GranularityRecord{record}
-		} else {
-			granMap[gran.ExecutionID] = append(granMap[gran.ExecutionID], record)
+			query = query.Where("execution.id IN (?)", subQuery)
 		}
 	}
 
-	groundtruthMap, err := GetGroundtruthMap(datasets)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get ground truth map: %v", err)
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count executions: %w", err)
 	}
 
-	pairKeyIDMap := make(map[string]int, len(execIDMap))
-	for id, storedPairKey := range execIDMap {
-		pairKeyIDMap[storedPairKey] = id
+	if err := query.Limit(limit).Offset(offset).Order("updated_at DESC").Find(&executions).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to list executions: %w", err)
 	}
 
-	var items []dto.RawDataItem
-	for _, pair := range params.Pairs {
-		item := &dto.RawDataItem{
-			Algorithm:   pair.Algorithm,
-			Dataset:     pair.Dataset,
-			Groundtruth: groundtruthMap[pair.Dataset],
-		}
+	return executions, total, nil
+}
 
-		pairKey := fmt.Sprintf("%s_%s", pair.Algorithm, pair.Dataset)
-		id, exists := pairKeyIDMap[pairKey]
-		if exists {
-			if granRecords, exists := granMap[id]; exists {
-				item.ExecutionID = id
-				item.Entries = granRecords
+func ListExecutionsByDatapackIDs(db *gorm.DB, datapackIDs []int) ([]database.Execution, error) {
+	if len(datapackIDs) == 0 {
+		return make([]database.Execution, 0), nil
+	}
+
+	var results []database.Execution
+
+	query := db.
+		Preload("Algorithm.Container").
+		Preload("Datapack.Benchmark.Container").
+		Preload("Datapack.Pedestal.Container").
+		Preload("Dataset").
+		Preload("Task.Project").
+		Preload("Labels").
+		Where("datapack_id IN (?) AND status != ?", datapackIDs, consts.CommonDeleted)
+	if err := query.Find(&results).Error; err != nil {
+		return nil, fmt.Errorf("failed to list executions by datapack IDs: %w", err)
+	}
+
+	return results, nil
+}
+
+// UpdateExecution updates fields of an execution record
+func UpdateExecution(db *gorm.DB, id int, updates map[string]any) error {
+	result := db.Model(&database.Execution{}).
+		Where("id = ? AND status != ?", id, consts.CommonDeleted).
+		Updates(updates)
+	if err := result.Error; err != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("execution not found or no changes made")
+	}
+	return nil
+}
+
+// =====================================================================
+// ExecutionLabel Repository Functions
+// =====================================================================
+
+// Business layer: Execution labels are stored as TaskLabel in database
+// Since Execution and Task are 1:1 relationship
+
+// AddExecutionLabels adds multiple execution-label associations via TaskLabel
+func AddExecutionLabels(db *gorm.DB, executionID int, labelIDs []int) error {
+	if len(labelIDs) == 0 {
+		return nil
+	}
+
+	// Get the TaskID for this execution
+	var execution database.Execution
+	if err := db.Select("task_id").First(&execution, executionID).Error; err != nil {
+		return fmt.Errorf("failed to get execution task_id: %w", err)
+	}
+
+	// Create TaskLabel associations
+	taskLabels := make([]database.TaskLabel, 0, len(labelIDs))
+	for _, labelID := range labelIDs {
+		taskLabels = append(taskLabels, database.TaskLabel{
+			TaskID:  execution.TaskID,
+			LabelID: labelID,
+		})
+	}
+
+	if err := db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "task_id"}, {Name: "label_id"}},
+		DoNothing: true,
+	}).Create(&taskLabels).Error; err != nil {
+		return fmt.Errorf("failed to add execution-label associatons: %w", err)
+	}
+
+	return nil
+}
+
+// ClearExecutionLabels removes label associations from specified executions via TaskLabel
+func ClearExecutionLabels(db *gorm.DB, executionIDs []int, labelIDs []int) error {
+	if len(executionIDs) == 0 {
+		return nil
+	}
+
+	// Use subquery to delete in a single operation
+	subQuery := db.Model(&database.Execution{}).
+		Select("task_id").
+		Where("id IN (?)", executionIDs)
+
+	query := db.Table("task_labels").
+		Where("task_id IN (?)", subQuery)
+	if len(labelIDs) > 0 {
+		query = query.Where("label_id IN (?)", labelIDs)
+	}
+
+	if err := query.Delete(nil).Error; err != nil {
+		return fmt.Errorf("failed to clear execution labels: %w", err)
+	}
+	return nil
+}
+
+// RemoveLabelsFromExecution removes all label associations from a specific execution via TaskLabel
+func RemoveLabelsFromExecution(db *gorm.DB, executionID int) error {
+	// Use subquery to delete in a single operation
+	subQuery := db.Model(&database.Execution{}).
+		Select("task_id").
+		Where("id = ?", executionID)
+
+	if err := db.Where("task_id IN (?)", subQuery).
+		Delete(&database.TaskLabel{}).Error; err != nil {
+		return fmt.Errorf("failed to remove all labels from execution %d: %w", executionID, err)
+	}
+	return nil
+}
+
+// RemoveLabelsFromExecutions removes all label associations from multiple executions via TaskLabel
+func RemoveLabelsFromExecutions(db *gorm.DB, executionIDs []int) error {
+	if len(executionIDs) == 0 {
+		return nil
+	}
+
+	// Use subquery to delete in a single operation
+	subQuery := db.Model(&database.Execution{}).
+		Select("task_id").
+		Where("id IN (?)", executionIDs)
+
+	if err := db.Where("task_id IN (?)", subQuery).
+		Delete(&database.TaskLabel{}).Error; err != nil {
+		return fmt.Errorf("failed to remove all labels from executions %v: %w", executionIDs, err)
+	}
+	return nil
+}
+
+// RemoveExecutionsFromLabel deletes all execution-label associations for a specific label
+// This removes TaskLabel entries for all Executions that are associated with this label
+func RemoveExecutionsFromLabel(db *gorm.DB, labelID int) (int64, error) {
+	// Use subquery to find TaskIDs and delete in a single operation
+	subQuery := db.Table("task_labels tl").
+		Select("DISTINCT tl.task_id").
+		Joins("JOIN executions e ON e.task_id = tl.task_id").
+		Where("tl.label_id = ?", labelID)
+
+	result := db.Where("task_id IN (?) AND label_id = ?", subQuery, labelID).
+		Delete(&database.TaskLabel{})
+	if err := result.Error; err != nil {
+		return 0, fmt.Errorf("failed to delete execution-label associations for label %d: %w", labelID, err)
+	}
+
+	return result.RowsAffected, nil
+}
+
+// RemoveExecutionsFromLabels removes all execution-label associations for multiple labels
+func RemoveExecutionsFromLabels(db *gorm.DB, labelIDs []int) (int64, error) {
+	if len(labelIDs) == 0 {
+		return 0, nil
+	}
+
+	// Use subquery to find TaskIDs and delete in a single operation
+	subQuery := db.Table("task_labels tl").
+		Select("DISTINCT tl.task_id").
+		Joins("JOIN executions e ON e.task_id = tl.task_id").
+		Where("tl.label_id IN (?)", labelIDs)
+
+	result := db.Where("task_id IN (?) AND label_id IN (?)", subQuery, labelIDs).
+		Delete(&database.TaskLabel{})
+	if err := result.Error; err != nil {
+		return 0, fmt.Errorf("failed to delete execution-label associations for labels %v: %w", labelIDs, err)
+	}
+
+	return result.RowsAffected, nil
+}
+
+// ListExecutionsByDatapackFilter lists executions for a specific algorithm version and datapack name, with optional label filtering
+func ListExecutionsByDatapackFilter(db *gorm.DB, algorithmVersionID int, datapackName string, labelConditions []map[string]string) ([]database.Execution, error) {
+	var executions []database.Execution
+
+	query := db.Model(&database.Execution{}).
+		Preload("DetectorResults").
+		Preload("GranularityResults").
+		Preload("Algorithm.Container").
+		Preload("Datapack").
+		Joins("JOIN fault_injections fi ON executions.datapack_id = fi.id").
+		Where("executions.algorithm_id = ? AND fi.name = ? AND executions.status != ?",
+			algorithmVersionID, datapackName, consts.CommonDeleted)
+
+	if len(labelConditions) > 0 {
+		query = query.
+			Joins("JOIN task_labels tl ON tl.task_id = executions.task_id").
+			Joins("JOIN labels l ON l.id = tl.label_id")
+
+		var whereConditions *gorm.DB
+		for _, condition := range labelConditions {
+			if whereConditions == nil {
+				whereConditions = db.Where("l.label_key = ? AND l.label_value = ?", condition["key"], condition["value"])
+			} else {
+				whereConditions = whereConditions.Or("l.label_key = ? AND l.label_value = ?", condition["key"], condition["value"])
 			}
 		}
 
-		items = append(items, *item)
+		if whereConditions != nil {
+			query = query.Where(whereConditions)
+		}
+
+		query = query.
+			Group("executions.id").
+			Having("COUNT(executions.id) = ?", len(labelConditions))
 	}
 
-	return items, nil
+	if err := query.Order("executions.updated_at DESC").Find(&executions).Error; err != nil {
+		return nil, fmt.Errorf("failed to list executions for algorithm %d and datapack %s: %w",
+			algorithmVersionID, datapackName, err)
+	}
+
+	return executions, nil
 }
 
-func getLatestExecutionMapByPair(params dto.RawDataReq) (map[int]string, error) {
-	uniquePairs := make(map[string]dto.AlgorithmDatasetPair)
-	for _, pair := range params.Pairs {
-		key := fmt.Sprintf("%s_%s", pair.Algorithm, pair.Dataset)
-		uniquePairs[key] = pair
-	}
+// ListExecutionsByDatasetFilter lists executions for a specific algorithm version and dataset version, with optional label filtering
+func ListExecutionsByDatasetFilter(db *gorm.DB, algorithmVersionID, datasetVersionID int, labelConditions []map[string]string) ([]database.Execution, error) {
+	var executions []database.Execution
 
-	var algorithms []string
-	var datasets []string
-	for _, pair := range uniquePairs {
-		algorithms = append(algorithms, pair.Algorithm)
-		datasets = append(datasets, pair.Dataset)
-	}
+	query := db.Model(&database.Execution{}).
+		Preload("DetectorResults").
+		Preload("GranularityResults").
+		Preload("Algorithm.Container").
+		Preload("Datapack").
+		Preload("Dataset").
+		Preload("Dataset.Injections").
+		Where("executions.algorithm_id = ? AND executions.dataset_id = ? AND executions.status != ?",
+			algorithmVersionID, datasetVersionID, consts.CommonDeleted)
 
-	opts, err := params.TimeRangeQuery.Convert()
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert time range query: %v", err)
-	}
+	if len(labelConditions) > 0 {
+		query = query.
+			Joins("JOIN task_labels tl ON tl.task_id = executions.task_id").
+			Joins("JOIN labels l ON l.id = tl.label_id")
 
-	query := database.DB.Model(&database.ExecutionResultProject{}).
-		Where("algorithm IN (?) AND dataset IN (?) AND status = (?)", algorithms, datasets, consts.ExecutionSuccess)
-	query = opts.AddTimeFilter(query, "created_at")
-
-	var executions []database.ExecutionResultProject
-	if err := query.Order("algorithm, dataset, created_at DESC").
-		Find(&executions).Error; err != nil {
-		return nil, fmt.Errorf("failed to batch query executions: %w", err)
-	}
-
-	execIDMap := make(map[int]string)
-	seen := make(map[string]bool)
-	for _, exec := range executions {
-		key := fmt.Sprintf("%s_%s", exec.Algorithm, exec.Dataset)
-		if !seen[key] {
-			if _, exists := uniquePairs[key]; exists {
-				execIDMap[exec.ID] = key
-				seen[key] = true
+		var whereConditions *gorm.DB
+		for _, condition := range labelConditions {
+			if whereConditions == nil {
+				whereConditions = db.Where("l.label_key = ? AND l.label_value = ?", condition["key"], condition["value"])
+			} else {
+				whereConditions = whereConditions.Or("l.label_key = ? AND l.label_value = ?", condition["key"], condition["value"])
 			}
 		}
+
+		if whereConditions != nil {
+			query = query.Where(whereConditions)
+		}
+
+		query = query.
+			Group("executions.id").
+			Having("COUNT(executions.id) = ?", len(labelConditions))
 	}
 
-	return execIDMap, nil
+	if err := query.Order("executions.updated_at DESC").Find(&executions).Error; err != nil {
+		return nil, fmt.Errorf("failed to list executions for algorithm %d and dataset version %d: %w",
+			algorithmVersionID, datasetVersionID, err)
+	}
+
+	return executions, nil
 }
 
-func GetGroundtruthMap(datapacks []string) (map[string]chaos.Groundtruth, error) {
-	engineConfMap, err := ListEngineConfigsByNames(datapacks)
+// ListExecutionIDsByLabels gets execution IDs associated with all specified labels via TaskLabel
+func ListExecutionIDsByLabels(db *gorm.DB, labelConditions []map[string]string) ([]int, error) {
+	var executionIDs []int
+	query := db.Model(&database.Execution{}).
+		Select("DISTINCT executions.id").
+		Joins("JOIN task_labels tl ON tl.task_id = executions.task_id").
+		Joins("JOIN labels ON labels.id = tl.label_id").
+		Where("executions.status != ?", consts.CommonDeleted)
+
+	var whereClauses []string
+	var whereArgs []any
+
+	for _, condition := range labelConditions {
+		whereClauses = append(whereClauses, "(labels.label_key = ? AND labels.label_value = ?)")
+		whereArgs = append(whereArgs, condition["key"], condition["value"])
+	}
+
+	if len(whereClauses) > 0 {
+		whereClause := strings.Join(whereClauses, " OR ")
+		query = query.Where(whereClause, whereArgs...)
+	}
+
+	if err := query.Pluck("executions.id", &executionIDs).Error; err != nil {
+		return nil, fmt.Errorf("failed to list execution IDs by labels: %w", err)
+	}
+
+	return executionIDs, nil
+}
+
+// ListExecutionLabels gets labels for multiple executions in batch
+func ListExecutionLabels(db *gorm.DB, executionIDs []int) (map[int][]database.Label, error) {
+	if len(executionIDs) == 0 {
+		return nil, nil
+	}
+
+	type executionLabelResult struct {
+		database.Label
+		executionID int `gorm:"column:execution_id"`
+	}
+
+	var flatResults []executionLabelResult
+	if err := db.Model(&database.Label{}).
+		Joins("JOIN execution_result_labels erl ON erl.label_id = labels.id").
+		Where("erl.execution_id IN (?)", executionIDs).
+		Select("labels.*, erl.execution_id").
+		Find(&flatResults).Error; err != nil {
+		return nil, fmt.Errorf("failed to batch query execution labels: %w", err)
+	}
+
+	labelsMap := make(map[int][]database.Label)
+	for _, id := range executionIDs {
+		labelsMap[id] = []database.Label{}
+	}
+
+	for _, res := range flatResults {
+		label := res.Label
+		labelsMap[res.executionID] = append(labelsMap[res.executionID], label)
+	}
+
+	return labelsMap, nil
+}
+
+// ListExecutionLabelCounts retrieves the count of executions associated with each label ID
+func ListExecutionLabelCounts(db *gorm.DB, labelIDs []int) (map[int]int64, error) {
+	if len(labelIDs) == 0 {
+		return make(map[int]int64), nil
+	}
+
+	type executionLabelResult struct {
+		labelID int `gorm:"column:label_id"`
+		count   int64
+	}
+
+	var results []executionLabelResult
+	// Count via task_labels joined with executions
+	if err := db.Table("task_labels tl").
+		Select("tl.label_id, count(DISTINCT e.id) as count").
+		Joins("JOIN executions e ON e.task_id = tl.task_id").
+		Where("tl.label_id IN (?)", labelIDs).
+		Group("tl.label_id").
+		Find(&results).Error; err != nil {
+		return nil, fmt.Errorf("failed to count execution-label associations: %w", err)
+	}
+
+	countMap := make(map[int]int64, len(results))
+	for _, result := range results {
+		countMap[result.labelID] = result.count
+	}
+
+	return countMap, nil
+}
+
+// ListLabelsByExecutionID retrieves all labels associated with a specific execution via TaskLabel
+func ListLabelsByExecutionID(db *gorm.DB, executionID int) ([]database.Label, error) {
+	var labels []database.Label
+	if err := db.Table("labels").
+		Joins("JOIN task_labels tl ON labels.id = tl.label_id").
+		Joins("JOIN executions e ON e.task_id = tl.task_id").
+		Where("e.id = ?", executionID).
+		Find(&labels).Error; err != nil {
+		return nil, fmt.Errorf("failed to get execution labels: %v", err)
+	}
+	return labels, nil
+}
+
+// ListLabelIDsByKeyAndExecutionID retrieves label IDs for a specific execution based on label keys via TaskLabel
+func ListLabelIDsByKeyAndExecutionID(db *gorm.DB, executionID int, keys []string) ([]int, error) {
+	var labelIDs []int
+
+	err := db.Table("labels l").
+		Select("l.id").
+		Joins("JOIN task_labels tl ON tl.label_id = l.id").
+		Joins("JOIN executions e ON e.task_id = tl.task_id").
+		Where("e.id = ? AND l.label_key IN (?)", executionID, keys).
+		Pluck("l.id", &labelIDs).Error
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to find label IDs by key '%s': %w", keys, err)
 	}
 
-	groundtruthMap := make(map[string]chaos.Groundtruth, len(engineConfMap))
-	for dataset, engineConf := range engineConfMap {
-		var node chaos.Node
-		if err := json.Unmarshal([]byte(engineConf), &node); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal chaos-experiment node for dataset %s: %v", dataset, err)
-		}
-
-		conf, err := chaos.NodeToStruct[chaos.InjectionConf](&node)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert chaos-experiment node to InjectionConf for dataset %s: %v", dataset, err)
-		}
-
-		groundtruth, err := conf.GetGroundtruth()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get ground truth for dataset %s: %v", dataset, err)
-		}
-
-		groundtruthMap[dataset] = groundtruth
-	}
-
-	return groundtruthMap, nil
-}
-
-// ListSuccessfulExecutions gets all successfully executed algorithm records
-func ListSuccessfulExecutions() ([]dto.SuccessfulExecutionItem, error) {
-	return ListSuccessfulExecutionsWithFilter(dto.SuccessfulExecutionsReq{})
-}
-
-// ListSuccessfulExecutionsWithFilter gets successfully executed algorithm records based on filter conditions
-func ListSuccessfulExecutionsWithFilter(req dto.SuccessfulExecutionsReq) ([]dto.SuccessfulExecutionItem, error) {
-	var executions []database.ExecutionResultProject
-	query := database.DB.Where("status = ?", consts.ExecutionSuccess)
-
-	if req.StartTime != nil {
-		query = query.Where("created_at >= ?", *req.StartTime)
-	}
-	if req.EndTime != nil {
-		query = query.Where("created_at <= ?", *req.EndTime)
-	}
-
-	query = query.Order("created_at DESC")
-
-	if req.Offset != nil && *req.Offset > 0 {
-		query = query.Offset(*req.Offset)
-	}
-	if req.Limit != nil && *req.Limit > 0 {
-		query = query.Limit(*req.Limit)
-	}
-
-	err := query.Find(&executions).Error
-	if err != nil {
-		return nil, fmt.Errorf("failed to query successful executions: %v", err)
-	}
-
-	result := make([]dto.SuccessfulExecutionItem, len(executions))
-	for i, exec := range executions {
-		result[i] = dto.SuccessfulExecutionItem{
-			ID:        exec.ID,
-			Algorithm: exec.Algorithm,
-			Dataset:   exec.Dataset,
-			CreatedAt: exec.CreatedAt,
-		}
-	}
-
-	return result, nil
+	return labelIDs, nil
 }
 
 // GetExecutionStatistics returns statistics about executions
@@ -352,8 +484,8 @@ func GetExecutionStatistics() (map[string]int64, error) {
 
 	// Total executions
 	var total int64
-	if err := database.DB.Model(&database.ExecutionResult{}).Count(&total).Error; err != nil {
-		return nil, fmt.Errorf("failed to count total executions: %v", err)
+	if err := database.DB.Model(&database.Execution{}).Count(&total).Error; err != nil {
+		return nil, fmt.Errorf("failed to count total executions: %w", err)
 	}
 	stats["total"] = total
 
@@ -364,13 +496,13 @@ func GetExecutionStatistics() (map[string]int64, error) {
 	}
 
 	var statusCounts []StatusCount
-	err := database.DB.Model(&database.ExecutionResult{}).
+	err := database.DB.Model(&database.Execution{}).
 		Select("status, COUNT(*) as count").
 		Group("status").
 		Find(&statusCounts).Error
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to count executions by status: %v", err)
+		return nil, fmt.Errorf("failed to count executions by status: %w", err)
 	}
 
 	// Set status counts
@@ -400,654 +532,4 @@ func GetExecutionStatistics() (map[string]int64, error) {
 	}
 
 	return stats, nil
-}
-
-// GetExecutionCountByAlgorithm returns count of executions grouped by algorithm
-func GetExecutionCountByAlgorithm() (map[string]int64, error) {
-	type AlgorithmCount struct {
-		Algorithm string `json:"algorithm"`
-		Count     int64  `json:"count"`
-	}
-
-	var results []AlgorithmCount
-	err := database.DB.Model(&database.ExecutionResult{}).
-		Select("algorithm, COUNT(*) as count").
-		Group("algorithm").
-		Find(&results).Error
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to count executions by algorithm: %v", err)
-	}
-
-	algorithmCounts := make(map[string]int64)
-	for _, result := range results {
-		algorithmCounts[result.Algorithm] = result.Count
-	}
-
-	return algorithmCounts, nil
-}
-
-// GetRecentExecutionActivity returns execution activity for the last N days
-func GetRecentExecutionActivity(days int) (map[string]int64, error) {
-	stats := make(map[string]int64)
-
-	// Last N days activity
-	startDate := time.Now().AddDate(0, 0, -days)
-	var recentCount int64
-	if err := database.DB.Model(&database.ExecutionResult{}).Where("created_at >= ?", startDate).Count(&recentCount).Error; err != nil {
-		return nil, fmt.Errorf("failed to count recent executions: %v", err)
-	}
-	stats[fmt.Sprintf("last_%d_days", days)] = recentCount
-
-	// Today's executions
-	today := time.Now().Truncate(24 * time.Hour)
-	var todayCount int64
-	if err := database.DB.Model(&database.ExecutionResult{}).Where("created_at >= ?", today).Count(&todayCount).Error; err != nil {
-		return nil, fmt.Errorf("failed to count today's executions: %v", err)
-	}
-	stats["today"] = todayCount
-
-	return stats, nil
-}
-
-// GetExecutionLabelsMap gets all labels for multiple execution results in batch (optimized)
-func GetExecutionLabelsMap(executionIDs []int) (map[int][]database.Label, error) {
-	if len(executionIDs) == 0 {
-		return make(map[int][]database.Label), nil
-	}
-
-	var relations []database.ExecutionResultLabel
-	if err := database.DB.Preload("Label").
-		Where("execution_id IN ?", executionIDs).
-		Find(&relations).Error; err != nil {
-		return nil, fmt.Errorf("failed to get execution label relations: %v", err)
-	}
-
-	labelsMap := make(map[int][]database.Label)
-	for _, relation := range relations {
-		if relation.Label != nil {
-			labelsMap[relation.ExecutionID] = append(labelsMap[relation.ExecutionID], *relation.Label)
-		}
-	}
-
-	for _, id := range executionIDs {
-		if _, exists := labelsMap[id]; !exists {
-			labelsMap[id] = []database.Label{}
-		}
-	}
-
-	return labelsMap, nil
-}
-
-// AddExecutionResultLabel adds a label to an execution result
-func AddExecutionResultLabel(executionID int, labelKey, labelValue, description string) error {
-	// Create or get the label
-	label, err := CreateOrGetLabel(labelKey, labelValue, consts.LabelExecution, description)
-	if err != nil {
-		return fmt.Errorf("failed to create or get label: %v", err)
-	}
-
-	relation := database.ExecutionResultLabel{
-		ExecutionID: executionID,
-		LabelID:     label.ID,
-	}
-
-	return database.DB.Where("execution_id = ? AND label_id = ?", executionID, label.ID).
-		FirstOrCreate(&relation).Error
-}
-
-// GetExecutionResultLabels retrieves all labels for an execution result (optimized)
-func GetExecutionResultLabels(executionID int) ([]database.Label, error) {
-	labelsMap, err := GetExecutionLabelsMap([]int{executionID})
-	if err != nil {
-		return nil, err
-	}
-	return labelsMap[executionID], nil
-}
-
-// RemoveExecutionResultLabel removes a specific label from an execution result
-func RemoveExecutionResultLabel(executionID int, labelKey, labelValue string) error {
-
-	// First get the label ID
-	var label database.Label
-	if err := database.DB.Where("label_key = ? AND label_value = ?", labelKey, labelValue).First(&label).Error; err != nil {
-		return fmt.Errorf("label '%s:%s' not found: %v", labelKey, labelValue, err)
-	}
-
-	// Then delete the relationship
-	result := database.DB.
-		Where("execution_id = ? AND label_id = ?", executionID, label.ID).
-		Delete(&database.ExecutionResultLabel{})
-
-	if result.Error != nil {
-		return fmt.Errorf("failed to remove execution result label: %v", result.Error)
-	}
-
-	if result.RowsAffected == 0 {
-		return fmt.Errorf("label relationship '%s:%s' not found for execution %d", labelKey, labelValue, executionID)
-	}
-
-	return nil
-}
-
-// applyLabelFilters applies label filters to a GORM query using native GORM joins
-// func applyLabelFilters(query *gorm.DB, tag string) *gorm.DB {
-// 	if tag == "" {
-// 		return query
-// 	}
-
-// 	query = query.Joins("JOIN execution_result_labels erl ON erl.execution_id = execution_results.id").
-// 		Joins("JOIN labels l ON l.id = erl.label_id").
-// 		Where("l.label_key = ? AND l.label_value = ?", consts.LabelKeyTag, tag)
-// 	return query
-// }
-
-// GetDatasetEvaluationBatch retrieves evaluation results for multiple algorithm-dataset pairs in batch
-// Optimized for datasets with large number of execution records (10000+ executions, 50000+ results)
-func GetDatasetEvaluationBatch(req dto.DatasetEvaluationBatchReq) (dto.DatasetEvaluationBatchResp, error) {
-	if len(req.Items) == 0 {
-		return dto.DatasetEvaluationBatchResp{}, nil
-	}
-
-	// Set default dataset versions
-	for i := range req.Items {
-		if req.Items[i].DatasetVersion == "" {
-			req.Items[i].DatasetVersion = "v1.0"
-		}
-	}
-
-	// 1. Batch query all required datasets
-	datasetMap := make(map[string]string) // dataset_name -> version
-	for _, item := range req.Items {
-		datasetMap[item.Dataset] = item.DatasetVersion
-	}
-
-	var datasetConditions []string
-	var datasetArgs []any
-	for name, version := range datasetMap {
-		datasetConditions = append(datasetConditions, "(name = ? AND version = ?)")
-		datasetArgs = append(datasetArgs, name, version)
-	}
-
-	var datasetRecords []database.Dataset
-	if err := database.DB.
-		Where(strings.Join(datasetConditions, " OR "), datasetArgs...).
-		Where("status = ?", consts.DatasetEnabled).
-		Find(&datasetRecords).Error; err != nil {
-		return nil, fmt.Errorf("failed to query datasets: %v", err)
-	}
-
-	datasetLookup := make(map[string]database.Dataset)
-	for _, dataset := range datasetRecords {
-		key := fmt.Sprintf("%s:%s", dataset.Name, dataset.Version)
-		datasetLookup[key] = dataset
-	}
-
-	// 2. Collect all unique algorithms for batch processing
-	algorithmSet := make(map[string]bool)
-	datasetIDSet := make(map[int]bool)
-	tagSet := make(map[string]bool)
-
-	for _, item := range req.Items {
-		algorithmSet[item.Algorithm] = true
-		if item.Tag != "" {
-			tagSet[item.Tag] = true
-		}
-
-		datasetKey := fmt.Sprintf("%s:%s", item.Dataset, item.DatasetVersion)
-		if dataset, exists := datasetLookup[datasetKey]; exists {
-			datasetIDSet[dataset.ID] = true
-		}
-	}
-
-	algorithms := make([]string, 0, len(algorithmSet))
-	datasetIDs := make([]int, 0, len(datasetIDSet))
-	tags := make([]string, 0, len(tagSet))
-
-	for algorithm := range algorithmSet {
-		algorithms = append(algorithms, algorithm)
-	}
-	for datasetID := range datasetIDSet {
-		datasetIDs = append(datasetIDs, datasetID)
-	}
-	for tag := range tagSet {
-		tags = append(tags, tag)
-	}
-
-	// 3. Batch query fault injections for all datasets
-	var allFaultInjections []struct {
-		DatasetID        int    `json:"dataset_id"`
-		FaultInjectionID int    `json:"fault_injection_id"`
-		InjectionName    string `json:"injection_name"`
-	}
-
-	if err := database.DB.
-		Table("dataset_fault_injections dfi").
-		Select("dfi.dataset_id, dfi.fault_injection_id, fis.injection_name").
-		Joins("JOIN fault_injection_schedules fis ON fis.id = dfi.fault_injection_id").
-		Where("dfi.dataset_id IN ?", datasetIDs).
-		Find(&allFaultInjections).Error; err != nil {
-		return nil, fmt.Errorf("failed to batch query fault injections: %v", err)
-	}
-
-	// Group fault injections by dataset ID
-	datasetFaultMap := make(map[int][]string)
-	for _, fi := range allFaultInjections {
-		datasetFaultMap[fi.DatasetID] = append(datasetFaultMap[fi.DatasetID], fi.InjectionName)
-	}
-
-	// 4. Batch query all execution results with optimized query
-	var allExecResults []struct {
-		database.ExecutionResult
-		Algorithm    string `json:"algorithm"`
-		DatapackName string `json:"datapack_name"`
-		DatasetID    int    `json:"dataset_id"`
-	}
-
-	baseQuery := database.DB.
-		Table("execution_results er").
-		Select("er.*, c.name as algorithm, fis.injection_name as datapack_name, dfi.dataset_id").
-		Joins("JOIN containers c ON c.id = er.algorithm_id").
-		Joins("JOIN fault_injection_schedules fis ON fis.id = er.datapack_id").
-		Joins("JOIN dataset_fault_injections dfi ON dfi.fault_injection_id = fis.id").
-		Where("c.name IN ? AND dfi.dataset_id IN ? AND er.status = ?",
-			algorithms, datasetIDs, consts.ExecutionSuccess)
-
-	if err := baseQuery.Find(&allExecResults).Error; err != nil {
-		return nil, fmt.Errorf("failed to batch query execution results: %v", err)
-	}
-
-	// 5. Handle tag filtering if needed
-	var filteredExecResults []struct {
-		database.ExecutionResult
-		Algorithm    string `json:"algorithm"`
-		DatapackName string `json:"datapack_name"`
-		DatasetID    int    `json:"dataset_id"`
-	}
-
-	if len(tags) > 0 {
-		// Get execution IDs for tag filtering
-		executionIDs := make([]int, len(allExecResults))
-		for i, exec := range allExecResults {
-			executionIDs[i] = exec.ID
-		}
-
-		// Batch query tag labels
-		var tagLabels []struct {
-			ExecutionID int    `json:"execution_id"`
-			LabelValue  string `json:"label_value"`
-		}
-		if err := database.DB.
-			Table("execution_result_labels erl").
-			Select("erl.execution_id, l.label_value").
-			Joins("JOIN labels l ON l.id = erl.label_id").
-			Where("erl.execution_id IN ? AND l.label_key = ? AND l.label_value IN ?",
-				executionIDs, consts.LabelKeyTag, tags).
-			Find(&tagLabels).Error; err != nil {
-			return nil, fmt.Errorf("failed to query tag labels: %v", err)
-		}
-
-		execTagMap := make(map[int]string)
-		for _, tagLabel := range tagLabels {
-			execTagMap[tagLabel.ExecutionID] = tagLabel.LabelValue
-		}
-
-		// Filter based on request requirements
-		for _, exec := range allExecResults {
-			for _, item := range req.Items {
-				datasetKey := fmt.Sprintf("%s:%s", item.Dataset, item.DatasetVersion)
-				dataset, exists := datasetLookup[datasetKey]
-				if !exists {
-					continue
-				}
-
-				if exec.Algorithm == item.Algorithm && exec.DatasetID == dataset.ID {
-					if item.Tag == "" || execTagMap[exec.ID] == item.Tag {
-						filteredExecResults = append(filteredExecResults, exec)
-						break
-					}
-				}
-			}
-		}
-	} else {
-		filteredExecResults = allExecResults
-	}
-
-	// 6. Collect all unique datapack names for ground truth batch query
-	datapackSet := make(map[string]bool)
-	for _, exec := range filteredExecResults {
-		datapackSet[exec.DatapackName] = true
-	}
-
-	datapacks := make([]string, 0, len(datapackSet))
-	for datapack := range datapackSet {
-		datapacks = append(datapacks, datapack)
-	}
-
-	// 7. Batch query ground truth for all datapacks
-	groundtruthMap, err := GetGroundtruthMap(datapacks)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get ground truth map: %v", err)
-	}
-
-	// 8. Batch query granularity results for all executions
-	executionIDs := make([]int, len(filteredExecResults))
-	for i, exec := range filteredExecResults {
-		executionIDs[i] = exec.ID
-	}
-
-	var allGranularityResults []database.GranularityResult
-	if len(executionIDs) > 0 {
-		if err := database.DB.
-			Where("execution_id IN ?", executionIDs).
-			Find(&allGranularityResults).Error; err != nil {
-			return nil, fmt.Errorf("failed to batch query granularity results: %v", err)
-		}
-	}
-
-	// Group granularity results by execution ID
-	granMap := make(map[int][]dto.GranularityRecord)
-	for _, gran := range allGranularityResults {
-		var record dto.GranularityRecord
-		record.Convert(gran)
-		granMap[gran.ExecutionID] = append(granMap[gran.ExecutionID], record)
-	}
-
-	// 9. Build response for each request item
-	response := make(dto.DatasetEvaluationBatchResp, len(req.Items))
-
-	for i, item := range req.Items {
-		datasetKey := fmt.Sprintf("%s:%s", item.Dataset, item.DatasetVersion)
-		dataset, exists := datasetLookup[datasetKey]
-
-		if !exists {
-			return nil, fmt.Errorf("dataset %s with version %s not found at index %d", item.Dataset, item.DatasetVersion, i)
-		}
-
-		// Get fault injections count for this dataset
-		totalCount := len(datasetFaultMap[dataset.ID])
-
-		// Find matching execution results for this specific request
-		var matchingExecs []struct {
-			database.ExecutionResult
-			Algorithm    string `json:"algorithm"`
-			DatapackName string `json:"datapack_name"`
-			DatasetID    int    `json:"dataset_id"`
-		}
-
-		for _, exec := range filteredExecResults {
-			if exec.Algorithm == item.Algorithm && exec.DatasetID == dataset.ID {
-				matchingExecs = append(matchingExecs, exec)
-			}
-		}
-
-		// Find the latest execution for each datapack to avoid duplicates
-		latestDatapackExecs := make(map[string]struct {
-			database.ExecutionResult
-			Algorithm    string `json:"algorithm"`
-			DatapackName string `json:"datapack_name"`
-			DatasetID    int    `json:"dataset_id"`
-		})
-
-		for _, exec := range matchingExecs {
-			if existing, exists := latestDatapackExecs[exec.DatapackName]; !exists || exec.CreatedAt.After(existing.CreatedAt) {
-				latestDatapackExecs[exec.DatapackName] = exec
-			}
-		}
-
-		// Build evaluation items from latest executions only
-		evaluationItems := make([]dto.DatapackEvaluationItem, 0, len(latestDatapackExecs))
-		for _, exec := range latestDatapackExecs {
-			predictions := granMap[exec.ID]
-			if predictions == nil {
-				predictions = []dto.GranularityRecord{}
-			}
-
-			evaluationItems = append(evaluationItems, dto.DatapackEvaluationItem{
-				DatapackName:      exec.DatapackName,
-				ExecutionID:       exec.ID,
-				ExecutionDuration: exec.Duration,
-				Groundtruth:       groundtruthMap[exec.DatapackName],
-				Predictions:       predictions,
-				ExecutedAt:        exec.CreatedAt,
-			})
-		}
-
-		response[i] = dto.AlgorithmDatasetResp{
-			Algorithm:      item.Algorithm,
-			Dataset:        item.Dataset,
-			DatasetVersion: item.DatasetVersion,
-			TotalCount:     totalCount,
-			ExecutedCount:  len(evaluationItems),
-			Items:          evaluationItems,
-		}
-	}
-
-	return response, nil
-}
-
-// GetDatapackEvaluationBatch retrieves the latest execution results for multiple algorithm-datapack pairs in batch
-// Optimized for large batch requests (10000+ items) with server-side chunking
-// GetDatapackEvaluationBatch retrieves the latest execution results for multiple algorithm-datapack pairs in batch
-// Optimized for large batch requests (10000+ items) with server-side chunking
-func GetDatapackEvaluationBatch(req dto.DatapackEvaluationBatchReq) (dto.DatapackEvaluationBatchResp, error) {
-	if len(req.Items) == 0 {
-		return dto.DatapackEvaluationBatchResp{}, nil
-	}
-
-	response := make(dto.DatapackEvaluationBatchResp, len(req.Items))
-
-	for i := 0; i < len(req.Items); i += BATCH_SIZE {
-		end := min(i+BATCH_SIZE, len(req.Items))
-
-		// Process current batch
-		batchReq := dto.DatapackEvaluationBatchReq{
-			Items: req.Items[i:end],
-		}
-
-		batchResponse, err := processDatapackBatch(batchReq)
-		if err != nil {
-			return nil, fmt.Errorf("failed to process batch %d-%d: %v", i, end-1, err)
-		}
-
-		for j, item := range batchResponse {
-			response[i+j] = item
-		}
-	}
-
-	return response, nil
-}
-
-// processDatapackBatch processes a single batch of datapack evaluations
-func processDatapackBatch(req dto.DatapackEvaluationBatchReq) (dto.DatapackEvaluationBatchResp, error) {
-	// 1. Collect unique algorithms, datapacks and tags
-	algorithmSet := make(map[string]bool)
-	datapackSet := make(map[string]bool)
-	tagSet := make(map[string]bool)
-
-	for _, item := range req.Items {
-		algorithmSet[item.Algorithm] = true
-		datapackSet[item.Datapack] = true
-		if item.Tag != "" {
-			tagSet[item.Tag] = true
-		}
-	}
-
-	algorithms := make([]string, 0, len(algorithmSet))
-	datapacks := make([]string, 0, len(datapackSet))
-	tags := make([]string, 0, len(tagSet))
-
-	for algorithm := range algorithmSet {
-		algorithms = append(algorithms, algorithm)
-	}
-	for datapack := range datapackSet {
-		datapacks = append(datapacks, datapack)
-	}
-	for tag := range tagSet {
-		tags = append(tags, tag)
-	}
-
-	// 2. Batch query execution results
-	var allExecResults []struct {
-		database.ExecutionResult
-		Algorithm    string `json:"algorithm"`
-		DatapackName string `json:"datapack_name"`
-	}
-
-	baseQuery := database.DB.
-		Table("execution_results").
-		Select("execution_results.*, containers.name as algorithm, fault_injection_schedules.injection_name as datapack_name").
-		Joins("JOIN containers ON containers.id = execution_results.algorithm_id").
-		Joins("JOIN fault_injection_schedules ON fault_injection_schedules.id = execution_results.datapack_id").
-		Where("containers.name IN ? AND fault_injection_schedules.injection_name IN ? AND execution_results.status = ?",
-			algorithms, datapacks, consts.ExecutionSuccess)
-
-	if err := baseQuery.Find(&allExecResults).Error; err != nil {
-		return nil, fmt.Errorf("failed to batch query execution results: %v", err)
-	}
-
-	// 3. Process tag filtering (if needed)
-	if len(tags) > 0 {
-		executionIDs := make([]int, len(allExecResults))
-		for i, exec := range allExecResults {
-			executionIDs[i] = exec.ID
-		}
-
-		var tagLabels []struct {
-			ExecutionID int    `json:"execution_id"`
-			LabelValue  string `json:"label_value"`
-		}
-		if err := database.DB.
-			Table("execution_result_labels erl").
-			Select("erl.execution_id, l.label_value").
-			Joins("JOIN labels l ON l.id = erl.label_id").
-			Where("erl.execution_id IN ? AND l.label_key = ? AND l.label_value IN ?",
-				executionIDs, consts.LabelKeyTag, tags).
-			Find(&tagLabels).Error; err != nil {
-			return nil, fmt.Errorf("failed to query tag labels: %v", err)
-		}
-
-		execTagMap := make(map[int]string)
-		for _, tagLabel := range tagLabels {
-			execTagMap[tagLabel.ExecutionID] = tagLabel.LabelValue
-		}
-
-		// Apply tag filtering
-		var filteredResults []struct {
-			database.ExecutionResult
-			Algorithm    string `json:"algorithm"`
-			DatapackName string `json:"datapack_name"`
-		}
-
-		for _, exec := range allExecResults {
-			for _, item := range req.Items {
-				if exec.Algorithm == item.Algorithm && exec.DatapackName == item.Datapack {
-					if item.Tag == "" || execTagMap[exec.ID] == item.Tag {
-						filteredResults = append(filteredResults, exec)
-						break
-					}
-				}
-			}
-		}
-		allExecResults = filteredResults
-	}
-
-	// 4. Find the latest execution for each algorithm-datapack pair
-	type ExecKey struct {
-		Algorithm string
-		Datapack  string
-		Tag       string
-	}
-
-	latestExecMap := make(map[ExecKey]struct {
-		database.ExecutionResult
-		Algorithm    string `json:"algorithm"`
-		DatapackName string `json:"datapack_name"`
-	})
-
-	for _, exec := range allExecResults {
-		for _, item := range req.Items {
-			if exec.Algorithm == item.Algorithm && exec.DatapackName == item.Datapack {
-				key := ExecKey{
-					Algorithm: item.Algorithm,
-					Datapack:  item.Datapack,
-					Tag:       item.Tag,
-				}
-
-				if existing, exists := latestExecMap[key]; !exists || exec.CreatedAt.After(existing.CreatedAt) {
-					latestExecMap[key] = exec
-				}
-			}
-		}
-	}
-
-	// 5. Batch query ground truth
-	groundtruthMap, err := GetGroundtruthMap(datapacks)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get ground truth map: %v", err)
-	}
-
-	// 6. Batch query granularity results
-	var latestExecutionIDs []int
-	for _, exec := range latestExecMap {
-		latestExecutionIDs = append(latestExecutionIDs, exec.ID)
-	}
-
-	var allGranularityResults []database.GranularityResult
-	if len(latestExecutionIDs) > 0 {
-		if err := database.DB.
-			Where("execution_id IN ?", latestExecutionIDs).
-			Find(&allGranularityResults).Error; err != nil {
-			return nil, fmt.Errorf("failed to batch query granularity results: %v", err)
-		}
-	}
-
-	granMap := make(map[int][]dto.GranularityRecord)
-	for _, gran := range allGranularityResults {
-		var record dto.GranularityRecord
-		record.Convert(gran)
-		granMap[gran.ExecutionID] = append(granMap[gran.ExecutionID], record)
-	}
-
-	// 7. Build response
-	response := make(dto.DatapackEvaluationBatchResp, len(req.Items))
-
-	for i, item := range req.Items {
-		key := ExecKey{
-			Algorithm: item.Algorithm,
-			Datapack:  item.Datapack,
-			Tag:       item.Tag,
-		}
-
-		if exec, exists := latestExecMap[key]; exists {
-			predictions := granMap[exec.ID]
-			if predictions == nil {
-				predictions = []dto.GranularityRecord{}
-			}
-
-			response[i] = dto.AlgorithmDatapackResp{
-				Algorithm:         item.Algorithm,
-				Datapack:          item.Datapack,
-				ExecutionID:       exec.ID,
-				ExecutionDuration: exec.Duration,
-				Groundtruth:       groundtruthMap[item.Datapack],
-				Predictions:       predictions,
-				ExecutedAt:        exec.CreatedAt,
-				Found:             exists,
-			}
-		} else {
-			response[i] = dto.AlgorithmDatapackResp{
-				Algorithm:         item.Algorithm,
-				Datapack:          item.Datapack,
-				ExecutionID:       0,
-				ExecutionDuration: 0,
-				Groundtruth:       groundtruthMap[item.Datapack],
-				Predictions:       []dto.GranularityRecord{},
-				ExecutedAt:        time.Time{},
-				Found:             exists,
-			}
-		}
-	}
-
-	return response, nil
 }

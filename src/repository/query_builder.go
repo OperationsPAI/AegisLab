@@ -25,7 +25,7 @@ func NewSearchQueryBuilder(db *gorm.DB) *SearchQueryBuilder {
 }
 
 // ApplySearchRequest applies filters, sorting, and pagination from SearchRequest
-func (qb *SearchQueryBuilder) ApplySearchRequest(searchReq *dto.SearchRequest, modelType interface{}) *gorm.DB {
+func (qb *SearchQueryBuilder) ApplySearchRequest(searchReq *dto.SearchReq, modelType interface{}) *gorm.DB {
 	// Start with the base query
 	qb.query = qb.db.Model(modelType)
 
@@ -44,7 +44,7 @@ func (qb *SearchQueryBuilder) ApplySearchRequest(searchReq *dto.SearchRequest, m
 }
 
 // ApplyPagination applies pagination to the query
-func (qb *SearchQueryBuilder) ApplyPagination(searchReq *dto.SearchRequest) *gorm.DB {
+func (qb *SearchQueryBuilder) ApplyPagination(searchReq *dto.SearchReq) *gorm.DB {
 	offset := searchReq.GetOffset()
 	return qb.query.Offset(offset).Limit(searchReq.Size)
 }
@@ -100,12 +100,12 @@ func (qb *SearchQueryBuilder) applySingleFilter(filter dto.SearchFilter) {
 
 	case dto.OpIn:
 		if len(filter.Values) > 0 {
-			qb.query = qb.query.Where(fmt.Sprintf("%s IN ?", field), filter.Values)
+			qb.query = qb.query.Where(fmt.Sprintf("%s IN (?)", field), filter.Values)
 		}
 
 	case dto.OpNotIn:
 		if len(filter.Values) > 0 {
-			qb.query = qb.query.Where(fmt.Sprintf("%s NOT IN ?", field), filter.Values)
+			qb.query = qb.query.Where(fmt.Sprintf("%s NOT IN (?)", field), filter.Values)
 		}
 
 	case dto.OpIsNull:
@@ -238,10 +238,10 @@ func (qb *SearchQueryBuilder) sanitizeFieldName(field string) string {
 }
 
 // BuildSearchResponse builds a standard search response
-func BuildSearchResponse[T any](items []T, totalCount int64, searchReq *dto.SearchRequest) dto.SearchResponse[T] {
+func BuildSearchResponse[T any](items []T, totalCount int64, searchReq *dto.SearchReq) dto.SearchResp[T] {
 	totalPages := int((totalCount + int64(searchReq.Size) - 1) / int64(searchReq.Size))
 
-	return dto.SearchResponse[T]{
+	return dto.SearchResp[T]{
 		Items: items,
 		Pagination: &dto.PaginationInfo{
 			Page:       searchReq.Page,
@@ -255,7 +255,7 @@ func BuildSearchResponse[T any](items []T, totalCount int64, searchReq *dto.Sear
 }
 
 // ExecuteSearch executes a complete search operation
-func ExecuteSearch[T any](db *gorm.DB, searchReq *dto.SearchRequest, modelType T) (dto.SearchResponse[T], error) {
+func ExecuteSearch[T any](db *gorm.DB, searchReq *dto.SearchReq, modelType T) (dto.SearchResp[T], error) {
 	qb := NewSearchQueryBuilder(db)
 
 	// Apply search conditions
@@ -264,14 +264,14 @@ func ExecuteSearch[T any](db *gorm.DB, searchReq *dto.SearchRequest, modelType T
 	// Get total count
 	totalCount, err := qb.GetCount()
 	if err != nil {
-		return dto.SearchResponse[T]{}, fmt.Errorf("failed to get count: %w", err)
+		return dto.SearchResp[T]{}, fmt.Errorf("failed to get count: %w", err)
 	}
 
 	// Apply pagination and execute query
 	var items []T
 	err = qb.ApplyPagination(searchReq).Find(&items).Error
 	if err != nil {
-		return dto.SearchResponse[T]{}, fmt.Errorf("failed to execute search: %w", err)
+		return dto.SearchResp[T]{}, fmt.Errorf("failed to execute search: %w", err)
 	}
 
 	return BuildSearchResponse(items, totalCount, searchReq), nil

@@ -4,19 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"aegis/consts"
 	"aegis/database"
+	"aegis/utils"
 
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 )
-
-// -----------------------------------------------------------------------------
-// Data Structures
-// -----------------------------------------------------------------------------
 
 // RetryPolicy defines how tasks should be retried on failure
 type RetryPolicy struct {
@@ -34,18 +33,69 @@ type UnifiedTask struct {
 	ReStartNum   int                    `json:"restart_num"`                  // Number of restarts for the task
 	RetryPolicy  RetryPolicy            `json:"retry_policy"`                 // Policy for retrying failed tasks
 	Payload      map[string]any         `json:"payload" swaggertype:"object"` // Task-specific data
-	Status       string                 `json:"status"`                       // Status of the task
 	TraceID      string                 `json:"trace_id"`                     // ID for tracing related tasks
 	GroupID      string                 `json:"group_id"`                     // ID for grouping tasks
-	ProjectID    *int                   `json:"project_id,omitempty"`         // ID for the project (optional)
-	UserID       *int                   `json:"user_id,omitempty"`            // ID of the user who created the task (optional)
+	ProjectID    int                    `json:"project_id"`                   // ID for the project (optional)
+	UserID       int                    `json:"user_id"`                      // ID of the user who created the task (optional)
+	State        consts.TaskState       `json:"state"`                        // Current state of the task
 	TraceCarrier propagation.MapCarrier `json:"trace_carrier,omitempty"`      // Carrier for trace context
 	GroupCarrier propagation.MapCarrier `json:"group_carrier,omitempty"`      // Carrier for group context
 }
 
-// -----------------------------------------------------------------------------
-// Context Management Methods
-// -----------------------------------------------------------------------------
+func (t *UnifiedTask) ConvertToTask() (*database.Task, error) {
+	jsonPayload, err := json.Marshal(t.Payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal task payload: %w", err)
+	}
+
+	task := &database.Task{
+		ID:          t.TaskID,
+		Type:        t.Type,
+		Immediate:   t.Immediate,
+		ExecuteTime: t.ExecuteTime,
+		CronExpr:    t.CronExpr,
+		Payload:     string(jsonPayload),
+		State:       t.State,
+		Status:      consts.CommonEnabled,
+		TraceID:     t.TraceID,
+		GroupID:     t.GroupID,
+		ProjectID:   t.ProjectID,
+	}
+	return task, nil
+}
+
+// GetAnnotations generates the annotations for trace and group carriers
+func (t *UnifiedTask) GetAnnotations(ctx context.Context) (map[string]string, error) {
+	taskCarrier := make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, taskCarrier)
+
+	taskCarrierBytes, err := json.Marshal(taskCarrier)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal mapcarrier of task context: %w", err)
+	}
+
+	traceCarrierBytes, err := json.Marshal(t.TraceCarrier)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal mapcarrier of trace context: %w", err)
+	}
+
+	return map[string]string{
+		consts.TaskCarrier:  string(taskCarrierBytes),
+		consts.TraceCarrier: string(traceCarrierBytes),
+	}, nil
+}
+
+// GetLabels generates the labels for the task
+func (t *UnifiedTask) GetLabels() map[string]string {
+	return map[string]string{
+		consts.JobLabelTaskID:    t.TaskID,
+		consts.JobLabelTaskType:  consts.GetTaskTypeName(t.Type),
+		consts.JobLabelTraceID:   t.TraceID,
+		consts.JobLabelGroupID:   t.GroupID,
+		consts.JobLabelProjectID: strconv.Itoa(t.ProjectID),
+		consts.JobLabelUserID:    strconv.Itoa(t.UserID),
+	}
+}
 
 // GetTraceCtx extracts the trace context from the carrier
 func (t *UnifiedTask) GetTraceCtx() context.Context {
@@ -69,6 +119,12 @@ func (t *UnifiedTask) GetGroupCtx() context.Context {
 	return traceCtx
 }
 
+func (t *UnifiedTask) Reschedule(executeTime time.Time) {
+	t.ExecuteTime = executeTime.Unix()
+	t.ReStartNum += 1
+	t.State = consts.TaskRescheduled
+}
+
 // SetTraceCtx injects the trace context into the carrier
 func (t *UnifiedTask) SetTraceCtx(ctx context.Context) {
 	if t.TraceCarrier == nil {
@@ -87,84 +143,169 @@ func (t *UnifiedTask) SetGroupCtx(ctx context.Context) {
 	otel.GetTextMapPropagator().Inject(ctx, t.GroupCarrier)
 }
 
+// BatchDeleteTaskReq represents the request to batch delete tasks
+type BatchDeleteTaskReq struct {
+	IDs []string `json:"ids" binding:"required"` // List of task IDs for deletion
+}
+
+func (req *BatchDeleteTaskReq) Validate() error {
+	for i, id := range req.IDs {
+		if strings.TrimSpace(id) == "" {
+			return fmt.Errorf("empty id at index %d", i)
+		}
+
+		if !utils.IsValidUUID(id) {
+			return fmt.Errorf("invalid UUID format for id at index %d: %s", i, id)
+		}
+	}
+	return nil
+}
+
+// ListTaskFilters represents the filters for listing tasks
+type ListTaskFilters struct {
+	TaskType  *consts.TaskType
+	Immediate *bool
+	TraceID   string
+	GroupID   string
+	ProjectID int
+	State     *consts.TaskState
+	Status    *consts.StatusType
+}
+
+// ListTaskReq represents the request to list tasks
+type ListTaskReq struct {
+	PaginationReq
+	TaskType  *consts.TaskType   `form:"task_type" binding:"omitempty"`
+	Immediate *bool              `form:"immediate" binding:"omitempty"`
+	TraceID   string             `form:"trace_id" binding:"omitempty"`
+	GroupID   string             `form:"group_id" binding:"omitempty"`
+	ProjectID int                `form:"project_id" binding:"omitempty"`
+	State     *consts.TaskState  `form:"state" binding:"omitempty"`
+	Status    *consts.StatusType `form:"status" binding:"omitempty"`
+}
+
+func (req *ListTaskReq) Validate() error {
+	if err := validateTaskType(req.TaskType); err != nil {
+		return err
+	}
+	if err := validateUUID(req.TraceID); err != nil {
+		return err
+	}
+	if err := validateUUID(req.GroupID); err != nil {
+		return err
+	}
+
+	if req.ProjectID <= 0 {
+		return fmt.Errorf("invalid project ID: %d", req.ProjectID)
+	}
+
+	if err := validateState(req.State); err != nil {
+		return err
+	}
+	return validateStatusField(req.Status, true)
+}
+
+func (req *ListTaskReq) ToFilterOptions() *ListTaskFilters {
+	return &ListTaskFilters{
+		Immediate: req.Immediate,
+		TaskType:  req.TaskType,
+		TraceID:   req.TraceID,
+		GroupID:   req.GroupID,
+		ProjectID: req.ProjectID,
+		State:     req.State,
+		Status:    req.Status,
+	}
+}
+
+// TaskResp represents the response for a task
+type TaskResp struct {
+	ID          string `json:"id"`
+	Type        string `json:"type"`
+	Immediate   bool   `json:"immediate"`
+	ExecuteTime int64  `json:"execute_time"`
+	CronExpr    string `json:"cron_expr,omitempty"`
+	TraceID     string `json:"trace_id"`
+	GroupID     string `json:"group_id"`
+
+	State       string    `json:"state"`
+	Status      string    `json:"status"`
+	ProjectID   int       `json:"project_id,omitempty"`
+	ProjectName string    `json:"project_name,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+func NewTaskResp(task *database.Task) *TaskResp {
+	resp := &TaskResp{
+		ID:          task.ID,
+		Type:        consts.GetTaskTypeName(task.Type),
+		Immediate:   task.Immediate,
+		ExecuteTime: task.ExecuteTime,
+		CronExpr:    task.CronExpr,
+		TraceID:     task.TraceID,
+		GroupID:     task.GroupID,
+		State:       consts.GetTaskStateName(task.State),
+		Status:      consts.GetStatusTypeName(task.Status),
+		ProjectID:   task.Project.ID,
+		CreatedAt:   task.CreatedAt,
+		UpdatedAt:   task.UpdatedAt,
+	}
+
+	if task.Project != nil {
+		resp.ProjectName = task.Project.Name
+	}
+	return resp
+}
+
 type TaskDetailResp struct {
-	Task TaskItem `json:"task"`
-	Logs []string `json:"logs"`
+	TaskResp
+
+	Payload map[string]any `json:"payload,omitempty" swaggertype:"object"`
+	Logs    []string       `json:"logs"`
 }
 
-type TaskItem struct {
-	ID        string         `json:"id"`
-	TraceID   string         `json:"trace_id"`
-	Type      string         `json:"type"`
-	Payload   map[string]any `json:"payload" swaggertype:"object"`
-	Status    string         `json:"status"`
-	CreatedAt time.Time      `json:"created_at"`
-}
-
-func (t *TaskItem) Convert(task database.Task) error {
-	var payload map[string]any
-	if err := json.Unmarshal([]byte(task.Payload), &payload); err != nil {
-		return err
+func NewTaskDetailResp(task *database.Task, logs []string) *TaskDetailResp {
+	resp := &TaskDetailResp{
+		TaskResp: *NewTaskResp(task),
+		Logs:     logs,
 	}
 
-	t.ID = task.ID
-	t.TraceID = task.TraceID
-	t.Type = task.Type
-	t.Payload = payload
-	t.Status = task.Status
-	t.CreatedAt = task.CreatedAt
+	if task.Payload != "" {
+		var payload map[string]any
+		if err := json.Unmarshal([]byte(task.Payload), &payload); err == nil {
+			resp.Payload = payload
+		}
+	}
+	return resp
+}
 
+// QueuedTasksResp represents the response for queued tasks
+type QueuedTasksResp struct {
+	ReadyTasks   []TaskResp `json:"ready_tasks"`
+	DelayedTasks []TaskResp `json:"delayed_tasks"`
+}
+
+func validateState(state *consts.TaskState) error {
+	if state != nil {
+		if _, exists := consts.ValidTaskStates[*state]; !exists {
+			return fmt.Errorf("invalid task state: %d", *state)
+		}
+	}
 	return nil
 }
 
-type TaskReq struct {
-	TaskID string `uri:"task_id" binding:"required"`
-}
-
-type TaskStreamItem struct {
-	Type    string
-	TraceID string
-}
-
-func (t *TaskStreamItem) Convert(task database.Task) {
-	t.Type = task.Type
-	t.TraceID = task.TraceID
-}
-
-type ListTasksReq struct {
-	TraceID string `form:"trace_id"`
-	GroupID string `form:"group_id"`
-
-	TaskType  string `form:"task_type"`
-	Status    string `form:"status"`
-	Immediate *bool  `form:"immediate"`
-
-	ListOptionsQuery
-	TimeRangeQuery
-}
-
-func (req *ListTasksReq) Validate() error {
-	idFieldsUsed := 0
-	if req.TraceID != "" {
-		idFieldsUsed++
+func validateTaskType(taskType *consts.TaskType) error {
+	if taskType != nil {
+		if _, exists := consts.ValidTaskTypes[*taskType]; !exists {
+			return fmt.Errorf("invalid task type: %d", *taskType)
+		}
 	}
-	if req.GroupID != "" {
-		idFieldsUsed++
-	}
-
-	if idFieldsUsed > 1 {
-		return fmt.Errorf("only one of task_id, trace_id, or group_id can be specified")
-	}
-
-	if err := req.ListOptionsQuery.Validate(); err != nil {
-		return err
-	}
-
-	if err := req.TimeRangeQuery.Validate(); err != nil {
-		return err
-	}
-
 	return nil
 }
 
-type ListTasksResp []database.Task
+func validateUUID(id string) error {
+	if !utils.IsValidUUID(id) {
+		return fmt.Errorf("invalid UUID format: %s", id)
+	}
+	return nil
+}

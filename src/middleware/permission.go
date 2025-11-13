@@ -42,8 +42,15 @@ func RequirePermission(action, resourceName string) gin.HandlerFunc {
 			}
 		}
 
+		var datasetID *int
+		if datasetIDStr := c.Param("dataset_id"); datasetIDStr != "" {
+			if id, err := strconv.Atoi(datasetIDStr); err == nil {
+				datasetID = &id
+			}
+		}
+
 		// Check user permission
-		hasPermission, err := repository.CheckUserPermission(database.DB, userID, action, resourceName, projectID, containerID)
+		hasPermission, err := repository.CheckUserPermission(database.DB, userID, action, resourceName, projectID, containerID, datasetID)
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
 			c.Abort()
@@ -91,10 +98,17 @@ func RequireAnyPermission(permissions []PermissionCheck) gin.HandlerFunc {
 			}
 		}
 
+		var datasetID *int
+		if datasetIDStr := c.Param("dataset_id"); datasetIDStr != "" {
+			if id, err := strconv.Atoi(datasetIDStr); err == nil {
+				datasetID = &id
+			}
+		}
+
 		// Check if user has any of the required permissions
 		hasAnyPermission := false
 		for _, perm := range permissions {
-			hasPermission, err := repository.CheckUserPermission(database.DB, userID, perm.Action, perm.ResourceName, projectID, containerID)
+			hasPermission, err := repository.CheckUserPermission(database.DB, userID, perm.Action, perm.ResourceName, projectID, containerID, datasetID)
 			if err != nil {
 				continue // Log error in production
 			}
@@ -145,9 +159,16 @@ func RequireAllPermissions(permissions []PermissionCheck) gin.HandlerFunc {
 			}
 		}
 
+		var datasetID *int
+		if datasetIDStr := c.Param("dataset_id"); datasetIDStr != "" {
+			if id, err := strconv.Atoi(datasetIDStr); err == nil {
+				datasetID = &id
+			}
+		}
+
 		// Check if user has all required permissions
 		for _, perm := range permissions {
-			hasPermission, err := repository.CheckUserPermission(database.DB, userID, perm.Action, perm.ResourceName, projectID, containerID)
+			hasPermission, err := repository.CheckUserPermission(database.DB, userID, perm.Action, perm.ResourceName, projectID, containerID, datasetID)
 			if err != nil {
 				dto.ErrorResponse(c, http.StatusInternalServerError, "Permission check failed: "+err.Error())
 				c.Abort()
@@ -224,7 +245,7 @@ func RequireAdminOrOwnership(ownerIDParam string) gin.HandlerFunc {
 		}
 
 		// Check if user is admin
-		hasAdminPermission, err := repository.CheckUserPermission(database.DB, userID, "admin", "system", nil, nil)
+		hasAdminPermission, err := repository.CheckUserPermission(database.DB, userID, "admin", "system", nil, nil, nil)
 		if err == nil && hasAdminPermission {
 			// User is admin, allow access
 			c.Next()
@@ -264,36 +285,6 @@ type PermissionCheck struct {
 
 // Common permission middlewares
 var (
-	// User management permissions
-	RequireUserRead   = RequirePermission("read", "user")
-	RequireUserWrite  = RequirePermission("write", "user")
-	RequireUserDelete = RequirePermission("delete", "user")
-
-	// Role management permissions
-	RequireRoleRead   = RequirePermission("read", "role")
-	RequireRoleWrite  = RequirePermission("write", "role")
-	RequireRoleDelete = RequirePermission("delete", "role")
-
-	// Permission management permissions
-	RequirePermissionRead   = RequirePermission("read", "permission")
-	RequirePermissionWrite  = RequirePermission("write", "permission")
-	RequirePermissionDelete = RequirePermission("delete", "permission")
-
-	// Label management permissions
-	RequireLabelRead   = RequirePermission("read", "label")
-	RequireLabelWrite  = RequirePermission("write", "label")
-	RequireLabelDelete = RequirePermission("delete", "label")
-
-	// Project management permissions
-	RequireProjectRead   = RequirePermission("read", "project")
-	RequireProjectWrite  = RequirePermission("write", "project")
-	RequireProjectDelete = RequirePermission("delete", "project")
-
-	// Dataset management permissions
-	RequireDatasetRead   = RequirePermission("read", "dataset")
-	RequireDatasetWrite  = RequirePermission("write", "dataset")
-	RequireDatasetDelete = RequirePermission("delete", "dataset")
-
 	// System administration permissions
 	RequireSystemAdmin = RequirePermission("admin", "system")
 	RequireSystemRead  = RequirePermission("read", "system")
@@ -315,6 +306,41 @@ var (
 	RequireContainerVersionWrite  = RequirePermission("write", "container_version")
 	RequireContainerVersionDelete = RequirePermission("delete", "container_version")
 
+	// Dataset management permissions
+	RequireDatasetRead   = RequirePermission("read", "dataset")
+	RequireDatasetWrite  = RequirePermission("write", "dataset")
+	RequireDatasetDelete = RequirePermission("delete", "dataset")
+
+	// Dataset Version management permissions
+	RequireDatasetVersionRead   = RequirePermission("read", "dataset_version")
+	RequireDatasetVersionWrite  = RequirePermission("write", "dataset_version")
+	RequireDatasetVersionDelete = RequirePermission("delete", "dataset_version")
+
+	// Project management permissions
+	RequireProjectRead   = RequirePermission("read", "project")
+	RequireProjectWrite  = RequirePermission("write", "project")
+	RequireProjectDelete = RequirePermission("delete", "project")
+
+	// Label management permissions
+	RequireLabelRead   = RequirePermission("read", "label")
+	RequireLabelWrite  = RequirePermission("write", "label")
+	RequireLabelDelete = RequirePermission("delete", "label")
+
+	// User management permissions
+	RequireUserRead   = RequirePermission("read", "user")
+	RequireUserWrite  = RequirePermission("write", "user")
+	RequireUserDelete = RequirePermission("delete", "user")
+
+	// Role management permissions
+	RequireRoleRead   = RequirePermission("read", "role")
+	RequireRoleWrite  = RequirePermission("write", "role")
+	RequireRoleDelete = RequirePermission("delete", "role")
+
+	// Permission management permissions
+	RequirePermissionRead   = RequirePermission("read", "permission")
+	RequirePermissionWrite  = RequirePermission("write", "permission")
+	RequirePermissionDelete = RequirePermission("delete", "permission")
+
 	// Task management permissions
 	RequireTaskRead   = RequirePermission("read", "task")
 	RequireTaskWrite  = RequirePermission("write", "task")
@@ -324,4 +350,9 @@ var (
 	RequireFaultInjectionRead   = RequirePermission("read", "fault_injection")
 	RequireFaultInjectionWrite  = RequirePermission("write", "fault_injection")
 	RequireFaultInjectionDelete = RequirePermission("delete", "fault_injection")
+
+	// Execution management permissions
+	RequireExecutionRead   = RequirePermission("read", "execution")
+	RequireExecutionWrite  = RequirePermission("write", "execution")
+	RequireExecutionDelete = RequirePermission("delete", "execution")
 )
