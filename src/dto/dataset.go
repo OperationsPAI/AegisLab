@@ -1,332 +1,348 @@
 package dto
 
 import (
-	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"aegis/consts"
 	"aegis/database"
 	"aegis/utils"
-
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 )
 
-type DatasetDeleteReq struct {
-	Names []string `form:"names" binding:"required,min=1,dive,required,max=64"`
+// =====================================================================
+// Dataset Service DTOs
+// =====================================================================
+
+type DatasetRef struct {
+	Name    string `json:"name" binding:"required"`
+	Version string `json:"version" binding:"omitempty"`
 }
 
-type DatasetDeleteResp struct {
-	SuccessCount int64    `json:"success_count"`
-	FailedNames  []string `json:"failed_names"`
+func (ref *DatasetRef) Validate() error {
+	if ref.Name == "" {
+		return fmt.Errorf("dataset name is required")
+	}
+	if ref.Version != "" {
+		if _, _, _, err := utils.ParseSemanticVersion(ref.Version); err != nil {
+			return fmt.Errorf("invalid semantic version: %s, %v", ref.Version, err)
+		}
+	}
+	return nil
 }
 
-type DatasetDownloadReq struct {
-	GroupIDs []string `form:"group_ids"`
-	Names    []string `form:"names"`
+// ===================== Dataset CRUD DTOs =====================
+
+type CreateDatasetReq struct {
+	Name        string `json:"name" binding:"required"`
+	Type        string `json:"type" binding:"required"`
+	Description string `json:"description" binding:"omitempty"`
+	IsPublic    *bool  `json:"is_public" binding:"omitempty"`
+
+	VersionReq *CreateDatasetVersionReq `json:"version" binding:"omitempty"`
 }
 
-func (r *DatasetDownloadReq) Validate() error {
-	hasGroupIDs := len(r.GroupIDs) > 0
-	hasNames := len(r.Names) > 0
-	if !hasGroupIDs && !hasNames {
-		return fmt.Errorf("one of group_ids or names must be provided")
+func (req *CreateDatasetReq) Validate() error {
+	req.Name = strings.TrimSpace(req.Name)
+	req.Type = strings.TrimSpace(req.Type)
+
+	if req.Name == "" {
+		return fmt.Errorf("dataset name cannot be empty")
+	}
+	if req.Type == "" {
+		return fmt.Errorf("dataset type cannot be empty")
+	}
+	if req.IsPublic == nil {
+		req.IsPublic = utils.BoolPtr(true)
 	}
 
-	if hasGroupIDs && hasNames {
-		return fmt.Errorf("only one of group_ids or names must be provided")
+	if req.VersionReq != nil {
+		if err := req.VersionReq.Validate(); err != nil {
+			return fmt.Errorf("invalid dataset version request: %v", err)
+		}
 	}
 
 	return nil
 }
 
-type DatasetItem struct {
-	Name      string         `json:"name"`
-	Param     map[string]any `json:"param" swaggertype:"array,object"`
-	StartTime time.Time      `json:"start_time"`
-	EndTime   time.Time      `json:"end_time"`
+func (req *CreateDatasetReq) ConvertToDataset() *database.Dataset {
+	return &database.Dataset{
+		Name:        req.Name,
+		Type:        req.Type,
+		Description: req.Description,
+		IsPublic:    *req.IsPublic,
+		Status:      consts.CommonEnabled,
+	}
 }
 
-func (d *DatasetItem) Convert(record database.FaultInjectionSchedule) error {
-	var param map[string]any
-	if err := json.Unmarshal([]byte(record.DisplayConfig), &param); err != nil {
-		return fmt.Errorf("faild to unmarshal display config: %v", err)
+type ListDatasetReq struct {
+	PaginationReq
+	Type     string             `json:"type" binding:"omitempty"`
+	IsPublic *bool              `json:"is_public" binding:"omitempty"`
+	Status   *consts.StatusType `json:"status" binding:"omitempty"`
+}
+
+func (req *ListDatasetReq) Validate() error {
+	return validateStatusField(req.Status, false)
+}
+
+type SearchDatasetReq struct {
+	AdvancedSearchReq
+
+	Name        *string `json:"name,omitempty"`
+	Type        *string `json:"type,omitempty"`
+	Description *string `json:"description,omitempty"`
+	DataSource  *string `json:"data_source,omitempty"`
+	Format      *string `json:"format,omitempty"`
+	Status      *int    `json:"status,omitempty"`
+}
+
+func (dsr *SearchDatasetReq) ConvertToSearchRequest() *SearchReq {
+	sr := dsr.AdvancedSearchReq.ConvertAdvancedToSearch()
+
+	if dsr.Name != nil {
+		sr.AddFilter("name", OpLike, *dsr.Name)
+	}
+	if dsr.Type != nil {
+		sr.AddFilter("type", OpEqual, *dsr.Type)
+	}
+	if dsr.Description != nil {
+		sr.AddFilter("description", OpLike, *dsr.Description)
+	}
+	if dsr.DataSource != nil {
+		sr.AddFilter("data_source", OpLike, *dsr.DataSource)
+	}
+	if dsr.Format != nil {
+		sr.AddFilter("format", OpEqual, *dsr.Format)
 	}
 
-	param["fault_type"] = chaos.ChaosTypeMap[chaos.ChaosType(record.FaultType)]
-	param["pre_duration"] = record.PreDuration
-
-	d.Name = record.InjectionName
-	d.Param = param
-	d.StartTime = utils.GetTimeValue(record.StartTime, time.Time{})
-	d.EndTime = utils.GetTimeValue(record.EndTime, time.Time{})
-
-	return nil
+	return sr
 }
 
-type DatasetItemWithID struct {
-	ID int
-	DatasetItem
+type UpdateDatasetReq struct {
+	Description *string            `json:"description" binding:"omitempty"`
+	IsPublic    *bool              `json:"is_public" binding:"omitempty"`
+	Status      *consts.StatusType `json:"status" binding:"omitempty"`
 }
 
-func (d *DatasetItemWithID) Convert(record database.FaultInjectionSchedule) error {
-	var item DatasetItem
-	err := item.Convert(record)
-	if err != nil {
+func (req *UpdateDatasetReq) Validate() error {
+	return validateStatusField(req.Status, true)
+}
+
+func (req *UpdateDatasetReq) PatchDatasetModel(target *database.Dataset) {
+	if req.Description != nil {
+		target.Description = *req.Description
+	}
+	if req.IsPublic != nil {
+		target.IsPublic = *req.IsPublic
+	}
+	if req.Status != nil {
+		target.Status = *req.Status
+	}
+}
+
+type ManageDatasetLabelReq struct {
+	AddLabels    []LabelItem `json:"add_labels" binding:"omitempty"`    // List of labels to add
+	RemoveLabels []string    `json:"remove_labels" binding:"omitempty"` // List of label keys to remove
+}
+
+func (req *ManageDatasetLabelReq) Validate() error {
+	if len(req.AddLabels) == 0 && len(req.RemoveLabels) == 0 {
+		return fmt.Errorf("at least one of add_labels or remove_labels must be provided")
+	}
+
+	if err := validateLabelItemsFiled(req.AddLabels); err != nil {
 		return err
 	}
 
-	d.ID = record.ID
-	d.DatasetItem = item
-	return nil
-}
-
-type DatasetBuildPayload struct {
-	Benchmark   string            `json:"benchmark" binding:"omitempty"`
-	Name        string            `json:"name" binding:"required"`
-	PreDuration *int              `json:"pre_duration" binding:"omitempty"`
-	EnvVars     map[string]string `json:"env_vars" binding:"omitempty" swaggertype:"object"`
-}
-
-func (p *DatasetBuildPayload) Validate() error {
-	if p.Benchmark == "" {
-		p.Benchmark = "clickhouse"
-	}
-
-	if p.PreDuration != nil && *p.PreDuration <= 0 {
-		return fmt.Errorf("pre_duration must be greater than 0")
-	}
-
-	for key := range p.EnvVars {
-		if err := utils.IsValidEnvVar(key); err != nil {
-			return fmt.Errorf("invalid environment variable key %s: %v", key, err)
+	for i, key := range req.RemoveLabels {
+		if strings.TrimSpace(key) == "" {
+			return fmt.Errorf("empty label key at index %d in remove_labels", i)
 		}
 	}
 
 	return nil
 }
 
-type SubmitDatasetBuildingReq struct {
-	ProjectName string                `json:"project_name" binding:"required"`
-	Payloads    []DatasetBuildPayload `json:"payloads" binding:"required,dive,required"`
+type ManageDatasetVersionInjectionReq struct {
+	AddInjections    []int `json:"add_injections" binding:"omitempty"`    // List of injection IDs to add
+	RemoveInjections []int `json:"remove_injections" binding:"omitempty"` // List of injection IDs to remove
 }
 
-func (req *SubmitDatasetBuildingReq) Validate() error {
-	if req.ProjectName == "" {
-		return fmt.Errorf("project_name is required")
+func (req *ManageDatasetVersionInjectionReq) Validate() error {
+	if len(req.AddInjections) == 0 && len(req.RemoveInjections) == 0 {
+		return fmt.Errorf("at least one of add_injections or remove_injections must be provided")
 	}
-	if len(req.Payloads) == 0 {
-		return fmt.Errorf("at least one dataset build payload is required")
-	}
-	for _, payload := range req.Payloads {
-		if err := payload.Validate(); err != nil {
-			return fmt.Errorf("invalid dataset build payload: %v", err)
+
+	for i, id := range req.AddInjections {
+		if id <= 0 {
+			return fmt.Errorf("invalid injection id at index %d in add_injections: %d", i, id)
 		}
 	}
+	for i, id := range req.RemoveInjections {
+		if id <= 0 {
+			return fmt.Errorf("invalid injection id at index %d in remove_injections: %d", i, id)
+		}
+	}
+
 	return nil
 }
 
-type DatasetJoinedResult struct {
-	GroupID string
-	Name    string
+type DatasetResp struct {
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	Type      string    `json:"type"`
+	IsPublic  bool      `json:"is_public"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+
+	Labels []LabelItem `json:"labels,omitempty"`
 }
 
-func (d *DatasetJoinedResult) Convert(groupID, name string) {
-	d.GroupID = groupID
-	d.Name = name
-}
-
-var DatasetStatusMap = map[int]string{
-	consts.DatapackInitial:       "initial",
-	consts.DatapackInjectSuccess: "inject_success",
-	consts.DatapackInjectFailed:  "inject_failed",
-	consts.DatapackBuildSuccess:  "build_success",
-	consts.DatapackBuildFailed:   "build_failed",
-	consts.DatapackDeleted:       "deleted",
-}
-
-var DatasetStatusReverseMap = map[string]int{
-	"initial":        consts.DatapackInitial,
-	"inject_success": consts.DatapackInjectSuccess,
-	"inject_failed":  consts.DatapackInjectFailed,
-	"build_success":  consts.DatapackBuildSuccess,
-	"build_failed":   consts.DatapackBuildFailed,
-	"deleted":        consts.DatapackDeleted,
-}
-
-// ===================== V2 API DTOs =====================
-
-// InjectionRef represents an injection reference by ID or name
-type InjectionRef struct {
-	ID   *int    `json:"id,omitempty"`   // Injection ID
-	Name *string `json:"name,omitempty"` // Injection name
-}
-
-// DatasetV2CreateReq Create dataset request
-type DatasetV2CreateReq struct {
-	Name          string                    `json:"name" binding:"required,max=255"` // Dataset name
-	Version       string                    `json:"version" binding:"max=50"`        // Dataset version, optional, defaults to v1.0
-	Description   string                    `json:"description" binding:"max=1000"`  // Dataset description
-	Type          string                    `json:"type" binding:"required,max=50"`  // Dataset type
-	DataSource    string                    `json:"data_source" binding:"max=500"`   // Data source description
-	Format        string                    `json:"format" binding:"max=50"`         // Data format
-	IsPublic      *bool                     `json:"is_public"`                       // Whether public, optional, defaults to false
-	InjectionRefs []InjectionRef            `json:"injection_refs"`                  // Associated fault injection references (ID or name)
-	LabelIDs      []int                     `json:"label_ids"`                       // Associated label ID list
-	NewLabels     []DatasetV2LabelCreateReq `json:"new_labels"`                      // New label list
-}
-
-func (req *DatasetV2CreateReq) ToEntity() *database.Dataset {
-	return &database.Dataset{
-		Name:        req.Name,
-		Version:     req.Version,
-		Description: req.Description,
-		Type:        req.Type,
-		DataSource:  req.DataSource,
-		Format:      req.Format,
-		Status:      consts.DatasetEnabled,
-		IsPublic:    utils.GetBoolValue(req.IsPublic, false),
-	}
-}
-
-type DatasetV2GetReq struct {
-	IncludeInjections bool `form:"include_injections" binding:"omitempty"` // Include related fault injections
-	IncludeLabels     bool `form:"include_labels" binding:"omitempty"`     // Include related labels
-}
-
-// DatasetV2LabelCreateReq Create label request
-type DatasetV2LabelCreateReq struct {
-	Key         string `json:"key" binding:"required,max=100"`   // Label key
-	Value       string `json:"value" binding:"required,max=255"` // Label value
-	Category    string `json:"category" binding:"max=50"`        // Label category
-	Description string `json:"description" binding:"max=500"`    // Label description
-	Color       string `json:"color" binding:"max=7"`            // Label color (hex format)
-}
-
-// DatasetV2UpdateReq Update dataset request
-type DatasetV2UpdateReq struct {
-	Name          *string                   `json:"name" binding:"omitempty,max=255"`         // Dataset name
-	Version       *string                   `json:"version" binding:"omitempty,max=50"`       // Dataset version
-	Description   *string                   `json:"description" binding:"omitempty,max=1000"` // Dataset description
-	Type          *string                   `json:"type" binding:"omitempty,max=50"`          // Dataset type
-	DataSource    *string                   `json:"data_source" binding:"omitempty,max=500"`  // Data source description
-	Format        *string                   `json:"format" binding:"omitempty,max=50"`        // Data format
-	IsPublic      *bool                     `json:"is_public"`                                // Whether public
-	InjectionRefs []InjectionRef            `json:"injection_refs"`                           // Update associated fault injection references (complete replacement)
-	LabelIDs      []int                     `json:"label_ids"`                                // Update associated label ID list (complete replacement)
-	NewLabels     []DatasetV2LabelCreateReq `json:"new_labels"`                               // New label list
-}
-
-// DatasetV2InjectionManageReq Manage fault injections in dataset
-type DatasetV2InjectionManageReq struct {
-	AddInjections    []int `json:"add_injections"`    // List of fault injection IDs to add
-	RemoveInjections []int `json:"remove_injections"` // List of fault injection IDs to remove
-}
-
-// DatasetV2LabelManageReq Manage labels in dataset
-type DatasetV2LabelManageReq struct {
-	AddLabels    []int                     `json:"add_labels"`    // List of label IDs to add
-	RemoveLabels []int                     `json:"remove_labels"` // List of label IDs to remove
-	NewLabels    []DatasetV2LabelCreateReq `json:"new_labels"`    // New label list
-}
-
-// DatasetV2Response Dataset response
-type DatasetV2Response struct {
-	ID          int    `json:"id"`          // Unique identifier
-	Name        string `json:"name"`        // Dataset name
-	Version     string `json:"version"`     // Dataset version
-	Description string `json:"description"` // Dataset description
-	Type        string `json:"type"`        // Dataset type
-
-	FileCount   int       `json:"file_count"`             // File count
-	DataSource  string    `json:"data_source"`            // Data source description
-	Format      string    `json:"format"`                 // Data format
-	Status      int       `json:"status"`                 // Status
-	IsPublic    bool      `json:"is_public"`              // Whether public
-	DownloadURL string    `json:"download_url,omitempty"` // Download URL
-	Checksum    string    `json:"checksum,omitempty"`     // File checksum
-	CreatedAt   time.Time `json:"created_at"`             // Creation time
-	UpdatedAt   time.Time `json:"updated_at"`             // Update time
-
-	Injections []InjectionV2Response `json:"injections,omitempty"` // Associated fault injections
-	Labels     []database.Label      `json:"labels,omitempty"`     // Associated labels
-}
-
-// DatasetV2InjectionRelationResponse Dataset fault injection relation response
-type DatasetV2InjectionRelationResponse struct {
-	ID               int                              `json:"id"`                        // Relation ID
-	FaultInjectionID int                              `json:"fault_injection_id"`        // Fault injection ID
-	CreatedAt        time.Time                        `json:"created_at"`                // Creation time
-	UpdatedAt        time.Time                        `json:"updated_at"`                // Update time
-	FaultInjection   *database.FaultInjectionSchedule `json:"fault_injection,omitempty"` // Fault injection details
-}
-
-// DatasetV2ListReq Dataset list query request
-type DatasetV2ListReq struct {
-	Page      int    `form:"page" binding:"omitempty,min=1"`         // Page number, defaults to 1
-	Size      int    `form:"size" binding:"omitempty,min=1,max=100"` // Page size, defaults to 20
-	Type      string `form:"type"`                                   // Dataset type filter
-	Status    *int   `form:"status"`                                 // Status filter
-	IsPublic  *bool  `form:"is_public"`                              // Public filter
-	Search    string `form:"search"`                                 // Search keywords (name, description)
-	SortBy    string `form:"sort_by"`                                // Sort field (id, name, created_at, updated_at)
-	SortOrder string `form:"sort_order"`                             // Sort direction (asc, desc)
-	Include   string `form:"include"`                                // Included related data (injections, labels)
-}
-
-// DatasetV2SearchReq Dataset search request (POST method, supports complex conditions)
-type DatasetV2SearchReq struct {
-	Page        int              `json:"page" binding:"omitempty,min=1"`         // Page number
-	Size        int              `json:"size" binding:"omitempty,min=1,max=100"` // Page size
-	Types       []string         `json:"types"`                                  // Dataset type list
-	Statuses    []int            `json:"statuses"`                               // Status list
-	IsPublic    *bool            `json:"is_public"`                              // Whether public
-	Search      string           `json:"search"`                                 // Search keywords
-	DateRange   *DateRangeFilter `json:"date_range"`                             // Date range filter
-	SizeRange   *SizeRangeFilter `json:"size_range"`                             // Size range filter
-	Include     []string         `json:"include"`                                // Included related data
-	SortBy      string           `json:"sort_by"`                                // Sort field
-	SortOrder   string           `json:"sort_order"`                             // Sort direction
-	LabelKeys   []string         `json:"label_keys"`                             // Filter by label key
-	LabelValues []string         `json:"label_values"`                           // Filter by label value
-}
-
-// DateRangeFilter Date range filter
-type DateRangeFilter struct {
-	StartTime *time.Time `json:"start_time"` // Start time
-	EndTime   *time.Time `json:"end_time"`   // End time
-}
-
-// SizeRangeFilter Size range filter
-type SizeRangeFilter struct {
-	MinSize *int64 `json:"min_size"` // Minimum size (bytes)
-	MaxSize *int64 `json:"max_size"` // Maximum size (bytes)
-}
-
-// DatasetSearchResponse Dataset search response structure
-type DatasetSearchResponse struct {
-	Items      []DatasetV2Response `json:"items"`      // Result list
-	Pagination PaginationInfo      `json:"pagination"` // Pagination info
-}
-
-// ToDatasetV2Response converts Database.Dataset to DatasetV2Response
-func ToDatasetV2Response(dataset *database.Dataset, includeRelations bool) *DatasetV2Response {
-	resp := &DatasetV2Response{
-		ID:          dataset.ID,
-		Name:        dataset.Name,
-		Version:     dataset.Version,
-		Description: dataset.Description,
-		Type:        dataset.Type,
-		FileCount:   dataset.FileCount,
-		DataSource:  dataset.DataSource,
-		Format:      dataset.Format,
-		Status:      dataset.Status,
-		IsPublic:    dataset.IsPublic,
-		DownloadURL: dataset.DownloadURL,
-		Checksum:    dataset.Checksum,
-		CreatedAt:   dataset.CreatedAt,
-		UpdatedAt:   dataset.UpdatedAt,
+func NewDatasetResp(dataset *database.Dataset) *DatasetResp {
+	resp := &DatasetResp{
+		ID:        dataset.ID,
+		Name:      dataset.Name,
+		Type:      dataset.Type,
+		IsPublic:  dataset.IsPublic,
+		Status:    consts.GetStatusTypeName(dataset.Status),
+		CreatedAt: dataset.CreatedAt,
+		UpdatedAt: dataset.UpdatedAt,
 	}
 
+	if len(dataset.Labels) > 0 {
+		resp.Labels = make([]LabelItem, 0, len(dataset.Labels))
+		for _, l := range dataset.Labels {
+			resp.Labels = append(resp.Labels, LabelItem{
+				Key:   l.Key,
+				Value: l.Value,
+			})
+		}
+	}
 	return resp
+}
+
+type DatasetDetailResp struct {
+	DatasetResp
+
+	Description string `json:"description"`
+
+	Versions []DatasetVersionResp `json:"versions"`
+}
+
+func NewDatasetDetailResp(dataset *database.Dataset) *DatasetDetailResp {
+	return &DatasetDetailResp{
+		DatasetResp: *NewDatasetResp(dataset),
+		Description: dataset.Description,
+	}
+}
+
+// ===================== Dataset Version CRUD DTOs =====================
+
+type CreateDatasetVersionReq struct {
+	Name        string `json:"name" binding:"required"`
+	DataSource  string `json:"data_source" binding:"omitempty"`
+	Format      string `json:"format" binding:"omitempty"`
+	DownloadURL string `json:"download_url" binding:"omitempty"`
+	Checksum    string `json:"checksum" binding:"omitempty"`
+}
+
+func (req *CreateDatasetVersionReq) Validate() error {
+	req.Name = strings.TrimSpace(req.Name)
+
+	if req.Name == "" {
+		return fmt.Errorf("name cannot be empty")
+	}
+
+	if _, _, _, err := utils.ParseSemanticVersion(req.Name); err != nil {
+		return fmt.Errorf("invalid semantic version: %s, %v", req.Name, err)
+	}
+
+	if req.Format != "" {
+		req.Format = strings.TrimSpace(req.Format)
+	}
+
+	return nil
+}
+
+func (req *CreateDatasetVersionReq) ConvertToDatasetVersion() *database.DatasetVersion {
+	version := &database.DatasetVersion{
+		Name:        req.Name,
+		Format:      req.Format,
+		DownloadURL: req.DownloadURL,
+		Checksum:    req.Checksum,
+		Status:      consts.CommonEnabled,
+	}
+
+	return version
+}
+
+// ListDatasetVersionReq represents dataset version list query parameters
+type ListDatasetVersionReq struct {
+	PaginationReq
+	Status *consts.StatusType `json:"status" binding:"omitempty"`
+}
+
+func (req *ListDatasetVersionReq) Validate() error {
+	return validateStatusField(req.Status, false)
+}
+
+type UpdateDatasetVersionReq struct {
+	DownloadURL *string            `json:"download_url" binding:"omitempty"`
+	Checksum    *string            `json:"checksum" binding:"omitempty"`
+	Format      *string            `json:"format" binding:"omitempty"`
+	Status      *consts.StatusType `json:"status" binding:"omitempty"`
+}
+
+func (req *UpdateDatasetVersionReq) Validate() error {
+	return validateStatusField(req.Status, true)
+}
+
+func (req *UpdateDatasetVersionReq) PatchDatasetVersionModel(target *database.DatasetVersion) {
+	if req.Format != nil {
+		target.Format = *req.Format
+	}
+	if req.DownloadURL != nil {
+		target.DownloadURL = *req.DownloadURL
+	}
+	if req.Checksum != nil {
+		target.Checksum = *req.Checksum
+	}
+	if req.Status != nil {
+		target.Status = *req.Status
+	}
+}
+
+type DatasetVersionResp struct {
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	DownloadURL string    `json:"download_url"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+func NewDatasetVersionResp(version *database.DatasetVersion) *DatasetVersionResp {
+	return &DatasetVersionResp{
+		ID:          version.ID,
+		Name:        version.Name,
+		DownloadURL: version.DownloadURL,
+		UpdatedAt:   version.UpdatedAt,
+	}
+}
+
+type DatasetVersionDetailResp struct {
+	DatasetVersionResp
+
+	Format    string `json:"format"`
+	Checksum  string `json:"checksum"`
+	FileCount int    `json:"file_count"`
+}
+
+func NewDatasetVersionDetailResp(version *database.DatasetVersion) *DatasetVersionDetailResp {
+	return &DatasetVersionDetailResp{
+		DatasetVersionResp: *NewDatasetVersionResp(version),
+		Format:             version.Format,
+		Checksum:           version.Checksum,
+		FileCount:          version.FileCount,
+	}
 }

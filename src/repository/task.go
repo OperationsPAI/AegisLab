@@ -7,13 +7,17 @@ import (
 	"time"
 
 	"aegis/client"
+	"aegis/consts"
 	"aegis/database"
 	"aegis/dto"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+// ===================== Task Redis =====================
 
 // Redis key constants for task queues and indexes
 const (
@@ -26,19 +30,7 @@ const (
 	MaxConcurrency     = 20                      // Maximum concurrent tasks
 )
 
-func FindTaskItemByID(id string) (*dto.TaskItem, error) {
-	var result database.Task
-	if err := database.DB.Where("tasks.id = ?", id).First(&result).Error; err != nil {
-		return nil, err
-	}
-
-	var item dto.TaskItem
-	if err := item.Convert(result); err != nil {
-		return nil, err
-	}
-
-	return &item, nil
-}
+// ImmediateTask
 
 // SubmitImmediateTask sends a task to the ready queue for immediate execution
 func SubmitImmediateTask(ctx context.Context, taskData []byte, taskID string) error {
@@ -49,6 +41,29 @@ func SubmitImmediateTask(ctx context.Context, taskData []byte, taskID string) er
 
 	return redisCli.HSet(ctx, TaskIndexKey, taskID, ReadyQueueKey).Err()
 }
+
+// GetTask retrieves a task from the ready queue with blocking
+func GetTask(ctx context.Context, timeout time.Duration) (string, error) {
+	redisCli := client.GetRedisClient()
+	result, err := redisCli.BRPop(ctx, timeout, ReadyQueueKey).Result()
+	if err != nil {
+		return "", err
+	}
+
+	return result[1], nil
+}
+
+// HandleFailedTask moves a failed task to the dead letter queue
+func HandleFailedTask(ctx context.Context, taskData []byte, backoffSec int) error {
+	deadLetterTime := time.Now().Add(time.Duration(backoffSec) * time.Second).Unix()
+	redisCli := client.GetRedisClient()
+	return redisCli.ZAdd(ctx, DeadLetterKey, redis.Z{
+		Score:  float64(deadLetterTime),
+		Member: taskData,
+	}).Err()
+}
+
+// Delayed Task
 
 // SubmitDelayedTask sends a task to the delayed queue for future execution
 func SubmitDelayedTask(ctx context.Context, taskData []byte, taskID string, executeTime int64) error {
@@ -102,27 +117,6 @@ func HandleCronRescheduleFailure(ctx context.Context, taskData []byte) error {
 	}).Err()
 }
 
-// GetTask retrieves a task from the ready queue with blocking
-func GetTask(ctx context.Context, timeout time.Duration) (string, error) {
-	redisCli := client.GetRedisClient()
-	result, err := redisCli.BRPop(ctx, timeout, ReadyQueueKey).Result()
-	if err != nil {
-		return "", err
-	}
-
-	return result[1], nil
-}
-
-// HandleFailedTask moves a failed task to the dead letter queue
-func HandleFailedTask(ctx context.Context, taskData []byte, backoffSec int) error {
-	deadLetterTime := time.Now().Add(time.Duration(backoffSec) * time.Second).Unix()
-	redisCli := client.GetRedisClient()
-	return redisCli.ZAdd(ctx, DeadLetterKey, redis.Z{
-		Score:  float64(deadLetterTime),
-		Member: taskData,
-	}).Err()
-}
-
 // AcquireConcurrencyLock attempts to acquire a lock for task execution
 func AcquireConcurrencyLock(ctx context.Context) bool {
 	redisCli := client.GetRedisClient()
@@ -133,6 +127,12 @@ func AcquireConcurrencyLock(ctx context.Context) bool {
 	return redisCli.Incr(ctx, ConcurrencyLockKey).Err() == nil
 }
 
+// InitConcurrencyLock initializes the concurrency lock counter
+func InitConcurrencyLock(ctx context.Context) error {
+	redisCli := client.GetRedisClient()
+	return redisCli.Set(ctx, ConcurrencyLockKey, 0, 0).Err()
+}
+
 // ReleaseConcurrencyLock releases a lock after task execution
 func ReleaseConcurrencyLock(ctx context.Context) {
 	redisCli := client.GetRedisClient()
@@ -141,15 +141,33 @@ func ReleaseConcurrencyLock(ctx context.Context) {
 	}
 }
 
-// InitConcurrencyLock initializes the concurrency lock counter
-func InitConcurrencyLock(ctx context.Context) error {
-	redisCli := client.GetRedisClient()
-	return redisCli.Set(ctx, ConcurrencyLockKey, 0, 0).Err()
-}
-
 // GetTaskQueue retrieves the queue a task is in
 func GetTaskQueue(ctx context.Context, taskID string) (string, error) {
 	return client.GetRedisClient().HGet(ctx, TaskIndexKey, taskID).Result()
+}
+
+// ListDelayedTasks lists all tasks in the delayed queue
+func ListDelayedTasks(ctx context.Context, limit int64) ([]string, error) {
+	delayedTasksWithScore, err := client.GetRedisZRangeByScoreWithScores(ctx, DelayedQueueKey, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	taskDatas := make([]string, 0, len(delayedTasksWithScore))
+	for _, z := range delayedTasksWithScore {
+		taskData, ok := z.Member.(string)
+		if !ok {
+			return nil, fmt.Errorf("invalid delayed task data")
+		}
+		taskDatas = append(taskDatas, taskData)
+	}
+
+	return taskDatas, nil
+}
+
+// ListReadyTasks lists all tasks in the ready queue
+func ListReadyTasks(ctx context.Context) ([]string, error) {
+	return client.GetRedisListRange(ctx, ReadyQueueKey)
 }
 
 // RemoveFromList removes a task from a Redis list using Lua script
@@ -216,52 +234,116 @@ func DeleteTaskIndex(ctx context.Context, taskID string) error {
 	return client.GetRedisClient().HDel(ctx, TaskIndexKey, taskID).Err()
 }
 
+// ===================== Task Database =====================
+
+// BatchDeleteTasks marks multiple tasks as deleted in batch
+func BatchDeleteTasks(db *gorm.DB, taskIDs []string) error {
+	if len(taskIDs) == 0 {
+		return nil
+	}
+
+	if err := db.Model(&database.Task{}).
+		Where("id IN (?) AND status != ?", taskIDs, consts.CommonDeleted).
+		Update("status", consts.CommonDeleted).Error; err != nil {
+		return fmt.Errorf("failed to batch delete tasks: %w", err)
+	}
+	return nil
+}
+
+// GetTaskByID retrieves a task by its ID with preloaded associations
+func GetTaskByID(db *gorm.DB, taskID string) (*database.Task, error) {
+	var result database.Task
+	if err := db.
+		Preload("Project").
+		Preload("FaultInjection.Benchmark.Container").
+		Preload("FaultInjection.Pedestal.Container").
+		Preload("Execution.Algorithm.Container").
+		Preload("Execution.Datapack").
+		Preload("Execution.Dataset").
+		Where("id = ? AND status != ?", taskID, consts.CommonDeleted).
+		First(&result).Error; err != nil {
+		return nil, fmt.Errorf("failed to find task with id %s: %w", taskID, err)
+	}
+	return &result, nil
+}
+
+// ListTasks lists tasks based on filter and pagination with preloaded associations
+func ListTasks(db *gorm.DB, limit, offset int, filterOptions *dto.ListTaskFilters) ([]database.Task, int64, error) {
+	var tasks []database.Task
+	var total int64
+
+	query := db.Model(&database.Task{}).Preload("Project")
+	if filterOptions.Immediate != nil {
+		query = query.Where("immediate = ?", *filterOptions.Immediate)
+	}
+	if filterOptions.TaskType != nil {
+		query = query.Where("type = ?", *filterOptions.TaskType)
+	}
+	if filterOptions.TraceID != "" {
+		query = query.Where("trace_id = ?", filterOptions.TraceID)
+	}
+	if filterOptions.GroupID != "" {
+		query = query.Where("group_id = ?", filterOptions.GroupID)
+	}
+	if filterOptions.ProjectID > 0 {
+		query = query.Where("project_id = ?", filterOptions.ProjectID)
+	}
+	if filterOptions.State != nil {
+		query = query.Where("state = ?", *filterOptions.State)
+	}
+	if filterOptions.Status != nil {
+		query = query.Where("status = ?", *filterOptions.Status)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count tasks: %w", err)
+	}
+
+	if err := query.Limit(limit).Offset(offset).Order("created_at DESC").Find(&tasks).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to list tasks: %w", err)
+	}
+
+	return tasks, total, nil
+}
+
+// ListTasksByTimeRange retrieves tasks created within a specific time range
+func ListTasksByTimeRange(db *gorm.DB, startTime, endTime time.Time) ([]database.Task, error) {
+	var tasks []database.Task
+	err := database.DB.Model(&database.Task{}).
+		Where("created_at >= ? AND created_at <= ? AND status != ?", startTime, endTime, consts.CommonDeleted).
+		Find(&tasks).Error
+	return tasks, err
+}
+
+// UpdateTaskState updates the task state in the database
+func UpdateTaskState(db *gorm.DB, ctx context.Context, taskID string, state consts.TaskState) error {
+	return db.WithContext(ctx).Model(&database.Task{}).
+		Where("id = ?", taskID).
+		Update("state", state).Error
+}
+
 // UpdateTaskStatus updates the task status in the database
-func UpdateTaskStatus(ctx context.Context, taskID, status string) error {
-	return database.DB.WithContext(ctx).Model(&database.Task{}).
+func UpdateTaskStatus(db *gorm.DB, ctx context.Context, taskID string, status int) error {
+	return db.WithContext(ctx).Model(&database.Task{}).
 		Where("id = ?", taskID).
 		Update("status", status).Error
 }
 
-func ListTasks(params *dto.ListTasksReq) (int64, []database.Task, error) {
-	opts, err := params.TimeRangeQuery.Convert()
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to convert time range query: %v", err)
+// UpsertTask inserts or updates a task in the database
+func UpsertTask(db *gorm.DB, task *database.Task) error {
+	if err := db.Clauses(
+		clause.OnConflict{
+			Columns: []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"execute_time",
+				"state",
+				"updated_at",
+			}),
+		},
+	).Create(task).Error; err != nil {
+		return fmt.Errorf("failed to upsert task: %w", err)
 	}
-
-	builder := func(db *gorm.DB) *gorm.DB {
-		query := db
-
-		if params.TaskType != "" {
-			query = query.Where("type = ?", params.TaskType)
-		}
-
-		if params.Immediate != nil {
-			query = query.Where("immediate = ?", *params.Immediate)
-		}
-
-		if params.Status != "" {
-			query = query.Where("status = ?", params.Status)
-		}
-
-		if params.TraceID != "" {
-			query = query.Where("trace_id = ?", params.TraceID)
-		}
-
-		if params.GroupID != "" {
-			query = query.Where("group_id = ?", params.GroupID)
-		}
-
-		query = opts.AddTimeFilter(query, "created_at")
-		return query
-	}
-
-	genericQueryParams := &GenericQueryParams{
-		Builder:   builder,
-		SortField: fmt.Sprintf("%s %s", params.SortField, params.SortOrder),
-		Limit:     params.Limit,
-	}
-	return GenericQueryWithBuilder[database.Task](genericQueryParams)
+	return nil
 }
 
 // GetTaskStatistics returns statistics about tasks

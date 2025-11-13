@@ -1,136 +1,251 @@
 package v2
 
 import (
-	"fmt"
+	"aegis/consts"
 	"net/http"
 	"strconv"
-	"strings"
 
-	"aegis/database"
 	"aegis/dto"
-	"aegis/repository"
+	"aegis/handlers"
+	"aegis/middleware"
+	producer "aegis/service/prodcuer"
 
 	"github.com/gin-gonic/gin"
 )
 
-// GetProject gets a single project
+// CreateProject handles project creation
 //
-//	@Summary Get project by ID
-//	@Description Get detailed information about a specific project
-//	@Tags Projects
-//	@Produce json
-//	@Security BearerAuth
-//	@Param id path int true "Project ID"
-//	@Param include_containers query bool false "Include related containers"
-//	@Param include_datasets query bool false "Include related datasets"
-//	@Param include_injections query bool false "Include related fault injections"
-//	@Param include_labels query bool false "Include related labels"
-//	@Success 200 {object} dto.GenericResponse[dto.ProjectV2Response] "Project retrieved successfully"
-//	@Failure 400 {object} dto.GenericResponse[any] "Invalid project ID"
-//	@Failure 403 {object} dto.GenericResponse[any] "Permission denied"
-//	@Failure 404 {object} dto.GenericResponse[any] "Project not found"
-//	@Failure 500 {object} dto.GenericResponse[any] "Internal server error"
-//	@Router /api/v2/projects/{id} [get]
-func GetProject(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
+//	@Summary		Create a new project
+//	@Description	Create a new project with specified details
+//	@Tags			Projects
+//	@ID				create_project
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			request	body		dto.CreateProjectReq					true	"Project creation request"
+//	@Success		201		{object}	dto.GenericResponse[dto.ProjectResp]	"Project created successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]				"Invalid request format or parameters"
+//	@Failure		401		{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]				"Permission denied"
+//	@Failure		409		{object}	dto.GenericResponse[any]				"Project already exists"
+//	@Failure		500		{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Router			/api/v2/projects [post]
+func CreateProject(c *gin.Context) {
+	userID, exists := middleware.GetCurrentUserID(c)
+	if !exists {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	var req dto.CreateProjectReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
+	}
+
+	resp, err := producer.CreateProject(&req, userID)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.JSONResponse(c, http.StatusCreated, "Project created successfully", resp)
+}
+
+// DeleteProject handles project deletion
+//
+//	@Summary		Delete project
+//	@Description	Delete a project
+//	@Tags			Projects
+//	@ID				delete_project
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			project_id	path		int							true	"Project ID"
+//	@Success		204			{object}	dto.GenericResponse[any]	"Project deleted successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]	"Invalid project ID"
+//	@Failure		401			{object}	dto.GenericResponse[any]	"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]	"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]	"Project not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]	"Internal server error"
+//	@Router			/api/v2/projects/{project_id} [delete]
+func DeleteProject(c *gin.Context) {
+	projectIdStr := c.Param(consts.URLPathProjectID)
+	projectID, err := strconv.Atoi(projectIdStr)
 	if err != nil {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid project ID")
 		return
 	}
 
-	var req dto.ProjectV2GetReq
-	if err := c.ShouldBindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters: "+err.Error())
+	err = producer.DeleteProject(projectID)
+	if handlers.HandleServiceError(c, err) {
 		return
 	}
 
-	// Get project using repository function which excludes deleted projects
-	project, err := repository.GetProjectByID(database.DB, id)
+	dto.JSONResponse[any](c, http.StatusNoContent, "Project deleted successfully", nil)
+}
+
+// GetProjectDetail handles getting a single project by ID
+//
+//	@Summary		Get project by ID
+//	@Description	Get detailed information about a specific project
+//	@Tags			Projects
+//	@ID				get_project_by_id
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			project_id	path		int											true	"Project ID"
+//	@Success		200			{object}	dto.GenericResponse[dto.ProjectDetailResp]	"Project retrieved successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]					"Invalid project ID"
+//	@Failure		401			{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]					"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]					"Project not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Router			/api/v2/projects/{project_id} [get]/
+func GetProjectDetail(c *gin.Context) {
+	projectIdStr := c.Param(consts.URLPathProjectID)
+	projectID, err := strconv.Atoi(projectIdStr)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			dto.ErrorResponse(c, http.StatusNotFound, "Project not found")
-		} else {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get project: "+err.Error())
-		}
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid project ID")
 		return
 	}
 
-	response := dto.ToProjectV2Response(project, false)
-
-	// Load containers if requested
-	if req.IncludeContainers {
-		relationMap, err := repository.GetProjectContainersMap([]int{project.ID})
-		if err != nil {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load containers: "+err.Error())
-			return
-		}
-
-		containers, ok := relationMap[project.ID]
-		if !ok {
-			dto.ErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("No container found for project %d", project.ID))
-			return
-		}
-
-		response.Containers = containers
+	resp, err := producer.GetProjectDetail(projectID)
+	if handlers.HandleServiceError(c, err) {
+		return
 	}
 
-	// Load datasets if requested
-	if req.IncludeDatasets {
-		relationMap, err := repository.GetProjectDatasetsMap([]int{project.ID})
-		if err != nil {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load datasets: "+err.Error())
-			return
-		}
+	dto.SuccessResponse(c, resp)
+}
 
-		datasets, ok := relationMap[project.ID]
-		if !ok {
-			dto.ErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("No dataset found for project %d", project.ID))
-			return
-		}
-
-		response.Datasets = datasets
+// ListProjects handles listing projects with pagination and filtering
+//
+//	@Summary		List projects
+//	@Description	Get paginated list of projects with filtering
+//	@Tags			Projects
+//	@ID				list_projects
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			page		query		int													false	"Page number"	default(1)
+//	@Param			size		query		int													false	"Page size"		default(20)
+//	@Param			is_public	query		bool												false	"Filter by public status"
+//	@Param			status		query		int													false	"Filter by status"
+//	@Success		200			{object}	dto.GenericResponse[dto.ListResp[dto.ProjectResp]]	"Projects retrieved successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Router			/api/v2/projects [get]
+func ListProjects(c *gin.Context) {
+	var req dto.ListProjectReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
 	}
 
-	// Load injections if requested
-	if req.IncludeInjections {
-		relationMap, err := repository.GetProjectInjetionsMap([]int{project.ID})
-		if err != nil {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load injections: "+err.Error())
-			return
-		}
-
-		injections, ok := relationMap[project.ID]
-		if !ok {
-			dto.ErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("No injection found for project %d", project.ID))
-			return
-		}
-
-		items, err := toInjectionV2ResponsesWithLabels(injections, false)
-		if err != nil {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to convert injections: "+err.Error())
-			return
-		}
-
-		response.Injections = items
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
 	}
 
-	// Load labels if requested
-	if req.IncludeLabels {
-		labelMap, err := repository.GetProjectLabelsMap([]int{project.ID})
-		if err != nil {
-			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to load labels: "+err.Error())
-			return
-		}
-
-		labels, ok := labelMap[project.ID]
-		if !ok {
-			dto.ErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("No labels found for project %d", project.ID))
-			return
-		}
-
-		response.Labels = labels
+	resp, err := producer.ListProjects(&req)
+	if handlers.HandleServiceError(c, err) {
+		return
 	}
 
-	dto.SuccessResponse(c, response)
+	dto.SuccessResponse(c, resp)
+}
+
+// UpdateProject handles project updates
+//
+//	@Summary		Update project
+//	@Description	Update an existing project's information
+//	@Tags			Projects
+//	@ID				update_project
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			project_id	path		int										true	"Project ID"
+//	@Param			request		body		dto.UpdateProjectReq					true	"Project update request"
+//	@Success		202			{object}	dto.GenericResponse[dto.ProjectResp]	"Project updated successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid project ID or invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]				"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]				"Project not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Router			/api/v2/projects/{project_id} [patch]
+func UpdateProject(c *gin.Context) {
+	projectIdStr := c.Param(consts.URLPathProjectID)
+	projectID, err := strconv.Atoi(projectIdStr)
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid project ID")
+		return
+	}
+
+	var req dto.UpdateProjectReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
+	}
+
+	resp, err := producer.UpdateProject(&req, projectID)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.JSONResponse[any](c, http.StatusAccepted, "Project updated successfully", resp)
+}
+
+// ===================== Project-Label API =====================
+
+// ManageProjectCustomLabels manages project custom labels (key-value pairs)
+//
+//	@Summary		Manage project custom labels
+//	@Description	Add or remove custom labels (key-value pairs) for a project
+//	@Tags			Projects
+//	@ID				update_project_labels
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			project_id	path		int										true	"Project ID"
+//	@Param			manage		body		dto.ManageProjectLabelReq				true	"Label management request"
+//	@Success		200			{object}	dto.GenericResponse[dto.ProjectResp]	"Labels managed successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid project ID or invalid request format/parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]				"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]				"Project not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Router			/api/v2/projects/{project_id}/labels [patch]
+func ManageProjectCustomLabels(c *gin.Context) {
+	projectIDStr := c.Param(consts.URLPathProjectID)
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil || projectID <= 0 {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid project ID")
+		return
+	}
+
+	var req dto.ManageProjectLabelReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
+	}
+
+	resp, err := producer.ManageProjectLabels(&req, projectID)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
 }

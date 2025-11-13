@@ -32,7 +32,6 @@ func New() *gin.Engine {
 	SetupSystemRoutes(router)
 
 	// Set up API routes
-	SetupV1Routes(router)
 	SetupV2Routes(router)
 
 	// Swagger documentation

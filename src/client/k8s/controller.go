@@ -45,7 +45,8 @@ type timeRange struct {
 }
 
 type Callback interface {
-	HandleCRDAdd(annotations map[string]string, labels map[string]string)
+	HandleCRDAdd(name string, annotations map[string]string, labels map[string]string)
+	HandleCRDDelete(namespace string, annotations map[string]string, labels map[string]string)
 	HandleCRDFailed(name string, annotations map[string]string, labels map[string]string, errMsg string)
 	HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, annotations map[string]string, labels map[string]string)
 	HandleJobAdd(annotations map[string]string, labels map[string]string)
@@ -65,7 +66,6 @@ type QueueItem struct {
 
 type Controller struct {
 	callback     Callback
-	monitor      Monitor
 	crdInformers map[string]map[schema.GroupVersionResource]cache.SharedIndexInformer
 	jobInformer  cache.SharedIndexInformer
 	podInformer  cache.SharedIndexInformer
@@ -112,7 +112,6 @@ func NewController() *Controller {
 	)
 
 	return &Controller{
-		monitor:      *GetMonitor(),
 		crdInformers: crdInformers,
 		jobInformer:  platformFactory.Batch().V1().Jobs().Informer(),
 		podInformer:  platformFactory.Core().V1().Pods().Informer(),
@@ -186,7 +185,7 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
 			u := obj.(*unstructured.Unstructured)
-			c.callback.HandleCRDAdd(u.GetAnnotations(), u.GetLabels())
+			c.callback.HandleCRDAdd(u.GetName(), u.GetAnnotations(), u.GetLabels())
 			logrus.WithFields(logrus.Fields{
 				"type":      gvr.Resource,
 				"namespace": u.GetNamespace(),
@@ -267,10 +266,7 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 				"namespace": u.GetNamespace(),
 				"name":      u.GetName(),
 			}).Info("Chaos experiment deleted successfully")
-			traceId := u.GetLabels()[consts.LabelTraceID]
-			if err := GetMonitor().ReleaseLock(u.GetNamespace(), traceId); err != nil {
-				logrus.Errorf("failed to release lock for namespace %s: %v", u.GetNamespace(), err)
-			}
+			c.callback.HandleCRDDelete(u.GetNamespace(), u.GetAnnotations(), u.GetLabels())
 		},
 	}
 }
@@ -282,7 +278,7 @@ func (c *Controller) genJobEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 			logrus.WithFields(logrus.Fields{
 				"namespace": job.Namespace,
 				"job_name":  job.Name,
-				"task_type": job.Labels[consts.LabelTaskType],
+				"task_type": job.Labels[consts.JobLabelTaskType],
 			}).Info("job created successfully")
 			c.callback.HandleJobAdd(job.Annotations, job.Labels)
 		},
@@ -312,7 +308,7 @@ func (c *Controller) genJobEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 			logrus.WithFields(logrus.Fields{
 				"namespace": job.Namespace,
 				"job_name":  job.Name,
-				"task_type": job.Labels[consts.LabelTaskType],
+				"task_type": job.Labels[consts.JobLabelTaskType],
 			}).Infof("job delete successfully")
 		},
 	}

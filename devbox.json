@@ -15,11 +15,11 @@
       "install-hooks": [
         "husky install && husky add .husky/pre-commit 'make pre-commit' && husky add .husky/pre-push 'make pre-push'"
       ],
-      "lint-staged-go": [
-        "make lint-staged-go"
+      "format-staged-go": [
+        "make format-staged-go"
       ],
-      "lint-py": [
-        "ruff check --fix --show-fixes --exclude algorithms"
+      "format-staged-python": [
+        "make format-staged-python"
       ],
       "local-debug": [
         "make local-debug"

@@ -7,51 +7,22 @@ import (
 )
 
 var ValidFirstTaskTypes = map[consts.TaskType]struct{}{
-	consts.TaskTypeBuildDataset:   {},
-	consts.TaskTypeBuildContainer: {},
-	consts.TaskTypeRestartService: {},
-	consts.TaskTypeRunAlgorithm:   {},
-}
-
-type AnalyzeInjectionsReq struct {
-	InjectionFilterOptions
-	TimeRangeQuery
-}
-
-func (req *AnalyzeInjectionsReq) ToListInjectionsReq() *ListInjectionsReq {
-	return &ListInjectionsReq{
-		InjectionFilterOptions: req.InjectionFilterOptions,
-		TimeRangeQuery:         req.TimeRangeQuery,
-		ListOptionsQuery: ListOptionsQuery{
-			SortField: "created_at",
-			SortOrder: "desc",
-			Limit:     0,
-		},
-		PaginationQuery: PaginationQuery{
-			PageNum:  0,
-			PageSize: 0,
-		},
-	}
-}
-
-func (req *AnalyzeInjectionsReq) Validate() error {
-	if err := req.InjectionFilterOptions.Validate(); err != nil {
-		return err
-	}
-
-	return req.TimeRangeQuery.Validate()
+	consts.TaskTypeBuildContainer:  {},
+	consts.TaskTypeRestartPedestal: {},
+	consts.TaskTypeBuildDatapack:   {},
+	consts.TaskTypeRunAlgorithm:    {},
 }
 
 type AnalyzeTracesReq struct {
-	FirstTaskType string `form:"first_task_type" binding:"omitempty"`
+	FirstTaskType *consts.TaskType `form:"first_task_type" binding:"omitempty"`
 
 	TimeRangeQuery
 }
 
 func (req *AnalyzeTracesReq) Validate() error {
-	if req.FirstTaskType != "" {
-		if _, exists := ValidFirstTaskTypes[consts.TaskType(req.FirstTaskType)]; !exists {
-			return fmt.Errorf("invalid event name: %s", req.FirstTaskType)
+	if req.FirstTaskType != nil {
+		if _, exists := ValidFirstTaskTypes[*req.FirstTaskType]; !exists {
+			return fmt.Errorf("invalid event name: %d", req.FirstTaskType)
 		}
 	}
 

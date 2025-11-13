@@ -1,6 +1,6 @@
 # =============================================================================
 # RCABench Makefile
-# ========================================r	@printf	@printf "$(BLUE)🗑️ Resetting database in namespace $(NS)...$(RESET)\n""$(RED)⚠️ Warning: This will delete all database data!$(RESET)\n"set-db: ## 🗑️ Reset database (⚠️ Will delete all data)====================================
+# =============================================================================
 # This Makefile provides all build, deployment, and development tools for the RCABench project
 # Use 'make help' to view all available commands
 
@@ -19,7 +19,8 @@ RELEASE_NAME    := rcabench
 
 # Directory Configuration
 HUSKY_DIR := .husky
-SDK_DIR := sdk/python-gen
+SDK_DIR := sdk/python
+SDK_GEN_DIR := sdk/python-gen
 SRC_DIR := src
 
 # Chaos Types Configuration
@@ -637,9 +638,9 @@ ports: ## 🔌 Port forward services
 
 pre-commit:
 	@printf "$(BLUE)Running pre-commit checks...$(RESET)\n"
-	@devbox run lint-staged-go
-	@if [ $$? -ne 0 ]; then \
-		echo "❌ Lint failed. Please fix the issues before committing."; \
+	@devbox run format-staged-go
+	@if [ $$? -ne 0]; then \
+		echo "❌ Go formatting failed. Please fix the issues before committing."; \
 		exit 1; \
 	fi
 	@printf "$(GREEN)✅ Pre-commit checks passed!$(RESET)\n"
@@ -661,19 +662,21 @@ pre-push: ## 🚀 Run pre-push checks (validates tags and runs tests)
 	done
 	@printf "$(GREEN)✅ Pre-push checks passed!$(RESET)\n"
 
-lint-staged-go: ## 🔍 Lint staged Go files
+format-staged-go: ## 🔍 Lint and format staged Go files with golangci-lint
 	@printf "$(BLUE)🔍 Checking Uncommitted Go Issues...$(RESET)\n"
 	@if [ -z "$$(git status --porcelain | grep '\.go$$')" ]; then \
 		printf "$(YELLOW)No uncommitted Go file changes found to lint$(RESET)\n"; \
 		exit 0; \
 	fi
-	@printf "$(CYAN)⚙️  Linting new issues found in uncommitted changes...$(RESET)\n"
+	@printf "$(CYAN)⚙️  Linting and formating new issues found in uncommitted changes...$(RESET)\n"
 	@cd src && golangci-lint run \
 		--issues-exit-code=1 \
 		--path-prefix=src \
 		--whole-files \
 		--new-from-rev=HEAD~1
 
+format-staged-python: ## 🎨 Lint and format staged python files with ruff
+	source ./scripts/command/.venv/bin/activate && uv run ./scripts/command/main.py format python
 
 # =============================================================================
 # SDK Generation
@@ -685,7 +688,7 @@ swag-init: ## 📝 Initialize Swagger documentation
 	@printf "$(BLUE)📝 Initializing Swagger documentation...$(RESET)\n"
 	swag init -d ./$(SRC_DIR) --parseDependency --parseDepth 1 --output ./$(SRC_DIR)/docs/openapi2
 	@printf "$(BLUE)📦 Post-processing swagger initiaization...$(RESET)\n"
-	./scripts/swag-init-postprocess.sh
+	python ./scripts/swag-init-postprocess.py
 	@printf "$(GREEN)✅ Swagger documentation generation completed$(RESET)\n"
 
 generate-sdk: swag-init ## ⚙️ Generate Python SDK from Swagger documentation
@@ -694,10 +697,12 @@ generate-sdk: swag-init ## ⚙️ Generate Python SDK from Swagger documentation
 		openapitools/openapi-generator-cli:latest generate \
 		-i /local/$(SRC_DIR)/docs/openapi2/swagger.json \
 		-g python \
-		-o /local/$(SDK_DIR) \
-		-c /local/.openapi-generator/config.properties \
+		-o /local/$(SDK_GEN_DIR) \
+		-c /local/.openapi-generator/config.json \
 		-t /local/.openapi-generator/python \
-		--additional-properties=packageName=openapi,projectName=rcabench
+		--git-host github.com \
+		--git-repo-id AegisLab \
+		--git-user-id OperationsPAI
 	@printf "$(BLUE)📦 Post-processing generated SDK...$(RESET)\n"
 	./scripts/mv-generated-sdk.sh
 	@printf "$(GREEN)✅ Python SDK generation completed$(RESET)\n"

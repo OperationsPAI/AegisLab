@@ -3,10 +3,15 @@ package consts
 import "time"
 
 const InitialFilename = "data.json"
+const DetectorKey = "algo.detector"
 
 const (
 	DefaultContainerVersion = "v1.0.0"
 	DefaultContainerTag     = "latest"
+	DefaultInvalidID        = 0
+	DefaultLabelUsage       = 1
+	DefaultBenchmark        = "clickhouse"
+	DefaultTimeUnit         = time.Minute
 )
 
 // ResourceName is the type for resource names, used for permission checks
@@ -14,18 +19,35 @@ type ResourceName string
 
 // System resource name constants
 const (
-	ResourceProject          ResourceName = "project"           // project resource
-	ResourceDataset          ResourceName = "dataset"           // dataset resource
-	ResourceFaultInjection   ResourceName = "fault_injection"   // fault injection resource
+	ResourceSystem           ResourceName = "system"            // system resource
+	ResourceAudit            ResourceName = "audit"             // audit resource
 	ResourceContainer        ResourceName = "container"         // container resource
 	ResourceContainerVersion ResourceName = "container_version" // container version resource
-	ResourceTask             ResourceName = "task"              // task resource
+	ResourceDataset          ResourceName = "dataset"           // dataset resource
+	ResourceDatasetVersion   ResourceName = "dataset_version"   // dataset version resource
+	ResourceProject          ResourceName = "project"           // project resource
+	ResourceLabel            ResourceName = "label"             // label resource
 	ResourceUser             ResourceName = "user"              // user resource
 	ResourceRole             ResourceName = "role"              // role resource
 	ResourcePermission       ResourceName = "permission"        // permission resource
-	ResourceLabel            ResourceName = "label"             // label resource
-	ResourceSystem           ResourceName = "system"            // system resource
-	ResourceAudit            ResourceName = "audit"             // audit resource
+	ResourceTask             ResourceName = "task"              // task resource
+	ResourceTrace            ResourceName = "trace"             // trace resource
+	ResourceInjection        ResourceName = "injection"         // fault injection resource
+	ResourceExecution        ResourceName = "execution"         // execution resource
+)
+
+type ResourceType int
+
+const (
+	ResourceTypeSystem ResourceType = iota
+	ResourceTypeTable
+)
+
+type ResourceCategory int
+
+const (
+	ResourceCore ResourceCategory = iota
+	ResourceAdmin
 )
 
 // String returns the string representation of the resource name
@@ -55,45 +77,28 @@ const (
 	ExecutionSystemDescription = "System-managed execution result created by RCABench"
 )
 
-// Container Label
+type LabelCategory int
+
 const (
-	ContainerCategory = "container"
-	ContainerTag      = "container_tag"
+	SystemCategory LabelCategory = iota
+	ContainerCategory
+	DatasetCategory
+	ProjectCategory
+	InjectionCategory
+	ExecutionCategory
 )
 
-// Database Label
 const (
-	LabelExecution = "execution"
-	LabelInjection = "injection"
-	LabelSystem    = "system"
+	LabelKeyTag = "tag"
+
+	CustomLabelDescriptionTemplate = "Custom label '%s' created %s"
 )
 
-// Injection label keys
-const (
-	LabelKeyTag   = "tag"   // User-defined tag for injection
-	LabelKeyEnv   = "env"   // Environment label key
-	LabelKeyBatch = "batch" // Batch label key
-)
-
-// Custom label description templates
-const (
-	CustomLabelDescriptionTemplate = "Custom label '%s' created for injection"
-)
-
-// String returns the string representation of the action name
-func (a ActionName) String() string {
-	return string(a)
-}
-
-// Define task types
-type TaskType string
-
-type ContainerType string
+type AuditLogState int
 
 const (
-	ContainerTypeAlgorithm ContainerType = "algorithm"
-	ContainerTypeBenchmark ContainerType = "benchmark"
-	ContainerTypePedestal  ContainerType = "pedestal"
+	AuditLogStateFailed AuditLogState = iota
+	AuditLogStateSuccess
 )
 
 type BuildSourceType string
@@ -104,82 +109,73 @@ const (
 	BuildSourceTypeHarbor BuildSourceType = "harbor"
 )
 
-const (
-	DefaultBenchmark = "clickhouse"
-	DefaultTimeUnit  = time.Minute
-)
+type ContainerType int
 
 const (
-	DatapackDeleted       = -1
-	DatapackInitial       = 0
-	DatapackInjectFailed  = 1
-	DatapackInjectSuccess = 2
-	DatapackBuildFailed   = 3
-	DatapackBuildSuccess  = 4
+	ContainerTypeAlgorithm ContainerType = iota
+	ContainerTypeBenchmark
+	ContainerTypePedestal
 )
 
-// common status: 0:disabled 1:enabled -1:deleted
+type DatapackState int
+
 const (
-	CommonDisabled = 0
-	CommonEnabled  = 1
-	CommonDeleted  = -1
+	DatapackInitial DatapackState = iota
+	DatapackInjectFailed
+	DatapackInjectSuccess
+	DatapackBuildFailed
+	DatapackBuildSuccess
 )
 
-// project status: 0:disabled 1:enabled -1:deleted
+type ExecuteState int
+
 const (
-	ProjectDisabled = 0
-	ProjectEnabled  = 1
-	ProjectDeleted  = -1
+	ExecutionInitial ExecuteState = iota
+	ExecutionFailed
+	ExecutionSuccess
 )
 
-// label status: 0:disabled 1:enabled -1:deleted
-const (
-	LabelDisabled = 0
-	LabelEnabled  = 1
-	LabelDeleted  = -1
-)
+type GrantType int
 
-// dataset status: 0:disabled 1:enabled -1:deleted
 const (
-	DatasetDisabled = 0
-	DatasetEnabled  = 1
-	DatasetDeleted  = -1
-)
-
-// container status: 0:disabled 1:enabled -1:deleted
-const (
-	ContainerDisabled = 0
-	ContainerEnabled  = 1
-	ContainerDeleted  = -1
+	GrantTypeGrant GrantType = iota
+	GrantTypeDeny
 )
 
 const (
 	DetectorNoAnomaly = "no_anomaly"
 )
 
-const (
-	ExecutionDeleted = -1
-	ExecutionInitial = 0
-	ExecutionFailed  = 1
-	ExecutionSuccess = 2
-)
+type TaskState int
 
 const (
-	TaskStatusCanceled    string = "Cancelled"
-	TaskStatusCompleted   string = "Completed"
-	TaskStatusError       string = "Error"
-	TaskStatusPending     string = "Pending"
-	TaskStatusRunning     string = "Running"
-	TaskStautsRescheduled string = "Rescheduled"
+	TaskCancelled   TaskState = -2
+	TaskError       TaskState = -1
+	TaskPending     TaskState = 0
+	TaskRescheduled TaskState = 1
+	TaskRunning     TaskState = 2
+	TaskCompleted   TaskState = 3
 )
 
+type TaskType int
+
 const (
-	TaskTypeRestartService TaskType = "RestartService"
-	TaskTypeRunAlgorithm   TaskType = "RunAlgorithm"
-	TaskTypeFaultInjection TaskType = "FaultInjection"
-	TaskTypeBuildContainer TaskType = "BuildContainer"
-	TaskTypeBuildDataset   TaskType = "BuildDataset"
-	TaskTypeCollectResult  TaskType = "CollectResult"
+	TaskTypeBuildContainer TaskType = iota
+	TaskTypeRestartPedestal
+	TaskTypeFaultInjection
+	TaskTypeRunAlgorithm
+	TaskTypeBuildDatapack
+	TaskTypeCollectResult
+	TaskTypeCronJob
+)
+
+type StatusType int
+
+// common status: 0:disabled 1:enabled -1:deleted
+const (
+	CommonDeleted  StatusType = -1
+	CommonDisabled StatusType = 0
+	CommonEnabled  StatusType = 1
 )
 
 const (
@@ -189,14 +185,6 @@ const (
 
 // Payload keys for different task types
 const (
-	BuildContainerVersion = "container_version"
-	BuildDataset          = "injection_name"
-	BuildPreDuration      = "pre_duration"
-	BuildStartTime        = "start_time"
-	BuildEndTime          = "end_time"
-	BuildEnvVars          = "env_vars"
-	BuildUserID           = "user_id"
-
 	BuildImageRef     = "image_ref"
 	BuildSourcePath   = "source_path"
 	BuildBuildOptions = "build_options"
@@ -207,36 +195,36 @@ const (
 	BuildOptionBuildArgs      = "build_args"
 	BuildOptionForceRebuild   = "force_rebuild"
 
+	RestartPedestal      = "pedestal"
+	RestartHelmConfig    = "helm_config"
+	RestartIntarval      = "interval"
+	RestartFaultDuration = "fault_duration"
+	RestartInjectPayload = "inject_payload"
+
+	InjectBenchmark   = "benchmark"
+	InjectPreDuration = "pre_duration"
+	InjectNode        = "node"
+	InjectNamespace   = "namespace"
+	InjectPedestalID  = "pedestal_id"
+	InjectLabels      = "labels"
+
+	BuildBenchmark = "benchmark"
+	BuildDatapack  = "datapack"
+	BuildDatasetID = "datapack_id"
+	BuildLabels    = "labels"
+
+	ExecuteAlgorithm = "algorithm_version"
+	ExecuteDatapack  = "datapack"
+	ExecuteDatasetID = "dataset_id"
+	ExecuteEnvVars   = "env_vars"
+	ExecuteLabels    = "labels"
+
 	CollectAlgorithm   = "algorithm"
-	CollectDataset     = "dataset"
+	CollectDatapack    = "datapack"
 	CollectExecutionID = "execution_id"
-	CollectTimestamp   = "timestamp"
 
 	EvaluateLabel = "app_name"
 	EvaluateLevel = "level"
-
-	AnnotationAlgorithm = "algorithm"
-
-	ExecuteAlgorithmVersion = "algorithm_version"
-	ExecuteDataset          = "dataset"
-	ExecuteEnvVars          = "env_vars"
-
-	InjectAlgorithms  = "algorithms"
-	InjectBenchmark   = "benchmark"
-	InjectFaultType   = "fault_type"
-	InjectNamespace   = "namespace"
-	InjectPreDuration = "pre_duration"
-	InjectDisplayData = "display_data"
-	InjectConf        = "conf"
-	InjectNode        = "node"
-	InjectLabels      = "labels"
-	InjectUserID      = "user_idf"
-
-	RestartContainerVersion = "container_version"
-	RestartHelmConfig       = "helm_config"
-	RestartIntarval         = "interval"
-	RestartFaultDuration    = "fault_duration"
-	RestartInjectPayload    = "inject_payload"
 )
 
 // Environment variable names
@@ -268,19 +256,23 @@ const (
 )
 
 const (
-	RestartServiceRateLimitKey = "rate_limit:restart_service"
-	RestartServiceTokenBucket  = "token_bucket:restart_service"
-	MaxConcurrentRestarts      = 2
-	TokenWaitTimeout           = 10
-	DelayRetryMinutes          = 5
+	TokenWaitTimeout = 10
 
-	// Build container rate limiting
-	BuildContainerTokenBucket = "token_bucket:build_container"
-	MaxConcurrentBuilds       = 3
+	RestartPedestalTokenBucket   = "token_bucket:restart_service"
+	MaxTokensKeyRestartPedestal  = "rate_limiting.max_concurrent_restarts_pedestal"
+	MaxConcurrentRestartPedestal = 2
+	RestartPedestalServiceName   = "restart_pedestal"
+
+	BuildContainerTokenBucket   = "token_bucket:build_container"
+	MaxTokensKeyBuildContainer  = "rate_limiting.max_concurrent_build_container"
+	MaxConcurrentBuildContainer = 3
+	BuildContainerServiceName   = "build_container"
 
 	// Algorithm execution rate limiting
 	AlgoExecutionTokenBucket   = "token_bucket:algo_execution"
+	MaxTokensKeyAlgoExecution  = "rate_limiting.max_concurrent_algo_execution"
 	MaxConcurrentAlgoExecution = 5
+	AlgoExecutionServiceName   = "algo_execution"
 )
 
 type EventType string
@@ -300,15 +292,15 @@ const (
 
 	EventImageBuildSucceed EventType = "image.build.succeed"
 
-	EventTaskStatusUpdate EventType = "task.status.update"
-	EventTaskRetryStatus  EventType = "task.retry.status"
-	EventTaskStarted      EventType = "task.started"
+	EventTaskStateUpdate EventType = "task.state.update"
+	EventTaskRetryStatus EventType = "task.retry.status"
+	EventTaskStarted     EventType = "task.started"
 
-	EventNoTokenAvailable        EventType = "no.token.available"
-	EventNoNamespaceAvailable    EventType = "no.namespace.available"
-	EventRestartServiceStarted   EventType = "restart.service.started"
-	EventRestartServiceCompleted EventType = "restart.service.completed"
-	EventRestartServiceFailed    EventType = "restart.service.failed"
+	EventNoTokenAvailable         EventType = "no.token.available"
+	EventNoNamespaceAvailable     EventType = "no.namespace.available"
+	EventRestartPedestalStarted   EventType = "restart.pedestal.started"
+	EventRestartPedestalCompleted EventType = "restart.pedestal.completed"
+	EventRestartPedestalFailed    EventType = "restart.pedestal.failed"
 
 	EventFaultInjectionStarted   EventType = "fault.injection.started"
 	EventFaultInjectionCompleted EventType = "fault.injection.completed"
@@ -332,23 +324,29 @@ const (
 	GroupCarrier = "group_carrier"
 )
 
-// K8s label fields
+// K8s fields
 const (
-	LabelTaskID    = "task_id"
-	LabelTraceID   = "trace_id"
-	LabelGroupID   = "group_id"
-	LabelProjectID = "project_id"
-	LabelUserID    = "user_id"
+	// Annotation fields
+	CRDAnnotationBenchmark = "benchmark"
+	JobAnnotationAlgorithm = "algorithm"
+	JobAnnotationDatapack  = "datapack"
 
 	// CRD label fields
-	LabelBenchmark   = "benchmark"
-	LabelPreDuration = "pre_duration"
+	CRDLabelInjectionID = "injection_id"
 
-	// Job label fields
-	LabelTaskType    = "task_type"
-	LabelDataset     = "dataset"
-	LabelExecutionID = "execution_id"
-	LabelTimestamp   = "timestamp"
+	// Job label common fields
+	JobLabelTaskID    = "task_id"
+	JobLabelTraceID   = "trace_id"
+	JobLabelGroupID   = "group_id"
+	JobLabelProjectID = "project_id"
+	JobLabelUserID    = "user_id"
+	JobLabelTaskType  = "task_type"
+
+	// Job label custom fields
+	JobLabelDatapack    = "datapack"
+	JobLabelDatasetID   = "dataset_id"
+	JobLabelExecutionID = "execution_id"
+	JobLabelTimestamp   = "timestamp"
 )
 
 type SSEEventName string
@@ -381,8 +379,8 @@ const (
 	TaskIDKey = "task.task_id"
 	// TaskTypeKey is the key for the task type attribute.
 	TaskTypeKey = "task.task_type"
-	// TaskStatusKey is the key for the task status attribute.
-	TaskStatusKey = "task.task_status"
+	// TaskStateKey is the key for the task status attribute.
+	TaskStateKey = "task.task_state"
 )
 
 // RoleName is the type for role constants
@@ -395,6 +393,9 @@ const (
 	RoleContainerAdmin     RoleName = "container_admin"     // Container Admin
 	RoleContainerDeveloper RoleName = "container_developer" // Container Developer
 	RoleContainerViewer    RoleName = "container_viewer"    // Container Viewer
+	RoleDatasetAdmin       RoleName = "dataset_admin"       // Dataset Admin
+	RoleDatasetDeveloper   RoleName = "dataset_developer"   // Dataset Developer
+	RoleDatasetViewer      RoleName = "dataset_viewer"      // Dataset Viewer
 	RoleProjectAdmin       RoleName = "project_admin"       // Project Admin
 	RoleProjectDeveloper   RoleName = "project_developer"   // Project Developer
 	RoleProjectViewer      RoleName = "project_viewer"      // Project Viewer
@@ -437,4 +438,24 @@ const (
 
 	PermissionReadRole       PermissionName = "read_role"       // Read role
 	PermissionReadPermission PermissionName = "read_permission" // Read permission
+)
+
+const (
+	URLPathID           = "id"
+	URLPathUserID       = "user_id"
+	URLPathRoleID       = "role_id"
+	URLPathPermissionID = "permission_id"
+	URLPathContainerID  = "container_id"
+	URLPathVersionID    = "version_id"
+	URLPathDatasetID    = "dataset_id"
+	URLPathProjectID    = "project_id"
+	URLPathTaskID       = "task_id"
+	URLPathDatapackID   = "datapack_id"
+	URLPathExecutionID  = "execution_id"
+	URLPathAlgorithmID  = "algorithm_id"
+	URLPathInjectionID  = "injection_id"
+	URLPathTraceID      = "trace_id"
+	URLPathLabelID      = "label_id"
+	URLPathResourceID   = "resource_id"
+	URLPathName         = "name"
 )

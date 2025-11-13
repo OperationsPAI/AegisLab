@@ -74,3 +74,40 @@ func GenerateColorFromKey(key string) string {
 
 	return colors[hash]
 }
+
+func ToSingular(plural string) string {
+	if len(plural) < 1 {
+		return plural
+	}
+
+	irregular := map[string]string{
+		"people": "person",
+		"men":    "man",
+		"women":  "woman",
+		"data":   "datum",
+		"feet":   "foot",
+	}
+	if s, ok := irregular[plural]; ok {
+		return s
+	}
+
+	if strings.HasSuffix(plural, "s") && len(plural) > 1 {
+		if strings.HasSuffix(plural, "ss") {
+			return plural
+		}
+
+		if strings.HasSuffix(plural, "ies") && len(plural) > 3 {
+			return plural[:len(plural)-3] + "y"
+		}
+
+		if !strings.HasSuffix(plural, "es") {
+			return plural[:len(plural)-1] // 移除末尾的 's'
+		}
+	}
+
+	if strings.HasSuffix(plural, "es") && len(plural) > 2 {
+		return plural[:len(plural)-2]
+	}
+
+	return plural
+}

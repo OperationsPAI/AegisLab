@@ -1,21 +1,21 @@
-// @title           RCABench API
-// @version         1.0.1
-// @description     RCABench - A comprehensive root cause analysis benchmarking platform for microservices
-// @description     This API provides endpoints for managing datasets, algorithms, evaluations, and fault injections
-// @description     for root cause analysis in distributed systems and microservices architectures.
+//	@title			RCABench API
+//	@version		1.0.1
+//	@description	RCABench - A comprehensive root cause analysis benchmarking platform for microservices
+//	@description	This API provides endpoints for managing datasets, algorithms, evaluations, and fault injections
+//	@description	for root cause analysis in distributed systems and microservices architectures.
 
-// @contact.name    RCABench Team
-// @contact.email   team@rcabench.com
+//	@contact.name	RCABench Team
+//	@contact.email	team@rcabench.com
 
-// @license.name  Apache 2.0
-// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
+//	@license.name	Apache 2.0
+//	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
 
-// @host            localhost:8082
-// @schemes         http
-// @securityDefinitions.apikey BearerAuth
-// @in header
-// @name Authorization
-// @description Type "Bearer" followed by a space and JWT token.
+//	@host						localhost:8082
+//	@schemes					http
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name						Authorization
+//	@description				Type "Bearer" followed by a space and JWT token.
 
 package main
 
@@ -31,9 +31,9 @@ import (
 	"aegis/client/k8s"
 	"aegis/config"
 	"aegis/database"
-	"aegis/executor"
 	"aegis/router"
 	"aegis/service"
+	"aegis/service/consumer"
 	"aegis/utils"
 
 	cli "github.com/LGU-SE-Internal/chaos-experiment/client"
@@ -98,7 +98,8 @@ func main() {
 		logrus.Fatal(err)
 	}
 
-	executor.InitConcurrencyLock(ctx)
+	service.InitConcurrencyLock(ctx)
+	service.InitializeData(ctx)
 
 	// Producer command - runs HTTP server for API endpoints
 	var producerCmd = &cobra.Command{
@@ -107,11 +108,10 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			logrus.Println("Running as producer")
 			database.InitDB()
+			engine := router.New()
 
-			service.InitializeSystemData(ctx)
 			utils.InitValidator()
 			client.InitTraceProvider()
-			engine := router.New()
 			port := viper.GetString("port")
 			err := engine.Run(":" + port)
 			if err != nil {
@@ -129,11 +129,10 @@ func main() {
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
 			database.InitDB()
 
-			service.InitializeSystemData(ctx)
 			client.InitTraceProvider()
-			go k8s.Init(ctx, executor.Exec)
-			go executor.StartScheduler(ctx)
-			executor.ConsumeTasks()
+			go k8s.Init(ctx, consumer.NewHandler())
+			go consumer.StartScheduler(ctx)
+			go consumer.ConsumeTasks()
 		},
 	}
 
@@ -144,16 +143,15 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			logrus.Println("Running as both producer and consumer")
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
-			engine := router.New()
 			database.InitDB()
+			engine := router.New()
 
-			service.InitializeSystemData(ctx)
 			utils.InitValidator()
 			client.InitTraceProvider()
-			go k8s.Init(ctx, executor.Exec)
-			go executor.ConsumeTasks()
-			go executor.StartScheduler(ctx)
-			port := viper.GetString("port") // Get final port from Viper
+			go k8s.Init(ctx, consumer.NewHandler())
+			go consumer.StartScheduler(ctx)
+			go consumer.ConsumeTasks()
+			port := viper.GetString("port")
 			err := engine.Run(":" + port)
 			if err != nil {
 				panic(err)

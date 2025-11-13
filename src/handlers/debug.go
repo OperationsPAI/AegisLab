@@ -4,11 +4,9 @@ import (
 	"net/http"
 
 	"aegis/client/debug"
-	"aegis/client/k8s"
 	"aegis/dto"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 )
 
 func GetAllVars(c *gin.Context) {
@@ -44,25 +42,4 @@ func SetVar(c *gin.Context) {
 	}
 
 	dto.SuccessResponse[any](c, nil)
-}
-
-// GetNSLock
-//
-//	@Summary		Get namespace lock status
-//	@Description	Get namespace lock status information
-//	@Tags			debug
-//	@Produce		json
-//	@Success		200	{object}	dto.GenericResponse[any]
-//	@Failure		500	{object}	dto.GenericResponse[any]
-//	@Router			/api/v1/debug/ns/status [get]
-func GetNSLock(c *gin.Context) {
-	cli := k8s.GetMonitor()
-	items, err := cli.InspectLock()
-	if err != nil {
-		logrus.Error("failed to inspect namespace locks:", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to inspect lock")
-		return
-	}
-
-	dto.SuccessResponse(c, items)
 }
