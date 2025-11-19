@@ -145,7 +145,7 @@ type ListInjectionFilters struct {
 // ListInjectionReq represents the request to list injections with various filters
 type ListInjectionReq struct {
 	PaginationReq
-	FaultType *chaos.ChaosType      `form:"fault_type" binding:"omitempty"`
+	Type      *chaos.ChaosType      `form:"fault_type" binding:"omitempty"`
 	Benchmark string                `form:"benchmark" binding:"omitempty"`
 	State     *consts.DatapackState `form:"state" binding:"omitempty"`
 	Status    *consts.StatusType    `form:"status" binding:"omitempty"`
@@ -153,10 +153,13 @@ type ListInjectionReq struct {
 }
 
 func (req *ListInjectionReq) Validate() error {
+	if err := req.PaginationReq.Validate(); err != nil {
+		return err
+	}
 	if err := validateBenchmarkName(req.Benchmark); err != nil {
 		return err
 	}
-	if err := validateChaosType(req.FaultType); err != nil {
+	if err := validateChaosType(req.Type); err != nil {
 		return err
 	}
 	if err := validateDatapackState(req.State); err != nil {
@@ -183,7 +186,7 @@ func (req *ListInjectionReq) ToFilterOptions() *ListInjectionFilters {
 	}
 
 	return &ListInjectionFilters{
-		FaultType:      req.FaultType,
+		FaultType:      req.Type,
 		Benchmark:      req.Benchmark,
 		State:          req.State,
 		Status:         req.Status,

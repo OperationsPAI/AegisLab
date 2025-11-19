@@ -185,6 +185,9 @@ type ListTaskReq struct {
 }
 
 func (req *ListTaskReq) Validate() error {
+	if err := req.PaginationReq.Validate(); err != nil {
+		return err
+	}
 	if err := validateTaskType(req.TaskType); err != nil {
 		return err
 	}

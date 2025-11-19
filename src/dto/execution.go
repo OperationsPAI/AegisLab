@@ -93,12 +93,15 @@ func (req *BatchDeleteExecutionReq) Validate() error {
 
 type ListExecutionReq struct {
 	PaginationReq
-	State  *consts.ExecuteState `form:"state" binding:"omitempty"`
-	Status *consts.StatusType   `form:"status" binding:"omitempty"`
-	Labels []string             `form:"labels" binding:"omitempty"`
+	State  *consts.ExecutionState `form:"state" binding:"omitempty"`
+	Status *consts.StatusType     `form:"status" binding:"omitempty"`
+	Labels []string               `form:"labels" binding:"omitempty"`
 }
 
 func (req *ListExecutionReq) Validate() error {
+	if err := req.PaginationReq.Validate(); err != nil {
+		return err
+	}
 	if err := validateExecutionStates(req.State); err != nil {
 		return err
 	}
@@ -229,10 +232,10 @@ func NewExecutionResp(execution *database.Execution, labels []database.Label) *E
 		State:              consts.GetExecuteStateName(execution.State),
 		Status:             consts.GetStatusTypeName(execution.Status),
 		TaskID:             execution.TaskID,
-		AlgorithmID:        execution.Algorithm.ContainerID,
-		AlgorithmName:      execution.Algorithm.Container.Name,
-		AlgorithmVersionID: execution.AlgorithmID,
-		AlgorithmVersion:   execution.Algorithm.Name,
+		AlgorithmID:        execution.AlgorithmVersion.ContainerID,
+		AlgorithmName:      execution.AlgorithmVersion.Container.Name,
+		AlgorithmVersionID: execution.AlgorithmVersionID,
+		AlgorithmVersion:   execution.AlgorithmVersion.Name,
 		DatapackID:         execution.DatapackID,
 		DatapackName:       execution.Datapack.Name,
 		CreatedAt:          execution.CreatedAt,
@@ -280,7 +283,7 @@ type SubmitExecutionResp struct {
 	Items   []SubmitExecutionItem `json:"items"`
 }
 
-func validateExecutionStates(state *consts.ExecuteState) error {
+func validateExecutionStates(state *consts.ExecutionState) error {
 	if state != nil {
 		if *state < 0 {
 			return fmt.Errorf("state must be a non-negative integer")

@@ -1,8 +1,6 @@
 //	@title			RCABench API
-//	@version		1.0.1
+//	@version		1.1.44
 //	@description	RCABench - A comprehensive root cause analysis benchmarking platform for microservices
-//	@description	This API provides endpoints for managing datasets, algorithms, evaluations, and fault injections
-//	@description	for root cause analysis in distributed systems and microservices architectures.
 
 //	@contact.name	RCABench Team
 //	@contact.email	team@rcabench.com
@@ -10,8 +8,8 @@
 //	@license.name	Apache 2.0
 //	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
 
-//	@host						localhost:8082
-//	@schemes					http
+//	@host	localhost:8082
+
 //	@securityDefinitions.apikey	BearerAuth
 //	@in							header
 //	@name						Authorization
@@ -98,6 +96,7 @@ func main() {
 		logrus.Fatal(err)
 	}
 
+	database.InitDB()
 	service.InitConcurrencyLock(ctx)
 	service.InitializeData(ctx)
 
@@ -107,7 +106,6 @@ func main() {
 		Short: "Run as a producer",
 		Run: func(cmd *cobra.Command, args []string) {
 			logrus.Println("Running as producer")
-			database.InitDB()
 			engine := router.New()
 
 			utils.InitValidator()
@@ -127,7 +125,6 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			logrus.Println("Running as consumer")
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
-			database.InitDB()
 
 			client.InitTraceProvider()
 			go k8s.Init(ctx, consumer.NewHandler())
@@ -143,7 +140,6 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			logrus.Println("Running as both producer and consumer")
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
-			database.InitDB()
 			engine := router.New()
 
 			utils.InitValidator()

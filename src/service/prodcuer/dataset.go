@@ -17,7 +17,9 @@ import (
 	"gorm.io/gorm"
 )
 
-// ===================== Dataset =====================
+// =====================================================================
+// Dataset Service Layer
+// =====================================================================
 
 // CreateDataset creates a new dataset
 func CreateDataset(req *dto.CreateDatasetReq, userID int) (*dto.DatasetResp, error) {
@@ -36,9 +38,9 @@ func CreateDataset(req *dto.CreateDatasetReq, userID int) (*dto.DatasetResp, err
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
 		var err error
 		if version != nil {
-			dataset, err = createDatasetCore(tx, dataset, []database.DatasetVersion{*version}, userID)
+			dataset, err = CreateDatasetCore(tx, dataset, []database.DatasetVersion{*version}, userID)
 		} else {
-			dataset, err = createDatasetCore(tx, dataset, nil, userID)
+			dataset, err = CreateDatasetCore(tx, dataset, nil, userID)
 		}
 
 		if err != nil {
@@ -53,6 +55,48 @@ func CreateDataset(req *dto.CreateDatasetReq, userID int) (*dto.DatasetResp, err
 	}
 
 	return dto.NewDatasetResp(createdDataset), nil
+}
+
+// CreateDatasetCore performs the core logic of creating a dataset within a transaction
+func CreateDatasetCore(tx *gorm.DB, dataset *database.Dataset, versions []database.DatasetVersion, userID int) (*database.Dataset, error) {
+	role, err := repository.GetRoleByName(tx, consts.RoleDatasetAdmin)
+	if err != nil {
+		if errors.Is(err, consts.ErrNotFound) {
+			return nil, fmt.Errorf("%w: role %v not found", err, consts.RoleDatasetAdmin)
+		}
+		return nil, fmt.Errorf("failed to get dataset owner role: %w", err)
+	}
+
+	if err := repository.CreateDataset(tx, dataset); err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return nil, consts.ErrAlreadyExists
+		}
+
+		return nil, err
+	}
+
+	if err := repository.CreateUserDataset(tx, &database.UserDataset{
+		UserID:    userID,
+		DatasetID: dataset.ID,
+		RoleID:    role.ID,
+		Status:    consts.CommonEnabled,
+	}); err != nil {
+		return nil, fmt.Errorf("failed to associate dataset with user: %w", err)
+	}
+
+	if len(versions) > 0 {
+		for i := range versions {
+			versions[i].DatasetID = dataset.ID
+			versions[i].UserID = userID
+		}
+
+		_, err = createDatasetVersionsCore(tx, versions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create dataset versions: %w", err)
+		}
+	}
+
+	return dataset, nil
 }
 
 func DeleteDataset(datasetID int) error {
@@ -100,6 +144,7 @@ func GetDatasetDetail(datasetID int) (*dto.DatasetDetailResp, error) {
 	return dto.NewDatasetDetailResp(dataset), nil
 }
 
+// ListDatasets lists datasets with pagination and optional filtering
 func ListDatasets(req *dto.ListDatasetReq) (*dto.ListResp[dto.DatasetResp], error) {
 	limit, offset := req.ToGormParams()
 
@@ -118,7 +163,7 @@ func ListDatasets(req *dto.ListDatasetReq) (*dto.ListResp[dto.DatasetResp], erro
 		return nil, fmt.Errorf("failed to list dataset labels: %w", err)
 	}
 
-	datasetResps := make([]dto.DatasetResp, len(datasets))
+	datasetResps := make([]dto.DatasetResp, 0, len(datasets))
 	for _, dataset := range datasets {
 		if labels, exists := labelsMap[dataset.ID]; exists {
 			dataset.Labels = labels
@@ -229,15 +274,18 @@ func ManageDatasetLabels(req *dto.ManageDatasetLabelReq, datasetID int) (*dto.Da
 	return dto.NewDatasetResp(managedDataset), nil
 }
 
-// ===================== DatasetVersion =====================
+// =====================================================================
+// DatasetVersion Service Layer
+// =====================================================================
 
-func CreateDatasetVersion(req *dto.CreateDatasetVersionReq, datasetID int) (*dto.DatasetVersionResp, error) {
+func CreateDatasetVersion(req *dto.CreateDatasetVersionReq, datasetID, userID int) (*dto.DatasetVersionResp, error) {
 	if req == nil {
 		return nil, fmt.Errorf("create dataset version request is nil")
 	}
 
 	version := req.ConvertToDatasetVersion()
 	version.DatasetID = datasetID
+	version.UserID = userID
 
 	var createdVersion *database.DatasetVersion
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
@@ -299,14 +347,14 @@ func GetDatasetVersionDetail(datasetID, versionID int) (*dto.DatasetVersionDetai
 func ListDatasetVersions(req *dto.ListDatasetVersionReq, datasetID int) (*dto.ListResp[dto.DatasetVersionResp], error) {
 	limit, offset := req.ToGormParams()
 
-	versions, total, err := repository.ListDatasetVersions(database.DB, datasetID, limit, offset, req.Status)
+	versions, total, err := repository.ListDatasetVersions(database.DB, limit, offset, datasetID, req.Status)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list dataset versions: %w", err)
 	}
 
-	versionResps := make([]dto.DatasetVersionResp, len(versions))
-	for i, v := range versions {
-		versionResps[i] = *dto.NewDatasetVersionResp(&v)
+	versionResps := make([]dto.DatasetVersionResp, 0, len(versions))
+	for _, version := range versions {
+		versionResps = append(versionResps, *dto.NewDatasetVersionResp(&version))
 	}
 
 	resp := dto.ListResp[dto.DatasetVersionResp]{
@@ -387,46 +435,6 @@ func DownloadDatasetVersion(zipWriter *zip.Writer, excludeRules []utils.ExculdeR
 	}
 
 	return nil
-}
-
-// createDatasetCore performs the core logic of creating a dataset within a transaction
-func createDatasetCore(tx *gorm.DB, dataset *database.Dataset, versions []database.DatasetVersion, userID int) (*database.Dataset, error) {
-	role, err := repository.GetRoleByName(tx, consts.RoleDatasetAdmin)
-	if err != nil {
-		if errors.Is(err, consts.ErrNotFound) {
-			return nil, fmt.Errorf("%w: role %v not found", err, consts.RoleDatasetAdmin)
-		}
-		return nil, fmt.Errorf("failed to get dataset owner role: %w", err)
-	}
-
-	if err := repository.CreateDataset(tx, dataset); err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return nil, consts.ErrAlreadyExists
-		}
-
-		return nil, err
-	}
-
-	if err := repository.CreateUserDataset(tx, &database.UserDataset{
-		UserID:    userID,
-		DatasetID: dataset.ID,
-		RoleID:    role.ID,
-		Status:    consts.CommonEnabled,
-	}); err != nil {
-		return nil, fmt.Errorf("failed to associate dataset with user: %w", err)
-	}
-
-	for i := range versions {
-		versions[i].DatasetID = dataset.ID
-		versions[i].UserID = userID
-	}
-
-	_, err = createDatasetVersionsCore(tx, versions)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create dataset versions: %w", err)
-	}
-
-	return dataset, nil
 }
 
 // ===================== DatasetVersion-Injection =====================

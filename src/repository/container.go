@@ -11,8 +11,12 @@ import (
 )
 
 const (
-	containerVersionOmitFields = "active_version_key"
+	containerOmitFields        = "Versions"
+	containerVersionOmitFields = "active_version_key,HelmConfig,EnvVars"
+	helmConfigOmitFields       = "Values"
 )
+
+type ParameterConfigFetcher func(db *gorm.DB, keys []string, resourceID int) ([]database.ParameterConfig, error)
 
 // =====================================================================
 // Container Repository Functions
@@ -20,7 +24,7 @@ const (
 
 // CreateContainer creates a new container record
 func CreateContainer(db *gorm.DB, container *database.Container) error {
-	if err := db.Omit(commonOmitFields).Create(container).Error; err != nil {
+	if err := db.Omit(commonOmitFields, containerOmitFields).Create(container).Error; err != nil {
 		return fmt.Errorf("failed to create container: %w", err)
 	}
 	return nil
@@ -86,7 +90,7 @@ func ListContainers(db *gorm.DB, limit, offset int, contaierType *consts.Contain
 	var containers []database.Container
 	var total int64
 
-	query := db.Model(&database.Role{})
+	query := db.Model(&database.Container{})
 	if contaierType != nil {
 		query = query.Where("type = ?", *contaierType)
 	}
@@ -141,7 +145,7 @@ func BatchCreateContainerVersions(db *gorm.DB, versions []database.ContainerVers
 		return fmt.Errorf("no container versions to create")
 	}
 
-	if err := db.Omit(commonOmitFields).Create(&versions).Error; err != nil {
+	if err := db.Omit(containerVersionOmitFields).Create(&versions).Error; err != nil {
 		return fmt.Errorf("failed to batch create container versions: %w", err)
 	}
 
@@ -172,8 +176,8 @@ func BatchGetContainerVersions(db *gorm.DB, containerType consts.ContainerType, 
 		Where("cv.status = ?", consts.CommonEnabled).
 		Order("cv.container_id DESC, cv.name_major DESC, cv.name_minor DESC, cv.name_patch DESC")
 
-	query = query.Joins("INNER JOIN containers c ON c.id = container_version.container_id").
-		Where("c.type = ? AND c.name IN (?) AND C.status = ?", containerType, containerNames, consts.CommonEnabled)
+	query = query.Joins("INNER JOIN containers c ON c.id = cv.container_id").
+		Where("c.type = ? AND c.name IN (?) AND c.status = ?", containerType, containerNames, consts.CommonEnabled)
 
 	if userID > 0 {
 		query = query.Joins(
@@ -267,7 +271,7 @@ func BatchCreateHelmConfigs(db *gorm.DB, helmConfigs []database.HelmConfig) erro
 		return fmt.Errorf("no helm configs to create")
 	}
 
-	if err := db.Create(helmConfigs).Error; err != nil {
+	if err := db.Omit(helmConfigOmitFields).Create(helmConfigs).Error; err != nil {
 		return fmt.Errorf("failed to batch create helm configs: %v", err)
 	}
 
@@ -277,7 +281,9 @@ func BatchCreateHelmConfigs(db *gorm.DB, helmConfigs []database.HelmConfig) erro
 // GetHelmConfigByContainerVersionID retrieves the HelmConfig associated with a specific ContainerVersion ID
 func GetHelmConfigByContainerVersionID(db *gorm.DB, versionID int) (*database.HelmConfig, error) {
 	var helmConfig database.HelmConfig
-	if err := db.Where("container_version_id = ?", versionID).First(&helmConfig).Error; err != nil {
+	if err := db.Preload("ContainerVersion").
+		Where("container_version_id = ?", versionID).
+		First(&helmConfig).Error; err != nil {
 		return nil, fmt.Errorf("failed to find helm config for version id %d: %w", versionID, err)
 	}
 	return &helmConfig, nil
@@ -292,6 +298,50 @@ func UpdateHelmConfig(db *gorm.DB, helmConfig *database.HelmConfig) error {
 }
 
 // =====================================================================
+// ParameterConfig Repository Functions
+// =====================================================================
+
+// BatchCreateOrFindParameterConfigs creates multiple parameter configs or finds existing ones using upsert
+func BatchCreateOrFindParameterConfigs(db *gorm.DB, params []database.ParameterConfig) error {
+	if len(params) == 0 {
+		return nil
+	}
+
+	if err := db.Clauses(clause.OnConflict{
+		OnConstraint: "idx_unique_config",
+		DoNothing:    true,
+	}).Create(&params).Error; err != nil {
+		return fmt.Errorf("failed to batch create parameter configs: %w", err)
+	}
+	return nil
+}
+
+// ListParameterConfigsByKeys retrieves ParameterConfigs by their keys, type and category
+func ListParameterConfigsByKeys(db *gorm.DB, configs []database.ParameterConfig) ([]database.ParameterConfig, error) {
+	if len(configs) == 0 {
+		return []database.ParameterConfig{}, nil
+	}
+
+	// Build query conditions for batch lookup
+	var results []database.ParameterConfig
+	query := db.Model(&database.ParameterConfig{})
+
+	// Build OR conditions for each config
+	conditions := db.Where("1 = 0") // Start with false condition
+	for _, cfg := range configs {
+		conditions = conditions.Or(
+			db.Where("config_key = ? AND type = ? AND category = ?", cfg.Key, cfg.Type, cfg.Category),
+		)
+	}
+
+	if err := query.Where(conditions).Find(&results).Error; err != nil {
+		return nil, fmt.Errorf("failed to list parameter configs by keys: %w", err)
+	}
+
+	return results, nil
+}
+
+// =====================================================================
 // ContainerLabel Repository Functions
 // =====================================================================
 
@@ -300,10 +350,7 @@ func AddContainerLabels(db *gorm.DB, containerLabels []database.ContainerLabel) 
 	if len(containerLabels) == 0 {
 		return nil
 	}
-	if err := db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "container_id"}, {Name: "label_id"}},
-		DoNothing: true,
-	}).Create(&containerLabels).Error; err != nil {
+	if err := db.Create(&containerLabels).Error; err != nil {
 		return fmt.Errorf("failed to add container-label associations: %w", err)
 	}
 	return nil
@@ -447,4 +494,68 @@ func ListLabelIDsByKeyAndContainerID(db *gorm.DB, containerID int, keys []string
 	}
 
 	return labelIDs, nil
+}
+
+// =====================================================================
+// ContainerVersionEnvVar Repository Functions
+// =====================================================================
+
+// AddContainerVersionEnvVars adds multiple environment variable parameters for a specific container version
+func AddContainerVersionEnvVars(db *gorm.DB, envVars []database.ContainerVersionEnvVar) error {
+	if len(envVars) == 0 {
+		return nil
+	}
+	if err := db.Create(&envVars).Error; err != nil {
+		return fmt.Errorf("failed to add container version env vars: %w", err)
+	}
+	return nil
+}
+
+// ListContainerEnvVars lists environment variable parameters for a specific container version
+func ListContainerVersionEnvVars(db *gorm.DB, keys []string, containerVersionID int) ([]database.ParameterConfig, error) {
+	query := db.Model(&database.ParameterConfig{}).
+		Joins("JOIN container_version_env_vars cvev ON cvev.parameter_config_id = parameter_configs.id").
+		Where("cvev.container_version_id = ?", containerVersionID)
+
+	if len(keys) > 0 {
+		query = query.Where("parameter_configs.key IN (?) AND parameter_config.category = ?", keys, consts.ParamCategoryEnvVars)
+	}
+
+	var params []database.ParameterConfig
+	if err := query.Find(&params).Error; err != nil {
+		return nil, fmt.Errorf("failed to list container env vars: %w", err)
+	}
+	return params, nil
+}
+
+// =====================================================================
+// HelmConfigValues Repository Functions
+// =====================================================================
+
+// AddHelmConfigValues adds multiple helm value parameters for a specific helm config
+func AddHelmConfigValues(db *gorm.DB, helmValues []database.HelmConfigValue) error {
+	if len(helmValues) == 0 {
+		return nil
+	}
+	if err := db.Create(&helmValues).Error; err != nil {
+		return fmt.Errorf("failed to add helm config values: %w", err)
+	}
+	return nil
+}
+
+// ListHelmConfigValues lists helm value parameters for a specific helm config
+func ListHelmConfigValues(db *gorm.DB, keys []string, helmConfigID int) ([]database.ParameterConfig, error) {
+	query := db.Model(&database.ParameterConfig{}).
+		Joins("JOIN helm_config_values hcv ON hcv.parameter_config_id = parameter_configs.id").
+		Where("hcv.helm_config_id = ?", helmConfigID)
+
+	if len(keys) > 0 {
+		query = query.Where("parameter_configs.key IN (?)", keys)
+	}
+
+	var params []database.ParameterConfig
+	if err := query.Find(&params).Error; err != nil {
+		return nil, fmt.Errorf("failed to list helm values: %w", err)
+	}
+	return params, nil
 }

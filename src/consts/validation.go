@@ -31,7 +31,7 @@ var ValidDatapackStates = map[DatapackState]struct{}{
 	DatapackBuildSuccess:  {},
 }
 
-var ValidExecutionStates = map[ExecuteState]struct{}{
+var ValidExecutionStates = map[ExecutionState]struct{}{
 	ExecutionInitial: {},
 	ExecutionFailed:  {},
 	ExecutionSuccess: {},
@@ -49,6 +49,22 @@ var ValidLabelCategories = map[LabelCategory]struct{}{
 	ProjectCategory:   {},
 	InjectionCategory: {},
 	ExecutionCategory: {},
+}
+
+var ValidPageSizes = map[PageSize]struct{}{
+	PageSizeSmall:  {},
+	PageSizeMedium: {},
+	PageSizeLarge:  {},
+}
+
+var ValidParameterTypes = map[ParameterType]struct{}{
+	ParamTypeFixed:   {},
+	ParamTypeDynamic: {},
+}
+
+var ValidParameterCategories = map[ParameterCategory]struct{}{
+	ParamCategoryEnvVars:    {},
+	ParamCategoryHelmValues: {},
 }
 
 var ValidResourceTypes = map[ResourceType]struct{}{

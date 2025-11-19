@@ -119,7 +119,7 @@ func GetRole(c *gin.Context) {
 //	@Param			page		query		int										false	"Page number"	default(1)
 //	@Param			size		query		int										false	"Page size"		default(20)
 //	@Param			is_system	query		bool									false	"Filter by system role"
-//	@Param			status		query		int										false	"Filter by status"
+//	@Param			status		query		consts.StatusType						false	"Filter by status"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListRoleResp]	"Roles retrieved successfully"
 //	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid request parameters"
 //	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"

@@ -64,6 +64,7 @@ func BatchDeleteTasks(c *gin.Context) {
 //	@Failure		404		{object}	dto.GenericResponse[any]				"Task not found"
 //	@Failure		500		{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/tasks/{task_id} [get]
+//	@x-api-type		{"sdk":"true"}
 func GetTask(c *gin.Context) {
 	taskID := c.Param(consts.URLPathTaskID)
 	if !utils.IsValidUUID(taskID) {
@@ -87,21 +88,22 @@ func GetTask(c *gin.Context) {
 //	@ID				list_tasks
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page		query		int												false	"Page number"			default(1)
-//	@Param			size		query		int												false	"Page size"				default(20)
-//	@Param			task_type	query		string											false	"Filter by task type"	Enums(RestartService,FaultInjection,BuildDataset,RunAlgorithm,CollectResult,BuildImage)
+//	@Param			page		query		int												false	"Page number"	default(1)
+//	@Param			size		query		int												false	"Page size"		default(20)
+//	@Param			task_type	query		consts.TaskType									false	"Filter by task type"
 //	@Param			immediate	query		bool											false	"Filter by immediate execution"
 //	@Param			trace_id	query		string											false	"Filter by trace ID (uuid format)"
 //	@Param			group_id	query		string											false	"Filter by group ID (uuid format)"
 //	@Param			project_id	query		int												false	"Filter by project ID"
-//	@Param			event		query		int												false	"Filter by event ID"
-//	@Param			status		query		int												false	"Filter by status"
+//	@Param			state		query		consts.TaskState								false	"Filter by state"
+//	@Param			status		query		consts.StatusType								false	"Filter by status"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[dto.TaskResp]]	"Tasks retrieved successfully"
 //	@Failure		400			{object}	dto.GenericResponse[any]						"Invalid request format or parameters"
 //	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"
 //	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
 //	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/tasks [get]
+//	@x-api-type		{"sdk":"true"}
 func ListTasks(c *gin.Context) {
 	var req dto.ListTaskReq
 	if err := c.ShouldBindQuery(&req); err != nil {

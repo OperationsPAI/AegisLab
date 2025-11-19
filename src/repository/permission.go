@@ -127,16 +127,44 @@ func ListPermissions(db *gorm.DB, limit, offset int, action consts.ActionName, i
 }
 
 // ListPermissionsByID lists permissions by their IDs
-func ListPermissionsByID(tx *gorm.DB, permissionIDs []int) ([]database.Permission, error) {
+func ListPermissionsByID(db *gorm.DB, permissionIDs []int) ([]database.Permission, error) {
 	if len(permissionIDs) == 0 {
 		return []database.Permission{}, nil
 	}
 
 	var permissions []database.Permission
-	if err := tx.Where("id IN (?)", permissionIDs).Find(&permissions).Error; err != nil {
+	if err := db.
+		Where("id IN (?) AND status = ?", permissionIDs, consts.CommonEnabled).
+		Find(&permissions).Error; err != nil {
 		return nil, fmt.Errorf("failed to query permissions: %w", err)
 	}
 
+	return permissions, nil
+}
+
+// ListPermissionsByNames lists permissions by their names
+func ListPermissionsByNames(db *gorm.DB, permissionNames []string) ([]database.Permission, error) {
+	if len(permissionNames) == 0 {
+		return []database.Permission{}, nil
+	}
+
+	var permissions []database.Permission
+	if err := db.
+		Where("name IN (?) AND status = ?", permissionNames, consts.CommonEnabled).
+		Find(&permissions).Error; err != nil {
+		return nil, fmt.Errorf("failed to query permissions: %w", err)
+	}
+
+	return permissions, nil
+}
+
+// ListSystemPermissions gets system permissions
+func ListSystemPermissions(db *gorm.DB) ([]database.Permission, error) {
+	var permissions []database.Permission
+	if err := db.Where("is_system = ? AND status = ?", true, consts.CommonEnabled).
+		Find(&permissions).Error; err != nil {
+		return nil, fmt.Errorf("failed to get system permissions: %v", err)
+	}
 	return permissions, nil
 }
 

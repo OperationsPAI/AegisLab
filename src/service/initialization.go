@@ -37,13 +37,13 @@ func (c *InitialDataContainer) ConvertToDBContainer() *database.Container {
 }
 
 type InitialContainerVersion struct {
-	Name       string             `json:"name"`
-	GithubLink string             `json:"github_link"`
-	ImageRef   string             `json:"image_ref"`
-	Command    string             `json:"command"`
-	EnvVars    string             `json:"env_vars"`
-	Status     consts.StatusType  `json:"status"`
-	HelmConfig *InitialHelmConfig `json:"helm_config"`
+	Name       string                   `json:"name"`
+	GithubLink string                   `json:"github_link"`
+	ImageRef   string                   `json:"image_ref"`
+	Command    string                   `json:"command"`
+	EnvVars    []InitialParameterConfig `json:"env_vars"`
+	Status     consts.StatusType        `json:"status"`
+	HelmConfig *InitialHelmConfig       `json:"helm_config"`
 }
 
 func (cv *InitialContainerVersion) ConvertToDBContainerVersion() *database.ContainerVersion {
@@ -52,34 +52,91 @@ func (cv *InitialContainerVersion) ConvertToDBContainerVersion() *database.Conta
 		GithubLink: cv.GithubLink,
 		ImageRef:   cv.ImageRef,
 		Command:    cv.Command,
-		EnvVars:    cv.EnvVars,
 		Status:     cv.Status,
 	}
 }
 
 type InitialHelmConfig struct {
-	ChartName    string         `json:"chart_name"`
-	RepoName     string         `json:"repo_name"`
-	RepoURL      string         `json:"repo_url"`
-	NsPrefix     string         `json:"ns_prefix"`
-	PortTemplate string         `json:"port_template"`
-	Values       map[string]any `json:"values"`
+	ChartName    string                   `json:"chart_name"`
+	RepoName     string                   `json:"repo_name"`
+	RepoURL      string                   `json:"repo_url"`
+	NsPrefix     string                   `json:"ns_prefix"`
+	PortTemplate string                   `json:"port_template"`
+	Values       []InitialParameterConfig `json:"values"`
 }
 
-func (hc *InitialHelmConfig) ConvertToDBHelmConfig() (*database.HelmConfig, error) {
-	valuesBytes, err := json.Marshal(hc.Values)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal helm values: %w", err)
-	}
-
+func (hc *InitialHelmConfig) ConvertToDBHelmConfig() *database.HelmConfig {
 	return &database.HelmConfig{
-		RepoURL:      hc.RepoURL,
-		RepoName:     hc.RepoName,
-		ChartName:    hc.ChartName,
-		NsPrefix:     hc.NsPrefix,
-		PortTemplate: hc.PortTemplate,
-		Values:       string(valuesBytes),
-	}, nil
+		RepoURL:   hc.RepoURL,
+		RepoName:  hc.RepoName,
+		ChartName: hc.ChartName,
+		NsPrefix:  hc.NsPrefix,
+	}
+}
+
+type InitialParameterConfig struct {
+	Key            string                   `json:"key"`
+	Type           consts.ParameterType     `json:"type"`
+	Category       consts.ParameterCategory `json:"category"`
+	DefaultValue   *string                  `json:"default_value"`
+	TemplateString *string                  `json:"template_string"`
+	Required       bool                     `json:"required"`
+}
+
+func (pc *InitialParameterConfig) ConvertToDBHelmConfig() *database.ParameterConfig {
+	return &database.ParameterConfig{
+		Key:            pc.Key,
+		Type:           pc.Type,
+		Category:       pc.Category,
+		DefaultValue:   pc.DefaultValue,
+		TemplateString: pc.TemplateString,
+		Required:       pc.Required,
+	}
+}
+
+type InitialDatasaet struct {
+	Name        string                  `json:"name"`
+	Type        string                  `json:"type"`
+	Description string                  `json:"description"`
+	IsPublic    bool                    `json:"is_public"`
+	Status      consts.StatusType       `json:"status"`
+	Versions    []InitialDatasetVersion `json:"versions"`
+}
+
+func (d *InitialDatasaet) ConvertToDBDataset() *database.Dataset {
+	return &database.Dataset{
+		Name:        d.Name,
+		Type:        d.Type,
+		Description: d.Description,
+		IsPublic:    d.IsPublic,
+		Status:      d.Status,
+	}
+}
+
+type InitialDatasetVersion struct {
+	Name   string            `json:"name"`
+	Status consts.StatusType `json:"status"`
+}
+
+func (dv *InitialDatasetVersion) ConvertToDBDatasetVersion() *database.DatasetVersion {
+	return &database.DatasetVersion{
+		Name:   dv.Name,
+		Status: dv.Status,
+	}
+}
+
+type InitialDataProject struct {
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	Status      consts.StatusType `json:"status"`
+}
+
+func (p *InitialDataProject) ConvertToDBProject() *database.Project {
+	return &database.Project{
+		Name:        p.Name,
+		Description: p.Description,
+		Status:      p.Status,
+	}
 }
 
 type InitialDataUser struct {
@@ -104,7 +161,8 @@ func (u *InitialDataUser) ConvertToDBUser() *database.User {
 
 type InitialData struct {
 	Containers []InitialDataContainer `json:"containers"`
-	Projects   []database.Project     `json:"projects"`
+	Datasets   []InitialDatasaet      `json:"datasets"`
+	Projects   []InitialDataProject   `json:"projects"`
 	AdminUser  InitialDataUser        `json:"admin_user"`
 }
 
@@ -161,6 +219,10 @@ func initialize() error {
 		{Name: consts.ResourceExecution, Type: consts.ResourceTypeTable, Category: consts.ResourceCore},
 	}
 
+	for i := range resources {
+		resources[i].DisplayName = consts.GetResourceDisplayName(resources[i].Name)
+	}
+
 	systemRoles := make([]database.Role, 0)
 	for role, displayName := range consts.SystemRoleDisplayNames {
 		systemRoles = append(systemRoles, database.Role{
@@ -182,6 +244,8 @@ func initialize() error {
 			return fmt.Errorf("failed to create system resources: %w", err)
 		}
 
+		logrus.Info("Fetching resource IDs from database")
+
 		resourceNames := make([]consts.ResourceName, 0, len(resources))
 		for _, res := range resources {
 			resourceNames = append(resourceNames, res.Name)
@@ -196,7 +260,10 @@ func initialize() error {
 			return fmt.Errorf("mismatch in number of resources created and fetched")
 		}
 
+		logrus.Info("Mapping resource names to IDs")
+
 		resourceMap := make(map[consts.ResourceName]*database.Resource, len(allResourcesInDB))
+		ResourceIDMap = make(map[consts.ResourceName]int, len(allResourcesInDB))
 		for _, res := range allResourcesInDB {
 			ResourceIDMap[res.Name] = res.ID
 			resourceMap[res.Name] = &res
@@ -249,15 +316,23 @@ func initialize() error {
 		if err != nil {
 			return fmt.Errorf("failed to initialize admin user and projects: %w", err)
 		}
+		logrus.Infof("Created admin user with ID: %d", adminUser.ID)
 
 		if err := initializeContainers(tx, initialData, adminUser.ID); err != nil {
 			return fmt.Errorf("failed to initialize containers: %w", err)
 		}
+		logrus.Infof("Successfully initialized containers")
+
+		if err := initializeDatasets(tx, initialData, adminUser.ID); err != nil {
+			return fmt.Errorf("failed to initialize datasets: %w", err)
+		}
+		logrus.Infof("Successfully initialized datasets")
 
 		// Initialize execution result labels
 		if err := initializeExecutionLabels(tx); err != nil {
 			return fmt.Errorf("failed to initialize execution labels: %w", err)
 		}
+		logrus.Infof("Successfully initialized execution labels")
 
 		return nil
 	})
@@ -280,70 +355,54 @@ func loadInitialDataFromFile(filePath string) (*InitialData, error) {
 
 // assignSystemRolePermissions assigns permissions to system roles
 func assignSystemRolePermissions(tx *gorm.DB) error {
-	for role, permissions := range consts.SystemRolePermissions {
-		if role == consts.RoleSuperAdmin {
-			if err := assignAllPermissionsToRole(tx, consts.RoleSuperAdmin); err != nil {
-				return err
+	for roleName, permissionNames := range consts.SystemRolePermissions {
+		role, err := repository.GetRoleByName(tx, roleName)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("role %s not found", roleName)
 			}
-		}
-
-		var permissionStrs []string
-		for _, perm := range permissions {
-			permissionStrs = append(permissionStrs, string(perm))
-		}
-
-		if err := assignPermissionsToRole(tx, role, permissionStrs); err != nil {
 			return err
 		}
-	}
 
-	return nil
-}
+		if roleName == consts.RoleSuperAdmin {
+			permissions, err := repository.ListSystemPermissions(tx)
+			if err != nil {
+				return fmt.Errorf("failed to list system permissions: %w", err)
+			}
 
-// assignAllPermissionsToRole assigns all permissions to a role
-func assignAllPermissionsToRole(tx *gorm.DB, roleName consts.RoleName) error {
-	var role database.Role
-	if err := tx.Where("name = ?", string(roleName)).First(&role).Error; err != nil {
-		return err
-	}
+			var rolePermissions []database.RolePermission
+			for _, perm := range permissions {
+				rolePermissions = append(rolePermissions, database.RolePermission{
+					RoleID:       role.ID,
+					PermissionID: perm.ID,
+				})
+			}
 
-	var permissions []database.Permission
-	if err := tx.Where("is_system = true AND status = 1").Find(&permissions).Error; err != nil {
-		return err
-	}
+			if err := repository.BatchCreateRolePermissions(tx, rolePermissions); err != nil {
+				return fmt.Errorf("failed to assign all permissions to super admin role: %w", err)
+			}
+		} else {
+			var permissionStrs []string
+			for _, name := range permissionNames {
+				permissionStrs = append(permissionStrs, string(name))
+			}
 
-	for _, permission := range permissions {
-		rolePermission := database.RolePermission{
-			RoleID:       role.ID,
-			PermissionID: permission.ID,
-		}
-		if err := tx.FirstOrCreate(&rolePermission, rolePermission).Error; err != nil {
-			return err
-		}
-	}
+			permissions, err := repository.ListPermissionsByNames(tx, permissionStrs)
+			if err != nil {
+				return fmt.Errorf("failed to list permissions for role %s: %w", roleName, err)
+			}
 
-	return nil
-}
+			var rolePermissions []database.RolePermission
+			for _, perm := range permissions {
+				rolePermissions = append(rolePermissions, database.RolePermission{
+					RoleID:       role.ID,
+					PermissionID: perm.ID,
+				})
+			}
 
-// assignPermissionsToRole assigns specific permissions to a role
-func assignPermissionsToRole(tx *gorm.DB, roleName consts.RoleName, permissionNames []string) error {
-	var role database.Role
-	if err := tx.Where("name = ?", string(roleName)).First(&role).Error; err != nil {
-		return err
-	}
-
-	for _, permName := range permissionNames {
-		var permission database.Permission
-		if err := tx.Where("name = ?", permName).First(&permission).Error; err != nil {
-			continue
-		}
-
-		rolePermission := database.RolePermission{
-			RoleID:       role.ID,
-			PermissionID: permission.ID,
-		}
-		if err := tx.FirstOrCreate(&rolePermission, rolePermission).Error; err != nil {
-			return err
+			if err := repository.BatchCreateRolePermissions(tx, rolePermissions); err != nil {
+				return fmt.Errorf("failed to assign permissions to role %s: %w", roleName, err)
+			}
 		}
 	}
 
@@ -382,8 +441,9 @@ func initializeAdminUserAndProjects(tx *gorm.DB, data *InitialData) (*database.U
 	}
 
 	// 3. Create default projects
-	for _, project := range data.Projects {
-		if err := repository.CreateProject(tx, &project); err != nil {
+	for _, projectData := range data.Projects {
+		project := projectData.ConvertToDBProject()
+		if err := repository.CreateProject(tx, project); err != nil {
 			if errors.Is(err, consts.ErrAlreadyExists) {
 				return nil, fmt.Errorf("project %s already exists", project.Name)
 			}
@@ -409,24 +469,60 @@ func initializeContainers(tx *gorm.DB, data *InitialData, userID int) error {
 		container := containerData.ConvertToDBContainer()
 
 		versions := make([]database.ContainerVersion, 0, len(containerData.Versions))
-		helmConfigs := make([]*database.HelmConfig, 0, len(containerData.Versions))
 		for _, versionData := range containerData.Versions {
 			version := versionData.ConvertToDBContainerVersion()
-			versions = append(versions, *version)
+
+			if len(versionData.EnvVars) > 0 {
+				params := make([]database.ParameterConfig, 0, len(versionData.EnvVars))
+				for _, paramData := range versionData.EnvVars {
+					param := paramData.ConvertToDBHelmConfig()
+					params = append(params, *param)
+				}
+				version.EnvVars = params
+			}
 
 			if versionData.HelmConfig != nil {
-				helmConfig, err := versionData.HelmConfig.ConvertToDBHelmConfig()
-				if err != nil {
-					return fmt.Errorf("failed to convert helm config for container %s version %s: %w",
-						containerData.Name, versionData.Name, err)
+				helmConfig := versionData.HelmConfig.ConvertToDBHelmConfig()
+				if len(versionData.HelmConfig.Values) > 0 {
+					params := make([]database.ParameterConfig, 0, len(versionData.HelmConfig.Values))
+					for _, paramData := range versionData.HelmConfig.Values {
+						param := paramData.ConvertToDBHelmConfig()
+						params = append(params, *param)
+					}
+					helmConfig.Values = params
 				}
-				helmConfigs = append(helmConfigs, helmConfig)
+
+				version.HelmConfig = helmConfig
 			}
+
+			versions = append(versions, *version)
 		}
 
-		_, err := producer.CreateContainerCore(tx, container, versions, helmConfigs, userID)
+		container.Versions = versions
+
+		_, err := producer.CreateContainerCore(tx, container, userID)
 		if err != nil {
 			return fmt.Errorf("failed to create container %s: %w", containerData.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// initializeDatasets initializes default datasets from initial data
+func initializeDatasets(tx *gorm.DB, data *InitialData, userID int) error {
+	for _, datasetData := range data.Datasets {
+		dataset := datasetData.ConvertToDBDataset()
+
+		versions := make([]database.DatasetVersion, 0, len(datasetData.Versions))
+		for _, versionData := range datasetData.Versions {
+			version := versionData.ConvertToDBDatasetVersion()
+			versions = append(versions, *version)
+		}
+
+		_, err := producer.CreateDatasetCore(tx, dataset, versions, userID)
+		if err != nil {
+			return fmt.Errorf("failed to create dataset %s: %w", datasetData.Name, err)
 		}
 	}
 

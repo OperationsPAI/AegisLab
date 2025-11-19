@@ -58,7 +58,9 @@ func GetRoleByID(db *gorm.DB, id int) (*database.Role, error) {
 // GetRoleByName gets role by name
 func GetRoleByName(db *gorm.DB, name consts.RoleName) (*database.Role, error) {
 	var role database.Role
-	if err := db.Where("name = ? and status != ?", name, consts.CommonDeleted).First(&role).Error; err != nil {
+	if err := db.
+		Where("name = ? and status != ?", name, consts.CommonDeleted).
+		First(&role).Error; err != nil {
 		return nil, fmt.Errorf("failed to find role with name %s: %w", name, err)
 	}
 	return &role, nil

@@ -73,6 +73,7 @@ func BatchDeleteExecutions(c *gin.Context) {
 //	@Failure		404	{object}	dto.GenericResponse[any]						"Execution not found"
 //	@Failure		500	{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/executions/{id} [get]
+//	@x-api-type		{"sdk":"true"}
 func GetExecution(c *gin.Context) {
 	idStr := c.Param(consts.URLPathID)
 	id, err := strconv.Atoi(idStr)
@@ -99,8 +100,8 @@ func GetExecution(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Param			page	query		int														false	"Page number"	default(1)
 //	@Param			size	query		int														false	"Page size"		default(20)
-//	@Param			event	query		int														false	"Filter by event"
-//	@Param			status	query		int														false	"Filter by status"
+//	@Param			state	query		consts.ExecutionState									false	"Filter by execution state"
+//	@Param			status	query		consts.StatusType										false	"Filter by status"
 //	@Param			labels	query		[]string												false	"Filter by labels (array of key:value strings, e.g., 'type:test')"
 //	@Success		200		{object}	dto.GenericResponse[dto.ListResp[dto.ExecutionResp]]	"Executions retrieved successfully"
 //	@Failure		400		{object}	dto.GenericResponse[any]								"Invalid request format or parameters"
@@ -108,6 +109,7 @@ func GetExecution(c *gin.Context) {
 //	@Failure		403		{object}	dto.GenericResponse[any]								"Permission denied"
 //	@Failure		500		{object}	dto.GenericResponse[any]								"Internal server error"
 //	@Router			/api/v2/executions [get]
+//	@x-api-type		{"sdk":"true"}
 func ListExecutions(c *gin.Context) {
 	var req dto.ListExecutionReq
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -141,6 +143,7 @@ func ListExecutions(c *gin.Context) {
 //	@Failure		403	{object}	dto.GenericResponse[any]				"Permission denied"
 //	@Failure		500	{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/executions/labels [get]
+//	@x-api-type		{"sdk":"true"}
 func ListAvaliableExecutionLabels(c *gin.Context) {
 	labels, err := producer.ListAvaliableExecutionLabels()
 	if handlers.HandleServiceError(c, err) {
@@ -199,7 +202,7 @@ func ManageExecutionCustomLabels(c *gin.Context) {
 //
 //	@Summary		Submit batch algorithm execution
 //	@Description	Submit multiple algorithm execution tasks in batch. Supports mixing datapack (v1 compatible) and dataset (v2 feature) executions.
-//	@Tags			Algorithms
+//	@Tags			Executions
 //	@ID				run_algorithm
 //	@Accept			json
 //	@Produce		json
@@ -212,6 +215,7 @@ func ManageExecutionCustomLabels(c *gin.Context) {
 //	@Failure		404		{object}	dto.GenericResponse[any]						"Project, algorithm, datapack or dataset not found"
 //	@Failure		500		{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/executions/execute [post]
+//	@x-api-type		{"sdk":"true"}
 func SubmitAlgorithmExecution(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	userID, exists := middleware.GetCurrentUserID(c)
@@ -267,6 +271,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 //	@Failure		404				{object}	dto.GenericResponse[any]							"Execution not found"
 //	@Failure		500				{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/executions/{execution_id}/detector_results [post]
+//	@x-api-type		{"sdk":"true"}
 func UploadDetectorResults(c *gin.Context) {
 	executionIDStr := c.Param(consts.URLPathExecutionID)
 	executionID, err := strconv.Atoi(executionIDStr)
@@ -312,6 +317,7 @@ func UploadDetectorResults(c *gin.Context) {
 //	@Failure		404				{object}	dto.GenericResponse[any]							"Execution not found"
 //	@Failure		500				{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/executions/{execution_id}/granularity_results [post]
+//	@x-api-type		{"sdk":"true"}
 func UploadGranularityResults(c *gin.Context) {
 	executionIDStr := c.Param(consts.URLPathExecutionID)
 	executionID, err := strconv.Atoi(executionIDStr)

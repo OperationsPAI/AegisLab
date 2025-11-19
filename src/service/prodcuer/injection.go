@@ -324,7 +324,7 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 		return nil, fmt.Errorf("pedestal version not found for %v", req.Pedestal)
 	}
 
-	helmConfing, err := repository.GetHelmConfigByContainerVersionID(database.DB, pedestalVersion.ID)
+	helmConfig, err := repository.GetHelmConfigByContainerVersionID(database.DB, pedestalVersion.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("%w: helm config not found for pedestal version id %d", consts.ErrNotFound, pedestalVersion.ID)
@@ -332,12 +332,21 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 		return nil, fmt.Errorf("failed to get helm config: %w", err)
 	}
 
-	pedestalItem := dto.NewContainerVersionItem(&pedestalVersion, req.Pedestal.EnvVars)
-	pedestalInfo, err := dto.NewPedestalInfo(&pedestalVersion, helmConfing)
+	pedestalItem := dto.NewContainerVersionItem(&pedestalVersion)
+	envVars, err := common.ListContainerVersionEnvVars(req.Pedestal.EnvVars, &pedestalVersion)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create extra info for pedestal: %w", err)
+		return nil, fmt.Errorf("failed to list pedestal env vars: %w", err)
 	}
 
+	pedestalItem.EnvVars = envVars
+
+	helmValues, err := common.ListHelmConfigValues(nil, helmConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list pedestal helm values: %w", err)
+	}
+
+	pedestalInfo := dto.NewPedestalInfo(&pedestalVersion, helmConfig)
+	pedestalInfo.HelmConfig.Values = helmValues
 	pedestalItem.Extra = pedestalInfo
 
 	benchmarkVersionResults, err := common.MapRefsToContainerVersions([]*dto.ContainerRef{&req.Benchmark.ContainerRef}, consts.ContainerTypeBenchmark, userID)
@@ -350,6 +359,14 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 		return nil, fmt.Errorf("benchmark version not found for %v", req.Benchmark)
 	}
 
+	benchmarkVersionItem := dto.NewContainerVersionItem(&benchmarkVersion)
+	envVars, err = common.ListContainerVersionEnvVars(req.Benchmark.EnvVars, &benchmarkVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list benchmark env vars: %w", err)
+	}
+
+	benchmarkVersionItem.EnvVars = envVars
+
 	processedItems, err := parseInjectionSpecs(req.Specs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse injection specs: %w", err)
@@ -359,11 +376,11 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 	for _, item := range processedItems {
 		payload := map[string]any{
 			consts.RestartPedestal:      pedestalItem,
-			consts.RestartHelmConfig:    helmConfing,
+			consts.RestartHelmConfig:    helmConfig,
 			consts.RestartIntarval:      req.Interval,
 			consts.RestartFaultDuration: item.faultDuration,
 			consts.RestartInjectPayload: map[string]any{
-				consts.InjectBenchmark:   dto.NewContainerVersionItem(&benchmarkVersion, req.Benchmark.EnvVars),
+				consts.InjectBenchmark:   benchmarkVersionItem,
 				consts.InjectPreDuration: req.PreDuration,
 				consts.InjectNode:        item.node,
 				consts.InjectLabels:      req.Labels,
@@ -395,28 +412,35 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 	}
 
 	refs := make([]*dto.ContainerRef, 0, len(req.Algorithms))
-	for _, algorithm := range req.Algorithms {
-		refs = append(refs, &algorithm.ContainerRef)
+	for i := range req.Algorithms {
+		refs = append(refs, &req.Algorithms[i].ContainerRef)
 	}
 
-	containerVersionsResults, err := common.MapRefsToContainerVersions(refs, consts.ContainerTypeAlgorithm, userID)
+	algorithmVersionsResults, err := common.MapRefsToContainerVersions(refs, consts.ContainerTypeAlgorithm, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map container refs to versions: %w", err)
 	}
 
-	var algorithms []dto.ContainerVersionItem
-	for _, spec := range req.Algorithms {
-		containerVersion, exists := containerVersionsResults[&spec.ContainerRef]
+	var algorithmVersionItems []dto.ContainerVersionItem
+	for i := range req.Algorithms {
+		spec := &req.Algorithms[i]
+		algorithmVersion, exists := algorithmVersionsResults[&spec.ContainerRef]
 		if !exists {
 			return nil, fmt.Errorf("algorithm version not found for %v", spec)
 		}
 
-		algorithm := dto.NewContainerVersionItem(&containerVersion, spec.EnvVars)
-		algorithms = append(algorithms, algorithm)
+		algorithmVersionItem := dto.NewContainerVersionItem(&algorithmVersion)
+		envVars, err := common.ListContainerVersionEnvVars(spec.EnvVars, &algorithmVersion)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list algorithm env vars: %w", err)
+		}
+
+		algorithmVersionItem.EnvVars = envVars
+		algorithmVersionItems = append(algorithmVersionItems, algorithmVersionItem)
 	}
 
-	if len(algorithms) > 0 {
-		if err := client.SetHashField(ctx, consts.InjectionAlgorithmsKey, groupID, algorithms); err != nil {
+	if len(algorithmVersionItems) > 0 {
+		if err := client.SetHashField(ctx, consts.InjectionAlgorithmsKey, groupID, algorithmVersionItems); err != nil {
 			return nil, fmt.Errorf("failed to store injection algorithms: %w", err)
 		}
 	}
@@ -473,7 +497,7 @@ func ProduceDatapackBuildingTasks(ctx context.Context, req *dto.SubmitDatapackBu
 
 	var allBuildingItems []dto.SubmitBuildingItem
 	for idx, spec := range req.Specs {
-		datapacks, datasetID, err := extractDatapacks(database.DB, spec.Datapack, spec.Dataset, userID)
+		datapacks, datasetVersionID, err := extractDatapacks(database.DB, spec.Datapack, spec.Dataset, userID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract datapacks: %w", err)
 		}
@@ -489,11 +513,19 @@ func ProduceDatapackBuildingTasks(ctx context.Context, req *dto.SubmitDatapackBu
 				return nil, fmt.Errorf("benchmark version not found for %v", spec.Benchmark)
 			}
 
+			benchmarkVersionItem := dto.NewContainerVersionItem(&benchmarkVersion)
+			envVars, err := common.ListContainerVersionEnvVars(spec.Benchmark.EnvVars, &benchmarkVersion)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list benchmark env vars: %w", err)
+			}
+
+			benchmarkVersionItem.EnvVars = envVars
+
 			payload := map[string]any{
-				consts.BuildBenchmark: dto.NewContainerVersionItem(&benchmarkVersion, spec.Benchmark.EnvVars),
-				consts.BuildDatapack:  dto.NewInjectionItem(&datapack),
-				consts.BuildDatasetID: datasetID,
-				consts.BuildLabels:    req.Labels,
+				consts.BuildBenchmark:        benchmarkVersionItem,
+				consts.BuildDatapack:         dto.NewInjectionItem(&datapack),
+				consts.BuildDatasetVersionID: datasetVersionID,
+				consts.BuildLabels:           req.Labels,
 			}
 
 			task := &dto.UnifiedTask{
@@ -507,7 +539,7 @@ func ProduceDatapackBuildingTasks(ctx context.Context, req *dto.SubmitDatapackBu
 			}
 			task.SetGroupCtx(ctx)
 
-			err := common.SubmitTask(ctx, task)
+			err = common.SubmitTask(ctx, task)
 			if err != nil {
 				return nil, fmt.Errorf("failed to submit datapack building task: %w", err)
 			}

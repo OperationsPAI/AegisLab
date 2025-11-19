@@ -28,7 +28,7 @@ import (
 //	@Failure		400		{object}	dto.GenericResponse[any]			"Invalid request format or parameters"
 //	@Failure		409		{object}	dto.GenericResponse[any]			"User already exists"
 //	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
-//	@Router			/api/v2/users [post]/
+//	@Router			/api/v2/users [post]
 func CreateUser(c *gin.Context) {
 	var req dto.CreateUserReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -64,7 +64,7 @@ func CreateUser(c *gin.Context) {
 //	@Failure		403	{object}	dto.GenericResponse[any]	"Permission denied"
 //	@Failure		404	{object}	dto.GenericResponse[any]	"User not found"
 //	@Failure		500	{object}	dto.GenericResponse[any]	"Internal server error"
-//	@Router			/api/v2/users/{id} [delete]/
+//	@Router			/api/v2/users/{id} [delete]
 func DeleteUser(c *gin.Context) {
 	idStr := c.Param(consts.URLPathID)
 	id, err := strconv.Atoi(idStr)
@@ -126,7 +126,7 @@ func GetUserDetailV2(c *gin.Context) {
 //	@Param			username	query		string											false	"Filter by username"
 //	@Param			email		query		string											false	"Filter by email"
 //	@Param			is_active	query		bool											false	"Filter by active status"
-//	@Param			status		query		int												false	"Filter by status"
+//	@Param			status		query		consts.StatusType								false	"Filter by status"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[dto.UserResp]]	"Users retrieved successfully"
 //	@Failure		400			{object}	dto.GenericResponse[any]						"Invalid request format or parameters"
 //	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"

@@ -5,7 +5,8 @@
     "skaffold@2.13.2",
     "ruff@0.9.3",
     "golangci-lint@latest",
-    "husky@8.0.3"
+    "husky@8.0.3",
+    "kubectl@1.34.1"
   ],
   "shell": {
     "init_hook": [
@@ -19,7 +20,7 @@
         "make format-staged-go"
       ],
       "format-staged-python": [
-        "make format-staged-python"
+        "./scripts/command/dist/main.bin format python --staged"
       ],
       "local-debug": [
         "make local-debug"

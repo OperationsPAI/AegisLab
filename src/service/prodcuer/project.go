@@ -122,7 +122,7 @@ func ListProjects(req *dto.ListProjectReq) (*dto.ListResp[dto.ProjectResp], erro
 		return nil, fmt.Errorf("failed to list project labels: %w", err)
 	}
 
-	projectResps := make([]dto.ProjectResp, len(projects))
+	projectResps := make([]dto.ProjectResp, 0, len(projects))
 	for _, project := range projects {
 		if labels, exists := labelsMap[project.ID]; exists {
 			project.Labels = labels

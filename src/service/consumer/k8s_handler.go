@@ -200,9 +200,9 @@ func (h *K8sHandler) HandleCRDSucceeded(namespace, pod, name string, startTime, 
 	}
 
 	payload := map[string]any{
-		consts.BuildBenchmark: *parsedAnnotations.benchmark,
-		consts.BuildDatapack:  *datapack,
-		consts.BuildDatasetID: consts.DefaultInvalidID,
+		consts.BuildBenchmark:        *parsedAnnotations.benchmark,
+		consts.BuildDatapack:         *datapack,
+		consts.BuildDatasetVersionID: consts.DefaultInvalidID,
 	}
 
 	task := &dto.UnifiedTask{
@@ -495,9 +495,9 @@ func (h *K8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 		}
 
 		payload := map[string]any{
-			consts.ExecuteAlgorithm: dto.NewContainerVersionItem(&algorithmVersion, nil),
-			consts.ExecuteDatapack:  parsedAnnotations.datapack,
-			consts.ExecuteDatasetID: consts.DefaultInvalidID,
+			consts.ExecuteAlgorithm:        dto.NewContainerVersionItem(&algorithmVersion),
+			consts.ExecuteDatapack:         parsedAnnotations.datapack,
+			consts.ExecuteDatasetVersionID: consts.DefaultInvalidID,
 		}
 
 		task := &dto.UnifiedTask{
@@ -793,7 +793,7 @@ func updateInjectionName(injectionID int, newName string) error {
 }
 
 // updateExecutionState updates the state of an execution
-func updateExecutionState(executionID int, newState consts.ExecuteState) error {
+func updateExecutionState(executionID int, newState consts.ExecutionState) error {
 	return database.DB.Transaction(func(tx *gorm.DB) error {
 		execution, err := repository.GetExecutionByID(tx, executionID)
 		if err != nil {

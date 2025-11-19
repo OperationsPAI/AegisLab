@@ -1,6 +1,10 @@
 package consts
 
-import "time"
+import (
+	"time"
+
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+)
 
 const InitialFilename = "data.json"
 const DetectorKey = "algo.detector"
@@ -117,6 +121,20 @@ const (
 	ContainerTypePedestal
 )
 
+type ParameterType int
+
+const (
+	ParamTypeFixed ParameterType = iota
+	ParamTypeDynamic
+)
+
+type ParameterCategory int
+
+const (
+	ParamCategoryEnvVars ParameterCategory = iota
+	ParamCategoryHelmValues
+)
+
 type DatapackState int
 
 const (
@@ -127,13 +145,15 @@ const (
 	DatapackBuildSuccess
 )
 
-type ExecuteState int
+type ExecutionState int
 
 const (
-	ExecutionInitial ExecuteState = iota
+	ExecutionInitial ExecutionState = iota
 	ExecutionFailed
 	ExecutionSuccess
 )
+
+type FaultType chaos.ChaosType
 
 type GrantType int
 
@@ -144,6 +164,14 @@ const (
 
 const (
 	DetectorNoAnomaly = "no_anomaly"
+)
+
+type PageSize int
+
+const (
+	PageSizeSmall  PageSize = 10
+	PageSizeMedium PageSize = 20
+	PageSizeLarge  PageSize = 50
 )
 
 type TaskState int
@@ -195,29 +223,29 @@ const (
 	BuildOptionBuildArgs      = "build_args"
 	BuildOptionForceRebuild   = "force_rebuild"
 
-	RestartPedestal      = "pedestal"
+	RestartPedestal      = "pedestal_version"
 	RestartHelmConfig    = "helm_config"
 	RestartIntarval      = "interval"
 	RestartFaultDuration = "fault_duration"
 	RestartInjectPayload = "inject_payload"
 
-	InjectBenchmark   = "benchmark"
+	InjectBenchmark   = "benchmark_version"
 	InjectPreDuration = "pre_duration"
 	InjectNode        = "node"
 	InjectNamespace   = "namespace"
 	InjectPedestalID  = "pedestal_id"
 	InjectLabels      = "labels"
 
-	BuildBenchmark = "benchmark"
-	BuildDatapack  = "datapack"
-	BuildDatasetID = "datapack_id"
-	BuildLabels    = "labels"
+	BuildBenchmark        = "benchmark"
+	BuildDatapack         = "datapack"
+	BuildDatasetVersionID = "dataset_version_id"
+	BuildLabels           = "labels"
 
-	ExecuteAlgorithm = "algorithm_version"
-	ExecuteDatapack  = "datapack"
-	ExecuteDatasetID = "dataset_id"
-	ExecuteEnvVars   = "env_vars"
-	ExecuteLabels    = "labels"
+	ExecuteAlgorithm        = "algorithm"
+	ExecuteDatapack         = "datapack"
+	ExecuteDatasetVersionID = "dataset_version_id"
+	ExecuteEnvVars          = "env_vars"
+	ExecuteLabels           = "labels"
 
 	CollectAlgorithm   = "algorithm"
 	CollectDatapack    = "datapack"

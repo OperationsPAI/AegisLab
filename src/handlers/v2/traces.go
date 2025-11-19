@@ -34,6 +34,7 @@ import (
 //	@Failure		403			{object}	dto.GenericResponse[any]	"Permission denied"
 //	@Failure		500			{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/traces/{trace_id}/stream [get]
+//	@x-api-type		{"sdk":"true"}
 func GetTraceStream(c *gin.Context) {
 	traceID := c.Param(consts.URLPathTraceID)
 	if !utils.IsValidUUID(traceID) {

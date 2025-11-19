@@ -346,10 +346,10 @@ var (
 	RequireTaskWrite  = RequirePermission("write", "task")
 	RequireTaskDelete = RequirePermission("delete", "task")
 
-	// Fault injection management permissions
-	RequireFaultInjectionRead   = RequirePermission("read", "fault_injection")
-	RequireFaultInjectionWrite  = RequirePermission("write", "fault_injection")
-	RequireFaultInjectionDelete = RequirePermission("delete", "fault_injection")
+	// Iinjection management permissions
+	RequireInjectionRead   = RequirePermission("read", "injection")
+	RequireInjectionWrite  = RequirePermission("write", "injection")
+	RequireInjectionDelete = RequirePermission("delete", "injection")
 
 	// Execution management permissions
 	RequireExecutionRead   = RequirePermission("read", "execution")

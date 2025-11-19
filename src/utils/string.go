@@ -3,29 +3,82 @@ package utils
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
 )
 
+var envVarRegex = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
+var helmKeyRegex = regexp.MustCompile(`^([a-zA-Z_-][a-zA-Z0-9_-]*\.)*[a-zA-Z_-][a-zA-Z0-9_-]*$`)
+
+// ConvertSimpleTypeToString converts simple types (string, int, float64, bool) to their string representation
+func ConvertSimpleTypeToString(a any) (string, error) {
+	switch v := a.(type) {
+	case string:
+		return v, nil
+	case int:
+		return strconv.Itoa(v), nil
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64), nil
+	case bool:
+		return strconv.FormatBool(v), nil
+	case nil:
+		return "", nil
+	default:
+		return "", fmt.Errorf("unsupported type %T for conversion to string", a)
+	}
+}
+
+// ConvertStringToSimpleType converts a string to a simple type (string, int, float64, bool)
+func ConvertStringToSimpleType(s string) (any, error) {
+	if s == "" {
+		return s, nil
+	}
+
+	var value any
+
+	if convertedValueI, err := strconv.Atoi(s); err == nil {
+		value = convertedValueI
+		return value, nil
+	}
+
+	if convertedValueF, err := strconv.ParseFloat(s, 64); err == nil {
+		value = convertedValueF
+		return value, nil
+	}
+
+	if convertedValueB, err := strconv.ParseBool(s); err == nil {
+		value = convertedValueB
+		return value, nil
+	}
+
+	value = s
+	return value, nil
+}
+
+// IsValidEnvVar checks if the provided string is a valid environment variable name
 func IsValidEnvVar(envVar string) error {
 	if envVar == "" {
 		return fmt.Errorf("environment variable cannot be empty")
 	}
-
 	if len(envVar) > 128 {
 		return fmt.Errorf("environment variable name too long (max 128 characters)")
 	}
-
-	envVarPattern := `^[A-Z_][A-Z0-9_]*$`
-	matched, err := regexp.MatchString(envVarPattern, envVar)
-	if err != nil {
-		return fmt.Errorf("pattern match error: %v", err)
+	if ok := envVarRegex.MatchString(envVar); !ok {
+		return fmt.Errorf("environment variable contains invalid characters")
 	}
-	if !matched {
-		return fmt.Errorf("environment variable must contain only uppercase letters, numbers, and underscores, and start with a letter or underscore")
-	}
+	return nil
+}
 
+// IsValidHelmValueKey checks if the provided string is a valid Helm Value Path key
+func IsValidHelmValueKey(key string) error {
+	if key == "" {
+		return fmt.Errorf("Helm value key cannot be empty")
+	}
+	if ok := helmKeyRegex.MatchString(key); !ok {
+		return fmt.Errorf("Helm value key contains invalid characters")
+	}
 	return nil
 }
 

@@ -79,6 +79,7 @@ func BatchDeleteInjections(c *gin.Context) {
 //	@Failure		404	{object}	dto.GenericResponse[any]						"Injection not found"
 //	@Failure		500	{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/injections/{id} [get]
+//	@x-api-type		{"sdk":"true"}
 func GetInjection(c *gin.Context) {
 	idStr := c.Param(consts.URLPathID)
 	id, err := strconv.Atoi(idStr)
@@ -110,6 +111,7 @@ func GetInjection(c *gin.Context) {
 //	@Failure		404			{object}	dto.GenericResponse[any]						"Resource not found"
 //	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/injections/metadata [get]
+//	@x-api-type		{"sdk":"true"}
 func GetInjectionMetadata(c *gin.Context) {
 	nsPrefix := c.Query("namespace")
 	if !utils.CheckNsPrefixExists(nsPrefix) {
@@ -159,9 +161,9 @@ func GetInjectionMetadata(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Param			page		query		int														false	"Page number"	default(1)
 //	@Param			size		query		int														false	"Page size"		default(20)
-//	@Param			fault_type	query		int														false	"Filter by fault type"
+//	@Param			type		query		chaos.ChaosType											false	"Filter by fault type"
 //	@Param			benchmark	query		string													false	"Filter by benchmark"
-//	@Param			event		query		int														false	"Filter by event"
+//	@Param			state		query		consts.DatapackState									false	"Filter by injection state"
 //	@Param			status		query		int														false	"Filter by status"
 //	@Param			labels		query		[]string												false	"Filter by labels (array of key:value strings, e.g., 'type:chaos')"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[dto.InjectionResp]]	"Injections retrieved successfully"
@@ -170,6 +172,7 @@ func GetInjectionMetadata(c *gin.Context) {
 //	@Failure		403			{object}	dto.GenericResponse[any]								"Permission denied"
 //	@Failure		500			{object}	dto.GenericResponse[any]								"Internal server error"
 //	@Router			/api/v2/injections [get]
+//	@x-api-type		{"sdk":"true"}
 func ListInjections(c *gin.Context) {
 	var req dto.ListInjectionReq
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -207,6 +210,7 @@ func ListInjections(c *gin.Context) {
 //	@Failure		403		{object}	dto.GenericResponse[any]								"Permission denied"
 //	@Failure		500		{object}	dto.GenericResponse[any]								"Internal server error"
 //	@Router			/api/v2/injections/search [post]
+//	@x-api-type		{"sdk":"true"}
 func SearchInjections(c *gin.Context) {
 	var req dto.SearchInjectionReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -282,6 +286,7 @@ func ManageInjectionCustomLabels(c *gin.Context) {
 //	@Failure		404		{object}	dto.GenericResponse[any]						"Resource not found"
 //	@Failure		500		{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/injections/inject [post]
+//	@x-api-type		{"sdk":"true"}
 func SubmitFaultInjection(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	userID, exists := middleware.GetCurrentUserID(c)
@@ -338,6 +343,7 @@ func SubmitFaultInjection(c *gin.Context) {
 //	@Failure		404		{object}	dto.GenericResponse[any]							"Resource not found"
 //	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/injections/build [post]
+//	@x-api-type		{"sdk":"true"}
 func SubmitDatapackBuilding(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	userID, exists := middleware.GetCurrentUserID(c)
@@ -392,6 +398,7 @@ func SubmitDatapackBuilding(c *gin.Context) {
 //	@Failure		400					{object}	dto.GenericResponse[any]							"Request parameter error, such as incorrect time format or parameter validation failure, etc."
 //	@Failure		500					{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/injections/analysis/no-issues [get]
+//	@x-api-type		{"sdk":"true"}
 func ListFaultInjectionNoIssues(c *gin.Context) {
 	var req dto.ListInjectionNoIssuesReq
 	if err := c.BindQuery(&req); err != nil {
@@ -429,6 +436,7 @@ func ListFaultInjectionNoIssues(c *gin.Context) {
 //	@Failure		400					{object}	dto.GenericResponse[any]	"Request parameter error, such as incorrect time format or parameter validation failure, etc."
 //	@Failure		500					{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/injections/analysis/with-issues [get]
+//	@x-api-type		{"sdk":"true"}
 func ListFaultInjectionWithIssues(c *gin.Context) {
 	var req dto.ListInjectionWithIssuesReq
 	if err := c.BindQuery(&req); err != nil {

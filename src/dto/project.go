@@ -47,6 +47,9 @@ type ListProjectReq struct {
 }
 
 func (req *ListProjectReq) Validate() error {
+	if err := req.PaginationReq.Validate(); err != nil {
+		return err
+	}
 	return validateStatusField(req.Status, false)
 }
 

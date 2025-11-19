@@ -47,6 +47,7 @@ func InitDB() {
 		&Container{},
 		&ContainerVersion{},
 		&HelmConfig{},
+		&ParameterConfig{},
 		&Dataset{},
 		&DatasetVersion{},
 		&Project{},
@@ -61,6 +62,8 @@ func InitDB() {
 		&ContainerLabel{},
 		&DatasetLabel{},
 		&ProjectLabel{},
+		&ContainerVersionEnvVar{},
+		&HelmConfigValue{},
 		&DatasetVersionInjection{},
 		&TaskLabel{},
 

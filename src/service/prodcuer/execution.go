@@ -128,7 +128,7 @@ func GetExecutionDetail(executionID int) (*dto.ExecutionDetailResp, error) {
 
 	resp := dto.NewExecutionDetailResp(execution, labels)
 
-	if execution.Algorithm.Container.Name == config.GetString("algo.detector") {
+	if execution.AlgorithmVersion.Container.Name == config.GetString("algo.detector") {
 		detectorResults, err := repository.ListDetectorResultsByExecutionID(database.DB, execution.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get detector results: %w", err)
@@ -330,11 +330,19 @@ func ProduceAlgorithmExeuctionTasks(ctx context.Context, req *dto.SubmitExecutio
 				return nil, fmt.Errorf("datapack %s does not have valid start_time and end_time", datapack.Name)
 			}
 
+			algorithmItem := dto.NewContainerVersionItem(&algorithmVersion)
+			envVars, err := common.ListContainerVersionEnvVars(spec.Algorithm.EnvVars, &algorithmVersion)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list algorithm env vars: %w", err)
+			}
+
+			algorithmItem.EnvVars = envVars
+
 			payload := map[string]any{
-				consts.ExecuteAlgorithm: dto.NewContainerVersionItem(&algorithmVersion, spec.Algorithm.EnvVars),
-				consts.ExecuteDatapack:  dto.NewInjectionItem(&datapack),
-				consts.ExecuteDatasetID: utils.GetIntValue(datasetID, consts.DefaultInvalidID),
-				consts.ExecuteLabels:    req.Labels,
+				consts.ExecuteAlgorithm:        algorithmItem,
+				consts.ExecuteDatapack:         dto.NewInjectionItem(&datapack),
+				consts.ExecuteDatasetVersionID: utils.GetIntValue(datasetID, consts.DefaultInvalidID),
+				consts.ExecuteLabels:           req.Labels,
 			}
 
 			task := &dto.UnifiedTask{
@@ -348,7 +356,7 @@ func ProduceAlgorithmExeuctionTasks(ctx context.Context, req *dto.SubmitExecutio
 			}
 			task.SetGroupCtx(ctx)
 
-			err := common.SubmitTask(ctx, task)
+			err = common.SubmitTask(ctx, task)
 			if err != nil {
 				return nil, fmt.Errorf("failed to submit task: %w", err)
 			}

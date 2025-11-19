@@ -93,7 +93,7 @@ func ValidateToken(tokenString string) (*Claims, error) {
 		return nil, errors.New("token is required")
 	}
 
-	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (any, error) {
 		// Validate the signing method
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -110,10 +110,8 @@ func ValidateToken(tokenString string) (*Claims, error) {
 		return nil, errors.New("invalid token")
 	}
 
-	// Check if token is expired
-	if claims.ExpiresAt != nil && claims.ExpiresAt.Time.Before(time.Now()) {
-		return nil, errors.New("token has expired")
-	}
+	// Note: No need to manually check ExpiresAt - jwt.ParseWithClaims already validates it
+	// If token is expired, ParseWithClaims will return an error above
 
 	// Check if user is active
 	if !claims.IsActive {
@@ -142,10 +140,7 @@ func RefreshToken(refreshTokenString string) (string, time.Time, error) {
 		return "", time.Time{}, errors.New("invalid refresh token")
 	}
 
-	// Check if refresh token is expired
-	if refreshClaims.ExpiresAt != nil && refreshClaims.ExpiresAt.Time.Before(time.Now()) {
-		return "", time.Time{}, errors.New("refresh token has expired")
-	}
+	// Note: No need to manually check ExpiresAt - jwt.ParseWithClaims already validates it
 
 	// Check if it's a refresh token (issued by refresh issuer)
 	if refreshClaims.Issuer != "rcabench-refresh" {

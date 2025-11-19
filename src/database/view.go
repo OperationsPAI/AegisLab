@@ -48,19 +48,19 @@ func addDetectorJoins(query *gorm.DB) *gorm.DB {
 	return query.
 		Joins(`JOIN (
             SELECT 
-                er.id,
+                e.id,
                 c.id AS algorithm_id,
-                er.datapack_id,
+                e.datapack_id,
                 ROW_NUMBER() OVER (
-                    PARTITION BY c.id, er.datapack_id 
-                    ORDER BY er.created_at DESC, er.id DESC
+                    PARTITION BY c.id, e.datapack_id 
+                    ORDER BY e.created_at DESC, e.id DESC
                 ) as rn
-            FROM execution_results er
-            JOIN container_versions cv ON er.algorithm_version_id = cv.id
+            FROM executions e
+            JOIN container_versions cv ON e.algorithm_version_id = cv.id
             JOIN containers c ON c.id = cv.container_id
-            WHERE er.status = 2 AND c.name = ?
-        ) er_ranked ON fis.id = er_ranked.datapack_id AND er_ranked.rn = 1`, config.GetString("algo.detector")).
-		Joins("JOIN detectors d ON er_ranked.id = d.execution_id")
+            WHERE e.state = 2 AND e.status = 1 AND c.name = ?
+        ) er_ranked ON fi.id = er_ranked.datapack_id AND er_ranked.rn = 1`, config.GetString("algo.detector")).
+		Joins("JOIN detector_results dr ON er_ranked.id = dr.execution_id")
 }
 
 func createDetectorViews() {
@@ -70,44 +70,44 @@ func createDetectorViews() {
 	_ = DB.Migrator().DropView("fault_injection_with_issues")
 
 	// Create view for fault injections with no issues
-	noIssuesQuery := addDetectorJoins(DB.Table("fault_injection_schedules fis").
+	noIssuesQuery := addDetectorJoins(DB.Table("fault_injections fi").
 		Select(`DISTINCT 
-		fis.id AS dataset_id, 
-		fis.engine_config, 
+		fi.id AS datapack_id, 
+		fi.name AS name, 
+		fi.engine_config AS engine_config, 
 		l.label_key as label_key,
-		l.value_key as value_key,
-		fis.injection_name, 
-		fis.created_at`).
-		Joins("LEFT JOIN tasks t ON t.id = fis.task_id").
+		l.label_value as label_value,
+		fi.created_at`).
+		Joins("LEFT JOIN tasks t ON t.id = fi.task_id").
 		Joins("LEFT JOIN task_labels tl ON tl.task_id = t.id").
 		Joins("LEFT JOIN labels l ON tl.label_id = l.id").
-		Group("fis.id, fis.engine_config, fis.injection_name, fis.created_at"),
-	).Where("d.issues = '{}' OR d.issues IS NULL")
+		Group("fi.id, fi.name, fi.engine_config, fi.created_at"),
+	).Where("dr.issues = '{}' OR dr.issues IS NULL")
 	if err = DB.Migrator().CreateView("fault_injection_no_issues", gorm.ViewOption{Query: noIssuesQuery}); err != nil {
 		logrus.Errorf("failed to create fault_injection_no_issues view: %v", err)
 	}
 
 	// Create view for fault injections with issues
-	withIssuesQuery := addDetectorJoins(DB.Table("fault_injection_schedules fis").
+	withIssuesQuery := addDetectorJoins(DB.Table("fault_injections fi").
 		Select(`DISTINCT 
-		fis.id AS dataset_id, 
-		fis.engine_config, 
+		fi.id AS dataset_id, 
+		fi.name, 
+		fi.engine_config AS engine_config, 
 		l.label_key as label_key,
-		l.value_key as value_key,
-		fis.injection_name, 
-		fis.created_at, 
-		d.issues, 
-		d.abnormal_avg_duration, 
-		d.normal_avg_duration, 
-		d.abnormal_succ_rate, 
-		d.normal_succ_rate, 
-		d.abnormal_p99, 
-		d.normal_p99`).
-		Joins("LEFT JOIN tasks t ON t.id = fis.task_id").
+		l.label_value as label_value,
+		fi.created_at, 
+		dr.issues, 
+		dr.abnormal_avg_duration, 
+		dr.normal_avg_duration, 
+		dr.abnormal_succ_rate, 
+		dr.normal_succ_rate, 
+		dr.abnormal_p99, 
+		dr.normal_p99`).
+		Joins("LEFT JOIN tasks t ON t.id = fi.task_id").
 		Joins("LEFT JOIN task_labels tl ON tl.task_id = t.id").
 		Joins("LEFT JOIN labels l ON tl.label_id = l.id").
-		Group("fis.id, fis.engine_config, fis.injection_name, fis.created_at, d.issues, d.abnormal_avg_duration, d.normal_avg_duration, d.abnormal_succ_rate, d.normal_succ_rate, d.abnormal_p99, d.normal_p99"),
-	).Where("d.issues != '{}' AND d.issues IS NOT NULL")
+		Group("fi.id, fi.name, fi.engine_config, fi.created_at, dr.issues, dr.abnormal_avg_duration, dr.normal_avg_duration, dr.abnormal_succ_rate, dr.normal_succ_rate, dr.abnormal_p99, dr.normal_p99"),
+	).Where("dr.issues != '{}' AND dr.issues IS NOT NULL")
 	if err = DB.Migrator().CreateView("fault_injection_with_issues", gorm.ViewOption{Query: withIssuesQuery}); err != nil {
 		logrus.Errorf("failed to create fault_injection_with_issues view: %v", err)
 	}

@@ -32,6 +32,9 @@ type ListAuditLogReq struct {
 }
 
 func (req *ListAuditLogReq) Validate() error {
+	if err := req.PaginationReq.Validate(); err != nil {
+		return err
+	}
 	if req.StartDate != "" {
 		if err := validateTimeField(req.StartDate, time.DateOnly); err != nil {
 			return fmt.Errorf("invalid start_time: %w", err)

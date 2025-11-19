@@ -45,6 +45,9 @@ type ListPermissionReq struct {
 }
 
 func (req *ListPermissionReq) Validate() error {
+	if err := req.PaginationReq.Validate(); err != nil {
+		return err
+	}
 	if _, exists := consts.ValidActions[req.Action]; !exists {
 		return fmt.Errorf("invalid action: %s", req.Action)
 	}

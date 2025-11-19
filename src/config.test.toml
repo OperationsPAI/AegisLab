@@ -25,15 +25,15 @@ count = 1
 clickhouse_host = "10.10.10.58"
 mysql_user = "root"
 mysql_password = "yourpassword"
-mysql_host = "mysql"
+mysql_host = "test-mysql"
 mysql_port = "3306"
 mysql_db = "rcabench_test"
 
 [jaeger]
-endpoint = "jaeger:4318"
+endpoint = "test-jaeger:4318"
 
 [redis]
-host = "redis:6379"
+host = "test-redis:6379"
 
 [harbor]
 registry = "10.10.10.240"
@@ -47,13 +47,13 @@ namespace = "exp"
 [k8s.job.volume_mount.data]
 name = "data"
 mount_path = "/data"
-host_path = "/mnt/jfs/rcabench_dataset"
+host_path = "/var/lib/rancher/k3s/rcabench_datapack"
 type = "Directory"
 
 [k8s.job.volume_mount.experiment_storage]
 name = "experiment-storage"
 mount_path = "/experiment_storage"
-host_path = "/mnt/jfs/experiment_storage"
+host_path = "/var/lib/rancher/k3s/experiment_storage"
 type = "Directory"
 
 [k8s.job.volume_mount.kube_config]
@@ -77,7 +77,7 @@ detector = "detector"
 storage_path = "/app/containers"
 
 [buildkit]
-address = "buildkitd:1234"
+address = "test-buildkitd:1234"
 
 [rate_limiting]
 max_concurrent_builds = 3

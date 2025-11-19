@@ -14,6 +14,7 @@ import (
 	"math/rand"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -98,7 +99,7 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 		if namespace == "" {
 			// Failed to acquire namespace lock, immediately release rate limit token
 			if releaseErr := rateLimiter.ReleaseToken(ctx, task.TaskID, task.TraceID); releaseErr != nil {
-				logEntry.Errorf("failed to release restart service token after namespace lock failure: %v", releaseErr)
+				logEntry.Errorf("failed to release restart pedestal token after namespace lock failure: %v", releaseErr)
 			}
 
 			acquired = false
@@ -292,7 +293,7 @@ func extractNamespace(namespace string) (string, int, error) {
 	return match[1], num, nil
 }
 
-// installTS installs the Train Ticket service using Helm
+// installTS installs the Train Ticket pedestal using Helm
 func installTS(ctx context.Context, releaseName string, namespaceIdx int, info *dto.PedestalInfo) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
@@ -320,29 +321,17 @@ func installTS(ctx context.Context, releaseName string, namespaceIdx int, info *
 			return fmt.Errorf("failed to update repositories: %w", err)
 		}
 
-		baseValues := map[string]any{
-			"global": map[string]any{
-				"image": map[string]any{
-					"repository": fmt.Sprintf("%s/%s", info.Registry, info.Namespace),
-					"tag":        info.Tag,
-				},
-			},
-			"services": map[string]any{
-				"tsUiDashboard": map[string]any{
-					"nodePort": fmt.Sprintf(info.HelmConfig.PortTemplate, namespaceIdx),
-				},
-			},
-		}
-
-		values := baseValues
-		if len(info.HelmConfig.Values) > 0 {
-			values = utils.DeepMergeClone(baseValues, info.HelmConfig.Values)
+		paramItems := info.HelmConfig.Values
+		for i := range paramItems {
+			if paramItems[i].TemplateString != "" {
+				paramItems[i].Value = fmt.Sprintf(paramItems[i].TemplateString, namespaceIdx)
+			}
 		}
 
 		if err := helmClient.Install(ctx,
 			releaseName,
 			info.HelmConfig.FullChart,
-			values,
+			buildNestedMap(paramItems),
 			600*time.Second,
 			360*time.Second,
 		); err != nil {
@@ -352,4 +341,28 @@ func installTS(ctx context.Context, releaseName string, namespaceIdx int, info *
 		logrus.Infof("Train Ticket installed successfully in namespace %s", releaseName)
 		return nil
 	})
+}
+
+// buildNestedMap constructs a nested map from a list of parameter items with dot-separated keys
+func buildNestedMap(items []dto.ParameterItem) map[string]any {
+	root := make(map[string]any)
+	for _, item := range items {
+		value := item.Value
+
+		keys := strings.Split(item.Key, ".")
+		cur := root
+
+		for i, k := range keys {
+			if i == len(keys)-1 {
+				cur[k] = value
+				break
+			}
+			if _, exists := cur[k]; !exists {
+				cur[k] = make(map[string]any)
+			}
+			cur = cur[k].(map[string]any)
+		}
+	}
+
+	return root
 }

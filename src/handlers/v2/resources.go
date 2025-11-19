@@ -53,8 +53,8 @@ func GetResourceDetail(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Param			page		query		int													false	"Page number"	default(1)
 //	@Param			size		query		int													false	"Page size"		default(20)
-//	@Param			type		query		int													false	"Filter by resource type"
-//	@Param			category	query		int													false	"Filter by resource category"
+//	@Param			type		query		consts.ResourceType									false	"Filter by resource type"
+//	@Param			category	query		consts.ResourceCategory								false	"Filter by resource category"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[dto.ResourceResp]]	"Resources retrieved successfully"
 //	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
 //	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
