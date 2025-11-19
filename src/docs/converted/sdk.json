@@ -3835,8 +3835,8 @@
         ],
         "type": "integer",
         "x-enum-varnames": [
-          "ParamEnvVars",
-          "ParamHelmValues"
+          "EnvVars",
+          "HelmValues"
         ]
       },
       "ParameterType": {
@@ -3846,8 +3846,8 @@
         ],
         "type": "integer",
         "x-enum-varnames": [
-          "TypeFixed",
-          "TypeDynamic"
+          "Fixed",
+          "Dynamic"
         ]
       },
       "StatusType": {

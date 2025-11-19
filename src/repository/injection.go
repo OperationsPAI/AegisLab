@@ -83,17 +83,17 @@ func ListFaultInjectionsByID(db *gorm.DB, injectionIDs []int) ([]database.FaultI
 // ListExistingEngineConfigs lists engine_config strings that already exist in DB and are considered completed builds.
 // This is used to de-duplicate incoming injection requests by their engine configuration.
 // Excludes records that have the "invalid" label.
-func ListExistingEngineConfigs(configs []string) ([]string, error) {
+func ListExistingEngineConfigs(db *gorm.DB, configs []string) ([]string, error) {
 	if len(configs) == 0 {
 		return []string{}, nil
 	}
 
-	query := database.DB.
+	query := db.
 		Model(&database.FaultInjection{}).
 		Select("engine_config").
-		Where("engine_config in (?) AND status = ?", configs, consts.DatapackBuildSuccess)
+		Where("engine_config in (?) AND state = ? AND status = ?", configs, consts.DatapackBuildSuccess, consts.CommonEnabled)
 
-	invalidLabelSubQuery := database.DB.Table("task_labels tl").
+	invalidLabelSubQuery := db.Table("task_labels tl").
 		Select("fi.id").
 		Joins("JOIN fault_injections fi ON fi.task_id = tl.task_id").
 		Joins("JOIN labels ON labels.id = tl.label_id").

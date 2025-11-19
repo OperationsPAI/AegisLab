@@ -132,6 +132,17 @@ func (h *K8sHandler) HandleCRDFailed(name string, annotations map[string]string,
 	}
 
 	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.taskCarrier)
+
+	logEntry := logrus.WithFields(logrus.Fields{
+		"task_id":  parsedLabels.taskID,
+		"trace_id": parsedLabels.traceID,
+	})
+	taskSpan := trace.SpanFromContext(taskCtx)
+
+	if err := updateInjectionState(name, consts.DatapackInjectFailed); err != nil {
+		handleTolerableError(taskSpan, logEntry, "update injection state failed", err)
+	}
+
 	publishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, parsedLabels.traceID), dto.StreamEvent{
 		TaskID:    parsedLabels.taskID,
 		TaskType:  consts.TaskTypeFaultInjection,
@@ -173,6 +184,10 @@ func (h *K8sHandler) HandleCRDSucceeded(namespace, pod, name string, startTime, 
 		"trace_id": parsedLabels.traceID,
 	})
 	taskSpan := trace.SpanFromContext(taskCtx)
+
+	if err := updateInjectionState(name, consts.DatapackInjectSuccess); err != nil {
+		handleTolerableError(taskSpan, logEntry, "update injection state failed", err)
+	}
 
 	logEntry.Info("fault injected successfully")
 	taskSpan.AddEvent("fault injected successfully")
@@ -356,7 +371,7 @@ func (h *K8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]st
 		}, withCallerLevel(4))
 
 		if err := updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackBuildFailed); err != nil {
-			handleTolerableError(taskSpan, logEntry, "update datapack state failed", err)
+			handleTolerableError(taskSpan, logEntry, "update injection state failed", err)
 		}
 
 	case consts.TaskTypeRunAlgorithm:
@@ -858,7 +873,12 @@ func updateInjectionTimestamp(injectionName string, startTime time.Time, endTime
 			return fmt.Errorf("update injection timestamps failed: %w", err)
 		}
 
-		updatedInjection = injection
+		reloadedInjection, err := repository.GetInjectionByID(tx, injection.ID)
+		if err != nil {
+			return fmt.Errorf("failed to reload injection %d after update: %w", injection.ID, err)
+		}
+
+		updatedInjection = reloadedInjection
 		return nil
 	})
 	if err != nil {

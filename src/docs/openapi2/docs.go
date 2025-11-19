@@ -8156,8 +8156,8 @@ const docTemplate = `{
                 1
             ],
             "x-enum-varnames": [
-                "ParamCategoryEnvVars",
-                "ParamCategoryHelmValues"
+                "ParameterCategoryEnvVars",
+                "ParameterCategoryHelmValues"
             ]
         },
         "consts.ParameterType": {
@@ -8167,8 +8167,8 @@ const docTemplate = `{
                 1
             ],
             "x-enum-varnames": [
-                "ParamTypeFixed",
-                "ParamTypeDynamic"
+                "ParameterTypeFixed",
+                "ParameterTypeDynamic"
             ]
         },
         "consts.ResourceCategory": {
@@ -12136,9 +12136,7 @@ const docTemplate = `{
                 "template_string": {
                     "type": "string"
                 },
-                "value": {
-                    "type": "string"
-                }
+                "value": {}
             }
         },
         "dto.ParameterSpec": {

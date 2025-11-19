@@ -148,22 +148,22 @@ type ParameterConfig struct {
 
 func (p *ParameterConfig) BeforeCreate(tx *gorm.DB) error {
 	switch p.Type {
-	case consts.ParamTypeFixed:
+	case consts.ParameterTypeFixed:
 		if p.Required && p.DefaultValue == nil {
 			return fmt.Errorf("default value is required for fixed parameters")
 		}
-	case consts.ParamTypeDynamic:
+	case consts.ParameterTypeDynamic:
 		if p.TemplateString == nil || *p.TemplateString == "" {
 			return fmt.Errorf("template string is required for dynamic parameters")
 		}
 	}
 
 	switch p.Category {
-	case consts.ParamCategoryEnvVars:
+	case consts.ParameterCategoryEnvVars:
 		if err := utils.IsValidEnvVar(p.Key); err != nil {
 			return fmt.Errorf("invalid environment variable key: %w", err)
 		}
-	case consts.ParamCategoryHelmValues:
+	case consts.ParameterCategoryHelmValues:
 		if err := utils.IsValidHelmValueKey(p.Key); err != nil {
 			return fmt.Errorf("invalid helm value key: %w", err)
 		}

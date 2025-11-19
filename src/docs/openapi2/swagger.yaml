@@ -213,16 +213,16 @@ definitions:
     - 1
     type: integer
     x-enum-varnames:
-    - ParamCategoryEnvVars
-    - ParamCategoryHelmValues
+    - ParameterCategoryEnvVars
+    - ParameterCategoryHelmValues
   consts.ParameterType:
     enum:
     - 0
     - 1
     type: integer
     x-enum-varnames:
-    - ParamTypeFixed
-    - ParamTypeDynamic
+    - ParameterTypeFixed
+    - ParameterTypeDynamic
   consts.ResourceCategory:
     enum:
     - 0
@@ -2869,8 +2869,7 @@ definitions:
         type: string
       template_string:
         type: string
-      value:
-        type: string
+      value: {}
     type: object
   dto.ParameterSpec:
     properties:

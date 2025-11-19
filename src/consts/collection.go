@@ -40,13 +40,13 @@ var LabelCategoryMap = map[LabelCategory]string{
 }
 
 var ParameterTypeMap = map[ParameterType]string{
-	ParamTypeFixed:   "fixed",
-	ParamTypeDynamic: "dynamic",
+	ParameterTypeFixed:   "fixed",
+	ParameterTypeDynamic: "dynamic",
 }
 
 var ParameterCategoryMap = map[ParameterCategory]string{
-	ParamCategoryEnvVars:    "env_vars",
-	ParamCategoryHelmValues: "helm_values",
+	ParameterCategoryEnvVars:    "env_vars",
+	ParameterCategoryHelmValues: "helm_values",
 }
 
 var ResourceDisplayNameMap = map[ResourceName]string{

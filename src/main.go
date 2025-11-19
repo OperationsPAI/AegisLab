@@ -96,20 +96,19 @@ func main() {
 		logrus.Fatal(err)
 	}
 
-	database.InitDB()
-	service.InitConcurrencyLock(ctx)
-	service.InitializeData(ctx)
-
 	// Producer command - runs HTTP server for API endpoints
 	var producerCmd = &cobra.Command{
 		Use:   "producer",
 		Short: "Run as a producer",
 		Run: func(cmd *cobra.Command, args []string) {
 			logrus.Println("Running as producer")
-			engine := router.New()
+			database.InitDB()
+			service.InitializeData(ctx)
 
 			utils.InitValidator()
 			client.InitTraceProvider()
+
+			engine := router.New()
 			port := viper.GetString("port")
 			err := engine.Run(":" + port)
 			if err != nil {
@@ -125,6 +124,7 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			logrus.Println("Running as consumer")
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
+			service.InitConcurrencyLock(ctx)
 
 			client.InitTraceProvider()
 			go k8s.Init(ctx, consumer.NewHandler())
@@ -140,13 +140,17 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			logrus.Println("Running as both producer and consumer")
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
-			engine := router.New()
+			database.InitDB()
+			service.InitializeData(ctx)
+			service.InitConcurrencyLock(ctx)
 
 			utils.InitValidator()
 			client.InitTraceProvider()
 			go k8s.Init(ctx, consumer.NewHandler())
 			go consumer.StartScheduler(ctx)
 			go consumer.ConsumeTasks()
+
+			engine := router.New()
 			port := viper.GetString("port")
 			err := engine.Run(":" + port)
 			if err != nil {

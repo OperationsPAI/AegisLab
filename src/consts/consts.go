@@ -124,15 +124,15 @@ const (
 type ParameterType int
 
 const (
-	ParamTypeFixed ParameterType = iota
-	ParamTypeDynamic
+	ParameterTypeFixed ParameterType = iota
+	ParameterTypeDynamic
 )
 
 type ParameterCategory int
 
 const (
-	ParamCategoryEnvVars ParameterCategory = iota
-	ParamCategoryHelmValues
+	ParameterCategoryEnvVars ParameterCategory = iota
+	ParameterCategoryHelmValues
 )
 
 type DatapackState int

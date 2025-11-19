@@ -149,6 +149,8 @@ class Processer:
             varnames = value.get("x-enum-varnames", [])
             if varnames:
                 lcs_varnames = get_longest_common_substring(key, strs=varnames)
+                if lcs_varnames == "Param":
+                    print("here")
                 if key == "StatusType":
                     lcs_varnames = "Common"
 
@@ -156,6 +158,8 @@ class Processer:
                     value["x-enum-varnames"] = [
                         s.replace(lcs_varnames, "") for s in varnames
                     ]
+                    if lcs_varnames == "Param":
+                        print("here")
 
             comments = value.get("x-enum-comments", {})
             comment_keys: list[str] = []

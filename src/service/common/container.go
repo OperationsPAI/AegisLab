@@ -152,7 +152,7 @@ func listParameterItems(specs []dto.ParameterSpec, fetcher repository.ParameterC
 // processParameterConfig processes a single parameter configuration and returns the corresponding parameter item
 func processParameterConfig(config database.ParameterConfig, userValue any, contextCfg any) (*dto.ParameterItem, error) {
 	switch config.Type {
-	case consts.ParamTypeFixed:
+	case consts.ParameterTypeFixed:
 		finalValue := userValue
 		if finalValue == nil {
 			if config.Required && config.DefaultValue == nil {
@@ -171,7 +171,7 @@ func processParameterConfig(config database.ParameterConfig, userValue any, cont
 			Value: finalValue,
 		}, nil
 
-	case consts.ParamTypeDynamic:
+	case consts.ParameterTypeDynamic:
 		if config.TemplateString == nil || *config.TemplateString == "" {
 			return nil, fmt.Errorf("dynamic parameter %s is missing a template string", config.Key)
 		}

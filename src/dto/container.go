@@ -342,11 +342,11 @@ func (req *CreateParameterConfigReq) Validate() error {
 		return fmt.Errorf("invalid parameter category: %v", req.Category)
 	}
 
-	if req.Type == consts.ParamTypeFixed && req.Required && req.DefaultValue == nil {
+	if req.Type == consts.ParameterTypeFixed && req.Required && req.DefaultValue == nil {
 		return fmt.Errorf("default value is required for fixed parameter type when marked as required")
 	}
 
-	if req.Type == consts.ParamTypeDynamic && req.TemplateString == nil {
+	if req.Type == consts.ParameterTypeDynamic && req.TemplateString == nil {
 		return fmt.Errorf("template string is required for dynamic parameter type")
 	}
 
