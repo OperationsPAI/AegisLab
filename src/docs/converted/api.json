@@ -10489,8 +10489,8 @@
         ],
         "type": "integer",
         "x-enum-varnames": [
-          "ParamEnvVars",
-          "ParamHelmValues"
+          "EnvVars",
+          "HelmValues"
         ]
       },
       "ParameterType": {
@@ -10500,8 +10500,8 @@
         ],
         "type": "integer",
         "x-enum-varnames": [
-          "TypeFixed",
-          "TypeDynamic"
+          "Fixed",
+          "Dynamic"
         ]
       },
       "ResourceCategory": {
@@ -14535,7 +14535,7 @@
             "type": "string"
           },
           "value": {
-            "type": "string"
+            "type": "object"
           }
         },
         "type": "object"

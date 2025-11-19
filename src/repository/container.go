@@ -518,7 +518,7 @@ func ListContainerVersionEnvVars(db *gorm.DB, keys []string, containerVersionID 
 		Where("cvev.container_version_id = ?", containerVersionID)
 
 	if len(keys) > 0 {
-		query = query.Where("parameter_configs.key IN (?) AND parameter_config.category = ?", keys, consts.ParamCategoryEnvVars)
+		query = query.Where("parameter_configs.key IN (?) AND parameter_config.category = ?", keys, consts.ParameterCategoryEnvVars)
 	}
 
 	var params []database.ParameterConfig

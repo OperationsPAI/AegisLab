@@ -23,13 +23,22 @@ type InjectionItem struct {
 }
 
 func NewInjectionItem(injection *database.FaultInjection) InjectionItem {
-	return InjectionItem{
+	item := InjectionItem{
 		ID:          injection.ID,
 		Name:        injection.Name,
 		PreDuration: injection.PreDuration,
 		StartTime:   *injection.StartTime,
 		EndTime:     *injection.EndTime,
 	}
+
+	if injection.StartTime != nil {
+		item.StartTime = *injection.StartTime
+	}
+	if injection.EndTime != nil {
+		item.EndTime = *injection.EndTime
+	}
+
+	return item
 }
 
 // BatchDeleteInjectionReq represents the request to batch delete injections

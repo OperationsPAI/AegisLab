@@ -694,7 +694,7 @@ func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, err
 		end := min(start+batchSize, len(keys))
 
 		batch := keys[start:end]
-		existing, err := repository.ListExistingEngineConfigs(batch)
+		existing, err := repository.ListExistingEngineConfigs(database.DB, batch)
 		if err != nil {
 			return nil, err
 		}

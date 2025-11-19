@@ -9511,12 +9511,12 @@
       "consts.ParameterCategory" : {
         "enum" : [ 0, 1 ],
         "type" : "integer",
-        "x-enum-varnames" : [ "ParamCategoryEnvVars", "ParamCategoryHelmValues" ]
+        "x-enum-varnames" : [ "ParameterCategoryEnvVars", "ParameterCategoryHelmValues" ]
       },
       "consts.ParameterType" : {
         "enum" : [ 0, 1 ],
         "type" : "integer",
-        "x-enum-varnames" : [ "ParamTypeFixed", "ParamTypeDynamic" ]
+        "x-enum-varnames" : [ "ParameterTypeFixed", "ParameterTypeDynamic" ]
       },
       "consts.ResourceCategory" : {
         "enum" : [ 0, 1 ],
@@ -13231,7 +13231,7 @@
             "type" : "string"
           },
           "value" : {
-            "type" : "string"
+            "type" : "object"
           }
         },
         "type" : "object"

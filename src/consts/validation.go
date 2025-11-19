@@ -58,13 +58,13 @@ var ValidPageSizes = map[PageSize]struct{}{
 }
 
 var ValidParameterTypes = map[ParameterType]struct{}{
-	ParamTypeFixed:   {},
-	ParamTypeDynamic: {},
+	ParameterTypeFixed:   {},
+	ParameterTypeDynamic: {},
 }
 
 var ValidParameterCategories = map[ParameterCategory]struct{}{
-	ParamCategoryEnvVars:    {},
-	ParamCategoryHelmValues: {},
+	ParameterCategoryEnvVars:    {},
+	ParameterCategoryHelmValues: {},
 }
 
 var ValidResourceTypes = map[ResourceType]struct{}{
