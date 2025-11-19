@@ -15,7 +15,7 @@ import tempfile
 import uuid
 
 from urllib.parse import quote
-from typing import Tuple, Optional, List, Dict, Union
+from typing import Any
 from pydantic import SecretStr
 {{#tornado}}
 import tornado.gen
@@ -35,7 +35,7 @@ from {{packageName}}.exceptions import (
     ServiceException
 )
 
-RequestSerialized = Tuple[str, str, Dict[str, str], Optional[str], List[str]]
+RequestSerialized = tuple[str, str, dict[str, str], str | None, list[str]]
 
 class ApiClient:
     """Generic API client for OpenAPI client library builds.
@@ -147,10 +147,10 @@ class ApiClient:
 
     def param_serialize(
         self,
-        method,
+        method: str,
         resource_path,
-        path_params=None,
-        query_params=None,
+        path_params: dict[str, str] | None = None,
+        query_params: list[tuple[str, str]] | None = None,
         header_params=None,
         body=None,
         post_params=None,
@@ -158,8 +158,7 @@ class ApiClient:
         collection_formats=None,
         _host=None,
         _request_auth=None
-    ) -> RequestSerialized:
-
+    ) -> RequestSerialized:  # type: ignore
         """Builds the HTTP request params needed by the request.
         :param method: Method to call.
         :param resource_path: Path to method endpoint.
@@ -198,11 +197,11 @@ class ApiClient:
         # path parameters
         if path_params:
             path_params = self.sanitize_for_serialization(path_params)
-            path_params = self.parameters_to_tuples(
+            parsed_path_params = self.parameters_to_tuples(
                 path_params,
                 collection_formats
             )
-            for k, v in path_params:
+            for k, v in parsed_path_params:
                 # specified safe chars, encode everything
                 resource_path = resource_path.replace(
                     '{%s}' % k,
@@ -251,7 +250,7 @@ class ApiClient:
             )
             url += "?" + url_query
 
-        return method, url, header_params, body, post_params
+        return method, url, header_params, body, post_params  # type: ignore
 
 
     {{#tornado}}
@@ -295,7 +294,7 @@ class ApiClient:
     def response_deserialize(
         self,
         response_data: rest.RESTResponse,
-        response_types_map: Optional[Dict[str, ApiResponseT]]=None
+        response_types_map: dict[str, ApiResponseT] | None = None
     ) -> ApiResponse[ApiResponseT]:
         """Deserializes response into an object.
         :param response_data: RESTResponse object to be deserialized.
@@ -305,6 +304,8 @@ class ApiClient:
 
         msg = "RESTResponse.read() must be called before passing it to response_deserialize()"
         assert response_data.data is not None, msg
+
+        assert response_types_map is not None, " response type for the response code"
 
         response_type = response_types_map.get(str(response_data.status), None)
         if not response_type and isinstance(response_data.status, int) and 100 <= response_data.status <= 599:
@@ -326,7 +327,7 @@ class ApiClient:
                     match = re.search(r"charset=([a-zA-Z\-\d]+)[\s;]?", content_type)
                 encoding = match.group(1) if match else "utf-8"
                 response_text = response_data.data.decode(encoding)
-                return_data = self.deserialize(response_text, response_type, content_type)
+                return_data = self.deserialize(response_text, response_type, content_type)  # type: ignore
         finally:
             if not 200 <= response_data.status <= 299:
                 raise ApiException.from_response(
@@ -340,9 +341,9 @@ class ApiClient:
             data = return_data,
             headers = response_data.getheaders(),
             raw_data = response_data.data
-        )
+        )   # type: ignore
 
-    def sanitize_for_serialization(self, obj):
+    def sanitize_for_serialization(self, obj: Any) -> Any:
         """Builds a JSON POST object.
 
         If obj is None, return None.
@@ -403,7 +404,7 @@ class ApiClient:
             for key, val in obj_dict.items()
         }
 
-    def deserialize(self, response_text: str, response_type: str, content_type: Optional[str]):
+    def deserialize(self, response_text: str, response_type: str, content_type: str | None = None):
         """Deserializes response into an object.
 
         :param response: RESTResponse object to be deserialized.
@@ -489,7 +490,7 @@ class ApiClient:
         :param dict collection_formats: Parameter collection formats
         :return: Parameters as list of tuples, collections formatted
         """
-        new_params: List[Tuple[str, str]] = []
+        new_params: list[tuple[str, str]] = []
         if collection_formats is None:
             collection_formats = {}
         for k, v in params.items() if isinstance(params, dict) else params:
@@ -519,7 +520,7 @@ class ApiClient:
         :param dict collection_formats: Parameter collection formats
         :return: URL query string (e.g. a=Hello%20World&b=123)
         """
-        new_params: List[Tuple[str, str]] = []
+        new_params: list[tuple[str, str]] = []
         if collection_formats is None:
             collection_formats = {}
         for k, v in params.items() if isinstance(params, dict) else params:
@@ -553,7 +554,7 @@ class ApiClient:
 
     def files_parameters(
         self,
-        files: Dict[str, Union[str, bytes, List[str], List[bytes], Tuple[str, bytes]]],
+        files: dict[str, str | bytes | list[str] | list[bytes] | tuple[str, bytes]],
     ):
         """Builds form parameters.
 
@@ -586,7 +587,7 @@ class ApiClient:
             )
         return params
 
-    def select_header_accept(self, accepts: List[str]) -> Optional[str]:
+    def select_header_accept(self, accepts: list[str]) -> str | None:
         """Returns `Accept` based on an array of accepts provided.
 
         :param accepts: List of headers.

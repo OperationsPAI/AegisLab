@@ -1,0 +1,14 @@
+{
+  "apiTests": false,
+  "modelTests": false,
+  "packageName": "openapi",
+  "projectName": "rcabench",
+  "packageVersion": "1.1.44",
+  "pythonVersion": "3.10",
+  "packageUrl": "https://pypi.org/project/rcabench/",
+  "library": "urllib3",
+  "useOneOfDiscriminatorLookup": true,
+  "disallowAdditionalPropertiesIfNotPresent": false,
+  "sortParamsByRequiredFlag": true,
+  "hideGenerationTimestamp": true
+}
