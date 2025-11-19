@@ -77,12 +77,15 @@ func (req *CreateDatasetReq) ConvertToDataset() *database.Dataset {
 
 type ListDatasetReq struct {
 	PaginationReq
-	Type     string             `json:"type" binding:"omitempty"`
-	IsPublic *bool              `json:"is_public" binding:"omitempty"`
-	Status   *consts.StatusType `json:"status" binding:"omitempty"`
+	Type     string             `form:"type" binding:"omitempty"`
+	IsPublic *bool              `form:"is_public" binding:"omitempty"`
+	Status   *consts.StatusType `form:"status" binding:"omitempty"`
 }
 
 func (req *ListDatasetReq) Validate() error {
+	if err := req.PaginationReq.Validate(); err != nil {
+		return err
+	}
 	return validateStatusField(req.Status, false)
 }
 
@@ -268,11 +271,10 @@ func (req *CreateDatasetVersionReq) Validate() error {
 
 func (req *CreateDatasetVersionReq) ConvertToDatasetVersion() *database.DatasetVersion {
 	version := &database.DatasetVersion{
-		Name:        req.Name,
-		Format:      req.Format,
-		DownloadURL: req.DownloadURL,
-		Checksum:    req.Checksum,
-		Status:      consts.CommonEnabled,
+		Name:     req.Name,
+		Format:   req.Format,
+		Checksum: req.Checksum,
+		Status:   consts.CommonEnabled,
 	}
 
 	return version
@@ -285,14 +287,16 @@ type ListDatasetVersionReq struct {
 }
 
 func (req *ListDatasetVersionReq) Validate() error {
+	if err := req.PaginationReq.Validate(); err != nil {
+		return err
+	}
 	return validateStatusField(req.Status, false)
 }
 
 type UpdateDatasetVersionReq struct {
-	DownloadURL *string            `json:"download_url" binding:"omitempty"`
-	Checksum    *string            `json:"checksum" binding:"omitempty"`
-	Format      *string            `json:"format" binding:"omitempty"`
-	Status      *consts.StatusType `json:"status" binding:"omitempty"`
+	Checksum *string            `json:"checksum" binding:"omitempty"`
+	Format   *string            `json:"format" binding:"omitempty"`
+	Status   *consts.StatusType `json:"status" binding:"omitempty"`
 }
 
 func (req *UpdateDatasetVersionReq) Validate() error {
@@ -303,9 +307,6 @@ func (req *UpdateDatasetVersionReq) PatchDatasetVersionModel(target *database.Da
 	if req.Format != nil {
 		target.Format = *req.Format
 	}
-	if req.DownloadURL != nil {
-		target.DownloadURL = *req.DownloadURL
-	}
 	if req.Checksum != nil {
 		target.Checksum = *req.Checksum
 	}
@@ -315,18 +316,16 @@ func (req *UpdateDatasetVersionReq) PatchDatasetVersionModel(target *database.Da
 }
 
 type DatasetVersionResp struct {
-	ID          int       `json:"id"`
-	Name        string    `json:"name"`
-	DownloadURL string    `json:"download_url"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func NewDatasetVersionResp(version *database.DatasetVersion) *DatasetVersionResp {
 	return &DatasetVersionResp{
-		ID:          version.ID,
-		Name:        version.Name,
-		DownloadURL: version.DownloadURL,
-		UpdatedAt:   version.UpdatedAt,
+		ID:        version.ID,
+		Name:      version.Name,
+		UpdatedAt: version.UpdatedAt,
 	}
 }
 

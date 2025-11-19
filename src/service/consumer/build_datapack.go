@@ -21,10 +21,10 @@ import (
 )
 
 type datapackPayload struct {
-	benchmark dto.ContainerVersionItem
-	datapack  dto.InjectionItem
-	datasetID *int
-	labels    []dto.LabelItem
+	benchmark        dto.ContainerVersionItem
+	datapack         dto.InjectionItem
+	datasetVersionID *int
+	labels           []dto.LabelItem
 }
 
 type datapackJobCreationParams struct {
@@ -74,7 +74,7 @@ func executeBuildDatapack(ctx context.Context, task *dto.UnifiedTask) error {
 			task.GetLabels(),
 			map[string]string{
 				consts.JobLabelDatapack:  payload.datapack.Name,
-				consts.JobLabelDatasetID: strconv.Itoa(utils.GetIntValue(payload.datasetID, 0)),
+				consts.JobLabelDatasetID: strconv.Itoa(utils.GetIntValue(payload.datasetVersionID, 0)),
 			},
 		)
 
@@ -102,9 +102,9 @@ func parseDatapackPayload(payload map[string]any) (*datapackPayload, error) {
 		return nil, fmt.Errorf("failed to convert '%s' to InjectionItem: %w", consts.BuildDatapack, err)
 	}
 
-	datasetID, err := utils.GetPointerIntFromMap(payload, consts.BuildDatasetID)
+	datasetID, err := utils.GetPointerIntFromMap(payload, consts.BuildDatasetVersionID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get '%s' from payload: %w", consts.BuildDatasetID, err)
+		return nil, fmt.Errorf("failed to get '%s' from payload: %w", consts.BuildDatasetVersionID, err)
 	}
 
 	labels, err := utils.ConvertToType[[]dto.LabelItem](payload[consts.BuildLabels])
@@ -113,10 +113,10 @@ func parseDatapackPayload(payload map[string]any) (*datapackPayload, error) {
 	}
 
 	return &datapackPayload{
-		benchmark: benchmark,
-		datapack:  datapack,
-		datasetID: datasetID,
-		labels:    labels,
+		benchmark:        benchmark,
+		datapack:         datapack,
+		datasetVersionID: datasetID,
+		labels:           labels,
 	}, nil
 }
 
@@ -160,32 +160,24 @@ func getDatapackJobEnvVars(payload *datapackPayload) ([]corev1.EnvVar, error) {
 		envNameIndexMap[jobEnvVar.Name] = index
 	}
 
-	if len(payload.benchmark.EnvVars) > 0 {
-		extraEnvVarMap := make(map[string]struct{}, len(payload.benchmark.EnvVars))
-		for name, value := range payload.benchmark.EnvVars {
-			if index, exists := envNameIndexMap[name]; exists {
-				jobEnvVars[index].Value = value
-			} else {
-				jobEnvVars = append(jobEnvVars, corev1.EnvVar{
-					Name:  name,
-					Value: value,
-				})
-				extraEnvVarMap[name] = struct{}{}
+	for _, envVar := range payload.benchmark.EnvVars {
+		if _, exists := envNameIndexMap[envVar.Key]; !exists {
+			if envVar.TemplateString != "" {
+				continue
 			}
-		}
 
-		// Check if all required environment variables are provided
-		if payload.benchmark.EnvVarsKeys != "" {
-			envVarsArray := strings.Split(payload.benchmark.EnvVarsKeys, ",")
-			for _, envVar := range envVarsArray {
-				if _, exists := extraEnvVarMap[envVar]; !exists {
-					return nil, fmt.Errorf("environment variable %s is required but not provided in datapack building payload", envVar)
-				}
+			if envVar.TemplateString != "" {
+				logrus.Warnf("Skipping templated env var %s in benchmark version %d", envVar.Key, payload.benchmark.ID)
+				continue
 			}
-		}
-	} else {
-		if payload.benchmark.EnvVarsKeys != "" {
-			return nil, fmt.Errorf("environment variables %s are required but not provided in datapack building", payload.benchmark.EnvVars)
+
+			valueStr, ok := envVar.Value.(string)
+			if !ok {
+				logrus.Warnf("Skipping non-string env var %s", envVar.Key)
+				continue
+			}
+
+			jobEnvVars = append(jobEnvVars, corev1.EnvVar{Name: envVar.Key, Value: valueStr})
 		}
 	}
 

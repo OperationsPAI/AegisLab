@@ -28,15 +28,16 @@ type Container struct {
 	ActiveName string `gorm:"type:varchar(150) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN name ELSE NULL END) STORED;uniqueIndex:idx_active_container_name"`
 
 	// Many-to-many relationship with labels
-	Labels []Label `gorm:"many2many:container_labels"`
+	Versions []ContainerVersion `gorm:"foreignKey:ContainerID"`
+	Labels   []Label            `gorm:"many2many:container_labels"`
 }
 
 type ContainerVersion struct {
 	ID        int    `gorm:"primaryKey;autoIncrement"`
-	Name      string `gorm:"not null;index;size:32;default:'v1.0.0'"`
-	NameMajor int    `gorm:"index:idx_container_name_order"`
-	NameMinor int    `gorm:"index:idx_container_name_order"`
-	NamePatch int    `gorm:"index:idx_container_name_order"`
+	Name      string `gorm:"not null;index;size:32;default:'1.0.0'"`
+	NameMajor int    `gorm:"index:idx_container_version_name_order"`
+	NameMinor int    `gorm:"index:idx_container_version_name_order"`
+	NamePatch int    `gorm:"index:idx_container_version_name_order"`
 
 	GithubLink  string `gorm:"size:512"`
 	Registry    string `gorm:"not null;default:'docker.io';index;size:64"`
@@ -44,7 +45,6 @@ type ContainerVersion struct {
 	Repository  string `gorm:"not null;index;size:128"`
 	Tag         string `gorm:"not null;size:128"`
 	Command     string `gorm:"type:text"`
-	EnvVars     string `gorm:"type:text"`
 	Usage       int    `gorm:"column:usage_count;default:0;index"`
 	ContainerID int    `gorm:"not null;index"`
 	UserID      int    `gorm:"not null;index"`
@@ -63,6 +63,9 @@ type ContainerVersion struct {
 
 	// One-to-one relationship with HelmConfig
 	HelmConfig *HelmConfig `gorm:"foreignKey:ContainerVersionID;references:ID"`
+
+	// Many-to-many relationship with ParameterConfig (for environment variables)
+	EnvVars []ParameterConfig `gorm:"many2many:container_version_env_vars"`
 }
 
 func (cv *ContainerVersion) BeforeCreate(tx *gorm.DB) error {
@@ -102,24 +105,20 @@ func (c *ContainerVersion) AfterFind(tx *gorm.DB) error {
 }
 
 type HelmConfig struct {
-	ID int `gorm:"primaryKey;autoIncrement"` // Unique identifier
-
-	// Helm chart information
-	RepoURL   string `gorm:"not null;size:512"` // Repository URL
-	RepoName  string `gorm:"size:128"`          // Repository name
-	ChartName string `gorm:"not null;size:128"` // Helm chart name
-
-	// Deployment configuration
-	NsPrefix     string `gorm:"not null;size:64"` // Namespace prefix for deployments
-	PortTemplate string `gorm:"size:32"`          // Port template for dynamic port assignment, e.g., "31%03d"
-	Values       string `gorm:"type:longtext"`    // Helm values in JSON format
-
-	ContainerVersionID int `gorm:"uniqueIndex"` // Associated ContainerVersion ID (one-to-one relationship)
+	ID                 int    `gorm:"primaryKey;autoIncrement"` // Unique identifier
+	RepoURL            string `gorm:"not null;size:512"`        // Repository URL
+	RepoName           string `gorm:"size:128"`                 // Repository name
+	ChartName          string `gorm:"not null;size:128"`        // Helm chart name
+	NsPrefix           string `gorm:"not null;size:64"`         // Namespace prefix for deployments
+	ContainerVersionID int    `gorm:"not null;index"`           // Associated ContainerVersion ID (one-to-one relationship)
 
 	FullChart string `gorm:"-"` // Full chart reference (not stored in DB, used for display)
 
 	// Foreign key association
 	ContainerVersion *ContainerVersion `gorm:"foreignKey:ContainerVersionID;constraint:OnDelete:CASCADE"`
+
+	// Many-to-many relationship with ParameterConfig (for Helm values)
+	Values []ParameterConfig `gorm:"many2many:helm_config_values"`
 }
 
 // BeforeCreate GORM hook - validate NsPrefix before creating a new record
@@ -136,7 +135,64 @@ func (h *HelmConfig) AfterFind(tx *gorm.DB) error {
 	return nil
 }
 
-// Dataset table, is designed to store multiple versions of a dataset(a series of datapack). Only admin can create a dataset, so there is no user id foreign key.
+type ParameterConfig struct {
+	ID             int                      `gorm:"primaryKey;autoIncrement"`
+	Key            string                   `gorm:"column:config_key;not null;size:64;uniqueIndex:idx_unique_config"`
+	Type           consts.ParameterType     `gorm:"not null;default:0;index;uniqueIndex:idx_unique_config"`
+	Category       consts.ParameterCategory `gorm:"not null;index;uniqueIndex:idx_unique_config"`
+	Description    string                   `gorm:"type:text"`
+	DefaultValue   *string                  `gorm:"type:text"`
+	TemplateString *string                  `gorm:"type:text"`
+	Required       bool                     `gorm:"not null;default:false;index"`
+}
+
+func (p *ParameterConfig) BeforeCreate(tx *gorm.DB) error {
+	switch p.Type {
+	case consts.ParamTypeFixed:
+		if p.Required && p.DefaultValue == nil {
+			return fmt.Errorf("default value is required for fixed parameters")
+		}
+	case consts.ParamTypeDynamic:
+		if p.TemplateString == nil || *p.TemplateString == "" {
+			return fmt.Errorf("template string is required for dynamic parameters")
+		}
+	}
+
+	switch p.Category {
+	case consts.ParamCategoryEnvVars:
+		if err := utils.IsValidEnvVar(p.Key); err != nil {
+			return fmt.Errorf("invalid environment variable key: %w", err)
+		}
+	case consts.ParamCategoryHelmValues:
+		if err := utils.IsValidHelmValueKey(p.Key); err != nil {
+			return fmt.Errorf("invalid helm value key: %w", err)
+		}
+	}
+	return nil
+}
+
+// ContainerVersionEnvVar Many-to-many relationship table between ContainerVersion and ParameterConfig (for environment variables)
+type ContainerVersionEnvVar struct {
+	ContainerVersionID int       `gorm:"primaryKey"` // ContainerVersion ID
+	ParameterConfigID  int       `gorm:"primaryKey"` // ParameterConfig ID
+	CreatedAt          time.Time `gorm:"autoCreateTime;index"`
+
+	// Foreign key association
+	ContainerVersion *ContainerVersion `gorm:"foreignKey:ContainerVersionID"`
+	ParameterConfig  *ParameterConfig  `gorm:"foreignKey:ParameterConfigID"`
+}
+
+// HelmConfigValue Many-to-many relationship table between HelmConfig and ParameterConfig (for Helm values)
+type HelmConfigValue struct {
+	HelmConfigID      int       `gorm:"primaryKey"` // HelmConfig ID
+	ParameterConfigID int       `gorm:"primaryKey"` // ParameterConfig ID
+	CreatedAt         time.Time `gorm:"autoCreateTime;index"`
+
+	// Foreign key association
+	HelmConfig      *HelmConfig      `gorm:"foreignKey:HelmConfigID"`
+	ParameterConfig *ParameterConfig `gorm:"foreignKey:ParameterConfigID"`
+}
+
 type Dataset struct {
 	ID          int    `gorm:"primaryKey;autoIncrement"` // Unique identifier
 	Name        string `gorm:"index;not null;size:128"`  // Dataset name with size limit
@@ -144,39 +200,40 @@ type Dataset struct {
 	Description string `gorm:"type:mediumtext"`          // Dataset description
 
 	IsPublic  bool              `gorm:"not null;default:false;index"` // Whether public
-	Status    consts.StatusType `gorm:"not null;default:1;index"`     // Status: -1:deleted 0:disabled 1:enabled
+	Status    consts.StatusType `gorm:"not null;default:1;index"`     // Status: -1:deleted 0:disaBled 1:enabled
 	CreatedAt time.Time         `gorm:"autoCreateTime;index"`         // Creation time
 	UpdatedAt time.Time         `gorm:"autoUpdateTime"`               // Update time
 
 	ActiveName string `gorm:"type:varchar(150) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN name ELSE NULL END) STORED;uniqueIndex:idx_active_dataset_name"`
 
 	// Many-to-many relationships - use explicit intermediate tables for better control
-	Labels []Label `gorm:"many2many:dataset_labels"`
+	Versions []DatasetVersion `gorm:"foreignKey:DatasetID"`
+	Labels   []Label          `gorm:"many2many:dataset_labels"`
 }
 
 type DatasetVersion struct {
 	ID        int    `gorm:"primaryKey;autoIncrement"`
-	Name      string `gorm:"not null;index;size:32;default:'v1.0.0'"`
-	NameMajor int    `gorm:"index:idx_container_name_order"`
-	NameMinor int    `gorm:"index:idx_container_name_order"`
-	NamePatch int    `gorm:"index:idx_container_name_order"`
+	Name      string `gorm:"not null;index;size:32;default:'1.0.0'"`
+	NameMajor int    `gorm:"index:idx_dataset_version_name_order"`
+	NameMinor int    `gorm:"index:idx_dataset_version_name_order"`
+	NamePatch int    `gorm:"index:idx_dataset_version_name_order"`
 
-	DownloadURL string `gorm:"size:512"`                        // Download link with size limit
-	Checksum    string `gorm:"type:varchar(64)"`                // File checksum
-	FileCount   int    `gorm:"default:0;check:file_count >= 0"` // File count with validation
-	Format      string `gorm:"default:'json';size:32"`          // Data format (json, csv, parquet, etc.)
-	DatasetID   int    `gorm:"not null;index"`                  // Associated Dataset ID
-	UserID      int    `gorm:"not null;index"`                  // Creator User ID
-
-	ActiveVersionKey string `gorm:"type:varchar(40) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN CONCAT(dataset_id, ':', name) ELSE NULL END) STORED;uniqueIndex:idx_active_version_unique"`
+	Checksum  string `gorm:"type:varchar(64)"`                // File checksum
+	FileCount int    `gorm:"default:0;check:file_count >= 0"` // File count with validation
+	Format    string `gorm:"default:'json';size:32"`          // Data format (json, csv, parquet, etc.)
+	DatasetID int    `gorm:"not null;index"`                  // Associated Dataset ID
+	UserID    int    `gorm:"not null;index"`                  // Creator User ID
 
 	Status    consts.StatusType `gorm:"not null;default:1;index"` // Status: -1:deleted 0:disabled 1:enabled
 	CreatedAt time.Time         `gorm:"autoCreateTime;index"`     // Creation time
 	UpdatedAt time.Time         `gorm:"autoUpdateTime"`           // Update time
 
+	ActiveVersionKey string `gorm:"type:varchar(40) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN CONCAT(dataset_id, ':', name) ELSE NULL END) STORED;uniqueIndex:idx_active_version_unique"`
+
 	// Foreign key association
-	Dataset    *Dataset         `gorm:"foreignKey:DatasetID"`
-	User       *User            `gorm:"foreignKey:UserID"`
+	Dataset *Dataset `gorm:"foreignKey:DatasetID"`
+	User    *User    `gorm:"foreignKey:UserID"`
+
 	Injections []FaultInjection `gorm:"many2many:dataset_version_injections"`
 }
 
@@ -392,23 +449,23 @@ type FaultInjection struct {
 }
 
 type Execution struct {
-	ID          int     `gorm:"primaryKey;autoIncrement"`             // Unique identifier
-	Duration    float64 `gorm:"not null;default:0;index"`             // Execution duration
-	TaskID      string  `gorm:"not null;uniqueIndex;size:64"`         // Associated task ID, add composite index
-	AlgorithmID int     `gorm:"not null;index:idx_exec_algo_dataset"` // Algorithm ID, add composite index
-	DatapackID  int     `gorm:"not null;index:idx_exec_algo_dataset"` // Datapack identifier, add composite index
-	DatasetID   int     `gorm:"not null;index"`                       // Dataset identifier
+	ID                 int     `gorm:"primaryKey;autoIncrement"`              // Unique identifier
+	Duration           float64 `gorm:"not null;default:0;index"`              // Execution duration
+	TaskID             string  `gorm:"not null;uniqueIndex;size:64"`          // Associated task ID, add composite index
+	AlgorithmVersionID int     `gorm:"not null;index:idx_exec_algo_datapack"` // Algorithm ID, add composite index
+	DatapackID         int     `gorm:"not null;index:idx_exec_algo_datapack"` // Datapack identifier, add composite index
+	DatasetVersionID   int     `gorm:"not null;index"`                        // Dataset identifier
 
-	State     consts.ExecuteState `gorm:"not null;default:0;index"` // Execution state
-	Status    consts.StatusType   `gorm:"not null;default:1;index"` // Status: -1:deleted 0:disabled 1:enabled
-	CreatedAt time.Time           `gorm:"autoCreateTime"`           // CreatedAt automatically set to current time
-	UpdatedAt time.Time           `gorm:"autoUpdateTime"`           // UpdatedAt automatically updates time
+	State     consts.ExecutionState `gorm:"not null;default:0;index"` // Execution state
+	Status    consts.StatusType     `gorm:"not null;default:1;index"` // Status: -1:deleted 0:disabled 1:enabled
+	CreatedAt time.Time             `gorm:"autoCreateTime"`           // CreatedAt automatically set to current time
+	UpdatedAt time.Time             `gorm:"autoUpdateTime"`           // UpdatedAt automatically updates time
 
 	// Foreign key association with cascade
-	Task      *Task             `gorm:"foreignKey:TaskID;constraint:OnDelete:CASCADE"`
-	Algorithm *ContainerVersion `gorm:"foreignKey:AlgorithmID;constraint:OnDelete:RESTRICT"`
-	Datapack  *FaultInjection   `gorm:"foreignKey:DatapackID;constraint:OnDelete:RESTRICT"`
-	Dataset   *DatasetVersion   `gorm:"foreignKey:DatasetID;constraint:OnDelete:RESTRICT"`
+	Task             *Task             `gorm:"foreignKey:TaskID;constraint:OnDelete:CASCADE"`
+	AlgorithmVersion *ContainerVersion `gorm:"foreignKey:AlgorithmVersionID;constraint:OnDelete:RESTRICT"`
+	Datapack         *FaultInjection   `gorm:"foreignKey:DatapackID;constraint:OnDelete:RESTRICT"`
+	DatasetVersion   *DatasetVersion   `gorm:"foreignKey:DatasetVersionID;constraint:OnDelete:RESTRICT"`
 
 	DetectorResults    []DetectorResult    `gorm:"foreignKey:ExecutionID"`
 	GranularityResults []GranularityResult `gorm:"foreignKey:ExecutionID"`
@@ -594,7 +651,7 @@ type UserPermission struct {
 	ID           int              `gorm:"primaryKey;autoIncrement"`                                                                                         // Unique identifier
 	UserID       int              `gorm:"not null;uniqueIndex:idx_up_container_unique;uniqueIndex:idx_up_dataset_unique;uniqueIndex:idx_up_project_unique"` // User ID
 	PermissionID int              `gorm:"not null;uniqueIndex:idx_up_container_unique;uniqueIndex:idx_up_dataset_unique;uniqueIndex:idx_up_project_unique"` // Permission ID
-	GrantType    consts.GrantType `gorm:"default:'grant';index;size:16"`                                                                                    // Grant type: grant, deny
+	GrantType    consts.GrantType `gorm:"default:0;index;size:16"`                                                                                          // Grant type: grant, deny
 	ExpiresAt    *time.Time       // Expiration time
 	ContainerID  *int             `gorm:"uniqueIndex:idx_up_container_unique"` // Container ID (container-level permission, empty means global or project-level permission)
 	DatasetID    *int             `gorm:"uniqueIndex:idx_up_dataset_unique"`   // Dataset ID (dataset-level permission, empty means global or project-level permission)

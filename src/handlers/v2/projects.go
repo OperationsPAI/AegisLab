@@ -30,6 +30,7 @@ import (
 //	@Failure		409		{object}	dto.GenericResponse[any]				"Project already exists"
 //	@Failure		500		{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/projects [post]
+//	@x-api-type		{"sdk":"true"}
 func CreateProject(c *gin.Context) {
 	userID, exists := middleware.GetCurrentUserID(c)
 	if !exists {
@@ -103,7 +104,8 @@ func DeleteProject(c *gin.Context) {
 //	@Failure		403			{object}	dto.GenericResponse[any]					"Permission denied"
 //	@Failure		404			{object}	dto.GenericResponse[any]					"Project not found"
 //	@Failure		500			{object}	dto.GenericResponse[any]					"Internal server error"
-//	@Router			/api/v2/projects/{project_id} [get]/
+//	@Router			/api/v2/projects/{project_id} [get]
+//	@x-api-type		{"sdk":"true"}
 func GetProjectDetail(c *gin.Context) {
 	projectIdStr := c.Param(consts.URLPathProjectID)
 	projectID, err := strconv.Atoi(projectIdStr)
@@ -131,13 +133,14 @@ func GetProjectDetail(c *gin.Context) {
 //	@Param			page		query		int													false	"Page number"	default(1)
 //	@Param			size		query		int													false	"Page size"		default(20)
 //	@Param			is_public	query		bool												false	"Filter by public status"
-//	@Param			status		query		int													false	"Filter by status"
+//	@Param			status		query		consts.StatusType									false	"Filter by status"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[dto.ProjectResp]]	"Projects retrieved successfully"
 //	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
 //	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
 //	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
 //	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/projects [get]
+//	@x-api-type		{"sdk":"true"}
 func ListProjects(c *gin.Context) {
 	var req dto.ListProjectReq
 	if err := c.ShouldBindQuery(&req); err != nil {

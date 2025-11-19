@@ -41,12 +41,6 @@ START_APP   ?= $(shell [ -t 0 ] && echo "ask" || echo "yes")
 # Dependency Repositories
 CHAOS_EXPERIMENT_REPO := github.com/LGU-SE-Internal/chaos-experiment@injectionv2
 
-# Pedestal Configuration Mapping
-# Format: KEY=REPO_NAME/CHART_NAME:IMAGE_TAG:NODE_PORT
-define PEDESTAL_MAPPING
-ts=train-ticket/trainticket:v1.0.0-213-gf9294111:31000
-endef
-
 # =============================================================================
 # Declare all non-file targets
 # =============================================================================
@@ -101,6 +95,52 @@ switch-context: ## 🔄 Switch Kubernetes context (usage: make switch-context CO
 		*) printf "$(RED)❌ Invalid CONTEXT '$(CONTEXT)'. Please provide CONTEXT: dev|prod$(RESET)\n"; exit 1 ;; \
 	esac; \
 	kubectl config use-context "$$target_context"; \
+
+# =============================================================================
+# Environment Check and Setup
+# =============================================================================
+
+check-prerequisites: ## 🔍 Check development environment dependencies
+	@printf "$(BLUE)🔍 Checking development environment dependencies...$(RESET)\n"
+	@printf "$(GRAY)Checking devbox...$(RESET)\n"
+	@command -v devbox >/dev/null 2>&1 || { printf "$(RED)❌ devbox not installed$(RESET)\n"; exit 1; }
+	@printf "$(GREEN)✅ devbox installed$(RESET)\n"
+	@devbox install >/dev/null 2>&1 || { printf "$(RED)❌ devbox dependencies installation failed$(RESET)\n"; exit 1; }
+	@printf "$(GREEN)✅ devbox dependencies installed$(RESET)\n"
+	@printf "$(GRAY)Checking docker...$(RESET)\n"
+	@command -v docker >/dev/null 2>&1 || { printf "$(RED)❌ docker not installed$(RESET)\n"; exit 1; }
+	@printf "$(GREEN)✅ docker installed$(RESET)\n"
+	@printf "$(GRAY)Checking helm...$(RESET)\n"
+	@command -v helm >/dev/null 2>&1 || { printf "$(RED)❌ helm not installed$(RESET)\n"; exit 1; }
+	@printf "$(GREEN)✅ helm installed$(RESET)\n"
+	@printf "$(GRAY)Checking kubectx...$(RESET)\n"
+	@command -v kubectx >/dev/null 2>&1 || { printf "$(RED)❌ kubectx not installed$(RESET)\n"; exit 1; }
+	@printf "$(GREEN)✅ kubectx installed$(RESET)\n"
+	@printf "$(GREEN)🎉 All dependency checks passed!$(RESET)\n"
+
+setup-dev-env: check-prerequisites ## 🛠️  Setup development environment
+	@printf "$(BLUE)🛠️  Setting up development environment...$(RESET)\n"
+	@printf "$(GRAY)Installing Git hooks...$(RESET)\n"
+	@printf "$(GRAY)Checking Husky Installation Status...$(RESET)\n"
+	@if test -d $(HUSKY_DIR); then \
+		printf "$(YELLOW)Warning: The $(HUSKY_DIR) directory already exists$(RESET)\n"; \
+		printf "$(YELLOW)If you need to re-install, please remove the directory first$(RESET)\n"; \
+	else \
+		printf "$(BLUE)Directory $(HUSKY_DIR) not found. Running initialization...$(RESET)\n"; \
+		devbox run install-hooks; \
+		printf "$(GREEN)✅ Development environment setup completed!$(RESET)\n"; \
+	fi
+
+install-chaos-mesh: ## 📦 Install Chaos Mesh
+	@printf "$(BLUE)📦 Installing Chaos Mesh...$(RESET)\n"
+	helm repo add chaos-mesh https://charts.chaos-mesh.org
+	helm install chaos-mesh chaos-mesh/chaos-mesh \
+		--namespace=chaos-mesh \
+		--create-namespace \
+		--set chaosDaemon.runtime=containerd \
+		--set chaosDaemon.socketPath=/run/k3s/containerd/containerd.sock \
+		--version 2.7.2
+	@printf "$(GREEN)✅ Chaos Mesh installation completed$(RESET)\n"
 
 # =============================================================================
 # Pedestal Function
@@ -225,38 +265,6 @@ show-pedestal-map: ## 🗺️  Show available pedestal mappings
 		fi; \
 	done
 	
-# =============================================================================
-# Environment Check and Setup
-# =============================================================================
-
-check-prerequisites: ## 🔍 Check development environment dependencies
-	@printf "$(BLUE)🔍 Checking development environment dependencies...$(RESET)\n"
-	@printf "$(GRAY)Checking kubectl...$(RESET)\n"
-	@command -v kubectl >/dev/null 2>&1 || { printf "$(RED)❌ kubectl not installed$(RESET)"; exit 1; }
-	@printf "$(GREEN)✅ kubectl installed$(RESET)\n"
-	@printf "$(GRAY)Checking skaffold...$(RESET)\n"
-	@command -v skaffold >/dev/null 2>&1 || { printf "$(RED)❌ skaffold not installed$(RESET)\n"; exit 1; }
-	@printf "$(GREEN)✅ skaffold installed$(RESET)\n"
-	@printf "$(GRAY)Checking docker...$(RESET)\n"
-	@command -v docker >/dev/null 2>&1 || { printf "$(RED)❌ docker not installed$(RESET)\n"; exit 1; }
-	@printf "$(GREEN)✅ docker installed$(RESET)\n"
-	@printf "$(GRAY)Checking helm...$(RESET)\n"
-	@command -v helm >/dev/null 2>&1 || { printf "$(RED)❌ helm not installed$(RESET)\n"; exit 1; }
-	@printf "$(GREEN)✅ helm installed$(RESET)\n"
-	@printf "$(GREEN)🎉 All dependency checks passed!$(RESET)\n"
-
-setup-dev-env: check-prerequisites ## 🛠️  Setup development environment
-	@printf "$(BLUE)🛠️  Setting up development environment...$(RESET)\n"
-	@printf "$(GRAY)Installing Git hooks...$(RESET)\n"
-	@printf "$(GRAY)Checking Husky Installation Status...$(RESET)\n"
-	@if test -d $(HUSKY_DIR); then \
-		printf "$(YELLOW)Warning: The $(HUSKY_DIR) directory already exists$(RESET)\n"; \
-		printf "$(YELLOW)If you need to re-install, please remove the directory first$(RESET)\n"; \
-	else \
-		printf "$(BLUE)Directory $(HUSKY_DIR) not found. Running initialization...$(RESET)\n"; \
-		devbox run install-hooks; \
-		printf "$(GREEN)✅ Development environment setup completed!$(RESET)\n"; \
-	fi
 
 # =============================================================================
 # Secret Management
@@ -293,7 +301,7 @@ check-secrets: ## 🔍 Check required Secrets exist
 	done; \
 	if [ "$$all_ok" = "false" ]; then \
 		printf "$(YELLOW)💡 Run: make install-secrets$(RESET)\n"; \
-		exit 1; \
+		exit 1; \ 
 	fi
 
 # =============================================================================
@@ -418,36 +426,6 @@ check-db: ## 🔍 Check database status
 		kubectl get pods -n $(NS) -l app=rcabench-mysql || printf "$(GRAY)No database pods found$(RESET)\n"; \
 		exit 1; \
 	fi
-
-reset-db: ## 🗑️  Reset database (⚠️ Will delete all data)
-	@printf "$(RED)⚠️ Warning: This will delete all database data!$(RESET)\n"
-	@read -p "Confirm to continue? (y/N): " confirm && [ "$$confirm" = "y" ] || exit 1
-	@if $(MAKE) check-db 2>/dev/null; then \
-		printf "$(YELLOW)📄 Backing up existing database...$(RESET)\n"; \
-		$(MAKE) -C scripts/hack/backup_psql backup; \
-	else \
-		printf "$(YELLOW)⚠️ Database not running, skipping backup$(RESET)\n"; \
-	fi
-	@printf "$(BLUE)🗑️ Resetting database in namespace $(NS)...$(RESET)\n"
-	helm uninstall rcabench -n $(NS) || true
-	@printf "$(BLUE)⏳ Waiting for Pods to terminate...$(RESET)\n"
-	@while kubectl get pods -n $(NS) -l app=rcabench-mysql 2>/dev/null | grep -q .; do \
-		printf "$(GRAY)  Still waiting for Pods to terminate...$(RESET)\n"; \
-		sleep 2; \
-	done
-	@printf "$(GREEN)✅ All Pods terminated$(RESET)\n"
-	kubectl delete pvc rcabench-mysql-data -n $(NS) || true
-	@printf "$(BLUE)⏳ Waiting for PVC deletion...$(RESET)\n"
-	@while kubectl get pvc -n $(NS) | grep -q rcabench-mysql-data; do \
-		printf "$(GRAY)  Still waiting for PVC deletion...$(RESET)\n"; \
-		sleep 2; \
-	done
-	@printf "$(GREEN)✅ PVC deletion successful$(RESET)\n"
-	@printf "$(GREEN)✅ Database reset completed. Redeploying...$(RESET)\n"
-	$(MAKE) run
-	@printf "$(GREEN)🚀 Application redeployed successfully.$(RESET)\n"
-	$(MAKE) -C scripts/hack/backup_mysql migrate
-	@printf "$(GREEN)📦 Restoring database from backup.$(RESET)\n"
 
 check-redis: ## 🔍 check Redis status
 	@printf "$(BLUE)🔍 Checking Redis status...$(RESET)\n"
@@ -600,39 +578,6 @@ delete-all-chaos: ## 🗑️  Delete all chaos resources in namespaces with spec
 	@printf "$(GREEN)✅ Chaos resources deletion completed$(RESET)\n"
 
 # =============================================================================
-# Kubernetes Management
-# =============================================================================
-
-k8s-resources: ## 📊 Show all jobs and pods
-	@printf "$(BLUE)📊 Resources in namespace $(NS):$(RESET)\n"
-	@printf "$(YELLOW)Jobs:$(RESET)\n"
-	@kubectl get jobs -n $(NS)
-	@printf "$(YELLOW)Pods:$(RESET)\n"
-	@kubectl get pods -n $(NS)
-
-status: ## 📈 View application status
-	@printf "$(BLUE)📈 Application status overview:$(RESET)\n"
-	@printf "$(YELLOW)Namespace: $(NS)$(RESET)\n"
-	@printf "$(GRAY)Deployments:$(RESET)\n"
-	@kubectl get deployments -n $(NS)
-	@printf "$(GRAY)Services:$(RESET)\n"
-	@kubectl get services -n $(NS)
-	@printf "$(GRAY)Pods status:$(RESET)\n"
-	@kubectl get pods -n $(NS) -o wide
-
-logs: ## 📋 View application logs
-	@printf "$(BLUE)📋 Application logs:$(RESET)\n"
-	@printf "$(YELLOW)Select the Pod to view logs:$(RESET)\n"
-	@kubectl get pods -n $(NS) --no-headers -o custom-columns=":metadata.name" | head -10
-	@printf "$(GRAY)Use 'kubectl logs <pod-name> -n $(NS)' to view logs of a specific Pod$(RESET)\n"
-
-ports: ## 🔌 Port forward services
-	@printf "$(BLUE)🔌 Starting port forwarding...$(RESET)\n"
-	kubectl port-forward svc/exp -n $(NS) --address 0.0.0.0 8081:8081 &
-	@printf "$(GREEN)✅ Port forwarding started (8081:8081)$(RESET)\n"
-	@printf "$(GRAY)Access URL: http://localhost:8081$(RESET)\n"
-
-# =============================================================================
 # Git Hooks
 # =============================================================================
 
@@ -641,6 +586,11 @@ pre-commit:
 	@devbox run format-staged-go
 	@if [ $$? -ne 0]; then \
 		echo "❌ Go formatting failed. Please fix the issues before committing."; \
+		exit 1; \
+	fi
+	@devbox run format-staged-python
+	@if [ $$? -ne 0]; then \
+		echo "❌ Python formatting failed. Please fix the issues before committing."; \
 		exit 1; \
 	fi
 	@printf "$(GREEN)✅ Pre-commit checks passed!$(RESET)\n"
@@ -682,20 +632,28 @@ format-staged-python: ## 🎨 Lint and format staged python files with ruff
 # SDK Generation
 # =============================================================================
 
-swagger: swag-init generate-sdk ## 📚 Generate complete Swagger documentation and SDK
-
 swag-init: ## 📝 Initialize Swagger documentation
 	@printf "$(BLUE)📝 Initializing Swagger documentation...$(RESET)\n"
 	swag init -d ./$(SRC_DIR) --parseDependency --parseDepth 1 --output ./$(SRC_DIR)/docs/openapi2
+	@printf ""
+	docker run --rm -u $(shell id -u):$(shell id -g) -v $(shell pwd):/local \
+		opspai/openapi-generator-cli:1.0.0 generate \
+		-i /local/$(SRC_DIR)/docs/openapi2/swagger.json \
+		-g openapi \
+		-o /local/$(SRC_DIR)/docs/openapi3 \
+		--git-host github.com \
+		--git-repo-id AegisLab \
+		--git-user-id OperationsPAI
 	@printf "$(BLUE)📦 Post-processing swagger initiaization...$(RESET)\n"
 	python ./scripts/swag-init-postprocess.py
 	@printf "$(GREEN)✅ Swagger documentation generation completed$(RESET)\n"
 
 generate-sdk: swag-init ## ⚙️ Generate Python SDK from Swagger documentation
 	@printf "$(BLUE)🐍 Generating Python SDK...$(RESET)\n"
+	rm -rf $(shell pwd)/$(SDK_GEN_DIR)/*; \
 	docker run --rm -u $(shell id -u):$(shell id -g) -v $(shell pwd):/local \
-		openapitools/openapi-generator-cli:latest generate \
-		-i /local/$(SRC_DIR)/docs/openapi2/swagger.json \
+		opspai/openapi-generator-cli:1.0.0 generate \
+		-i /local/$(SRC_DIR)/docs/converted/sdk.json \
 		-g python \
 		-o /local/$(SDK_GEN_DIR) \
 		-c /local/.openapi-generator/config.json \
@@ -705,32 +663,10 @@ generate-sdk: swag-init ## ⚙️ Generate Python SDK from Swagger documentation
 		--git-user-id OperationsPAI
 	@printf "$(BLUE)📦 Post-processing generated SDK...$(RESET)\n"
 	./scripts/mv-generated-sdk.sh
+# 	@printf "$(BLUE) 🐍 Formatting generated Python SDK...$(RESET)\n"
+# 	./scripts/command/dist/main.bin format python
 	@printf "$(GREEN)✅ Python SDK generation completed$(RESET)\n"
 
-# =============================================================================
-# Release Management
-# =============================================================================
-
-release: ## 🏷️  Release new version (usage: make release VERSION=1.0.1)
-	@if [ -z "$(VERSION)" ]; then \
-		printf "$(RED)❌ Please provide version number: make release VERSION=1.0.1$(RESET)\n"; \
-		exit 1; \
-	fi
-	@printf "$(BLUE)🏷️ Releasing version $(VERSION)...$(RESET)\n"
-	./scripts/release.sh $(VERSION)
-
-release-dry-run: ## 🧪 Release process dry run (usage: make release-dry-run VERSION=1.0.1)
-	@if [ -z "$(VERSION)" ]; then \
-		printf "$(RED)❌ Please provide version number: make release-dry-run VERSION=1.0.1$(RESET)\n"; \
-		exit 1; \
-	fi
-	@printf "$(BLUE)🧪 Dry run release process $(VERSION)...$(RESET)\n"
-	./scripts/release.sh $(VERSION) --dry-run
-
-upload: ## 📤 Upload SDK package
-	@printf "$(BLUE)📤 Uploading SDK package...$(RESET)\n"
-	$(MAKE) -C sdk/python upload
-	@printf "$(GREEN)✅ SDK upload completed$(RESET)\n"
 
 # =============================================================================
 # Cleanup and Maintenance

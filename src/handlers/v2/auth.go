@@ -27,6 +27,7 @@ import (
 //	@Failure		409		{object}	dto.GenericResponse[any]			"User already exists"
 //	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/auth/register [post]
+//	@x-api-type		{"sdk":"true"}
 func Register(c *gin.Context) {
 	var req dto.RegisterReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -61,6 +62,7 @@ func Register(c *gin.Context) {
 //	@Failure		401		{object}	dto.GenericResponse[any]			"Invalid user name or password"
 //	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/auth/login [post]
+//	@x-api-type		{"sdk":"true"}
 func Login(c *gin.Context) {
 	var req dto.LoginReq
 	if err := c.ShouldBindJSON(&req); err != nil {

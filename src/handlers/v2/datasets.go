@@ -33,6 +33,7 @@ import (
 //	@Failure		409		{object}	dto.GenericResponse[any]				"Conflict error"
 //	@Failure		500		{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/datasets [post]
+//	@x-api-type		{"sdk":"true"}
 func CreateDataset(c *gin.Context) {
 	userID, exists := middleware.GetCurrentUserID(c)
 	if !exists {
@@ -107,6 +108,7 @@ func DeleteDataset(c *gin.Context) {
 //	@Failure		404			{object}	dto.GenericResponse[any]					"Dataset not found"
 //	@Failure		500			{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/datasets/{dataset_id} [get]
+//	@x-api-type		{"sdk":"true"}
 func GetDataset(c *gin.Context) {
 	datasetIDStr := c.Param(consts.URLPathDatasetID)
 	datasetID, err := strconv.Atoi(datasetIDStr)
@@ -131,16 +133,18 @@ func GetDataset(c *gin.Context) {
 //	@ID				list_datasets
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page	query		int													false	"Page number"	default(1)
-//	@Param			size	query		int													false	"Page size"		default(20)
-//	@Param			type	query		string												false	"Dataset type filter"
-//	@Param			status	query		int													false	"Dataset status filter"
-//	@Success		200		{object}	dto.GenericResponse[dto.ListResp[dto.DatasetResp]]	"Datasets retrieved successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Param			page		query		int													false	"Page number"	default(1)
+//	@Param			size		query		int													false	"Page size"		default(20)
+//	@Param			type		query		string												false	"Dataset type filter"
+//	@Param			is_public	query		bool												false	"Dataset public visibility filter"
+//	@Param			status		query		consts.StatusType									false	"Dataset status filter"
+//	@Success		200			{object}	dto.GenericResponse[dto.ListResp[dto.DatasetResp]]	"Datasets retrieved successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/datasets [get]
+//	@x-api-type		{"sdk":"true"}
 func ListDatasets(c *gin.Context) {
 	var req dto.ListDatasetReq
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -266,7 +270,14 @@ func ManageDatasetCustomLabels(c *gin.Context) {
 //	@Failure		409			{object}	dto.GenericResponse[any]					"Conflict error"
 //	@Failure		500			{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/datasets/{dataset_id}/versions [post]
+//	@x-api-type		{"sdk":"true"}
 func CreateDatasetVersion(c *gin.Context) {
+	userID, exists := middleware.GetCurrentUserID(c)
+	if !exists {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
 	datasetIDStr := c.Param(consts.URLPathDatasetID)
 	datasetID, err := strconv.Atoi(datasetIDStr)
 	if err != nil || datasetID <= 0 {
@@ -285,7 +296,7 @@ func CreateDatasetVersion(c *gin.Context) {
 		return
 	}
 
-	resp, err := producer.CreateDatasetVersion(&req, datasetID)
+	resp, err := producer.CreateDatasetVersion(&req, datasetID, userID)
 	if handlers.HandleServiceError(c, err) {
 		return
 	}
@@ -343,6 +354,7 @@ func DeleteDatasetVersion(c *gin.Context) {
 //	@Failure		404			{object}	dto.GenericResponse[any]							"Dataset or version not found"
 //	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/datasets/{dataset_id}/versions/{version_id} [get]
+//	@x-api-type		{"sdk":"true"}
 func GetDatasetVersion(c *gin.Context) {
 	datasetIDStr := c.Param(consts.URLPathDatasetID)
 	datasetID, err := strconv.Atoi(datasetIDStr)
@@ -377,13 +389,14 @@ func GetDatasetVersion(c *gin.Context) {
 //	@Param			dataset_id	path		int															true	"Dataset ID"
 //	@Param			page		query		int															false	"Page number"	default(1)
 //	@Param			size		query		int															false	"Page size"		default(20)
-//	@Param			status		query		int															false	"Dataset version status filter"
+//	@Param			status		query		consts.StatusType											false	"Dataset version status filter"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[dto.DatasetVersionResp]]	"Dataset versions retrieved successfully"
 //	@Failure		400			{object}	dto.GenericResponse[any]									"Invalid request format or parameters"
 //	@Failure		401			{object}	dto.GenericResponse[any]									"Authentication required"
 //	@Failure		403			{object}	dto.GenericResponse[any]									"Permission denied"
 //	@Failure		500			{object}	dto.GenericResponse[any]									"Internal server error"
 //	@Router			/api/v2/datasets/{dataset_id}/versions [get]
+//	@x-api-type		{"sdk":"true"}
 func ListDatasetVersions(c *gin.Context) {
 	datasetIDStr := c.Param(consts.URLPathDatasetID)
 	datasetID, err := strconv.Atoi(datasetIDStr)
@@ -480,6 +493,7 @@ func UpdateDatasetVersion(c *gin.Context) {
 //	@Failure		404			{object}	dto.GenericResponse[any]	"Dataset not found"
 //	@Failure		500			{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/datasets/{dataset_id}/versions/{version_id}/download [get]
+//	@x-api-type		{"sdk":"true"}
 func DownloadDatasetVersion(c *gin.Context) {
 	datasetIDStr := c.Param(consts.URLPathDatasetID)
 	datasetID, err := strconv.Atoi(datasetIDStr)

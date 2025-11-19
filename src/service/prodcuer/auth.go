@@ -68,7 +68,7 @@ func Login(req *dto.LoginReq) (*dto.LoginResp, error) {
 		return nil, fmt.Errorf("login request is nil")
 	}
 
-	var updatedUser *database.User
+	var loginedUser *database.User
 	var token string
 	var expiresAt time.Time
 
@@ -91,6 +91,7 @@ func Login(req *dto.LoginReq) (*dto.LoginResp, error) {
 			logrus.Errorf("failed to update last login time for user %d: %v", user.ID, err)
 		}
 
+		loginedUser = user
 		return nil
 	})
 	if err != nil {
@@ -100,7 +101,7 @@ func Login(req *dto.LoginReq) (*dto.LoginResp, error) {
 	resp := &dto.LoginResp{
 		Token:     token,
 		ExpiresAt: expiresAt,
-		User:      *dto.NewUserInfo(updatedUser),
+		User:      *dto.NewUserInfo(loginedUser),
 	}
 	return resp, nil
 }

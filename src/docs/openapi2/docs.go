@@ -153,6 +153,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -336,6 +339,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -364,6 +370,11 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            10,
+                            20,
+                            50
+                        ],
                         "type": "integer",
                         "default": 20,
                         "description": "Page size",
@@ -382,6 +393,17 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "boolean",
+                        "description": "Container public visibility filter",
+                        "name": "is_public",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            -1,
+                            0,
+                            1
+                        ],
                         "type": "integer",
                         "description": "Container status filter",
                         "name": "status",
@@ -419,6 +441,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             },
             "post": {
@@ -487,6 +512,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -557,6 +585,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -612,6 +643,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -677,6 +711,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             },
             "delete": {
@@ -934,6 +971,11 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            -1,
+                            0,
+                            1
+                        ],
                         "type": "integer",
                         "description": "Container version status filter",
                         "name": "status",
@@ -971,6 +1013,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             },
             "post": {
@@ -1046,6 +1091,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -1118,6 +1166,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             },
             "delete": {
@@ -1311,6 +1362,17 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "boolean",
+                        "description": "Dataset public visibility filter",
+                        "name": "is_public",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            -1,
+                            0,
+                            1
+                        ],
                         "type": "integer",
                         "description": "Dataset status filter",
                         "name": "status",
@@ -1348,6 +1410,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             },
             "post": {
@@ -1416,6 +1481,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -1481,6 +1549,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             },
             "delete": {
@@ -1822,6 +1893,11 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            -1,
+                            0,
+                            1
+                        ],
                         "type": "integer",
                         "description": "Dataset version status filter",
                         "name": "status",
@@ -1859,6 +1935,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             },
             "post": {
@@ -1934,6 +2013,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -2006,6 +2088,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             },
             "delete": {
@@ -2224,6 +2309,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -2288,6 +2376,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -2352,6 +2443,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -2387,12 +2481,22 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            0,
+                            1,
+                            2
+                        ],
                         "type": "integer",
-                        "description": "Filter by event",
-                        "name": "event",
+                        "description": "Filter by execution state",
+                        "name": "state",
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            -1,
+                            0,
+                            1
+                        ],
                         "type": "integer",
                         "description": "Filter by status",
                         "name": "status",
@@ -2440,6 +2544,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -2522,7 +2629,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Algorithms"
+                    "Executions"
                 ],
                 "summary": "Submit batch algorithm execution",
                 "operationId": "run_algorithm",
@@ -2574,6 +2681,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -2618,6 +2728,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -2695,6 +2808,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -2772,6 +2888,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -2837,6 +2956,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -2949,9 +3071,42 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            0,
+                            1,
+                            2,
+                            3,
+                            4,
+                            5,
+                            6,
+                            7,
+                            8,
+                            9,
+                            10,
+                            11,
+                            12,
+                            13,
+                            14,
+                            15,
+                            16,
+                            17,
+                            18,
+                            19,
+                            20,
+                            21,
+                            22,
+                            23,
+                            24,
+                            25,
+                            26,
+                            27,
+                            28,
+                            29,
+                            30
+                        ],
                         "type": "integer",
                         "description": "Filter by fault type",
-                        "name": "fault_type",
+                        "name": "type",
                         "in": "query"
                     },
                     {
@@ -2961,9 +3116,16 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            0,
+                            1,
+                            2,
+                            3,
+                            4
+                        ],
                         "type": "integer",
-                        "description": "Filter by event",
-                        "name": "event",
+                        "description": "Filter by injection state",
+                        "name": "state",
                         "in": "query"
                     },
                     {
@@ -3014,6 +3176,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -3079,6 +3244,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -3144,6 +3312,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -3272,6 +3443,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -3342,6 +3516,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -3402,6 +3579,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -3466,6 +3646,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -3531,6 +3714,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -3655,7 +3841,15 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "string",
+                        "enum": [
+                            0,
+                            1,
+                            2,
+                            3,
+                            4,
+                            5
+                        ],
+                        "type": "integer",
                         "description": "Filter by category",
                         "name": "category",
                         "in": "query"
@@ -3667,6 +3861,11 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            -1,
+                            0,
+                            1
+                        ],
                         "type": "integer",
                         "description": "Filter by status",
                         "name": "status",
@@ -3724,7 +3923,6 @@ const docTemplate = `{
                 ],
                 "summary": "Create label",
                 "operationId": "create_label",
-                "deprecated": true,
                 "parameters": [
                     {
                         "description": "Label creation request",
@@ -4087,6 +4285,11 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            -1,
+                            0,
+                            1
+                        ],
                         "type": "integer",
                         "description": "Filter by status",
                         "name": "status",
@@ -4565,6 +4768,11 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            -1,
+                            0,
+                            1
+                        ],
                         "type": "integer",
                         "description": "Filter by status",
                         "name": "status",
@@ -4602,6 +4810,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             },
             "post": {
@@ -4670,6 +4881,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -4735,6 +4949,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             },
             "delete": {
@@ -4985,12 +5202,20 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            0,
+                            1
+                        ],
                         "type": "integer",
                         "description": "Filter by resource type",
                         "name": "type",
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            0,
+                            1
+                        ],
                         "type": "integer",
                         "description": "Filter by resource category",
                         "name": "category",
@@ -5199,6 +5424,11 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            -1,
+                            0,
+                            1
+                        ],
                         "type": "integer",
                         "description": "Filter by status",
                         "name": "status",
@@ -5826,14 +6056,15 @@ const docTemplate = `{
                     },
                     {
                         "enum": [
-                            "RestartService",
-                            "FaultInjection",
-                            "BuildDataset",
-                            "RunAlgorithm",
-                            "CollectResult",
-                            "BuildImage"
+                            0,
+                            1,
+                            2,
+                            3,
+                            4,
+                            5,
+                            6
                         ],
-                        "type": "string",
+                        "type": "integer",
                         "description": "Filter by task type",
                         "name": "task_type",
                         "in": "query"
@@ -5863,12 +6094,25 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            -2,
+                            -1,
+                            0,
+                            1,
+                            2,
+                            3
+                        ],
                         "type": "integer",
-                        "description": "Filter by event ID",
-                        "name": "event",
+                        "description": "Filter by state",
+                        "name": "state",
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            -1,
+                            0,
+                            1
+                        ],
                         "type": "integer",
                         "description": "Filter by status",
                         "name": "status",
@@ -5906,6 +6150,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -6035,6 +6282,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -6098,6 +6348,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -6151,6 +6404,11 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            -1,
+                            0,
+                            1
+                        ],
                         "type": "integer",
                         "description": "Filter by status",
                         "name": "status",
@@ -7449,6 +7707,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -7689,6 +7950,23 @@ const docTemplate = `{
                 "ContainerTypePedestal"
             ]
         },
+        "consts.DatapackState": {
+            "type": "integer",
+            "enum": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ],
+            "x-enum-varnames": [
+                "DatapackInitial",
+                "DatapackInjectFailed",
+                "DatapackInjectSuccess",
+                "DatapackBuildFailed",
+                "DatapackBuildSuccess"
+            ]
+        },
         "consts.EventType": {
             "type": "string",
             "enum": [
@@ -7746,6 +8024,88 @@ const docTemplate = `{
                 "EventJobFailed"
             ]
         },
+        "consts.ExecutionState": {
+            "type": "integer",
+            "enum": [
+                0,
+                1,
+                2
+            ],
+            "x-enum-varnames": [
+                "ExecutionInitial",
+                "ExecutionFailed",
+                "ExecutionSuccess"
+            ]
+        },
+        "consts.FaultType": {
+            "type": "integer",
+            "enum": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+                29,
+                30
+            ],
+            "x-enum-varnames": [
+                "PodKill",
+                "PodFailure",
+                "ContainerKill",
+                "MemoryStress",
+                "CPUStress",
+                "HTTPRequestAbort",
+                "HTTPResponseAbort",
+                "HTTPRequestDelay",
+                "HTTPResponseDelay",
+                "HTTPResponseReplaceBody",
+                "HTTPResponsePatchBody",
+                "HTTPRequestReplacePath",
+                "HTTPRequestReplaceMethod",
+                "HTTPResponseReplaceCode",
+                "DNSError",
+                "DNSRandom",
+                "TimeSkew",
+                "NetworkDelay",
+                "NetworkLoss",
+                "NetworkDuplicate",
+                "NetworkCorrupt",
+                "NetworkBandwidth",
+                "NetworkPartition",
+                "JVMLatency",
+                "JVMReturn",
+                "JVMException",
+                "JVMGarbageCollector",
+                "JVMCPUStress",
+                "JVMMemoryStress",
+                "JVMMySQLLatency",
+                "JVMMySQLException"
+            ]
+        },
         "consts.GrantType": {
             "type": "integer",
             "enum": [
@@ -7774,6 +8134,52 @@ const docTemplate = `{
                 "ProjectCategory",
                 "InjectionCategory",
                 "ExecutionCategory"
+            ]
+        },
+        "consts.PageSize": {
+            "type": "integer",
+            "enum": [
+                10,
+                20,
+                50
+            ],
+            "x-enum-varnames": [
+                "PageSizeSmall",
+                "PageSizeMedium",
+                "PageSizeLarge"
+            ]
+        },
+        "consts.ParameterCategory": {
+            "type": "integer",
+            "enum": [
+                0,
+                1
+            ],
+            "x-enum-varnames": [
+                "ParamCategoryEnvVars",
+                "ParamCategoryHelmValues"
+            ]
+        },
+        "consts.ParameterType": {
+            "type": "integer",
+            "enum": [
+                0,
+                1
+            ],
+            "x-enum-varnames": [
+                "ParamTypeFixed",
+                "ParamTypeDynamic"
+            ]
+        },
+        "consts.ResourceCategory": {
+            "type": "integer",
+            "enum": [
+                0,
+                1
+            ],
+            "x-enum-varnames": [
+                "ResourceCore",
+                "ResourceAdmin"
             ]
         },
         "consts.ResourceName": {
@@ -7830,6 +8236,17 @@ const docTemplate = `{
                 "ResourceExecution"
             ]
         },
+        "consts.ResourceType": {
+            "type": "integer",
+            "enum": [
+                0,
+                1
+            ],
+            "x-enum-varnames": [
+                "ResourceTypeSystem",
+                "ResourceTypeTable"
+            ]
+        },
         "consts.SSEEventName": {
             "type": "string",
             "enum": [
@@ -7852,6 +8269,25 @@ const docTemplate = `{
                 "CommonDeleted",
                 "CommonDisabled",
                 "CommonEnabled"
+            ]
+        },
+        "consts.TaskState": {
+            "type": "integer",
+            "enum": [
+                -2,
+                -1,
+                0,
+                1,
+                2,
+                3
+            ],
+            "x-enum-varnames": [
+                "TaskCancelled",
+                "TaskError",
+                "TaskPending",
+                "TaskRescheduled",
+                "TaskRunning",
+                "TaskCompleted"
             ]
         },
         "consts.TaskType": {
@@ -8230,10 +8666,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "$ref": "#/definitions/consts.StatusType"
+                    "type": "string"
                 },
                 "type": {
-                    "$ref": "#/definitions/consts.ContainerType"
+                    "type": "string"
                 },
                 "updated_at": {
                     "type": "string"
@@ -8282,10 +8718,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "$ref": "#/definitions/consts.StatusType"
+                    "type": "string"
                 },
                 "type": {
-                    "$ref": "#/definitions/consts.ContainerType"
+                    "type": "string"
                 },
                 "updated_at": {
                     "type": "string"
@@ -8299,7 +8735,10 @@ const docTemplate = `{
             ],
             "properties": {
                 "env_vars": {
-                    "type": "object"
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ParameterSpec"
+                    }
                 },
                 "name": {
                     "type": "string"
@@ -8354,13 +8793,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "env_vars": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ParameterItem"
                     }
-                },
-                "env_vars_keys": {
-                    "type": "string"
                 },
                 "extra": {
                     "$ref": "#/definitions/dto.PedestalInfo"
@@ -8399,8 +8835,7 @@ const docTemplate = `{
         "dto.CreateContainerReq": {
             "type": "object",
             "required": [
-                "name",
-                "type"
+                "name"
             ],
             "properties": {
                 "is_public": {
@@ -8433,14 +8868,14 @@ const docTemplate = `{
                 "env_vars": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/dto.CreateParameterConfigReq"
                     }
                 },
                 "github_link": {
                     "type": "string"
                 },
                 "helm_config": {
-                    "$ref": "#/definitions/dto.CreateHelmConfigRequest"
+                    "$ref": "#/definitions/dto.CreateHelmConfigReq"
                 },
                 "image_ref": {
                     "type": "string"
@@ -8497,7 +8932,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.CreateHelmConfigRequest": {
+        "dto.CreateHelmConfigReq": {
             "type": "object",
             "required": [
                 "chart_name",
@@ -8510,9 +8945,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "ns_prefix": {
-                    "type": "string"
-                },
-                "port_template": {
                     "type": "string"
                 },
                 "repo_name": {
@@ -8547,6 +8979,37 @@ const docTemplate = `{
                 },
                 "value": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.CreateParameterConfigReq": {
+            "type": "object",
+            "required": [
+                "category",
+                "key",
+                "type"
+            ],
+            "properties": {
+                "category": {
+                    "$ref": "#/definitions/consts.ParameterCategory"
+                },
+                "default_value": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "required": {
+                    "type": "boolean"
+                },
+                "template_string": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/consts.ParameterType"
                 }
             }
         },
@@ -8741,9 +9204,6 @@ const docTemplate = `{
                 "checksum": {
                     "type": "string"
                 },
-                "download_url": {
-                    "type": "string"
-                },
                 "file_count": {
                     "type": "integer"
                 },
@@ -8764,9 +9224,6 @@ const docTemplate = `{
         "dto.DatasetVersionResp": {
             "type": "object",
             "properties": {
-                "download_url": {
-                    "type": "string"
-                },
                 "id": {
                     "type": "integer"
                 },
@@ -10905,9 +11362,6 @@ const docTemplate = `{
                 "ns_prefix": {
                     "type": "string"
                 },
-                "port_template": {
-                    "type": "string"
-                },
                 "repo_name": {
                     "type": "string"
                 },
@@ -10915,8 +11369,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "values": {
-                    "type": "object",
-                    "additionalProperties": {}
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ParameterItem"
+                    }
                 }
             }
         },
@@ -11669,6 +12125,29 @@ const docTemplate = `{
                     "type": "integer",
                     "example": 5
                 }
+            }
+        },
+        "dto.ParameterItem": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "template_string": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ParameterSpec": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "value": {}
             }
         },
         "dto.PedestalInfo": {
@@ -13036,17 +13515,11 @@ const docTemplate = `{
                 "command": {
                     "type": "string"
                 },
-                "env_vars": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
                 "github_link": {
                     "type": "string"
                 },
                 "helm_config": {
-                    "$ref": "#/definitions/dto.UpdateHelmConfigRequest"
+                    "$ref": "#/definitions/dto.UpdateHelmConfigReq"
                 },
                 "status": {
                     "$ref": "#/definitions/consts.StatusType"
@@ -13073,9 +13546,6 @@ const docTemplate = `{
                 "checksum": {
                     "type": "string"
                 },
-                "download_url": {
-                    "type": "string"
-                },
                 "format": {
                     "type": "string"
                 },
@@ -13084,7 +13554,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.UpdateHelmConfigRequest": {
+        "dto.UpdateHelmConfigReq": {
             "type": "object",
             "properties": {
                 "chart_name": {
@@ -13688,12 +14158,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0.1",
+	Version:          "1.1.44",
 	Host:             "localhost:8082",
 	BasePath:         "",
-	Schemes:          []string{"http"},
+	Schemes:          []string{},
 	Title:            "RCABench API",
-	Description:      "RCABench - A comprehensive root cause analysis benchmarking platform for microservices\nThis API provides endpoints for managing datasets, algorithms, evaluations, and fault injections\nfor root cause analysis in distributed systems and microservices architectures.",
+	Description:      "RCABench - A comprehensive root cause analysis benchmarking platform for microservices",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

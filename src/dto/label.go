@@ -105,6 +105,9 @@ type ListLabelReq struct {
 }
 
 func (req *ListLabelReq) Validate() error {
+	if err := req.PaginationReq.Validate(); err != nil {
+		return err
+	}
 	if err := validateKeyAndValue(req.Key, req.Value); err != nil {
 		return err
 	}

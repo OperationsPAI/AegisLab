@@ -126,7 +126,7 @@ func GetPermission(c *gin.Context) {
 //	@Param			size		query		int										false	"Page size"		default(20)
 //	@Param			action		query		string									false	"Filter by action"
 //	@Param			is_system	query		bool									false	"Filter by system permission"
-//	@Param			status		query		int										false	"Filter by status"
+//	@Param			status		query		consts.StatusType						false	"Filter by status"
 //	@Success		200			{object}	dto.GenericResponse[dto.PermissionResp]	"Permissions retrieved successfully"
 //	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid request format or parameters"
 //	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"

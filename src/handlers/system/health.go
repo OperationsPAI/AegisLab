@@ -25,6 +25,7 @@ import (
 //	@Success		200	{object}	dto.GenericResponse[dto.HealthCheckResp]	"Health check successful"
 //	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/system/health [get]
+//	@x-api-type		{"sdk":"true"}
 func GetHealth(c *gin.Context) {
 	start := time.Now()
 

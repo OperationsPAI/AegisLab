@@ -27,6 +27,7 @@ import (
 //	@Failure		403		{object}	dto.GenericResponse[any]							"Permission denied"
 //	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/evaluations/datapacks [post]
+//	@x-api-type		{"sdk":"true"}
 func ListDatapackEvaluationResults(c *gin.Context) {
 	userID, exists := middleware.GetCurrentUserID(c)
 	if !exists || userID <= 0 {
@@ -69,6 +70,7 @@ func ListDatapackEvaluationResults(c *gin.Context) {
 //	@Failure		403		{object}	dto.GenericResponse[any]							"Permission denied"
 //	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/evaluations/datasets [post]
+//	@x-api-type		{"sdk":"true"}
 func ListDatasetEvaluationResults(c *gin.Context) {
 	userID, exists := middleware.GetCurrentUserID(c)
 	if !exists || userID <= 0 {

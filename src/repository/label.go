@@ -12,6 +12,10 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+const (
+	labelKeyOmitFields = "active_key_value"
+)
+
 // =====================================================================
 // Label Repository Functions
 // =====================================================================
@@ -68,7 +72,7 @@ func BatchUpsertLabels(db *gorm.DB, labels []database.Label) error {
 		return fmt.Errorf("no labels to upsert")
 	}
 
-	if err := db.Clauses(clause.OnConflict{
+	if err := db.Omit(labelKeyOmitFields).Clauses(clause.OnConflict{
 		OnConstraint: "idx_key_value_unique",
 		DoNothing:    true,
 	}).Create(&labels).Error; err != nil {
@@ -84,7 +88,7 @@ func BatchUpdateLabels(db *gorm.DB, labels []database.Label) error {
 		return fmt.Errorf("no labels to update")
 	}
 
-	if err := db.Save(&labels).Error; err != nil {
+	if err := db.Omit(labelKeyOmitFields).Save(&labels).Error; err != nil {
 		return fmt.Errorf("failed to batch update labels: %w", err)
 	}
 
@@ -93,7 +97,7 @@ func BatchUpdateLabels(db *gorm.DB, labels []database.Label) error {
 
 // CreateLabel creates a label
 func CreateLabel(db *gorm.DB, label *database.Label) error {
-	if err := db.Create(label).Error; err != nil {
+	if err := db.Omit(labelKeyOmitFields).Create(label).Error; err != nil {
 		return fmt.Errorf("failed to create label: %w", err)
 	}
 	return nil
@@ -235,7 +239,7 @@ func SearchLabels(keyword string, category string, limit int) ([]database.Label,
 }
 
 func UpdateLabel(db *gorm.DB, label *database.Label) error {
-	if err := db.Save(label).Error; err != nil {
+	if err := db.Omit(labelKeyOmitFields).Save(label).Error; err != nil {
 		return fmt.Errorf("failed to update label: %w", err)
 	}
 	return nil

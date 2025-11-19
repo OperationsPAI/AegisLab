@@ -35,6 +35,9 @@ type ListRoleReq struct {
 }
 
 func (req *ListRoleReq) Validate() error {
+	if err := req.PaginationReq.Validate(); err != nil {
+		return err
+	}
 	return validateStatusField(req.Status, false)
 }
 

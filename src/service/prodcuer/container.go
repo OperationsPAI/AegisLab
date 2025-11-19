@@ -33,27 +33,9 @@ func CreateContainer(req *dto.CreateContainerReq, userID int) (*dto.ContainerRes
 
 	container := req.ConvertToContainer()
 
-	var version *database.ContainerVersion
-	var helmConfig *database.HelmConfig
-	if req.VersionReq != nil {
-		version = req.VersionReq.ConvertToContainerVersion()
-		if req.VersionReq.HelmConfigRequest != nil {
-			var err error
-			helmConfig, err = req.VersionReq.HelmConfigRequest.ConvertToHelmConfig()
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert helm config request: %w", err)
-			}
-		}
-	}
-
 	var createdContainer *database.Container
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		var err error
-		if version != nil {
-			container, err = CreateContainerCore(tx, container, []database.ContainerVersion{*version}, []*database.HelmConfig{helmConfig}, userID)
-		} else {
-			container, err = CreateContainerCore(tx, container, nil, nil, userID)
-		}
+		container, err := CreateContainerCore(tx, container, userID)
 
 		if err != nil {
 			return fmt.Errorf("failed to create container: %w", err)
@@ -70,7 +52,7 @@ func CreateContainer(req *dto.CreateContainerReq, userID int) (*dto.ContainerRes
 }
 
 // CreateContainerCore performs the core logic of creating a container within a transaction
-func CreateContainerCore(tx *gorm.DB, container *database.Container, versions []database.ContainerVersion, helmConfigs []*database.HelmConfig, userID int) (*database.Container, error) {
+func CreateContainerCore(tx *gorm.DB, container *database.Container, userID int) (*database.Container, error) {
 	role, err := repository.GetRoleByName(tx, consts.RoleContainerAdmin)
 	if err != nil {
 		if errors.Is(err, consts.ErrNotFound) {
@@ -83,7 +65,6 @@ func CreateContainerCore(tx *gorm.DB, container *database.Container, versions []
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return nil, consts.ErrAlreadyExists
 		}
-
 		return nil, err
 	}
 
@@ -96,14 +77,16 @@ func CreateContainerCore(tx *gorm.DB, container *database.Container, versions []
 		return nil, fmt.Errorf("failed to associate container with user: %w", err)
 	}
 
-	for i := range versions {
-		versions[i].ContainerID = container.ID
-		versions[i].UserID = userID
-	}
+	if len(container.Versions) > 0 {
+		for i := range container.Versions {
+			container.Versions[i].ContainerID = container.ID
+			container.Versions[i].UserID = userID
+		}
 
-	_, err = CreateContainerVersionsCore(tx, versions, helmConfigs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create container versions: %w", err)
+		_, err = createContainerVersionsCore(tx, container.Versions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create container versions: %w", err)
+		}
 	}
 
 	return container, nil
@@ -176,7 +159,7 @@ func ListContainers(req *dto.ListContainerReq) (*dto.ListResp[dto.ContainerResp]
 		return nil, fmt.Errorf("failed to list container labels: %w", err)
 	}
 
-	containerResps := make([]dto.ContainerResp, len(containers))
+	containerResps := make([]dto.ContainerResp, 0, len(containers))
 	for _, container := range containers {
 		if labels, exists := labelsMap[container.ID]; exists {
 			container.Labels = labels
@@ -296,26 +279,18 @@ func ManageContainerLabels(req *dto.ManageContainerLabelReq, containerID int) (*
 // =====================================================================
 
 // CreateContainerVersion creates a new version for an existing container
-func CreateContainerVersion(req *dto.CreateContainerVersionReq, containerID int) (*dto.ContainerVersionResp, error) {
+func CreateContainerVersion(req *dto.CreateContainerVersionReq, containerID, userID int) (*dto.ContainerVersionResp, error) {
 	if req == nil {
 		return nil, fmt.Errorf("create container version request is nil")
 	}
 
 	version := req.ConvertToContainerVersion()
 	version.ContainerID = containerID
-
-	var helmConfig *database.HelmConfig
-	if req.HelmConfigRequest != nil {
-		var err error
-		helmConfig, err = req.HelmConfigRequest.ConvertToHelmConfig()
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert helm config request: %w", err)
-		}
-	}
+	version.UserID = userID
 
 	var createdVersion *database.ContainerVersion
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		versions, err := CreateContainerVersionsCore(tx, []database.ContainerVersion{*version}, []*database.HelmConfig{helmConfig})
+		versions, err := createContainerVersionsCore(tx, []database.ContainerVersion{*version})
 		if err != nil {
 			return fmt.Errorf("failed to create container version: %w", err)
 		}
@@ -328,37 +303,6 @@ func CreateContainerVersion(req *dto.CreateContainerVersionReq, containerID int)
 	}
 
 	return dto.NewContainerVersionResp(createdVersion), nil
-}
-
-// CreateContainerVersionCore performs the core logic of creating container versions within a transaction
-func CreateContainerVersionsCore(db *gorm.DB, versions []database.ContainerVersion, helmConfigs []*database.HelmConfig) ([]database.ContainerVersion, error) {
-	if len(versions) == 0 {
-		return nil, nil
-	}
-
-	if err := repository.BatchCreateContainerVersions(db, versions); err != nil {
-		return nil, fmt.Errorf("failed to create container versions: %w", err)
-	}
-
-	if len(helmConfigs) == 0 {
-		return versions, nil
-	}
-
-	var helmConfigsToCreate []database.HelmConfig
-	for i, version := range versions {
-		if i < len(helmConfigs) && helmConfigs[i] != nil {
-			helmConfigs[i].ContainerVersionID = version.ID
-			helmConfigsToCreate = append(helmConfigsToCreate, *helmConfigs[i])
-		}
-	}
-
-	if len(helmConfigsToCreate) > 0 {
-		if err := repository.BatchCreateHelmConfigs(db, helmConfigsToCreate); err != nil {
-			return nil, fmt.Errorf("failed to create helm configs: %w", err)
-		}
-	}
-
-	return versions, nil
 }
 
 // DeleteContainerVersion deletes a specific version of a container
@@ -395,7 +339,7 @@ func GetContainerVersionDetail(containerID, versionID int) (*dto.ContainerVersio
 	resp := dto.NewContainerVersionDetailResp(version)
 
 	helmConfig, err := repository.GetHelmConfigByContainerVersionID(database.DB, version.ID)
-	if err != nil && !errors.Is(err, consts.ErrNotFound) {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, fmt.Errorf("failed to get helm config: %w", err)
 	}
 	if helmConfig != nil {
@@ -413,7 +357,7 @@ func GetContainerVersionDetail(containerID, versionID int) (*dto.ContainerVersio
 func ListContainerVersions(req *dto.ListContainerVersionReq, containerID int) (*dto.ListResp[dto.ContainerVersionResp], error) {
 	limit, offset := req.ToGormParams()
 
-	versions, total, err := repository.ListContainerVersions(database.DB, containerID, limit, offset, req.Status)
+	versions, total, err := repository.ListContainerVersions(database.DB, limit, offset, containerID, req.Status)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list container versions: %w", err)
 	}
@@ -452,7 +396,7 @@ func UpdateContainerVersion(req *dto.UpdateContainerVersionReq, containerID, ver
 
 		if req.HelmConfigRequest != nil {
 			existingHelmConfig, err := repository.GetHelmConfigByContainerVersionID(tx, existingVersion.ID)
-			if err != nil && !errors.Is(err, consts.ErrNotFound) {
+			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("failed to get helm config: %w", err)
 			}
 
@@ -523,6 +467,163 @@ func ProduceContainerBuildingTask(ctx context.Context, req *dto.SubmitBuildConta
 		TaskID:  task.TaskID,
 	}
 	return resp, nil
+}
+
+// createContainerVersionCore performs the core logic of creating container versions within a transaction
+func createContainerVersionsCore(db *gorm.DB, versions []database.ContainerVersion) ([]database.ContainerVersion, error) {
+	if len(versions) == 0 {
+		return nil, nil
+	}
+
+	if err := repository.BatchCreateContainerVersions(db, versions); err != nil {
+		return nil, fmt.Errorf("failed to create container versions: %w", err)
+	}
+
+	// Collect all envVars with their corresponding version index
+	type envVarWithVersionIdx struct {
+		envVar     database.ParameterConfig
+		versionIdx int
+		envVarIdx  int
+	}
+
+	envVarsWithIdx := []envVarWithVersionIdx{}
+	for versionIdx, version := range versions {
+		for envVarIdx, envVar := range version.EnvVars {
+			envVarsWithIdx = append(envVarsWithIdx, envVarWithVersionIdx{
+				envVar:     envVar,
+				versionIdx: versionIdx,
+				envVarIdx:  envVarIdx,
+			})
+		}
+	}
+
+	if len(envVarsWithIdx) > 0 {
+		// Extract envVars for batch creation/upsert
+		envVars := make([]database.ParameterConfig, len(envVarsWithIdx))
+		for i, item := range envVarsWithIdx {
+			envVars[i] = item.envVar
+		}
+
+		// Use OnConflict to insert or ignore existing configs
+		if err := repository.BatchCreateOrFindParameterConfigs(db, envVars); err != nil {
+			return nil, fmt.Errorf("failed to create parameter configs: %w", err)
+		}
+
+		// Query back the actual IDs from database (including existing ones)
+		actualEnvVars, err := repository.ListParameterConfigsByKeys(db, envVars)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list parameter configs: %w", err)
+		}
+
+		// Build a map for quick lookup: (key, type, category) -> ID
+		configMap := make(map[string]int)
+		for _, cfg := range actualEnvVars {
+			key := fmt.Sprintf("%s:%d:%d", cfg.Key, cfg.Type, cfg.Category)
+			configMap[key] = cfg.ID
+		}
+
+		// Build relations using the actual IDs from database
+		relations := make([]database.ContainerVersionEnvVar, 0, len(envVarsWithIdx))
+		for _, item := range envVarsWithIdx {
+			cfg := item.envVar
+			key := fmt.Sprintf("%s:%d:%d", cfg.Key, cfg.Type, cfg.Category)
+			if paramID, exists := configMap[key]; exists {
+				relations = append(relations, database.ContainerVersionEnvVar{
+					ContainerVersionID: versions[item.versionIdx].ID,
+					ParameterConfigID:  paramID,
+				})
+			} else {
+				return nil, fmt.Errorf("parameter config not found after creation: %s", key)
+			}
+		}
+
+		if err := repository.AddContainerVersionEnvVars(db, relations); err != nil {
+			return nil, fmt.Errorf("failed to create container version env var relations: %w", err)
+		}
+	}
+
+	var helmConfigs []database.HelmConfig
+	helmConfigIdxMap := make(map[int]int) // map from helmConfig index to version index
+	for versionIdx, version := range versions {
+		if version.HelmConfig != nil {
+			version.HelmConfig.ContainerVersionID = versions[versionIdx].ID
+			helmConfigIdxMap[len(helmConfigs)] = versionIdx
+			helmConfigs = append(helmConfigs, *version.HelmConfig)
+		}
+	}
+
+	if len(helmConfigs) == 0 {
+		return versions, nil
+	}
+
+	if err := repository.BatchCreateHelmConfigs(db, helmConfigs); err != nil {
+		return nil, fmt.Errorf("failed to create helm configs: %w", err)
+	}
+
+	// Collect all helm values with their corresponding helmConfig index
+	type helmValueWithConfigIdx struct {
+		value         database.ParameterConfig
+		helmConfigIdx int
+		valueIdx      int
+	}
+
+	helmValuesWithIdx := []helmValueWithConfigIdx{}
+	for helmConfigIdx, helmConfig := range helmConfigs {
+		for valueIdx, value := range helmConfig.Values {
+			helmValuesWithIdx = append(helmValuesWithIdx, helmValueWithConfigIdx{
+				value:         value,
+				helmConfigIdx: helmConfigIdx,
+				valueIdx:      valueIdx,
+			})
+		}
+	}
+
+	if len(helmValuesWithIdx) > 0 {
+		// Extract helm values for batch creation/upsert
+		helmValues := make([]database.ParameterConfig, len(helmValuesWithIdx))
+		for i, item := range helmValuesWithIdx {
+			helmValues[i] = item.value
+		}
+
+		// Use OnConflict to insert or ignore existing configs
+		if err := repository.BatchCreateOrFindParameterConfigs(db, helmValues); err != nil {
+			return nil, fmt.Errorf("failed to create helm parameter configs: %w", err)
+		}
+
+		// Query back the actual IDs from database (including existing ones)
+		actualHelmValues, err := repository.ListParameterConfigsByKeys(db, helmValues)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list helm parameter configs: %w", err)
+		}
+
+		// Build a map for quick lookup: (key, type, category) -> ID
+		configMap := make(map[string]int)
+		for _, cfg := range actualHelmValues {
+			key := fmt.Sprintf("%s:%d:%d", cfg.Key, cfg.Type, cfg.Category)
+			configMap[key] = cfg.ID
+		}
+
+		// Build relations using the actual IDs from database
+		relations := make([]database.HelmConfigValue, 0, len(helmValuesWithIdx))
+		for _, item := range helmValuesWithIdx {
+			cfg := item.value
+			key := fmt.Sprintf("%s:%d:%d", cfg.Key, cfg.Type, cfg.Category)
+			if paramID, exists := configMap[key]; exists {
+				relations = append(relations, database.HelmConfigValue{
+					HelmConfigID:      helmConfigs[item.helmConfigIdx].ID,
+					ParameterConfigID: paramID,
+				})
+			} else {
+				return nil, fmt.Errorf("helm parameter config not found after creation: %s", key)
+			}
+		}
+
+		if err := repository.AddHelmConfigValues(db, relations); err != nil {
+			return nil, fmt.Errorf("failed to create helm config value relations: %w", err)
+		}
+	}
+
+	return versions, nil
 }
 
 // fetchContainersMapByIDBatch fetches containers by their IDs and returns a map of container ID to Container

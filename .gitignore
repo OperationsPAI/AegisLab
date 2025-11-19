@@ -120,7 +120,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
+.env*
 .venv
 env/
 venv/
@@ -176,3 +176,5 @@ containers
 .codebuddy
 .github/instructions/tmp/
 .husky/
+src/docs/openapi3/.openapi-generator
+src/docs/openapi3/.openapi-generator-ignore

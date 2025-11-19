@@ -1,7 +1,6 @@
 package dto
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"path/filepath"
@@ -18,35 +17,33 @@ const (
 	InfoNameField = "name"
 )
 
+type ParameterItem struct {
+	Key            string `json:"key"`
+	Value          any    `json:"value,omitempty"`
+	TemplateString string `json:"template_string,omitempty"`
+}
+
 // =====================================================================
 // Container Service DTOs
 // =====================================================================
 
 type HelmConfigItem struct {
-	RepoURL      string         `json:"repo_url"`
-	RepoName     string         `json:"repo_name"`
-	ChartName    string         `json:"chart_name"`
-	FullChart    string         `json:"full_chart"`
-	NsPrefix     string         `json:"ns_prefix"`
-	PortTemplate string         `json:"port_template"`
-	Values       map[string]any `json:"values"`
+	RepoURL   string          `json:"repo_url"`
+	RepoName  string          `json:"repo_name"`
+	ChartName string          `json:"chart_name"`
+	FullChart string          `json:"full_chart"`
+	NsPrefix  string          `json:"ns_prefix"`
+	Values    []ParameterItem `json:"values,omitempty"`
 }
 
-func NewHelmConfigItem(cfg *database.HelmConfig) (*HelmConfigItem, error) {
-	var values map[string]any
-	if err := json.Unmarshal([]byte(cfg.Values), &values); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal helm config values: %w", err)
-	}
-
+func NewHelmConfigItem(cfg *database.HelmConfig) *HelmConfigItem {
 	return &HelmConfigItem{
-		RepoURL:      cfg.RepoURL,
-		RepoName:     cfg.RepoName,
-		ChartName:    cfg.ChartName,
-		FullChart:    cfg.FullChart,
-		NsPrefix:     cfg.NsPrefix,
-		PortTemplate: cfg.PortTemplate,
-		Values:       values,
-	}, nil
+		RepoURL:   cfg.RepoURL,
+		RepoName:  cfg.RepoName,
+		ChartName: cfg.ChartName,
+		FullChart: cfg.FullChart,
+		NsPrefix:  cfg.NsPrefix,
+	}
 }
 
 type PedestalInfo struct {
@@ -56,41 +53,34 @@ type PedestalInfo struct {
 	HelmConfig *HelmConfigItem `json:"helm_config"`
 }
 
-func NewPedestalInfo(version *database.ContainerVersion, helmConfig *database.HelmConfig) (*PedestalInfo, error) {
-	helmConfigItem, err := NewHelmConfigItem(helmConfig)
-	if err != nil {
-		return nil, err
-	}
-
+func NewPedestalInfo(version *database.ContainerVersion, helmConfig *database.HelmConfig) *PedestalInfo {
 	return &PedestalInfo{
 		Registry:   version.Registry,
 		Namespace:  version.Namespace,
 		Tag:        version.Tag,
-		HelmConfig: helmConfigItem,
-	}, nil
+		HelmConfig: NewHelmConfigItem(helmConfig),
+	}
 }
 
 type ContainerVersionItem struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	ImageRef    string `json:"image_ref"`
-	Command     string `json:"command,omitempty"`
-	EnvVarsKeys string `json:"env_vars_keys,omitempty"`
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
+	ImageRef string `json:"image_ref"`
+	Command  string `json:"command,omitempty"`
 
 	ContainerID   int    `json:"container_id"`
 	ContainerName string `json:"container_name"`
 
-	EnvVars map[string]string `json:"env_vars,omitempty"`
-	Extra   *PedestalInfo     `json:"extra,omitempty"`
+	EnvVars []ParameterItem `json:"env_vars,omitempty"`
+	Extra   *PedestalInfo   `json:"extra,omitempty"`
 }
 
-func NewContainerVersionItem(version *database.ContainerVersion, envVars map[string]string) ContainerVersionItem {
+func NewContainerVersionItem(version *database.ContainerVersion) ContainerVersionItem {
 	item := ContainerVersionItem{
-		ID:          version.ID,
-		Name:        version.Name,
-		ImageRef:    version.ImageRef,
-		Command:     version.Command,
-		EnvVarsKeys: version.EnvVars,
+		ID:       version.ID,
+		Name:     version.Name,
+		ImageRef: version.ImageRef,
+		Command:  version.Command,
 	}
 
 	if version.Container != nil {
@@ -98,7 +88,6 @@ func NewContainerVersionItem(version *database.ContainerVersion, envVars map[str
 		item.ContainerName = version.Container.Name
 	}
 
-	item.EnvVars = envVars
 	return item
 }
 
@@ -121,16 +110,16 @@ func (ref *ContainerRef) Validate() error {
 
 type ContainerSpec struct {
 	ContainerRef
-	EnvVars map[string]string `json:"env_vars" binding:"omitempty" swaggertype:"object"`
+	EnvVars []ParameterSpec `json:"env_vars" binding:"omitempty"`
 }
 
 func (item *ContainerSpec) Validate() error {
 	if err := item.ContainerRef.Validate(); err != nil {
 		return err
 	}
-	for key := range item.EnvVars {
-		if err := utils.IsValidEnvVar(key); err != nil {
-			return fmt.Errorf("invalid environment variable key %s: %v", key, err)
+	for _, envVar := range item.EnvVars {
+		if err := utils.IsValidEnvVar(envVar.Key); err != nil {
+			return fmt.Errorf("invalid environment variable key %s: %v", envVar.Key, err)
 		}
 	}
 	return nil
@@ -141,10 +130,10 @@ func (item *ContainerSpec) Validate() error {
 // =====================================================================
 
 type CreateContainerReq struct {
-	Name     string               `json:"name" binding:"required"`
-	Type     consts.ContainerType `json:"type" binding:"required"`
-	README   string               `json:"readme" binding:"omitempty"`
-	IsPublic *bool                `json:"is_public" binding:"omitempty"`
+	Name     string                `json:"name" binding:"required"`
+	Type     *consts.ContainerType `json:"type"`
+	README   string                `json:"readme" binding:"omitempty"`
+	IsPublic *bool                 `json:"is_public"`
 
 	VersionReq *CreateContainerVersionReq `json:"version" binding:"omitempty"`
 }
@@ -159,8 +148,11 @@ func (req *CreateContainerReq) Validate() error {
 		req.IsPublic = utils.BoolPtr(true)
 	}
 
-	if _, exists := consts.ValidContainerTypes[req.Type]; !exists {
-		return fmt.Errorf("invalid container type: %d", req.Type)
+	if req.Type == nil {
+		return fmt.Errorf("container type is required")
+	}
+	if err := validateContainerType(req.Type); err != nil {
+		return err
 	}
 
 	if req.VersionReq != nil {
@@ -173,22 +165,35 @@ func (req *CreateContainerReq) Validate() error {
 }
 
 func (req *CreateContainerReq) ConvertToContainer() *database.Container {
-	return &database.Container{
+	container := &database.Container{
 		Name:     req.Name,
-		Type:     req.Type,
+		Type:     *req.Type,
 		README:   req.README,
 		IsPublic: *req.IsPublic,
 		Status:   consts.CommonEnabled,
 	}
+
+	if req.VersionReq != nil {
+		container.Versions = []database.ContainerVersion{
+			*req.VersionReq.ConvertToContainerVersion(),
+		}
+	}
+
+	return container
+}
+
+type ParameterSpec struct {
+	Key   string `json:"key"`
+	Value any    `json:"value,omitempty"`
 }
 
 type CreateContainerVersionReq struct {
-	Name              string                   `json:"name" binding:"required"`
-	GithubLink        string                   `json:"github_link" binding:"omitempty"`
-	ImageRef          string                   `json:"image_ref" binding:"required"`
-	Command           string                   `json:"command" binding:"omitempty"`
-	EnvVars           []string                 `json:"env_vars" binding:"omitempty"`
-	HelmConfigRequest *CreateHelmConfigRequest `json:"helm_config" binding:"omitempty"`
+	Name              string                     `json:"name" binding:"required"`
+	GithubLink        string                     `json:"github_link" binding:"omitempty"`
+	ImageRef          string                     `json:"image_ref" binding:"required"`
+	Command           string                     `json:"command" binding:"omitempty"`
+	EnvVarRequests    []CreateParameterConfigReq `json:"env_vars" binding:"omitempty"`
+	HelmConfigRequest *CreateHelmConfigReq       `json:"helm_config" binding:"omitempty"`
 }
 
 func (req *CreateContainerVersionReq) Validate() error {
@@ -215,9 +220,15 @@ func (req *CreateContainerVersionReq) Validate() error {
 		return fmt.Errorf("invalid docker image reference: %s, %v", req.ImageRef, err)
 	}
 
+	for idx, envVarReq := range req.EnvVarRequests {
+		if err := envVarReq.Validate(); err != nil {
+			return fmt.Errorf("invalid env var at index %d: %v", idx, err)
+		}
+	}
+
 	if req.HelmConfigRequest != nil {
 		if err := req.HelmConfigRequest.Validate(); err != nil {
-			return fmt.Errorf("invalid helm config: %v", err)
+			return fmt.Errorf("invalid helm config:  %v", err)
 		}
 	}
 
@@ -229,23 +240,33 @@ func (req *CreateContainerVersionReq) ConvertToContainerVersion() *database.Cont
 		Name:     req.Name,
 		ImageRef: req.ImageRef,
 		Command:  req.Command,
-		EnvVars:  strings.Join(req.EnvVars, ","),
 		Status:   consts.CommonEnabled,
+	}
+
+	if len(req.EnvVarRequests) > 0 {
+		params := make([]database.ParameterConfig, 0, len(req.EnvVarRequests))
+		for _, envVarReq := range req.EnvVarRequests {
+			params = append(params, *envVarReq.ConvertToParameterConfig())
+		}
+		version.EnvVars = params
+	}
+
+	if req.HelmConfigRequest != nil {
+		version.HelmConfig = req.HelmConfigRequest.ConvertToHelmConfig()
 	}
 
 	return version
 }
 
-type CreateHelmConfigRequest struct {
-	ChartName    string         `json:"chart_name" binding:"required"`
-	RepoName     string         `json:"repo_name" binding:"required"`
-	RepoURL      string         `json:"repo_url" binding:"required"`
-	NsPrefix     string         `json:"ns_prefix" binding:"required"`
-	PortTemplate string         `json:"port_template" binding:"omitempty"`
-	Values       map[string]any `json:"values" binding:"omitempty" swaggertype:"object"`
+type CreateHelmConfigReq struct {
+	ChartName string                     `json:"chart_name" binding:"required"`
+	RepoName  string                     `json:"repo_name" binding:"required"`
+	RepoURL   string                     `json:"repo_url" binding:"required"`
+	NsPrefix  string                     `json:"ns_prefix" binding:"required"`
+	Values    []CreateParameterConfigReq `json:"values" binding:"omitempty" swaggertype:"object"`
 }
 
-func (req *CreateHelmConfigRequest) Validate() error {
+func (req *CreateHelmConfigReq) Validate() error {
 	req.ChartName = strings.TrimSpace(req.ChartName)
 	req.RepoName = strings.TrimSpace(req.RepoName)
 	req.RepoURL = strings.TrimSpace(req.RepoURL)
@@ -270,54 +291,95 @@ func (req *CreateHelmConfigRequest) Validate() error {
 	if !utils.CheckNsPrefixExists(req.NsPrefix) {
 		return fmt.Errorf("invalid namespace prefix: %s", req.NsPrefix)
 	}
-	if req.PortTemplate != "" {
-		req.PortTemplate = strings.TrimSpace(req.PortTemplate)
-		if !strings.Contains(req.PortTemplate, "{{.port}}") {
-			return fmt.Errorf("port template must contain '{{.port}}' placeholder")
+
+	for i, val := range req.Values {
+		if err := val.Validate(); err != nil {
+			return fmt.Errorf("invalid parameter config at index %d: %v", i, err)
 		}
 	}
 
 	return nil
 }
 
-func (req *CreateHelmConfigRequest) ConvertToHelmConfig() (*database.HelmConfig, error) {
-	var valuesJSON string
-
-	if len(req.Values) > 0 {
-		data, err := json.Marshal(req.Values)
-		if err != nil {
-			return nil, fmt.Errorf("failed to serialize helm values to JSON: %v", err)
-		}
-		valuesJSON = string(data)
-	} else {
-		valuesJSON = "{}"
+func (req *CreateHelmConfigReq) ConvertToHelmConfig() *database.HelmConfig {
+	cfg := &database.HelmConfig{
+		ChartName: req.ChartName,
+		RepoName:  req.RepoName,
+		RepoURL:   req.RepoURL,
+		NsPrefix:  req.NsPrefix,
 	}
 
-	return &database.HelmConfig{
-		ChartName:    req.ChartName,
-		RepoName:     req.RepoName,
-		RepoURL:      req.RepoURL,
-		NsPrefix:     req.NsPrefix,
-		PortTemplate: req.PortTemplate,
-		Values:       valuesJSON,
-	}, nil
+	if len(req.Values) > 0 {
+		params := make([]database.ParameterConfig, 0, len(req.Values))
+		for _, val := range req.Values {
+			params = append(params, *val.ConvertToParameterConfig())
+		}
+		cfg.Values = params
+	}
+
+	return cfg
+}
+
+type CreateParameterConfigReq struct {
+	Key            string                   `json:"key" binding:"required"`
+	Type           consts.ParameterType     `json:"type" binding:"required"`
+	Category       consts.ParameterCategory `json:"category" binding:"required"`
+	Description    string                   `json:"description" binding:"omitempty"`
+	DefaultValue   *string                  `json:"default_value" binding:"omitempty"`
+	TemplateString *string                  `json:"template_string" binding:"omitempty"`
+	Required       bool                     `json:"required"`
+}
+
+func (req *CreateParameterConfigReq) Validate() error {
+	if req.Key == "" {
+		return fmt.Errorf("parameter key cannot be empty")
+	}
+
+	if _, exists := consts.ValidParameterTypes[req.Type]; !exists {
+		return fmt.Errorf("invalid parameter type: %v", req.Type)
+	}
+	if _, exists := consts.ValidParameterCategories[req.Category]; !exists {
+		return fmt.Errorf("invalid parameter category: %v", req.Category)
+	}
+
+	if req.Type == consts.ParamTypeFixed && req.Required && req.DefaultValue == nil {
+		return fmt.Errorf("default value is required for fixed parameter type when marked as required")
+	}
+
+	if req.Type == consts.ParamTypeDynamic && req.TemplateString == nil {
+		return fmt.Errorf("template string is required for dynamic parameter type")
+	}
+
+	return nil
+}
+
+func (req *CreateParameterConfigReq) ConvertToParameterConfig() *database.ParameterConfig {
+	return &database.ParameterConfig{
+		Key:            req.Key,
+		Type:           req.Type,
+		Category:       req.Category,
+		Description:    req.Description,
+		DefaultValue:   req.DefaultValue,
+		TemplateString: req.TemplateString,
+		Required:       req.Required,
+	}
 }
 
 // ListContainerReq represents container list query parameters
 type ListContainerReq struct {
 	PaginationReq
-	Type     *consts.ContainerType `json:"type" binding:"omitempty"`
-	IsPublic *bool                 `json:"is_public" binding:"omitempty"`
-	Status   *consts.StatusType    `json:"status" binding:"omitempty"`
+	Type     *consts.ContainerType `form:"type"`
+	IsPublic *bool                 `form:"is_public"`
+	Status   *consts.StatusType    `form:"status"`
 }
 
 func (req *ListContainerReq) Validate() error {
-	if req.Type != nil {
-		if _, exists := consts.ValidContainerTypes[*req.Type]; !exists {
-			return fmt.Errorf("invalid container type: %d", req.Type)
-		}
+	if err := req.PaginationReq.Validate(); err != nil {
+		return err
 	}
-
+	if err := validateContainerType(req.Type); err != nil {
+		return err
+	}
 	return validateStatusField(req.Status, false)
 }
 
@@ -328,6 +390,9 @@ type ListContainerVersionReq struct {
 }
 
 func (req *ListContainerVersionReq) Validate() error {
+	if err := req.PaginationReq.Validate(); err != nil {
+		return err
+	}
 	return validateStatusField(req.Status, false)
 }
 
@@ -526,11 +591,10 @@ func (req *SubmitBuildContainerReq) ValidateInfoContent(sourcePath string) error
 
 // UpdateContainerVersionReq represents the request for updating a container version
 type UpdateContainerVersionReq struct {
-	GithubLink        *string                  `json:"github_link" binding:"omitempty"`
-	Command           *string                  `json:"command" binding:"omitempty"`
-	EnvVars           *[]string                `json:"env_vars" binding:"omitempty"`
-	Status            *consts.StatusType       `json:"status" binding:"omitempty"`
-	HelmConfigRequest *UpdateHelmConfigRequest `json:"helm_config" binding:"omitempty"`
+	GithubLink        *string              `json:"github_link" binding:"omitempty"`
+	Command           *string              `json:"command" binding:"omitempty"`
+	Status            *consts.StatusType   `json:"status" binding:"omitempty"`
+	HelmConfigRequest *UpdateHelmConfigReq `json:"helm_config" binding:"omitempty"`
 }
 
 func (req *UpdateContainerVersionReq) Validate() error {
@@ -569,15 +633,12 @@ func (req *UpdateContainerVersionReq) PatchContainerVersionModel(target *databas
 	if req.Command != nil {
 		target.Command = *req.Command
 	}
-	if req.EnvVars != nil {
-		target.EnvVars = strings.Join(*req.EnvVars, ",")
-	}
 	if req.Status != nil {
 		target.Status = *req.Status
 	}
 }
 
-type UpdateHelmConfigRequest struct {
+type UpdateHelmConfigReq struct {
 	RepoURL      *string         `json:"repo_url" binding:"omitempty"`
 	RepoName     *string         `json:"repo_name" binding:"omitempty"`
 	ChartName    *string         `json:"chart_name" binding:"omitempty"`
@@ -586,7 +647,7 @@ type UpdateHelmConfigRequest struct {
 	Values       *map[string]any `json:"values" binding:"omitempty" swaggertype:"object"`
 }
 
-func (req *UpdateHelmConfigRequest) Validate() error {
+func (req *UpdateHelmConfigReq) Validate() error {
 	if req.RepoURL != nil {
 		trimmedURL := strings.TrimSpace(*req.RepoURL)
 		*req.RepoURL = trimmedURL
@@ -630,7 +691,7 @@ func (req *UpdateHelmConfigRequest) Validate() error {
 	return nil
 }
 
-func (req *UpdateHelmConfigRequest) PatchHelmConfigModel(target *database.HelmConfig) error {
+func (req *UpdateHelmConfigReq) PatchHelmConfigModel(target *database.HelmConfig) error {
 	if req.RepoURL != nil {
 		target.RepoURL = *req.RepoURL
 	}
@@ -643,33 +704,18 @@ func (req *UpdateHelmConfigRequest) PatchHelmConfigModel(target *database.HelmCo
 	if req.NsPrefix != nil {
 		target.NsPrefix = *req.NsPrefix
 	}
-	if req.PortTemplate != nil {
-		target.PortTemplate = *req.PortTemplate
-	}
-	if req.Values != nil {
-		if len(*req.Values) > 0 {
-			data, err := json.Marshal(*req.Values)
-			if err != nil {
-				return fmt.Errorf("failed to serialize helm values to JSON: %v", err)
-			}
-			target.Values = string(data)
-		} else {
-			target.Values = "{}"
-		}
-	}
-
 	return nil
 }
 
 // ContainerResp is basic container info used
 type ContainerResp struct {
-	ID        int                  `json:"id"`
-	Name      string               `json:"name"`
-	Type      consts.ContainerType `json:"type"`
-	IsPublic  bool                 `json:"is_public"`
-	Status    consts.StatusType    `json:"status"`
-	CreatedAt time.Time            `json:"created_at"`
-	UpdatedAt time.Time            `json:"updated_at"`
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	Type      string    `json:"type"`
+	IsPublic  bool      `json:"is_public"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 
 	Labels []LabelItem `json:"labels,omitempty"`
 }
@@ -678,9 +724,9 @@ func NewContainerResp(container *database.Container) *ContainerResp {
 	resp := &ContainerResp{
 		ID:        container.ID,
 		Name:      container.Name,
-		Type:      consts.ContainerType(container.Type),
+		Type:      consts.GetContainerTypeName(container.Type),
 		IsPublic:  container.IsPublic,
-		Status:    container.Status,
+		Status:    consts.GetStatusTypeName(container.Status),
 		CreatedAt: container.CreatedAt,
 		UpdatedAt: container.UpdatedAt,
 	}
@@ -746,7 +792,6 @@ func NewContainerVersionDetailResp(version *database.ContainerVersion) *Containe
 		ContainerVersionResp: *NewContainerVersionResp(version),
 		GithubLink:           version.GithubLink,
 		Command:              version.Command,
-		EnvVars:              version.EnvVars,
 	}
 }
 
@@ -766,21 +811,10 @@ type HelmConfigDetailResp struct {
 
 func NewHelmConfigDetailResp(cfg *database.HelmConfig) (*HelmConfigDetailResp, error) {
 	resp := &HelmConfigDetailResp{
-		ID:           cfg.ID,
-		RepoURL:      cfg.RepoURL,
-		FullChart:    cfg.FullChart,
-		NsPrefix:     cfg.NsPrefix,
-		PortTemplate: cfg.PortTemplate,
-	}
-
-	if cfg.Values != "" {
-		var valuesMap map[string]any
-		if err := json.Unmarshal([]byte(cfg.Values), &valuesMap); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal Helm values JSON for config ID %d: %w", cfg.ID, err)
-		}
-		resp.Values = valuesMap
-	} else {
-		resp.Values = make(map[string]any)
+		ID:        cfg.ID,
+		RepoURL:   cfg.RepoURL,
+		FullChart: cfg.FullChart,
+		NsPrefix:  cfg.NsPrefix,
 	}
 
 	return resp, nil
@@ -815,5 +849,14 @@ func (req *ManageContainerLabelReq) Validate() error {
 		}
 	}
 
+	return nil
+}
+
+func validateContainerType(containerType *consts.ContainerType) error {
+	if containerType != nil {
+		if _, exists := consts.ValidContainerTypes[*containerType]; !exists {
+			return fmt.Errorf("invalid container type: %d", *containerType)
+		}
+	}
 	return nil
 }

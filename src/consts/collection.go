@@ -19,7 +19,7 @@ var DatapackStateMap = map[DatapackState]string{
 	DatapackBuildSuccess:  "build_success",
 }
 
-var ExecuteStateMap = map[ExecuteState]string{
+var ExecuteStateMap = map[ExecutionState]string{
 	ExecutionInitial: "initial",
 	ExecutionFailed:  "failed",
 	ExecutionSuccess: "success",
@@ -37,6 +37,16 @@ var LabelCategoryMap = map[LabelCategory]string{
 	ProjectCategory:   "project",
 	InjectionCategory: "injection",
 	ExecutionCategory: "execution",
+}
+
+var ParameterTypeMap = map[ParameterType]string{
+	ParamTypeFixed:   "fixed",
+	ParamTypeDynamic: "dynamic",
+}
+
+var ParameterCategoryMap = map[ParameterCategory]string{
+	ParamCategoryEnvVars:    "env_vars",
+	ParamCategoryHelmValues: "helm_values",
 }
 
 var ResourceDisplayNameMap = map[ResourceName]string{
@@ -174,7 +184,7 @@ func GetDatapackStateName(state DatapackState) string {
 	return "unknown"
 }
 
-func GetExecuteStateName(state ExecuteState) string {
+func GetExecuteStateName(state ExecutionState) string {
 	if name, exists := ExecuteStateMap[state]; exists {
 		return name
 	}
@@ -190,6 +200,20 @@ func GetGrantTypeName(grantType GrantType) string {
 
 func GetLabelCategoryName(category LabelCategory) string {
 	if name, exists := LabelCategoryMap[category]; exists {
+		return name
+	}
+	return "unknown"
+}
+
+func GetParameterTypeName(paramType ParameterType) string {
+	if name, exists := ParameterTypeMap[paramType]; exists {
+		return name
+	}
+	return "unknown"
+}
+
+func GetParameterCategoryName(category ParameterCategory) string {
+	if name, exists := ParameterCategoryMap[category]; exists {
 		return name
 	}
 	return "unknown"

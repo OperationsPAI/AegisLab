@@ -29,6 +29,20 @@ definitions:
     - ContainerTypeAlgorithm
     - ContainerTypeBenchmark
     - ContainerTypePedestal
+  consts.DatapackState:
+    enum:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    type: integer
+    x-enum-varnames:
+    - DatapackInitial
+    - DatapackInjectFailed
+    - DatapackInjectSuccess
+    - DatapackBuildFailed
+    - DatapackBuildSuccess
   consts.EventType:
     enum:
     - algorithm.run.succeed
@@ -83,6 +97,82 @@ definitions:
     - EventReleaseLock
     - EventJobSucceed
     - EventJobFailed
+  consts.ExecutionState:
+    enum:
+    - 0
+    - 1
+    - 2
+    type: integer
+    x-enum-varnames:
+    - ExecutionInitial
+    - ExecutionFailed
+    - ExecutionSuccess
+  consts.FaultType:
+    enum:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
+    - 10
+    - 11
+    - 12
+    - 13
+    - 14
+    - 15
+    - 16
+    - 17
+    - 18
+    - 19
+    - 20
+    - 21
+    - 22
+    - 23
+    - 24
+    - 25
+    - 26
+    - 27
+    - 28
+    - 29
+    - 30
+    type: integer
+    x-enum-varnames:
+    - PodKill
+    - PodFailure
+    - ContainerKill
+    - MemoryStress
+    - CPUStress
+    - HTTPRequestAbort
+    - HTTPResponseAbort
+    - HTTPRequestDelay
+    - HTTPResponseDelay
+    - HTTPResponseReplaceBody
+    - HTTPResponsePatchBody
+    - HTTPRequestReplacePath
+    - HTTPRequestReplaceMethod
+    - HTTPResponseReplaceCode
+    - DNSError
+    - DNSRandom
+    - TimeSkew
+    - NetworkDelay
+    - NetworkLoss
+    - NetworkDuplicate
+    - NetworkCorrupt
+    - NetworkBandwidth
+    - NetworkPartition
+    - JVMLatency
+    - JVMReturn
+    - JVMException
+    - JVMGarbageCollector
+    - JVMCPUStress
+    - JVMMemoryStress
+    - JVMMySQLLatency
+    - JVMMySQLException
   consts.GrantType:
     enum:
     - 0
@@ -107,6 +197,40 @@ definitions:
     - ProjectCategory
     - InjectionCategory
     - ExecutionCategory
+  consts.PageSize:
+    enum:
+    - 10
+    - 20
+    - 50
+    type: integer
+    x-enum-varnames:
+    - PageSizeSmall
+    - PageSizeMedium
+    - PageSizeLarge
+  consts.ParameterCategory:
+    enum:
+    - 0
+    - 1
+    type: integer
+    x-enum-varnames:
+    - ParamCategoryEnvVars
+    - ParamCategoryHelmValues
+  consts.ParameterType:
+    enum:
+    - 0
+    - 1
+    type: integer
+    x-enum-varnames:
+    - ParamTypeFixed
+    - ParamTypeDynamic
+  consts.ResourceCategory:
+    enum:
+    - 0
+    - 1
+    type: integer
+    x-enum-varnames:
+    - ResourceCore
+    - ResourceAdmin
   consts.ResourceName:
     enum:
     - system
@@ -157,6 +281,14 @@ definitions:
     - ResourceTrace
     - ResourceInjection
     - ResourceExecution
+  consts.ResourceType:
+    enum:
+    - 0
+    - 1
+    type: integer
+    x-enum-varnames:
+    - ResourceTypeSystem
+    - ResourceTypeTable
   consts.SSEEventName:
     enum:
     - end
@@ -175,6 +307,22 @@ definitions:
     - CommonDeleted
     - CommonDisabled
     - CommonEnabled
+  consts.TaskState:
+    enum:
+    - -2
+    - -1
+    - 0
+    - 1
+    - 2
+    - 3
+    type: integer
+    x-enum-varnames:
+    - TaskCancelled
+    - TaskError
+    - TaskPending
+    - TaskRescheduled
+    - TaskRunning
+    - TaskCompleted
   consts.TaskType:
     enum:
     - 0
@@ -430,9 +578,9 @@ definitions:
       readme:
         type: string
       status:
-        $ref: '#/definitions/consts.StatusType'
+        type: string
       type:
-        $ref: '#/definitions/consts.ContainerType'
+        type: string
       updated_at:
         type: string
       versions:
@@ -464,16 +612,18 @@ definitions:
       name:
         type: string
       status:
-        $ref: '#/definitions/consts.StatusType'
+        type: string
       type:
-        $ref: '#/definitions/consts.ContainerType'
+        type: string
       updated_at:
         type: string
     type: object
   dto.ContainerSpec:
     properties:
       env_vars:
-        type: object
+        items:
+          $ref: '#/definitions/dto.ParameterSpec'
+        type: array
       name:
         type: string
       version:
@@ -511,11 +661,9 @@ definitions:
       container_name:
         type: string
       env_vars:
-        additionalProperties:
-          type: string
-        type: object
-      env_vars_keys:
-        type: string
+        items:
+          $ref: '#/definitions/dto.ParameterItem'
+        type: array
       extra:
         $ref: '#/definitions/dto.PedestalInfo'
       id:
@@ -552,7 +700,6 @@ definitions:
         $ref: '#/definitions/dto.CreateContainerVersionReq'
     required:
     - name
-    - type
     type: object
   dto.CreateContainerVersionReq:
     properties:
@@ -560,12 +707,12 @@ definitions:
         type: string
       env_vars:
         items:
-          type: string
+          $ref: '#/definitions/dto.CreateParameterConfigReq'
         type: array
       github_link:
         type: string
       helm_config:
-        $ref: '#/definitions/dto.CreateHelmConfigRequest'
+        $ref: '#/definitions/dto.CreateHelmConfigReq'
       image_ref:
         type: string
       name:
@@ -605,13 +752,11 @@ definitions:
     required:
     - name
     type: object
-  dto.CreateHelmConfigRequest:
+  dto.CreateHelmConfigReq:
     properties:
       chart_name:
         type: string
       ns_prefix:
-        type: string
-      port_template:
         type: string
       repo_name:
         type: string
@@ -640,6 +785,27 @@ definitions:
     required:
     - key
     - value
+    type: object
+  dto.CreateParameterConfigReq:
+    properties:
+      category:
+        $ref: '#/definitions/consts.ParameterCategory'
+      default_value:
+        type: string
+      description:
+        type: string
+      key:
+        type: string
+      required:
+        type: boolean
+      template_string:
+        type: string
+      type:
+        $ref: '#/definitions/consts.ParameterType'
+    required:
+    - category
+    - key
+    - type
     type: object
   dto.CreatePermissionReq:
     properties:
@@ -768,8 +934,6 @@ definitions:
     properties:
       checksum:
         type: string
-      download_url:
-        type: string
       file_count:
         type: integer
       format:
@@ -783,8 +947,6 @@ definitions:
     type: object
   dto.DatasetVersionResp:
     properties:
-      download_url:
-        type: string
       id:
         type: integer
       name:
@@ -2197,15 +2359,14 @@ definitions:
         type: string
       ns_prefix:
         type: string
-      port_template:
-        type: string
       repo_name:
         type: string
       repo_url:
         type: string
       values:
-        additionalProperties: {}
-        type: object
+        items:
+          $ref: '#/definitions/dto.ParameterItem'
+        type: array
     type: object
   dto.InfoPayloadTemplate:
     properties:
@@ -2701,6 +2862,21 @@ definitions:
       total_pages:
         example: 5
         type: integer
+    type: object
+  dto.ParameterItem:
+    properties:
+      key:
+        type: string
+      template_string:
+        type: string
+      value:
+        type: string
+    type: object
+  dto.ParameterSpec:
+    properties:
+      key:
+        type: string
+      value: {}
     type: object
   dto.PedestalInfo:
     properties:
@@ -3618,14 +3794,10 @@ definitions:
     properties:
       command:
         type: string
-      env_vars:
-        items:
-          type: string
-        type: array
       github_link:
         type: string
       helm_config:
-        $ref: '#/definitions/dto.UpdateHelmConfigRequest'
+        $ref: '#/definitions/dto.UpdateHelmConfigReq'
       status:
         $ref: '#/definitions/consts.StatusType'
     type: object
@@ -3642,14 +3814,12 @@ definitions:
     properties:
       checksum:
         type: string
-      download_url:
-        type: string
       format:
         type: string
       status:
         $ref: '#/definitions/consts.StatusType'
     type: object
-  dto.UpdateHelmConfigRequest:
+  dto.UpdateHelmConfigReq:
     properties:
       chart_name:
         type: string
@@ -4046,15 +4216,13 @@ info:
   contact:
     email: team@rcabench.com
     name: RCABench Team
-  description: |-
-    RCABench - A comprehensive root cause analysis benchmarking platform for microservices
-    This API provides endpoints for managing datasets, algorithms, evaluations, and fault injections
-    for root cause analysis in distributed systems and microservices architectures.
+  description: RCABench - A comprehensive root cause analysis benchmarking platform
+    for microservices
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
   title: RCABench API
-  version: 1.0.1
+  version: 1.1.44
 paths:
   /api/_docs/models:
     get:
@@ -4144,6 +4312,8 @@ paths:
       summary: User login
       tags:
       - Authentication
+      x-api-type:
+        sdk: "true"
   /api/v2/auth/logout:
     post:
       description: Logout user and invalidate token
@@ -4264,6 +4434,8 @@ paths:
       summary: User registration
       tags:
       - Authentication
+      x-api-type:
+        sdk: "true"
   /api/v2/containers:
     get:
       description: Get paginated list of containers with pagination and filtering
@@ -4276,6 +4448,10 @@ paths:
         type: integer
       - default: 20
         description: Page size
+        enum:
+        - 10
+        - 20
+        - 50
         in: query
         name: size
         type: integer
@@ -4287,7 +4463,15 @@ paths:
         in: query
         name: type
         type: integer
+      - description: Container public visibility filter
+        in: query
+        name: is_public
+        type: boolean
       - description: Container status filter
+        enum:
+        - -1
+        - 0
+        - 1
         in: query
         name: status
         type: integer
@@ -4319,6 +4503,8 @@ paths:
       summary: List containers
       tags:
       - Containers
+      x-api-type:
+        sdk: "true"
     post:
       consumes:
       - application/json
@@ -4363,6 +4549,8 @@ paths:
       summary: Create container
       tags:
       - Containers
+      x-api-type:
+        sdk: "true"
   /api/v2/containers/{container_id}:
     delete:
       description: Delete a container (soft delete by setting status to -1)
@@ -4446,6 +4634,8 @@ paths:
       summary: Get container by ID
       tags:
       - Containers
+      x-api-type:
+        sdk: "true"
     patch:
       consumes:
       - application/json
@@ -4566,6 +4756,10 @@ paths:
         name: size
         type: integer
       - description: Container version status filter
+        enum:
+        - -1
+        - 0
+        - 1
         in: query
         name: status
         type: integer
@@ -4597,6 +4791,8 @@ paths:
       summary: List container versions
       tags:
       - Containers
+      x-api-type:
+        sdk: "true"
     post:
       consumes:
       - application/json
@@ -4646,6 +4842,8 @@ paths:
       summary: Create container version
       tags:
       - Containers
+      x-api-type:
+        sdk: "true"
   /api/v2/containers/{container_id}/versions/{version_id}:
     delete:
       description: Delete a container version (soft delete by setting status to false)
@@ -4739,6 +4937,8 @@ paths:
       summary: Get container version by ID
       tags:
       - Containers
+      x-api-type:
+        sdk: "true"
     patch:
       consumes:
       - application/json
@@ -4839,6 +5039,8 @@ paths:
       summary: Submit container building
       tags:
       - Containers
+      x-api-type:
+        sdk: "true"
   /api/v2/containers/search:
     post:
       description: Search containers with complex filtering, sorting and pagination.
@@ -4875,6 +5077,8 @@ paths:
       summary: Search containers
       tags:
       - Containers
+      x-api-type:
+        sdk: "true"
   /api/v2/datasets:
     get:
       description: Get paginated list of datasets with pagination and filtering
@@ -4894,7 +5098,15 @@ paths:
         in: query
         name: type
         type: string
+      - description: Dataset public visibility filter
+        in: query
+        name: is_public
+        type: boolean
       - description: Dataset status filter
+        enum:
+        - -1
+        - 0
+        - 1
         in: query
         name: status
         type: integer
@@ -4926,6 +5138,8 @@ paths:
       summary: List datasets
       tags:
       - Datasets
+      x-api-type:
+        sdk: "true"
     post:
       consumes:
       - application/json
@@ -4970,6 +5184,8 @@ paths:
       summary: Create dataset
       tags:
       - Datasets
+      x-api-type:
+        sdk: "true"
   /api/v2/datasets/{dataset_id}:
     delete:
       description: Delete a dataset (soft delete by setting status to -1)
@@ -5053,6 +5269,8 @@ paths:
       summary: Get dataset by ID
       tags:
       - Datasets
+      x-api-type:
+        sdk: "true"
     patch:
       consumes:
       - application/json
@@ -5228,6 +5446,10 @@ paths:
         name: size
         type: integer
       - description: Dataset version status filter
+        enum:
+        - -1
+        - 0
+        - 1
         in: query
         name: status
         type: integer
@@ -5259,6 +5481,8 @@ paths:
       summary: List dataset versions
       tags:
       - Datasets
+      x-api-type:
+        sdk: "true"
     post:
       consumes:
       - application/json
@@ -5308,6 +5532,8 @@ paths:
       summary: Create dataset version
       tags:
       - Datasets
+      x-api-type:
+        sdk: "true"
   /api/v2/datasets/{dataset_id}/versions/{version_id}:
     delete:
       description: Delete a dataset version (soft delete by setting status to false)
@@ -5401,6 +5627,8 @@ paths:
       summary: Get dataset version by ID
       tags:
       - Datasets
+      x-api-type:
+        sdk: "true"
     patch:
       consumes:
       - application/json
@@ -5499,6 +5727,8 @@ paths:
       summary: Download dataset version
       tags:
       - Datasets
+      x-api-type:
+        sdk: "true"
   /api/v2/evaluations/datapacks:
     post:
       consumes:
@@ -5541,6 +5771,8 @@ paths:
       summary: List Datapack Evaluation Results
       tags:
       - Evaluations
+      x-api-type:
+        sdk: "true"
   /api/v2/evaluations/datasets:
     post:
       consumes:
@@ -5583,6 +5815,8 @@ paths:
       summary: List Dataset Evaluation Results
       tags:
       - Evaluations
+      x-api-type:
+        sdk: "true"
   /api/v2/executions:
     get:
       description: Get a paginated list of executions with pagination and filtering
@@ -5598,11 +5832,19 @@ paths:
         in: query
         name: size
         type: integer
-      - description: Filter by event
+      - description: Filter by execution state
+        enum:
+        - 0
+        - 1
+        - 2
         in: query
-        name: event
+        name: state
         type: integer
       - description: Filter by status
+        enum:
+        - -1
+        - 0
+        - 1
         in: query
         name: status
         type: integer
@@ -5641,6 +5883,8 @@ paths:
       summary: List executions
       tags:
       - Executions
+      x-api-type:
+        sdk: "true"
   /api/v2/executions/{execution_id}/detector_results:
     post:
       consumes:
@@ -5692,6 +5936,8 @@ paths:
       summary: Upload detector results
       tags:
       - Executions
+      x-api-type:
+        sdk: "true"
   /api/v2/executions/{execution_id}/granularity_results:
     post:
       consumes:
@@ -5743,6 +5989,8 @@ paths:
       summary: Upload granularity results
       tags:
       - Executions
+      x-api-type:
+        sdk: "true"
   /api/v2/executions/{id}:
     get:
       description: Get detailed information about a specific execution
@@ -5785,6 +6033,8 @@ paths:
       summary: Get execution by ID
       tags:
       - Executions
+      x-api-type:
+        sdk: "true"
   /api/v2/executions/{id}/labels:
     patch:
       consumes:
@@ -5922,7 +6172,9 @@ paths:
       - BearerAuth: []
       summary: Submit batch algorithm execution
       tags:
-      - Algorithms
+      - Executions
+      x-api-type:
+        sdk: "true"
   /api/v2/executions/labels:
     get:
       description: List all available label keys for executions
@@ -5951,6 +6203,8 @@ paths:
       summary: List execution labels
       tags:
       - Executions
+      x-api-type:
+        sdk: "true"
   /api/v2/injections:
     get:
       description: Get a paginated list of injections with pagination and filtering
@@ -5967,16 +6221,54 @@ paths:
         name: size
         type: integer
       - description: Filter by fault type
+        enum:
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        - 6
+        - 7
+        - 8
+        - 9
+        - 10
+        - 11
+        - 12
+        - 13
+        - 14
+        - 15
+        - 16
+        - 17
+        - 18
+        - 19
+        - 20
+        - 21
+        - 22
+        - 23
+        - 24
+        - 25
+        - 26
+        - 27
+        - 28
+        - 29
+        - 30
         in: query
-        name: fault_type
+        name: type
         type: integer
       - description: Filter by benchmark
         in: query
         name: benchmark
         type: string
-      - description: Filter by event
+      - description: Filter by injection state
+        enum:
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
         in: query
-        name: event
+        name: state
         type: integer
       - description: Filter by status
         in: query
@@ -6017,6 +6309,8 @@ paths:
       summary: List injections
       tags:
       - Injections
+      x-api-type:
+        sdk: "true"
   /api/v2/injections/{id}:
     get:
       description: Get detailed information about a specific injection
@@ -6059,6 +6353,8 @@ paths:
       summary: Get injection by ID
       tags:
       - Injections
+      x-api-type:
+        sdk: "true"
   /api/v2/injections/{id}/labels:
     patch:
       consumes:
@@ -6156,6 +6452,8 @@ paths:
       summary: Query Fault Injection Records Without Issues
       tags:
       - Injections
+      x-api-type:
+        sdk: "true"
   /api/v2/injections/analysis/with-issues:
     get:
       description: Query all fault injection records with issues based on time range
@@ -6202,6 +6500,8 @@ paths:
       summary: Query Fault Injection Records With Issues
       tags:
       - Injections
+      x-api-type:
+        sdk: "true"
   /api/v2/injections/batch-delete:
     post:
       consumes:
@@ -6286,6 +6586,8 @@ paths:
       summary: Submit batch datapack buildings
       tags:
       - Injections
+      x-api-type:
+        sdk: "true"
   /api/v2/injections/inject:
     post:
       consumes:
@@ -6331,6 +6633,8 @@ paths:
       summary: Submit batch fault injections
       tags:
       - Injections
+      x-api-type:
+        sdk: "true"
   /api/v2/injections/metadata:
     get:
       description: Get injection-related metadata including configuration, field mappings,
@@ -6372,6 +6676,8 @@ paths:
       summary: Get Injection Metadata
       tags:
       - Injections
+      x-api-type:
+        sdk: "true"
   /api/v2/injections/search:
     post:
       consumes:
@@ -6414,6 +6720,8 @@ paths:
       summary: Search injections
       tags:
       - Injections
+      x-api-type:
+        sdk: "true"
   /api/v2/labels:
     get:
       description: Get paginated list of labels with filtering
@@ -6438,14 +6746,25 @@ paths:
         name: value
         type: string
       - description: Filter by category
+        enum:
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
         in: query
         name: category
-        type: string
+        type: integer
       - description: Filter by system label
         in: query
         name: is_system
         type: boolean
       - description: Filter by status
+        enum:
+        - -1
+        - 0
+        - 1
         in: query
         name: status
         type: integer
@@ -6480,7 +6799,6 @@ paths:
     post:
       consumes:
       - application/json
-      deprecated: true
       description: Create a new label with key-value pair. If a deleted label with
         same key-value exists, it will be restored and updated.
       operationId: create_label
@@ -6720,6 +7038,10 @@ paths:
         name: is_system
         type: boolean
       - description: Filter by status
+        enum:
+        - -1
+        - 0
+        - 1
         in: query
         name: status
         type: integer
@@ -7030,6 +7352,10 @@ paths:
         name: is_public
         type: boolean
       - description: Filter by status
+        enum:
+        - -1
+        - 0
+        - 1
         in: query
         name: status
         type: integer
@@ -7061,6 +7387,8 @@ paths:
       summary: List projects
       tags:
       - Projects
+      x-api-type:
+        sdk: "true"
     post:
       consumes:
       - application/json
@@ -7105,6 +7433,8 @@ paths:
       summary: Create a new project
       tags:
       - Projects
+      x-api-type:
+        sdk: "true"
   /api/v2/projects/{project_id}:
     delete:
       description: Delete a project
@@ -7188,6 +7518,8 @@ paths:
       summary: Get project by ID
       tags:
       - Projects
+      x-api-type:
+        sdk: "true"
     patch:
       consumes:
       - application/json
@@ -7303,10 +7635,16 @@ paths:
         name: size
         type: integer
       - description: Filter by resource type
+        enum:
+        - 0
+        - 1
         in: query
         name: type
         type: integer
       - description: Filter by resource category
+        enum:
+        - 0
+        - 1
         in: query
         name: category
         type: integer
@@ -7442,6 +7780,10 @@ paths:
         name: is_system
         type: boolean
       - description: Filter by status
+        enum:
+        - -1
+        - 0
+        - 1
         in: query
         name: status
         type: integer
@@ -7849,15 +8191,16 @@ paths:
         type: integer
       - description: Filter by task type
         enum:
-        - RestartService
-        - FaultInjection
-        - BuildDataset
-        - RunAlgorithm
-        - CollectResult
-        - BuildImage
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        - 6
         in: query
         name: task_type
-        type: string
+        type: integer
       - description: Filter by immediate execution
         in: query
         name: immediate
@@ -7874,11 +8217,22 @@ paths:
         in: query
         name: project_id
         type: integer
-      - description: Filter by event ID
+      - description: Filter by state
+        enum:
+        - -2
+        - -1
+        - 0
+        - 1
+        - 2
+        - 3
         in: query
-        name: event
+        name: state
         type: integer
       - description: Filter by status
+        enum:
+        - -1
+        - 0
+        - 1
         in: query
         name: status
         type: integer
@@ -7910,6 +8264,8 @@ paths:
       summary: List tasks
       tags:
       - Tasks
+      x-api-type:
+        sdk: "true"
   /api/v2/tasks/{task_id}:
     get:
       description: Get detailed information about a specific task
@@ -7952,6 +8308,8 @@ paths:
       summary: Get task by ID
       tags:
       - Tasks
+      x-api-type:
+        sdk: "true"
   /api/v2/tasks/batch-delete:
     post:
       consumes:
@@ -8036,6 +8394,8 @@ paths:
       summary: Stream trace events in real-time
       tags:
       - Traces
+      x-api-type:
+        sdk: "true"
   /api/v2/users:
     get:
       description: Get paginated list of users with filtering
@@ -8064,6 +8424,10 @@ paths:
         name: is_active
         type: boolean
       - description: Filter by status
+        enum:
+        - -1
+        - 0
+        - 1
         in: query
         name: status
         type: integer
@@ -8917,6 +9281,8 @@ paths:
       summary: System health check
       tags:
       - System
+      x-api-type:
+        sdk: "true"
   /system/monitor/info:
     get:
       description: Get basic system information and status
@@ -9042,8 +9408,6 @@ paths:
       summary: List queued tasks
       tags:
       - Tasks
-schemes:
-- http
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

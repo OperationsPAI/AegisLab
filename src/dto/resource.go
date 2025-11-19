@@ -15,6 +15,9 @@ type ListResourceReq struct {
 }
 
 func (req *ListResourceReq) Validate() error {
+	if err := req.PaginationReq.Validate(); err != nil {
+		return err
+	}
 	if req.Type != nil {
 		if _, exists := consts.ValidResourceTypes[*req.Type]; !exists {
 			return fmt.Errorf("invalid resource type: %d", *req.Type)

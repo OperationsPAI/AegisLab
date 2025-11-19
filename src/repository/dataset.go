@@ -143,7 +143,7 @@ func BatchCreateDatasetVersions(db *gorm.DB, versions []database.DatasetVersion)
 		return fmt.Errorf("no dataset versions to create")
 	}
 
-	if err := db.Omit(commonOmitFields).Create(&versions).Error; err != nil {
+	if err := db.Omit(datasetVersionOmitFields).Create(&versions).Error; err != nil {
 		return fmt.Errorf("failed to batch create dataset versions: %w", err)
 	}
 
@@ -208,7 +208,7 @@ func DeleteDatasetVersion(db *gorm.DB, versionID int) (int64, error) {
 // GetDatasetVersionByID retrieves a dataset version by its ID
 func GetDatasetVersionByID(db *gorm.DB, id int) (*database.DatasetVersion, error) {
 	var version database.DatasetVersion
-	if err := db.Where("id = ?").First(&version).Error; err != nil {
+	if err := db.Where("id = ?", id).First(&version).Error; err != nil {
 		return nil, fmt.Errorf("failed to get dataset version: %v", err)
 	}
 	return &version, nil

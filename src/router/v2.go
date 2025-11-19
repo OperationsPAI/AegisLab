@@ -204,21 +204,21 @@ func SetupV2Routes(router *gin.Engine) {
 		// Dataset Read operations
 		datasetRead := datasets.Group("", middleware.RequireDatasetRead)
 		{
-			datasetRead.GET("/:id", v2handlers.GetDataset)                      // Get dataset by ID
-			datasetRead.GET("", v2handlers.ListDatasets)                        // List datasets
-			datasetRead.GET("/:id/download", v2handlers.DownloadDatasetVersion) // Download dataset version
+			datasetRead.GET("/:dataset_id", v2handlers.GetDataset)                      // Get dataset by ID
+			datasetRead.GET("", v2handlers.ListDatasets)                                // List datasets
+			datasetRead.GET("/:dataset_id/download", v2handlers.DownloadDatasetVersion) // Download dataset version
 		}
 
 		// Dataset Write operations
 		datasetWrite := datasets.Group("", middleware.RequireDatasetWrite)
 		{
-			datasetWrite.POST("", v2handlers.CreateDataset)                         // Create dataset
-			datasetWrite.PUT("/:id", v2handlers.UpdateDataset)                      // Update dataset
-			datasetWrite.PATCH("/:id/labels", v2handlers.ManageDatasetCustomLabels) // Manage dataset labels
+			datasetWrite.POST("", v2handlers.CreateDataset)                                 // Create dataset
+			datasetWrite.PATCH("/:dataset_id", v2handlers.UpdateDataset)                    // Update dataset
+			datasetWrite.PATCH("/:dataset_id/labels", v2handlers.ManageDatasetCustomLabels) // Manage dataset labels
 		}
 
 		// Dataset Delete operations
-		datasets.DELETE("/:id", middleware.RequireDatasetDelete, v2handlers.DeleteDataset) // Delete dataset
+		datasets.DELETE("/:dataset_id", middleware.RequireDatasetDelete, v2handlers.DeleteDataset) // Delete dataset
 	}
 
 	// Project Management - Project Entity
@@ -227,20 +227,20 @@ func SetupV2Routes(router *gin.Engine) {
 		// Project Read operations
 		projectRead := projects.Group("", middleware.RequireProjectRead)
 		{
-			projectRead.GET("/:id", v2handlers.GetProjectDetail) // Get project by ID
-			projectRead.GET("", v2handlers.ListProjects)         // List projects
+			projectRead.GET("/:project_id", v2handlers.GetProjectDetail) // Get project by ID
+			projectRead.GET("", v2handlers.ListProjects)                 // List projects
 		}
 
 		// Project Write operations
 		projectWrite := projects.Group("", middleware.RequireProjectWrite)
 		{
-			projectWrite.POST("", v2handlers.CreateProject)                         // Create project
-			projectWrite.PATCH("/:id", v2handlers.UpdateProject)                    // Update project
-			projectWrite.PATCH("/:id/labels", v2handlers.ManageProjectCustomLabels) // Manage project labels
+			projectWrite.POST("", v2handlers.CreateProject)                                 // Create project
+			projectWrite.PATCH("/:project_id", v2handlers.UpdateProject)                    // Update project
+			projectWrite.PATCH("/:project_id/labels", v2handlers.ManageProjectCustomLabels) // Manage project labels
 		}
 
 		// Project Delete operations
-		projects.DELETE("/:id", middleware.RequireProjectDelete, v2handlers.DeleteProject) // Delete project
+		projects.DELETE("/:project_id", middleware.RequireProjectDelete, v2handlers.DeleteProject) // Delete project
 	}
 
 	// Label Management - Label Entity
@@ -249,19 +249,19 @@ func SetupV2Routes(router *gin.Engine) {
 		// Label Read operations
 		labelRead := labels.Group("", middleware.RequireLabelRead)
 		{
-			labelRead.GET("/:id", v2handlers.GetLabelDetail) // Get label by ID
-			labelRead.GET("", v2handlers.ListLabels)         // List labels
+			labelRead.GET("/:label_id", v2handlers.GetLabelDetail) // Get label by ID
+			labelRead.GET("", v2handlers.ListLabels)               // List labels
 		}
 
 		// Label Write operations
 		labelWrite := labels.Group("", middleware.RequireLabelWrite)
 		{
-			labelWrite.POST("", v2handlers.CreateLabel)      // Create label
-			labelWrite.PATCH("/:id", v2handlers.UpdateLabel) // Update label
+			labelWrite.POST("", v2handlers.CreateLabel)            // Create label
+			labelWrite.PATCH("/:label_id", v2handlers.UpdateLabel) // Update label
 		}
 
 		// Label Delete operations
-		labels.DELETE("/:id", middleware.RequireLabelDelete, v2handlers.DeleteLabel)              // Delete label
+		labels.DELETE("/:label_id", middleware.RequireLabelDelete, v2handlers.DeleteLabel)        // Delete label
 		labels.POST("/batch-delete", middleware.RequireLabelDelete, v2handlers.BatchDeleteLabels) // Batch delete labels
 	}
 
@@ -269,57 +269,57 @@ func SetupV2Routes(router *gin.Engine) {
 	users := v2.Group("/users", middleware.JWTAuth())
 	{
 		// User-Role relationship routes
-		roles := users.Group("/:id/roles")
+		roles := users.Group("/:user_id/roles")
 		{
-			roles.POST("", middleware.RequireUserWrite, v2handlers.AssignUserRole)              // Assign role to user
+			roles.POST("/:role_id", middleware.RequireUserWrite, v2handlers.AssignUserRole)     // Assign role to user
 			roles.DELETE("/:role_id", middleware.RequireUserWrite, v2handlers.RemoveGlobalRole) // Remove role from user
 		}
 
 		// User-Project relationship routes
-		projects := users.Group("/:id/projects")
+		projects := users.Group("/:user_id/projects")
 		{
-			projects.POST("", middleware.RequireUserWrite, v2handlers.AssignUserProject)               // Assign user to project
-			projects.DELETE("/:project_id", middleware.RequireUserWrite, v2handlers.RemoveUserProject) // Remove user from project
+			projects.POST("/:project_id/roles/:role_id", middleware.RequireUserWrite, v2handlers.AssignUserProject) // Assign user to project
+			projects.DELETE("/:project_id", middleware.RequireUserWrite, v2handlers.RemoveUserProject)              // Remove user from project
 		}
 
 		// User-Permission relationship routes
-		permissions := users.Group("/:id/permissions")
+		permissions := users.Group("/:user_id/permissions")
 		{
-			permissions.POST("", middleware.RequireUserWrite, v2handlers.AssignUserPermission)   // Assign permission to user
-			permissions.DELETE("", middleware.RequireUserWrite, v2handlers.RemoveUserPermission) // Remove permission from user
+			permissions.POST("/assign", middleware.RequireUserWrite, v2handlers.AssignUserPermission) // Assign permission to user
+			permissions.POST("/remove", middleware.RequireUserWrite, v2handlers.RemoveUserPermission) // Remove permission from user
 		}
 
 		// User-Container relationship routes
-		containers := users.Group("/:id/containers")
+		containers := users.Group("/:user_id/containers")
 		{
-			containers.POST("", middleware.RequireUserWrite, v2handlers.AssignUserContainer)   // Assign container to user
-			containers.DELETE("", middleware.RequireUserWrite, v2handlers.RemoveUserContainer) // Remove container from user
+			containers.POST("/:container_id/roles/:role_id", middleware.RequireUserWrite, v2handlers.AssignUserContainer) // Assign container to user
+			containers.DELETE("/:container_id", middleware.RequireUserWrite, v2handlers.RemoveUserContainer)              // Remove container from user
 		}
 
 		// User-Dataset relationship routes
-		datasets := users.Group("/:id/datasets")
+		datasets := users.Group("/:user_id/datasets")
 		{
-			datasets.POST("", middleware.RequireUserWrite, v2handlers.AssignUserDataset)   // Assign dataset to user
-			datasets.DELETE("", middleware.RequireUserWrite, v2handlers.RemoveUserDataset) // Remove dataset from user
+			datasets.POST("/:dataset_id/roles/:role_id", middleware.RequireUserWrite, v2handlers.AssignUserDataset) // Assign dataset to user
+			datasets.DELETE("/:dataset_id", middleware.RequireUserWrite, v2handlers.RemoveUserDataset)              // Remove dataset from user
 		}
 
 		// User Read operations
 		userRead := users.Group("", middleware.RequireUserRead)
 		{
-			userRead.GET("", v2handlers.ListUsersV2)                                                 // List users
-			userRead.GET("/:id", middleware.RequireAdminOrUserOwnership, v2handlers.GetUserDetailV2) // Get user by ID
-			userRead.POST("/search", v2handlers.SearchUsers)                                         // Search users
+			userRead.GET("", v2handlers.ListUsersV2)                                                             // List users
+			userRead.GET("/:user_id/detail", middleware.RequireAdminOrUserOwnership, v2handlers.GetUserDetailV2) // Get user by ID
+			userRead.POST("/search", v2handlers.SearchUsers)                                                     // Search users
 		}
 
 		// User Write operations
 		userWrite := users.Group("", middleware.RequireUserWrite)
 		{
-			userWrite.POST("", v2handlers.CreateUser)    // Create user
-			userWrite.PUT("/:id", v2handlers.UpdateUser) // Update user
+			userWrite.POST("", v2handlers.CreateUser)           // Create user
+			userWrite.PATCH("/:user_id", v2handlers.UpdateUser) // Update user
 		}
 
 		// User Delete operations
-		users.DELETE("/:id", middleware.RequireUserDelete, v2handlers.DeleteUser) // Delete user
+		users.DELETE("/:user_id", middleware.RequireUserDelete, v2handlers.DeleteUser) // Delete user
 	}
 
 	// =====================================================================
@@ -330,14 +330,14 @@ func SetupV2Routes(router *gin.Engine) {
 	roles := v2.Group("/roles", middleware.JWTAuth())
 	{
 		// Role-Permission relationship routes
-		permissions := roles.Group("/:id/permissions")
+		permissions := roles.Group("/:role_id/permissions")
 		{
-			permissions.POST("", middleware.RequireRoleWrite, v2handlers.AssignRolePermission)        // Assign permissions to role
-			permissions.DELETE("", middleware.RequireRoleWrite, v2handlers.RemovePermissionsFromRole) // Remove permissions from role
+			permissions.POST("/assign", middleware.RequireRoleWrite, v2handlers.AssignRolePermission)      // Assign permissions to role
+			permissions.POST("/remove", middleware.RequireRoleWrite, v2handlers.RemovePermissionsFromRole) // Remove permissions from role
 		}
 
 		// Role-User relationship routes
-		users := roles.Group("/:id/users")
+		users := roles.Group("/:role_id/users")
 		{
 			users.GET("", middleware.RequireRoleRead, v2handlers.ListUsersFromRole) // List users with this role
 		}
@@ -345,7 +345,7 @@ func SetupV2Routes(router *gin.Engine) {
 		// Role Read operations
 		roleRead := roles.Group("", middleware.RequireRoleRead)
 		{
-			roleRead.GET("/:id", v2handlers.GetRole)         // Get role by ID
+			roleRead.GET("/:role_id", v2handlers.GetRole)    // Get role by ID
 			roleRead.GET("", v2handlers.ListRoles)           // List roles
 			roleRead.POST("/search", v2handlers.SearchRoles) // Search roles
 		}
@@ -353,19 +353,19 @@ func SetupV2Routes(router *gin.Engine) {
 		// Role Write operations
 		roleWrite := roles.Group("", middleware.RequireRoleWrite)
 		{
-			roleWrite.POST("", v2handlers.CreateRole)      // Create role
-			roleWrite.PATCH("/:id", v2handlers.UpdateRole) // Update role
+			roleWrite.POST("", v2handlers.CreateRole)           // Create role
+			roleWrite.PATCH("/:role_id", v2handlers.UpdateRole) // Update role
 		}
 
 		// Role Delete operations
-		roles.DELETE("/:id", middleware.RequireRoleDelete, v2handlers.DeleteRole) // Delete role
+		roles.DELETE("/:role_id", middleware.RequireRoleDelete, v2handlers.DeleteRole) // Delete role
 	}
 
 	// Permission Management - Permission Entity
 	permissions := v2.Group("/permissions", middleware.JWTAuth())
 	{
 		// Permission-Role relationship routes
-		roles := permissions.Group("/:id/roles")
+		roles := permissions.Group("/:permission_id/roles")
 		{
 			roles.GET("", middleware.RequirePermissionRead, v2handlers.ListRolesFromPermission) // List roles assigned to permission
 		}
@@ -373,34 +373,34 @@ func SetupV2Routes(router *gin.Engine) {
 		// Permission Read operations
 		permRead := permissions.Group("", middleware.RequirePermissionRead)
 		{
-			permRead.GET("", v2handlers.ListPermissions)           // List permissions
-			permRead.GET("/:id", v2handlers.GetPermission)         // Get permission by ID
-			permRead.POST("/search", v2handlers.SearchPermissions) // Search permissions
+			permRead.GET("", v2handlers.ListPermissions)              // List permissions
+			permRead.GET("/:permission_id", v2handlers.GetPermission) // Get permission by ID
+			permRead.POST("/search", v2handlers.SearchPermissions)    // Search permissions
 		}
 
 		// Permission Write operations
 		permWrite := permissions.Group("", middleware.RequirePermissionWrite)
 		{
-			permWrite.POST("", v2handlers.CreatePermission)      // Create permission
-			permWrite.PATCH("/:id", v2handlers.UpdatePermission) // Update permission
+			permWrite.POST("", v2handlers.CreatePermission)               // Create permission
+			permWrite.PUT("/:permission_id", v2handlers.UpdatePermission) // Update permission
 		}
 
 		// Permission Delete operations
-		permissions.DELETE("/:id", middleware.RequirePermissionDelete, v2handlers.DeletePermission) // Delete permission
+		permissions.DELETE("/:permission_id", middleware.RequirePermissionDelete, v2handlers.DeletePermission) // Delete permission
 	}
 
 	// Resource Management - Resource Entity
 	resources := v2.Group("/resources", middleware.JWTAuth())
 	{
 		// Resource-Permission relationship routes
-		permissions := resources.Group("/:id/permissions")
+		permissions := resources.Group("/:resource_id/permissions")
 		{
 			permissions.GET("", v2handlers.ListResourcePermissions) // List permissions assigned to resource
 		}
 
 		// Resource Read operations
-		resources.GET("/:id", v2handlers.GetResourceDetail) // Get resource by ID
-		resources.GET("", v2handlers.ListResources)         // List resources
+		resources.GET("/:resource_id", v2handlers.GetResourceDetail) // Get resource by ID
+		resources.GET("", v2handlers.ListResources)                  // List resources
 	}
 
 	// =====================================================================
@@ -413,8 +413,8 @@ func SetupV2Routes(router *gin.Engine) {
 		// Task Read operations
 		taskRead := tasks.Group("", middleware.RequireTaskRead)
 		{
-			taskRead.GET("", v2handlers.ListTasks)   // List tasks
-			taskRead.GET("/:id", v2handlers.GetTask) // Get task by ID
+			taskRead.GET("", v2handlers.ListTasks)        // List tasks
+			taskRead.GET("/:task_id", v2handlers.GetTask) // Get task by ID
 		}
 
 		// Task Delete operations
@@ -425,31 +425,31 @@ func SetupV2Routes(router *gin.Engine) {
 	injections := v2.Group("/injections", middleware.JWTAuth())
 	{
 		// Injection Analysis sub-group
-		analysis := injections.Group("/analysis", middleware.RequireFaultInjectionRead)
+		analysis := injections.Group("/analysis", middleware.RequireInjectionRead)
 		{
 			analysis.GET("/no-issues", v2handlers.ListFaultInjectionNoIssues)     // Get fault injections with no issues
 			analysis.GET("/with-issues", v2handlers.ListFaultInjectionWithIssues) // Get fault injections with issues
 		}
 
 		// Injection Read operations
-		injectionRead := injections.Group("", middleware.RequireFaultInjectionRead)
+		injectionRead := injections.Group("", middleware.RequireInjectionRead)
 		{
 			injectionRead.GET("", v2handlers.ListInjections)                // List injections
-			injectionRead.GET("/:id", v2handlers.GetInjection)              // Get injection by ID
+			injectionRead.GET("/:injection_id", v2handlers.GetInjection)    // Get injection by ID
 			injectionRead.GET("/metadata", v2handlers.GetInjectionMetadata) // Get injection metadata
 			injectionRead.POST("/search", v2handlers.SearchInjections)      // Advanced search
 		}
 
 		// Injection Write operations
-		injectionWrite := injections.Group("", middleware.RequireFaultInjectionWrite)
+		injectionWrite := injections.Group("", middleware.RequireInjectionWrite)
 		{
-			injectionWrite.POST("/inject", v2handlers.SubmitFaultInjection)               // Submit new injection
-			injectionWrite.POST("/build", v2handlers.SubmitDatapackBuilding)              // Submit new datapack building
-			injectionWrite.PATCH("/:name/labels", v2handlers.ManageInjectionCustomLabels) // Manage injection custom labels
+			injectionWrite.POST("/inject", v2handlers.SubmitFaultInjection)                       // Submit new injection
+			injectionWrite.POST("/build", v2handlers.SubmitDatapackBuilding)                      // Submit new datapack building
+			injectionWrite.PATCH("/:injection_id/labels", v2handlers.ManageInjectionCustomLabels) // Manage injection custom labels
 		}
 
 		// Injection Delete operations
-		injections.POST("/batch-delete", middleware.RequireFaultInjectionDelete, v2handlers.BatchDeleteInjections) // Batch delete injections
+		injections.POST("/batch-delete", middleware.RequireInjectionDelete, v2handlers.BatchDeleteInjections) // Batch delete injections
 	}
 
 	// Execution Result Management - ExecutionResult Entity
@@ -457,14 +457,14 @@ func SetupV2Routes(router *gin.Engine) {
 	{
 		// Execution Read operations
 		executions.GET("", v2handlers.ListExecutions)                      // List executions
-		executions.GET("/:id", v2handlers.GetExecution)                    // Get execution by ID
+		executions.GET("/:execution_id", v2handlers.GetExecution)          // Get execution by ID
 		executions.GET("/labels", v2handlers.ListAvaliableExecutionLabels) // List available execution labels
 
 		// Execution Write operations
 		executions.POST("/execute", v2handlers.SubmitAlgorithmExecution)                           // Submit algorithm execution
 		executions.POST("/:execution_id/detector_results", v2handlers.UploadDetectorResults)       // Upload detector results
 		executions.POST("/:execution_id/granularity_results", v2handlers.UploadGranularityResults) // Upload granularity results
-		executions.PATCH("/:id/labels", v2handlers.ManageExecutionCustomLabels)                    // Manage execution custom labels
+		executions.PATCH("/:execution_id/labels", v2handlers.ManageExecutionCustomLabels)          // Manage execution custom labels
 
 		// Execution Delete operations
 		executions.POST("/batch-delete", v2handlers.BatchDeleteExecutions) // Batch delete executions

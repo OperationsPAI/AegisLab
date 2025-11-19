@@ -58,7 +58,7 @@ func GetExecutionByID(db *gorm.DB, id int) (*database.Execution, error) {
 }
 
 // ListExecutions lists executions based on filters and pagination
-func ListExecutions(db *gorm.DB, limit, offset int, event *consts.ExecuteState, status *consts.StatusType, labelConditons []map[string]string) ([]database.Execution, int64, error) {
+func ListExecutions(db *gorm.DB, limit, offset int, event *consts.ExecutionState, status *consts.StatusType, labelConditons []map[string]string) ([]database.Execution, int64, error) {
 	var executions []database.Execution
 	var total int64
 

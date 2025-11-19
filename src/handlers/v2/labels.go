@@ -65,7 +65,6 @@ func BatchDeleteLabels(c *gin.Context) {
 //	@Failure		409		{object}	dto.GenericResponse[any]			"Label already exists"
 //	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/labels [post]
-//	@Deprecated
 func CreateLabel(c *gin.Context) {
 	var req dto.CreateLabelReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -162,9 +161,9 @@ func GetLabelDetail(c *gin.Context) {
 //	@Param			size		query		int													false	"Page size"		default(20)
 //	@Param			key			query		string												false	"Filter by label key"
 //	@Param			value		query		string												false	"Filter by label value"
-//	@Param			category	query		string												false	"Filter by category"
+//	@Param			category	query		consts.LabelCategory								false	"Filter by category"
 //	@Param			is_system	query		bool												false	"Filter by system label"
-//	@Param			status		query		int													false	"Filter by status"
+//	@Param			status		query		consts.StatusType									false	"Filter by status"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[dto.LabelResp]]	"Labels retrieved successfully"
 //	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
 //	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"

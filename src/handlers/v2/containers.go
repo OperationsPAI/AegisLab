@@ -35,9 +35,10 @@ import (
 //	@Failure		409		{object}	dto.GenericResponse[any]				"Conflict error"
 //	@Failure		500		{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/containers [post]
+//	@x-api-type		{"sdk":"true"}
 func CreateContainer(c *gin.Context) {
 	userID, exists := middleware.GetCurrentUserID(c)
-	if !exists {
+	if !exists || userID <= 0 {
 		dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
 		return
 	}
@@ -90,7 +91,7 @@ func DeleteContainer(c *gin.Context) {
 		return
 	}
 
-	dto.JSONResponse[any](c, http.StatusCreated, "Container deleted successfully", nil)
+	dto.JSONResponse[any](c, http.StatusNoContent, "Container deleted successfully", nil)
 }
 
 // GetContainer handles getting a single container by ID
@@ -109,10 +110,11 @@ func DeleteContainer(c *gin.Context) {
 //	@Failure		404				{object}	dto.GenericResponse[any]						"Container not found"
 //	@Failure		500				{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/containers/{container_id} [get]
+//	@x-api-type		{"sdk":"true"}
 func GetContainer(c *gin.Context) {
 	containerIDStr := c.Param(consts.URLPathContainerID)
 	containerID, err := strconv.Atoi(containerIDStr)
-	if err != nil {
+	if err != nil || containerID <= 0 {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container ID")
 		return
 	}
@@ -133,16 +135,18 @@ func GetContainer(c *gin.Context) {
 //	@ID				list_containers
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page	query		int														false	"Page number"	default(1)
-//	@Param			size	query		int														false	"Page size"		default(20)
-//	@Param			type	query		consts.ContainerType									false	"Container type filter"
-//	@Param			status	query		int														false	"Container status filter"
-//	@Success		200		{object}	dto.GenericResponse[dto.ListResp[dto.ContainerResp]]	"Containers retrieved successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]								"Invalid request format or parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]								"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]								"Permission denied"
-//	@Failure		500		{object}	dto.GenericResponse[any]								"Internal server error"
+//	@Param			page		query		int														false	"Page number"	default(1)
+//	@Param			size		query		consts.PageSize											false	"Page size"		default(20)
+//	@Param			type		query		consts.ContainerType									false	"Container type filter"
+//	@Param			is_public	query		bool													false	"Container public visibility filter"
+//	@Param			status		query		consts.StatusType										false	"Container status filter"
+//	@Success		200			{object}	dto.GenericResponse[dto.ListResp[dto.ContainerResp]]	"Containers retrieved successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]								"Invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]								"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]								"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]								"Internal server error"
 //	@Router			/api/v2/containers [get]
+//	@x-api-type		{"sdk":"true"}
 func ListContainers(c *gin.Context) {
 	var req dto.ListContainerReq
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -177,6 +181,7 @@ func ListContainers(c *gin.Context) {
 //	@Failure		403		{object}	dto.GenericResponse[any]								"Permission denied"
 //	@Failure		500		{object}	dto.GenericResponse[any]								"Internal server error"
 //	@Router			/api/v2/containers/search [post]
+//	@x-api-type		{"sdk":"true"}
 func SearchContainers(c *gin.Context) {
 	var req dto.SearchContainerReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -271,10 +276,17 @@ func UpdateContainer(c *gin.Context) {
 //	@Failure		409				{object}	dto.GenericResponse[any]						"Conflict error"
 //	@Failure		500				{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/containers/{container_id}/versions [post]
+//	@x-api-type		{"sdk":"true"}
 func CreateContainerVersion(c *gin.Context) {
+	userID, exists := middleware.GetCurrentUserID(c)
+	if !exists || userID <= 0 {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
 	containerIDStr := c.Param(consts.URLPathContainerID)
 	containerID, err := strconv.Atoi(containerIDStr)
-	if err != nil {
+	if err != nil || containerID <= 0 {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container ID")
 		return
 	}
@@ -290,7 +302,7 @@ func CreateContainerVersion(c *gin.Context) {
 		return
 	}
 
-	resp, err := producer.CreateContainerVersion(&req, containerID)
+	resp, err := producer.CreateContainerVersion(&req, containerID, userID)
 	if handlers.HandleServiceError(c, err) {
 		return
 	}
@@ -318,7 +330,7 @@ func CreateContainerVersion(c *gin.Context) {
 func DeleteContainerVersion(c *gin.Context) {
 	versionIDStr := c.Param(consts.URLPathVersionID)
 	versionID, err := strconv.Atoi(versionIDStr)
-	if err != nil {
+	if err != nil || versionID <= 0 {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container version ID")
 		return
 	}
@@ -348,6 +360,7 @@ func DeleteContainerVersion(c *gin.Context) {
 //	@Failure		404				{object}	dto.GenericResponse[any]							"Container or version not found"
 //	@Failure		500				{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/containers/{container_id}/versions/{version_id} [get]
+//	@x-api-type		{"sdk":"true"}
 func GetContainerVersion(c *gin.Context) {
 	containerIDStr := c.Param(consts.URLPathContainerID)
 	containerID, err := strconv.Atoi(containerIDStr)
@@ -382,13 +395,14 @@ func GetContainerVersion(c *gin.Context) {
 //	@Param			container_id	path		int															true	"Container ID"
 //	@Param			page			query		int															false	"Page number"	default(1)
 //	@Param			size			query		int															false	"Page size"		default(20)
-//	@Param			status			query		int															false	"Container version status filter"
+//	@Param			status			query		consts.StatusType											false	"Container version status filter"
 //	@Success		200				{object}	dto.GenericResponse[dto.ListResp[dto.ContainerVersionResp]]	"Container versions retrieved successfully"
 //	@Failure		400				{object}	dto.GenericResponse[any]									"Invalid request format or parameters"
 //	@Failure		401				{object}	dto.GenericResponse[any]									"Authentication required"
 //	@Failure		403				{object}	dto.GenericResponse[any]									"Permission denied"
 //	@Failure		500				{object}	dto.GenericResponse[any]									"Internal server error"
 //	@Router			/api/v2/containers/{container_id}/versions [get]
+//	@x-api-type		{"sdk":"true"}
 func ListContainerVersions(c *gin.Context) {
 	containerIDStr := c.Param(consts.URLPathContainerID)
 	containerID, err := strconv.Atoi(containerIDStr)
@@ -397,8 +411,23 @@ func ListContainerVersions(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement list container versions functionality
-	dto.ErrorResponse(c, http.StatusNotImplemented, "List container versions not yet implemented")
+	var req dto.ListContainerVersionReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
+	}
+
+	resp, err := producer.ListContainerVersions(&req, containerID)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.JSONResponse(c, http.StatusOK, "Container versions retrieved successfully", resp)
 }
 
 // UpdateContainerVersion handles container version updates
@@ -511,6 +540,7 @@ func ManageContainerCustomLabels(c *gin.Context) {
 //	@Failure		404		{object}	dto.GenericResponse[any]							"Required files not found"
 //	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/containers/build [post]
+//	@x-api-type		{"sdk":"true"}
 func SubmitContainerBuilding(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	userID, exists := middleware.GetCurrentUserID(c)

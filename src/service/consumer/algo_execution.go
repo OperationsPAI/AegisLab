@@ -28,10 +28,10 @@ import (
 )
 
 type executionPayload struct {
-	algorithm dto.ContainerVersionItem
-	datapack  dto.InjectionItem
-	datasetID int
-	labels    []dto.LabelItem
+	algorithm        dto.ContainerVersionItem
+	datapack         dto.InjectionItem
+	datasetVersionID int
+	labels           []dto.LabelItem
 }
 
 type algoJobCreationParams struct {
@@ -93,7 +93,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			return handleExecutionError(span, logEntry, "failed to parse execution payload", err)
 		}
 
-		executionID, err := createExecution(payload.algorithm.ID, payload.datapack.ID, payload.datasetID, payload.labels)
+		executionID, err := createExecution(payload.algorithm.ID, payload.datapack.ID, payload.datasetVersionID, payload.labels)
 		if err != nil {
 			return handleExecutionError(span, logEntry, "failed to create execution result", err)
 		}
@@ -181,7 +181,7 @@ func rescheduleAlgoExecutionTask(ctx context.Context, task *dto.UnifiedTask, rea
 
 // parseExecutionPayload extracts and validates the execution payload from the task
 func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
-	algorithm, err := utils.ConvertToType[dto.ContainerVersionItem](payload[consts.ExecuteAlgorithm])
+	algorithmVersion, err := utils.ConvertToType[dto.ContainerVersionItem](payload[consts.ExecuteAlgorithm])
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert '%s' to ContainerVersionItem: %w", consts.ExecuteAlgorithm, err)
 	}
@@ -191,11 +191,11 @@ func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 		return nil, fmt.Errorf("failed to convert '%s' to InjectionItem: %w", consts.ExecuteDatapack, err)
 	}
 
-	datasetIDFloat, ok := payload[consts.ExecuteDatasetID].(float64)
-	if !ok || datasetIDFloat < consts.DefaultInvalidID {
-		return nil, fmt.Errorf("missing or invalid '%s' in execution payload: %w", consts.ExecuteDatasetID, err)
+	datasetVersionIDFloat, ok := payload[consts.ExecuteDatasetVersionID].(float64)
+	if !ok || datasetVersionIDFloat < consts.DefaultInvalidID {
+		return nil, fmt.Errorf("missing or invalid '%s' in execution payload: %w", consts.ExecuteDatasetVersionID, err)
 	}
-	datasetID := int(datasetIDFloat)
+	datasetVersionID := int(datasetVersionIDFloat)
 
 	labels, err := utils.ConvertToType[[]dto.LabelItem](payload[consts.ExecuteLabels])
 	if err != nil {
@@ -203,10 +203,10 @@ func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 	}
 
 	return &executionPayload{
-		algorithm: algorithm,
-		datapack:  datapack,
-		datasetID: datasetID,
-		labels:    labels,
+		algorithm:        algorithmVersion,
+		datapack:         datapack,
+		datasetVersionID: datasetVersionID,
+		labels:           labels,
 	}, nil
 }
 
@@ -288,32 +288,20 @@ func getAlgoJobEnvVars(executionID int, payload *executionPayload) ([]corev1.Env
 		envNameIndexMap[jobEnvVar.Name] = index
 	}
 
-	if len(payload.algorithm.EnvVars) > 0 {
-		extraEnvVarMap := make(map[string]struct{}, len(payload.algorithm.EnvVars))
-		for name, value := range payload.algorithm.EnvVars {
-			if index, exists := envNameIndexMap[name]; exists {
-				jobEnvVars[index].Value = value
-			} else {
-				jobEnvVars = append(jobEnvVars, corev1.EnvVar{
-					Name:  name,
-					Value: value,
-				})
-				extraEnvVarMap[name] = struct{}{}
+	for _, envVar := range payload.algorithm.EnvVars {
+		if _, exists := envNameIndexMap[envVar.Key]; !exists {
+			if envVar.TemplateString != "" {
+				logrus.Warnf("Skipping templated env var %s in algorithm version %d", envVar.Key, payload.algorithm.ID)
+				continue
 			}
-		}
 
-		// Check if all required environment variables are provided
-		if payload.algorithm.EnvVarsKeys != "" {
-			envVarsArray := strings.Split(payload.algorithm.EnvVarsKeys, ",")
-			for _, envVar := range envVarsArray {
-				if _, exists := extraEnvVarMap[envVar]; !exists {
-					return nil, fmt.Errorf("environment variable %s is required but not provided in algorithm exeuciton payload", envVar)
-				}
+			valueStr, ok := envVar.Value.(string)
+			if !ok {
+				logrus.Warnf("Skipping non-string env var %s", envVar.Key)
+				continue
 			}
-		}
-	} else {
-		if payload.algorithm.EnvVarsKeys != "" {
-			return nil, fmt.Errorf("environment variables %s are required but not provided in algorithm execution payload", payload.algorithm.EnvVars)
+
+			jobEnvVars = append(jobEnvVars, corev1.EnvVar{Name: envVar.Key, Value: valueStr})
 		}
 	}
 
@@ -321,21 +309,21 @@ func getAlgoJobEnvVars(executionID int, payload *executionPayload) ([]corev1.Env
 }
 
 // createExecution creates a new execution record with associated labels
-func createExecution(algorithmID, datapackID int, datasetID int, labelItems []dto.LabelItem) (int, error) {
+func createExecution(algorithmVersionID, datapackID int, datasetVersionID int, labelItems []dto.LabelItem) (int, error) {
 	var createdExecutionID int
 
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
 		execution := &database.Execution{
-			AlgorithmID: algorithmID,
-			DatapackID:  datapackID,
-			DatasetID:   datasetID,
-			State:       consts.ExecutionInitial,
-			Status:      consts.CommonEnabled,
+			AlgorithmVersionID: algorithmVersionID,
+			DatapackID:         datapackID,
+			DatasetVersionID:   datasetVersionID,
+			State:              consts.ExecutionInitial,
+			Status:             consts.CommonEnabled,
 		}
 
 		if err := repository.CreateExecution(tx, execution); err != nil {
 			if errors.Is(err, gorm.ErrDuplicatedKey) {
-				return fmt.Errorf("%w: execution with algorithm_version_id %d and datapack_id %d already exists", consts.ErrAlreadyExists, algorithmID, datapackID)
+				return fmt.Errorf("%w: execution with algorithm_version_id %d and datapack_id %d already exists", consts.ErrAlreadyExists, algorithmVersionID, datapackID)
 			}
 			return fmt.Errorf("failed to create execution: %w", err)
 		}
