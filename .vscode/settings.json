@@ -5,9 +5,7 @@
   // Specifies Lint tool name.
   "go.lintTool": "golangci-lint",
   // Flags to pass to Lint tool (e.g. ["-min_confidence=.8"])
-  "go.lintFlags": [
-    "--fast"
-  ],
+  "go.lintFlags": ["--fast"],
   "go.coverOnSave": false,
   "go.toolsManagement.autoUpdate": true,
   "[go]": {
@@ -26,4 +24,5 @@
   "python.analysis.typeCheckingMode": "basic",
   "python.testing.pytestEnabled": true,
   "python.testing.unittestEnabled": false,
+  "python.analysis.extraPaths": ["./sdk/python/src", "./sdk/python-gen"]
 }

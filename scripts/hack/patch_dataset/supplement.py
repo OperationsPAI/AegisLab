@@ -1,7 +1,6 @@
 #!/usr/bin/env -S uv run -s
 import mysql.connector
 from mysql.connector import Error
-from rcabench.rcabench import RCABenchSDK
 from rcabench.openapi.api_client import ApiClient, Configuration
 from rcabench.openapi import (
     DatasetApi,

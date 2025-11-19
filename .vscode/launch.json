@@ -22,6 +22,34 @@
       "console": "integratedTerminal"
     },
     {
+      "name": "Python: Debug command",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/command/main.py",
+      "args": [
+        "pedestal",
+        "install-releases",
+        "--env",
+        "dev",
+        "-n",
+        "ts_cn",
+        "-c",
+        "1"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Python: Debug swag-init-postprocess",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/swag-init-postprocess.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
       "name": "Python: Debug Specific Test",
       "type": "debugpy",
       "request": "launch",

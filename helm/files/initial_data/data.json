@@ -1,7 +1,7 @@
 {
     "containers": [
         {
-            "type": "algorithm",
+            "type": 0,
             "name": "detector",
             "is_public": true,
             "status": 1,
@@ -14,7 +14,7 @@
             ]
         },
         {
-            "type": "algorithm",
+            "type": 0,
             "name": "traceback",
             "is_public": true,
             "status": 1,
@@ -27,7 +27,7 @@
             ]
         },
         {
-            "type": "benchmark",
+            "type": 1,
             "name": "clickhouse",
             "is_public": true,
             "status": 1,
@@ -40,7 +40,7 @@
             ]
         },
         {
-            "type": "pedestal",
+            "type": 2,
             "name": "ts",
             "is_public": true,
             "status": 1,
@@ -49,12 +49,46 @@
                     "name": "1.0.0",
                     "github_link": "LGU-SE-Internal/train-ticket",
                     "image_ref": "docker.io/opspai/ts-train-service:v1.0.0-213-gf9294111",
-                    "status": 1
+                    "status": 1,
+                    "helm_config": {
+                        "repo_name": "train-ticket",
+                        "chart_name": "trainticket",
+                        "repo_url": "https://lgu-se-internal.github.io/train-ticket",
+                        "values": [
+                            {
+                                "key": "global.image.repository",
+                                "type": 1,
+                                "category": 1,
+                                "template_string": "{{ .Registry }}/{{ .Namespace }}"
+                            },
+                            {
+                                "key": "gloabel.image.tag",
+                                "type": 1,
+                                "category": 1,
+                                "template_string": "{{ .Tag }}"
+                            },
+                            {
+                                "key": "global.security.allowInsecureImages",
+                                "type": 0,
+                                "category": 1,
+                                "default_value": "true",
+                                "required": true
+                            },
+                            {
+                                "key": "services.tsUiDashboard.nodePort",
+                                "type": 1,
+                                "category": 1,
+                                "template_string": "31%03d"
+                            }
+                        ],
+                        "ns_prefix": "ts",
+                        "status": 1
+                    }
                 }
             ]
         },
         {
-            "type": "pedestal",
+            "type": 2,
             "name": "ts_cn",
             "is_public": true,
             "status": 1,
@@ -68,36 +102,82 @@
                         "repo_name": "train-ticket",
                         "chart_name": "trainticket",
                         "repo_url": "https://lgu-se-internal.github.io/train-ticket",
-                        "values": {
-                            "mysql": {
-                                "image": {
-                                    "repository": "pair-diagnose-cn-guangzhou.cr.volces.com/library/mysql"
-                                }
+                        "values": [
+                            {
+                                "key": "global.image.repository",
+                                "type": 1,
+                                "category": 1,
+                                "template_string": "{{ .Registry }}/{{ .Namespace }}"
                             },
-                            "rabbitmq": {
-                                "image": {
-                                    "registry": "pair-diagnose-cn-guangzhou.cr.volces.com",
-                                    "repository": "bitnamilegacy/rabbitmq"
-                                }
+                            {
+                                "key": "global.image.tag",
+                                "type": 1,
+                                "category": 1,
+                                "template_string": "{{ .Tag }}"
                             },
-                            "loadgenerator": {
-                                "image": {
-                                    "repository": "pair-diagnose-cn-guangzhou.cr.volces.com/opspai/loadgenerator"
-                                },
-                                "initContainer": {
-                                    "image": "pair-diagnose-cn-guangzhou.cr.volces.com/nicolaka/netshoot:v0.14"
-                                }
+                            {
+                                "key": "global.security.allowInsecureImages",
+                                "type": 0,
+                                "category": 1,
+                                "default_value": "true",
+                                "required": true
                             },
-                            "global": {
-                                "security": {
-                                    "allowInsecureImages": true
-                                }
+                            {
+                                "key": "services.tsUiDashboard.nodePort",
+                                "type": 1,
+                                "category": 1,
+                                "template_string": "31%03d"
+                            },
+                            {
+                                "key": "mysql.image.repository",
+                                "type": 1,
+                                "category": 1,
+                                "template_string": "{{ .Registry }}/library/mysql"
+                            },
+                            {
+                                "key": "rabbitmq.image.registry",
+                                "type": 1,
+                                "category": 1,
+                                "template_string": "{{ .Registry }}"
+                            },
+                            {
+                                "key": "rabbitmq.image.repository",
+                                "type": 0,
+                                "category": 1,
+                                "default_value": "bitnamilegacy/rabbitmq",
+                                "required": true
+                            },
+                            {
+                                "key": "loadgenerator.image.repository",
+                                "type": 1,
+                                "category": 1,
+                                "template_string": "{{ .Registry }}/{{ .Namespace }}/loadgenerator"
+                            },
+                            {
+                                "key": "loadgenerator.initContainer.image",
+                                "type": 1,
+                                "category": 1,
+                                "template_string": "{{ .Registry }}/nicolaka/netshoot:v0.14"
                             }
-                        },
+                        ],
                         "ns_prefix": "ts",
-                        "port_template": "31%03d",
                         "status": 1
                     }
+                }
+            ]
+        }
+    ],
+    "datasets": [
+        {
+            "name": "rca_pair_diagnosis_dataset",
+            "description": "RCA Pair Diagnosis Dataset",
+            "type": "network",
+            "is_public": true,
+            "status": 1,
+            "versions": [
+                {
+                    "name": "1.0.0",
+                    "status": 1
                 }
             ]
         }
