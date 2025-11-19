@@ -2,8 +2,7 @@
 
 import warnings
 from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
-from typing import Any, Dict, List, Optional, Tuple, Union
-from typing_extensions import Annotated
+from typing import Annotated, Any
 
 {{#imports}}
 {{import}}
@@ -11,7 +10,7 @@ from typing_extensions import Annotated
 
 from {{packageName}}.api_client import ApiClient, RequestSerialized
 from {{packageName}}.api_response import ApiResponse
-from {{packageName}}.rest import RESTResponseType
+from {{packageName}}.rest import RESTResponse, RESTResponseType
 
 
 {{#operations}}
@@ -80,6 +79,10 @@ class {{classname}}:
             *_param,
             _request_timeout=_request_timeout
         )
+
+        assert response_data is not None and isinstance(response_data, RESTResponse), (
+            "Response data must be of type RESTResponse"
+        )
         {{#async}}await {{/async}}response_data.read()
         return self.api_client.response_deserialize(
             response_data=response_data,
@@ -95,11 +98,15 @@ class {{classname}}:
             *_param,
             _request_timeout=_request_timeout
         )
+
+        assert response_data is not None and isinstance(response_data, RESTResponse), (
+            "Response data must be of type RESTResponse"
+        )
         {{#async}}await {{/async}}response_data.read()
         return self.api_client.response_deserialize(
             response_data=response_data,
             response_types_map=_response_types_map,
-        )
+        ) # type: ignore
 
 
     @validate_call
@@ -109,6 +116,10 @@ class {{classname}}:
         response_data = {{#async}}await {{/async}}self.api_client.call_api(
             *_param,
             _request_timeout=_request_timeout
+        )
+                
+        assert response_data is not None and isinstance(response_data, RESTResponse), (
+            "Response data must be of type RESTResponse"
         )
         return response_data.response
 
@@ -135,7 +146,7 @@ class {{classname}}:
         _host = None
         {{/servers.0}}
 
-        _collection_formats: Dict[str, str] = {
+        _collection_formats: dict[str, str] = {
             {{#allParams}}
             {{#isArray}}
             '{{baseName}}': '{{collectionFormat}}',
@@ -143,14 +154,14 @@ class {{classname}}:
             {{/allParams}}
         }
 
-        _path_params: Dict[str, str] = {}
-        _query_params: List[Tuple[str, str]] = []
-        _header_params: Dict[str, Optional[str]] = _headers or {}
-        _form_params: List[Tuple[str, str]] = []
-        _files: Dict[
-            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        _path_params: dict[str, str] = {}
+        _query_params: list[tuple[str, str]] = []
+        _header_params: dict[str, str | None] = _headers or {}
+        _form_params: list[tuple[str, str]] = []
+        _files: dict[
+            str, str | bytes | list[str] | list[bytes] | list[tuple[str, bytes]]
         ] = {}
-        _body_params: Optional[bytes] = None
+        _body_params: bytes | None = None
 
         # process the path parameters
 {{#pathParams}}
@@ -262,7 +273,7 @@ class {{classname}}:
         {{/hasConsumes}}
 
         # authentication setting
-        _auth_settings: List[str] = [{{#authMethods}}
+        _auth_settings: list[str] = [{{#authMethods}}
             '{{name}}'{{^-last}}, {{/-last}}{{/authMethods}}
         ]
 
