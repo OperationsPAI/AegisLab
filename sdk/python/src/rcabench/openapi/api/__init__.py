@@ -11,4 +11,3 @@ from rcabench.openapi.api.projects_api import ProjectsApi
 from rcabench.openapi.api.system_api import SystemApi
 from rcabench.openapi.api.tasks_api import TasksApi
 from rcabench.openapi.api.traces_api import TracesApi
-
