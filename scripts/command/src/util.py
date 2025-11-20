@@ -1,4 +1,5 @@
 def extract_docker_tag(image_ref: str) -> str:
+    """Extract the Docker tag from an image reference."""
     last_colon_index = image_ref.rfind(":")
 
     if last_colon_index != -1:
@@ -8,9 +9,7 @@ def extract_docker_tag(image_ref: str) -> str:
 
 
 def parse_image_address(image_address) -> dict[str, str | None]:
-    """
-    Parse a Docker image address into its components.
-    """
+    """Parse a Docker image address into its components."""
     parts: dict[str, str | None] = {
         "registry": None,
         "namespace": None,
