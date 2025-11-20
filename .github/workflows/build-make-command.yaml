@@ -3,8 +3,11 @@ name: Build Make Command Tool
 on:
     push:
         paths:
-            - "scripts/command/src/**"
+            - "scripts/command/src/**.py"
             - "scripts/command/main.py"
+            - "scripts/command/pyproject.toml"
+        tags-ignore:
+            - "*"
 
     workflow_dispatch:
 

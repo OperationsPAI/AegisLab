@@ -9,9 +9,10 @@ on:
       tag_version:
         description: "Version tag to simulate (e.g. v1.2.3)"
         required: true
-        default: "0.0.0-manual-test"
+        default: "v0.0.0-manual-test"
 
 permissions:
+  actions: read
   contents: read
   packages: write
   id-token: write
@@ -32,73 +33,18 @@ jobs:
       GRAY: "\033[1;90m"
       RESET: "\033[0m"
 
+      SDK_DIR: "sdk/python"
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Find Latest Formatter Build Run ID
-        id: find_run
-        run: |
-          set -e 
-
-          # Check for in_progress runs
-          IN_PROGRESS=$(gh api \
-            --header 'Accept: application/vnd.github.v3+json' \
-            /repos/${{ github.repository }}/actions/workflows/build-make-command.yaml/runs \
-            -f status=in_progress \
-            --jq '.workflow_runs | length')
-
-          # Check for queued runs
-          QUEUED=$(gh api \
-            --header 'Accept: application/vnd.github.v3+json' \
-            /repos/${{ github.repository }}/actions/workflows/build-make-command.yaml/runs \
-            -f status=queued \
-            --jq '.workflow_runs | length')
-
-          ACTIVE_RUNS=$((IN_PROGRESS + QUEUED))
-
-          if [[ "$ACTIVE_RUNS" -gt 0 ]]; then
-              printf "${YELLOW}⚠️ WARNING: Found $ACTIVE_RUNS active build-make-command runs. Proceeding with the latest successful artifact instead of waiting.${RESET}\n"
-          fi
-
-          RUN_ID=$(gh api \
-            --header 'Accept: application/vnd.github.v3+json' \
-            /repos/${{ github.repository }}/actions/workflows/build-make-command.yaml/runs \
-            -f status=success \
-            --jq '.workflow_runs[0].id')
-
-          if [[ "$RUN_ID" == "null" || -z "$RUN_ID" ]]; then
-              printf "${YELLOW}⚠️ WARNING: No successful build-make-command run found. Cannot guarantee latest artifact freshness.${RESET}\n"
-              echo "run_id=''" >> $GITHUB_OUTPUT
-          else
-              printf "${GREEN}✅ Found latest successful build run ID: $RUN_ID${RESET}\n"
-              echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Download Make command tool artifact
-        uses: actions/download-artifact@v4
-        if: success() && steps.find_run.outputs.run_id
+      - name: prepare-command-tool
+        uses: ./.github/actions/prepare-command-tool
         with:
-          name: make-command-tool
-          path: scripts/command
-          run-id: ${{ steps.find_run.outputs.run_id }}
-
-      - name: Set Binary Permissions
-        if: success() && steps.find_run.outputs.run_id
-        run: |
-          chmod +x scripts/command/command.bin
-          printf "${GREEN}✅ Binary permissions set${RESET}\n"
-          ls -lh scripts/command/command.bin
-
-      - name: Fallback - Build command tool if artifact not found
-        if: success() && steps.find_run.outputs.run_id == ''
-        run: |
-          printf "${YELLOW}⚠️ No artifact found, building command tool locally...${RESET}\n"
-          make build-make-command
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract version from tag
         id: extract_version
@@ -112,7 +58,7 @@ jobs:
           VERSION=${RAW_VERSION#refs/tags/v}
           VERSION=${VERSION#v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Extracted Version: $VERSION"
+          printf "${GREEN}📦 Extracted Version: $VERSION${RESET}\n"
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -126,35 +72,42 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # Install swag for generating Swagger documentation
+          printf "${BLUE}📥 Installing Ruff...${RESET}\n"
+          curl -LsSf https://astral.sh/ruff/install.sh | sh
+          printf "${GREEN}✅ Ruff installed${RESET}\n"
+
+          printf "${BLUE}📥 Installing Go dependencies...${RESET}\n"
           go install github.com/swaggo/swag/cmd/swag@latest
           cd src && go mod tidy
+          printf "${GREEN}✅ Dependencies installed${RESET}\n"
 
       - name: Generate Python SDK
         run: |
-          printf "${BLUE}Starting SDK generation via Makefile...${RESET}\n"
+          printf "${BLUE}🔧 Starting SDK generation via Makefile...${RESET}\n"
           make generate-python-sdk SDK_VERSION=${{ steps.extract_version.outputs.version }}
 
       - name: Verify SDK Generation
         run: |
           printf "${BLUE}🔍 Verifying generated SDK...${RESET}\n"
 
-          if [ ! -d "sdk/python" ]; then
+          if [ ! -d "${SDK_DIR}" ]; then
             printf "${RED}❌ SDK directory not found${RESET}\n"
             exit 1
           fi
 
-          if [ ! -f "sdk/python/pyproject.toml" ]; then
+          if [ ! -f "${SDK_DIR}/pyproject.toml" ]; then
             printf "${RED}❌ pyproject.toml not found${RESET}\n"
             exit 1
           fi
 
           printf "${GREEN}✅ SDK structure verified${RESET}\n"
+          printf "${GRAY}SDK contents:${RESET}\n"
+          ls -lh ${SDK_DIR}
 
       - name: Build and publish
         run: |
-          cd sdk/python
-          printf "${BLUE}🔨 Building SDK...${RESET}\n"
+          cd ${SDK_DIR}
+          printf "${BLUE}🔨 Building SDK package...${RESET}\n"
           uv build
 
           printf "${BLUE}📦 Publishing to PyPI...${RESET}\n"
