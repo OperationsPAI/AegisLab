@@ -131,12 +131,21 @@ build-make-command:
 		cd $(COMMAND_DIR) && \
 		uv venv --clear && \
 		. .venv/bin/activate && \
-		uv sync --quiet --extra nuitka-build && \
-		uv run python -m nuitka --standalone --onefile --lto=yes \
-			--output-dir=. \
-			--output-filename=command.bin \
-			main.py; \
-		printf "$(GREEN)✅ Make command tool installation completed.$(RESET)\n"; \
+		if uv sync --quiet --extra nuitka-build; then \
+			printf "$(GREEN)✅ Dependencies installed successfully$(RESET)\n"; \
+			if uv run python -m nuitka --standalone --onefile --lto=yes \
+				--output-dir=. \
+				--output-filename=command.bin \
+				main.py; then \
+				printf "$(GREEN)✅ Make command tool installation completed.$(RESET)\n"; \
+			else \
+				printf "$(RED)❌ Nuitka compilation failed$(RESET)\n"; \
+				exit 1; \
+			fi; \
+		else \
+			printf "$(RED)❌ uv sync failed$(RESET)\n"; \
+			exit 1; \
+		fi; \
 	fi
 
 install-chaos-mesh: ## 📦 Install Chaos Mesh

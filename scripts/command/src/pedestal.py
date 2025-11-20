@@ -8,13 +8,7 @@ from typing import Any
 
 from jinja2 import Template
 
-from src.common import (
-    INITIAL_DATA_PATH,
-    check_and_create_namespace,
-    console,
-    get_current_context,
-    switch_context,
-)
+from src.common import ENV, INITIAL_DATA_PATH, KubernetesManager, console
 from src.util import parse_image_address
 
 CONTEXT_MAPPING = {"dev": "kubernetes-admin@kubernetes", "test": "k3d-test-cluter"}
@@ -358,21 +352,25 @@ def _install_release(ctx: str, pedestal: Pedestal, ns: str, index: int) -> None:
     _run([*base_cmd, *values])
 
 
-def install_releases(env: str, name: str, count: int) -> None:
+def install_releases(env: ENV, name: str, count: int) -> None:
     if count <= 0:
-        raise SystemExit("PEDESTAL_COUNT must be a positive number")
+        console.print("[bold red]PEDESTAL_COUNT must be a positive number[/bold red]")
+        raise SystemExit(1)
 
-    context_mapping = {"dev": "kubernetes-admin@kubernetes", "test": "k3d-test-cluster"}
+    k8s_manager = KubernetesManager()
+    if k8s_manager.api is None:
+        console.print("[bold red]Failed to initialize Kubernetes API client[/bold red]")
+        raise SystemExit(1)
 
-    if env in context_mapping:
-        target_context = context_mapping[env]
+    if env in k8s_manager.CONTEXT_MAPPING:
+        target_context = k8s_manager.CONTEXT_MAPPING[env]
         console.print(
             f"[bold blue]Switching to context: {target_context}[/bold blue]..."
         )
-        if not switch_context(target_context):
+        if not k8s_manager.switch_context(target_context):
             raise SystemExit(f"Failed to switch to context: {target_context}")
 
-    current_ctx = get_current_context()
+    current_ctx = k8s_manager.get_current_context()
     console.print(f"[bold green]Current context: {current_ctx}[/bold green]")
 
     pedestal = _get_pedestal_or_exit(name)
@@ -385,7 +383,7 @@ def install_releases(env: str, name: str, count: int) -> None:
         ns = f"{ns_prefix}{i}"
         console.print(f"[bold blue]Checking namespace: {ns}[/bold blue]")
 
-        ns_ok = check_and_create_namespace(ns)
+        ns_ok = k8s_manager.check_and_create_namespace(ns)
         if not ns_ok:
             console.print(f"[bold yellow]Namespace {ns} does not exist[/bold yellow]")
             continue
