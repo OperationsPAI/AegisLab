@@ -1,6 +1,5 @@
 import pytest
 from conftest import DEFAULT_PAGE, DEFAULT_PAGE_SIZE
-
 from rcabench.openapi import ApiClient
 from rcabench.openapi.api.projects_api import ProjectsApi
 from rcabench.openapi.models.create_project_req import CreateProjectReq
