@@ -12,16 +12,24 @@
 -include .env
 
 # Basic Configuration
-DEFAULT_REPO 	:= docker.io/opspai
+DEFAULT_REPO 	:= 10.10.10.240/library
 NS          	:= exp
 PORT        	:= 30080
 RELEASE_NAME    := rcabench
 
 # Directory Configuration
 HUSKY_DIR := .husky
-SDK_DIR := sdk/python
-SDK_GEN_DIR := sdk/python-gen
 SRC_DIR := src
+COMMAND_DIR := scripts/command
+COMMAND_BIN := command.bin
+
+SDK_VERSION ?=0.0.0
+GENERATOR_IMAGE ?= docker.io/opspai/openapi-generator-cli:1.0.0
+
+PYTHON_SDK_DIR := sdk/python
+PYTHON_SDK_GEN_DIR := sdk/python-gen
+PYTHON_SDK_CONFIG := .openapi-generator/python/config.json
+PYTHON_SDK_TEMPLATES := .openapi-generator/python/templates
 
 # Chaos Types Configuration
 CHAOS_TYPES := dnschaos httpchaos jvmchaos networkchaos podchaos stresschaos timechaos
@@ -78,23 +86,6 @@ help:  ## 📖 Display all available commands
 	@printf "  $(CYAN)make status$(RESET)              - View application status\n"
 	@printf "  $(CYAN)make logs$(RESET)                - View application logs\n"
 
-# =============================================================================
-# Kubernetes Function
-# =============================================================================
-
-switch-context: ## 🔄 Switch Kubernetes context (usage: make switch-context CONTEXT=dev|prod)
-	@if [ -z "$(CONTEXT)" ]; then \
-		printf "$(RED)❌ Please provide context: make switch-context CONTEXT=dev|prod$(RESET)\n"; \
-		printf "$(YELLOW)Available contexts:$(RESET)\n"; \
-		kubectl config get-contexts -o name; \
-		exit 1; \
-	fi; \
-	case "$(CONTEXT)" in \
-		dev) target_context="$(DEV_CONTEXT)" ;; \
-		prod) target_context="$(PROD_CONTEXT)" ;; \
-		*) printf "$(RED)❌ Invalid CONTEXT '$(CONTEXT)'. Please provide CONTEXT: dev|prod$(RESET)\n"; exit 1 ;; \
-	esac; \
-	kubectl config use-context "$$target_context"; \
 
 # =============================================================================
 # Environment Check and Setup
@@ -129,6 +120,23 @@ setup-dev-env: check-prerequisites ## 🛠️  Setup development environment
 		printf "$(BLUE)Directory $(HUSKY_DIR) not found. Running initialization...$(RESET)\n"; \
 		devbox run install-hooks; \
 		printf "$(GREEN)✅ Development environment setup completed!$(RESET)\n"; \
+	fi
+
+build-make-command:
+	@if [ -f "$(COMMAND_DIR)/$(COMMAND_BIN)" ]; then \
+		printf "$(GREEN)✅ Make command tool binary found. Skipping installation.$(RESET)\n"; \
+	else \
+		printf "$(BLUE)📦 Command tool binary not found. Building now...$(RESET)\n"; \
+		sudo apt install patchelf ccache; \
+		cd $(COMMAND_DIR) && \
+		uv venv --clear && \
+		. .venv/bin/activate && \
+		uv sync --quiet --extra nuitka-build && \
+		uv run python -m nuitka --standalone --onefile --lto=yes \
+			--output-dir=. \
+			--output-filename=command.bin \
+			main.py; \
+		printf "$(GREEN)✅ Make command tool installation completed.$(RESET)\n"; \
 	fi
 
 install-chaos-mesh: ## 📦 Install Chaos Mesh
@@ -637,34 +645,37 @@ swag-init: ## 📝 Initialize Swagger documentation
 	swag init -d ./$(SRC_DIR) --parseDependency --parseDepth 1 --output ./$(SRC_DIR)/docs/openapi2
 	@printf ""
 	docker run --rm -u $(shell id -u):$(shell id -g) -v $(shell pwd):/local \
-		opspai/openapi-generator-cli:1.0.0 generate \
+		$(GENERATOR_IMAGE) generate \
 		-i /local/$(SRC_DIR)/docs/openapi2/swagger.json \
 		-g openapi \
-		-o /local/$(SRC_DIR)/docs/openapi3 \
-		--git-host github.com \
-		--git-repo-id AegisLab \
-		--git-user-id OperationsPAI
+		-o /local/$(SRC_DIR)/docs/openapi3 
 	@printf "$(BLUE)📦 Post-processing swagger initiaization...$(RESET)\n"
 	python ./scripts/swag-init-postprocess.py
 	@printf "$(GREEN)✅ Swagger documentation generation completed$(RESET)\n"
 
-generate-sdk: swag-init ## ⚙️ Generate Python SDK from Swagger documentation
+generate-python-sdk: swag-init ## ⚙️ Generate Python SDK from Swagger documentation
 	@printf "$(BLUE)🐍 Generating Python SDK...$(RESET)\n"
-	rm -rf $(shell pwd)/$(SDK_GEN_DIR)/*; \
+	@printf "$(BLUE)Updating "$(PYTHON_SDK_CONFIG)" packageVersion to $(SDK_VERSION)...$(RESET)\n"
+	@jq --arg ver "$(SDK_VERSION)" '.packageVersion = $$ver' \
+        $(PYTHON_SDK_CONFIG) > temp.json && \
+        mv temp.json $(PYTHON_SDK_CONFIG)
+	@mkdir -p $(PYTHON_SDK_GEN_DIR); \
+    find $(PYTHON_SDK_GEN_DIR) -mindepth 1 -delete; \
 	docker run --rm -u $(shell id -u):$(shell id -g) -v $(shell pwd):/local \
-		opspai/openapi-generator-cli:1.0.0 generate \
+		$(GENERATOR_IMAGE) generate \
 		-i /local/$(SRC_DIR)/docs/converted/sdk.json \
 		-g python \
-		-o /local/$(SDK_GEN_DIR) \
-		-c /local/.openapi-generator/config.json \
-		-t /local/.openapi-generator/python \
+		-o /local/$(PYTHON_SDK_GEN_DIR) \
+		-c /local/$(PYTHON_SDK_CONFIG) \
+		-t /local/$(PYTHON_SDK_TEMPLATES) \
 		--git-host github.com \
 		--git-repo-id AegisLab \
 		--git-user-id OperationsPAI
 	@printf "$(BLUE)📦 Post-processing generated SDK...$(RESET)\n"
-	./scripts/mv-generated-sdk.sh
-# 	@printf "$(BLUE) 🐍 Formatting generated Python SDK...$(RESET)\n"
-# 	./scripts/command/dist/main.bin format python
+	@$(MAKE) build-make-command
+	./scripts/mv-generated-python-sdk.sh
+	@printf "$(BLUE) 🐍 Formatting generated Python SDK using Venv in $(COMMAND_DIR)...$(RESET)\n"
+	./$(COMMAND_DIR)/command.bin format python
 	@printf "$(GREEN)✅ Python SDK generation completed$(RESET)\n"
 
 
@@ -715,7 +726,7 @@ info: ## ℹ️  Display project information
 	@printf "  $(CYAN)Namespace:$(RESET) $(NS)\n"
 	@printf "  $(CYAN)Port:$(RESET) $(PORT)\n"
 	@printf "  $(CYAN)Controller Directory:$(RESET) $(SRC_DIR)\n"
-	@printf "  $(CYAN)SDK Directory:$(RESET) $(SDK_DIR)\n"
+	@printf "  $(CYAN)Python SDK Directory:$(RESET) $(PYTHON_SDK_DIR)\n"
 	@printf "\n"
 	@printf "$(YELLOW)Chaos Types:$(RESET)\n"
 	@for type in $(CHAOS_TYPES); do \

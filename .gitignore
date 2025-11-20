@@ -9,6 +9,7 @@ __pycache__/
 # Distribution / packaging
 .Python
 build/
+dist/
 develop-eggs/
 dist/
 downloads/
@@ -172,9 +173,16 @@ __debug*
 sdk/python-gen
 temp
 ts
+logs/
 containers
 .codebuddy
 .github/instructions/tmp/
 .husky/
 src/docs/openapi3/.openapi-generator
 src/docs/openapi3/.openapi-generator-ignore
+
+# Command
+scripts/command/*.build/
+scripts/command/*.dist/
+scripts/command/*.onefile-build/
+scripts/command/command.bin
