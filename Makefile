@@ -12,16 +12,29 @@
 -include .env
 
 # Basic Configuration
+# Defines the environment mode: 'prod' (default, compiled binary) or 'dev', 'test' (interpreted script).
+ENV_MODE ?= dev
+
 DEFAULT_REPO 	:= 10.10.10.240/library
 NS          	:= exp
 PORT        	:= 30080
 RELEASE_NAME    := rcabench
 
+# COMMAND Tool Configuration
+COMMAND_DIR := scripts/command
+COMMAND_BIN := $(COMMAND_DIR)/command.bin
+
+BUILD_COMMAND_SCRIPT := ./scripts/build-command.sh
+
+ifeq ($(ENV_MODE),prod)
+	COMMAND := ./$(COMMAND_BIN)
+else
+	COMMAND := . $(COMMAND_DIR)/.venv/bin/activate && uv run python $(COMMAND_DIR)/main.py
+endif
+
 # Directory Configuration
 HUSKY_DIR := .husky
 SRC_DIR := src
-COMMAND_DIR := scripts/command
-COMMAND_BIN := command.bin
 
 SDK_VERSION ?=0.0.0
 GENERATOR_IMAGE ?= docker.io/opspai/openapi-generator-cli:1.0.0
@@ -86,6 +99,16 @@ help:  ## 📖 Display all available commands
 	@printf "  $(CYAN)make status$(RESET)              - View application status\n"
 	@printf "  $(CYAN)make logs$(RESET)                - View application logs\n"
 
+# =============================================================================
+# Command Tool Management
+# =============================================================================
+
+build-make-command: ## 🔨 Build command tool
+	@chmod +x $(BUILD_COMMAND_SCRIPT)
+	@ENV_MODE=$(ENV_MODE) $(BUILD_COMMAND_SCRIPT)
+
+run-command: build-make-command ## 🔧 Run command tool (usage: make run-command ARGS="your args")
+	@$(COMMAND) $(ARGS)
 
 # =============================================================================
 # Environment Check and Setup
@@ -122,32 +145,6 @@ setup-dev-env: check-prerequisites ## 🛠️  Setup development environment
 		printf "$(GREEN)✅ Development environment setup completed!$(RESET)\n"; \
 	fi
 
-build-make-command:
-	@if [ -f "$(COMMAND_DIR)/$(COMMAND_BIN)" ]; then \
-		printf "$(GREEN)✅ Make command tool binary found. Skipping installation.$(RESET)\n"; \
-	else \
-		printf "$(BLUE)📦 Command tool binary not found. Building now...$(RESET)\n"; \
-		sudo apt install patchelf ccache; \
-		cd $(COMMAND_DIR) && \
-		uv venv --clear && \
-		. .venv/bin/activate && \
-		if uv sync --quiet --extra nuitka-build; then \
-			printf "$(GREEN)✅ Dependencies installed successfully$(RESET)\n"; \
-			if uv run python -m nuitka --standalone --onefile --lto=yes \
-				--output-dir=. \
-				--output-filename=command.bin \
-				main.py; then \
-				printf "$(GREEN)✅ Make command tool installation completed.$(RESET)\n"; \
-			else \
-				printf "$(RED)❌ Nuitka compilation failed$(RESET)\n"; \
-				exit 1; \
-			fi; \
-		else \
-			printf "$(RED)❌ uv sync failed$(RESET)\n"; \
-			exit 1; \
-		fi; \
-	fi
-
 install-chaos-mesh: ## 📦 Install Chaos Mesh
 	@printf "$(BLUE)📦 Installing Chaos Mesh...$(RESET)\n"
 	helm repo add chaos-mesh https://charts.chaos-mesh.org
@@ -163,125 +160,8 @@ install-chaos-mesh: ## 📦 Install Chaos Mesh
 # Pedestal Function
 # =============================================================================
 
-# Function to extract pedestal information
-get_pedestal_chart_ref = $(shell echo "$(PEDESTAL_MAPPING)" | grep "^$(1)=" | cut -d'=' -f2 | cut -d':' -f1)
-get_pedestal_image_tag = $(shell echo "$(PEDESTAL_MAPPING)" | grep "^$(1)=" | cut -d'=' -f2 | cut -d':' -f2)
-get_pedestal_node_port = $(shell echo "$(PEDESTAL_MAPPING)" | grep "^$(1)=" | cut -d'=' -f2 | cut -d':' -f3)
-
-# Function to validate pedestal (usage: $(call validate-pedestal-key,key))
-validate_pedestal_key = $(shell echo "$(PEDESTAL_MAPPING)" | grep -q "^$(1)=" && echo "valid" || echo "invalid")
-
-install-release: ## 🚀 Install Pedestal Release (usage: make install-release PEDESTAL_KEY=ts)
-	@if [ -z "$(PEDESTAL_KEY)" ]; then \
-		printf "$(RED)❌ Please provide pedestal key: make install-release PEDESTAL_KEY=ts$(RESET)\n"; \
-		exit 1; \
-	fi
-	@if [ "$(call validate_pedestal_key,$(PEDESTAL_KEY))" = "invalid" ]; then \
-		printf "$(RED)❌ Invalid pedestal key '$(PEDESTAL_KEY)'$(RESET)\n"; \
-		printf "$(YELLOW)Available keys:$(RESET)\n"; \
-		$(MAKE) show-pedestal-map; \
-		exit 1; \
-	fi
-	@if [ "$(PEDESTAL_KEY)" = "ts" ] && [ -n "$(NS_COUNT)" ] && [ -n "$(NODE_PORT)" ]; then \
-		pedestal_key="$(PEDESTAL_KEY)"; \
-		ns="$${pedestal_key}$(NS_COUNT)"; \
-		chart_ref="$(call get_pedestal_chart_ref,$(PEDESTAL_KEY))"; \
-		image_tag="$(call get_pedestal_image_tag,$(PEDESTAL_KEY))"; \
-		kube_context="$(shell kubectl config current-context)"; \
-		printf "$(GRAY)Using Kubernetes context: $$kube_context$(RESET)\n"; \
-		printf "$(BLUE)🚀 Installing $$chart_ref release in namespace $$ns on port $(NODE_PORT)...$(RESET)\n"; \
-		if [ "$$kube_context" = "$(DEV_CONTEXT)" ]; then \
-			helm install "$$ns" "$$chart_ref" -n "$$ns" --create-namespace \
-				--set global.image.tag="$$image_tag" \
-				--set global.security.allowInsecureImages=true \
-				--set services.tsUiDashboard.nodePort="$(NODE_PORT)"; \
-		elif [ "$$kube_context" = "$(PROD_CONTEXT)" ]; then \
-			helm install "$$ns" "$$chart_ref" -n "$$ns" --create-namespace \
-				--set global.image.repository=pair-diagnose-cn-guangzhou.cr.volces.com/opspai \
-				--set global.image.tag="$$image_tag" \
-				--set global.security.allowInsecureImages=true \
-				--set mysql.image.repository=pair-diagnose-cn-guangzhou.cr.volces.com/library/mysql \
-  				--set rabbitmq.image.registry=pair-diagnose-cn-guangzhou.cr.volces.com \
-  				--set rabbitmq.image.repository=bitnamilegacy/rabbitmq \
-  				--set loadgenerator.image.repository=pair-diagnose-cn-guangzhou.cr.volces.com/opspai/loadgenerator \
-  				--set loadgenerator.initContainer.image=pair-diagnose-cn-guangzhou.cr.volces.com/nicolaka/netshoot:v0.14 \
-				--set services.tsUiDashboard.nodePort="$(NODE_PORT)"; \
-		else \
-			printf "$(RED)❌ Unknown Kubernetes context '$$kube_context'. Please switch to a valid context.$(RESET)\n"; \
-			printf "$(YELLOW)Available contexts:$(RESET)\n"; \
-			kubectl config get-contexts -o name; \
-			exit 1; \
-		fi; \
-	else \
-		printf "$(RED)❌ Please provide NS_COUNT and NODE_PORT for pedestal key '$(PEDESTAL_KEY)': make install-release PEDESTAL_KEY=ts NS_COUNT=0 NODE_PORT=31000$(RESET)\n"; \
-		exit 1; \
-	fi
-
-install-releases: ## 🔍 Install Helm releases in namespaces (usage: make install-releases PEDESTAL_KEY=ts PEDESTAL_COUNT=2)
-	@if [ -z "$(PEDESTAL_KEY)" ] || [ -z "$(PEDESTAL_COUNT)" ]; then \
-		printf "$(RED)❌ Please provide pedestal key and count: make install-releases PEDESTAL_KEY=ts PEDESTAL_COUNT=2$(RESET)\n"; \
-		exit 1; \
-	fi
-	@if ! printf "$(PEDESTAL_COUNT)" | grep -Eq '^[0-9]+$$'; then \
-		printf "$(RED)❌ PEDESTAL_COUNT must be a positive number$(RESET)\n"; \
-		exit 1; \
-	fi
-	@if [ "$(call validate_pedestal_key,$(PEDESTAL_KEY))" = "invalid" ]; then \
-		printf "$(RED)❌ Invalid pedestal key '$(PEDESTAL_KEY)'$(RESET)\n"; \
-		printf "$(YELLOW)Available keys:$(RESET)\n"; \
-		$(MAKE) show-pedestal-map; \
-		exit 1; \
-	fi
-	@$(call get-pedestal-info PEDESTAL_KEY="$(PEDESTAL_KEY)")
-	@printf "\n$(BLUE)🔍 Checking Helm releases in namespaces $(PEDESTAL_KEY)0 to $(PEDESTAL_KEY)$$(( $(PEDESTAL_COUNT) - 1 ))...$(RESET)\n"
-	@base_port="$(call get_pedestal_node_port,$(PEDESTAL_KEY))"; \
-	for i in $$(seq 0 $$(( $(PEDESTAL_COUNT) - 1 ))); do \
-		ns="$(PEDESTAL_KEY)$$i"; \
-		port="$$(($$base_port + i))"; \
-		printf "$(BLUE)🔍 Checking namespace: $$ns$(RESET)\n"; \
-		if ! kubectl get namespace "$$ns" >/dev/null 2>&1; then \
-			printf "$(YELLOW)❌ Namespace $$ns does not exist$(RESET)\n"; \
-		elif helm list -n "$$ns" 2>/dev/null | grep -q "$$ns"; then \
-			printf "$(GREEN)✅ Helm release '$$ns' found in namespace $$ns$(RESET)\n"; \
-		else \
-			printf "$(YELLOW)⚠️ Helm release '$$ns' not found in namespace $$ns$(RESET)\n"; \
-			if [ "$(PEDESTAL_KEY)" = "ts" ]; then \
-				$(MAKE) install-release PEDESTAL_KEY="ts" NS_COUNT="$$i" NODE_PORT="$$port" ; \
-			fi; \
-		fi; \
-	done
-	@printf "$(GREEN)🎉 Check and installation completed!$(RESET)\n"
-
-define get-pedestal-info
-	@printf "$(BLUE)ℹ️ Pedestal Information for '$(PEDESTAL_KEY)':$(RESET)\n"
-	@printf "$(YELLOW)Full Chart Reference:$(RESET) $(call get_pedestal_chart_ref,$(PEDESTAL_KEY))\n"
-	@printf "$(YELLOW)Image Tag:$(RESET) $(call get_pedestal_image_tag,$(PEDESTAL_KEY))\n"
-	@printf "$(YELLOW)Node Port:$(RESET) $(call get_pedestal_node_port,$(PEDESTAL_KEY))\n"
-endef
-
-show-pedestal-info: ## ℹ️  Show pedestal repository information (usage: make show-pedestal-info PEDESTAL_KEY=ts)
-	@if [ -z "$(PEDESTAL_KEY)" ]; then \
-		printf "$(RED)❌ Please provide pedestal key: make show-pedestal-info PEDESTAL_KEY=ts$(RESET)\n"; \
-		exit 1; \
-	fi
-	@if [ "$(call validate_pedestal_key,$(PEDESTAL_KEY))" = "invalid" ]; then \
-		printf "$(RED)❌ Invalid pedestal key '$(PEDESTAL_KEY)'$(RESET)\n"; \
-		printf "$(YELLOW)Available keys:$(RESET)\n"; \
-		$(MAKE) show-pedestal-map; \
-		exit 1; \
-	fi
-	@$(call get-pedestal-info)
-
-show-pedestal-map: ## 🗺️  Show available pedestal mappings
-	@printf "$(BLUE)🗺️ Available Pedestal Mappings:$(RESET)\n\n"
-	@printf "$(YELLOW)Format: KEY -> REPO_NAME/CHART_NAME$(RESET)\n\n"
-	@echo "$(PEDESTAL_MAPPING)" | tr ' ' '\n' | while IFS='=' read -r key mapping; do \
-		if [ -n "$$key" ] && [ -n "$$mapping" ]; then \
-			chart_ref=$$(echo "$$mapping" | cut -d':' -f1); \
-			printf "$(CYAN)%-0s$(RESET) -> $(GREEN)%-20s$(RESET)\n" "$$key" "$$chart_ref"; \
-		fi; \
-	done
-	
+install-releases: ## 🔍 Install Helm releases in namespaces (usage: make install-releases PEDESTAL_NAME=ts PEDESTAL_COUNT=2)
+	$(MAKE) run-command ARGS="pedestal install-releases -e $(ENV_MODE) -n $(PEDESTAL_NAME) -c $(PEDESTAL_COUNT)"
 
 # =============================================================================
 # Secret Management
@@ -684,7 +564,7 @@ generate-python-sdk: swag-init ## ⚙️ Generate Python SDK from Swagger docume
 	@$(MAKE) build-make-command
 	./scripts/mv-generated-python-sdk.sh
 	@printf "$(BLUE) 🐍 Formatting generated Python SDK using Venv in $(COMMAND_DIR)...$(RESET)\n"
-	./$(COMMAND_DIR)/command.bin format python
+	@$(MAKE) run-command ARGS="format python"
 	@printf "$(GREEN)✅ Python SDK generation completed$(RESET)\n"
 
 
