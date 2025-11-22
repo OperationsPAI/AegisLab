@@ -124,12 +124,13 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			logrus.Println("Running as consumer")
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
+			database.InitDB()
 			service.InitConcurrencyLock(ctx)
 
 			client.InitTraceProvider()
 			go k8s.Init(ctx, consumer.NewHandler())
 			go consumer.StartScheduler(ctx)
-			go consumer.ConsumeTasks()
+			consumer.ConsumeTasks()
 		},
 	}
 
