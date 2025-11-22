@@ -198,56 +198,20 @@ check-secrets: ## 🔍 Check required Secrets exist
 	done; \
 	if [ "$$all_ok" = "false" ]; then \
 		printf "$(YELLOW)💡 Run: make install-secrets$(RESET)\n"; \
-		exit 1; \ 
-	fi
-
-# =============================================================================
-# HostPath Management
-# =============================================================================
-
-install-hostpath: ## 🚀 Install HostPath DaemonSet
-	@printf "$(BLUE)🚀 Installing HostPath DaemonSet in namespace $(NS)...$(RESET)\n"
-	@helm template $(RELEASE_NAME) ./helm -n $(NS) -s templates/daemonset.yaml | kubectl apply -f -
-	@printf "$(GREEN)✅ HostPath DaemonSet installation initiated$(RESET)\n"
-
-check-hostpath-daemonset: ## 🔍 Check if HostPath DaemonSet is installed and ready
-	@printf "$(BLUE)🔍 Checking HostPath DaemonSet status...$(RESET)\n"
-	@if kubectl get daemonset $(RELEASE_NAME)-hostpath-init -n $(NS) >/dev/null 2>&1; then \
-		printf "$(GREEN)✅ HostPath DaemonSet exists$(RESET)\n"; \
-		desired=$$(kubectl get daemonset $(RELEASE_NAME)-hostpath-init -n $(NS) -o jsonpath='{.status.desiredNumberScheduled}'); \
-		ready=$$(kubectl get daemonset $(RELEASE_NAME)-hostpath-init -n $(NS) -o jsonpath='{.status.numberReady}'); \
-		printf "$(CYAN)📊 Status: $$ready/$$desired pods ready$(RESET)\n"; \
-		if [ "$$ready" = "$$desired" ] && [ "$$ready" != "0" ]; then \
-			printf "$(GREEN)✅ All HostPath init pods are ready$(RESET)\n"; \
-			$(MAKE) check-hostpath-logs; \
-		else \
-			printf "$(YELLOW)⚠️  HostPath init pods not fully ready$(RESET)\n"; \
-			exit 1; \
-		fi; \
-	else \
-		printf "$(RED)❌ HostPath DaemonSet not found$(RESET)\n"; \
-		printf "$(YELLOW)💡 It will be installed during 'make run'$(RESET)\n"; \
 		exit 1; \
 	fi
 
-check-hostpath-logs: ## 🔍 Check HostPath initialization from pod logs
-	@printf "$(BLUE)🔍 Checking HostPath initialization logs...$(RESET)\n"
-	@pods=$$(kubectl get pods -l app=$(RELEASE_NAME)-hostpath-init -n $(NS) -o jsonpath='{.items[*].metadata.name}'); \
-	all_ok=true; \
-	for pod in $$pods; do \
-		node=$$(kubectl get pod $$pod -n $(NS) -o jsonpath='{.spec.nodeName}'); \
-		printf "$(CYAN)📍 Checking pod $$pod on node $$node$(RESET)\n"; \
-		if kubectl logs $$pod -n $(NS) 2>/dev/null | grep -q "HostPath directories initialized successfully"; then \
-			printf "$(GREEN)  ✅ Directories initialized$(RESET)\n"; \
-		else \
-			printf "$(RED)  ❌ Initialization failed or incomplete$(RESET)\n"; \
-			all_ok=false; \
-		fi; \
-	done; \
-	if [ "$$all_ok" = "false" ]; then \
-		printf "$(RED)❌ Some nodes have incomplete HostPath initialization$(RESET)\n"; \
-		exit 1; \
-	fi	
+# =============================================================================
+# JFS Management
+# =============================================================================
+
+install-jfs-driver: ## 🚀 Install JuiceFS CSI Driver
+	helm repo add juicefs https://juicedata.github.io/charts/
+	helm repo update
+
+	helm install juicefs-csi-driver juicefs/juicefs-csi-driver \
+	--namespace kube-system \
+	--set storageClasses[0].enabled=false
 
 # =============================================================================
 # Build and Deployment

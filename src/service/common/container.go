@@ -44,19 +44,48 @@ func MapRefsToContainerVersions(refs []*dto.ContainerRef, containerType consts.C
 	results := make(map[*dto.ContainerRef]database.ContainerVersion, len(refs))
 	for _, ref := range refs {
 		var result database.ContainerVersion
+		containerTypeName := consts.GetContainerTypeName(containerType)
 		if ref.Version != "" {
 			if _, exists := hierarchicalMap[ref.Name]; !exists {
-				return nil, fmt.Errorf("container not found: %s", ref.Name)
+				availableContainers := getAvailableContainerNames(hierarchicalMap)
+				if len(availableContainers) == 0 {
+					// Check if container exists with different type
+					exists, actualType, err := repository.CheckContainerExistsWithDifferentType(database.DB, ref.Name, containerType, userID)
+					if err != nil {
+						return nil, fmt.Errorf("failed to check container type: %w", err)
+					}
+					if exists {
+						return nil, fmt.Errorf("%s container '%s' not found: container exists but has type '%s', not '%s'",
+							containerTypeName, ref.Name, consts.GetContainerTypeName(actualType), containerTypeName)
+					}
+					return nil, fmt.Errorf("%s container '%s' not found: no %s containers available in database for user %d",
+						containerTypeName, ref.Name, containerTypeName, userID)
+				}
+				return nil, fmt.Errorf("%s container '%s' not found (available containers: %v)", containerTypeName, ref.Name, availableContainers)
 			}
 
 			if _, exists := hierarchicalMap[ref.Name][ref.Version]; !exists {
-				return nil, fmt.Errorf("container version not found: %s:%s", ref.Name, ref.Version)
+				return nil, fmt.Errorf("%s container version not found: %s:%s (available versions for %s: %v)", containerTypeName, ref.Name, ref.Version, ref.Name, getAvailableVersions(hierarchicalMap, ref.Name))
 			}
 
 			result = hierarchicalMap[ref.Name][ref.Version]
 		} else {
 			if _, exists := flatMap[ref.Name]; !exists {
-				return nil, fmt.Errorf("container not found: %s", ref.Name)
+				availableContainers := getAvailableContainerNames(hierarchicalMap)
+				if len(availableContainers) == 0 {
+					// Check if container exists with different type
+					exists, actualType, err := repository.CheckContainerExistsWithDifferentType(database.DB, ref.Name, containerType, userID)
+					if err != nil {
+						return nil, fmt.Errorf("failed to check container type: %w", err)
+					}
+					if exists {
+						return nil, fmt.Errorf("%s container '%s' not found: container exists but has type '%s', not '%s'",
+							containerTypeName, ref.Name, consts.GetContainerTypeName(actualType), containerTypeName)
+					}
+					return nil, fmt.Errorf("%s container '%s' not found: no %s containers available in database for user %d",
+						containerTypeName, ref.Name, containerTypeName, userID)
+				}
+				return nil, fmt.Errorf("%s container '%s' not found (available containers: %v)", containerTypeName, ref.Name, availableContainers)
 			}
 			result = flatMap[ref.Name][0]
 		}
@@ -202,4 +231,25 @@ func processParameterConfig(config database.ParameterConfig, userValue any, cont
 	default:
 		return nil, fmt.Errorf("unknown parameter type for key %s", config.Key)
 	}
+}
+
+// getAvailableContainerNames returns a list of available container names from the hierarchical map
+func getAvailableContainerNames(hierarchicalMap map[string]map[string]database.ContainerVersion) []string {
+	names := make([]string, 0, len(hierarchicalMap))
+	for name := range hierarchicalMap {
+		names = append(names, name)
+	}
+	return names
+}
+
+// getAvailableVersions returns a list of available versions for a specific container
+func getAvailableVersions(hierarchicalMap map[string]map[string]database.ContainerVersion, containerName string) []string {
+	if versions, exists := hierarchicalMap[containerName]; exists {
+		versionNames := make([]string, 0, len(versions))
+		for versionName := range versions {
+			versionNames = append(versionNames, versionName)
+		}
+		return versionNames
+	}
+	return []string{}
 }

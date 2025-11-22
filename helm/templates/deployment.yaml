@@ -164,9 +164,9 @@ spec:
         - name: exp
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: "{{ .Values.image.pullPolicy }}"
-          command: ["/app/entrypoint.sh", "producer", "8081"]
+          command: ["/app/entrypoint.sh", "producer", "8080"]
           ports:
-            - containerPort: 8081
+            - containerPort: 8080
           env:
             - name: GOPRIVATE
               value: "github.com/LGU-SE-Internal/chaos-experiment"
@@ -197,9 +197,8 @@ spec:
               - key: config
                 path: config
         - name: data
-          hostPath:
-            path: /mnt/jfs/rcabench_dataset
-            type: Directory
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-juicefs-dataset
         - name: containers-data
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-containers-data
@@ -299,9 +298,8 @@ spec:
               - key: config
                 path: config
         - name: data
-          hostPath:
-            path: /mnt/jfs/rcabench_dataset
-            type: Directory
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-juicefs-dataset
         - name: containers-data
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-containers-data

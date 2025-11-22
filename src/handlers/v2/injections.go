@@ -297,7 +297,8 @@ func SubmitFaultInjection(c *gin.Context) {
 
 	ctx, ok := c.Get(middleware.SpanContextKey)
 	if !ok {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
+		logrus.Error("Failed to get span context from gin.Context in SubmitFaultInjection")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get span context")
 		return
 	}
 
@@ -318,8 +319,10 @@ func SubmitFaultInjection(c *gin.Context) {
 	}
 
 	resp, err := producer.ProduceRestartPedestalTasks(spanCtx, &req, groupID, userID)
-	if handlers.HandleServiceError(c, err) {
-		span.SetStatus(codes.Error, "panic in SubmitFaultInjection")
+	if err != nil {
+		span.SetStatus(codes.Error, "service error in SubmitFaultInjection: "+err.Error())
+		logrus.Errorf("Failed to submit fault injection: %v", err)
+		handlers.HandleServiceError(c, err)
 		return
 	}
 
@@ -354,7 +357,8 @@ func SubmitDatapackBuilding(c *gin.Context) {
 
 	ctx, ok := c.Get(middleware.SpanContextKey)
 	if !ok {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
+		logrus.Error("Failed to get span context from gin.Context in SubmitDatapackBuilding")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get span context")
 		return
 	}
 
@@ -375,7 +379,10 @@ func SubmitDatapackBuilding(c *gin.Context) {
 	}
 
 	resp, err := producer.ProduceDatapackBuildingTasks(spanCtx, &req, groupID, userID)
-	if handlers.HandleServiceError(c, err) {
+	if err != nil {
+		span.SetStatus(codes.Error, "service error in SubmitDatapackBuilding: "+err.Error())
+		logrus.Errorf("Failed to submit datapack building: %v", err)
+		handlers.HandleServiceError(c, err)
 		return
 	}
 

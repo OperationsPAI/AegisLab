@@ -196,6 +196,33 @@ func BatchGetContainerVersions(db *gorm.DB, containerType consts.ContainerType, 
 	return versions, nil
 }
 
+// CheckContainerExistsWithDifferentType checks if a container exists with a different type
+func CheckContainerExistsWithDifferentType(db *gorm.DB, containerName string, requestedType consts.ContainerType, userID int) (bool, consts.ContainerType, error) {
+	var container database.Container
+
+	query := db.Table("containers").
+		Where("name = ? AND type != ? AND status = ?", containerName, requestedType, consts.CommonEnabled)
+
+	if userID > 0 {
+		query = query.Joins(
+			"LEFT JOIN user_containers uc ON uc.container_id = containers.id AND uc.user_id = ? AND uc.status = ?",
+			userID, consts.CommonEnabled,
+		).Where(
+			db.Where("containers.is_public = ?", true).
+				Or("uc.container_id IS NOT NULL"),
+		)
+	}
+
+	if err := query.First(&container).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return false, 0, nil
+		}
+		return false, 0, fmt.Errorf("failed to check container existence: %w", err)
+	}
+
+	return true, container.Type, nil
+}
+
 // DeleteContainerVersion soft deletes a container version
 func DeleteContainerVersion(db *gorm.DB, versionID int) (int64, error) {
 	result := db.Model(&database.ContainerVersion{}).

@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -232,24 +233,30 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 	}
 
 	spanCtx := ctx.(context.Context)
-	trace.SpanFromContext(spanCtx)
+	span := trace.SpanFromContext(spanCtx)
 
 	var req dto.SubmitExecutionReq
 	if err := c.ShouldBindJSON(&req); err != nil {
+		span.SetStatus(codes.Error, "validation error in SubmitAlgorithmExecution: "+err.Error())
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 
 	if err := req.Validate(); err != nil {
+		span.SetStatus(codes.Error, "validation error in SubmitAlgorithmExecution: "+err.Error())
 		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
 		return
 	}
 
 	resp, err := producer.ProduceAlgorithmExeuctionTasks(spanCtx, &req, groupID, userID)
-	if handlers.HandleServiceError(c, err) {
+	if err != nil {
+		span.SetStatus(codes.Error, "service error in SubmitAlgorithmExecution: "+err.Error())
+		logrus.Errorf("Failed to submit algorithm execution: %v", err)
+		handlers.HandleServiceError(c, err)
 		return
 	}
 
+	span.SetStatus(codes.Ok, "Successfully submitted algorithm execution")
 	dto.SuccessResponse(c, resp)
 }
 

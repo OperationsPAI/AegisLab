@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 func HandleServiceError(c *gin.Context, err error) bool {
@@ -34,7 +35,14 @@ func HandleServiceError(c *gin.Context, err error) bool {
 	case consts.ErrAlreadyExists:
 		dto.ErrorResponse(c, http.StatusConflict, msg)
 	default:
-		dto.ErrorResponse(c, http.StatusInternalServerError, consts.ErrInternal.Error())
+		// Log full error details for debugging
+		logrus.WithFields(logrus.Fields{
+			"path":   c.Request.URL.Path,
+			"method": c.Request.Method,
+			"error":  err.Error(),
+		}).Error("Service error")
+		// Return user-friendly message but expose more details in development
+		dto.ErrorResponse(c, http.StatusInternalServerError, msg)
 	}
 
 	return true

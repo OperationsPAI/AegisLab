@@ -316,12 +316,12 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 
 	pedestalVersionResults, err := common.MapRefsToContainerVersions([]*dto.ContainerRef{&req.Pedestal.ContainerRef}, consts.ContainerTypePedestal, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to map container refs to versions: %w", err)
+		return nil, fmt.Errorf("failed to map pedestal container ref to version: %w", err)
 	}
 
 	pedestalVersion, exists := pedestalVersionResults[&req.Pedestal.ContainerRef]
 	if !exists {
-		return nil, fmt.Errorf("pedestal version not found for %v", req.Pedestal)
+		return nil, fmt.Errorf("pedestal version not found for container: %s (version: %s)", req.Pedestal.Name, req.Pedestal.Version)
 	}
 
 	helmConfig, err := repository.GetHelmConfigByContainerVersionID(database.DB, pedestalVersion.ID)
@@ -351,12 +351,12 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 
 	benchmarkVersionResults, err := common.MapRefsToContainerVersions([]*dto.ContainerRef{&req.Benchmark.ContainerRef}, consts.ContainerTypeBenchmark, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to map container refs to versions: %w", err)
+		return nil, fmt.Errorf("failed to map benchmark container ref to version: %w", err)
 	}
 
 	benchmarkVersion, exists := benchmarkVersionResults[&req.Benchmark.ContainerRef]
 	if !exists {
-		return nil, fmt.Errorf("benchmark version not found for %v", req.Benchmark)
+		return nil, fmt.Errorf("benchmark version not found for container: %s (version: %s)", req.Benchmark.Name, req.Benchmark.Version)
 	}
 
 	benchmarkVersionItem := dto.NewContainerVersionItem(&benchmarkVersion)
