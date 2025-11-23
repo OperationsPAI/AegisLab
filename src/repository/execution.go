@@ -277,7 +277,7 @@ func ListExecutionsByDatapackFilter(db *gorm.DB, algorithmVersionID int, datapac
 		Preload("Algorithm.Container").
 		Preload("Datapack").
 		Joins("JOIN fault_injections fi ON executions.datapack_id = fi.id").
-		Where("executions.algorithm_id = ? AND fi.name = ? AND executions.status != ?",
+		Where("executions.algorithm_version_id = ? AND fi.name = ? AND executions.status != ?",
 			algorithmVersionID, datapackName, consts.CommonDeleted)
 
 	if len(labelConditions) > 0 {
@@ -322,7 +322,7 @@ func ListExecutionsByDatasetFilter(db *gorm.DB, algorithmVersionID, datasetVersi
 		Preload("Datapack").
 		Preload("Dataset").
 		Preload("Dataset.Injections").
-		Where("executions.algorithm_id = ? AND executions.dataset_id = ? AND executions.status != ?",
+		Where("executions.algorithm_version_id = ? AND executions.dataset_version_id = ? AND executions.status != ?",
 			algorithmVersionID, datasetVersionID, consts.CommonDeleted)
 
 	if len(labelConditions) > 0 {

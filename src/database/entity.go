@@ -454,7 +454,7 @@ type Execution struct {
 	TaskID             string  `gorm:"not null;uniqueIndex;size:64"`          // Associated task ID, add composite index
 	AlgorithmVersionID int     `gorm:"not null;index:idx_exec_algo_datapack"` // Algorithm ID, add composite index
 	DatapackID         int     `gorm:"not null;index:idx_exec_algo_datapack"` // Datapack identifier, add composite index
-	DatasetVersionID   int     `gorm:"not null;index"`                        // Dataset identifier
+	DatasetVersionID   *int    `gorm:"index"`                                 // Dataset identifier (optional, for dataset-based executions)
 
 	State     consts.ExecutionState `gorm:"not null;default:0;index"` // Execution state
 	Status    consts.StatusType     `gorm:"not null;default:1;index"` // Status: -1:deleted 0:disabled 1:enabled
@@ -465,7 +465,7 @@ type Execution struct {
 	Task             *Task             `gorm:"foreignKey:TaskID;constraint:OnDelete:CASCADE"`
 	AlgorithmVersion *ContainerVersion `gorm:"foreignKey:AlgorithmVersionID;constraint:OnDelete:RESTRICT"`
 	Datapack         *FaultInjection   `gorm:"foreignKey:DatapackID;constraint:OnDelete:RESTRICT"`
-	DatasetVersion   *DatasetVersion   `gorm:"foreignKey:DatasetVersionID;constraint:OnDelete:RESTRICT"`
+	DatasetVersion   *DatasetVersion   `gorm:"foreignKey:DatasetVersionID;constraint:OnDelete:SET NULL"`
 
 	DetectorResults    []DetectorResult    `gorm:"foreignKey:ExecutionID"`
 	GranularityResults []GranularityResult `gorm:"foreignKey:ExecutionID"`

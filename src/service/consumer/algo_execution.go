@@ -30,7 +30,7 @@ import (
 type executionPayload struct {
 	algorithm        dto.ContainerVersionItem
 	datapack         dto.InjectionItem
-	datasetVersionID int
+	datasetVersionID *int
 	labels           []dto.LabelItem
 }
 
@@ -191,11 +191,12 @@ func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 		return nil, fmt.Errorf("failed to convert '%s' to InjectionItem: %w", consts.ExecuteDatapack, err)
 	}
 
-	datasetVersionIDFloat, ok := payload[consts.ExecuteDatasetVersionID].(float64)
-	if !ok || datasetVersionIDFloat < consts.DefaultInvalidID {
-		return nil, fmt.Errorf("missing or invalid '%s' in execution payload: %w", consts.ExecuteDatasetVersionID, err)
+	// dataset_version_id is optional (can be 0 or missing for datapack-based executions)
+	var datasetVersionID *int
+	if datasetVersionIDFloat, ok := payload[consts.ExecuteDatasetVersionID].(float64); ok && datasetVersionIDFloat > consts.DefaultInvalidID {
+		id := int(datasetVersionIDFloat)
+		datasetVersionID = &id
 	}
-	datasetVersionID := int(datasetVersionIDFloat)
 
 	labels, err := utils.ConvertToType[[]dto.LabelItem](payload[consts.ExecuteLabels])
 	if err != nil {
@@ -309,7 +310,7 @@ func getAlgoJobEnvVars(executionID int, payload *executionPayload) ([]corev1.Env
 }
 
 // createExecution creates a new execution record with associated labels
-func createExecution(taskID string, algorithmVersionID, datapackID int, datasetVersionID int, labelItems []dto.LabelItem) (int, error) {
+func createExecution(taskID string, algorithmVersionID, datapackID int, datasetVersionID *int, labelItems []dto.LabelItem) (int, error) {
 	var createdExecutionID int
 
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
