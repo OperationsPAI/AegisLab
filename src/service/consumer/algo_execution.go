@@ -93,7 +93,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			return handleExecutionError(span, logEntry, "failed to parse execution payload", err)
 		}
 
-		executionID, err := createExecution(payload.algorithm.ID, payload.datapack.ID, payload.datasetVersionID, payload.labels)
+		executionID, err := createExecution(task.TaskID, payload.algorithm.ID, payload.datapack.ID, payload.datasetVersionID, payload.labels)
 		if err != nil {
 			return handleExecutionError(span, logEntry, "failed to create execution result", err)
 		}
@@ -309,11 +309,12 @@ func getAlgoJobEnvVars(executionID int, payload *executionPayload) ([]corev1.Env
 }
 
 // createExecution creates a new execution record with associated labels
-func createExecution(algorithmVersionID, datapackID int, datasetVersionID int, labelItems []dto.LabelItem) (int, error) {
+func createExecution(taskID string, algorithmVersionID, datapackID int, datasetVersionID int, labelItems []dto.LabelItem) (int, error) {
 	var createdExecutionID int
 
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
 		execution := &database.Execution{
+			TaskID:             taskID,
 			AlgorithmVersionID: algorithmVersionID,
 			DatapackID:         datapackID,
 			DatasetVersionID:   datasetVersionID,
