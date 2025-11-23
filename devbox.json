@@ -6,7 +6,10 @@
     "ruff@0.9.3",
     "golangci-lint@latest",
     "husky@8.0.3",
-    "kubectl@1.34.1"
+    "kubectl@1.34.1",
+    "minikube@latest",
+    "kubernetes-helm@latest",
+    "kubectx@latest"
   ],
   "shell": {
     "init_hook": [

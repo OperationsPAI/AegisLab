@@ -15,7 +15,7 @@
 # Defines the environment mode: 'prod' (default, compiled binary) or 'dev', 'test' (interpreted script).
 ENV_MODE ?= dev
 
-DEFAULT_REPO 	:= 10.10.10.240/library
+DEFAULT_REPO 	:= docker.io/opspai
 NS          	:= exp
 PORT        	:= 30080
 RELEASE_NAME    := rcabench
