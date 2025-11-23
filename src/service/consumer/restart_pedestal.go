@@ -328,10 +328,20 @@ func installTS(ctx context.Context, releaseName string, namespaceIdx int, info *
 			}
 		}
 
+		helmValues := buildNestedMap(paramItems)
+
+		// Log Helm install parameters for debugging
+		logrus.WithFields(logrus.Fields{
+			"release_name": releaseName,
+			"chart":        info.HelmConfig.FullChart,
+			"namespace":    releaseName,
+			"values":       helmValues,
+		}).Infof("Installing Helm chart with parameters")
+
 		if err := helmClient.Install(ctx,
 			releaseName,
 			info.HelmConfig.FullChart,
-			buildNestedMap(paramItems),
+			helmValues,
 			600*time.Second,
 			360*time.Second,
 		); err != nil {

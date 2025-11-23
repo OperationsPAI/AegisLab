@@ -25,6 +25,7 @@ type datapackPayload struct {
 	datapack         dto.InjectionItem
 	datasetVersionID *int
 	labels           []dto.LabelItem
+	namespace        string
 }
 
 type datapackJobCreationParams struct {
@@ -112,11 +113,17 @@ func parseDatapackPayload(payload map[string]any) (*datapackPayload, error) {
 		return nil, fmt.Errorf("failed to convert '%s' to []LabelItem: %w", consts.BuildLabels, err)
 	}
 
+	namespace, ok := payload[consts.InjectNamespace].(string)
+	if !ok || namespace == "" {
+		return nil, fmt.Errorf("missing or invalid '%s' in payload", consts.InjectNamespace)
+	}
+
 	return &datapackPayload{
 		benchmark:        benchmark,
 		datapack:         datapack,
 		datasetVersionID: datasetID,
 		labels:           labels,
+		namespace:        namespace,
 	}, nil
 }
 
@@ -144,6 +151,7 @@ func getDatapackJobEnvVars(payload *datapackPayload) ([]corev1.EnvVar, error) {
 
 	jobEnvVars := []corev1.EnvVar{
 		{Name: "ENV_MODE", Value: config.GetString("system.env_mode")},
+		{Name: consts.BuildEnvVarNamespace, Value: payload.namespace},
 		{Name: "TIMEZONE", Value: tz},
 		{Name: "TIMESTAMP", Value: timestamp},
 		{Name: "NORMAL_START", Value: strconv.FormatInt(payload.datapack.StartTime.Add(-time.Duration(payload.datapack.PreDuration)*time.Minute).Unix(), 10)},

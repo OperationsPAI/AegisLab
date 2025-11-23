@@ -218,6 +218,7 @@ func (h *K8sHandler) HandleCRDSucceeded(namespace, pod, name string, startTime, 
 		consts.BuildBenchmark:        *parsedAnnotations.benchmark,
 		consts.BuildDatapack:         *datapack,
 		consts.BuildDatasetVersionID: consts.DefaultInvalidID,
+		consts.InjectNamespace:       namespace,
 	}
 
 	task := &dto.UnifiedTask{

@@ -62,7 +62,7 @@
                                 "template_string": "{{ .Registry }}/{{ .Namespace }}"
                             },
                             {
-                                "key": "gloabel.image.tag",
+                                "key": "global.image.tag",
                                 "type": 1,
                                 "category": 1,
                                 "template_string": "{{ .Tag }}"
