@@ -1,14 +1,13 @@
 import dataclasses
 import json
 import re
-import shlex
 import subprocess
-from collections.abc import Iterable
 from typing import Any
 
 from jinja2 import Template
 
 from src.common import ENV, INITIAL_DATA_PATH, KubernetesManager, console
+from src.common.command import run_command
 from src.util import parse_image_address
 
 CONTEXT_MAPPING = {"dev": "kubernetes-admin@kubernetes", "test": "k3d-test-cluter"}
@@ -77,11 +76,6 @@ def _get_pedestal_or_exit(name: str) -> Pedestal:
     if not pedestals:
         raise Exception(f"Invalid pedestal container name '{name}'")
     return pedestals
-
-
-def _run(cmd: Iterable[str]) -> None:
-    print("$", " ".join(shlex.quote(c) for c in cmd))
-    subprocess.run(list(cmd), check=True)
 
 
 def _convert_helm_values_to_set_list(
@@ -349,7 +343,7 @@ def _install_release(ctx: str, pedestal: Pedestal, ns: str, index: int) -> None:
         # Convert to --set format
         values.extend(_convert_helm_values_to_set_list(rendered_values))
 
-    _run([*base_cmd, *values])
+    run_command([*base_cmd, *values])
 
 
 def install_releases(env: ENV, name: str, count: int) -> None:
@@ -389,11 +383,11 @@ def install_releases(env: ENV, name: str, count: int) -> None:
             continue
 
         has_release = (
-            subprocess.run(
-                ["helm", "list", "-n", ns],
-                stdout=subprocess.PIPE,
+            run_command(
+                ["helm", "list", "-n", ns, "-q"],
+                check=False,
+                capture_output=True,
                 stderr=subprocess.DEVNULL,
-                text=True,
             ).stdout
             or ""
         )

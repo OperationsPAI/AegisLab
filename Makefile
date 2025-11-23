@@ -37,12 +37,7 @@ HUSKY_DIR := .husky
 SRC_DIR := src
 
 SDK_VERSION ?=0.0.0
-GENERATOR_IMAGE ?= docker.io/opspai/openapi-generator-cli:1.0.0
-
 PYTHON_SDK_DIR := sdk/python
-PYTHON_SDK_GEN_DIR := sdk/python-gen
-PYTHON_SDK_CONFIG := .openapi-generator/python/config.json
-PYTHON_SDK_TEMPLATES := .openapi-generator/python/templates
 
 # Chaos Types Configuration
 CHAOS_TYPES := dnschaos httpchaos jvmchaos networkchaos podchaos stresschaos timechaos
@@ -494,42 +489,10 @@ format-staged-python: ## 🎨 Lint and format staged python files with ruff
 # =============================================================================
 
 swag-init: ## 📝 Initialize Swagger documentation
-	@printf "$(BLUE)📝 Initializing Swagger documentation...$(RESET)\n"
-	swag init -d ./$(SRC_DIR) --parseDependency --parseDepth 1 --output ./$(SRC_DIR)/docs/openapi2
-	@printf ""
-	docker run --rm -u $(shell id -u):$(shell id -g) -v $(shell pwd):/local \
-		$(GENERATOR_IMAGE) generate \
-		-i /local/$(SRC_DIR)/docs/openapi2/swagger.json \
-		-g openapi \
-		-o /local/$(SRC_DIR)/docs/openapi3 
-	@printf "$(BLUE)📦 Post-processing swagger initiaization...$(RESET)\n"
-	python ./scripts/swag-init-postprocess.py
-	@printf "$(GREEN)✅ Swagger documentation generation completed$(RESET)\n"
+	$(MAKE) run-command ARGS="swagger swagger-init"
 
 generate-python-sdk: swag-init ## ⚙️ Generate Python SDK from Swagger documentation
-	@printf "$(BLUE)🐍 Generating Python SDK...$(RESET)\n"
-	@printf "$(BLUE)Updating "$(PYTHON_SDK_CONFIG)" packageVersion to $(SDK_VERSION)...$(RESET)\n"
-	@jq --arg ver "$(SDK_VERSION)" '.packageVersion = $$ver' \
-        $(PYTHON_SDK_CONFIG) > temp.json && \
-        mv temp.json $(PYTHON_SDK_CONFIG)
-	@mkdir -p $(PYTHON_SDK_GEN_DIR); \
-    find $(PYTHON_SDK_GEN_DIR) -mindepth 1 -delete; \
-	docker run --rm -u $(shell id -u):$(shell id -g) -v $(shell pwd):/local \
-		$(GENERATOR_IMAGE) generate \
-		-i /local/$(SRC_DIR)/docs/converted/sdk.json \
-		-g python \
-		-o /local/$(PYTHON_SDK_GEN_DIR) \
-		-c /local/$(PYTHON_SDK_CONFIG) \
-		-t /local/$(PYTHON_SDK_TEMPLATES) \
-		--git-host github.com \
-		--git-repo-id AegisLab \
-		--git-user-id OperationsPAI
-	@printf "$(BLUE)📦 Post-processing generated SDK...$(RESET)\n"
-	@$(MAKE) build-make-command
-	./scripts/mv-generated-python-sdk.sh
-	@printf "$(BLUE) 🐍 Formatting generated Python SDK using Venv in $(COMMAND_DIR)...$(RESET)\n"
-	@$(MAKE) run-command ARGS="format python"
-	@printf "$(GREEN)✅ Python SDK generation completed$(RESET)\n"
+	$(MAKE) run-command ARGS="swagger generate-sdk -l python -v $(SDK_VERSION)"
 
 
 # =============================================================================

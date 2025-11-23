@@ -10,6 +10,9 @@ main_app.add_typer(formatter_app, name="format")
 pedestal_app = typer.Typer(help="Pedestal management utilities.")
 main_app.add_typer(pedestal_app, name="pedestal")
 
+swagger_app = typer.Typer(help="Swagger documentation utilities.")
+main_app.add_typer(swagger_app, name="swagger")
+
 
 @formatter_app.command()
 def python(
@@ -92,6 +95,36 @@ def install_releases(
     import src.pedestal as pedestal_module
 
     pedestal_module.install_releases(env, name=name, count=count)
+
+
+@swagger_app.command()
+def swagger_init():
+    """Initializes Swagger documentation setup."""
+    from src.swagger import init
+
+    init()
+
+
+@swagger_app.command()
+def generate_sdk(
+    language: str = typer.Option(
+        "python",
+        "--language",
+        "-l",
+        help="SDK language.",
+    ),
+    version: str = typer.Option(
+        "1.0.0",
+        "--version",
+        "-v",
+        help="API version.",
+    ),
+):
+    """Generates SDK Swagger documentation."""
+    from src.swagger import generate_python_sdk
+
+    if language.lower() == "python":
+        generate_python_sdk(version)
 
 
 if __name__ == "__main__":

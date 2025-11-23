@@ -1,3 +1,6 @@
+import copy
+
+
 def extract_docker_tag(image_ref: str) -> str:
     """Extract the Docker tag from an image reference."""
     last_colon_index = image_ref.rfind(":")
@@ -6,6 +9,26 @@ def extract_docker_tag(image_ref: str) -> str:
         return image_ref[last_colon_index + 1 :]
     else:
         return "latest"
+
+
+def get_longest_common_substring(key: str, strs: list[str]) -> str:
+    """Find the longest common substring among a list of strings, including the key."""
+    if not strs:
+        return ""
+
+    newStrs = copy.deepcopy(strs)
+    newStrs.insert(0, key)
+
+    shortest_str = min(newStrs, key=len)
+    n = len(shortest_str)
+
+    for length in range(n, 0, -1):
+        for i in range(n - length + 1):
+            substring = shortest_str[i : i + length]
+            if all(substring in s for s in newStrs):
+                return substring
+
+    return ""
 
 
 def parse_image_address(image_address) -> dict[str, str | None]:
