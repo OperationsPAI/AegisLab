@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 from python_on_whales import DockerClient
+
 from rcabench.client import RCABenchClient
 from rcabench.openapi.api_client import ApiClient
 
