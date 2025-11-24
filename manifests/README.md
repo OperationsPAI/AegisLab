@@ -5,14 +5,14 @@
 ### Installation
 
 > [!TIP]
-> 📖 **Original Tutorial**: This step is based on the [Chaos Mesh Installation](https://chaos-mesh.org/docs/production-installation-using-helm).
+> 📖 **Original Tutorial**: This step is based on the [Chaos Mesh Installation](https://chaos-mesh.org/docs/production-ikubectl create ns chaos-meshnstallation-using-helm).
 
 ```bash
 # Add the Chaos Mesh repository to the Helm repository
 helm repo add chaos-mesh https://charts.chaos-mesh.org
-
-helm install chaos-mesh chaos-mesh/chaos-mesh --namespace chaos-mesh
-    --version 2.7.2 \
+kubectl create ns chaos-mesh
+helm install chaos-mesh chaos-mesh/chaos-mesh --namespace chaos-mesh \
+    --version 2.8.0 \
     --set chaosDaemon.runtime=containerd \
     --set chaosDaemon.socketPath=/run/containerd/containerd.sock
 ```
@@ -53,7 +53,7 @@ Copy the generated token and use it to log in to the dashboard. The name of the 
 # sudo ctr -n k8s.io image pull quay.io/cilium/cilium-envoy:latest
 
 helm install --namespace kube-system cilium cilium/cilium \
-  --version 1.17.4 -f cilium-user-values.yaml \
+  --version 1.17.4 -f cilium-user-values.yaml 
 ```
 
 ### monitoring
@@ -69,6 +69,7 @@ kubectl apply -f manifests/cilium/cilium-metrics.yaml
 ## otel-kube-stack
 
 ```bash
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
 helm install --namespace monitoring -f otel-kube-stack.yaml\
-  opentelemetry-kube-stack open-telemetry/opentelemetry-kube-stack \
+  opentelemetry-kube-stack open-telemetry/opentelemetry-kube-stack 
 ```

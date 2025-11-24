@@ -1,0 +1,25 @@
+global:
+  storageClassName: "standard"
+  keepPVC: false
+
+hyperdx:
+  otelExporterEndpoint: http://opentelemetry-kube-stack-deployment-collector:4318
+  service:
+    type: NodePort 
+
+mongodb:
+  service:
+    type: NodePort 
+
+otel:
+  enabled: false
+
+
+clickhouse:
+  config:
+    users:
+      appUserPassword: "hyperdx"
+      otelUserPassword: "otelcollectorpass"
+      otelUserName: "otelcollector"
+  service:
+    type: NodePort 
