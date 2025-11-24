@@ -109,6 +109,12 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 		}
 		annotations[consts.JobAnnotationAlgorithm] = string(itemJson)
 
+		datapackJson, err := json.Marshal(payload.datapack)
+		if err != nil {
+			return handleExecutionError(span, logEntry, "failed to marshal datapack item", err)
+		}
+		annotations[consts.JobAnnotationDatapack] = string(datapackJson)
+
 		jobName := task.TaskID
 		jobLabels := utils.MergeSimpleMaps(
 			task.GetLabels(),

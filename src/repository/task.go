@@ -257,9 +257,9 @@ func GetTaskByID(db *gorm.DB, taskID string) (*database.Task, error) {
 		Preload("Project").
 		Preload("FaultInjection.Benchmark.Container").
 		Preload("FaultInjection.Pedestal.Container").
-		Preload("Execution.Algorithm.Container").
+		Preload("Execution.AlgorithmVersion.Container").
 		Preload("Execution.Datapack").
-		Preload("Execution.Dataset").
+		Preload("Execution.DatasetVersion").
 		Where("id = ? AND status != ?", taskID, consts.CommonDeleted).
 		First(&result).Error; err != nil {
 		return nil, fmt.Errorf("failed to find task with id %s: %w", taskID, err)

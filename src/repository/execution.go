@@ -44,12 +44,11 @@ func CreateExecution(db *gorm.DB, execution *database.Execution) error {
 func GetExecutionByID(db *gorm.DB, id int) (*database.Execution, error) {
 	var result database.Execution
 	if err := db.
-		Preload("Algorithm.Container").
+		Preload("AlgorithmVersion.Container").
 		Preload("Datapack.Benchmark.Container").
 		Preload("Datapack.Pedestal.Container").
-		Preload("Dataset").
+		Preload("DatasetVersion").
 		Preload("Task.Project").
-		Preload("Labels").
 		Where("id = ? AND status != ?", id, consts.CommonDeleted).
 		First(&result).Error; err != nil {
 		return nil, fmt.Errorf("failed to find execution result with id %d: %w", id, err)
@@ -63,12 +62,11 @@ func ListExecutions(db *gorm.DB, limit, offset int, event *consts.ExecutionState
 	var total int64
 
 	query := db.Model(&database.Execution{}).
-		Preload("Algorithm.Container").
+		Preload("AlgorithmVersion.Container").
 		Preload("Datapack.Benchmark.Container").
 		Preload("Datapack.Pedestal.Container").
-		Preload("Dataset").
-		Preload("Task.Project").
-		Preload("Labels")
+		Preload("DatasetVersion").
+		Preload("Task.Project")
 	if event != nil {
 		query = query.Where("event = ?", *event)
 	}
@@ -107,12 +105,11 @@ func ListExecutionsByDatapackIDs(db *gorm.DB, datapackIDs []int) ([]database.Exe
 	var results []database.Execution
 
 	query := db.
-		Preload("Algorithm.Container").
+		Preload("AlgorithmVersion.Container").
 		Preload("Datapack.Benchmark.Container").
 		Preload("Datapack.Pedestal.Container").
-		Preload("Dataset").
+		Preload("DatasetVersion").
 		Preload("Task.Project").
-		Preload("Labels").
 		Where("datapack_id IN (?) AND status != ?", datapackIDs, consts.CommonDeleted)
 	if err := query.Find(&results).Error; err != nil {
 		return nil, fmt.Errorf("failed to list executions by datapack IDs: %w", err)
@@ -274,7 +271,7 @@ func ListExecutionsByDatapackFilter(db *gorm.DB, algorithmVersionID int, datapac
 	query := db.Model(&database.Execution{}).
 		Preload("DetectorResults").
 		Preload("GranularityResults").
-		Preload("Algorithm.Container").
+		Preload("AlgorithmVersion.Container").
 		Preload("Datapack").
 		Joins("JOIN fault_injections fi ON executions.datapack_id = fi.id").
 		Where("executions.algorithm_version_id = ? AND fi.name = ? AND executions.status != ?",
@@ -318,10 +315,10 @@ func ListExecutionsByDatasetFilter(db *gorm.DB, algorithmVersionID, datasetVersi
 	query := db.Model(&database.Execution{}).
 		Preload("DetectorResults").
 		Preload("GranularityResults").
-		Preload("Algorithm.Container").
+		Preload("AlgorithmVersion.Container").
 		Preload("Datapack").
-		Preload("Dataset").
-		Preload("Dataset.Injections").
+		Preload("DatasetVersion").
+		Preload("DatasetVersion.Injections").
 		Where("executions.algorithm_version_id = ? AND executions.dataset_version_id = ? AND executions.status != ?",
 			algorithmVersionID, datasetVersionID, consts.CommonDeleted)
 
