@@ -242,6 +242,7 @@ func SearchInjections(c *gin.Context) {
 //	@Failure		404		{object}	dto.GenericResponse[any]				"Injection not found"
 //	@Failure		500		{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/injections/{id}/labels [patch]
+//	@x-api-type		{"sdk":"true"}
 func ManageInjectionCustomLabels(c *gin.Context) {
 	idStr := c.Param(consts.URLPathID)
 	id, err := strconv.Atoi(idStr)
