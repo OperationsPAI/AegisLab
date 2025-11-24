@@ -16,6 +16,7 @@ import (
 	"time"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -95,16 +96,32 @@ func CreateInjection(injection *database.FaultInjection, labelItems []dto.LabelI
 
 // GetInjectionDetail retrieves detailed information about a specific fault injection
 func GetInjectionDetail(injectionID int) (*dto.InjectionDetailResp, error) {
+	logrus.WithField("injectionID", injectionID).Info("GetInjectionDetail: starting")
+
 	injection, err := repository.GetInjectionByID(database.DB, injectionID)
 	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"injectionID": injectionID,
+			"error":       err.Error(),
+		}).Error("GetInjectionDetail: failed to get injection from repository")
+
 		if errors.Is(err, consts.ErrNotFound) {
 			return nil, fmt.Errorf("%w: injection id: %d", consts.ErrNotFound, injectionID)
 		}
 		return nil, fmt.Errorf("failed to get injection: %w", err)
 	}
 
+	logrus.WithFields(logrus.Fields{
+		"injectionID":   injectionID,
+		"injectionName": injection.Name,
+	}).Info("GetInjectionDetail: successfully retrieved injection from repository")
+
 	labels, err := repository.ListLabelsByInjectionID(database.DB, injection.ID)
 	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"injectionID": injectionID,
+			"error":       err.Error(),
+		}).Error("GetInjectionDetail: failed to get injection labels")
 		return nil, fmt.Errorf("failed to get injection labels: %w", err)
 	}
 
@@ -113,6 +130,10 @@ func GetInjectionDetail(injectionID int) (*dto.InjectionDetailResp, error) {
 
 	groundTruths, err := getInjectionGroundTruths([]string{injection.Name})
 	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"injectionID": injectionID,
+			"error":       err.Error(),
+		}).Error("GetInjectionDetail: failed to get injection ground truths")
 		return nil, fmt.Errorf("failed to get injection ground truths: %w", err)
 	}
 
@@ -120,6 +141,7 @@ func GetInjectionDetail(injectionID int) (*dto.InjectionDetailResp, error) {
 		resp.GroundTruth = &gt
 	}
 
+	logrus.WithField("injectionID", injectionID).Info("GetInjectionDetail: completed successfully")
 	return resp, err
 }
 

@@ -45,6 +45,8 @@ func GetInjectionByID(db *gorm.DB, id int) (*database.FaultInjection, error) {
 	var injection database.FaultInjection
 	if err := db.
 		Preload("Task").
+		Preload("Benchmark.Container").
+		Preload("Pedestal.Container").
 		Where("id = ?", id).First(&injection).Error; err != nil {
 		return nil, fmt.Errorf("failed to find injection with id %d: %w", id, err)
 	}

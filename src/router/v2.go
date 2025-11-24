@@ -435,7 +435,7 @@ func SetupV2Routes(router *gin.Engine) {
 		injectionRead := injections.Group("", middleware.RequireInjectionRead)
 		{
 			injectionRead.GET("", v2handlers.ListInjections)                // List injections
-			injectionRead.GET("/:injection_id", v2handlers.GetInjection)    // Get injection by ID
+			injectionRead.GET("/:id", v2handlers.GetInjection)              // Get injection by ID
 			injectionRead.GET("/metadata", v2handlers.GetInjectionMetadata) // Get injection metadata
 			injectionRead.POST("/search", v2handlers.SearchInjections)      // Advanced search
 		}
@@ -443,9 +443,9 @@ func SetupV2Routes(router *gin.Engine) {
 		// Injection Write operations
 		injectionWrite := injections.Group("", middleware.RequireInjectionWrite)
 		{
-			injectionWrite.POST("/inject", v2handlers.SubmitFaultInjection)                       // Submit new injection
-			injectionWrite.POST("/build", v2handlers.SubmitDatapackBuilding)                      // Submit new datapack building
-			injectionWrite.PATCH("/:injection_id/labels", v2handlers.ManageInjectionCustomLabels) // Manage injection custom labels
+			injectionWrite.POST("/inject", v2handlers.SubmitFaultInjection)             // Submit new injection
+			injectionWrite.POST("/build", v2handlers.SubmitDatapackBuilding)            // Submit new datapack building
+			injectionWrite.PATCH("/:id/labels", v2handlers.ManageInjectionCustomLabels) // Manage injection custom labels
 		}
 
 		// Injection Delete operations

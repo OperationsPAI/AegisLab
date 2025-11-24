@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"aegis/dto"
 	"aegis/handlers"
@@ -82,17 +81,31 @@ func BatchDeleteInjections(c *gin.Context) {
 //	@x-api-type		{"sdk":"true"}
 func GetInjection(c *gin.Context) {
 	idStr := c.Param(consts.URLPathID)
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid injection ID")
+	logrus.WithFields(logrus.Fields{
+		"idStr": idStr,
+		"path":  c.Request.URL.Path,
+	}).Info("GetInjection: received request")
+
+	id, ok := handlers.ParsePositiveID(c, idStr, "injection ID")
+	if !ok {
+		logrus.WithField("idStr", idStr).Warn("GetInjection: invalid ID format or ID <= 0")
 		return
 	}
 
+	logrus.WithField("id", id).Info("GetInjection: calling GetInjectionDetail")
 	resp, err := producer.GetInjectionDetail(id)
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"id":    id,
+			"error": err.Error(),
+		}).Error("GetInjection: failed to get injection detail")
+	}
+
 	if handlers.HandleServiceError(c, err) {
 		return
 	}
 
+	logrus.WithField("id", id).Info("GetInjection: successfully retrieved injection")
 	dto.SuccessResponse(c, resp)
 }
 
@@ -251,9 +264,8 @@ func SearchInjections(c *gin.Context) {
 //	@x-api-type		{"sdk":"true"}
 func ManageInjectionCustomLabels(c *gin.Context) {
 	idStr := c.Param(consts.URLPathID)
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid injection ID")
+	id, ok := handlers.ParsePositiveID(c, idStr, "injection ID")
+	if !ok {
 		return
 	}
 
