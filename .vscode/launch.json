@@ -26,16 +26,7 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/scripts/command/main.py",
-      "args": [
-        "pedestal",
-        "install-releases",
-        "--env",
-        "dev",
-        "-n",
-        "ts_cn",
-        "-c",
-        "1"
-      ],
+      "args": ["mysql", "migrate", "--force"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true

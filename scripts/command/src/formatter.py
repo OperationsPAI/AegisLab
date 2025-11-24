@@ -5,7 +5,7 @@ from collections import Counter
 
 from rich.table import Table
 
-from src.common import DEFAULT_SDK_DIR, console, repo
+from src.common.common import DEFAULT_SDK_DIR, console, repo
 
 
 class PythonFormatter:

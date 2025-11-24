@@ -20,7 +20,7 @@
         "make format-staged-go"
       ],
       "format-staged-python": [
-        "./scripts/command/dist/main.bin format python --staged"
+        "make run-command ARGS='format python --staged'"
       ],
       "local-debug": [
         "make local-debug"

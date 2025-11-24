@@ -1,11 +1,15 @@
 import typer
 
-from src.common import DEFAULT_SDK_DIR, ENV, console
+from src.common.common import DEFAULT_SDK_DIR, ENV, PROJECT_ROOT, SourceType, console
 
 main_app = typer.Typer(help="Main application for command-line interface.")
 
+
+chaos_app = typer.Typer(help="Chaos engineering utilities.")
+main_app.add_typer(chaos_app, name="chaos")
+
 formatter_app = typer.Typer(help="Code formatting utilities.")
-main_app.add_typer(formatter_app, name="format")
+main_app.add_typer(formatter_app, name="formatter")
 
 pedestal_app = typer.Typer(help="Pedestal management utilities.")
 main_app.add_typer(pedestal_app, name="pedestal")
@@ -13,9 +17,75 @@ main_app.add_typer(pedestal_app, name="pedestal")
 swagger_app = typer.Typer(help="Swagger documentation utilities.")
 main_app.add_typer(swagger_app, name="swagger")
 
+rcabench_app = typer.Typer(help="RCABench utilities.")
+main_app.add_typer(rcabench_app, name="rcabench")
 
-@formatter_app.command()
-def python(
+swagger_app = typer.Typer(help="Swagger documentation utilities.")
+main_app.add_typer(swagger_app, name="swagger")
+
+mysql_app = typer.Typer(help="MySQL backup and restore utilities.")
+main_app.add_typer(mysql_app, name="mysql")
+
+reids_app = typer.Typer(help="Redis restore utilities.")
+main_app.add_typer(reids_app, name="redis")
+
+
+@chaos_app.command(name="clean-finalizers")
+def clean_chaos_finalizers(
+    env: ENV = typer.Option(
+        ENV.DEV,
+        "--env",
+        "-e",
+        help="Target environment (e.g., dev, test).",
+    ),
+    ns_prefix: str = typer.Option(
+        "aegislab-chaos-",
+        "--ns-prefix",
+        "-p",
+        help="Namespace prefix to filter target namespaces.",
+    ),
+    ns_count: int = typer.Option(
+        10,
+        "--ns-count",
+        "-c",
+        help="Number of namespaces to process.",
+    ),
+):
+    """Cleans finalizers from chaos resources in specified namespaces."""
+    import src.chaos as chaos_module
+
+    chaos_module.clean_finalziers(env, ns_prefix, ns_count)
+
+
+@chaos_app.command(name="delete-chaos")
+def delete_chaos_resources(
+    env: ENV = typer.Option(
+        ENV.DEV,
+        "--env",
+        "-e",
+        help="Target environment (e.g., dev, test).",
+    ),
+    ns_prefix: str = typer.Option(
+        "aegislab-chaos-",
+        "--ns-prefix",
+        "-p",
+        help="Namespace prefix to filter target namespaces.",
+    ),
+    ns_count: int = typer.Option(
+        10,
+        "--ns-count",
+        "-c",
+        help="Number of namespaces to process.",
+    ),
+):
+    """Deletes chaos resources in specified namespaces."""
+    import src.chaos as chaos_module
+
+    chaos_module.delete_chaos_resources(env, ns_prefix, ns_count)
+
+
+@formatter_app.command(name="python")
+def format_python(
     # Option 1: Staged Files (Flag)
     staged: bool = typer.Option(
         False,
@@ -70,8 +140,8 @@ def python(
     formatter.run(files_to_format)
 
 
-@pedestal_app.command()
-def install_releases(
+@pedestal_app.command(name="install")
+def install_pedestals(
     env: ENV = typer.Option(
         ENV.DEV,
         "--env",
@@ -94,7 +164,161 @@ def install_releases(
     """Installs multiple pedestal Helm releases based on the specified container name and count."""
     import src.pedestal as pedestal_module
 
-    pedestal_module.install_releases(env, name=name, count=count)
+    pedestal_module.install_pedestals(env, name=name, count=count)
+
+
+@rcabench_app.command(name="check-secrets")
+def rcabench_check_secrets(
+    env: ENV = typer.Option(
+        ENV.DEV,
+        "--env",
+        "-e",
+        help="Target environment (e.g., dev, test).",
+    ),
+):
+    """Checks for the presence of required Kubernetes secrets for RCABench."""
+    import src.rcabench_ as rcabench_module
+
+    rcabench_module.check_secrets(env)
+
+
+@rcabench_app.command(name="local-deploy")
+def rcabench_local_deploy(
+    env: ENV = typer.Option(
+        ENV.DEV,
+        "--env",
+        "-e",
+        help="Target environment (e.g., dev, test).",
+    ),
+):
+    """Deploys RCABench locally using Docker Compose."""
+    import src.rcabench_ as rcabench_module
+
+    rcabench_module.local_deploy(env)
+
+    if typer.confirm("Do you want to perform data migrations now?"):
+        rcabench_module.check_db(env)
+        rcabench_module.check_redis(env)
+
+        mysql_migrate(src=SourceType.REMOTE, force=True)
+        redis_migrate(src=SourceType.REMOTE, force=True, dry_run=False)
+
+    console.print()
+    console.print(
+        "[bold yellow]You can start the application manually later: [/bold yellow]"
+    )
+    console.print(
+        f"[gray]cd {PROJECT_ROOT / 'src'} && go run main.go both --port 8082 [/gray]"
+    )
+
+
+@rcabench_app.command(name="run")
+def rcabench_execute_release_workflow(
+    env: ENV = typer.Option(
+        ENV.DEV,
+        "--env",
+        "-e",
+        help="Target environment (e.g., dev, test).",
+    ),
+):
+    """Executes the RCABench release workflow."""
+    import src.rcabench_ as rcabench_module
+
+    rcabench_module.execute_release_workflow(env)
+
+
+@mysql_app.command(name="migrate")
+def mysql_migrate(
+    src: str = typer.Option(
+        "local",
+        "--src",
+        "-s",
+        help="Source of the backup to restore from (local or remote).",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Force restore even if the database is not empty.",
+    ),
+):
+    """Restores MySQL database from backup."""
+    from src.backup.mysql import MysqlClient, install_tools
+
+    console.print("[bold blue]Starting database migration...[/bold blue]")
+
+    console.print("[bold blue]Step 1: Installing necessary tools...[/bold blue]")
+    install_tools()
+    console.print()
+
+    source_type = SourceType.LOCAL if src.lower() == "local" else SourceType.REMOTE
+    client = MysqlClient(source_type)
+
+    console.print(
+        f"[bold blue]Step 2: Creating backup from {source_type} server...[/bold blue]"
+    )
+    client.backup()
+    console.print()
+
+    console.print(
+        f"[bold blue]Step 3: Restoring backup to {client.dst} server...[/bold blue]"
+    )
+    client.restore(force)
+    console.print()
+
+    console.print("[bold green]✅ MySQL migration completed successfully![/bold green]")
+
+
+@reids_app.command(name="migrate")
+def redis_migrate(
+    src: SourceType = typer.Option(
+        "local",
+        "--src",
+        "-s",
+        help="Source of the backup to restore from (local or remote).",
+    ),
+    exact_match: bool = typer.Option(
+        False,
+        "--exact_match",
+        help="Source Redis stream exact matching (default: False)",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Force restore even if the redis is not empty.",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry_run",
+        help="Perform a dry run without making any changes.",
+    ),
+):
+    """Restores Redis database from backup."""
+    from src.backup.redis_ import RedisClient
+
+    console.print("[bold blue]Starting Redis migration...[/bold blue]")
+
+    source_type = SourceType.LOCAL if src.lower() == "local" else SourceType.REMOTE
+    client = RedisClient(source_type)
+
+    console.print(
+        f"[bold blue]Step 1: Restoring hash data from {source_type} server...[/bold blue]"
+    )
+    client.copy_hashes(force, dry_run=dry_run)
+    console.print()
+
+    console.print(
+        f"[bold blue]Step 2: Restoring stream data to {client.dst} server...[/bold blue]"
+    )
+    client.copy_streams(
+        exact_match,
+        force=force,
+        dry_run=dry_run,
+    )
+    console.print()
+
+    console.print("[bold green]✅ Redis migration completed successfully![/bold green]")
 
 
 @swagger_app.command()
