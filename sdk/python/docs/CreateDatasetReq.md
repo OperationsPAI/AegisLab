@@ -14,7 +14,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.create_dataset_req import CreateDatasetReq
+from rcabench.openapi.models.create_dataset_req import CreateDatasetReq
 
 # TODO update the JSON string below
 json = "{}"

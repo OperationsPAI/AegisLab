@@ -1,4 +1,4 @@
-# openapi.EvaluationsApi
+# rcabench.openapi.EvaluationsApi
 
 All URIs are relative to *http://localhost:8082*
 
@@ -20,15 +20,15 @@ Retrieve evaluation data for multiple algorithm-datapack pairs.
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.batch_evaluate_datapack_req import BatchEvaluateDatapackReq
-from openapi.models.generic_response_batch_evaluate_datapack_resp import GenericResponseBatchEvaluateDatapackResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.batch_evaluate_datapack_req import BatchEvaluateDatapackReq
+from rcabench.openapi.models.generic_response_batch_evaluate_datapack_resp import GenericResponseBatchEvaluateDatapackResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -44,10 +44,10 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.EvaluationsApi(api_client)
-    request = openapi.BatchEvaluateDatapackReq() # BatchEvaluateDatapackReq | Batch evaluation request containing multiple algorithm-datapack pairs
+    api_instance = rcabench.openapi.EvaluationsApi(api_client)
+    request = rcabench.openapi.BatchEvaluateDatapackReq() # BatchEvaluateDatapackReq | Batch evaluation request containing multiple algorithm-datapack pairs
 
     try:
         # List Datapack Evaluation Results
@@ -104,15 +104,15 @@ Retrieve evaluation data for multiple algorithm-dataset pairs.
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.batch_evaluate_datapack_req import BatchEvaluateDatapackReq
-from openapi.models.generic_response_batch_evaluate_dataset_resp import GenericResponseBatchEvaluateDatasetResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.batch_evaluate_datapack_req import BatchEvaluateDatapackReq
+from rcabench.openapi.models.generic_response_batch_evaluate_dataset_resp import GenericResponseBatchEvaluateDatasetResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -128,10 +128,10 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.EvaluationsApi(api_client)
-    request = openapi.BatchEvaluateDatapackReq() # BatchEvaluateDatapackReq | Batch evaluation request containing multiple algorithm-dataset pairs
+    api_instance = rcabench.openapi.EvaluationsApi(api_client)
+    request = rcabench.openapi.BatchEvaluateDatapackReq() # BatchEvaluateDatapackReq | Batch evaluation request containing multiple algorithm-dataset pairs
 
     try:
         # List Dataset Evaluation Results

@@ -3794,6 +3794,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },

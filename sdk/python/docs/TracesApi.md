@@ -1,4 +1,4 @@
-# openapi.TracesApi
+# rcabench.openapi.TracesApi
 
 All URIs are relative to *http://localhost:8082*
 
@@ -19,13 +19,13 @@ Establishes a Server-Sent Events (SSE) connection to stream trace logs and task 
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -41,9 +41,9 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.TracesApi(api_client)
+    api_instance = rcabench.openapi.TracesApi(api_client)
     trace_id = 'trace_id_example' # str | Trace ID
     last_id = '"0"' # str | Last event ID received (optional) (default to '"0"')
 

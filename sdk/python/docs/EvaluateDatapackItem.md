@@ -14,7 +14,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.evaluate_datapack_item import EvaluateDatapackItem
+from rcabench.openapi.models.evaluate_datapack_item import EvaluateDatapackItem
 
 # TODO update the JSON string below
 json = "{}"

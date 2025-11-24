@@ -3122,6 +3122,109 @@
         }
       }
     },
+    "/api/v2/injections/{id}/labels": {
+      "patch": {
+        "description": "Add or remove custom labels (key-value pairs) for an injection",
+        "operationId": "update_injection_labels",
+        "parameters": [
+          {
+            "description": "Injection ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManageInjectionLabelReq"
+              }
+            }
+          },
+          "description": "Custom label management request",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse-InjectionResp"
+                }
+              }
+            },
+            "description": "Custom labels managed successfully"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse-any"
+                }
+              }
+            },
+            "description": "Invalid injection ID or request format/parameters"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse-any"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse-any"
+                }
+              }
+            },
+            "description": "Permission denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse-any"
+                }
+              }
+            },
+            "description": "Injection not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse-any"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Manage injection custom labels",
+        "tags": [
+          "Injections"
+        ],
+        "x-api-type": {
+          "sdk": "true"
+        },
+        "x-codegen-request-body-name": "manage"
+      }
+    },
     "/api/v2/projects": {
       "get": {
         "description": "Get paginated list of projects with filtering",
@@ -5293,6 +5396,32 @@
         },
         "type": "object"
       },
+      "GenericResponse-InjectionResp": {
+        "properties": {
+          "code": {
+            "description": "Status code",
+            "type": "integer"
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InjectionResp"
+              }
+            ],
+            "description": "Generic type data",
+            "type": "object"
+          },
+          "message": {
+            "description": "Response message",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "Response generation time",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "GenericResponseListContainerResp": {
         "properties": {
           "code": {
@@ -6233,6 +6362,25 @@
           },
           "user": {
             "$ref": "#/components/schemas/UserInfo"
+          }
+        },
+        "type": "object"
+      },
+      "ManageInjectionLabelReq": {
+        "properties": {
+          "add_labels": {
+            "description": "List of labels to add",
+            "items": {
+              "$ref": "#/components/schemas/LabelItem"
+            },
+            "type": "array"
+          },
+          "remove_labels": {
+            "description": "List of label keys to remove",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           }
         },
         "type": "object"

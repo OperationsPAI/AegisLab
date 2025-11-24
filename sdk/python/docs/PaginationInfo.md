@@ -13,7 +13,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.pagination_info import PaginationInfo
+from rcabench.openapi.models.pagination_info import PaginationInfo
 
 # TODO update the JSON string below
 json = "{}"

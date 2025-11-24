@@ -1,4 +1,4 @@
-# openapi.ProjectsApi
+# rcabench.openapi.ProjectsApi
 
 All URIs are relative to *http://localhost:8082*
 
@@ -21,15 +21,15 @@ Create a new project with specified details
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.create_project_req import CreateProjectReq
-from openapi.models.generic_response_project_resp import GenericResponseProjectResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.create_project_req import CreateProjectReq
+from rcabench.openapi.models.generic_response_project_resp import GenericResponseProjectResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -45,10 +45,10 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.ProjectsApi(api_client)
-    request = openapi.CreateProjectReq() # CreateProjectReq | Project creation request
+    api_instance = rcabench.openapi.ProjectsApi(api_client)
+    request = rcabench.openapi.CreateProjectReq() # CreateProjectReq | Project creation request
 
     try:
         # Create a new project
@@ -106,14 +106,14 @@ Get detailed information about a specific project
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_project_detail_resp import GenericResponseProjectDetailResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_project_detail_resp import GenericResponseProjectDetailResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -129,9 +129,9 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.ProjectsApi(api_client)
+    api_instance = rcabench.openapi.ProjectsApi(api_client)
     project_id = 56 # int | Project ID
 
     try:
@@ -190,15 +190,15 @@ Get paginated list of projects with filtering
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_list_project_resp import GenericResponseListProjectResp
-from openapi.models.status_type import StatusType
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_list_project_resp import GenericResponseListProjectResp
+from rcabench.openapi.models.status_type import StatusType
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -214,13 +214,13 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.ProjectsApi(api_client)
+    api_instance = rcabench.openapi.ProjectsApi(api_client)
     page = 1 # int | Page number (optional) (default to 1)
     size = 20 # int | Page size (optional) (default to 20)
     is_public = True # bool | Filter by public status (optional)
-    status = openapi.StatusType() # StatusType | Filter by status (optional)
+    status = rcabench.openapi.StatusType() # StatusType | Filter by status (optional)
 
     try:
         # List projects

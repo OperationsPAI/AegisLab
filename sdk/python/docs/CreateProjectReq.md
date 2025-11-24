@@ -12,7 +12,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.create_project_req import CreateProjectReq
+from rcabench.openapi.models.create_project_req import CreateProjectReq
 
 # TODO update the JSON string below
 json = "{}"

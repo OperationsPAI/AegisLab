@@ -14,7 +14,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.create_helm_config_req import CreateHelmConfigReq
+from rcabench.openapi.models.create_helm_config_req import CreateHelmConfigReq
 
 # TODO update the JSON string below
 json = "{}"

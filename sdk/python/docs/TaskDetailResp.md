@@ -24,7 +24,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.task_detail_resp import TaskDetailResp
+from rcabench.openapi.models.task_detail_resp import TaskDetailResp
 
 # TODO update the JSON string below
 json = "{}"

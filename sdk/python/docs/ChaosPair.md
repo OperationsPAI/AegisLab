@@ -11,7 +11,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.chaos_pair import ChaosPair
+from rcabench.openapi.models.chaos_pair import ChaosPair
 
 # TODO update the JSON string below
 json = "{}"

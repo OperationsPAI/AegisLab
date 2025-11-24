@@ -526,6 +526,12 @@ def generate_python_sdk(version: str) -> None:
     container_config_path = volume_path / relative_generator_config / "config.json"
     container_templates_path = volume_path / relative_generator_config / "templates"
 
+    # Get current user UID and GID to avoid permission issues
+    import os
+
+    current_user = os.getuid()
+    current_group = os.getgid()
+
     try:
         docker.run(
             GENERATOR_IMAGE,
@@ -549,8 +555,10 @@ def generate_python_sdk(version: str) -> None:
                 "OperationsPAI",
             ],
             volumes=[(PROJECT_ROOT, volume_path)],
+            user=f"{current_user}:{current_group}",
             remove=True,
         )
+
     except Exception as e:
         console.print(
             f"[bold_red]❌ Error during python sdk generation: {e}[/bold_red]"

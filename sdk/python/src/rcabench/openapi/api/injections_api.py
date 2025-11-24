@@ -27,12 +27,14 @@ from rcabench.openapi.models.generic_response_array_injection_with_issues_resp i
 )
 from rcabench.openapi.models.generic_response_injection_detail_resp import GenericResponseInjectionDetailResp
 from rcabench.openapi.models.generic_response_injection_metadata_resp import GenericResponseInjectionMetadataResp
+from rcabench.openapi.models.generic_response_injection_resp import GenericResponseInjectionResp
 from rcabench.openapi.models.generic_response_list_injection_resp import GenericResponseListInjectionResp
 from rcabench.openapi.models.generic_response_search_resp_injection_resp import GenericResponseSearchRespInjectionResp
 from rcabench.openapi.models.generic_response_submit_datapack_building_resp import (
     GenericResponseSubmitDatapackBuildingResp,
 )
 from rcabench.openapi.models.generic_response_submit_injection_resp import GenericResponseSubmitInjectionResp
+from rcabench.openapi.models.manage_injection_label_req import ManageInjectionLabelReq
 from rcabench.openapi.models.search_injection_req import SearchInjectionReq
 from rcabench.openapi.models.submit_datapack_building_req import SubmitDatapackBuildingReq
 from rcabench.openapi.models.submit_injection_req import SubmitInjectionReq
@@ -2283,6 +2285,275 @@ class InjectionsApi:
         return self.api_client.param_serialize(
             method="POST",
             resource_path="/api/v2/injections/search",
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth,
+        )
+
+    @validate_call
+    def update_injection_labels(
+        self,
+        id: Annotated[StrictInt, Field(description="Injection ID")],
+        manage: Annotated[ManageInjectionLabelReq, Field(description="Custom label management request")],
+        _request_timeout: None
+        | Annotated[StrictFloat, Field(gt=0)]
+        | tuple[Annotated[StrictStr, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]] = None,
+        _request_auth: dict[StrictStr, Any] | None = None,
+        _content_type: StrictStr | None = None,
+        _headers: dict[StrictStr, Any] | None = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> GenericResponseInjectionResp:
+        """Manage injection custom labels
+
+        Add or remove custom labels (key-value pairs) for an injection
+
+        :param id: Injection ID (required)
+        :type id: int
+        :param manage: Custom label management request (required)
+        :type manage: ManageInjectionLabelReq
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._update_injection_labels_serialize(
+            id=id,
+            manage=manage,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: dict[str, str | None] = {
+            "200": "GenericResponseInjectionResp",
+            "400": "GenericResponseAny",
+            "401": "GenericResponseAny",
+            "403": "GenericResponseAny",
+            "404": "GenericResponseAny",
+            "500": "GenericResponseAny",
+        }
+        response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
+
+        assert response_data is not None and isinstance(response_data, RESTResponse), (
+            "Response data must be of type RESTResponse"
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data  # type: ignore
+
+    @validate_call
+    def update_injection_labels_with_http_info(
+        self,
+        id: Annotated[StrictInt, Field(description="Injection ID")],
+        manage: Annotated[ManageInjectionLabelReq, Field(description="Custom label management request")],
+        _request_timeout: None
+        | Annotated[StrictFloat, Field(gt=0)]
+        | tuple[Annotated[StrictStr, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]] = None,
+        _request_auth: dict[StrictStr, Any] | None = None,
+        _content_type: StrictStr | None = None,
+        _headers: dict[StrictStr, Any] | None = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[GenericResponseInjectionResp]:
+        """Manage injection custom labels
+
+        Add or remove custom labels (key-value pairs) for an injection
+
+        :param id: Injection ID (required)
+        :type id: int
+        :param manage: Custom label management request (required)
+        :type manage: ManageInjectionLabelReq
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._update_injection_labels_serialize(
+            id=id,
+            manage=manage,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: dict[str, str | None] = {
+            "200": "GenericResponseInjectionResp",
+            "400": "GenericResponseAny",
+            "401": "GenericResponseAny",
+            "403": "GenericResponseAny",
+            "404": "GenericResponseAny",
+            "500": "GenericResponseAny",
+        }
+        response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
+
+        assert response_data is not None and isinstance(response_data, RESTResponse), (
+            "Response data must be of type RESTResponse"
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )  # type: ignore
+
+    @validate_call
+    def update_injection_labels_without_preload_content(
+        self,
+        id: Annotated[StrictInt, Field(description="Injection ID")],
+        manage: Annotated[ManageInjectionLabelReq, Field(description="Custom label management request")],
+        _request_timeout: None
+        | Annotated[StrictFloat, Field(gt=0)]
+        | tuple[Annotated[StrictStr, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]] = None,
+        _request_auth: dict[StrictStr, Any] | None = None,
+        _content_type: StrictStr | None = None,
+        _headers: dict[StrictStr, Any] | None = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Manage injection custom labels
+
+        Add or remove custom labels (key-value pairs) for an injection
+
+        :param id: Injection ID (required)
+        :type id: int
+        :param manage: Custom label management request (required)
+        :type manage: ManageInjectionLabelReq
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._update_injection_labels_serialize(
+            id=id,
+            manage=manage,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: dict[str, str | None] = {
+            "200": "GenericResponseInjectionResp",
+            "400": "GenericResponseAny",
+            "401": "GenericResponseAny",
+            "403": "GenericResponseAny",
+            "404": "GenericResponseAny",
+            "500": "GenericResponseAny",
+        }
+        response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
+
+        assert response_data is not None and isinstance(response_data, RESTResponse), (
+            "Response data must be of type RESTResponse"
+        )
+        return response_data.response
+
+    def _update_injection_labels_serialize(
+        self,
+        id,
+        manage,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+        _host = None
+
+        _collection_formats: dict[str, str] = {}
+
+        _path_params: dict[str, str] = {}
+        _query_params: list[tuple[str, str]] = []
+        _header_params: dict[str, str | None] = _headers or {}
+        _form_params: list[tuple[str, str]] = []
+        _files: dict[str, str | bytes | list[str] | list[bytes] | list[tuple[str, bytes]]] = {}
+        _body_params: bytes | None = None
+
+        # process the path parameters
+        if id is not None:
+            _path_params["id"] = id
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+        if manage is not None:
+            _body_params = manage
+
+        # set the HTTP header `Accept`
+        if "Accept" not in _header_params:
+            _header_params["Accept"] = self.api_client.select_header_accept(["application/json"])
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params["Content-Type"] = _content_type
+        else:
+            _default_content_type = self.api_client.select_header_content_type(["application/json"])
+            if _default_content_type is not None:
+                _header_params["Content-Type"] = _default_content_type
+
+        # authentication setting
+        _auth_settings: list[str] = ["BearerAuth"]
+
+        return self.api_client.param_serialize(
+            method="PATCH",
+            resource_path="/api/v2/injections/{id}/labels",
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

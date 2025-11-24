@@ -4859,6 +4859,9 @@
         "tags": [
           "Injections"
         ],
+        "x-api-type": {
+          "sdk": "true"
+        },
         "x-codegen-request-body-name": "manage"
       }
     },

@@ -1,4 +1,4 @@
-# openapi.SystemApi
+# rcabench.openapi.SystemApi
 
 All URIs are relative to *http://localhost:8082*
 
@@ -18,22 +18,22 @@ Get system health status and service information
 
 
 ```python
-import openapi
-from openapi.models.generic_response_health_check_resp import GenericResponseHealthCheckResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_health_check_resp import GenericResponseHealthCheckResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.SystemApi(api_client)
+    api_instance = rcabench.openapi.SystemApi(api_client)
 
     try:
         # System health check

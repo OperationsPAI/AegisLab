@@ -28,7 +28,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.search_container_req import SearchContainerReq
+from rcabench.openapi.models.search_container_req import SearchContainerReq
 
 # TODO update the JSON string below
 json = "{}"

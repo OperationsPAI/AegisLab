@@ -11,7 +11,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.date_range import DateRange
+from rcabench.openapi.models.date_range import DateRange
 
 # TODO update the JSON string below
 json = "{}"

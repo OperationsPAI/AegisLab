@@ -11,7 +11,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.submit_datapack_building_resp import SubmitDatapackBuildingResp
+from rcabench.openapi.models.submit_datapack_building_resp import SubmitDatapackBuildingResp
 
 # TODO update the JSON string below
 json = "{}"

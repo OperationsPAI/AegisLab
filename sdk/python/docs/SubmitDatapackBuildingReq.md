@@ -12,7 +12,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.submit_datapack_building_req import SubmitDatapackBuildingReq
+from rcabench.openapi.models.submit_datapack_building_req import SubmitDatapackBuildingReq
 
 # TODO update the JSON string below
 json = "{}"

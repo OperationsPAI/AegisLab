@@ -1,4 +1,4 @@
-# openapi.TasksApi
+# rcabench.openapi.TasksApi
 
 All URIs are relative to *http://localhost:8082*
 
@@ -20,14 +20,14 @@ Get detailed information about a specific task
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_task_detail_resp import GenericResponseTaskDetailResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_task_detail_resp import GenericResponseTaskDetailResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -43,9 +43,9 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.TasksApi(api_client)
+    api_instance = rcabench.openapi.TasksApi(api_client)
     task_id = 'task_id_example' # str | Task ID
 
     try:
@@ -104,16 +104,16 @@ Get a simple list of tasks with basic filtering via query parameters
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_list_task_resp import GenericResponseListTaskResp
-from openapi.models.status_type import StatusType
-from openapi.models.task_state import TaskState
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_list_task_resp import GenericResponseListTaskResp
+from rcabench.openapi.models.status_type import StatusType
+from rcabench.openapi.models.task_state import TaskState
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -129,9 +129,9 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.TasksApi(api_client)
+    api_instance = rcabench.openapi.TasksApi(api_client)
     page = 1 # int | Page number (optional) (default to 1)
     size = 20 # int | Page size (optional) (default to 20)
     task_type = 56 # int | Filter by task type (optional)
@@ -139,8 +139,8 @@ with openapi.ApiClient(configuration) as api_client:
     trace_id = 'trace_id_example' # str | Filter by trace ID (uuid format) (optional)
     group_id = 'group_id_example' # str | Filter by group ID (uuid format) (optional)
     project_id = 56 # int | Filter by project ID (optional)
-    state = openapi.TaskState() # TaskState | Filter by state (optional)
-    status = openapi.StatusType() # StatusType | Filter by status (optional)
+    state = rcabench.openapi.TaskState() # TaskState | Filter by state (optional)
+    status = rcabench.openapi.StatusType() # StatusType | Filter by status (optional)
 
     try:
         # List tasks

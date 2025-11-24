@@ -11,7 +11,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.upload_granularity_result_req import UploadGranularityResultReq
+from rcabench.openapi.models.upload_granularity_result_req import UploadGranularityResultReq
 
 # TODO update the JSON string below
 json = "{}"

@@ -1,4 +1,4 @@
-# openapi.ContainersApi
+# rcabench.openapi.ContainersApi
 
 All URIs are relative to *http://localhost:8082*
 
@@ -26,15 +26,15 @@ Submit a container build task to build a container image from provided source fi
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_submit_container_build_resp import GenericResponseSubmitContainerBuildResp
-from openapi.models.submit_build_container_req import SubmitBuildContainerReq
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_submit_container_build_resp import GenericResponseSubmitContainerBuildResp
+from rcabench.openapi.models.submit_build_container_req import SubmitBuildContainerReq
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -50,10 +50,10 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.ContainersApi(api_client)
-    request = openapi.SubmitBuildContainerReq() # SubmitBuildContainerReq | Container build request
+    api_instance = rcabench.openapi.ContainersApi(api_client)
+    request = rcabench.openapi.SubmitBuildContainerReq() # SubmitBuildContainerReq | Container build request
 
     try:
         # Submit container building
@@ -111,15 +111,15 @@ Create a new container without build configuration.
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.create_container_req import CreateContainerReq
-from openapi.models.generic_response_container_resp import GenericResponseContainerResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.create_container_req import CreateContainerReq
+from rcabench.openapi.models.generic_response_container_resp import GenericResponseContainerResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -135,10 +135,10 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.ContainersApi(api_client)
-    request = openapi.CreateContainerReq() # CreateContainerReq | Container creation request
+    api_instance = rcabench.openapi.ContainersApi(api_client)
+    request = rcabench.openapi.CreateContainerReq() # CreateContainerReq | Container creation request
 
     try:
         # Create container
@@ -196,15 +196,15 @@ Create a new container version for an existing container.
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.create_container_version_req import CreateContainerVersionReq
-from openapi.models.generic_response_container_version_resp import GenericResponseContainerVersionResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.create_container_version_req import CreateContainerVersionReq
+from rcabench.openapi.models.generic_response_container_version_resp import GenericResponseContainerVersionResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -220,11 +220,11 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.ContainersApi(api_client)
+    api_instance = rcabench.openapi.ContainersApi(api_client)
     container_id = 56 # int | Container ID
-    request = openapi.CreateContainerVersionReq() # CreateContainerVersionReq | Container version creation request
+    request = rcabench.openapi.CreateContainerVersionReq() # CreateContainerVersionReq | Container version creation request
 
     try:
         # Create container version
@@ -283,14 +283,14 @@ Get detailed information about a specific container
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_container_detail_resp import GenericResponseContainerDetailResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_container_detail_resp import GenericResponseContainerDetailResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -306,9 +306,9 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.ContainersApi(api_client)
+    api_instance = rcabench.openapi.ContainersApi(api_client)
     container_id = 56 # int | Container ID
 
     try:
@@ -367,14 +367,14 @@ Get detailed information about a specific container version
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_container_version_detail_resp import GenericResponseContainerVersionDetailResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_container_version_detail_resp import GenericResponseContainerVersionDetailResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -390,9 +390,9 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.ContainersApi(api_client)
+    api_instance = rcabench.openapi.ContainersApi(api_client)
     container_id = 56 # int | Container ID
     version_id = 56 # int | Container Version ID
 
@@ -453,15 +453,15 @@ Get paginated list of container versions for a specific container
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_list_container_version_resp import GenericResponseListContainerVersionResp
-from openapi.models.status_type import StatusType
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_list_container_version_resp import GenericResponseListContainerVersionResp
+from rcabench.openapi.models.status_type import StatusType
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -477,13 +477,13 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.ContainersApi(api_client)
+    api_instance = rcabench.openapi.ContainersApi(api_client)
     container_id = 56 # int | Container ID
     page = 1 # int | Page number (optional) (default to 1)
     size = 20 # int | Page size (optional) (default to 20)
-    status = openapi.StatusType() # StatusType | Container version status filter (optional)
+    status = rcabench.openapi.StatusType() # StatusType | Container version status filter (optional)
 
     try:
         # List container versions
@@ -543,17 +543,17 @@ Get paginated list of containers with pagination and filtering
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.container_type import ContainerType
-from openapi.models.generic_response_list_container_resp import GenericResponseListContainerResp
-from openapi.models.page_size import PageSize
-from openapi.models.status_type import StatusType
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.container_type import ContainerType
+from rcabench.openapi.models.generic_response_list_container_resp import GenericResponseListContainerResp
+from rcabench.openapi.models.page_size import PageSize
+from rcabench.openapi.models.status_type import StatusType
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -569,14 +569,14 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.ContainersApi(api_client)
+    api_instance = rcabench.openapi.ContainersApi(api_client)
     page = 1 # int | Page number (optional) (default to 1)
-    size = openapi.PageSize() # PageSize | Page size (optional)
-    type = openapi.ContainerType() # ContainerType | Container type filter (optional)
+    size = rcabench.openapi.PageSize() # PageSize | Page size (optional)
+    type = rcabench.openapi.ContainerType() # ContainerType | Container type filter (optional)
     is_public = True # bool | Container public visibility filter (optional)
-    status = openapi.StatusType() # StatusType | Container status filter (optional)
+    status = rcabench.openapi.StatusType() # StatusType | Container status filter (optional)
 
     try:
         # List containers
@@ -637,15 +637,15 @@ Search containers with complex filtering, sorting and pagination. Supports all c
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_search_resp_container_resp import GenericResponseSearchRespContainerResp
-from openapi.models.search_container_req import SearchContainerReq
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_search_resp_container_resp import GenericResponseSearchRespContainerResp
+from rcabench.openapi.models.search_container_req import SearchContainerReq
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -661,10 +661,10 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.ContainersApi(api_client)
-    request = openapi.SearchContainerReq() # SearchContainerReq | Container search request
+    api_instance = rcabench.openapi.ContainersApi(api_client)
+    request = rcabench.openapi.SearchContainerReq() # SearchContainerReq | Container search request
 
     try:
         # Search containers

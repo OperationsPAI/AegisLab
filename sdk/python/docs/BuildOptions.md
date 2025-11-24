@@ -14,7 +14,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.build_options import BuildOptions
+from rcabench.openapi.models.build_options import BuildOptions
 
 # TODO update the JSON string below
 json = "{}"

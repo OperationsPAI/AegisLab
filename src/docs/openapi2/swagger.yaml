@@ -6404,6 +6404,8 @@ paths:
       summary: Manage injection custom labels
       tags:
       - Injections
+      x-api-type:
+        sdk: "true"
   /api/v2/injections/analysis/no-issues:
     get:
       description: Query all fault injection records without issues based on time

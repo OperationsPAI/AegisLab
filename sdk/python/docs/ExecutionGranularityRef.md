@@ -14,7 +14,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.execution_granularity_ref import ExecutionGranularityRef
+from rcabench.openapi.models.execution_granularity_ref import ExecutionGranularityRef
 
 # TODO update the JSON string below
 json = "{}"

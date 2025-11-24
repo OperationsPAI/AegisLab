@@ -15,7 +15,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.helm_config_detail_resp import HelmConfigDetailResp
+from rcabench.openapi.models.helm_config_detail_resp import HelmConfigDetailResp
 
 # TODO update the JSON string below
 json = "{}"

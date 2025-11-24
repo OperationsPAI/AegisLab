@@ -16,7 +16,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.chaos_resources import ChaosResources
+from rcabench.openapi.models.chaos_resources import ChaosResources
 
 # TODO update the JSON string below
 json = "{}"

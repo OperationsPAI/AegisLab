@@ -82,6 +82,7 @@ from rcabench.openapi.models.generic_response_execution_detail_resp import Gener
 from rcabench.openapi.models.generic_response_health_check_resp import GenericResponseHealthCheckResp
 from rcabench.openapi.models.generic_response_injection_detail_resp import GenericResponseInjectionDetailResp
 from rcabench.openapi.models.generic_response_injection_metadata_resp import GenericResponseInjectionMetadataResp
+from rcabench.openapi.models.generic_response_injection_resp import GenericResponseInjectionResp
 from rcabench.openapi.models.generic_response_list_container_resp import GenericResponseListContainerResp
 from rcabench.openapi.models.generic_response_list_container_version_resp import GenericResponseListContainerVersionResp
 from rcabench.openapi.models.generic_response_list_dataset_resp import GenericResponseListDatasetResp
@@ -125,6 +126,7 @@ from rcabench.openapi.models.list_project_resp import ListProjectResp
 from rcabench.openapi.models.list_task_resp import ListTaskResp
 from rcabench.openapi.models.login_req import LoginReq
 from rcabench.openapi.models.login_resp import LoginResp
+from rcabench.openapi.models.manage_injection_label_req import ManageInjectionLabelReq
 from rcabench.openapi.models.page_size import PageSize
 from rcabench.openapi.models.pagination_info import PaginationInfo
 from rcabench.openapi.models.parameter_category import ParameterCategory

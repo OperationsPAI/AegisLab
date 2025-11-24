@@ -3,7 +3,7 @@
   "modelTests": false,
   "packageName": "openapi",
   "projectName": "rcabench",
-  "packageVersion": "1.1.44",
+  "packageVersion": "1.1.45",
   "pythonVersion": "3.10",
   "packageUrl": "https://pypi.org/project/rcabench/",
   "library": "urllib3",

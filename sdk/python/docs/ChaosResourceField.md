@@ -11,7 +11,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.chaos_resource_field import ChaosResourceField
+from rcabench.openapi.models.chaos_resource_field import ChaosResourceField
 
 # TODO update the JSON string below
 json = "{}"

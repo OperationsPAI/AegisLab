@@ -12,7 +12,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.submit_building_item import SubmitBuildingItem
+from rcabench.openapi.models.submit_building_item import SubmitBuildingItem
 
 # TODO update the JSON string below
 json = "{}"

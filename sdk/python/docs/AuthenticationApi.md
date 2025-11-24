@@ -1,4 +1,4 @@
-# openapi.AuthenticationApi
+# rcabench.openapi.AuthenticationApi
 
 All URIs are relative to *http://localhost:8082*
 
@@ -19,24 +19,24 @@ Authenticate user with username and password
 
 
 ```python
-import openapi
-from openapi.models.generic_response_login_resp import GenericResponseLoginResp
-from openapi.models.login_req import LoginReq
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_login_resp import GenericResponseLoginResp
+from rcabench.openapi.models.login_req import LoginReq
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.AuthenticationApi(api_client)
-    request = openapi.LoginReq() # LoginReq | Login credentials
+    api_instance = rcabench.openapi.AuthenticationApi(api_client)
+    request = rcabench.openapi.LoginReq() # LoginReq | Login credentials
 
     try:
         # User login
@@ -91,24 +91,24 @@ Register a new user account
 
 
 ```python
-import openapi
-from openapi.models.generic_response_user_info import GenericResponseUserInfo
-from openapi.models.register_req import RegisterReq
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_user_info import GenericResponseUserInfo
+from rcabench.openapi.models.register_req import RegisterReq
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.AuthenticationApi(api_client)
-    request = openapi.RegisterReq() # RegisterReq | Registration details
+    api_instance = rcabench.openapi.AuthenticationApi(api_client)
+    request = rcabench.openapi.RegisterReq() # RegisterReq | Registration details
 
     try:
         # User registration

@@ -11,7 +11,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.list_project_resp import ListProjectResp
+from rcabench.openapi.models.list_project_resp import ListProjectResp
 
 # TODO update the JSON string below
 json = "{}"

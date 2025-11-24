@@ -13,7 +13,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.generic_response_submit_container_build_resp import GenericResponseSubmitContainerBuildResp
+from rcabench.openapi.models.generic_response_submit_container_build_resp import GenericResponseSubmitContainerBuildResp
 
 # TODO update the JSON string below
 json = "{}"

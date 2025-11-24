@@ -14,7 +14,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.container_version_resp import ContainerVersionResp
+from rcabench.openapi.models.container_version_resp import ContainerVersionResp
 
 # TODO update the JSON string below
 json = "{}"

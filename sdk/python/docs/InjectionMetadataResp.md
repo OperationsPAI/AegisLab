@@ -13,7 +13,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.injection_metadata_resp import InjectionMetadataResp
+from rcabench.openapi.models.injection_metadata_resp import InjectionMetadataResp
 
 # TODO update the JSON string below
 json = "{}"

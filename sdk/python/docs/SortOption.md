@@ -11,7 +11,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.sort_option import SortOption
+from rcabench.openapi.models.sort_option import SortOption
 
 # TODO update the JSON string below
 json = "{}"

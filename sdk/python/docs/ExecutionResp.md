@@ -23,7 +23,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.execution_resp import ExecutionResp
+from rcabench.openapi.models.execution_resp import ExecutionResp
 
 # TODO update the JSON string below
 json = "{}"

@@ -13,7 +13,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.granularity_result_item import GranularityResultItem
+from rcabench.openapi.models.granularity_result_item import GranularityResultItem
 
 # TODO update the JSON string below
 json = "{}"

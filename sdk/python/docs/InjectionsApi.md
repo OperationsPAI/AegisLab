@@ -1,4 +1,4 @@
-# openapi.InjectionsApi
+# rcabench.openapi.InjectionsApi
 
 All URIs are relative to *http://localhost:8082*
 
@@ -12,6 +12,7 @@ Method | HTTP request | Description
 [**list_injections**](InjectionsApi.md#list_injections) | **GET** /api/v2/injections | List injections
 [**list_successful_injections**](InjectionsApi.md#list_successful_injections) | **GET** /api/v2/injections/analysis/no-issues | Query Fault Injection Records Without Issues
 [**search_injections**](InjectionsApi.md#search_injections) | **POST** /api/v2/injections/search | Search injections
+[**update_injection_labels**](InjectionsApi.md#update_injection_labels) | **PATCH** /api/v2/injections/{id}/labels | Manage injection custom labels
 
 
 # **build_datapack**
@@ -23,24 +24,24 @@ Submit batch datapack buildings
 
 
 ```python
-import openapi
-from openapi.models.generic_response_submit_datapack_building_resp import GenericResponseSubmitDatapackBuildingResp
-from openapi.models.submit_datapack_building_req import SubmitDatapackBuildingReq
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_submit_datapack_building_resp import GenericResponseSubmitDatapackBuildingResp
+from rcabench.openapi.models.submit_datapack_building_req import SubmitDatapackBuildingReq
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.InjectionsApi(api_client)
-    body = openapi.SubmitDatapackBuildingReq() # SubmitDatapackBuildingReq | Datapack building request body
+    api_instance = rcabench.openapi.InjectionsApi(api_client)
+    body = rcabench.openapi.SubmitDatapackBuildingReq() # SubmitDatapackBuildingReq | Datapack building request body
 
     try:
         # Submit batch datapack buildings
@@ -98,14 +99,14 @@ Get detailed information about a specific injection
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_injection_detail_resp import GenericResponseInjectionDetailResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_injection_detail_resp import GenericResponseInjectionDetailResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -121,9 +122,9 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.InjectionsApi(api_client)
+    api_instance = rcabench.openapi.InjectionsApi(api_client)
     id = 56 # int | Injection ID
 
     try:
@@ -181,22 +182,22 @@ Get injection-related metadata including configuration, field mappings, and name
 
 
 ```python
-import openapi
-from openapi.models.generic_response_injection_metadata_resp import GenericResponseInjectionMetadataResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_injection_metadata_resp import GenericResponseInjectionMetadataResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.InjectionsApi(api_client)
+    api_instance = rcabench.openapi.InjectionsApi(api_client)
     namespace = 'namespace_example' # str | Namespace prefix for config and resources metadata
 
     try:
@@ -255,15 +256,15 @@ Submit multiple fault injection tasks in batch
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_submit_injection_resp import GenericResponseSubmitInjectionResp
-from openapi.models.submit_injection_req import SubmitInjectionReq
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_submit_injection_resp import GenericResponseSubmitInjectionResp
+from rcabench.openapi.models.submit_injection_req import SubmitInjectionReq
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -279,10 +280,10 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.InjectionsApi(api_client)
-    body = openapi.SubmitInjectionReq() # SubmitInjectionReq | Fault injection request body
+    api_instance = rcabench.openapi.InjectionsApi(api_client)
+    body = rcabench.openapi.SubmitInjectionReq() # SubmitInjectionReq | Fault injection request body
 
     try:
         # Submit batch fault injections
@@ -339,22 +340,22 @@ Query all fault injection records with issues based on time range
 
 
 ```python
-import openapi
-from openapi.models.generic_response_array_injection_with_issues_resp import GenericResponseArrayInjectionWithIssuesResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_array_injection_with_issues_resp import GenericResponseArrayInjectionWithIssuesResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.InjectionsApi(api_client)
+    api_instance = rcabench.openapi.InjectionsApi(api_client)
     labels = ['labels_example'] # List[str] | Filter by labels (array of key:value strings, e.g., 'type:chaos') (optional)
     lookback = 'lookback_example' # str | Time range query, supports custom relative time (1h/24h/7d) or custom, default not set (optional)
     custom_start_time = '2013-10-20T19:20:30+01:00' # datetime | Custom start time, RFC3339 format, required when lookback=custom (optional)
@@ -416,15 +417,15 @@ Get a paginated list of injections with pagination and filtering
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.datapack_state import DatapackState
-from openapi.models.generic_response_list_injection_resp import GenericResponseListInjectionResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.datapack_state import DatapackState
+from rcabench.openapi.models.generic_response_list_injection_resp import GenericResponseListInjectionResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -440,14 +441,14 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.InjectionsApi(api_client)
+    api_instance = rcabench.openapi.InjectionsApi(api_client)
     page = 1 # int | Page number (optional) (default to 1)
     size = 20 # int | Page size (optional) (default to 20)
     type = 56 # int | Filter by fault type (optional)
     benchmark = 'benchmark_example' # str | Filter by benchmark (optional)
-    state = openapi.DatapackState() # DatapackState | Filter by injection state (optional)
+    state = rcabench.openapi.DatapackState() # DatapackState | Filter by injection state (optional)
     status = 56 # int | Filter by status (optional)
     labels = ['labels_example'] # List[str] | Filter by labels (array of key:value strings, e.g., 'type:chaos') (optional)
 
@@ -511,22 +512,22 @@ Query all fault injection records without issues based on time range, returning 
 
 
 ```python
-import openapi
-from openapi.models.generic_response_array_injection_no_issues_resp import GenericResponseArrayInjectionNoIssuesResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_array_injection_no_issues_resp import GenericResponseArrayInjectionNoIssuesResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.InjectionsApi(api_client)
+    api_instance = rcabench.openapi.InjectionsApi(api_client)
     labels = ['labels_example'] # List[str] | Filter by labels (array of key:value strings, e.g., 'type:chaos') (optional)
     lookback = 'lookback_example' # str | Time range query, supports custom relative time (1h/24h/7d) or custom, default not set (optional)
     custom_start_time = '2013-10-20T19:20:30+01:00' # datetime | Custom start time, RFC3339 format, required when lookback=custom (optional)
@@ -588,15 +589,15 @@ Advanced search for injections with complex filtering including custom labels
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_search_resp_injection_resp import GenericResponseSearchRespInjectionResp
-from openapi.models.search_injection_req import SearchInjectionReq
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_search_resp_injection_resp import GenericResponseSearchRespInjectionResp
+from rcabench.openapi.models.search_injection_req import SearchInjectionReq
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -612,10 +613,10 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.InjectionsApi(api_client)
-    search = openapi.SearchInjectionReq() # SearchInjectionReq | Search criteria
+    api_instance = rcabench.openapi.InjectionsApi(api_client)
+    search = rcabench.openapi.SearchInjectionReq() # SearchInjectionReq | Search criteria
 
     try:
         # Search injections
@@ -656,6 +657,93 @@ Name | Type | Description  | Notes
 **400** | Invalid request |  -  |
 **401** | Authentication required |  -  |
 **403** | Permission denied |  -  |
+**500** | Internal server error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **update_injection_labels**
+> GenericResponseInjectionResp update_injection_labels(id, manage)
+
+Manage injection custom labels
+
+Add or remove custom labels (key-value pairs) for an injection
+
+### Example
+
+* Api Key Authentication (BearerAuth):
+
+```python
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_injection_resp import GenericResponseInjectionResp
+from rcabench.openapi.models.manage_injection_label_req import ManageInjectionLabelReq
+from rcabench.openapi.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8082
+# See configuration.py for a list of all supported configuration parameters.
+configuration = rcabench.openapi.Configuration(
+    host = "http://localhost:8082"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: BearerAuth
+configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['BearerAuth'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with rcabench.openapi.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = rcabench.openapi.InjectionsApi(api_client)
+    id = 56 # int | Injection ID
+    manage = rcabench.openapi.ManageInjectionLabelReq() # ManageInjectionLabelReq | Custom label management request
+
+    try:
+        # Manage injection custom labels
+        api_response = api_instance.update_injection_labels(id, manage)
+        print("The response of InjectionsApi->update_injection_labels:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling InjectionsApi->update_injection_labels: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **id** | **int**| Injection ID | 
+ **manage** | [**ManageInjectionLabelReq**](ManageInjectionLabelReq.md)| Custom label management request | 
+
+### Return type
+
+[**GenericResponseInjectionResp**](GenericResponseInjectionResp.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Custom labels managed successfully |  -  |
+**400** | Invalid injection ID or request format/parameters |  -  |
+**401** | Authentication required |  -  |
+**403** | Permission denied |  -  |
+**404** | Injection not found |  -  |
 **500** | Internal server error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

@@ -11,7 +11,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.dataset_ref import DatasetRef
+from rcabench.openapi.models.dataset_ref import DatasetRef
 
 # TODO update the JSON string below
 json = "{}"

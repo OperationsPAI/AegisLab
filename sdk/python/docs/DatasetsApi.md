@@ -1,4 +1,4 @@
-# openapi.DatasetsApi
+# rcabench.openapi.DatasetsApi
 
 All URIs are relative to *http://localhost:8082*
 
@@ -25,15 +25,15 @@ Create a new dataset with an initial version
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.create_dataset_req import CreateDatasetReq
-from openapi.models.generic_response_dataset_resp import GenericResponseDatasetResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.create_dataset_req import CreateDatasetReq
+from rcabench.openapi.models.generic_response_dataset_resp import GenericResponseDatasetResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -49,10 +49,10 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.DatasetsApi(api_client)
-    request = openapi.CreateDatasetReq() # CreateDatasetReq | Dataset creation request
+    api_instance = rcabench.openapi.DatasetsApi(api_client)
+    request = rcabench.openapi.CreateDatasetReq() # CreateDatasetReq | Dataset creation request
 
     try:
         # Create dataset
@@ -110,15 +110,15 @@ Create a new dataset version for an existing dataset.
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.create_dataset_version_req import CreateDatasetVersionReq
-from openapi.models.generic_response_dataset_version_resp import GenericResponseDatasetVersionResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.create_dataset_version_req import CreateDatasetVersionReq
+from rcabench.openapi.models.generic_response_dataset_version_resp import GenericResponseDatasetVersionResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -134,11 +134,11 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.DatasetsApi(api_client)
+    api_instance = rcabench.openapi.DatasetsApi(api_client)
     dataset_id = 56 # int | Dataset ID
-    request = openapi.CreateDatasetVersionReq() # CreateDatasetVersionReq | Dataset version creation request
+    request = rcabench.openapi.CreateDatasetVersionReq() # CreateDatasetVersionReq | Dataset version creation request
 
     try:
         # Create dataset version
@@ -197,13 +197,13 @@ Download dataset file by version ID
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -219,9 +219,9 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.DatasetsApi(api_client)
+    api_instance = rcabench.openapi.DatasetsApi(api_client)
     dataset_id = 56 # int | Dataset ID
     version_id = 56 # int | Dataset Version ID
 
@@ -281,14 +281,14 @@ Get detailed information about a specific dataset
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_dataset_detail_resp import GenericResponseDatasetDetailResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_dataset_detail_resp import GenericResponseDatasetDetailResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -304,9 +304,9 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.DatasetsApi(api_client)
+    api_instance = rcabench.openapi.DatasetsApi(api_client)
     dataset_id = 56 # int | Dataset ID
 
     try:
@@ -365,14 +365,14 @@ Get detailed information about a specific dataset version
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_dataset_version_detail_resp import GenericResponseDatasetVersionDetailResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_dataset_version_detail_resp import GenericResponseDatasetVersionDetailResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -388,9 +388,9 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.DatasetsApi(api_client)
+    api_instance = rcabench.openapi.DatasetsApi(api_client)
     dataset_id = 56 # int | Dataset ID
     version_id = 56 # int | Dataset Version ID
 
@@ -451,15 +451,15 @@ Get paginated list of dataset versions for a specific dataset
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_list_dataset_version_resp import GenericResponseListDatasetVersionResp
-from openapi.models.status_type import StatusType
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_list_dataset_version_resp import GenericResponseListDatasetVersionResp
+from rcabench.openapi.models.status_type import StatusType
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -475,13 +475,13 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.DatasetsApi(api_client)
+    api_instance = rcabench.openapi.DatasetsApi(api_client)
     dataset_id = 56 # int | Dataset ID
     page = 1 # int | Page number (optional) (default to 1)
     size = 20 # int | Page size (optional) (default to 20)
-    status = openapi.StatusType() # StatusType | Dataset version status filter (optional)
+    status = rcabench.openapi.StatusType() # StatusType | Dataset version status filter (optional)
 
     try:
         # List dataset versions
@@ -541,15 +541,15 @@ Get paginated list of datasets with pagination and filtering
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_list_dataset_resp import GenericResponseListDatasetResp
-from openapi.models.status_type import StatusType
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_list_dataset_resp import GenericResponseListDatasetResp
+from rcabench.openapi.models.status_type import StatusType
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -565,14 +565,14 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.DatasetsApi(api_client)
+    api_instance = rcabench.openapi.DatasetsApi(api_client)
     page = 1 # int | Page number (optional) (default to 1)
     size = 20 # int | Page size (optional) (default to 20)
     type = 'type_example' # str | Dataset type filter (optional)
     is_public = True # bool | Dataset public visibility filter (optional)
-    status = openapi.StatusType() # StatusType | Dataset status filter (optional)
+    status = rcabench.openapi.StatusType() # StatusType | Dataset status filter (optional)
 
     try:
         # List datasets

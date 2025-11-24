@@ -1,4 +1,4 @@
-# openapi.ExecutionsApi
+# rcabench.openapi.ExecutionsApi
 
 All URIs are relative to *http://localhost:8082*
 
@@ -24,14 +24,14 @@ Get detailed information about a specific execution
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_execution_detail_resp import GenericResponseExecutionDetailResp
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_execution_detail_resp import GenericResponseExecutionDetailResp
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -47,9 +47,9 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.ExecutionsApi(api_client)
+    api_instance = rcabench.openapi.ExecutionsApi(api_client)
     id = 56 # int | Execution ID
 
     try:
@@ -108,14 +108,14 @@ List all available label keys for executions
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_array_label_item import GenericResponseArrayLabelItem
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_array_label_item import GenericResponseArrayLabelItem
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -131,9 +131,9 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.ExecutionsApi(api_client)
+    api_instance = rcabench.openapi.ExecutionsApi(api_client)
 
     try:
         # List execution labels
@@ -186,16 +186,16 @@ Get a paginated list of executions with pagination and filtering
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.execution_state import ExecutionState
-from openapi.models.generic_response_list_execution_resp import GenericResponseListExecutionResp
-from openapi.models.status_type import StatusType
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.execution_state import ExecutionState
+from rcabench.openapi.models.generic_response_list_execution_resp import GenericResponseListExecutionResp
+from rcabench.openapi.models.status_type import StatusType
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -211,13 +211,13 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.ExecutionsApi(api_client)
+    api_instance = rcabench.openapi.ExecutionsApi(api_client)
     page = 1 # int | Page number (optional) (default to 1)
     size = 20 # int | Page size (optional) (default to 20)
-    state = openapi.ExecutionState() # ExecutionState | Filter by execution state (optional)
-    status = openapi.StatusType() # StatusType | Filter by status (optional)
+    state = rcabench.openapi.ExecutionState() # ExecutionState | Filter by execution state (optional)
+    status = rcabench.openapi.StatusType() # StatusType | Filter by status (optional)
     labels = ['labels_example'] # List[str] | Filter by labels (array of key:value strings, e.g., 'type:test') (optional)
 
     try:
@@ -279,15 +279,15 @@ Submit multiple algorithm execution tasks in batch. Supports mixing datapack (v1
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_submit_execution_resp import GenericResponseSubmitExecutionResp
-from openapi.models.submit_execution_req import SubmitExecutionReq
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_submit_execution_resp import GenericResponseSubmitExecutionResp
+from rcabench.openapi.models.submit_execution_req import SubmitExecutionReq
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -303,10 +303,10 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.ExecutionsApi(api_client)
-    request = openapi.SubmitExecutionReq() # SubmitExecutionReq | Algorithm execution request
+    api_instance = rcabench.openapi.ExecutionsApi(api_client)
+    request = rcabench.openapi.SubmitExecutionReq() # SubmitExecutionReq | Algorithm execution request
 
     try:
         # Submit batch algorithm execution
@@ -364,15 +364,15 @@ Upload detection results for detector algorithm via API instead of file collecti
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_upload_execution_result_resp import GenericResponseUploadExecutionResultResp
-from openapi.models.upload_detector_result_req import UploadDetectorResultReq
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_upload_execution_result_resp import GenericResponseUploadExecutionResultResp
+from rcabench.openapi.models.upload_detector_result_req import UploadDetectorResultReq
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -388,11 +388,11 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.ExecutionsApi(api_client)
+    api_instance = rcabench.openapi.ExecutionsApi(api_client)
     execution_id = 56 # int | Execution ID
-    request = openapi.UploadDetectorResultReq() # UploadDetectorResultReq | Detector results
+    request = rcabench.openapi.UploadDetectorResultReq() # UploadDetectorResultReq | Detector results
 
     try:
         # Upload detector results
@@ -451,15 +451,15 @@ Upload granularity results for regular algorithms via API instead of file collec
 * Api Key Authentication (BearerAuth):
 
 ```python
-import openapi
-from openapi.models.generic_response_upload_execution_result_resp import GenericResponseUploadExecutionResultResp
-from openapi.models.upload_granularity_result_req import UploadGranularityResultReq
-from openapi.rest import ApiException
+import rcabench.openapi
+from rcabench.openapi.models.generic_response_upload_execution_result_resp import GenericResponseUploadExecutionResultResp
+from rcabench.openapi.models.upload_granularity_result_req import UploadGranularityResultReq
+from rcabench.openapi.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost:8082
 # See configuration.py for a list of all supported configuration parameters.
-configuration = openapi.Configuration(
+configuration = rcabench.openapi.Configuration(
     host = "http://localhost:8082"
 )
 
@@ -475,11 +475,11 @@ configuration.api_key['BearerAuth'] = os.environ["API_KEY"]
 # configuration.api_key_prefix['BearerAuth'] = 'Bearer'
 
 # Enter a context with an instance of the API client
-with openapi.ApiClient(configuration) as api_client:
+with rcabench.openapi.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = openapi.ExecutionsApi(api_client)
+    api_instance = rcabench.openapi.ExecutionsApi(api_client)
     execution_id = 56 # int | Execution ID
-    request = openapi.UploadGranularityResultReq() # UploadGranularityResultReq | Granularity results
+    request = rcabench.openapi.UploadGranularityResultReq() # UploadGranularityResultReq | Granularity results
 
     try:
         # Upload granularity results

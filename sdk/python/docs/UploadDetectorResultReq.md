@@ -11,7 +11,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.upload_detector_result_req import UploadDetectorResultReq
+from rcabench.openapi.models.upload_detector_result_req import UploadDetectorResultReq
 
 # TODO update the JSON string below
 json = "{}"

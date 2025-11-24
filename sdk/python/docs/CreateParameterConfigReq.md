@@ -16,7 +16,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from openapi.models.create_parameter_config_req import CreateParameterConfigReq
+from rcabench.openapi.models.create_parameter_config_req import CreateParameterConfigReq
 
 # TODO update the JSON string below
 json = "{}"
