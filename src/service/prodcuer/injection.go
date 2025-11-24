@@ -158,6 +158,68 @@ func ListInjections(req *dto.ListInjectionReq) (*dto.ListResp[dto.InjectionResp]
 	return &resp, nil
 }
 
+// SearchInjections performs advanced search on fault injections
+func SearchInjections(req *dto.SearchInjectionReq) (*dto.SearchResp[dto.InjectionResp], error) {
+	injections, total, err := repository.SearchInjectionsV2(database.DB, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search injections: %w", err)
+	}
+
+	// If labels should be included, fetch them
+	var labelsMap map[int][]database.Label
+	if req.IncludeLabels {
+		injectionIDs := make([]int, 0, len(injections))
+		for _, injection := range injections {
+			injectionIDs = append(injectionIDs, injection.ID)
+		}
+
+		if len(injectionIDs) > 0 {
+			labelsMap, err = repository.ListInjectionLabels(database.DB, injectionIDs)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list injection labels: %w", err)
+			}
+		}
+	}
+
+	// Convert to response format
+	injectionResps := make([]dto.InjectionResp, 0, len(injections))
+	for _, injection := range injections {
+		if req.IncludeLabels {
+			if labels, exists := labelsMap[injection.ID]; exists {
+				injection.Task.Labels = labels
+			}
+		}
+		injectionResps = append(injectionResps, *dto.NewInjectionResp(&injection))
+	}
+
+	// Calculate pagination info
+	page := 1
+	size := 20
+	if req.Page != nil {
+		page = *req.Page
+	}
+	if req.Size != nil {
+		size = *req.Size
+	}
+
+	totalPages := int(total) / size
+	if int(total)%size != 0 {
+		totalPages++
+	}
+
+	resp := &dto.SearchResp[dto.InjectionResp]{
+		Items: injectionResps,
+		Pagination: &dto.PaginationInfo{
+			Page:       page,
+			Size:       size,
+			Total:      total,
+			TotalPages: totalPages,
+		},
+	}
+
+	return resp, nil
+}
+
 // ListInjectionsNoissues handles the request to list fault injections without issues
 func ListInjectionsNoIssues(req *dto.ListInjectionNoIssuesReq) ([]dto.InjectionNoIssuesResp, error) {
 	if len(req.Labels) == 0 {

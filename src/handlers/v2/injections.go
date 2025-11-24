@@ -193,11 +193,10 @@ func ListInjections(c *gin.Context) {
 	dto.SuccessResponse(c, resp)
 }
 
-// TODO: implement the actual search logic
 // SearchInjection
 //
 //	@Summary		Search injections
-//	@Description	Advanced search for injections with complex filtering including custom labels
+//	@Description	Advanced search for injections with complex filtering including name search, custom labels, tags, and time ranges
 //	@Tags			Injections
 //	@ID				search_injections
 //	@Accept			json
@@ -222,6 +221,13 @@ func SearchInjections(c *gin.Context) {
 		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
+
+	resp, err := producer.SearchInjections(&req)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
 }
 
 // ManageInjectionCustomLabels manages injection custom labels (key-value pairs)

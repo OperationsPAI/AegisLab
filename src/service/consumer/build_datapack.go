@@ -161,6 +161,8 @@ func getDatapackJobEnvVars(payload *datapackPayload) ([]corev1.EnvVar, error) {
 		{Name: "WORKSPACE", Value: "/app"},
 		{Name: "INPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.datapack.Name)},
 		{Name: "OUTPUT_PATH", Value: fmt.Sprintf("/data/%s", payload.datapack.Name)},
+		{Name: "RCABENCH_USERNAME", Value: "admin"},
+		{Name: "RCABENCH_PASSWORD", Value: "admin123"},
 	}
 
 	envNameIndexMap := make(map[string]int, len(jobEnvVars))

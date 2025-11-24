@@ -178,14 +178,12 @@ func ListInjections(db *gorm.DB, limit, offset int, filterOptions *dto.ListInjec
 	return injections, total, nil
 }
 
-// TODO
 // SearchInjectionsV2 performs advanced search on injections
-func SearchInjectionsV2(req *dto.SearchInjectionReq) ([]database.FaultInjection, int64, error) {
-	query := database.DB.Model(&database.FaultInjection{}).
+func SearchInjectionsV2(db *gorm.DB, req *dto.SearchInjectionReq) ([]database.FaultInjection, int64, error) {
+	query := db.Model(&database.FaultInjection{}).
 		Preload("Benchmark.Container").
 		Preload("Pedestal.Container").
-		Preload("Task.Project").
-		Preload("Labels")
+		Preload("Task.Project")
 
 	// Apply filters
 	if len(req.TaskIDs) > 0 {
@@ -201,33 +199,37 @@ func SearchInjectionsV2(req *dto.SearchInjectionReq) ([]database.FaultInjection,
 		query = query.Where("benchmark IN (?)", req.Benchmarks)
 	}
 	if req.Search != "" {
-		query = query.Where("injection_name LIKE ? OR description LIKE ?", "%"+req.Search+"%", "%"+req.Search+"%")
+		query = query.Where("name LIKE ?", "%"+req.Search+"%")
 	}
 
 	// Apply tags filter
 	if len(req.Tags) > 0 {
 		// Join with task_labels and labels tables to filter by tags
-		query = query.Joins("JOIN task_labels tl ON tl.task_id = fault_injection_schedules.task_id").
-			Joins("JOIN labels ON labels.id = tl.label_id").
-			Where("labels.label_key = ? AND labels.label_value IN (?)", consts.LabelKeyTag, req.Tags).
-			Group("fault_injection_schedules.id")
+		for _, tag := range req.Tags {
+			subQuery := db.Table("task_labels tl").
+				Select("fi.id").
+				Joins("JOIN fault_injections fi ON fi.task_id = tl.task_id").
+				Joins("JOIN labels ON labels.id = tl.label_id").
+				Where("labels.label_key = ? AND labels.label_value = ?", consts.LabelKeyTag, tag)
+			query = query.Where("fault_injections.id IN (?)", subQuery)
+		}
 	}
 
 	// Apply custom labels filter
 	if len(req.Labels) > 0 {
 		// Build subquery for custom labels
-		for i, labelItem := range req.Labels {
-			subQuery := database.DB.Table("task_labels tl"+fmt.Sprintf("%d", i)).
-				Select("fis"+fmt.Sprintf("%d", i)+".id").
-				Joins("JOIN fault_injection_schedules fis"+fmt.Sprintf("%d", i)+" ON fis"+fmt.Sprintf("%d", i)+".task_id = tl"+fmt.Sprintf("%d", i)+".task_id").
-				Joins("JOIN labels l"+fmt.Sprintf("%d", i)+" ON l"+fmt.Sprintf("%d", i)+".id = tl"+fmt.Sprintf("%d", i)+".label_id").
-				Where("l"+fmt.Sprintf("%d", i)+".label_key = ?", labelItem.Key)
+		for _, labelItem := range req.Labels {
+			subQuery := db.Table("task_labels tl").
+				Select("fi.id").
+				Joins("JOIN fault_injections fi ON fi.task_id = tl.task_id").
+				Joins("JOIN labels l ON l.id = tl.label_id").
+				Where("l.label_key = ?", labelItem.Key)
 
 			if labelItem.Value != "" {
-				subQuery = subQuery.Where("l"+fmt.Sprintf("%d", i)+".label_value = ?", labelItem.Value)
+				subQuery = subQuery.Where("l.label_value = ?", labelItem.Value)
 			}
 
-			query = query.Where("fault_injection_schedules.id IN (?)", subQuery)
+			query = query.Where("fault_injections.id IN (?)", subQuery)
 		}
 	}
 
@@ -254,7 +256,7 @@ func SearchInjectionsV2(req *dto.SearchInjectionReq) ([]database.FaultInjection,
 	// Count total
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("failed to count injections: %w", err)
 	}
 
 	// Apply sorting
@@ -274,10 +276,15 @@ func SearchInjectionsV2(req *dto.SearchInjectionReq) ([]database.FaultInjection,
 		}
 	}
 
+	// Preload labels if requested
+	if req.IncludeLabels {
+		query = query.Preload("Labels")
+	}
+
 	// Execute query
 	var injections []database.FaultInjection
 	if err := query.Find(&injections).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("failed to search injections: %w", err)
 	}
 
 	return injections, total, nil
