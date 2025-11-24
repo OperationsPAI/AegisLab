@@ -14,7 +14,7 @@ import (
 func ListGranularityResultsByExecutionID(db *gorm.DB, executionID int) ([]database.GranularityResult, error) {
 	var results []database.GranularityResult
 	if err := db.
-		Where("execution_id = ? AND status != ?", executionID, consts.CommonDeleted).
+		Where("execution_id = ?", executionID).
 		Find(&results).Error; err != nil {
 		return nil, fmt.Errorf("failed to list granularity results for execution %d: %w", executionID, err)
 	}

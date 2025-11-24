@@ -66,6 +66,9 @@ data:
     {{- if $value.secret_name }}
     secret_name = {{ $value.secret_name | quote }}
     {{- end }}
+    {{- if $value.claim_name }}
+    claim_name = {{ $value.claim_name | quote }}
+    {{- end }}
     {{- end }}
 
     [logging]

@@ -134,16 +134,15 @@ func main() {
 		Long:  "Submit a task to run an RCA algorithm on a datapack",
 		Run:   submitRunAlgorithmTask,
 	}
-	runAlgorithmCmd.Flags().Int("execution-id", 0, "Execution ID (required)")
-	runAlgorithmCmd.Flags().String("algorithm-image", "", "Algorithm container image (required)")
-	runAlgorithmCmd.Flags().Int("injection-id", 0, "Injection ID (required)")
-	runAlgorithmCmd.Flags().String("namespace", "", "Kubernetes namespace (required)")
+	runAlgorithmCmd.Flags().Int("algorithm-version-id", 0, "Algorithm version ID (required)")
+	runAlgorithmCmd.Flags().Int("datapack-id", 0, "Datapack (injection) ID (required)")
+	runAlgorithmCmd.Flags().Int("dataset-version-id", 0, "Dataset version ID (optional)")
 	runAlgorithmCmd.Flags().Bool("immediate", true, "Execute immediately")
+	runAlgorithmCmd.Flags().Int("project-id", 0, "Project ID (required)")
 	runAlgorithmCmd.Flags().Int("user-id", 0, "User ID")
-	runAlgorithmCmd.MarkFlagRequired("execution-id")
-	runAlgorithmCmd.MarkFlagRequired("algorithm-image")
-	runAlgorithmCmd.MarkFlagRequired("injection-id")
-	runAlgorithmCmd.MarkFlagRequired("namespace")
+	runAlgorithmCmd.MarkFlagRequired("algorithm-version-id")
+	runAlgorithmCmd.MarkFlagRequired("datapack-id")
+	runAlgorithmCmd.MarkFlagRequired("project-id")
 
 	// Collect Result Task Command
 	var collectResultCmd = &cobra.Command{
@@ -344,7 +343,7 @@ func submitBuildDatapackTask(cmd *cobra.Command, args []string) {
 		Type:      consts.TaskTypeBuildDatapack,
 		Immediate: immediate,
 		RetryPolicy: dto.RetryPolicy{
-			MaxAttempts: 3,
+			MaxAttempts: 1,
 			BackoffSec:  10,
 		},
 		Payload:   payload,
@@ -368,20 +367,24 @@ func submitBuildDatapackTask(cmd *cobra.Command, args []string) {
 func submitRunAlgorithmTask(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
 
-	executionID, _ := cmd.Flags().GetInt("execution-id")
-	algorithmImage, _ := cmd.Flags().GetString("algorithm-image")
-	injectionID, _ := cmd.Flags().GetInt("injection-id")
-	namespace, _ := cmd.Flags().GetString("namespace")
+	algorithmVersionID, _ := cmd.Flags().GetInt("algorithm-version-id")
+	datapackID, _ := cmd.Flags().GetInt("datapack-id")
+	datasetVersionID, _ := cmd.Flags().GetInt("dataset-version-id")
 	immediate, _ := cmd.Flags().GetBool("immediate")
+	projectID, _ := cmd.Flags().GetInt("project-id")
 	userID, _ := cmd.Flags().GetInt("user-id")
 
+	// Query algorithm version and datapack info from database
+	algoInfo, err := getAlgorithmExecutionInfo(algorithmVersionID, datapackID, datasetVersionID)
+	if err != nil {
+		logrus.Fatalf("Failed to get algorithm execution info: %v", err)
+	}
+
 	payload := map[string]any{
-		"executionID": executionID,
-		"algorithm": map[string]any{
-			"image": algorithmImage,
-		},
-		"injectionID": injectionID,
-		"namespace":   namespace,
+		consts.ExecuteAlgorithm:        algoInfo.Algorithm,
+		consts.ExecuteDatapack:         algoInfo.Datapack,
+		consts.ExecuteDatasetVersionID: algoInfo.DatasetVersionID,
+		consts.ExecuteLabels:           []dto.LabelItem{},
 	}
 
 	task := &dto.UnifiedTask{
@@ -389,14 +392,15 @@ func submitRunAlgorithmTask(cmd *cobra.Command, args []string) {
 		Type:      consts.TaskTypeRunAlgorithm,
 		Immediate: immediate,
 		RetryPolicy: dto.RetryPolicy{
-			MaxAttempts: 3,
+			MaxAttempts: 1,
 			BackoffSec:  10,
 		},
-		Payload: payload,
-		TraceID: uuid.NewString(),
-		GroupID: uuid.NewString(),
-		UserID:  userID,
-		State:   consts.TaskPending,
+		Payload:   payload,
+		TraceID:   uuid.NewString(),
+		GroupID:   uuid.NewString(),
+		ProjectID: projectID,
+		UserID:    userID,
+		State:     consts.TaskPending,
 	}
 
 	setGroupCarrier(ctx, task)
@@ -452,6 +456,49 @@ func submitCollectResultTask(cmd *cobra.Command, args []string) {
 type injectionInfo struct {
 	Benchmark dto.ContainerVersionItem
 	Datapack  dto.InjectionItem
+}
+
+type algorithmExecutionInfo struct {
+	Algorithm        dto.ContainerVersionItem
+	Datapack         dto.InjectionItem
+	DatasetVersionID *int
+}
+
+func getAlgorithmExecutionInfo(algorithmVersionID, datapackID, datasetVersionID int) (*algorithmExecutionInfo, error) {
+	// Get algorithm version info
+	var algorithmVersion database.ContainerVersion
+	if err := database.DB.
+		Preload("Container").
+		Preload("EnvVars").
+		Where("id = ?", algorithmVersionID).
+		First(&algorithmVersion).Error; err != nil {
+		return nil, fmt.Errorf("failed to find algorithm version with id %d: %w", algorithmVersionID, err)
+	}
+
+	// Get datapack (injection) info
+	var injection database.FaultInjection
+	if err := database.DB.
+		Preload("Task").
+		Preload("Benchmark").
+		Preload("Benchmark.Container").
+		Where("id = ?", datapackID).
+		First(&injection).Error; err != nil {
+		return nil, fmt.Errorf("failed to find datapack with id %d: %w", datapackID, err)
+	}
+
+	algorithmItem := dto.NewContainerVersionItem(&algorithmVersion)
+	datapackItem := dto.NewInjectionItem(&injection)
+
+	var datasetVersionIDPtr *int
+	if datasetVersionID > consts.DefaultInvalidID {
+		datasetVersionIDPtr = &datasetVersionID
+	}
+
+	return &algorithmExecutionInfo{
+		Algorithm:        algorithmItem,
+		Datapack:         datapackItem,
+		DatasetVersionID: datasetVersionIDPtr,
+	}, nil
 }
 
 func getInjectionInfo(injectionID int) (*injectionInfo, error) {

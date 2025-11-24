@@ -3,7 +3,6 @@ package repository
 import (
 	"fmt"
 
-	"aegis/consts"
 	"aegis/database"
 
 	"gorm.io/gorm"
@@ -13,7 +12,7 @@ import (
 func ListDetectorResultsByExecutionID(db *gorm.DB, executionID int) ([]database.DetectorResult, error) {
 	var results []database.DetectorResult
 	if err := db.
-		Where("execution_id = ? AND status != ?", executionID, consts.CommonDeleted).
+		Where("execution_id = ?", executionID).
 		Find(&results).Error; err != nil {
 		return nil, fmt.Errorf("failed to list detectors for execution %d: %w", executionID, err)
 	}

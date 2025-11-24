@@ -12,7 +12,7 @@ timezone = "Asia/Shanghai"
 data_path = "/home/nn/workspace/AegisLab/helm/files/initial_data"
 
 [debugging]
-enable = false
+enable = true
 
 [injection]
 benchmark = ["clickhouse"]

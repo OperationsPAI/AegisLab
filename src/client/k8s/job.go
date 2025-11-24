@@ -46,53 +46,61 @@ type VolumeMountConfig struct {
 	SubPath    string `json:"sub_path,omitempty"`
 	SourceType string `json:"source_type,omitempty"`
 	SecretName string `json:"secret_name,omitempty"`
+
+	// when source_type is "pvc"
+	ClaimName string `json:"claim_name,omitempty"`
 }
 
 func (v *VolumeMountConfig) GetVolumeMount() corev1.VolumeMount {
-	if v.SourceType == "secret" {
-		return corev1.VolumeMount{
-			Name:      v.Name,
-			MountPath: v.MountPath,
-			SubPath:   v.SubPath,
-		}
-	} else {
-		return corev1.VolumeMount{
-			Name:      v.Name,
-			MountPath: v.MountPath,
-		}
+	volumeMount := corev1.VolumeMount{
+		Name:      v.Name,
+		MountPath: v.MountPath,
 	}
+
+	if v.SubPath != "" {
+		volumeMount.SubPath = v.SubPath
+	}
+
+	return volumeMount
 }
 
 func (v *VolumeMountConfig) GEtVolume() corev1.Volume {
-	if v.SourceType == "secret" {
-		return corev1.Volume{
-			Name: v.Name,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: v.SecretName,
-					Items: []corev1.KeyToPath{
-						{
-							Key:  v.SubPath,
-							Path: v.SubPath,
-						},
+	volume := corev1.Volume{
+		Name: v.Name,
+	}
+
+	switch v.SourceType {
+	case "secret":
+		volume.VolumeSource = corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: v.SecretName,
+				Items: []corev1.KeyToPath{
+					{
+						Key:  v.SubPath,
+						Path: v.SubPath,
 					},
 				},
 			},
 		}
-	} else {
-		return corev1.Volume{
-			Name: v.Name,
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: v.HostPath,
-					Type: func() *corev1.HostPathType {
-						hostPathType := corev1.HostPathType(v.Type)
-						return &hostPathType
-					}(),
-				},
+	case "pvc":
+		volume.VolumeSource = corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+				ClaimName: v.ClaimName,
+			},
+		}
+	default: // hostPath
+		volume.VolumeSource = corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: v.HostPath,
+				Type: func() *corev1.HostPathType {
+					hostPathType := corev1.HostPathType(v.Type)
+					return &hostPathType
+				}(),
 			},
 		}
 	}
+
+	return volume
 }
 
 func CreateJob(ctx context.Context, jobConfig *JobConfig) error {

@@ -395,7 +395,14 @@ func (c *Controller) processQueueItem() bool {
 
 		err = deleteCRD(context.Background(), item.GVR, item.Namespace, item.Name)
 	case DeleteJob:
-		err = deleteJob(context.Background(), item.Namespace, item.Name)
+		if !config.GetBool("debugging.enable") {
+			err = deleteJob(context.Background(), item.Namespace, item.Name)
+		} else {
+			logrus.WithFields(logrus.Fields{
+				"namespace": item.Namespace,
+				"name":      item.Name,
+			}).Info("Skipping job deletion due to debugging mode enabled")
+		}
 
 	default:
 		logrus.Errorf("unknown resource type: %s", item.Type)

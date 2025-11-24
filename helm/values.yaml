@@ -60,8 +60,8 @@ configmap:
         data:
           name: "data"
           mount_path: "/data"
-          host_path: "/mnt/jfs/rcabench_dataset"
-          type: "Directory"
+          source_type: "pvc"
+          claim_name: "rcabench-juicefs-dataset"
         experiment_storage:
           name: "experiment-storage"
           mount_path: "/experiment_storage"
