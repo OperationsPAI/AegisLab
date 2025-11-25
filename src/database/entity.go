@@ -269,7 +269,7 @@ type Project struct {
 // Label table - Unified label management
 type Label struct {
 	ID          int                  `gorm:"primaryKey;autoIncrement"`                           // Unique identifier
-	Key         string               `gorm:"column:label_key;not null;type:varchar(20);index"`   // Label key
+	Key         string               `gorm:"column:label_key;not null;type:varchar(64);index"`   // Label key
 	Value       string               `gorm:"column:label_value;not null;type:varchar(64);index"` // Label value
 	Category    consts.LabelCategory `gorm:"index"`                                              // Label category (dataset, fault_injection, algorithm, container, etc.)
 	Description string               `gorm:"type:text"`                                          // Label description
@@ -485,7 +485,7 @@ type DetectorResult struct {
 	NormalP95           *float64 `gorm:"type:float"`        // P95 during normal period
 	AbnormalP99         *float64 `gorm:"type:float"`        // P99 during abnormal period
 	NormalP99           *float64 `gorm:"type:float"`        // P99 during normal period
-	ExecutionID         int      `gorm:"uniqueIndex"`       // Associated Execution ID
+	ExecutionID         int      `gorm:"index"`             // Associated Execution ID
 
 	// Foreign key association
 	Execution *Execution `gorm:"foreignKey:ExecutionID;constraint:OnDelete:CASCADE"`
@@ -553,9 +553,8 @@ type DatasetVersionInjection struct {
 
 // TaskLabel Many-to-many relationship table between Task and Label
 type TaskLabel struct {
-	TaskID    string    `gorm:"primaryKey;size:64"` // Task ID
-	LabelID   int       `gorm:"primaryKey"`         // Label ID
-	CreatedAt time.Time `gorm:"autoCreateTime"`     // Creation time
+	TaskID  string `gorm:"primaryKey;size:64"` // Task ID
+	LabelID int    `gorm:"primaryKey"`         // Label ID
 
 	// Foreign key association
 	Task  *Task  `gorm:"foreignKey:TaskID"`
