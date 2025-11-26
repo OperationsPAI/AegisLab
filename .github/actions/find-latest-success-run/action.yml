@@ -1,0 +1,94 @@
+name: "Find Latest Successful Workflow Run"
+description: "Find the latest successful workflow run ID for a given workflow file."
+inputs:
+  github-token:
+    description: "GitHub token with permissions to access workflow runs."
+    required: true
+  workflow-file:
+    description: "The workflow file name to search for (e.g., build-make-command.yaml)."
+    required: true
+outputs:
+  run-id:
+    description: "The ID of the latest successful workflow run, or empty if none found."
+    value: ${{ steps.find_run.outputs.run_id }}
+runs:
+  using: "composite"
+  steps:
+    - name: Set up necessary tools
+      shell: bash
+      run: |
+        # Ensure gh CLI and jq are available (they are usually available in GitHub hosted runners)
+        gh version
+        jq --version
+    - name: Find Latest Successful Run ID
+      id: find_run
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        BLUE='\033[0;34m'
+        YELLOW='\033[0;33m'
+        GREEN='\033[0;32m'
+        GRAY='\033[0;90m'
+        RED='\033[0;31m'
+        RESET='\033[0m'
+
+        workflow_file=${{ inputs.workflow-file }}
+        # 1. List all workflows to find the correct filename
+        all_workflows=$(gh api \
+          --header 'Accept: application/vnd.github.v3+json' \
+          /repos/${{ github.repository }}/actions/workflows \
+          --jq '.workflows[] | .path' 2>&1)
+
+        if [[ $? -ne 0 ]]; then
+          printf "${YELLOW}⚠️ Could not list workflows. Error: ${all_workflows}${RESET}\n"
+          printf "${YELLOW}⚠️ Will build command tool locally as fallback${RESET}\n"
+          echo "run_id=''" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        printf "${GRAY}Available workflows:${RESET}\n${all_workflows}\n"
+
+        # 2. Check for in_progress runs
+        in_progress_resp=$(gh api \
+          --header 'Accept: application/vnd.github.v3+json' \
+          "/repos/${{ github.repository }}/actions/workflows/${workflow_file}/runs?status=in_progress" \
+          2>&1 || true)
+        in_progress=$(echo "${in_progress_resp}" | jq '.workflow_runs | length' 2>/dev/null || echo "0")
+
+        # 3. Check for queued runs
+        queued_resp=$(gh api \
+          --header 'Accept: application/vnd.github.v3+json' \
+          "/repos/${{ github.repository }}/actions/workflows/${workflow_file}/runs?status=queued" \
+          2>&1 || true)
+        queued=$(echo "$queued_resp" | jq '.workflow_runs | length' 2>/dev/null || echo "0")
+
+        ACTIVE_RUNS=$((in_progress + queued))
+
+        if [[ "$ACTIVE_RUNS" -gt 0 ]]; then
+            echo "::warning Found $ACTIVE_RUNS active builds. Using latest successful artifact."
+        fi
+
+        # 4. Get successful run
+        success_resp=$(gh api \
+          --header 'Accept: application/vnd.github.v3+json' \
+          "/repos/${{ github.repository }}/actions/workflows/${workflow_file}/runs?status=success" \
+          2>&1 || true)
+
+        if echo "${success_resp}" | grep -q '"message": "Not Found"'; then
+           printf "${YELLOW}⚠️ Workflow file path incorrect or repo not found (404).${RESET}\n"
+           printf "${GRAY}Response: ${success_resp}${RESET}\n"
+           echo "run_id=" >> $GITHUB_OUTPUT
+           exit 0
+        fi
+
+        run_id=$(echo "${success_resp}" | jq -r '.workflow_runs[0].id // empty' 2>/dev/null)
+        printf "${GREEN}run_id raw value: '${run_id}'${RESET}\n"
+
+        if [[ -z "${run_id}" || "${run_id}" == "null" ]]; then
+            echo "::warning title=Artifact Search::API returned 0 successful runs. Will build locally."
+            echo "run_id=" >> $GITHUB_OUTPUT
+        else
+            echo "::notice title=Artifact Search::Found latest successful build run ID: ${run_id}"
+            echo "run_id=${run_id}" >> $GITHUB_OUTPUT
+        fi

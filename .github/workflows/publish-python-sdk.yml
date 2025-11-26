@@ -9,7 +9,7 @@ on:
       tag_version:
         description: "Version tag to simulate (e.g. v1.2.3)"
         required: true
-        default: "v0.0.0-manual-test"
+        default: "v0.0.0"
 
 permissions:
   actions: read
@@ -34,6 +34,7 @@ jobs:
       RESET: "\033[0m"
 
       SDK_DIR: "sdk/python"
+      SDK_OPENAPI_DIR: "sdk/python/src/rcabench/openapi"
 
     steps:
       - name: Checkout repository
@@ -41,7 +42,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: prepare-command-tool
+      - name: Prepare Command Tool
+        id: prepare_command_tool
         uses: ./.github/actions/prepare-command-tool
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -78,20 +80,29 @@ jobs:
 
           printf "${BLUE}📥 Installing Go dependencies...${RESET}\n"
           go install github.com/swaggo/swag/cmd/swag@latest
-          cd src && go mod tidy
+          (
+            cd src && go mod tidy
+          )
           printf "${GREEN}✅ Dependencies installed${RESET}\n"
 
       - name: Generate Python SDK
         run: |
           printf "${BLUE}🔧 Starting SDK generation via Makefile...${RESET}\n"
-          make generate-python-sdk SDK_VERSION=${{ steps.extract_version.outputs.version }}
+
+          env_mode="prod"
+          if [ "${{ steps.prepare_command_tool.outputs.binary_exists }}" != "true" ]; then
+            printf "${YELLOW}⚠️ Command tool binary not found, using local build fallback${RESET}\n"
+            env_mode="dev"
+          fi
+
+          make generate-python-sdk ENV_MODE=${env_mode} SDK_VERSION=${{ steps.extract_version.outputs.version }}
 
       - name: Verify SDK Generation
         run: |
           printf "${BLUE}🔍 Verifying generated SDK...${RESET}\n"
 
-          if [ ! -d "${SDK_DIR}" ]; then
-            printf "${RED}❌ SDK directory not found${RESET}\n"
+          if [ ! -d "${SDK_OPENAPI_DIR}" ]; then
+            printf "${RED}❌ SDK openapi directory not found${RESET}\n"
             exit 1
           fi
 
@@ -102,7 +113,7 @@ jobs:
 
           printf "${GREEN}✅ SDK structure verified${RESET}\n"
           printf "${GRAY}SDK contents:${RESET}\n"
-          ls -lh ${SDK_DIR}
+          ls -lh ${SDK_OPENAPI_DIR}
 
       - name: Build and publish
         run: |

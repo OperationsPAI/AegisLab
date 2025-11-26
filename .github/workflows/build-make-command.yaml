@@ -32,7 +32,7 @@ jobs:
 
             - name: Build Make command tool
               run: |
-                  make build-make-command
+                  make build-make-command ENV_MODE=prod
 
             - name: Upload Make command tool artifact
               uses: actions/upload-artifact@v4
