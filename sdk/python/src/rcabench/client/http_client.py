@@ -1,6 +1,5 @@
 import os
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from pydantic import StrictStr
 
@@ -8,9 +7,6 @@ from rcabench.openapi.api.authentication_api import AuthenticationApi
 from rcabench.openapi.api_client import ApiClient
 from rcabench.openapi.configuration import Configuration
 from rcabench.openapi.models.login_req import LoginReq
-
-if TYPE_CHECKING:
-    from rcabench.client.http_client import RCABenchClient
 
 
 @dataclass(kw_only=True)
@@ -20,13 +16,7 @@ class SessionData:
 
 
 class RCABenchClient:
-    """
-    Usage:
-    with RCABenchClient() as api_client:
-        container_api = rcabench.openapi.ContainersApi(api_client)
-        containers = container_api.api_v2_containers_get()
-        print(f"Containers: {containers.data}")
-    """
+    """ """
 
     _instances: dict[tuple[str, str, str], "RCABenchClient"] = {}
     _sessions: dict[tuple[str, str, str], SessionData] = {}

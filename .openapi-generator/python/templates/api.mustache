@@ -28,8 +28,16 @@ class {{classname}}:
 {{#operation}}
 
 {{#vendorExtensions.x-is-streaming-api}}
+    @staticmethod
+    def bytes_to_generator(data: bytes, chunk_size: int | None = None):
+        if not chunk_size:
+            yield data
+        else:
+            for i in range(0, len(data), chunk_size):
+                yield data[i : i + chunk_size]
+
     @validate_call
-    def {{operationId}}_sse{{>partial_api_args}}:
+    def {{operationId}}{{>partial_api_args}}:
         """{{summary}} (SSE Stream using sseclient)
 
         Returns an SSEClient iterator that yields Server-Sent Events.
@@ -62,12 +70,34 @@ class {{classname}}:
             _host_index=_host_index
         )
 
+        _response_types_map: dict[str, str | None] = {
+            {{#responses}}
+            {{^isWildcard}}
+            '{{code}}': {{#dataType}}"{{.}}"{{/dataType}}{{^dataType}}None{{/dataType}},
+            {{/isWildcard}}
+            {{/responses}}
+        }
+        for code in _response_types_map:
+            if code.startswith('2'):
+                _response_types_map.pop(code)
+        
+
         response_data = self.api_client.call_api(
             *_param,
             _request_timeout=_request_timeout
         )
 
-        return sseclient.SSEClient(response_data.response) # type: ignore
+        assert response_data is not None and isinstance(response_data, RESTResponse), (
+            "Response data must be of type RESTResponse"
+        )
+        if response_data.status >= 400:
+            self.api_client.response_deserialize(
+                response_data=response_data,
+                response_types_map=_response_types_map,
+            )
+            return None
+
+        return sseclient.SSEClient(self.bytes_to_generator(response_data.read(), chunk_size=1024))
 
 {{/vendorExtensions.x-is-streaming-api}}
 {{^vendorExtensions.x-is-streaming-api}}

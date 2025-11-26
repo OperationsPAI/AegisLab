@@ -37,10 +37,6 @@ HUSKY_DIR := .husky
 SRC_DIR := src
 
 SDK_VERSION ?=0.0.0
-PYTHON_SDK_DIR := sdk/python
-
-# Chaos Types Configuration
-CHAOS_TYPES := dnschaos httpchaos jvmchaos networkchaos podchaos stresschaos timechaos
 
 # Color definitions
 BLUE    := \033[1;34m
@@ -122,7 +118,7 @@ check-prerequisites: ## 🔍 Check development environment dependencies
 	@printf "$(GRAY)Checking kubectx...$(RESET)\n"
 	@command -v kubectx >/dev/null 2>&1 || { printf "$(RED)❌ kubectx not installed$(RESET)\n"; exit 1; }
 	@printf "$(GREEN)✅ kubectx installed$(RESET)\n"
-	@printf "$(GREEN)🎉 All dependency checks passed!$(RESET)\n"
+	@printf "$(GREEN)🎉 All dependency checks passed!$(RESET)\n\n"
 
 install-chaos-mesh: ## 📦 Install Chaos Mesh
 	@printf "$(BLUE)📦 Installing Chaos Mesh...$(RESET)\n"
@@ -152,6 +148,14 @@ install-secrets: ## 🔑 Install all Secrets from Helm templates
 
 setup-dev-env: check-prerequisites ## 🛠️  Setup development environment
 	@printf "$(BLUE)🛠️  Setting up development environment...$(RESET)\n"
+	@printf "$(GRAY)Checking for 'uv' installation...$(RESET)\n"
+	@if command -v uv &> /dev/null; then \
+		printf "$(GREEN)✅ 'uv' found in PATH$(RESET)\n"; \
+	else \
+		printf "$(YELLOW)Warning: 'uv' not found. Installing via script...$(RESET)\n"; \
+		curl -LsSf https://astral.sh/uv/install.sh | sh; \
+		printf "$(GREEN)✅ 'uv' installed!$(RESET)\n"; \
+	fi
 	@printf "$(GRAY)Installing Git hooks...$(RESET)\n"
 	@printf "$(GRAY)Checking Husky Installation Status...$(RESET)\n"
 	@if test -d $(HUSKY_DIR); then \
@@ -311,7 +315,7 @@ info: ## ℹ️  Display project information
 	@printf "  $(CYAN)Namespace:$(RESET) $(NS)\n"
 	@printf "  $(CYAN)Port:$(RESET) $(PORT)\n"
 	@printf "  $(CYAN)Controller Directory:$(RESET) $(SRC_DIR)\n"
-	@printf "  $(CYAN)Python SDK Directory:$(RESET) $(PYTHON_SDK_DIR)\n"
+	@printf "  $(CYAN)Python SDK Directory:$(RESET) sdk/python\n"
 	@printf "\n"
 	@printf "$(YELLOW)Chaos Types:$(RESET)\n"
 	@for type in $(CHAOS_TYPES); do \

@@ -29,6 +29,7 @@ GENERATOR_IMAGE = "docker.io/opspai/openapi-generator-cli:1.0.0"
 class PostProcesser:
     """Process Swagger JSON to add SSE extensions and update model names."""
 
+    SSE_FLAG = "x-request-type"
     SSE_MIME_TYPE = "text/event-stream"
     SSE_EXTENSION = "x-is-streaming-api"
 
@@ -85,19 +86,30 @@ class PostProcesser:
             )
             return
 
-        paths = self.data["paths"]
+        paths: dict[str, Any] = self.data["paths"]
 
         count = 0
         for path, operations in paths.items():
             for method, spec in operations.items():
-                produces = spec.get("produces")
-                if produces and self.SSE_MIME_TYPE in produces:
-                    if self.SSE_EXTENSION not in spec:
+                if self.SSE_FLAG in spec:
+                    item: dict[str, str] = spec[self.SSE_FLAG]
+                    if "stream" in item and item["stream"] == "true":
                         spec[self.SSE_EXTENSION] = True
                         count += 1
                         console.print(
-                            f"[gray]   -> Added extension to {method.upper()} {path}[/gray]"
+                            f"[gray]    -> Added extension to {method.upper()} {path}[/gray]"
                         )
+
+                        for code, response in spec["responses"].items():
+                            if code == 200:
+                                continue
+                            if "content" not in response:
+                                continue
+
+                            if self.SSE_MIME_TYPE in response["content"]:
+                                response["content"]["application/json"] = response[
+                                    "content"
+                                ].pop(self.SSE_MIME_TYPE)
 
         console.print(
             f"[bold green]✅ SSE extensions added successfully ({count} apis added)[/bold green]"
@@ -509,7 +521,7 @@ def generate_python_sdk(version: str) -> None:
     console.print(f"[bold green]✅ Updated packageVersion to {version}[/bold green]")
 
     # 2. Generate SDK using OpenAPI Generator
-    console.print("[bold blue]🐍 Generating Python SDK...[/bold blue]")
+    console.print("[bold blue]Step 1: Generating Python SDK...[/bold blue]")
 
     if PYTHON_SDK_GEN_DIR.exists():
         shutil.rmtree(PYTHON_SDK_GEN_DIR)
@@ -568,23 +580,20 @@ def generate_python_sdk(version: str) -> None:
     console.print(
         "[bold green]✅ Original python SDK generated successfully![/bold green]"
     )
+    console.print()
 
     # 3. Post-process generated SDK (if any post-processing is needed)
-    console.print("[bold blue]📦 Post-processing generated SDK...[/bold blue]")
+    console.print("[bold blue]Step 2: Post-processing generated SDK...[/bold blue]")
 
     dst = PYTHON_SDK_DIR / "src" / "rcabench" / "openapi"
-    python_sdk_docs = PYTHON_SDK_DIR / "docs"
     python_sdk_pyproject = PYTHON_SDK_DIR / "pyproject.toml"
 
     if dst.exists():
         shutil.rmtree(dst)
-    if python_sdk_docs.exists():
-        shutil.rmtree(python_sdk_docs)
     if python_sdk_pyproject.exists():
         python_sdk_pyproject.unlink(missing_ok=True)
 
     shutil.copytree(PYTHON_SDK_GEN_DIR / "openapi", dst)
-    shutil.copytree(PYTHON_SDK_GEN_DIR / "docs", python_sdk_docs)
     shutil.copyfile(PYTHON_SDK_GEN_DIR / "pyproject.toml", python_sdk_pyproject)
 
     old_str = "openapi"
@@ -594,15 +603,6 @@ def generate_python_sdk(version: str) -> None:
         if filepath.is_file():
             content = filepath.read_text(encoding="utf-8")
             new_content = content.replace(old_str, new_str)
-
-            if new_content != content:
-                filepath.write_text(new_content, encoding="utf-8")
-
-    for filepath in python_sdk_docs.rglob("*.md"):
-        if filepath.is_file():
-            content = filepath.read_text(encoding="utf-8")
-            new_content = content.replace(old_str, new_str)
-
             if new_content != content:
                 filepath.write_text(new_content, encoding="utf-8")
 
@@ -613,13 +613,15 @@ def generate_python_sdk(version: str) -> None:
     console.print(
         "[bold green]✅ Python SDK post procession completed successfully![/bold green]"
     )
+    console.print()
 
     # 4. Format the generated SDK code
-    console.print("[bold blue]📦 Formatting post-processed Python SDK...[/bold blue]")
+    console.print(
+        "[bold blue]Step 3: Formatting post-processed Python SDK...[/bold blue]"
+    )
     formatter = PythonFormatter()
     files_to_format = PythonFormatter.get_sdk_files(PYTHON_SDK_DIR.as_posix())
-    formatter.run(files_to_format)
-
-    console.print(
-        "[bold green]✅ Python SDK generation completed successfully![/bold green]"
-    )
+    if formatter.run(files_to_format):
+        console.print(
+            "[bold green]✅ Python SDK generation completed successfully![/bold green]"
+        )

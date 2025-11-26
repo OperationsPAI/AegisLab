@@ -164,7 +164,7 @@ class PythonFormatter:
         table = Table(
             title="📊 Issue Statistics by Type",
             show_header=True,
-            header_style="bold cyan",
+            header_style="cyan",
         )
         table.add_column("Error Code", style="cyan", width=12)
         table.add_column("Count", justify="right", style="red", width=8)
@@ -174,7 +174,7 @@ class PythonFormatter:
 
         console.print(table)
 
-        console.print("\n[bold cyan]Details:[/bold cyan]")
+        console.print("\n[cyan]Details:[/cyan]")
         codes = [code for code in stats.keys()]
         code_pattern = r"(" + "|".join(re.escape(code) for code in codes) + r")"
         split_results = re.split(code_pattern, output.strip())
@@ -221,15 +221,15 @@ class PythonFormatter:
         if not files:
             return
 
-        console.print("[bold cyan]Step 1/3: Running ruff check --fix...[/bold cyan]")
+        console.print("[gray]    Step 1/3: Running ruff check --fix...[/gray]")
         self._run_ruff_check(category, files=files)
 
-        console.print("[bold cyan]Step 2/3: Checking remaining errors...[/bold cyan]")
+        console.print("[gray]    Step 2/3: Checking remaining errors...[/gray]")
         output = self._check_remaining_errors(category, files=files)
         if output:
             self._display_error_statistics(output)
 
-        console.print("[bold cyan]Step 3/3: Running ruff format...[/bold cyan]")
+        console.print("[gray]    Step 3/3: Running ruff format...[/gray]")
         self._run_ruff_format(category, files=files)
 
     def run(self, files_to_format: list[str]) -> int:

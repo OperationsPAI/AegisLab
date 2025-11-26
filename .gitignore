@@ -170,7 +170,6 @@ output
 scripts/gen/dataset/output/
 __debug*
 .deploy
-sdk/python-gen
 temp
 ts
 logs/
@@ -178,8 +177,11 @@ containers
 .codebuddy
 .github/instructions/tmp/
 .husky/
-src/docs/openapi3/.openapi-generator
-src/docs/openapi3/.openapi-generator-ignore
+sdk/python-gen/
+sdk/python/src/rcabench/openapi/
+src/docs/converted/
+src/docs/openapi2/
+src/docs/openapi3/
 
 # Command
 scripts/command/*.build/
