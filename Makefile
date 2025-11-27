@@ -263,7 +263,7 @@ format-staged-go: ## 🔍 Lint and format staged Go files with golangci-lint
 # =============================================================================
 
 swag-init: ## 📝 Initialize Swagger documentation
-	$(MAKE) run-command ARGS="swagger swagger-init"
+	$(MAKE) run-command ARGS="swagger swagger-init -v $(SDK_VERSION)"
 
 generate-python-sdk: swag-init ## ⚙️ Generate Python SDK from Swagger documentation
 	$(MAKE) run-command ARGS="swagger generate-sdk -l python -v $(SDK_VERSION)"

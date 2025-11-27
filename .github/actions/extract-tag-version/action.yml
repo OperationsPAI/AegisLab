@@ -1,0 +1,80 @@
+name: "Extract Tag Version"
+description: "A GitHub Action to extract and validate version from git tags using SemVer."
+inputs:
+  semver-regex:
+    description: "The SemVer regex pattern to validate the tag against."
+    required: false
+    default: "^v([0-9]+)\\.([0-9]+)\\.([0-9]+)(?:-([0-9A-Za-z.-]+))?(?:\\+([0-9A-Za-z.-]+))?$"
+  main-branch:
+    description: "The main branch to check ancestor against."
+    required: false
+    default: "main"
+outputs:
+  version:
+    description: "The extracted version without the 'v' prefix."
+    value: ${{ steps.check_ancestor.outputs.version }}
+runs:
+  using: "composite"
+  steps:
+    - name: Extract version from tag
+      id: extract_version
+      shell: bash
+      run: |
+        if [[ "${{ github.event_name }}" == "push" ]]; then
+          RAW_VERSION="${{ github.ref }}"
+        else
+          RAW_VERSION="${{ github.event.inputs.tag_version }}"
+        fi
+
+        VERSION=${RAW_VERSION#refs/tags/}
+        if echo "${VERSION}" | grep -Eq "${{inputs.semver-regex}}"; then
+          echo "::notice::Version format is valid: ${VERSION}"
+          VERSION_WITHOUT_V=${VERSION#v}
+          echo "version=${VERSION_WITHOUT_V}" >> $GITHUB_OUTPUT
+        else
+          echo "::error title=Version Validation Failed::Version format: ${VERSION}"
+          echo "Expected strict SemVer format (e.g., v1.0.0, v1.0.0-alpha.1)."
+          exit 1
+        fi
+
+    - name: Resolve Tagged Commit SHA
+      id: resolve_sha
+      shell: bash
+      run: |
+        VERSION="${{ steps.extract_version.outputs.version }}"
+        TAG_NAME="v${VERSION}"
+
+        COMMIT_SHA=$(git rev-parse "${TAG_NAME}" 2>/dev/null || echo "")
+
+        if [ -z "${COMMIT_SHA}" ]; then
+          echo "::error title=Find or Resolve Tag Failed::❌ Could not find tag ${TAG_NAME} locally."
+          echo "Please ensure the tag is present in the local repository."
+          echo "commit_sha=" >> $GITHUB_OUTPUT
+          exit 1
+        else
+          echo "::notice::Resolved Commit SHA: ${COMMIT_SHA}"
+          echo "commit_sha=${COMMIT_SHA}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Check if Tag Commit is Ancestor
+      id: check_ancestor
+      if: steps.resolve_sha.outputs.commit_sha != ''
+      shell: bash
+      run: |
+        TAG_COMMIT_SHA="${{ steps.resolve_sha.outputs.commit_sha }}"
+        MAIN_BRANCH="${{ inputs.main-branch }}"
+
+        git fetch origin "${MAIN_BRANCH}"
+
+        LATEST_MAIN_SHA=$(git rev-parse "origin/${MAIN_BRANCH}" 2>/dev/null || echo "")
+        echo "Latest ${MAIN_BRANCH} SHA: ${LATEST_MAIN_SHA}"
+
+        if git merge-base --is-ancestor "${TAG_COMMIT_SHA}" "origin/${MAIN_BRANCH}"; then
+          echo "::notice::Commit ${TAG_COMMIT_SHA} is an ancestor of '${MAIN_BRANCH}'."
+          echo "version=${{ steps.extract_version.outputs.version }}" >> $GITHUB_OUTPUT
+        else
+          echo "::error title=Dependency Error::❌ REJECTED: Tag dependency violation!"
+          echo "The commit pointed to by ${{ github.ref }} ($TAG_COMMIT_SHA) is not yet in the '${MAIN_BRANCH}' branch head."
+          echo "Please ensure '${MAIN_BRANCH}' is pushed and merged before pushing the tag."
+          exit 1
+        fi

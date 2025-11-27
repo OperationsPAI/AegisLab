@@ -3,13 +3,13 @@ name: Publish Python SDK
 on:
   push:
     tags:
-      - v*
+      - "v[0-9]+.[0-9]+.[0-9]+*"
   workflow_dispatch:
     inputs:
       tag_version:
-        description: "Version tag to simulate (e.g. v1.2.3)"
+        description: "Version tag to simulate (e.g., v1.0.0)"
         required: true
-        default: "v0.0.0-manual-test"
+        default: "v0.0.0"
 
 permissions:
   actions: read
@@ -33,7 +33,10 @@ jobs:
       GRAY: "\033[1;90m"
       RESET: "\033[0m"
 
+      SEMVER_REGEX: "v[0-9]+.[0-9]+.[0-9]+*"
+
       SDK_DIR: "sdk/python"
+      SDK_OPENAPI_DIR: "sdk/python/src/rcabench/openapi"
 
     steps:
       - name: Checkout repository
@@ -41,24 +44,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: prepare-command-tool
-        uses: ./.github/actions/prepare-command-tool
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract version from tag
+      - name: Extract Tag Version
+        uses: ./.github/actions/extract-tag-version
         id: extract_version
-        run: |
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            RAW_VERSION="${{ github.ref }}"
-          else
-            RAW_VERSION="${{ github.event.inputs.tag_version }}"
-          fi
-
-          VERSION=${RAW_VERSION#refs/tags/v}
-          VERSION=${VERSION#v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          printf "${GREEN}📦 Extracted Version: $VERSION${RESET}\n"
+        with:
+          semver-regex: ${{ env.SEMVER_REGEX }}
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -78,20 +68,23 @@ jobs:
 
           printf "${BLUE}📥 Installing Go dependencies...${RESET}\n"
           go install github.com/swaggo/swag/cmd/swag@latest
-          cd src && go mod tidy
+          (
+            cd src && go mod tidy
+          )
           printf "${GREEN}✅ Dependencies installed${RESET}\n"
 
       - name: Generate Python SDK
         run: |
           printf "${BLUE}🔧 Starting SDK generation via Makefile...${RESET}\n"
+
           make generate-python-sdk SDK_VERSION=${{ steps.extract_version.outputs.version }}
 
       - name: Verify SDK Generation
         run: |
           printf "${BLUE}🔍 Verifying generated SDK...${RESET}\n"
 
-          if [ ! -d "${SDK_DIR}" ]; then
-            printf "${RED}❌ SDK directory not found${RESET}\n"
+          if [ ! -d "${SDK_OPENAPI_DIR}" ]; then
+            printf "${RED}❌ SDK openapi directory not found${RESET}\n"
             exit 1
           fi
 
@@ -102,7 +95,7 @@ jobs:
 
           printf "${GREEN}✅ SDK structure verified${RESET}\n"
           printf "${GRAY}SDK contents:${RESET}\n"
-          ls -lh ${SDK_DIR}
+          ls -lh ${SDK_OPENAPI_DIR}
 
       - name: Build and publish
         run: |

@@ -322,11 +322,13 @@ def redis_migrate(
 
 
 @swagger_app.command()
-def swagger_init():
+def swagger_init(
+    version: str = typer.Option(..., "--version", "-v", help="API version."),
+):
     """Initializes Swagger documentation setup."""
     from src.swagger import init
 
-    init()
+    init(version)
 
 
 @swagger_app.command()

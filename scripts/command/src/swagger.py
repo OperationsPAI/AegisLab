@@ -76,6 +76,11 @@ class PostProcesser:
 
         self.data = data
 
+    def update_version(self, version: str) -> None:
+        """Update the version field in the Swagger JSON."""
+        if "info" in self.data:
+            self.data["info"]["version"] = version
+
     def add_sse_extensions(self) -> None:
         """
         Add SSE extensions to Swagger JSON for APIs that produce 'text/event-stream'.
@@ -428,7 +433,7 @@ class PostProcesser:
         return new_data
 
 
-def init():
+def init(version: str) -> None:
     """
     Initialize Swagger documentation by generating OpenAPI 2.0 and converting to OpenAPI 3.0.
     """
@@ -489,6 +494,7 @@ def init():
     shutil.copyfile(post_input_file, dst=sdk_file)
 
     processor = PostProcesser(post_input_file)
+    processor.update_version(version)
     processor.add_sse_extensions()
     processor.update_model_name()
 
@@ -508,14 +514,15 @@ def generate_python_sdk(version: str) -> None:
 
     Post-process the generated SDK to adjust package structure and formatting.
     """
-    # 1. Update config.json with the specified version
+    # 1. Update generator config with the specified version
     sdk_config = PYTHON_GENERATOR_CONFIG_DIR / "config.json"
     with open(sdk_config) as f:
         config_data = json.load(f)
 
     config_data["packageVersion"] = version
 
-    with open(sdk_config, "w") as f:
+    tmp_sdk_config = PYTHON_GENERATOR_CONFIG_DIR / "config_tmp.json"
+    with open(tmp_sdk_config, "w") as f:
         json.dump(config_data, f, indent=2)
 
     console.print(f"[bold green]✅ Updated packageVersion to {version}[/bold green]")
@@ -535,7 +542,7 @@ def generate_python_sdk(version: str) -> None:
 
     container_input_path = volume_path / relative_swagger / "converted" / "sdk.json"
     container_output_path = volume_path / relative_sdk_gen
-    container_config_path = volume_path / relative_generator_config / "config.json"
+    container_config_path = volume_path / relative_generator_config / "config_tmp.json"
     container_templates_path = volume_path / relative_generator_config / "templates"
 
     # Get current user UID and GID to avoid permission issues
@@ -570,12 +577,14 @@ def generate_python_sdk(version: str) -> None:
             user=f"{current_user}:{current_group}",
             remove=True,
         )
-
     except Exception as e:
         console.print(
             f"[bold_red]❌ Error during python sdk generation: {e}[/bold_red]"
         )
         sys.exit(1)
+    finally:
+        if tmp_sdk_config.exists():
+            tmp_sdk_config.unlink(missing_ok=True)
 
     console.print(
         "[bold green]✅ Original python SDK generated successfully![/bold green]"
