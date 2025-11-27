@@ -178,6 +178,30 @@ func ListDatasets(req *dto.ListDatasetReq) (*dto.ListResp[dto.DatasetResp], erro
 	return &resp, nil
 }
 
+// SearchDataset searches datasets based on the provided search request
+func SearchDatasets(req *dto.SearchDatasetReq) (*dto.ListResp[dto.DatasetDetailResp], error) {
+	if req == nil {
+		return nil, fmt.Errorf("search dataset request is nil")
+	}
+
+	searchReq := req.ConvertToSearchReq()
+	dataests, total, err := repository.ExecuteSearch(database.DB, searchReq, database.Dataset{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to search datasets: %w", err)
+	}
+
+	datasetResps := make([]dto.DatasetDetailResp, 0, len(dataests))
+	for _, dataset := range dataests {
+		datasetResps = append(datasetResps, *dto.NewDatasetDetailResp(&dataset))
+	}
+
+	resp := dto.ListResp[dto.DatasetDetailResp]{
+		Items:      datasetResps,
+		Pagination: req.ConvertToPaginationInfo(total),
+	}
+	return &resp, nil
+}
+
 func UpdateDataset(req *dto.UpdateDatasetReq, datasetID int) (*dto.DatasetResp, error) {
 	var updatedDataset *database.Dataset
 
@@ -294,7 +318,14 @@ func CreateDatasetVersion(req *dto.CreateDatasetVersionReq, datasetID, userID in
 			return fmt.Errorf("failed to create dataset version: %w", err)
 		}
 
-		createdVersion = &versions[0]
+		version := versions[0]
+		if len(req.Datapacks) > 0 {
+			if err := linkDatapacksToDatasetVersion(tx, version.ID, req.Datapacks); err != nil {
+				return fmt.Errorf("failed to link datapacks to dataset version: %w", err)
+			}
+		}
+
+		createdVersion = &version
 		return nil
 	})
 	if err != nil {
@@ -334,12 +365,6 @@ func GetDatasetVersionDetail(datasetID, versionID int) (*dto.DatasetVersionDetai
 		return nil, fmt.Errorf("failed to get dataset version: %w", err)
 	}
 
-	injections, err := repository.ListInjectionsByDatasetVersionID(database.DB, version.ID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list injections for dataset version: %w", err)
-	}
-
-	version.Injections = injections
 	return dto.NewDatasetVersionDetailResp(version), nil
 }
 
@@ -454,32 +479,47 @@ func ManageDatasetVersionInjections(req *dto.ManageDatasetVersionInjectionReq, v
 			return fmt.Errorf("failed to get dataset version: %w", err)
 		}
 
-		if len(req.AddInjections) > 0 {
-			datasetVersionInjections := make([]database.DatasetVersionInjection, 0, len(req.AddInjections))
-			for _, injectionID := range req.AddInjections {
-				datasetVersionInjections = append(datasetVersionInjections, database.DatasetVersionInjection{
-					DatasetVersionID: version.ID,
-					InjectionID:      injectionID,
-				})
-			}
-
-			if err := repository.AddDatasetVersionInjections(tx, datasetVersionInjections); err != nil {
-				return fmt.Errorf("failed to add dataset version injections: %w", err)
+		if len(req.AddDatapacks) > 0 {
+			if err := linkDatapacksToDatasetVersion(tx, versionID, req.AddDatapacks); err != nil {
+				return fmt.Errorf("failed to link datapacks to dataset version: %w", err)
 			}
 		}
 
-		if len(req.RemoveInjections) > 0 {
-			if err := repository.ClearDatasetVersionInjections(tx, []int{version.ID}, req.RemoveInjections); err != nil {
-				return fmt.Errorf("failed to remove dataset version injections: %w", err)
+		if len(req.RemoveDatapacks) > 0 {
+			injectionIDMap, err := repository.ListInjectionIDsByNames(tx, req.AddDatapacks)
+			if err != nil {
+				return fmt.Errorf("failed to list injections by names: %w", err)
+			}
+
+			if len(injectionIDMap) != len(req.RemoveDatapacks) {
+				return fmt.Errorf("some datapacks to remove were not found")
+			}
+
+			injectionIDs := make([]int, 0, len(req.RemoveDatapacks))
+			for _, datapack := range req.RemoveDatapacks {
+				injectionID, exists := injectionIDMap[datapack]
+				if !exists {
+					return fmt.Errorf("injection not found: %s", datapack)
+				}
+				injectionIDs = append(injectionIDs, injectionID)
+			}
+
+			if err := repository.ClearDatasetVersionInjections(tx, []int{version.ID}, injectionIDs); err != nil {
+				return fmt.Errorf("failed to remove dataset version datapacks: %w", err)
 			}
 		}
 
-		injections, err := repository.ListInjectionsByDatasetVersionID(tx, version.ID)
+		datapacks, err := repository.ListInjectionsByDatasetVersionID(tx, version.ID)
 		if err != nil {
-			return fmt.Errorf("failed to list injections for dataset version: %w", err)
+			return fmt.Errorf("failed to list datapacks for dataset version: %w", err)
 		}
 
-		version.Injections = injections
+		version.Datapacks = datapacks
+		version.FileCount = version.FileCount + len(req.AddDatapacks) - len(req.RemoveDatapacks)
+		if err := repository.UpdateDatasetVersion(tx, version); err != nil {
+			return fmt.Errorf("failed to update dataset version file count: %w", err)
+		}
+
 		managedVersion = version
 		return nil
 	})
@@ -522,6 +562,32 @@ func fetchDatasetsMapByIDBatch(db *gorm.DB, datasetIDs []int) (map[int]database.
 	return datasetMap, nil
 }
 
+// linkDatapacksToDatasetVersion links the specified datapacks to the given dataset version
+func linkDatapacksToDatasetVersion(db *gorm.DB, versionID int, datapacks []string) error {
+	injectionIDMap, err := repository.ListInjectionIDsByNames(db, datapacks)
+	if err != nil {
+		return fmt.Errorf("failed to list injections by names: %w", err)
+	}
+
+	datasetVersionInjections := make([]database.DatasetVersionInjection, 0, len(datapacks))
+	for _, datapack := range datapacks {
+		injectionID, exists := injectionIDMap[datapack]
+		if !exists {
+			return fmt.Errorf("injection not found: %s", datapack)
+		}
+		datasetVersionInjections = append(datasetVersionInjections, database.DatasetVersionInjection{
+			DatasetVersionID: versionID,
+			InjectionID:      injectionID,
+		})
+	}
+
+	if err := repository.AddDatasetVersionInjections(db, datasetVersionInjections); err != nil {
+		return fmt.Errorf("failed to add dataset version injections: %w", err)
+	}
+
+	return nil
+}
+
 // packageDatasetToZip packages the specified datapacks into a zip archive, applying exclusion rules
 func packageDatasetToZip(zipWriter *zip.Writer, datapackNames []string, excludeRules []utils.ExculdeRule) error {
 	for _, name := range datapackNames {
@@ -557,7 +623,7 @@ func packageDatasetToZip(zipWriter *zip.Writer, datapackNames []string, excludeR
 			return utils.AddToZip(zipWriter, fileInfo, path, zipPath)
 		})
 		if err != nil {
-			return fmt.Errorf("Failed to package" + err.Error())
+			return fmt.Errorf("failed to package: %w", err)
 		}
 	}
 

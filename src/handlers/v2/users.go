@@ -5,10 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"aegis/database"
 	"aegis/dto"
 	"aegis/handlers"
-	"aegis/repository"
 	producer "aegis/service/prodcuer"
 
 	"github.com/gin-gonic/gin"
@@ -191,57 +189,6 @@ func UpdateUser(c *gin.Context) {
 	}
 
 	dto.JSONResponse[any](c, http.StatusAccepted, "User updated successfully", resp)
-}
-
-// SearchUsers handles complex user search
-//
-//	@Summary		Search users
-//	@Description	Search users with complex filtering and sorting
-//	@Tags			Users
-//	@ID				search_users
-//	@Accept			json
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			request	body		dto.UserSearchReq									true	"User search request"
-//	@Success		200		{object}	dto.GenericResponse[dto.SearchResp[dto.UserResp]]	"Users retrieved successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]							"Invalid request format or search parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
-//	@Router			/api/v2/users/search [post]
-func SearchUsers(c *gin.Context) {
-	var req dto.UserSearchReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
-		return
-	}
-
-	searchReq := req.ConvertToSearchReq()
-	if err := searchReq.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid search parameters: "+err.Error())
-		return
-	}
-
-	searchResult, err := repository.ExecuteSearch(database.DB, searchReq, database.User{})
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to search users: "+err.Error())
-		return
-	}
-
-	var userResps []dto.UserResp
-	for _, user := range searchResult.Items {
-		userResps = append(userResps, *dto.NewUserResp(&user))
-	}
-
-	// Build final response
-	response := dto.SearchResp[dto.UserResp]{
-		Items:      userResps,
-		Pagination: searchResult.Pagination,
-		Filters:    searchResult.Filters,
-		Sort:       searchResult.Sort,
-	}
-
-	dto.SuccessResponse(c, response)
 }
 
 // ===================== User-Role API =====================

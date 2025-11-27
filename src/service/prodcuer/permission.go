@@ -133,27 +133,6 @@ func ListPermissions(req *dto.ListPermissionReq) (*dto.ListResp[dto.PermissionRe
 	return &resp, nil
 }
 
-// SearchPermission performs a search for permissions based on the provided search request
-func SearchPermissions(req *dto.SearchReq) (*dto.SearchResp[dto.PermissionResp], error) {
-	searchResult, err := repository.ExecuteSearch(database.DB, req, database.Permission{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to search permissions: %w", err)
-	}
-
-	var permissionResponses []dto.PermissionResp
-	for _, permission := range searchResult.Items {
-		permissionResponses = append(permissionResponses, *dto.NewPermissionResp(&permission))
-	}
-
-	resp := dto.SearchResp[dto.PermissionResp]{
-		Items:      permissionResponses,
-		Pagination: searchResult.Pagination,
-		Filters:    searchResult.Filters,
-		Sort:       searchResult.Sort,
-	}
-	return &resp, nil
-}
-
 // UpdatePermission updates an existing permission
 func UpdatePermission(req *dto.UpdatePermissionReq, permissionID int) (*dto.PermissionResp, error) {
 	var updatedPermission *database.Permission

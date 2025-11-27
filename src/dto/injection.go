@@ -14,6 +14,15 @@ import (
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 )
 
+var validInjectionSortFields = map[string]struct{}{
+	"id":         {},
+	"name":       {},
+	"start_time": {},
+	"end_time":   {},
+	"created_at": {},
+	"updated_at": {},
+}
+
 type InjectionItem struct {
 	ID          int       `json:"id"`
 	Name        string    `json:"name"`
@@ -144,11 +153,11 @@ type InjectionFieldMappingResp struct {
 }
 
 type ListInjectionFilters struct {
-	FaultType      *chaos.ChaosType
-	Benchmark      string
-	State          *consts.DatapackState
-	Status         *consts.StatusType
-	LabelConditons []map[string]string
+	FaultType       *chaos.ChaosType
+	Benchmark       string
+	State           *consts.DatapackState
+	Status          *consts.StatusType
+	LabelConditions []map[string]string
 }
 
 // ListInjectionReq represents the request to list injections with various filters
@@ -185,66 +194,175 @@ func (req *ListInjectionReq) Validate() error {
 }
 
 func (req *ListInjectionReq) ToFilterOptions() *ListInjectionFilters {
-	labelCondtions := make([]map[string]string, 0, len(req.Labels))
+	labelConditions := make([]map[string]string, 0, len(req.Labels))
 	for _, item := range req.Labels {
 		parts := strings.SplitN(item, ":", 2)
-		labelCondtions = append(labelCondtions, map[string]string{
+		labelConditions = append(labelConditions, map[string]string{
 			"key":   parts[0],
 			"value": parts[1],
 		})
 	}
 
 	return &ListInjectionFilters{
-		FaultType:      req.Type,
-		Benchmark:      req.Benchmark,
-		State:          req.State,
-		Status:         req.Status,
-		LabelConditons: labelCondtions,
+		FaultType:       req.Type,
+		Benchmark:       req.Benchmark,
+		State:           req.State,
+		Status:          req.Status,
+		LabelConditions: labelConditions,
 	}
+}
+
+type SearchInjectionFilters struct {
+	TaskIDs         []string
+	NamePattern     string
+	FaultTypes      []chaos.ChaosType
+	Benchmarks      []string
+	States          []consts.DatapackState
+	Statuses        []consts.StatusType
+	LabelConditions []map[string]string
+	StartTimeGte    *time.Time
+	StartTimeLte    *time.Time
+	EndTimeGte      *time.Time
+	EndTimeLte      *time.Time
+	CreatedAtGte    *time.Time
+	CreatedAtLte    *time.Time
 }
 
 // InjectionV2SearchReq represents the request to search injections with various filters
 type SearchInjectionReq struct {
-	Page          *int        `json:"page" binding:"omitempty"`
-	Size          *int        `json:"size" binding:"omitempty"`
-	TaskIDs       []string    `json:"task_ids" binding:"omitempty"`
-	FaultTypes    []int       `json:"fault_types" binding:"omitempty"`
-	Statuses      []int       `json:"statuses" binding:"omitempty"`
-	Benchmarks    []string    `json:"benchmarks" binding:"omitempty"`
-	Search        string      `json:"search" binding:"omitempty"`
-	Tags          []string    `json:"tags" binding:"omitempty"`   // Tag values to filter by
-	Labels        []LabelItem `json:"labels" binding:"omitempty"` // Custom labels to filter by
-	StartTimeGte  *time.Time  `json:"start_time_gte" binding:"omitempty"`
-	StartTimeLte  *time.Time  `json:"start_time_lte" binding:"omitempty"`
-	EndTimeGte    *time.Time  `json:"end_time_gte" binding:"omitempty"`
-	EndTimeLte    *time.Time  `json:"end_time_lte" binding:"omitempty"`
-	CreatedAtGte  *time.Time  `json:"created_at_gte" binding:"omitempty"`
-	CreatedAtLte  *time.Time  `json:"created_at_lte" binding:"omitempty"`
-	SortBy        string      `json:"sort_by" binding:"omitempty,oneof=id task_id fault_type status benchmark injection_name created_at updated_at"`
-	SortOrder     string      `json:"sort_order" binding:"omitempty,oneof=asc desc"`
-	IncludeLabels bool        `json:"include_labels" binding:"omitempty"` // Whether to include labels in the response
-	IncludeTask   bool        `json:"include_task" binding:"omitempty"`   // Whether to include task details in the response
+	AdvancedSearchReq
+	TaskIDs       []string               `json:"task_ids" binding:"omitempty"`
+	Names         []string               `json:"names" binding:"omitempty"`
+	NamePattern   string                 `json:"name_pattern" binding:"omitempty"`
+	FaultTypes    []chaos.ChaosType      `json:"fault_types" binding:"omitempty"`
+	States        []consts.DatapackState `json:"states" binding:"omitempty"`
+	Benchmarks    []string               `json:"benchmarks" binding:"omitempty"`
+	Labels        []LabelItem            `json:"labels" binding:"omitempty"` // Custom labels to filter by
+	StartTime     *DateRange             `json:"start_time" binding:"omitempty"`
+	EndTime       *DateRange             `json:"end_time" binding:"omitempty"`
+	IncludeLabels bool                   `json:"include_labels" binding:"omitempty"` // Whether to include labels in the response
+	IncludeTask   bool                   `json:"include_task" binding:"omitempty"`   // Whether to include task details in the response
 }
 
 func (req *SearchInjectionReq) Validate() error {
-	if req.Page != nil && *req.Page < 1 {
-		return fmt.Errorf("page must be greater than 0")
-	}
-	if req.Size != nil && *req.Size < 1 {
-		return fmt.Errorf("size must be greater than 0")
+	if err := req.AdvancedSearchReq.Validate(); err != nil {
+		return err
 	}
 
-	if req.StartTimeGte != nil && req.StartTimeLte != nil && req.StartTimeGte.After(*req.StartTimeLte) {
-		return fmt.Errorf("start_time_gte must be before start_time_lte")
+	for i, id := range req.TaskIDs {
+		if strings.TrimSpace(id) == "" {
+			return fmt.Errorf("empty task ID at index %d", i)
+		}
+		if !utils.IsValidUUID(id) {
+			return fmt.Errorf("invalid task ID format at index %d: %s", i, id)
+		}
 	}
-	if req.EndTimeGte != nil && req.EndTimeLte != nil && req.EndTimeGte.After(*req.EndTimeLte) {
-		return fmt.Errorf("end_time_gte must be before end_time_lte")
+
+	if len(req.Names) > 0 && req.NamePattern != "" {
+		return fmt.Errorf("can only specify one of names or name_pattern for filtering")
 	}
-	if req.CreatedAtGte != nil && req.CreatedAtLte != nil && req.CreatedAtGte.After(*req.CreatedAtLte) {
-		return fmt.Errorf("created_at_gte must be before created_at_lte")
+
+	for i, name := range req.Names {
+		if strings.TrimSpace(name) == "" {
+			return fmt.Errorf("empty injection name at index %d", i)
+		}
+	}
+
+	for i, benchmark := range req.Benchmarks {
+		if err := validateBenchmarkName(benchmark); err != nil {
+			return fmt.Errorf("invalid benchmark name at index %d: %w", i, err)
+		}
+	}
+
+	if err := validateLabelItemsFiled(req.Labels); err != nil {
+		return err
+	}
+
+	if req.StartTime != nil {
+		if err := req.StartTime.Validate(); err != nil {
+			return fmt.Errorf("invalid start_time: %w", err)
+		}
+	}
+	if req.EndTime != nil {
+		if err := req.EndTime.Validate(); err != nil {
+			return fmt.Errorf("invalid end_time: %w", err)
+		}
+	}
+
+	for i, sortField := range req.Sort {
+		if _, valid := validInjectionSortFields[sortField.Field]; !valid {
+			return fmt.Errorf("invalid sort_by field at index %d: %s", i, sortField.Field)
+		}
 	}
 
 	return nil
+}
+
+func (req *SearchInjectionReq) ConvertToSearchReq() *SearchReq {
+	sr := req.AdvancedSearchReq.ConvertAdvancedToSearch()
+
+	if len(req.TaskIDs) > 0 {
+		sr.AddFilter("task_id", OpIn, req.TaskIDs)
+	}
+	if len(req.Names) > 0 {
+		sr.AddFilter("name", OpIn, req.Names)
+	}
+	if req.NamePattern != "" {
+		sr.AddFilter("name", OpLike, req.NamePattern)
+	}
+	if len(req.Benchmarks) > 0 {
+		sr.AddFilter("benchmark", OpIn, req.Benchmarks)
+	}
+
+	if len(req.FaultTypes) > 0 {
+		faultTypeValues := make([]string, len(req.FaultTypes))
+		for i, ft := range req.FaultTypes {
+			faultTypeValues[i] = fmt.Sprintf("%d", ft)
+		}
+		sr.AddFilter("fault_type", OpIn, faultTypeValues)
+	}
+	if len(req.States) > 0 {
+		stateValues := make([]string, len(req.States))
+		for i, st := range req.States {
+			stateValues[i] = fmt.Sprintf("%d", st)
+		}
+		sr.AddFilter("state", OpIn, stateValues)
+	}
+	if len(req.Statuses) > 0 {
+		statusValues := make([]string, len(req.Statuses))
+		for i, st := range req.Statuses {
+			statusValues[i] = fmt.Sprintf("%d", st)
+		}
+		sr.AddFilter("status", OpIn, statusValues)
+	}
+
+	if req.StartTime != nil {
+		if req.StartTime.From != nil && req.StartTime.To != nil {
+			sr.AddFilter("created_at", OpDateBetween, []any{req.StartTime.From, req.StartTime.To})
+		} else if req.StartTime.From != nil {
+			sr.AddFilter("created_at", OpDateAfter, req.StartTime.From)
+		} else if req.StartTime.To != nil {
+			sr.AddFilter("created_at", OpDateBefore, req.StartTime.To)
+		}
+	}
+	if req.EndTime != nil {
+		if req.EndTime.From != nil && req.EndTime.To != nil {
+			sr.AddFilter("created_at", OpDateBetween, []any{req.EndTime.From, req.EndTime.To})
+		} else if req.EndTime.From != nil {
+			sr.AddFilter("created_at", OpDateAfter, req.EndTime.From)
+		} else if req.EndTime.To != nil {
+			sr.AddFilter("created_at", OpDateBefore, req.EndTime.To)
+		}
+	}
+
+	if req.IncludeLabels {
+		sr.AddInclude("Task.Labels")
+	}
+	if req.IncludeTask {
+		sr.AddInclude("Task")
+	}
+
+	return sr
 }
 
 type SubmitInjectionReq struct {
@@ -475,6 +593,7 @@ func (req *ListInjectionWithIssuesReq) Validate() error {
 type InjectionNoIssuesResp struct {
 	ID           int         `json:"datapack_id"`
 	Name         string      `json:"datapack_name"`
+	FaultType    string      `json:"fault_type"`
 	EngineConfig *chaos.Node `json:"engine_config"`
 }
 
@@ -488,6 +607,7 @@ func NewInjectionNoIssuesResp(entity database.FaultInjectionNoIssues) (*Injectio
 	return &InjectionNoIssuesResp{
 		ID:           entity.ID,
 		Name:         entity.Name,
+		FaultType:    chaos.ChaosTypeMap[entity.FaultType],
 		EngineConfig: engineConfig,
 	}, nil
 }
@@ -496,6 +616,7 @@ func NewInjectionNoIssuesResp(entity database.FaultInjectionNoIssues) (*Injectio
 type InjectionWithIssuesResp struct {
 	ID                  int        `json:"datapack_id"`
 	Name                string     `json:"datapack_name"`
+	FaultType           string     `json:"fault_type"`
 	EngineConfig        chaos.Node `json:"engine_config"`
 	Issues              string     `json:"issues"`
 	AbnormalAvgDuration float64    `json:"abnormal_avg_duration"`
@@ -515,6 +636,7 @@ func NewInjectionWithIssuesResp(entity database.FaultInjectionWithIssues) (*Inje
 	return &InjectionWithIssuesResp{
 		ID:                  entity.ID,
 		Name:                entity.Name,
+		FaultType:           chaos.ChaosTypeMap[entity.FaultType],
 		EngineConfig:        engineConfig,
 		Issues:              entity.Issues,
 		AbnormalAvgDuration: entity.AbnormalAvgDuration,

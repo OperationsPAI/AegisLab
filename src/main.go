@@ -8,7 +8,7 @@
 //	@license.name	Apache 2.0
 //	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
 
-//	@host	localhost:8082
+//	@host	http://localhost:8082
 
 //	@securityDefinitions.apikey	BearerAuth
 //	@in							header

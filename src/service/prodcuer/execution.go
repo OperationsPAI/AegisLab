@@ -93,16 +93,16 @@ func BatchDeleteExecutionsByLabels(labelItems []dto.LabelItem) error {
 		return nil
 	}
 
-	labelCondtions := make([]map[string]string, 0, len(labelItems))
+	labelConditions := make([]map[string]string, 0, len(labelItems))
 	for _, item := range labelItems {
-		labelCondtions = append(labelCondtions, map[string]string{
+		labelConditions = append(labelConditions, map[string]string{
 			"key":   item.Key,
 			"value": item.Value,
 		})
 	}
 
 	return database.DB.Transaction(func(tx *gorm.DB) error {
-		executionIDs, err := repository.ListExecutionIDsByLabels(database.DB, labelCondtions)
+		executionIDs, err := repository.ListExecutionIDsByLabels(database.DB, labelConditions)
 		if err != nil {
 			return fmt.Errorf("failed to list execution ids by labels: %w", err)
 		}
@@ -161,16 +161,16 @@ func GetExecutionDetail(executionID int) (*dto.ExecutionDetailResp, error) {
 func ListExecutions(req *dto.ListExecutionReq) (*dto.ListResp[dto.ExecutionResp], error) {
 	limit, offset := req.ToGormParams()
 
-	labelCondtions := make([]map[string]string, 0, len(req.Labels))
+	labelConditions := make([]map[string]string, 0, len(req.Labels))
 	for _, item := range req.Labels {
 		parts := strings.SplitN(item, ":", 2)
-		labelCondtions = append(labelCondtions, map[string]string{
+		labelConditions = append(labelConditions, map[string]string{
 			"key":   parts[0],
 			"value": parts[1],
 		})
 	}
 
-	executions, total, err := repository.ListExecutions(database.DB, limit, offset, req.State, req.Status, labelCondtions)
+	executions, total, err := repository.ListExecutions(database.DB, limit, offset, req.State, req.Status, labelConditions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list executions: %w", err)
 	}

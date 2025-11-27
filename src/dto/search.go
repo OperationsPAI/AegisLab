@@ -50,23 +50,29 @@ const (
 
 // SearchFilter represents a single filter condition
 type SearchFilter struct {
-	Field    string         `json:"field" binding:"required"`                    // Field name
-	Operator FilterOperator `json:"operator" binding:"required"`                 // Operator
-	Value    string         `json:"value"`                                       // Value (can be string, number, boolean, etc.)
-	Values   []string       `json:"values,omitempty" swaggertype:"array,string"` // Multiple values (for IN operations etc.)
+	Field    string         `json:"field"`            // Field name
+	Operator FilterOperator `json:"operator"`         // Operator
+	Value    string         `json:"value"`            // Value (can be string, number, boolean, etc.)
+	Values   []string       `json:"values,omitempty"` // Multiple values (for IN operations etc.)
 }
 
 // SortOption represents a sort option
 type SortOption struct {
-	Field     string        `json:"field" binding:"required"`     // Sort field
-	Direction SortDirection `json:"direction" binding:"required"` // Sort direction
+	Field     string        `json:"field" binding:"omitempty"`     // Sort field
+	Direction SortDirection `json:"direction" binding:"omitempty"` // Sort direction
+}
+
+func (so *SortOption) Validate() error {
+	if so.Direction != SortASC && so.Direction != SortDESC {
+		return fmt.Errorf("invalid sort direction: %s", so.Direction)
+	}
+	return nil
 }
 
 // SearchReq represents a complex search request
 type SearchReq struct {
 	// Pagination
-	Page int `json:"page" form:"page" binding:"min=1"`
-	Size int `json:"size" form:"size" binding:"min=1,max=1000"`
+	PaginationReq
 
 	// Filters
 	Filters []SearchFilter `json:"filters,omitempty"`
@@ -82,101 +88,12 @@ type SearchReq struct {
 	ExcludeFields []string `json:"exclude_fields,omitempty"`
 
 	// Include related entities
-	Include []string `json:"include,omitempty" form:"include"`
-}
-
-// DateRange represents a date range filter
-type DateRange struct {
-	From *time.Time `json:"from,omitempty"`
-	To   *time.Time `json:"to,omitempty"`
-}
-
-// NumberRange represents a number range filter
-type NumberRange struct {
-	Min *float64 `json:"min,omitempty"`
-	Max *float64 `json:"max,omitempty"`
-}
-
-// AdvancedSearchReq extends SearchRequest with common filter shortcuts
-type AdvancedSearchReq struct {
-	SearchReq
-
-	// Common filters shortcuts
-	CreatedAt *DateRange `json:"created_at,omitempty"`
-	UpdatedAt *DateRange `json:"updated_at,omitempty"`
-	Status    []int      `json:"status,omitempty"`
-	IsActive  *bool      `json:"is_active,omitempty"`
-	UserID    *int       `json:"user_id,omitempty"`
-	ProjectID *int       `json:"project_id,omitempty"`
-}
-
-// ListResp represents the response for list operations
-type ListResp[T any] struct {
-	Items      []T             `json:"items"`
-	Pagination *PaginationInfo `json:"pagination"`
-}
-
-// SearchResp represents the response for search operations
-type SearchResp[T any] struct {
-	Items      []T             `json:"items"`
-	Pagination *PaginationInfo `json:"pagination"`
-	Filters    []SearchFilter  `json:"applied_filters,omitempty"`
-	Sort       []SortOption    `json:"applied_sort,omitempty"`
-}
-
-func (sr *SearchReq) Validate() error {
-	// Set defaults
-	if sr.Page == 0 {
-		sr.Page = 1
-	}
-	if sr.Size == 0 {
-		sr.Size = 20
-	}
-
-	// Validate filters
-	for _, filter := range sr.Filters {
-		if filter.Field == "" {
-			return fmt.Errorf("filter field cannot be empty")
-		}
-		if filter.Operator == "" {
-			return fmt.Errorf("filter operator cannot be empty")
-		}
-
-		// Validate operator-specific requirements
-		switch filter.Operator {
-		case OpIn, OpNotIn:
-			if len(filter.Values) == 0 {
-				return fmt.Errorf("'%s' operator requires values array", filter.Operator)
-			}
-		case OpIsNull, OpIsNotNull:
-			// These operators don't need values
-		case OpDateBetween:
-			if len(filter.Values) != 2 {
-				return fmt.Errorf("'%s' operator requires exactly 2 values", filter.Operator)
-			}
-		default:
-			if filter.Value == "" {
-				return fmt.Errorf("'%s' operator requires a value", filter.Operator)
-			}
-		}
-	}
-
-	// Validate sort options
-	for _, sort := range sr.Sort {
-		if sort.Field == "" {
-			return fmt.Errorf("sort field cannot be empty")
-		}
-		if sort.Direction != SortASC && sort.Direction != SortDESC {
-			return fmt.Errorf("sort direction must be 'asc' or 'desc'")
-		}
-	}
-
-	return nil
+	Includes []string `json:"includes,omitempty" form:"include"`
 }
 
 // GetOffset calculates the offset for pagination
 func (sr *SearchReq) GetOffset() int {
-	return (sr.Page - 1) * sr.Size
+	return (sr.Page - 1) * int(sr.Size)
 }
 
 // HasFilter checks if a specific filter exists
@@ -200,7 +117,7 @@ func (sr *SearchReq) GetFilter(field string) *SearchFilter {
 }
 
 // AddFilter adds a new filter
-func (sr *SearchReq) AddFilter(field string, operator FilterOperator, value interface{}) {
+func (sr *SearchReq) AddFilter(field string, operator FilterOperator, value any) {
 	// Convert value to string
 	valueStr := fmt.Sprintf("%v", value)
 
@@ -211,6 +128,11 @@ func (sr *SearchReq) AddFilter(field string, operator FilterOperator, value inte
 	})
 }
 
+// AddInclude adds a new include option
+func (sr *SearchReq) AddInclude(field string) {
+	sr.Includes = append(sr.Includes, field)
+}
+
 // AddSort adds a new sort option
 func (sr *SearchReq) AddSort(field string, direction SortDirection) {
 	sr.Sort = append(sr.Sort, SortOption{
@@ -219,34 +141,84 @@ func (sr *SearchReq) AddSort(field string, direction SortDirection) {
 	})
 }
 
+// DateRange represents a date range filter
+type DateRange struct {
+	From *time.Time `json:"from,omitempty" binding:"omitempty"`
+	To   *time.Time `json:"to,omitempty" binding:"omitempty"`
+}
+
+func (dr *DateRange) Validate() error {
+	if dr.From != nil && dr.To != nil && dr.From.After(*dr.To) {
+		return fmt.Errorf("invalid date range: 'from' date is after 'to' date")
+	}
+	return nil
+}
+
+// NumberRange represents a number range filter
+type NumberRange struct {
+	Min *float64 `json:"min,omitempty"`
+	Max *float64 `json:"max,omitempty"`
+}
+
+func (nr *NumberRange) Validate() error {
+	if nr.Min != nil && nr.Max != nil && *nr.Min > *nr.Max {
+		return fmt.Errorf("invalid number range: min is greater than max")
+	}
+	return nil
+}
+
+// AdvancedSearchReq extends SearchRequest with common filter shortcuts
+type AdvancedSearchReq struct {
+	PaginationReq
+	Sort []SortOption `json:"sort" binding:"omitempty"`
+
+	Statuses  []consts.StatusType `json:"status" binding:"omitempty"`
+	CreatedAt *DateRange          `json:"created_at" binding:"omitempty"`
+	UpdatedAt *DateRange          `json:"updated_at" binding:"omitempty"`
+}
+
+func (req *AdvancedSearchReq) Validate() error {
+	if err := req.PaginationReq.Validate(); err != nil {
+		return err
+	}
+
+	if len(req.Sort) > 0 {
+		for i, so := range req.Sort {
+			if err := so.Validate(); err != nil {
+				return fmt.Errorf("invalid sort option at index %d: %w", i, err)
+			}
+		}
+	}
+
+	if len(req.Statuses) > 0 {
+		for i, status := range req.Statuses {
+			if _, exists := consts.ValidStatuses[status]; !exists {
+				return fmt.Errorf("invalid status value at index %d: %d", i, status)
+			}
+		}
+	}
+
+	if req.CreatedAt != nil {
+		if err := req.CreatedAt.Validate(); err != nil {
+			return fmt.Errorf("invalid created_at range: %w", err)
+		}
+	}
+	if req.UpdatedAt != nil {
+		if err := req.UpdatedAt.Validate(); err != nil {
+			return fmt.Errorf("invalid updated_at range: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // ConvertAdvancedToSearch converts AdvancedSearchRequest to SearchRequest with additional filters
-func (asr *AdvancedSearchReq) ConvertAdvancedToSearch() *SearchReq {
-	sr := &asr.SearchReq
+func (req *AdvancedSearchReq) ConvertAdvancedToSearch() *SearchReq {
+	sr := &SearchReq{}
 
-	// Convert common filters to SearchFilter format
-	if asr.CreatedAt != nil {
-		if asr.CreatedAt.From != nil && asr.CreatedAt.To != nil {
-			sr.AddFilter("created_at", OpDateBetween, []interface{}{asr.CreatedAt.From, asr.CreatedAt.To})
-		} else if asr.CreatedAt.From != nil {
-			sr.AddFilter("created_at", OpDateAfter, asr.CreatedAt.From)
-		} else if asr.CreatedAt.To != nil {
-			sr.AddFilter("created_at", OpDateBefore, asr.CreatedAt.To)
-		}
-	}
-
-	if asr.UpdatedAt != nil {
-		if asr.UpdatedAt.From != nil && asr.UpdatedAt.To != nil {
-			sr.AddFilter("updated_at", OpDateBetween, []interface{}{asr.UpdatedAt.From, asr.UpdatedAt.To})
-		} else if asr.UpdatedAt.From != nil {
-			sr.AddFilter("updated_at", OpDateAfter, asr.UpdatedAt.From)
-		} else if asr.UpdatedAt.To != nil {
-			sr.AddFilter("updated_at", OpDateBefore, asr.UpdatedAt.To)
-		}
-	}
-
-	if len(asr.Status) > 0 {
-		values := make([]string, len(asr.Status))
-		for i, v := range asr.Status {
+	if len(req.Statuses) > 0 {
+		values := make([]string, len(req.Statuses))
+		for i, v := range req.Statuses {
 			values[i] = fmt.Sprintf("%v", v)
 		}
 		sr.Filters = append(sr.Filters, SearchFilter{
@@ -254,58 +226,31 @@ func (asr *AdvancedSearchReq) ConvertAdvancedToSearch() *SearchReq {
 			Operator: OpIn,
 			Values:   values,
 		})
+	} else {
+		sr.Filters = append(sr.Filters, SearchFilter{
+			Field:    "status",
+			Operator: OpNotEqual,
+			Value:    fmt.Sprintf("%v", consts.CommonDeleted),
+		})
 	}
 
-	if asr.IsActive != nil {
-		sr.AddFilter("is_active", OpEqual, *asr.IsActive)
+	if req.CreatedAt != nil {
+		if req.CreatedAt.From != nil && req.CreatedAt.To != nil {
+			sr.AddFilter("created_at", OpDateBetween, []any{req.CreatedAt.From, req.CreatedAt.To})
+		} else if req.CreatedAt.From != nil {
+			sr.AddFilter("created_at", OpDateAfter, req.CreatedAt.From)
+		} else if req.CreatedAt.To != nil {
+			sr.AddFilter("created_at", OpDateBefore, req.CreatedAt.To)
+		}
 	}
-
-	if asr.UserID != nil {
-		sr.AddFilter("user_id", OpEqual, *asr.UserID)
-	}
-
-	if asr.ProjectID != nil {
-		sr.AddFilter("project_id", OpEqual, *asr.ProjectID)
-	}
-
-	return sr
-}
-
-// TaskSearchRequest represents task search request
-type TaskSearchRequest struct {
-	AdvancedSearchReq
-
-	// Task-specific filters
-	TaskID    *string `json:"task_id,omitempty"`
-	TraceID   *string `json:"trace_id,omitempty"`
-	GroupID   *string `json:"group_id,omitempty"`
-	TaskType  *string `json:"task_type,omitempty"`
-	Status    *string `json:"status,omitempty"`
-	Immediate *bool   `json:"immediate,omitempty"`
-}
-
-// ConvertToSearchRequest converts TaskSearchRequest to SearchRequest
-func (tsr *TaskSearchRequest) ConvertToSearchRequest() *SearchReq {
-	sr := tsr.AdvancedSearchReq.ConvertAdvancedToSearch()
-
-	// Add task-specific filters
-	if tsr.TaskID != nil {
-		sr.AddFilter("id", OpEqual, *tsr.TaskID)
-	}
-	if tsr.TraceID != nil {
-		sr.AddFilter("trace_id", OpEqual, *tsr.TraceID)
-	}
-	if tsr.GroupID != nil {
-		sr.AddFilter("group_id", OpEqual, *tsr.GroupID)
-	}
-	if tsr.TaskType != nil {
-		sr.AddFilter("type", OpEqual, *tsr.TaskType)
-	}
-	if tsr.Status != nil {
-		sr.AddFilter("status", OpEqual, *tsr.Status)
-	}
-	if tsr.Immediate != nil {
-		sr.AddFilter("immediate", OpEqual, *tsr.Immediate)
+	if req.UpdatedAt != nil {
+		if req.UpdatedAt.From != nil && req.UpdatedAt.To != nil {
+			sr.AddFilter("updated_at", OpDateBetween, []any{req.UpdatedAt.From, req.UpdatedAt.To})
+		} else if req.UpdatedAt.From != nil {
+			sr.AddFilter("updated_at", OpDateAfter, req.UpdatedAt.From)
+		} else if req.UpdatedAt.To != nil {
+			sr.AddFilter("updated_at", OpDateBefore, req.UpdatedAt.To)
+		}
 	}
 
 	return sr
@@ -323,21 +268,21 @@ type AlgorithmSearchReq struct {
 }
 
 // ConvertToSearchRequest converts AlgorithmSearchRequest to SearchRequest
-func (asr *AlgorithmSearchReq) ConvertToSearchRequest() *SearchReq {
-	sr := asr.AdvancedSearchReq.ConvertAdvancedToSearch()
+func (req *AlgorithmSearchReq) ConvertToSearchRequest() *SearchReq {
+	sr := req.AdvancedSearchReq.ConvertAdvancedToSearch()
 
 	// Add algorithm-specific filters
-	if asr.Name != nil {
-		sr.AddFilter("name", OpLike, *asr.Name)
+	if req.Name != nil {
+		sr.AddFilter("name", OpLike, *req.Name)
 	}
-	if asr.Image != nil {
-		sr.AddFilter("image", OpLike, *asr.Image)
+	if req.Image != nil {
+		sr.AddFilter("image", OpLike, *req.Image)
 	}
-	if asr.Tag != nil {
-		sr.AddFilter("tag", OpEqual, *asr.Tag)
+	if req.Tag != nil {
+		sr.AddFilter("tag", OpEqual, *req.Tag)
 	}
-	if asr.Type != nil {
-		sr.AddFilter("type", OpEqual, *asr.Type)
+	if req.Type != nil {
+		sr.AddFilter("type", OpEqual, *req.Type)
 	}
 
 	// Default to only active algorithms
@@ -346,4 +291,16 @@ func (asr *AlgorithmSearchReq) ConvertToSearchRequest() *SearchReq {
 	}
 
 	return sr
+}
+
+// ListResp represents the response for list operations
+type ListResp[T any] struct {
+	Items      []T             `json:"items"`
+	Pagination *PaginationInfo `json:"pagination"`
+}
+
+// SearchResp represents the response for search operations
+type SearchResp[T any] struct {
+	Items      []T             `json:"items"`
+	Pagination *PaginationInfo `json:"pagination"`
 }

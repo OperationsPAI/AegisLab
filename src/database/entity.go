@@ -218,11 +218,10 @@ type DatasetVersion struct {
 	NameMinor int    `gorm:"index:idx_dataset_version_name_order"`
 	NamePatch int    `gorm:"index:idx_dataset_version_name_order"`
 
-	Checksum  string `gorm:"type:varchar(64)"`                // File checksum
-	FileCount int    `gorm:"default:0;check:file_count >= 0"` // File count with validation
-	Format    string `gorm:"default:'json';size:32"`          // Data format (json, csv, parquet, etc.)
-	DatasetID int    `gorm:"not null;index"`                  // Associated Dataset ID
-	UserID    int    `gorm:"not null;index"`                  // Creator User ID
+	Checksum  string `gorm:"type:varchar(64)"`                               // File checksum
+	FileCount int    `gorm:"not null;default:0;check:file_count >= 0;index"` // File count with validation
+	DatasetID int    `gorm:"not null;index"`                                 // Associated Dataset ID
+	UserID    int    `gorm:"not null;index"`                                 // Creator User ID
 
 	Status    consts.StatusType `gorm:"not null;default:1;index"` // Status: -1:deleted 0:disabled 1:enabled
 	CreatedAt time.Time         `gorm:"autoCreateTime;index"`     // Creation time
@@ -234,7 +233,7 @@ type DatasetVersion struct {
 	Dataset *Dataset `gorm:"foreignKey:DatasetID"`
 	User    *User    `gorm:"foreignKey:UserID"`
 
-	Injections []FaultInjection `gorm:"many2many:dataset_version_injections"`
+	Datapacks []FaultInjection `gorm:"many2many:dataset_version_injections"`
 }
 
 func (dv *DatasetVersion) BeforeCreate(tx *gorm.DB) error {
@@ -268,13 +267,13 @@ type Project struct {
 
 // Label table - Unified label management
 type Label struct {
-	ID          int                  `gorm:"primaryKey;autoIncrement"`                           // Unique identifier
-	Key         string               `gorm:"column:label_key;not null;type:varchar(64);index"`   // Label key
-	Value       string               `gorm:"column:label_value;not null;type:varchar(64);index"` // Label value
-	Category    consts.LabelCategory `gorm:"index"`                                              // Label category (dataset, fault_injection, algorithm, container, etc.)
-	Description string               `gorm:"type:text"`                                          // Label description
-	Color       string               `gorm:"type:varchar(7);default:'#1890ff'"`                  // Label color (hex format)
-	Usage       int                  `gorm:"not null;column:usage_count;default:0;index"`        // Usage count
+	ID          int                  `gorm:"primaryKey;autoIncrement"`                                        // Unique identifier
+	Key         string               `gorm:"column:label_key;not null;type:varchar(64);index"`                // Label key
+	Value       string               `gorm:"column:label_value;not null;type:varchar(64);index"`              // Label value
+	Category    consts.LabelCategory `gorm:"index"`                                                           // Label category (dataset, fault_injection, algorithm, container, etc.)
+	Description string               `gorm:"type:text"`                                                       // Label description
+	Color       string               `gorm:"type:varchar(7);default:'#1890ff'"`                               // Label color (hex format)
+	Usage       int                  `gorm:"not null;column:usage_count;default:0;check:usage_conut>0;index"` // Usage count
 
 	IsSystem  bool              `gorm:"not null;default:false;index"` // Whether system label
 	Status    consts.StatusType `gorm:"not null;default:1;index"`     // Status: -1:deleted 0:disabled 1:enabled

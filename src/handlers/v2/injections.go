@@ -215,12 +215,12 @@ func ListInjections(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			search	body		dto.SearchInjectionReq									true	"Search criteria"
-//	@Success		200		{object}	dto.GenericResponse[dto.SearchResp[dto.InjectionResp]]	"Search results"
-//	@Failure		400		{object}	dto.GenericResponse[any]								"Invalid request"
-//	@Failure		401		{object}	dto.GenericResponse[any]								"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]								"Permission denied"
-//	@Failure		500		{object}	dto.GenericResponse[any]								"Internal server error"
+//	@Param			search	body		dto.SearchInjectionReq											true	"Search criteria"
+//	@Success		200		{object}	dto.GenericResponse[dto.SearchResp[dto.InjectionDetailResp]]	"Search results"
+//	@Failure		400		{object}	dto.GenericResponse[any]										"Invalid request"
+//	@Failure		401		{object}	dto.GenericResponse[any]										"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]										"Permission denied"
+//	@Failure		500		{object}	dto.GenericResponse[any]										"Internal server error"
 //	@Router			/api/v2/injections/search [post]
 //	@x-api-type		{"sdk":"true"}
 func SearchInjections(c *gin.Context) {
@@ -248,7 +248,7 @@ func SearchInjections(c *gin.Context) {
 //	@Summary		Manage injection custom labels
 //	@Description	Add or remove custom labels (key-value pairs) for an injection
 //	@Tags			Injections
-//	@ID				update_injection_labels
+//	@ID				manage_injection_labels
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
@@ -414,7 +414,7 @@ func SubmitDatapackBuilding(c *gin.Context) {
 //	@Summary		Query Fault Injection Records Without Issues
 //	@Description	Query all fault injection records without issues based on time range, returning detailed records including configuration information
 //	@Tags			Injections
-//	@ID				list_successful_injections
+//	@ID				list_failed_injections
 //	@Produce		json
 //	@Param			labels				query		[]string											false	"Filter by labels (array of key:value strings, e.g., 'type:chaos')"
 //	@Param			lookback			query		string												false	"Time range query, supports custom relative time (1h/24h/7d) or custom, default not set"
@@ -452,7 +452,7 @@ func ListFaultInjectionNoIssues(c *gin.Context) {
 //	@Summary		Query Fault Injection Records With Issues
 //	@Description	Query all fault injection records with issues based on time range
 //	@Tags			Injections
-//	@ID				list_failed_injections
+//	@ID				list_successful_injections
 //	@Produce		json
 //	@Param			labels				query		[]string	false	"Filter by labels (array of key:value strings, e.g., 'type:chaos')"
 //	@Param			lookback			query		string		false	"Time range query, supports custom relative time (1h/24h/7d) or custom, default not set"

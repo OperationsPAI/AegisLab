@@ -157,8 +157,8 @@ func ListInjections(db *gorm.DB, limit, offset int, filterOptions *dto.ListInjec
 		query = query.Where("status = ?", *filterOptions.Status)
 	}
 
-	if len(filterOptions.LabelConditons) > 0 {
-		for _, condition := range filterOptions.LabelConditons {
+	if len(filterOptions.LabelConditions) > 0 {
+		for _, condition := range filterOptions.LabelConditions {
 			subQuery := db.Table("task_labels tl").
 				Select("fi.id").
 				Joins("JOIN fault_injections fi ON fi.task_id = tl.task_id").
@@ -180,116 +180,27 @@ func ListInjections(db *gorm.DB, limit, offset int, filterOptions *dto.ListInjec
 	return injections, total, nil
 }
 
-// SearchInjectionsV2 performs advanced search on injections
-func SearchInjectionsV2(db *gorm.DB, req *dto.SearchInjectionReq) ([]database.FaultInjection, int64, error) {
-	query := db.Model(&database.FaultInjection{}).
-		Preload("Benchmark.Container").
-		Preload("Pedestal.Container").
-		Preload("Task.Project")
-
-	// Apply filters
-	if len(req.TaskIDs) > 0 {
-		query = query.Where("task_id IN (?)", req.TaskIDs)
-	}
-	if len(req.FaultTypes) > 0 {
-		query = query.Where("fault_type IN (?)", req.FaultTypes)
-	}
-	if len(req.Statuses) > 0 {
-		query = query.Where("status IN (?)", req.Statuses)
-	}
-	if len(req.Benchmarks) > 0 {
-		query = query.Where("benchmark IN (?)", req.Benchmarks)
-	}
-	if req.Search != "" {
-		query = query.Where("name LIKE ?", "%"+req.Search+"%")
+// ListInjectionIDsByNames retrieves injection IDs by their names
+func ListInjectionIDsByNames(db *gorm.DB, names []string) (map[string]int, error) {
+	if len(names) == 0 {
+		return map[string]int{}, nil
 	}
 
-	// Apply tags filter
-	if len(req.Tags) > 0 {
-		// Join with task_labels and labels tables to filter by tags
-		for _, tag := range req.Tags {
-			subQuery := db.Table("task_labels tl").
-				Select("fi.id").
-				Joins("JOIN fault_injections fi ON fi.task_id = tl.task_id").
-				Joins("JOIN labels ON labels.id = tl.label_id").
-				Where("labels.label_key = ? AND labels.label_value = ?", consts.LabelKeyTag, tag)
-			query = query.Where("fault_injections.id IN (?)", subQuery)
-		}
+	var records []struct {
+		Name string `gorm:"column:name"`
+		ID   int    `gorm:"column:id"`
 	}
 
-	// Apply custom labels filter
-	if len(req.Labels) > 0 {
-		// Build subquery for custom labels
-		for _, labelItem := range req.Labels {
-			subQuery := db.Table("task_labels tl").
-				Select("fi.id").
-				Joins("JOIN fault_injections fi ON fi.task_id = tl.task_id").
-				Joins("JOIN labels l ON l.id = tl.label_id").
-				Where("l.label_key = ?", labelItem.Key)
-
-			if labelItem.Value != "" {
-				subQuery = subQuery.Where("l.label_value = ?", labelItem.Value)
-			}
-
-			query = query.Where("fault_injections.id IN (?)", subQuery)
-		}
+	if err := db.Model(&database.FaultInjection{}).Find(&records, "name IN (?)", names).Error; err != nil {
+		return nil, fmt.Errorf("failed to query injection IDs: %w", err)
 	}
 
-	// Time range filters
-	if req.StartTimeGte != nil {
-		query = query.Where("start_time >= ?", *req.StartTimeGte)
-	}
-	if req.StartTimeLte != nil {
-		query = query.Where("start_time <= ?", *req.StartTimeLte)
-	}
-	if req.EndTimeGte != nil {
-		query = query.Where("end_time >= ?", *req.EndTimeGte)
-	}
-	if req.EndTimeLte != nil {
-		query = query.Where("end_time <= ?", *req.EndTimeLte)
-	}
-	if req.CreatedAtGte != nil {
-		query = query.Where("created_at >= ?", *req.CreatedAtGte)
-	}
-	if req.CreatedAtLte != nil {
-		query = query.Where("created_at <= ?", *req.CreatedAtLte)
+	result := make(map[string]int, len(records))
+	for _, record := range records {
+		result[record.Name] = record.ID
 	}
 
-	// Count total
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to count injections: %w", err)
-	}
-
-	// Apply sorting
-	if req.SortBy != "" && req.SortOrder != "" {
-		query = query.Order(fmt.Sprintf("%s %s", req.SortBy, req.SortOrder))
-	} else {
-		query = query.Order("created_at DESC")
-	}
-
-	// Apply pagination
-	if req.Page != nil && req.Size != nil {
-		page := *req.Page
-		size := *req.Size
-		if page > 0 && size > 0 {
-			offset := (page - 1) * size
-			query = query.Offset(offset).Limit(size)
-		}
-	}
-
-	// Preload labels if requested
-	if req.IncludeLabels {
-		query = query.Preload("Labels")
-	}
-
-	// Execute query
-	var injections []database.FaultInjection
-	if err := query.Find(&injections).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to search injections: %w", err)
-	}
-
-	return injections, total, nil
+	return result, nil
 }
 
 // UpdateInjection updates fields of a fault injection record

@@ -63,7 +63,7 @@ func ListDatapackEvaluationResults(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			request	body		dto.BatchEvaluateDatapackReq						true	"Batch evaluation request containing multiple algorithm-dataset pairs"
+//	@Param			request	body		dto.BatchEvaluateDatasetReq							true	"Batch evaluation request containing multiple algorithm-dataset pairs"
 //	@Success		200		{object}	dto.GenericResponse[dto.BatchEvaluateDatasetResp]	"Batch algorithm dataset evaluation data retrieved successfully"
 //	@Failure		400		{object}	dto.GenericResponse[any]							"Invalid request format/parameters"
 //	@Failure		401		{object}	dto.GenericResponse[any]							"Authentication required"

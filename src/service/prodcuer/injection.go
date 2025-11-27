@@ -44,16 +44,16 @@ func BatchDeleteInjectionsByLabels(labelItems []dto.LabelItem) error {
 		return nil
 	}
 
-	labelCondtions := make([]map[string]string, 0, len(labelItems))
+	labelConditions := make([]map[string]string, 0, len(labelItems))
 	for _, item := range labelItems {
-		labelCondtions = append(labelCondtions, map[string]string{
+		labelConditions = append(labelConditions, map[string]string{
 			"key":   item.Key,
 			"value": item.Value,
 		})
 	}
 
 	return database.DB.Transaction(func(tx *gorm.DB) error {
-		injectionIDs, err := repository.ListInjectionIDsByLabels(database.DB, labelCondtions)
+		injectionIDs, err := repository.ListInjectionIDsByLabels(database.DB, labelConditions)
 		if err != nil {
 			return fmt.Errorf("failed to list injection ids by labels: %w", err)
 		}
@@ -181,62 +181,52 @@ func ListInjections(req *dto.ListInjectionReq) (*dto.ListResp[dto.InjectionResp]
 }
 
 // SearchInjections performs advanced search on fault injections
-func SearchInjections(req *dto.SearchInjectionReq) (*dto.SearchResp[dto.InjectionResp], error) {
-	injections, total, err := repository.SearchInjectionsV2(database.DB, req)
+func SearchInjections(req *dto.SearchInjectionReq) (*dto.SearchResp[dto.InjectionDetailResp], error) {
+	if req == nil {
+		return nil, fmt.Errorf("search injection request is nil")
+	}
+
+	searchReq := req.ConvertToSearchReq()
+
+	injections, total, err := repository.ExecuteSearch(database.DB, searchReq, database.FaultInjection{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to search injections: %w", err)
 	}
 
-	// If labels should be included, fetch them
-	var labelsMap map[int][]database.Label
-	if req.IncludeLabels {
-		injectionIDs := make([]int, 0, len(injections))
-		for _, injection := range injections {
-			injectionIDs = append(injectionIDs, injection.ID)
-		}
+	labelConditions := make([]map[string]string, 0, len(req.Labels))
+	for _, item := range req.Labels {
+		labelConditions = append(labelConditions, map[string]string{
+			"key":   item.Key,
+			"value": item.Value,
+		})
+	}
 
-		if len(injectionIDs) > 0 {
-			labelsMap, err = repository.ListInjectionLabels(database.DB, injectionIDs)
-			if err != nil {
-				return nil, fmt.Errorf("failed to list injection labels: %w", err)
-			}
+	injectionIDs, err := repository.ListInjectionIDsByLabels(database.DB, labelConditions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list injection ids by labels: %w", err)
+	}
+
+	injectionIDMap := make(map[int]struct{}, len(injectionIDs))
+	for _, id := range injectionIDs {
+		injectionIDMap[id] = struct{}{}
+	}
+
+	filteredInjections := []database.FaultInjection{}
+	for _, injection := range injections {
+		if _, exists := injectionIDMap[injection.ID]; exists {
+			filteredInjections = append(filteredInjections, injection)
 		}
 	}
 
 	// Convert to response format
-	injectionResps := make([]dto.InjectionResp, 0, len(injections))
-	for _, injection := range injections {
-		if req.IncludeLabels {
-			if labels, exists := labelsMap[injection.ID]; exists {
-				injection.Task.Labels = labels
-			}
-		}
-		injectionResps = append(injectionResps, *dto.NewInjectionResp(&injection))
+	injectionResps := make([]dto.InjectionDetailResp, 0, len(filteredInjections))
+	for _, injection := range filteredInjections {
+		injectionResps = append(injectionResps, *dto.NewInjectionDetailResp(&injection))
 	}
 
-	// Calculate pagination info
-	page := 1
-	size := 20
-	if req.Page != nil {
-		page = *req.Page
-	}
-	if req.Size != nil {
-		size = *req.Size
-	}
-
-	totalPages := int(total) / size
-	if int(total)%size != 0 {
-		totalPages++
-	}
-
-	resp := &dto.SearchResp[dto.InjectionResp]{
-		Items: injectionResps,
-		Pagination: &dto.PaginationInfo{
-			Page:       page,
-			Size:       size,
-			Total:      total,
-			TotalPages: totalPages,
-		},
+	resp := &dto.SearchResp[dto.InjectionDetailResp]{
+		Items:      injectionResps,
+		Pagination: req.ConvertToPaginationInfo(total),
 	}
 
 	return resp, nil
@@ -248,10 +238,10 @@ func ListInjectionsNoIssues(req *dto.ListInjectionNoIssuesReq) ([]dto.InjectionN
 		return nil, nil
 	}
 
-	labelCondtions := make([]map[string]string, 0, len(req.Labels))
+	labelConditions := make([]map[string]string, 0, len(req.Labels))
 	for _, item := range req.Labels {
 		parts := strings.SplitN(item, ":", 2)
-		labelCondtions = append(labelCondtions, map[string]string{
+		labelConditions = append(labelConditions, map[string]string{
 			"key":   parts[0],
 			"value": parts[1],
 		})
@@ -262,16 +252,16 @@ func ListInjectionsNoIssues(req *dto.ListInjectionNoIssuesReq) ([]dto.InjectionN
 		return nil, fmt.Errorf("invalid time range: %w", err)
 	}
 
-	records, err := repository.ListInjectionsNoIssues(database.DB, labelCondtions, &opts.CustomStartTime, &opts.CustomEndTime)
+	records, err := repository.ListInjectionsNoIssues(database.DB, labelConditions, &opts.CustomStartTime, &opts.CustomEndTime)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list fault injections without issues: %w", err)
 	}
 
 	var items []dto.InjectionNoIssuesResp
-	for _, record := range records {
+	for i, record := range records {
 		resp, err := dto.NewInjectionNoIssuesResp(record)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create InjectionNoIssuesResp: %w", err)
+			return nil, fmt.Errorf("failed to create InjectionNoIssuesResp at index %d: %w", i, err)
 		}
 
 		items = append(items, *resp)
@@ -286,10 +276,10 @@ func ListInjectionsWithIssues(req *dto.ListInjectionWithIssuesReq) ([]dto.Inject
 		return nil, nil
 	}
 
-	labelCondtions := make([]map[string]string, 0, len(req.Labels))
+	labelConditions := make([]map[string]string, 0, len(req.Labels))
 	for _, item := range req.Labels {
 		parts := strings.SplitN(item, ":", 2)
-		labelCondtions = append(labelCondtions, map[string]string{
+		labelConditions = append(labelConditions, map[string]string{
 			"key":   parts[0],
 			"value": parts[1],
 		})
@@ -300,7 +290,7 @@ func ListInjectionsWithIssues(req *dto.ListInjectionWithIssuesReq) ([]dto.Inject
 		return nil, fmt.Errorf("invalid time range: %w", err)
 	}
 
-	records, err := repository.ListInjectionsWithIssues(database.DB, labelCondtions, &opts.CustomStartTime, &opts.CustomEndTime)
+	records, err := repository.ListInjectionsWithIssues(database.DB, labelConditions, &opts.CustomStartTime, &opts.CustomEndTime)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list fault injections without issues: %w", err)
 	}

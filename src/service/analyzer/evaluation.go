@@ -6,7 +6,6 @@ import (
 	"aegis/dto"
 	"aegis/repository"
 	"aegis/service/common"
-	"aegis/utils"
 	"encoding/json"
 	"fmt"
 
@@ -61,16 +60,14 @@ func ListDatapackEvaluationResults(req *dto.BatchEvaluateDatapackReq, userID int
 			continue
 		}
 
-		refs := make([]dto.ExecutionGranularityRef, 0, len(executions))
+		refs := make([]dto.ExecutionRef, 0, len(executions))
 		for _, execution := range executions {
 			refs = append(refs, dto.NewExecutionGranularityRef(&execution))
 		}
 
-		item := dto.EvaluateDatapackItem{
-			Algorithm:        containerVersion.Container.Name,
-			AlgorithmVersion: containerVersion.Name,
-			Datapack:         spec.Datapack,
-			ExecutionRefs:    refs,
+		evaluateRef := dto.EvaluateDatapackRef{
+			Datapack:      spec.Datapack,
+			ExecutionRefs: refs,
 		}
 
 		datapack := executions[0].Datapack
@@ -79,10 +76,15 @@ func ListDatapackEvaluationResults(req *dto.BatchEvaluateDatapackReq, userID int
 			if err != nil {
 				logrus.Warnf("failed to get groundtruth for datapack %s: %v", spec.Datapack, err)
 			} else {
-				item.Groundtruth = *groundTruth
+				evaluateRef.Groundtruth = *groundTruth
 			}
 		}
 
+		item := dto.EvaluateDatapackItem{
+			Algorithm:           containerVersion.Container.Name,
+			AlgorithmVersion:    containerVersion.Name,
+			EvaluateDatapackRef: evaluateRef,
+		}
 		successItems = append(successItems, item)
 	}
 
@@ -149,25 +151,56 @@ func ListDatasetEvaluationResults(req *dto.BatchEvaluateDatasetReq, userID int) 
 			continue
 		}
 
-		refs := make([]dto.EvaluateDatapackRef, 0, len(executions))
+		executionMap := make(map[string][]database.Execution)
 		for _, execution := range executions {
-			refs = append(refs, dto.NewEvaluateDatapackRef(execution.Datapack.Name, &execution))
+			name := execution.Datapack.Name
+			if _, exists := executionMap[name]; !exists {
+				executionMap[name] = make([]database.Execution, 0)
+			} else {
+				executionMap[name] = append(executionMap[name], execution)
+			}
 		}
 
-		executedDatapacks := make([]int, 0, len(executions))
-		for _, execution := range executions {
-			executedDatapacks = append(executedDatapacks, execution.Datapack.ID)
+		notExecutedDatapacks := []string{}
+		for _, datapack := range datasetVersion.Datapacks {
+			if _, exists := executionMap[datapack.Name]; !exists {
+				notExecutedDatapacks = append(notExecutedDatapacks, datapack.Name)
+			}
 		}
-		executedDatapacks = utils.ToUniqueSlice(executedDatapacks)
+
+		evaluateRefs := make([]dto.EvaluateDatapackRef, 0, len(executionMap))
+		for datapack_name, groupedExecutions := range executionMap {
+			refs := make([]dto.ExecutionRef, 0, len(groupedExecutions))
+			for _, execution := range groupedExecutions {
+				refs = append(refs, dto.NewExecutionGranularityRef(&execution))
+			}
+
+			evaluateRef := dto.EvaluateDatapackRef{
+				Datapack:      datapack_name,
+				ExecutionRefs: refs,
+			}
+
+			datapack := groupedExecutions[0].Datapack
+			if datapack != nil {
+				groundTruth, err := getGroundtruth(datapack)
+				if err != nil {
+					logrus.Warnf("failed to get groundtruth for datapack %s: %v", datapack_name, err)
+				} else {
+					evaluateRef.Groundtruth = *groundTruth
+				}
+			}
+
+			evaluateRefs = append(evaluateRefs, evaluateRef)
+		}
 
 		item := dto.EvaluateDatasetItem{
-			Algorithm:        containerVersion.Container.Name,
-			AlgorithmVersion: containerVersion.Name,
-			Dataset:          datasetVersion.Dataset.Name,
-			DatasetVersion:   datasetVersion.Name,
-			TotalCount:       len(datasetVersion.Injections),
-			ExecutedCount:    len(executedDatapacks),
-			EvaluateRefs:     refs,
+			Algorithm:            containerVersion.Container.Name,
+			AlgorithmVersion:     containerVersion.Name,
+			Dataset:              datasetVersion.Dataset.Name,
+			DatasetVersion:       datasetVersion.Name,
+			TotalCount:           len(datasetVersion.Datapacks),
+			EvaluateRefs:         evaluateRefs,
+			NotExecutedDatapacks: notExecutedDatapacks,
 		}
 
 		successItems = append(successItems, item)

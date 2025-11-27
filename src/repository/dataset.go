@@ -208,7 +208,7 @@ func DeleteDatasetVersion(db *gorm.DB, versionID int) (int64, error) {
 // GetDatasetVersionByID retrieves a dataset version by its ID
 func GetDatasetVersionByID(db *gorm.DB, id int) (*database.DatasetVersion, error) {
 	var version database.DatasetVersion
-	if err := db.Where("id = ?", id).First(&version).Error; err != nil {
+	if err := db.Preload("Datapacks").Where("id = ?", id).First(&version).Error; err != nil {
 		return nil, fmt.Errorf("failed to get dataset version: %v", err)
 	}
 	return &version, nil

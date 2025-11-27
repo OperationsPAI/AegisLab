@@ -92,31 +92,23 @@ func (req *ListDatasetReq) Validate() error {
 type SearchDatasetReq struct {
 	AdvancedSearchReq
 
-	Name        *string `json:"name,omitempty"`
-	Type        *string `json:"type,omitempty"`
-	Description *string `json:"description,omitempty"`
-	DataSource  *string `json:"data_source,omitempty"`
-	Format      *string `json:"format,omitempty"`
-	Status      *int    `json:"status,omitempty"`
+	NamePattern     string `json:"name_pattern" binding:"omitempty"`
+	IncludeVersions bool   `json:"include_versions" binding:"omitempty"`
 }
 
-func (dsr *SearchDatasetReq) ConvertToSearchRequest() *SearchReq {
-	sr := dsr.AdvancedSearchReq.ConvertAdvancedToSearch()
+func (req *SearchDatasetReq) Validate() error {
+	return req.AdvancedSearchReq.Validate()
+}
 
-	if dsr.Name != nil {
-		sr.AddFilter("name", OpLike, *dsr.Name)
+func (req *SearchDatasetReq) ConvertToSearchReq() *SearchReq {
+	sr := req.AdvancedSearchReq.ConvertAdvancedToSearch()
+
+	if req.NamePattern != "" {
+		sr.AddFilter("name", OpLike, req.NamePattern)
 	}
-	if dsr.Type != nil {
-		sr.AddFilter("type", OpEqual, *dsr.Type)
-	}
-	if dsr.Description != nil {
-		sr.AddFilter("description", OpLike, *dsr.Description)
-	}
-	if dsr.DataSource != nil {
-		sr.AddFilter("data_source", OpLike, *dsr.DataSource)
-	}
-	if dsr.Format != nil {
-		sr.AddFilter("format", OpEqual, *dsr.Format)
+
+	if req.IncludeVersions {
+		sr.AddInclude("Versions")
 	}
 
 	return sr
@@ -168,23 +160,23 @@ func (req *ManageDatasetLabelReq) Validate() error {
 }
 
 type ManageDatasetVersionInjectionReq struct {
-	AddInjections    []int `json:"add_injections" binding:"omitempty"`    // List of injection IDs to add
-	RemoveInjections []int `json:"remove_injections" binding:"omitempty"` // List of injection IDs to remove
+	AddDatapacks    []string `json:"add_datapacks" binding:"omitempty"`
+	RemoveDatapacks []string `json:"remove_datapacks" binding:"omitempty"`
 }
 
 func (req *ManageDatasetVersionInjectionReq) Validate() error {
-	if len(req.AddInjections) == 0 && len(req.RemoveInjections) == 0 {
+	if len(req.AddDatapacks) == 0 && len(req.RemoveDatapacks) == 0 {
 		return fmt.Errorf("at least one of add_injections or remove_injections must be provided")
 	}
 
-	for i, id := range req.AddInjections {
-		if id <= 0 {
-			return fmt.Errorf("invalid injection id at index %d in add_injections: %d", i, id)
+	for i, datapack := range req.AddDatapacks {
+		if strings.TrimSpace(datapack) == "" {
+			return fmt.Errorf("empty datapack name at index %d in add_datapacks", i)
 		}
 	}
-	for i, id := range req.RemoveInjections {
-		if id <= 0 {
-			return fmt.Errorf("invalid injection id at index %d in remove_injections: %d", i, id)
+	for i, datapack := range req.RemoveDatapacks {
+		if strings.TrimSpace(datapack) == "" {
+			return fmt.Errorf("empty datapack name at index %d in add_datapacks", i)
 		}
 	}
 
@@ -244,11 +236,8 @@ func NewDatasetDetailResp(dataset *database.Dataset) *DatasetDetailResp {
 // ===================== Dataset Version CRUD DTOs =====================
 
 type CreateDatasetVersionReq struct {
-	Name        string `json:"name" binding:"required"`
-	DataSource  string `json:"data_source" binding:"omitempty"`
-	Format      string `json:"format" binding:"omitempty"`
-	DownloadURL string `json:"download_url" binding:"omitempty"`
-	Checksum    string `json:"checksum" binding:"omitempty"`
+	Name      string   `json:"name" binding:"required"`
+	Datapacks []string `json:"datapacks" binding:"omitempty"`
 }
 
 func (req *CreateDatasetVersionReq) Validate() error {
@@ -262,8 +251,12 @@ func (req *CreateDatasetVersionReq) Validate() error {
 		return fmt.Errorf("invalid semantic version: %s, %v", req.Name, err)
 	}
 
-	if req.Format != "" {
-		req.Format = strings.TrimSpace(req.Format)
+	if len(req.Datapacks) > 0 {
+		for i, dp := range req.Datapacks {
+			if strings.TrimSpace(dp) == "" {
+				return fmt.Errorf("empty datapack name at index %d", i)
+			}
+		}
 	}
 
 	return nil
@@ -271,10 +264,8 @@ func (req *CreateDatasetVersionReq) Validate() error {
 
 func (req *CreateDatasetVersionReq) ConvertToDatasetVersion() *database.DatasetVersion {
 	version := &database.DatasetVersion{
-		Name:     req.Name,
-		Format:   req.Format,
-		Checksum: req.Checksum,
-		Status:   consts.CommonEnabled,
+		Name:   req.Name,
+		Status: consts.CommonEnabled,
 	}
 
 	return version
@@ -294,9 +285,7 @@ func (req *ListDatasetVersionReq) Validate() error {
 }
 
 type UpdateDatasetVersionReq struct {
-	Checksum *string            `json:"checksum" binding:"omitempty"`
-	Format   *string            `json:"format" binding:"omitempty"`
-	Status   *consts.StatusType `json:"status" binding:"omitempty"`
+	Status *consts.StatusType `json:"status" binding:"omitempty"`
 }
 
 func (req *UpdateDatasetVersionReq) Validate() error {
@@ -304,12 +293,6 @@ func (req *UpdateDatasetVersionReq) Validate() error {
 }
 
 func (req *UpdateDatasetVersionReq) PatchDatasetVersionModel(target *database.DatasetVersion) {
-	if req.Format != nil {
-		target.Format = *req.Format
-	}
-	if req.Checksum != nil {
-		target.Checksum = *req.Checksum
-	}
 	if req.Status != nil {
 		target.Status = *req.Status
 	}
@@ -318,6 +301,8 @@ func (req *UpdateDatasetVersionReq) PatchDatasetVersionModel(target *database.Da
 type DatasetVersionResp struct {
 	ID        int       `json:"id"`
 	Name      string    `json:"name"`
+	Checksum  string    `json:"checksum"`
+	FileCount int       `json:"file_count"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
@@ -325,6 +310,8 @@ func NewDatasetVersionResp(version *database.DatasetVersion) *DatasetVersionResp
 	return &DatasetVersionResp{
 		ID:        version.ID,
 		Name:      version.Name,
+		Checksum:  version.Checksum,
+		FileCount: version.FileCount,
 		UpdatedAt: version.UpdatedAt,
 	}
 }
@@ -332,16 +319,20 @@ func NewDatasetVersionResp(version *database.DatasetVersion) *DatasetVersionResp
 type DatasetVersionDetailResp struct {
 	DatasetVersionResp
 
-	Format    string `json:"format"`
-	Checksum  string `json:"checksum"`
-	FileCount int    `json:"file_count"`
+	Datapacks []InjectionResp `json:"datapacks,omitempty"`
 }
 
 func NewDatasetVersionDetailResp(version *database.DatasetVersion) *DatasetVersionDetailResp {
-	return &DatasetVersionDetailResp{
+	resp := &DatasetVersionDetailResp{
 		DatasetVersionResp: *NewDatasetVersionResp(version),
-		Format:             version.Format,
-		Checksum:           version.Checksum,
-		FileCount:          version.FileCount,
 	}
+
+	if len(version.Datapacks) > 0 {
+		resp.Datapacks = make([]InjectionResp, 0, len(version.Datapacks))
+		for _, inj := range version.Datapacks {
+			resp.Datapacks = append(resp.Datapacks, *NewInjectionResp(&inj))
+		}
+	}
+
+	return resp
 }

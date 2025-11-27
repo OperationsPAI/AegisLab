@@ -22,12 +22,13 @@ import (
 //	@Summary		Stream trace events in real-time
 //	@Description	Establishes a Server-Sent Events (SSE) connection to stream trace logs and task execution events in real-time. Returns historical events first, then switches to live monitoring.
 //	@Tags			Traces
-//	@ID				stream_trace_events
+//	@ID				get_trace_events
 //	@Accept			json
 //	@Produce		text/event-stream
 //	@Security		BearerAuth
 //	@Param			trace_id	path		string						true	"Trace ID"
 //	@Param			last_id		query		string						false	"Last event ID received"	default("0")
+//	@Success		200			{string}	string						"A stream of event messages (e.g., log entries, task status updates)."
 //	@Failure		400			{object}	dto.GenericResponse[any]	"Invalid request"
 //	@Failure		400			{object}	dto.GenericResponse[any]	"Invalid trace ID or invalid request format/parameters"
 //	@Failure		401			{object}	dto.GenericResponse[any]	"Authentication required"
@@ -35,6 +36,7 @@ import (
 //	@Failure		500			{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/traces/{trace_id}/stream [get]
 //	@x-api-type		{"sdk":"true"}
+//	@x-request-type	{"stream":"true"}
 func GetTraceStream(c *gin.Context) {
 	traceID := c.Param(consts.URLPathTraceID)
 	if !utils.IsValidUUID(traceID) {

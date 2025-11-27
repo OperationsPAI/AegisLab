@@ -24,8 +24,8 @@ func NewSearchQueryBuilder(db *gorm.DB) *SearchQueryBuilder {
 	}
 }
 
-// ApplySearchRequest applies filters, sorting, and pagination from SearchRequest
-func (qb *SearchQueryBuilder) ApplySearchRequest(searchReq *dto.SearchReq, modelType interface{}) *gorm.DB {
+// ApplySearchReq applies filters, sorting, and pagination from SearchRequest
+func (qb *SearchQueryBuilder) ApplySearchReq(searchReq *dto.SearchReq, modelType interface{}) *gorm.DB {
 	// Start with the base query
 	qb.query = qb.db.Model(modelType)
 
@@ -43,24 +43,85 @@ func (qb *SearchQueryBuilder) ApplySearchRequest(searchReq *dto.SearchReq, model
 	return qb.query
 }
 
-// ApplyPagination applies pagination to the query
-func (qb *SearchQueryBuilder) ApplyPagination(searchReq *dto.SearchReq) *gorm.DB {
-	offset := searchReq.GetOffset()
-	return qb.query.Offset(offset).Limit(searchReq.Size)
-}
-
-// GetCount gets the total count before pagination
-func (qb *SearchQueryBuilder) GetCount() (int64, error) {
-	var count int64
-	err := qb.query.Count(&count).Error
-	return count, err
-}
-
 // applyFilters applies all filters to the query
 func (qb *SearchQueryBuilder) applyFilters(filters []dto.SearchFilter) {
 	for _, filter := range filters {
 		qb.applySingleFilter(filter)
 	}
+}
+
+// applyInclude applies include options to the query
+func (qb *SearchQueryBuilder) applyIncludes(includes []string) {
+	for _, include := range includes {
+		qb.query = qb.query.Preload(include)
+	}
+}
+
+// applyIncludeFields includes specified fields in the query
+func (qb *SearchQueryBuilder) applyIncludeFields(includeFields []string) {
+	for _, field := range includeFields {
+		qb.query = qb.query.Select(field)
+	}
+}
+
+// applyExcludeFields excludes specified fields from the query
+func (qb *SearchQueryBuilder) applyExcludeFields(excludeFields []string, modelType interface{}) {
+	// Get all fields from model type
+	t := reflect.TypeOf(modelType)
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+
+	var allFields []string
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		dbTag := field.Tag.Get("gorm")
+		if dbTag != "" {
+			dbField := strings.Split(dbTag, ";")[0]
+			allFields = append(allFields, dbField)
+		} else {
+			allFields = append(allFields, field.Name)
+		}
+	}
+
+	// Determine fields to select
+	fieldsToSelect := make([]string, 0, len(allFields))
+	excludeMap := make(map[string]struct{})
+	for _, field := range excludeFields {
+		excludeMap[field] = struct{}{}
+	}
+
+	for _, field := range allFields {
+		if _, excluded := excludeMap[field]; !excluded {
+			fieldsToSelect = append(fieldsToSelect, field)
+		}
+	}
+
+	if len(fieldsToSelect) > 0 {
+		qb.query = qb.query.Select(strings.Join(fieldsToSelect, ", "))
+	}
+}
+
+// applyKeywordSearch applies general keyword search across searchable fields
+func (qb *SearchQueryBuilder) applyKeywordSearch(keyword string, modelType interface{}) {
+	// Get searchable fields from model type
+	searchableFields := qb.getSearchableFields(modelType)
+
+	if len(searchableFields) == 0 {
+		return
+	}
+
+	// Build OR conditions for keyword search
+	var conditions []string
+	var values []any
+
+	for _, field := range searchableFields {
+		conditions = append(conditions, fmt.Sprintf("%s LIKE ?", field))
+		values = append(values, "%"+keyword+"%")
+	}
+
+	whereClause := strings.Join(conditions, " OR ")
+	qb.query = qb.query.Where(whereClause, values...)
 }
 
 // applySingleFilter applies a single filter to the query
@@ -130,6 +191,12 @@ func (qb *SearchQueryBuilder) applySingleFilter(filter dto.SearchFilter) {
 	}
 }
 
+// ApplyPagination applies pagination to the query
+func (qb *SearchQueryBuilder) applyPagination(searchReq *dto.SearchReq) *gorm.DB {
+	offset := searchReq.GetOffset()
+	return qb.query.Offset(offset).Limit(int(searchReq.Size))
+}
+
 // applySorting applies sorting to the query
 func (qb *SearchQueryBuilder) applySorting(sortOptions []dto.SortOption) {
 	for _, sort := range sortOptions {
@@ -150,26 +217,11 @@ func (qb *SearchQueryBuilder) applySorting(sortOptions []dto.SortOption) {
 	}
 }
 
-// applyKeywordSearch applies general keyword search across searchable fields
-func (qb *SearchQueryBuilder) applyKeywordSearch(keyword string, modelType interface{}) {
-	// Get searchable fields from model type
-	searchableFields := qb.getSearchableFields(modelType)
-
-	if len(searchableFields) == 0 {
-		return
-	}
-
-	// Build OR conditions for keyword search
-	var conditions []string
-	var values []interface{}
-
-	for _, field := range searchableFields {
-		conditions = append(conditions, fmt.Sprintf("%s LIKE ?", field))
-		values = append(values, "%"+keyword+"%")
-	}
-
-	whereClause := strings.Join(conditions, " OR ")
-	qb.query = qb.query.Where(whereClause, values...)
+// GetCount gets the total count before pagination
+func (qb *SearchQueryBuilder) getCount() (int64, error) {
+	var count int64
+	err := qb.query.Count(&count).Error
+	return count, err
 }
 
 // getSearchableFields returns fields that can be searched with keywords
@@ -237,42 +289,30 @@ func (qb *SearchQueryBuilder) sanitizeFieldName(field string) string {
 	return field
 }
 
-// BuildSearchResponse builds a standard search response
-func BuildSearchResponse[T any](items []T, totalCount int64, searchReq *dto.SearchReq) dto.SearchResp[T] {
-	totalPages := int((totalCount + int64(searchReq.Size) - 1) / int64(searchReq.Size))
-
-	return dto.SearchResp[T]{
-		Items: items,
-		Pagination: &dto.PaginationInfo{
-			Page:       searchReq.Page,
-			Size:       searchReq.Size,
-			Total:      totalCount,
-			TotalPages: totalPages,
-		},
-		Filters: searchReq.Filters,
-		Sort:    searchReq.Sort,
-	}
-}
-
 // ExecuteSearch executes a complete search operation
-func ExecuteSearch[T any](db *gorm.DB, searchReq *dto.SearchReq, modelType T) (dto.SearchResp[T], error) {
+func ExecuteSearch[T any](db *gorm.DB, searchReq *dto.SearchReq, modelType T) ([]T, int64, error) {
 	qb := NewSearchQueryBuilder(db)
 
+	qb.applyIncludes(searchReq.Includes)
+
+	qb.applyIncludeFields(searchReq.IncludeFields)
+	qb.applyExcludeFields(searchReq.ExcludeFields, modelType)
+
 	// Apply search conditions
-	qb.ApplySearchRequest(searchReq, modelType)
+	qb.ApplySearchReq(searchReq, modelType)
 
 	// Get total count
-	totalCount, err := qb.GetCount()
+	total, err := qb.getCount()
 	if err != nil {
-		return dto.SearchResp[T]{}, fmt.Errorf("failed to get count: %w", err)
+		return nil, 0, fmt.Errorf("failed to get count: %w", err)
 	}
 
 	// Apply pagination and execute query
 	var items []T
-	err = qb.ApplyPagination(searchReq).Find(&items).Error
+	err = qb.applyPagination(searchReq).Find(&items).Error
 	if err != nil {
-		return dto.SearchResp[T]{}, fmt.Errorf("failed to execute search: %w", err)
+		return nil, 0, fmt.Errorf("failed to execute search query: %w", err)
 	}
 
-	return BuildSearchResponse(items, totalCount, searchReq), nil
+	return items, total, nil
 }

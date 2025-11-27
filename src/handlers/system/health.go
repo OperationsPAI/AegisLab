@@ -21,6 +21,7 @@ import (
 //	@Summary		System health check
 //	@Description	Get system health status and service information
 //	@Tags			System
+//	@ID				get_system_health
 //	@Produce		json
 //	@Success		200	{object}	dto.GenericResponse[dto.HealthCheckResp]	"Health check successful"
 //	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"

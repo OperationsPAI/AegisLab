@@ -2,7 +2,6 @@ package dto
 
 import (
 	"aegis/config"
-	"aegis/database"
 	"fmt"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
@@ -64,12 +63,16 @@ func (req *BatchEvaluateDatapackReq) Validate() error {
 	return nil
 }
 
+type EvaluateDatapackRef struct {
+	Datapack      string            `json:"datapack"`
+	Groundtruth   chaos.Groundtruth `json:"groundtruth"`
+	ExecutionRefs []ExecutionRef    `json:"execution_refs"`
+}
+
 type EvaluateDatapackItem struct {
-	Algorithm        string                    `json:"algorithm"`
-	AlgorithmVersion string                    `json:"algorithm_version"`
-	Datapack         string                    `json:"datapack"`
-	Groundtruth      chaos.Groundtruth         `json:"groundtruth"`
-	ExecutionRefs    []ExecutionGranularityRef `json:"execution_refs"`
+	Algorithm        string `json:"algorithm"`
+	AlgorithmVersion string `json:"algorithm_version"`
+	EvaluateDatapackRef
 }
 
 type BatchEvaluateDatapackResp struct {
@@ -120,26 +123,14 @@ func (req *BatchEvaluateDatasetReq) Validate() error {
 	return nil
 }
 
-type EvaluateDatapackRef struct {
-	Datapack string `json:"datapack"`
-	ExecutionGranularityRef
-}
-
-func NewEvaluateDatapackRef(datapack string, execution *database.Execution) EvaluateDatapackRef {
-	return EvaluateDatapackRef{
-		Datapack:                datapack,
-		ExecutionGranularityRef: NewExecutionGranularityRef(execution),
-	}
-}
-
 type EvaluateDatasetItem struct {
-	Algorithm        string                `json:"algorithm"`         // Algorithm name
-	AlgorithmVersion string                `json:"algorithm_version"` // Algorithm version
-	Dataset          string                `json:"dataset"`           // Dataset name
-	DatasetVersion   string                `json:"dataset_version"`   // Dataset version
-	TotalCount       int                   `json:"total_count"`       // Total number of datapacks in dataset
-	ExecutedCount    int                   `json:"executed_count"`    // Number of successfully executed datapacks
-	EvaluateRefs     []EvaluateDatapackRef `json:"evalaute_refs"`     // Evaluation refs for each dataset
+	Algorithm            string                `json:"algorithm"`              // Algorithm name
+	AlgorithmVersion     string                `json:"algorithm_version"`      // Algorithm version
+	Dataset              string                `json:"dataset"`                // Dataset name
+	DatasetVersion       string                `json:"dataset_version"`        // Dataset version
+	TotalCount           int                   `json:"total_count"`            // Total number of datapacks in dataset
+	EvaluateRefs         []EvaluateDatapackRef `json:"evalaute_refs"`          // Evaluation refs for each dataset
+	NotExecutedDatapacks []string              `json:"not_executed_datapacks"` // Datapacks that were not executed
 }
 
 type BatchEvaluateDatasetResp struct {

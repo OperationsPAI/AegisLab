@@ -130,27 +130,6 @@ func ListRoles(req *dto.ListRoleReq) (*dto.ListResp[dto.RoleResp], error) {
 	return &resp, nil
 }
 
-// SearchRoles searches for roles based on the provided search request
-func SearchRoles(req *dto.SearchReq) (*dto.SearchResp[dto.RoleResp], error) {
-	searchResult, err := repository.ExecuteSearch(database.DB, req, database.Role{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to search roles: %w", err)
-	}
-
-	var roleResponses []dto.RoleResp
-	for _, role := range searchResult.Items {
-		roleResponses = append(roleResponses, *dto.NewRoleResp(&role))
-	}
-
-	resp := dto.SearchResp[dto.RoleResp]{
-		Items:      roleResponses,
-		Pagination: searchResult.Pagination,
-		Filters:    searchResult.Filters,
-		Sort:       searchResult.Sort,
-	}
-	return &resp, nil
-}
-
 // UpdateRole updates an existing role
 func UpdateRole(req *dto.UpdateRoleReq, roleID int) (*dto.RoleResp, error) {
 	var updatedRole *database.Role

@@ -141,43 +141,6 @@ func ListRoles(c *gin.Context) {
 	dto.SuccessResponse(c, resp)
 }
 
-// SearchRoles handles complex role search
-//
-//	@Summary		Search roles
-//	@Description	Search roles with complex filtering and sorting
-//	@Tags			Roles
-//	@ID				search_roles
-//	@Accept			json
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			request	body		dto.SearchRoleReq									true	"Role search request"
-//	@Success		200		{object}	dto.GenericResponse[dto.SearchResp[dto.RoleResp]]	"Roles retrieved successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]							"Invalid request format or search parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
-//	@Router			/api/v2/roles/search [post]
-func SearchRoles(c *gin.Context) {
-	var req dto.SearchRoleReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
-		return
-	}
-
-	searchReq := req.ConvertToSearchRequest()
-	if err := searchReq.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid search parameters: "+err.Error())
-		return
-	}
-
-	resp, err := producer.SearchRoles(searchReq)
-	if handlers.HandleServiceError(c, err) {
-		return
-	}
-
-	dto.SuccessResponse(c, resp)
-}
-
 // UpdateRole handles role updates
 //
 //	@Summary		Update role

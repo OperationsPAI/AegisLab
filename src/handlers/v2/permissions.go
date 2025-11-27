@@ -153,46 +153,6 @@ func ListPermissions(c *gin.Context) {
 	dto.SuccessResponse(c, response)
 }
 
-// SearchPermissions handles complex permission search
-//
-//	@Summary		Search permissions
-//	@Description	Search permissions with complex filtering and sorting
-//	@Tags			Permissions
-//	@ID				search_permissions
-//	@Accept			json
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			request	body		dto.SearchPermissionReq									true	"Permission search request"
-//	@Success		200		{object}	dto.GenericResponse[dto.SearchResp[dto.PermissionResp]]	"Permissions retrieved successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]								"Invalid request"
-//	@Failure		401		{object}	dto.GenericResponse[any]								"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]								"Permission denied"
-//	@Failure		500		{object}	dto.GenericResponse[any]								"Internal server error"
-//	@Router			/api/v2/permissions/search [post]
-func SearchPermissions(c *gin.Context) {
-	var req dto.SearchPermissionReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
-		return
-	}
-
-	// Convert to SearchRequest
-	searchReq := req.ConvertToSearchRequest()
-
-	// Validate search request
-	if err := searchReq.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid search parameters: "+err.Error())
-		return
-	}
-
-	resp, err := producer.SearchPermissions(searchReq)
-	if handlers.HandleServiceError(c, err) {
-		return
-	}
-
-	dto.SuccessResponse(c, resp)
-}
-
 // UpdatePermission handles permission updates
 //
 //	@Summary		Update permission

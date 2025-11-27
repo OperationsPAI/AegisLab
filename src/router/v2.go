@@ -163,7 +163,6 @@ func SetupV2Routes(router *gin.Engine) {
 		{
 			containerRead.GET("/:container_id", v2handlers.GetContainer) // Get container by ID
 			containerRead.GET("", v2handlers.ListContainers)             // List containers
-			containerRead.POST("/search", v2handlers.SearchContainers)   // Advanced search
 		}
 
 		// Container Write operations
@@ -308,7 +307,6 @@ func SetupV2Routes(router *gin.Engine) {
 		{
 			userRead.GET("", v2handlers.ListUsersV2)                                                             // List users
 			userRead.GET("/:user_id/detail", middleware.RequireAdminOrUserOwnership, v2handlers.GetUserDetailV2) // Get user by ID
-			userRead.POST("/search", v2handlers.SearchUsers)                                                     // Search users
 		}
 
 		// User Write operations
@@ -345,9 +343,8 @@ func SetupV2Routes(router *gin.Engine) {
 		// Role Read operations
 		roleRead := roles.Group("", middleware.RequireRoleRead)
 		{
-			roleRead.GET("/:role_id", v2handlers.GetRole)    // Get role by ID
-			roleRead.GET("", v2handlers.ListRoles)           // List roles
-			roleRead.POST("/search", v2handlers.SearchRoles) // Search roles
+			roleRead.GET("/:role_id", v2handlers.GetRole) // Get role by ID
+			roleRead.GET("", v2handlers.ListRoles)        // List roles
 		}
 
 		// Role Write operations
@@ -375,7 +372,6 @@ func SetupV2Routes(router *gin.Engine) {
 		{
 			permRead.GET("", v2handlers.ListPermissions)              // List permissions
 			permRead.GET("/:permission_id", v2handlers.GetPermission) // Get permission by ID
-			permRead.POST("/search", v2handlers.SearchPermissions)    // Search permissions
 		}
 
 		// Permission Write operations

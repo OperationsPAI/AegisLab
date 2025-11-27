@@ -17,8 +17,8 @@ type PaginationInfo struct {
 
 // PaginationReq represents pagination parameters in requests
 type PaginationReq struct {
-	Page int             `form:"page" example:"1"`
-	Size consts.PageSize `form:"size" example:"20"`
+	Page int             `form:"page" json:"page" example:"1"`
+	Size consts.PageSize `form:"size" json:"size" example:"20"`
 }
 
 func (p *PaginationReq) Validate() error {

@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// ExecutionGranularityRef represents execution granularity results for evaluation
-type ExecutionGranularityRef struct {
+// ExecutionRef represents execution granularity results for evaluation
+type ExecutionRef struct {
 	ExecutionID       int                     `json:"execution_id"`       // Execution ID
 	ExecutionDuration float64                 `json:"execution_duration"` // Execution duration in seconds
 	DetectorResults   []DetectorResultItem    `json:"detector_results"`   // Detector results
@@ -18,8 +18,8 @@ type ExecutionGranularityRef struct {
 	ExecutedAt        time.Time               `json:"executed_at"`        // Execution time
 }
 
-func NewExecutionGranularityRef(execution *database.Execution) ExecutionGranularityRef {
-	ref := &ExecutionGranularityRef{
+func NewExecutionGranularityRef(execution *database.Execution) ExecutionRef {
+	ref := &ExecutionRef{
 		ExecutionID:       execution.ID,
 		ExecutionDuration: execution.Duration,
 		ExecutedAt:        execution.CreatedAt,

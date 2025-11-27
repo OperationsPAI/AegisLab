@@ -165,6 +165,43 @@ func ListDatasets(c *gin.Context) {
 	dto.SuccessResponse(c, resp)
 }
 
+// SearchDataset handles searching datasets with advanced filtering
+//
+//	@Summary		Search datasets
+//	@Description	Search datasets with advanced filtering options
+//	@Tags			Datasets
+//	@ID				search_datasets
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			request	body		dto.SearchDatasetReq										true	"Dataset search request"
+//	@Success		200		{object}	dto.GenericResponse[dto.ListResp[dto.DatasetDetailResp]]	"Datasets retrieved successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]									"Invalid request format or parameters"
+//	@Failure		401		{object}	dto.GenericResponse[any]									"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]									"Permission denied"
+//	@Failure		500		{object}	dto.GenericResponse[any]									"Internal server error"
+//	@Router			/api/v2/datasets/search [post]
+//	@x-api-type		{"sdk":"true"}
+func SearchDataset(c *gin.Context) {
+	var req dto.SearchDatasetReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
+	}
+
+	resp, err := producer.SearchDatasets(&req)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
+}
+
 // UpdateDataset handles dataset updates
 //
 //	@Summary		Update dataset
@@ -534,7 +571,7 @@ func DownloadDatasetVersion(c *gin.Context) {
 //	@Summary		Manage dataset injections
 //	@Description	Add or remove injections for a dataset
 //	@Tags			Datasets
-//	@ID				link_injections_to_dataset_version
+//	@ID				manage_dataset_version_injections
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
@@ -548,6 +585,7 @@ func DownloadDatasetVersion(c *gin.Context) {
 //	@Failure		404			{object}	dto.GenericResponse[any]							"Dataset not found"
 //	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/datasets/{dataset_id}/version/{version_id}/injections [patch]
+//	@x-api-type 	{"sdk":"true"}
 func ManageDatasetVersionInjections(c *gin.Context) {
 	datasetIDStr := c.Param(consts.URLPathDatasetID)
 	datasetID, err := strconv.Atoi(datasetIDStr)

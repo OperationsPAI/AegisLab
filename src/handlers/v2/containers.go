@@ -6,11 +6,9 @@ import (
 	"strconv"
 
 	"aegis/consts"
-	"aegis/database"
 	"aegis/dto"
 	"aegis/handlers"
 	"aegis/middleware"
-	"aegis/repository"
 	producer "aegis/service/prodcuer"
 
 	"github.com/gin-gonic/gin"
@@ -165,55 +163,6 @@ func ListContainers(c *gin.Context) {
 	}
 
 	dto.SuccessResponse(c, resp)
-}
-
-// SearchContainers handles complex container search with advanced filtering
-//
-//	@Summary		Search containers
-//	@Description	Search containers with complex filtering, sorting and pagination. Supports all container types (algorithm, benchmark, etc.)
-//	@Tags			Containers
-//	@ID				search_containers
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			request	body		dto.SearchContainerReq									true	"Container search request"
-//	@Success		200		{object}	dto.GenericResponse[dto.SearchResp[dto.ContainerResp]]	"Containers retrieved successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]								"Invalid request"
-//	@Failure		403		{object}	dto.GenericResponse[any]								"Permission denied"
-//	@Failure		500		{object}	dto.GenericResponse[any]								"Internal server error"
-//	@Router			/api/v2/containers/search [post]
-//	@x-api-type		{"sdk":"true"}
-func SearchContainers(c *gin.Context) {
-	var req dto.SearchContainerReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
-		return
-	}
-
-	searchReq := req.ConvertToSearchRequest()
-	if err := searchReq.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid search parameters: "+err.Error())
-		return
-	}
-
-	searchResult, err := repository.ExecuteSearch(database.DB, searchReq, database.Container{})
-	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to search containers: "+err.Error())
-		return
-	}
-
-	var containerResponses []dto.ContainerResp
-	for _, container := range searchResult.Items {
-		containerResponses = append(containerResponses, *dto.NewContainerResp(&container))
-	}
-
-	response := dto.SearchResp[dto.ContainerResp]{
-		Items:      containerResponses,
-		Pagination: searchResult.Pagination,
-		Filters:    searchResult.Filters,
-		Sort:       searchResult.Sort,
-	}
-
-	dto.SuccessResponse(c, response)
 }
 
 // UpdateContainer handles container updates
