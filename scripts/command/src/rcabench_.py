@@ -4,21 +4,13 @@ import yaml
 from python_on_whales import DockerClient
 
 from src.common.command import run_command
-from src.common.common import (
-    DEFAULT_PORT,
-    DEFAULT_REPO_URL,
-    ENV,
-    HELM_CHART_PATH,
-    K8S_NAMESPACE,
-    PROJECT_ROOT,
-    RELEASE_NAME,
-    console,
-)
+from src.common.common import ENV, HELM_CHART_PATH, PROJECT_ROOT, console, settings
 from src.common.kubernetes_manager import KubernetesManager, with_k8s_manager
 
 __all__ = ["check_secrets", "execute_release_workflow"]
 
 DOCKER_COMPOSE_FILE = PROJECT_ROOT / "docker-compose.yaml"
+SKAFFOLD_CONFIG_FILE = PROJECT_ROOT / "skaffold.yaml"
 
 
 @with_k8s_manager
@@ -41,7 +33,7 @@ def _check_pod_health(
 
     is_running = k8s_manager.check_pod(
         pod_name,
-        namespace=K8S_NAMESPACE,
+        namespace=settings.k8s_namespace,
         label_selector=f"app={pod_name}",
         field_selector="status.phase=Running",
     )
@@ -52,7 +44,7 @@ def _check_pod_health(
 
     console.print(
         f"[bold red]❌ {service_name} is NOT running[/bold red] "
-        f"in namespace [yellow]'{K8S_NAMESPACE}'[/yellow]."
+        f"in namespace [yellow]'{settings.k8s_namespace}'[/yellow]."
     )
     raise SystemExit(1)
 
@@ -68,10 +60,10 @@ def check_secrets(env: ENV, k8s_manager: KubernetesManager):
     helm_cmd = [
         "helm",
         "template",
-        RELEASE_NAME,
+        settings.release_name,
         HELM_CHART_PATH.as_posix(),
         "-n",
-        K8S_NAMESPACE,
+        settings.k8s_namespace,
         "-s",
         "templates/secret.yaml",
     ]
@@ -114,10 +106,10 @@ def check_secrets(env: ENV, k8s_manager: KubernetesManager):
     )
 
     all_ok = True
-    existing_secrets = k8s_manager.list_secrets(K8S_NAMESPACE)
+    existing_secrets = k8s_manager.list_secrets(settings.k8s_namespace)
     for secret in required_secrets:
         if secret in existing_secrets:
-            console.print(f"[gray]✅Found Secret: {secret}[/gray]")
+            console.print(f"[gray]✅ Found Secret: {secret}[/gray]")
         else:
             console.print(f"[gray]❌ Missing Secret: {secret}[/gray]")
             all_ok = False
@@ -136,6 +128,7 @@ def local_deploy(env: ENV, k8s_manager: KubernetesManager):
     docker = DockerClient(compose_files=[DOCKER_COMPOSE_FILE])
     try:
         docker.compose.down(remove_orphans=True)
+        console.print("[bold green]✅ Cleaned up existing containers.[/bold green]")
     except Exception:
         console.print(
             "[bold yellow]⚠️ No existing containers to clean up.[/bold yellow]"
@@ -145,6 +138,7 @@ def local_deploy(env: ENV, k8s_manager: KubernetesManager):
         docker.compose.up(
             services=["redis", "mysql", "jaeger", "buildkitd"], detach=True
         )
+        console.print("[bold green]✅ Started required services.[/bold green]")
     except Exception as e:
         console.print(
             f"[bold red]⚠️ Some services may have failed to start: {e}[/bold red]"
@@ -152,29 +146,59 @@ def local_deploy(env: ENV, k8s_manager: KubernetesManager):
         raise SystemExit(1)
 
     console.print()
-    k8s_manager.delete_jobs(K8S_NAMESPACE, output_err=True)
+    k8s_manager.delete_jobs(settings.k8s_namespace, output_err=True)
 
 
 @with_k8s_manager
 def execute_release_workflow(env: ENV, k8s_manager: KubernetesManager):
     console.print("[bold blue]🚀 Executing RCAbench release workflow...[/bold blue]")
+    settings.setenv(env.value)
 
     console.print("[bold blue]Step 1: Verifying Secrets...[/bold blue]")
     check_secrets(env, k8s_manager=k8s_manager)
 
     console.print()
     console.print("[bold blue]Step 2: Deploying with Skaffold...[/bold blue]")
-    run_command(["skaffold", "run", f"--default-repo={DEFAULT_REPO_URL}"])
+
+    with open(SKAFFOLD_CONFIG_FILE) as f:
+        skaffold_config = yaml.safe_load(f)
+    original_build_image = skaffold_config["build"]["artifacts"][0]["image"]
+    original_image_repo = skaffold_config["deploy"]["helm"]["releases"][0]["setValues"][
+        "image.repository"
+    ]
+
+    new_build_image = settings.default_repo
+    new_image_repo = settings.default_repo
+
+    skaffold_config["build"]["artifacts"][0]["image"] = new_build_image
+    skaffold_config["deploy"]["helm"]["releases"][0]["setValues"][
+        "image.repository"
+    ] = new_image_repo
+
+    with open("skaffold.yaml", "w", encoding="utf-8") as f:
+        yaml.dump(skaffold_config, f, sort_keys=False)
+
+    run_command(["skaffold", "run", f"--default-repo={settings.default_repo}"])
+
+    skaffold_config["build"]["artifacts"][0]["image"] = original_build_image
+    skaffold_config["deploy"]["helm"]["releases"][0]["setValues"][
+        "image.repository"
+    ] = original_image_repo
+
+    with open(SKAFFOLD_CONFIG_FILE, "w", encoding="utf-8") as f:
+        yaml.dump(skaffold_config, f, sort_keys=False)
 
     console.print()
     console.print("[bold blue]Step 3: Waiting for deployment...[/bold blue]")
-    k8s_manager.wait_for_all_deployments_available(K8S_NAMESPACE)
+    k8s_manager.wait_for_all_deployments_available(settings.k8s_namespace)
 
     console.print()
     console.print(
         "[bold green]✅ RCAbench release workflow completed successfully![/bold green]"
     )
     console.print("[cyan]Deployment Summary:[/cyan]")
-    console.print(f"  - Namespace: {K8S_NAMESPACE}")
-    console.print(f"  - Release Name: {RELEASE_NAME}")
-    console.print(f"  - Access URL: {k8s_manager.get_node_access_url(DEFAULT_PORT)}")
+    console.print(f"  - Namespace: {settings.k8s_namespace}")
+    console.print(f"  - Release Name: {settings.release_name}")
+    console.print(
+        f"  - Access URL: {k8s_manager.get_node_access_url(settings.default_port)}"
+    )

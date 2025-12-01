@@ -5,14 +5,15 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.backup.mysql import local_mysql_config, remote_mysql_config
-from src.common.common import SourceType, console, dev_config
+from src.common.common import SourceType, console, settings
 
 HASH_PATTERN = "injection:algorithms"
 STREAM_PATTERN = "trace:*:log"
 TRACE_LOG_KEY = "trace:{}:log"
 
-local_redis_url = f"redis://{dev_config['redis']['host']}"
-remote_redis_url = "redis://10.10.10.220:32279"
+local_redis_url = f"redis://{settings.redis.host}:{settings.redis.port}"
+settings.setenv("remote")
+remote_redis_url = f"redis://{settings.redis.host}:{settings.redis.port}"
 
 
 class RedisClient:
@@ -124,7 +125,7 @@ class RedisClient:
 
         query = """
         SELECT DISTINCT t.trace_id
-        FROM fault_injection_schedules fis
+        FROM fault_injection fis
         INNER JOIN tasks t ON fis.task_id = t.id
         WHERE fis.task_id IS NOT NULL;
         """

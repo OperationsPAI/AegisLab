@@ -9,7 +9,7 @@ from kubernetes import config
 from kubernetes.client.api import AppsV1Api, BatchV1Api, CoreV1Api
 from kubernetes.client.rest import ApiException
 
-from src.common.common import ENV, console, k8s_context_mapping
+from src.common.common import ENV, console, settings
 
 __all__ = ["KubernetesManager", "with_k8s_manager"]
 
@@ -31,6 +31,7 @@ class KubernetesManager:
         print(f"Namespaces: {namespaces}")
     """
 
+    _context_mapping: dict[ENV, str] = {}
     _instances: dict[ENV, "KubernetesManager"] = {}
     _sessions: dict[ENV, K8sSessionData] = {}
 
@@ -103,7 +104,7 @@ class KubernetesManager:
         # Check if API clients are initialized and context is correct
         return (
             session_data.core_api is not None
-            and session_data.context_name == k8s_context_mapping.get(self.env)
+            and session_data.context_name == self.get_context_mapping().get(self.env)
         )
 
     def _initialize_session(self):
@@ -117,7 +118,7 @@ class KubernetesManager:
         self._initialize()
 
         # Switch to the correct context for this environment
-        target_context = k8s_context_mapping.get(self.env)
+        target_context = self.get_context_mapping().get(self.env)
         if target_context:
             console.print(
                 f"[bold blue]Switching to context: {target_context}[/bold blue]..."
@@ -157,6 +158,22 @@ class KubernetesManager:
                 console.print(
                     "[bold yellow]Warning: No Kubernetes config found. K8s operations will be unavailable.[/bold yellow]"
                 )
+
+    @classmethod
+    def get_context_mapping(cls) -> dict[ENV, str]:
+        """Load Kubernetes context mapping from settings."""
+        if cls._context_mapping:
+            return cls._context_mapping
+
+        for env_member in ENV:
+            setting_key = f"{env_member.name}_CONTEXT"
+
+            context_name = settings.get(setting_key)
+
+            if context_name:
+                cls._context_mapping[env_member] = str(context_name)
+
+        return cls._context_mapping
 
     @classmethod
     def clear_sessions(cls):

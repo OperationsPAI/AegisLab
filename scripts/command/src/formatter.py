@@ -5,7 +5,7 @@ from collections import Counter
 
 from rich.table import Table
 
-from src.common.common import DEFAULT_SDK_DIR, console, repo
+from src.common.common import console, repo, settings
 
 
 class PythonFormatter:
@@ -21,7 +21,7 @@ class PythonFormatter:
         "python-gen",
     }
 
-    EXTRA_ARGS = ["--config", os.path.join(DEFAULT_SDK_DIR, "pyproject.toml")]
+    EXTRA_ARGS = ["--config", os.path.join(settings.python_sdk_dir, "pyproject.toml")]
 
     def __init__(self):
         self.has_errors = False
@@ -98,7 +98,7 @@ class PythonFormatter:
         other_files = []
 
         for file in files:
-            if file.startswith(DEFAULT_SDK_DIR):
+            if file.startswith(settings.python_sdk_dir):
                 sdk_files.append(file)
             elif not file.startswith("src/"):
                 other_files.append(file)

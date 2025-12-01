@@ -8,7 +8,7 @@ from typing import Any
 from python_on_whales import docker
 
 from src.common.command import run_command
-from src.common.common import console
+from src.common.common import console, settings
 from src.formatter import PythonFormatter
 from src.util import get_longest_common_substring
 
@@ -22,8 +22,6 @@ CONVERTED_DIR = SWAGGER_ROOT / "converted"
 PYTHON_SDK_DIR = PROJECT_ROOT / "sdk" / "python"
 PYTHON_SDK_GEN_DIR = PROJECT_ROOT / "sdk" / "python-gen"
 PYTHON_GENERATOR_CONFIG_DIR = PROJECT_ROOT / ".openapi-generator" / "python"
-
-GENERATOR_IMAGE = "docker.io/opspai/openapi-generator-cli:1.0.0"
 
 
 class PostProcesser:
@@ -463,7 +461,7 @@ def init(version: str) -> None:
 
     try:
         docker.run(
-            GENERATOR_IMAGE,
+            settings.generator_image,
             command=[
                 "generate",
                 "-i",
@@ -553,7 +551,7 @@ def generate_python_sdk(version: str) -> None:
 
     try:
         docker.run(
-            GENERATOR_IMAGE,
+            settings.generator_image,
             command=[
                 "generate",
                 "-i",

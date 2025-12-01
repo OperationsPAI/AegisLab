@@ -70,7 +70,7 @@ def _execute_k8s_task(
     console.print(end_msg)
 
 
-def clean_finalziers(env: ENV, ns_prefix: str, ns_count: int):
+def clean_chaos_finalziers(env: ENV, ns_prefix: str, ns_count: int):
     """Clean all chaos resource finalizers in namespaces with specific prefix"""
 
     def remove_finalizers_action(

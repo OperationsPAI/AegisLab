@@ -7,12 +7,9 @@ from typing import Any
 from jinja2 import Template
 
 from src.common.command import run_command
-from src.common.common import ENV, INITIAL_DATA_PATH, console
+from src.common.common import ENV, INITIAL_DATA_PATH, console, settings
 from src.common.kubernetes_manager import KubernetesManager, with_k8s_manager
 from src.util import parse_image_address
-
-CONTEXT_MAPPING = {"dev": "kubernetes-admin@kubernetes", "test": "k3d-test-cluter"}
-
 
 __all__ = ["Pedestal", "install_pedestals"]
 
@@ -302,7 +299,7 @@ def _render_helm_values(
 
 @with_k8s_manager
 def install_pedestals(
-    env: ENV, name: str, count: int, k8s_manager: KubernetesManager
+    env: ENV, name: str, count: int, k8s_manager: KubernetesManager, force: bool = False
 ) -> None:
     if count <= 0:
         console.print("[bold red]PEDESTAL_COUNT must be a positive number[/bold red]")
@@ -323,11 +320,20 @@ def install_pedestals(
             console.print(f"[bold yellow]Namespace {ns} does not exist[/bold yellow]")
             continue
 
+        console.print()
         has_release = (
             run_command(
-                ["helm", "list", "-n", ns, "-q"],
+                [
+                    "helm",
+                    "list",
+                    "-n",
+                    ns,
+                    "-q",
+                    "--kube-context",
+                    KubernetesManager.get_context_mapping()[env],
+                ],
                 check=False,
-                capture_output=True,
+                stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
             ).stdout
             or ""
@@ -336,17 +342,35 @@ def install_pedestals(
             console.print(
                 f"[bold yellow]Helm release '{ns}' found in namespace {ns}[/bold yellow]"
             )
-            continue
+            if force:
+                run_command(
+                    [
+                        "helm",
+                        "uninstall",
+                        ns,
+                        "-n",
+                        ns,
+                        "--kube-context",
+                        KubernetesManager.get_context_mapping()[env],
+                        "--debug",
+                    ]
+                )
+        else:
+            console.print(
+                f"[bold green]Helm release '{ns}' not found in namespace {ns}[/bold green]"
+            )
 
+        console.print(f"[bold blue]Installing Helm release '{ns}'...[/bold blue]")
+        _install_release(env, pedestal=pedestal, namespace=ns, index=i)
         console.print(
-            f"[bold green]Helm release '{ns}' not found in namespace {ns}[/bold green]"
+            f"[bold green]Installed Helm release '{ns}' in namespace {ns}[/bold green]"
         )
-        _install_release(pedestal, namespace=ns, index=i)
+        console.print()
 
     console.print("[bold green]🎉 Check and installation completed![/bold green]")
 
 
-def _install_release(pedestal: Pedestal, namespace: str, index: int) -> None:
+def _install_release(env: ENV, pedestal: Pedestal, namespace: str, index: int) -> None:
     """Install a Helm release with rendered values.
 
     Args:
@@ -365,6 +389,9 @@ def _install_release(pedestal: Pedestal, namespace: str, index: int) -> None:
         "--create-namespace",
         "-n",
         namespace,
+        "--kube-context",
+        KubernetesManager.get_context_mapping()[env],
+        "--debug",
     )
 
     values: list[str] = []

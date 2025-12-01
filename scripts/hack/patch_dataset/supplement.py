@@ -65,7 +65,7 @@ def dataset(
                     # Execute main query
                     query = """
                     SELECT id, injection_name
-                    FROM fault_injection_schedules
+                    FROM fault_injections
                     WHERE status = 3
                     ORDER BY id DESC
                     """
@@ -157,10 +157,10 @@ def detector(
 
                     query = """
                     SELECT id, injection_name 
-                    FROM fault_injection_schedules
+                    FROM fault_injections
                     WHERE id NOT IN (
                         SELECT DISTINCT fis.id
-                        FROM fault_injection_schedules fis 
+                        FROM fault_injections fis 
                         JOIN execution_results er ON fis.id = er.datapack_id
                         JOIN detectors d ON er.id = d.execution_id
                     ) AND status = 4
@@ -267,7 +267,7 @@ def align_db(
 
             query = """
             SELECT id, injection_name 
-            FROM fault_injection_schedules
+            FROM fault_injections
             ORDER BY id DESC
             """
             cursor.execute(query)

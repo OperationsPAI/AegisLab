@@ -15,7 +15,7 @@
 # Defines the environment mode: 'prod' (default, compiled binary) or 'dev', 'test' (interpreted script).
 ENV_MODE ?= dev
 
-DEFAULT_REPO 	:= docker.io/opspai
+DEFAULT_REPO 	?= docker.io/opspai
 NS          	:= exp
 PORT        	:= 30080
 RELEASE_NAME    := rcabench
@@ -29,6 +29,7 @@ BUILD_COMMAND_SCRIPT := ./scripts/build-command.sh
 ifeq ($(ENV_MODE),prod)
 	COMMAND := ./$(COMMAND_BIN)
 else
+	DEFAULT_REPO := 10.10.10.240/library
 	COMMAND := . $(COMMAND_DIR)/.venv/bin/activate && uv run python $(COMMAND_DIR)/main.py
 endif
 
@@ -172,7 +173,7 @@ setup-dev-env: check-prerequisites ## 🛠️  Setup development environment
 # =============================================================================
 
 install-pedestals: ## 🔍 Install pedestals in namespaces (usage: make install-releases PEDESTAL_NAME=ts PEDESTAL_COUNT=2)
-	$(MAKE) run-command ARGS="pedestal install -e $(ENV_MODE) -n $(PEDESTAL_NAME) -c $(PEDESTAL_COUNT)"
+	$(MAKE) run-command ARGS="pedestal install -e $(ENV_MODE) -n $(PEDESTAL_NAME) -c $(PEDESTAL_COUNT) -f"
 
 # =============================================================================
 # Build and Deployment

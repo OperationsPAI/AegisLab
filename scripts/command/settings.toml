@@ -1,0 +1,37 @@
+# settings.toml
+
+[default]
+default_port = 30080
+generator_image = "docker.io/opspai/openapi-generator-cli:1.0.0"
+k8s_namespace = "exp"
+release_name = "rcabench"
+python_sdk_dir = "sdk/python"
+time_format = "%Y%m%d_%H%M%S"
+
+[default.database]
+mysql_user = "root"
+mysql_password = "yourpassword"
+mysql_host = "localhost"
+mysql_port = "3306"
+mysql_db = "rcabench"
+
+[default.redis]
+host = "localhost"
+port = "6379"
+
+
+[dev]
+default_repo = "10.10.10.240/library/rcabench"
+
+[prod]
+default_repo = "docker.io/opspai/rcabench"
+
+[remote]
+
+[remote.database]
+mysql_host = "10.10.10.220"
+mysql_port = "32206"
+
+[remote.redis]
+host = "10.10.10.220"
+port = "32279"
