@@ -28,7 +28,7 @@ func TestGetVolumeMountConfigs(t *testing.T) {
 	volumes := []corev1.Volume{}
 	for _, cfg := range volumeMountConfigs {
 		volumeMounts = append(volumeMounts, cfg.GetVolumeMount())
-		volumes = append(volumes, cfg.GEtVolume())
+		volumes = append(volumes, cfg.GetVolume())
 	}
 
 	pp.Println(volumeMountConfigs)

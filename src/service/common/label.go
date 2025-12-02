@@ -54,3 +54,14 @@ func CreateOrUpdateLabelsFromItems(db *gorm.DB, labelItems []dto.LabelItem, cate
 
 	return labels, nil
 }
+
+func GetLabelConditionsByItems(labelItems []dto.LabelItem) []map[string]string {
+	labelConditions := make([]map[string]string, 0, len(labelItems))
+	for _, item := range labelItems {
+		labelConditions = append(labelConditions, map[string]string{
+			"key":   item.Key,
+			"value": item.Value,
+		})
+	}
+	return labelConditions
+}

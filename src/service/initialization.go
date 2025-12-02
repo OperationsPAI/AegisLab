@@ -83,7 +83,7 @@ type InitialParameterConfig struct {
 	Required       bool                     `json:"required"`
 }
 
-func (pc *InitialParameterConfig) ConvertToDBHelmConfig() *database.ParameterConfig {
+func (pc *InitialParameterConfig) ConvertToDBParameterConfig() *database.ParameterConfig {
 	return &database.ParameterConfig{
 		Key:            pc.Key,
 		Type:           pc.Type,
@@ -475,7 +475,7 @@ func initializeContainers(tx *gorm.DB, data *InitialData, userID int) error {
 			if len(versionData.EnvVars) > 0 {
 				params := make([]database.ParameterConfig, 0, len(versionData.EnvVars))
 				for _, paramData := range versionData.EnvVars {
-					param := paramData.ConvertToDBHelmConfig()
+					param := paramData.ConvertToDBParameterConfig()
 					params = append(params, *param)
 				}
 				version.EnvVars = params
@@ -486,7 +486,7 @@ func initializeContainers(tx *gorm.DB, data *InitialData, userID int) error {
 				if len(versionData.HelmConfig.Values) > 0 {
 					params := make([]database.ParameterConfig, 0, len(versionData.HelmConfig.Values))
 					for _, paramData := range versionData.HelmConfig.Values {
-						param := paramData.ConvertToDBHelmConfig()
+						param := paramData.ConvertToDBParameterConfig()
 						params = append(params, *param)
 					}
 					helmConfig.Values = params

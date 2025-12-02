@@ -16,28 +16,43 @@ class SessionData:
 
 
 class RCABenchClient:
-    """ """
+    """
+    RCABench client supporting both username/password and token-based authentication.
 
-    _instances: dict[tuple[str, str, str], "RCABenchClient"] = {}
-    _sessions: dict[tuple[str, str, str], SessionData] = {}
+    Token-based auth (for K8s jobs):
+        client = RCABenchClient(base_url="...", token="...")
+        # or via environment variable RCABENCH_TOKEN
+
+    Username/password auth (for interactive use):
+        client = RCABenchClient(base_url="...", username="...", password="...")
+        # or via environment variables RCABENCH_USERNAME, RCABENCH_PASSWORD
+    """
+
+    _instances: dict[tuple[str, str, str | None], "RCABenchClient"] = {}
+    _sessions: dict[tuple[str, str, str | None], SessionData] = {}
 
     def __new__(
         cls,
         base_url: str | None = None,
         username: str | None = None,
         password: str | None = None,
+        token: str | None = None,
     ):
         # Parse actual configuration values
         actual_base_url = base_url or os.getenv("RCABENCH_BASE_URL")
+        actual_token = token or os.getenv("RCABENCH_TOKEN")
         actual_username = username or os.getenv("RCABENCH_USERNAME")
         actual_password = password or os.getenv("RCABENCH_PASSWORD")
 
         assert actual_base_url is not None, "base_url or RCABENCH_BASE_URL is not set"
-        assert actual_username is not None, "username or RCABENCH_USERNAME is not set"
-        assert actual_password is not None, "password or RCABENCH_PASSWORD is not set"
 
-        # Use (base_url, username) as unique identifier
-        instance_key = (actual_base_url, actual_username, actual_password)
+        # Token auth takes precedence over username/password
+        if actual_token:
+            instance_key = (actual_base_url, actual_token, None)
+        else:
+            assert actual_username is not None, "username or RCABENCH_USERNAME is not set (or use token/RCABENCH_TOKEN)"
+            assert actual_password is not None, "password or RCABENCH_PASSWORD is not set (or use token/RCABENCH_TOKEN)"
+            instance_key = (actual_base_url, actual_username, actual_password)
 
         if instance_key not in cls._instances:
             instance = super().__new__(cls)
@@ -51,26 +66,33 @@ class RCABenchClient:
         base_url: str | None = None,
         username: str | None = None,
         password: str | None = None,
+        token: str | None = None,
     ):
         # Avoid duplicate initialization of the same instance
         if hasattr(self, "_initialized") and self._initialized:
             return
 
         self.base_url = base_url or os.getenv("RCABENCH_BASE_URL")
+        self.token = token or os.getenv("RCABENCH_TOKEN")
         self.username = username or os.getenv("RCABENCH_USERNAME")
         self.password = password or os.getenv("RCABENCH_PASSWORD")
 
-        assert self.username is not None, "username or RCABENCH_USERNAME is not set"
-        assert self.password is not None, "password or RCABENCH_PASSWORD is not set"
         assert self.base_url is not None, "base_url or RCABENCH_BASE_URL is not set"
 
-        self.instance_key = (self.base_url, self.username, self.password)
+        # Token auth takes precedence
+        if self.token:
+            self.instance_key = (self.base_url, self.token, None)
+        else:
+            assert self.username is not None, "username or RCABENCH_USERNAME is not set (or use token/RCABENCH_TOKEN)"
+            assert self.password is not None, "password or RCABENCH_PASSWORD is not set (or use token/RCABENCH_TOKEN)"
+            self.instance_key = (self.base_url, self.username, self.password)
+
         self._initialized = True
 
     def __enter__(self):
         # Check if there is already a valid session
         if self.instance_key not in self._sessions or not self._is_session_valid():
-            self._login()
+            self._authenticate()
         return self._get_authenticated_client()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -87,7 +109,20 @@ class RCABenchClient:
         # Currently simply check if access_token exists
         return session_data.access_token is not None
 
+    def _authenticate(self) -> None:
+        """Authenticate using either token or username/password"""
+        if self.token:
+            # Direct token authentication (for K8s jobs using service tokens)
+            self._sessions[self.instance_key] = SessionData(
+                access_token=self.token,
+                api_client=None,
+            )
+        else:
+            # Username/password login
+            self._login()
+
     def _login(self) -> None:
+        """Login using username and password"""
         config = Configuration(host=self.base_url)
         with ApiClient(config) as api_client:
             auth_api = AuthenticationApi(api_client)
@@ -106,7 +141,7 @@ class RCABenchClient:
 
     def _get_authenticated_client(self) -> ApiClient:
         if self.instance_key not in self._sessions or not self._is_session_valid():
-            self._login()
+            self._authenticate()
 
         session_data = self._sessions[self.instance_key]
 

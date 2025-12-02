@@ -1,5 +1,5 @@
 name = "AegisLab"
-version = "0.1.0"
+version = "1.1.47"
 
 port = 8082
 workspace = "/home/nn/workspace/AegisLab"
@@ -15,7 +15,6 @@ data_path = "/home/nn/workspace/AegisLab/helm/files/initial_data"
 enable = true
 
 [injection]
-benchmark = ["clickhouse"]
 target_label_key = "app"
 
 [injection.namespace_config.ts]
@@ -25,15 +24,15 @@ count = 1
 clickhouse_host = "10.10.10.58"
 mysql_user = "root"
 mysql_password = "yourpassword"
-mysql_host = "10.10.10.220"
-mysql_port = "32206"
+mysql_host = "localhost"
+mysql_port = "3306"
 mysql_db = "rcabench"
 
 [jaeger]
 endpoint = "localhost:4318"
 
 [redis]
-host = "10.10.10.220:32279"
+host = "localhost:6379"
 
 [harbor]
 registry = "10.10.10.240"
@@ -44,17 +43,8 @@ password = "Harbor12345"
 [k8s]
 namespace = "exp"
 
-[k8s.job.volume_mount.data]
-name = "data"
-mount_path = "/data"
-host_path = "/mnt/jfs/rcabench_dataset"
-type = "Directory"
-
-[k8s.job.volume_mount.experiment_storage]
-name = "experiment-storage"
-mount_path = "/experiment_storage"
-host_path = "/mnt/jfs/experiment_storage"
-type = "Directory"
+[k8s.init_container]
+busybox_image = "10.10.10.240/library/busybox:1.35"
 
 [k8s.job.volume_mount.kube_config]
 name = "kube-config"
@@ -63,6 +53,19 @@ sub_path = "config"
 source_type = "secret"
 secret_name = "kube-config"
 
+[k8s.job.volume_mount.dataset]
+name = "dataset"
+mount_path = "/data"
+source_type = "pvc"
+claim_name = "rcabench-juicefs-dataset"
+
+[k8s.job.volume_mount.experiment_storage]
+name = "experiment-storage"
+mount_path = "/experiment_storage"
+source_type = "pvc"
+claim_name = "rcabench-juicefs-experiment-storage"
+
+
 [logging]
 dir = "/home/nn/workspace/AegisLab/logs"
 
@@ -70,8 +73,12 @@ dir = "/home/nn/workspace/AegisLab/logs"
 dir = "jobs"
 log_retention_days = 7
 
+[jfs]
+dataset_path = "/mnt/jfs/rcabench_dataset"
+experiment_storage_path = "/mnt/jfs/experiment_storage"
+
 [algo]
-detector = "detector"
+detector = "detector_harbor"
 
 [container]
 storage_path = "/home/nn/workspace/AegisLab/containers"

@@ -201,21 +201,25 @@ func SearchInjections(req *dto.SearchInjectionReq) (*dto.SearchResp[dto.Injectio
 		})
 	}
 
-	injectionIDs, err := repository.ListInjectionIDsByLabels(database.DB, labelConditions)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list injection ids by labels: %w", err)
-	}
-
-	injectionIDMap := make(map[int]struct{}, len(injectionIDs))
-	for _, id := range injectionIDs {
-		injectionIDMap[id] = struct{}{}
-	}
-
 	filteredInjections := []database.FaultInjection{}
-	for _, injection := range injections {
-		if _, exists := injectionIDMap[injection.ID]; exists {
-			filteredInjections = append(filteredInjections, injection)
+	if len(labelConditions) > 0 {
+		injectionIDs, err := repository.ListInjectionIDsByLabels(database.DB, labelConditions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list injection ids by labels: %w", err)
 		}
+
+		injectionIDMap := make(map[int]struct{}, len(injectionIDs))
+		for _, id := range injectionIDs {
+			injectionIDMap[id] = struct{}{}
+		}
+
+		for _, injection := range injections {
+			if _, exists := injectionIDMap[injection.ID]; exists {
+				filteredInjections = append(filteredInjections, injection)
+			}
+		}
+	} else {
+		filteredInjections = injections
 	}
 
 	// Convert to response format
@@ -338,7 +342,7 @@ func ManageInjectionLabels(req *dto.ManageInjectionLabelReq, injectionID int) (*
 			}
 
 			// AddInjectionLabels now takes injectionID and labelIDs (stores as TaskLabel internally)
-			if err := repository.AddInjectionLabels(tx, injectionID, labelIDs); err != nil {
+			if err := repository.AddInjectionLabels(tx, injection.ID, labelIDs); err != nil {
 				return fmt.Errorf("failed to add injection labels: %w", err)
 			}
 		}
@@ -576,24 +580,24 @@ func ProduceDatapackBuildingTasks(ctx context.Context, req *dto.SubmitDatapackBu
 			return nil, fmt.Errorf("failed to extract datapacks: %w", err)
 		}
 
+		benchmarkVersion, exists := benchmarkVersionResults[refs[idx]]
+		if !exists {
+			return nil, fmt.Errorf("benchmark version not found for %v", spec.Benchmark)
+		}
+
+		benchmarkVersionItem := dto.NewContainerVersionItem(&benchmarkVersion)
+		envVars, err := common.ListContainerVersionEnvVars(spec.Benchmark.EnvVars, &benchmarkVersion)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list benchmark env vars: %w", err)
+		}
+
+		benchmarkVersionItem.EnvVars = envVars
+
 		var buildingItems []dto.SubmitBuildingItem
 		for _, datapack := range datapacks {
 			if datapack.StartTime == nil || datapack.EndTime == nil {
 				return nil, fmt.Errorf("datapack %s does not have valid start_time and end_time", datapack.Name)
 			}
-
-			benchmarkVersion, exists := benchmarkVersionResults[&spec.Benchmark.ContainerRef]
-			if !exists {
-				return nil, fmt.Errorf("benchmark version not found for %v", spec.Benchmark)
-			}
-
-			benchmarkVersionItem := dto.NewContainerVersionItem(&benchmarkVersion)
-			envVars, err := common.ListContainerVersionEnvVars(spec.Benchmark.EnvVars, &benchmarkVersion)
-			if err != nil {
-				return nil, fmt.Errorf("failed to list benchmark env vars: %w", err)
-			}
-
-			benchmarkVersionItem.EnvVars = envVars
 
 			payload := map[string]any{
 				consts.BuildBenchmark:        benchmarkVersionItem,

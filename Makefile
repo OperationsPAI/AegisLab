@@ -24,6 +24,9 @@ RELEASE_NAME    := rcabench
 COMMAND_DIR := scripts/command
 COMMAND_BIN := $(COMMAND_DIR)/command.bin
 
+NS_PREFIX ?= ts
+NS_COUNT  ?= 2
+
 BUILD_COMMAND_SCRIPT := ./scripts/build-command.sh
 
 ifeq ($(ENV_MODE),prod)
@@ -209,7 +212,7 @@ clean-finalizers: ## 🧹 Clean all chaos resource finalizers in namespaces with
 	$(MAKE) run-command ARGS="chaos clean-finalizers -e $(ENV_MODE) -p $(NS_PREFIX) -c $(NS_COUNT)"
 
 delete-chaos: ## 🗑️  Delete chaos resources in namespaces with specific prefix
-	$(MAKE) run-command ARGS="chaos delete-chaos -e $(ENV_MODE) -p $(NS_PREFIX) -c $(NS_COUNT)"
+	$(MAKE) run-command ARGS="chaos delete-resources -e $(ENV_MODE) -p $(NS_PREFIX) -c $(NS_COUNT)"
 
 # =============================================================================
 # Git Hooks
@@ -264,7 +267,7 @@ format-staged-go: ## 🔍 Lint and format staged Go files with golangci-lint
 # =============================================================================
 
 swag-init: ## 📝 Initialize Swagger documentation
-	$(MAKE) run-command ARGS="swagger swagger-init -v $(SDK_VERSION)"
+	$(MAKE) run-command ARGS="swagger init -v $(SDK_VERSION)"
 
 generate-python-sdk: swag-init ## ⚙️ Generate Python SDK from Swagger documentation
 	$(MAKE) run-command ARGS="swagger generate-sdk -l python -v $(SDK_VERSION)"

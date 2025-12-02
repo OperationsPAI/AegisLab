@@ -74,7 +74,12 @@ func BatchUpsertLabels(db *gorm.DB, labels []database.Label) error {
 
 	if err := db.Omit(labelKeyOmitFields).Clauses(clause.OnConflict{
 		OnConstraint: "idx_key_value_unique",
-		DoNothing:    true,
+		DoUpdates: clause.Set{
+			{
+				Column: clause.Column{Name: "usage_count"},
+				Value:  gorm.Expr("usage_count + ?", 1),
+			},
+		},
 	}).Create(&labels).Error; err != nil {
 		return fmt.Errorf("failed to batch upsert labels: %w", err)
 	}
@@ -177,6 +182,29 @@ func ListLabels(db *gorm.DB, limit, offset int, filterOptions *dto.ListLabelFilt
 	}
 
 	return labels, total, nil
+}
+
+func ListLabelsByConditions(db *gorm.DB, conditions []map[string]string) ([]database.Label, error) {
+	if len(conditions) == 0 {
+		return []database.Label{}, nil
+	}
+
+	query := db.Model(&database.Label{}).Where("status != ?", consts.CommonDeleted)
+
+	for _, condition := range conditions {
+		if key, ok := condition["key"]; ok {
+			query = query.Where("label_key = ?", key)
+		}
+		if value, ok := condition["value"]; ok {
+			query = query.Where("label_value = ?", value)
+		}
+	}
+
+	var labels []database.Label
+	if err := query.Find(&labels).Error; err != nil {
+		return nil, fmt.Errorf("failed to list labels by conditions: %w", err)
+	}
+	return labels, nil
 }
 
 // ListLabelsByID lists labels by their IDs

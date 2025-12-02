@@ -37,7 +37,6 @@ configmap:
   initialization:
     data_path: "/app/data/initial_data"
   injection:
-    benchmark: ["clickhouse"]
     target_label_key: "app"
     namespace_config:
       ts:
@@ -55,31 +54,34 @@ configmap:
     password: "Harbor12345"
   k8s:
     namespace: "exp"
+    init_container:
+      busybox_image: "busybox:1.35"
     job:
       volume_mount:
-        data:
-          name: "data"
-          mount_path: "/data"
-          source_type: "pvc"
-          claim_name: "rcabench-juicefs-dataset"
-        experiment_storage:
-          name: "experiment-storage"
-          mount_path: "/experiment_storage"
-          host_path: "/mnt/jfs/experiment_storage"
-          type: "Directory"
         kube_config:
           name: "kube-config"
           mount_path: "/root/.kube/config"
           sub_path: "config"
           source_type: "secret"
           secret_name: "kube-config"
+        dataset:
+          name: "dataset"
+          mount_path: "/data"
+          source_type: "pvc"
+          claim_name: "rcabench-juicefs-dataset"
+        experiment_storage:
+          name: "experiment-storage"
+          mount_path: "/experiment_storage"
+          source_type: "pvc"
+          claim_name: "rcabench-juicefs-experiment-storage"
   logging:
     dir: "/app/logs"
     job:
       dir: "jobs"
       log_retention_days: 7
   jfs:
-    path: "/var/lib/rcabench"
+    dataset_path: "/var/lib/rcabench/dataset"
+    experiment_storage_path: "/var/lib/rcabench/experiment_storage"
   algo:
     detector: "detector"
   container:
@@ -112,21 +114,23 @@ persistence:
     enabled: true
     accessMode: ReadWriteMany
     size: 1Gi
-    storageClass: "juicefs-sc"  # 改用 JuiceFS 支持多 Pod 共享
+    storageClass: "juicefs-sc"
   logs:
     enabled: true
     accessMode: ReadWriteMany
     size: 1Gi
-    storageClass: "juicefs-sc"  # 改用 JuiceFS 支持多 Pod 共享
+    storageClass: "juicefs-sc"
   juicefs:
     enabled: true
     size: 1000Gi
-    useStaticPV: true  # 使用静态 PV,直接访问 JuiceFS 文件系统
-    subPath: "rcabench_dataset"  # 挂载 JuiceFS 根目录下的 rcabench_dataset 子目录
+    useStaticPV: true
+    subPath:
+      dataset: "rcabench_dataset"
+      experiment_storage: "experiment_storage"
 
 # JuiceFS Configuration
 juicefs:
-  name: "jfs"  # 必须与主机上的 JuiceFS 文件系统名称一致
+  name: "jfs"
   metaurl: "redis://10.10.10.119:6379/1"
   cacheSize: "1024"
   # Optional: configure object storage if needed

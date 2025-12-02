@@ -2,11 +2,14 @@ package utils
 
 import (
 	"fmt"
+	"math/rand"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/oklog/ulid"
 )
 
 var envVarRegex = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
@@ -163,4 +166,15 @@ func ToSingular(plural string) string {
 	}
 
 	return plural
+}
+
+func GenerateULID(t *time.Time) string {
+	if t == nil {
+		now := time.Now()
+		t = &now
+	}
+
+	entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
+	id := ulid.MustNew(ulid.Timestamp(*t), entropy)
+	return id.String()
 }

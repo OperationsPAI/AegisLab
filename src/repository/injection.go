@@ -191,7 +191,11 @@ func ListInjectionIDsByNames(db *gorm.DB, names []string) (map[string]int, error
 		ID   int    `gorm:"column:id"`
 	}
 
-	if err := db.Model(&database.FaultInjection{}).Find(&records, "name IN (?)", names).Error; err != nil {
+	if err := db.Model(&database.FaultInjection{}).
+		Select("name, id").
+		Where("state = ? AND status = ?", consts.DatapackBuildSuccess, consts.CommonEnabled).
+		Where("name IN (?)", names).
+		Find(&records).Error; err != nil {
 		return nil, fmt.Errorf("failed to query injection IDs: %w", err)
 	}
 
@@ -449,11 +453,11 @@ func RemoveLabelsFromInjections(db *gorm.DB, injectionIDs []int) error {
 func ListInjectionIDsByLabels(db *gorm.DB, labelConditions []map[string]string) ([]int, error) {
 	var injectionIDs []int
 	query := db.Model(&database.FaultInjection{}).
-		Select("DISTINCT fault_injection_schedules.id").
-		Joins("JOIN tasks ON tasks.id = fault_injection_schedules.task_id").
+		Select("DISTINCT fault_injections.id").
+		Joins("JOIN tasks ON tasks.id = fault_injections.task_id").
 		Joins("JOIN task_labels tl ON tl.task_id = tasks.id").
 		Joins("JOIN labels ON labels.id = tl.label_id").
-		Where("fault_injection_schedules.status != ?", consts.CommonDeleted)
+		Where("fault_injections.status != ?", consts.CommonDeleted)
 
 	var whereClauses []string
 	var whereArgs []any
@@ -468,7 +472,7 @@ func ListInjectionIDsByLabels(db *gorm.DB, labelConditions []map[string]string) 
 		query = query.Where(whereClause, whereArgs...)
 	}
 
-	if err := query.Pluck("fault_injection_schedules.id", &injectionIDs).Error; err != nil {
+	if err := query.Pluck("fault_injections.id", &injectionIDs).Error; err != nil {
 		return nil, fmt.Errorf("failed to list injection IDs by labels: %v", err)
 	}
 
@@ -521,7 +525,7 @@ func ListInjectionLabelCounts(db *gorm.DB, labelIDs []int) (map[int]int64, error
 	}
 
 	var results []injectionLabelResult
-	// Count via task_labels joined with fault_injection_schedules
+	// Count via task_labels joined with fault_injections
 	if err := db.Table("task_labels tl").
 		Select("tl.label_id, count(DISTINCT fi.id) as count").
 		Joins("JOIN fault_injections fi ON fi.task_id = tl.task_id").

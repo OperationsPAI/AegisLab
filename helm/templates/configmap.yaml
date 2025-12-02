@@ -17,7 +17,6 @@ data:
     data_path = "{{ .Values.configmap.initialization.data_path }}"
 
     [injection]
-    benchmark = {{ .Values.configmap.injection.benchmark | toJson }}
     target_label_key = "{{ .Values.configmap.injection.target_label_key }}"
     {{- with .Values.configmap.injection.namespace_config }}
     [injection.namespace_config]
@@ -49,10 +48,16 @@ data:
 
     [k8s]
     namespace = "{{ .Values.configmap.k8s.namespace }}"
+    [k8s.init_container]
+    {{- range $key, $value := .Values.configmap.k8s.init_container }}
+    {{ $key }} = {{ $value | quote }}
+    {{- end }}
     {{- range $key, $value := .Values.configmap.k8s.job.volume_mount }}
     [k8s.job.volume_mount.{{ $key }}]
     name = {{ $value.name | quote }}
+    {{- if $value.mount_path }}
     mount_path = {{ $value.mount_path | quote }}
+    {{- end }}
     {{- if $value.host_path }}
     host_path = {{ $value.host_path | quote }}
     type = {{ $value.type | quote }}
@@ -78,7 +83,8 @@ data:
     log_retention_days = {{ .Values.configmap.logging.job.log_retention_days }}
 
     [jfs]
-    path = "{{ .Values.configmap.jfs.path }}"
+    dataset_path = "{{ .Values.configmap.jfs.dataset_path }}"
+    experiment_storage_path = "{{ .Values.configmap.jfs.experiment_storage_path }}"
 
     [algo]
     detector = "{{ .Values.configmap.algo.detector }}"

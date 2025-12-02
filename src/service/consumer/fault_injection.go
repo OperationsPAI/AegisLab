@@ -90,8 +90,13 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 		}
 		annotations[consts.CRDAnnotationBenchmark] = string(itemJson)
 
-		crdLabels := task.GetLabels()
-		crdLabels[consts.CRDLabelInjectionID] = strconv.Itoa(injection.ID)
+		crdLabels := utils.MergeSimpleMaps(
+			task.GetLabels(),
+			map[string]string{
+				consts.K8sLabelAppID:       consts.AppID,
+				consts.CRDLabelInjectionID: strconv.Itoa(injection.ID),
+			},
+		)
 
 		monitor := GetMonitor()
 		toReleased := false

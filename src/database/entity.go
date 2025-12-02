@@ -45,7 +45,7 @@ type ContainerVersion struct {
 	Repository  string `gorm:"not null;index;size:128"`
 	Tag         string `gorm:"not null;size:128"`
 	Command     string `gorm:"type:text"`
-	Usage       int    `gorm:"column:usage_count;default:0;index"`
+	Usage       int    `gorm:"column:usage_count;check:usage_count >= 0;default:0;index"`
 	ContainerID int    `gorm:"not null;index"`
 	UserID      int    `gorm:"not null;index"`
 
@@ -267,13 +267,13 @@ type Project struct {
 
 // Label table - Unified label management
 type Label struct {
-	ID          int                  `gorm:"primaryKey;autoIncrement"`                                        // Unique identifier
-	Key         string               `gorm:"column:label_key;not null;type:varchar(64);index"`                // Label key
-	Value       string               `gorm:"column:label_value;not null;type:varchar(64);index"`              // Label value
-	Category    consts.LabelCategory `gorm:"index"`                                                           // Label category (dataset, fault_injection, algorithm, container, etc.)
-	Description string               `gorm:"type:text"`                                                       // Label description
-	Color       string               `gorm:"type:varchar(7);default:'#1890ff'"`                               // Label color (hex format)
-	Usage       int                  `gorm:"not null;column:usage_count;default:0;check:usage_conut>0;index"` // Usage count
+	ID          int                  `gorm:"primaryKey;autoIncrement"`                                         // Unique identifier
+	Key         string               `gorm:"column:label_key;not null;type:varchar(64);index"`                 // Label key
+	Value       string               `gorm:"column:label_value;not null;type:varchar(64);index"`               // Label value
+	Category    consts.LabelCategory `gorm:"index"`                                                            // Label category (dataset, fault_injection, algorithm, container, etc.)
+	Description string               `gorm:"type:text"`                                                        // Label description
+	Color       string               `gorm:"type:varchar(7);default:'#1890ff'"`                                // Label color (hex format)
+	Usage       int                  `gorm:"not null;column:usage_count;default:0;check:usage_count>=0;index"` // Usage count
 
 	IsSystem  bool              `gorm:"not null;default:false;index"` // Whether system label
 	Status    consts.StatusType `gorm:"not null;default:1;index"`     // Status: -1:deleted 0:disabled 1:enabled
@@ -422,7 +422,7 @@ type Task struct {
 // FaultInjectionSchedule model
 type FaultInjection struct {
 	ID            int             `gorm:"primaryKey;autoIncrement"`                                                    // Unique identifier
-	Name          string          `gorm:"size:128;not null;uniqueIndex"`                                               // Schedule name, add unique index
+	Name          string          `gorm:"size:128;not null;index"`                                                     // Schedule name, add unique index
 	FaultType     chaos.ChaosType `gorm:"not null;index;index:idx_fault_type_state"`                                   // Fault type, add composite index
 	Description   string          `gorm:"type:text"`                                                                   // Description
 	DisplayConfig *string         `gorm:"type:longtext"`                                                               // User-facing display configuration
@@ -439,8 +439,6 @@ type FaultInjection struct {
 	CreatedAt time.Time            `gorm:"autoCreateTime;index"`                                // Creation time, add time index
 	UpdatedAt time.Time            `gorm:"autoUpdateTime;index"`                                // Update time
 
-	ActiveName string `gorm:"type:varchar(150) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN name ELSE NULL END) STORED;uniqueIndex:idx_active_injection_name"`
-
 	// Foreign key association with cascade
 	Benchmark *ContainerVersion `gorm:"foreignKey:BenchmarkID;constraint:OnDelete:RESTRICT"`
 	Pedestal  *ContainerVersion `gorm:"foreignKey:PedestalID;constraint:OnDelete:RESTRICT"`
@@ -450,7 +448,7 @@ type FaultInjection struct {
 type Execution struct {
 	ID                 int     `gorm:"primaryKey;autoIncrement"`              // Unique identifier
 	Duration           float64 `gorm:"not null;default:0;index"`              // Execution duration
-	TaskID             string  `gorm:"not null;uniqueIndex;size:64"`          // Associated task ID, add composite index
+	TaskID             string  `gorm:"not null;size:64"`                      // Associated task ID, add composite index
 	AlgorithmVersionID int     `gorm:"not null;index:idx_exec_algo_datapack"` // Algorithm ID, add composite index
 	DatapackID         int     `gorm:"not null;index:idx_exec_algo_datapack"` // Datapack identifier, add composite index
 	DatasetVersionID   *int    `gorm:"index"`                                 // Dataset identifier (optional, for dataset-based executions)
@@ -484,7 +482,7 @@ type DetectorResult struct {
 	NormalP95           *float64 `gorm:"type:float"`        // P95 during normal period
 	AbnormalP99         *float64 `gorm:"type:float"`        // P99 during abnormal period
 	NormalP99           *float64 `gorm:"type:float"`        // P99 during normal period
-	ExecutionID         int      `gorm:"index"`             // Associated Execution ID
+	ExecutionID         int      // Associated Execution ID
 
 	// Foreign key association
 	Execution *Execution `gorm:"foreignKey:ExecutionID;constraint:OnDelete:CASCADE"`

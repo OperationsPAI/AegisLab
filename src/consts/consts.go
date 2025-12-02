@@ -255,11 +255,6 @@ const (
 	EvaluateLevel = "level"
 )
 
-// Environment variable names
-const (
-	BuildEnvVarNamespace = "NAMESPACE"
-)
-
 const (
 	HarborTimeout  = 30
 	HarborTimeUnit = time.Second
@@ -341,11 +336,6 @@ const (
 	EventJobFailed  EventType = "k8s.job.failed"
 )
 
-// K8s Job name
-const (
-	DatasetJobName = "dataset"
-)
-
 const (
 	TaskCarrier  = "task_carrier"
 	TraceCarrier = "trace_carrier"
@@ -359,10 +349,13 @@ const (
 	JobAnnotationAlgorithm = "algorithm"
 	JobAnnotationDatapack  = "datapack"
 
+	K8sLabelAppID = "rcabench_app_id"
+
 	// CRD label fields
 	CRDLabelInjectionID = "injection_id"
 
 	// Job label common fields
+	JobLabelName      = "job-name"
 	JobLabelTaskID    = "task_id"
 	JobLabelTraceID   = "trace_id"
 	JobLabelGroupID   = "group_id"
@@ -375,6 +368,14 @@ const (
 	JobLabelDatasetID   = "dataset_id"
 	JobLabelExecutionID = "execution_id"
 	JobLabelTimestamp   = "timestamp"
+)
+
+type VolumeMountName string
+
+const (
+	VolumeMountKubeConfig        VolumeMountName = "kube_config"
+	VolumeMountDataset           VolumeMountName = "dataset"
+	VolumeMountExperimentStorage VolumeMountName = "experiment_storage"
 )
 
 type SSEEventName string
@@ -487,3 +488,6 @@ const (
 	URLPathResourceID   = "resource_id"
 	URLPathName         = "name"
 )
+
+var AppID string
+var InitialTime *time.Time

@@ -176,35 +176,35 @@ spec:
             - name: config
               mountPath: /etc/rcabench/config.prod.toml
               subPath: config.prod.toml
-            - name: kube-config
-              mountPath: /root/.kube/config
-              subPath: config
-            - name: data
-              mountPath: "{{ .Values.configmap.jfs.path }}"
-            - name: containers-data
-              mountPath: "{{ .Values.configmap.container.storage_path }}"
             - name: initial-data
               mountPath: "{{ .Values.configmap.initialization.data_path }}"
               readOnly: true
+            - name: kube-config
+              mountPath: /root/.kube/config
+              subPath: config
+            - name: containers-data
+              mountPath: "{{ .Values.configmap.container.storage_path }}"
+            - name: dataset
+              mountPath: "{{ .Values.configmap.jfs.dataset_path }}"
       volumes:
         - name: config
           configMap:
             name: {{ .Release.Name }}-rcabench-config
+        - name: initial-data
+          configMap:
+            name: {{ .Release.Name }}-initial-data
         - name: kube-config
           secret:
             secretName: kube-config
             items:
               - key: config
                 path: config
-        - name: data
-          persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-juicefs-dataset
         - name: containers-data
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-containers-data
-        - name: initial-data
-          configMap:
-            name: {{ .Release.Name }}-initial-data
+        - name: dataset
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-juicefs-dataset
 ---
 # exp Application
 apiVersion: apps/v1
@@ -269,43 +269,30 @@ spec:
             - name: config
               mountPath: /etc/rcabench/config.prod.toml
               subPath: config.prod.toml
-            - name: kube-config
-              mountPath: /root/.kube/config
-              subPath: config
-            - name: data
-              mountPath: "{{ .Values.configmap.jfs.path }}"
-            - name: containers-data
-              mountPath: "{{ .Values.configmap.container.storage_path }}"
-            - name: logs-data
-              mountPath: "{{ .Values.configmap.logging.dir }}"
             - name: initial-data
               mountPath: "{{ .Values.configmap.initialization.data_path }}"
-              readOnly: true
             - name: docker-config-volume
               mountPath: /root/.docker/config.json
               subPath: config.json
             - name: harbor-cert
               mountPath: /usr/local/share/ca-certificates/harbor.lab.pj.crt
               subPath: harbor.lab.pj.crt
+            - name: kube-config
+              mountPath: /root/.kube/config
+              subPath: config
+            - name: containers-data
+              mountPath: "{{ .Values.configmap.container.storage_path }}"
+            - name: dataset
+              mountPath: "{{ .Values.configmap.jfs.dataset_path }}"
+            - name: experiment-storage
+              mountPath: "{{ .Values.configmap.jfs.experiment_storage_path }}"
+            - name: logs-data
+              mountPath: "{{ .Values.configmap.logging.dir }}"
+              readOnly: true
       volumes:
         - name: config
           configMap:
             name: {{ .Release.Name }}-rcabench-config
-        - name: kube-config
-          secret:
-            secretName: kube-config
-            items:
-              - key: config
-                path: config
-        - name: data
-          persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-juicefs-dataset
-        - name: containers-data
-          persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-containers-data
-        - name: logs-data
-          persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-logs-data
         - name: initial-data
           configMap:
             name: {{ .Release.Name }}-initial-data
@@ -321,6 +308,24 @@ spec:
             items:
               - key: harbor.lab.pj.crt
                 path: harbor.lab.pj.crt
+        - name: kube-config
+          secret:
+            secretName: kube-config
+            items:
+              - key: config
+                path: config
+        - name: containers-data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-containers-data
+        - name: dataset
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-juicefs-dataset
+        - name: experiment-storage
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-juicefs-experiment-storage
+        - name: logs-data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-logs-data
 
 ---
 apiVersion: apps/v1

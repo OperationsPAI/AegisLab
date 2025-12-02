@@ -84,13 +84,17 @@ func NewController() *Controller {
 		chaosGVRs = append(chaosGVRs, gvr)
 	}
 
+	tweakListOptions := func(options *metav1.ListOptions) {
+		options.LabelSelector = fmt.Sprintf("%s=%s", consts.K8sLabelAppID, consts.AppID)
+	}
+
 	crdInformers := make(map[string]map[schema.GroupVersionResource]cache.SharedIndexInformer, len(namespaces))
 	for _, namespace := range namespaces {
 		chaosFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
 			k8sDynamicClient,
 			resyncPeriod,
 			namespace,
-			nil,
+			tweakListOptions,
 		)
 
 		gvrInformers := make(map[schema.GroupVersionResource]cache.SharedIndexInformer, len(chaosGVRs))
@@ -105,6 +109,7 @@ func NewController() *Controller {
 		k8sClient,
 		resyncPeriod,
 		informers.WithNamespace(config.GetString("k8s.namespace")),
+		informers.WithTweakListOptions(tweakListOptions),
 	)
 
 	queue := workqueue.NewTypedRateLimitingQueue(
@@ -185,6 +190,14 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
 			u := obj.(*unstructured.Unstructured)
+
+			if consts.InitialTime != nil {
+				creationTime := u.GetCreationTimestamp().Time
+				if creationTime.Before(*consts.InitialTime) {
+					return
+				}
+			}
+
 			c.callback.HandleCRDAdd(u.GetName(), u.GetAnnotations(), u.GetLabels())
 			logrus.WithFields(logrus.Fields{
 				"type":      gvr.Resource,
@@ -274,6 +287,13 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 func (c *Controller) genJobEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
+			if consts.InitialTime != nil {
+				creationTime := obj.(*batchv1.Job).CreationTimestamp.Time
+				if creationTime.Before(*consts.InitialTime) {
+					return
+				}
+			}
+
 			job := obj.(*batchv1.Job)
 			logrus.WithFields(logrus.Fields{
 				"namespace": job.Namespace,

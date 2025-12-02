@@ -43,15 +43,16 @@ type algoJobCreationParams struct {
 	payload     *executionPayload
 }
 
-func (p *algoJobCreationParams) toK8sJobConfig(envVars []corev1.EnvVar, initContainers []corev1.Container) *k8s.JobConfig {
+func (p *algoJobCreationParams) toK8sJobConfig(envVars []corev1.EnvVar, initContainers []corev1.Container, volumeMountconfigs []k8s.VolumeMountConfig) *k8s.JobConfig {
 	return &k8s.JobConfig{
-		JobName:        p.jobName,
-		Image:          p.image,
-		Command:        strings.Split(p.payload.algorithm.Command, " "),
-		EnvVars:        envVars,
-		Annotations:    p.annotations,
-		Labels:         p.labels,
-		InitContainers: initContainers,
+		JobName:            p.jobName,
+		Image:              p.image,
+		Command:            strings.Split(p.payload.algorithm.Command, " "),
+		EnvVars:            envVars,
+		Annotations:        p.annotations,
+		Labels:             p.labels,
+		InitContainers:     initContainers,
+		VolumeMountConfigs: volumeMountconfigs,
 	}
 }
 
@@ -119,6 +120,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 		jobLabels := utils.MergeSimpleMaps(
 			task.GetLabels(),
 			map[string]string{
+				consts.K8sLabelAppID:       consts.AppID,
 				consts.JobLabelDatapack:    payload.datapack.Name,
 				consts.JobLabelExecutionID: strconv.Itoa(executionID),
 			},
@@ -226,7 +228,19 @@ func createAlgoJob(ctx context.Context, params *algoJobCreationParams) error {
 			"execution_id": params.executionID,
 		})
 
-		jobEnvVars, err := getAlgoJobEnvVars(params.executionID, params.payload)
+		volumeMountConfigs, err := getRequiredVolumeMountConfigs([]consts.VolumeMountName{
+			consts.VolumeMountKubeConfig,
+			consts.VolumeMountDataset,
+			consts.VolumeMountExperimentStorage,
+		})
+		if err != nil {
+			return handleExecutionError(span, logEntry, "failed to get volume mount configurations", err)
+		}
+
+		datapackPathPrefix := volumeMountConfigs[1].MountPath
+		expPathPrefix := volumeMountConfigs[2].MountPath
+
+		jobEnvVars, err := getAlgoJobEnvVars(params.jobName, params.executionID, datapackPathPrefix, expPathPrefix, params.payload)
 		if err != nil {
 			return handleExecutionError(span, logEntry, "failed to get job environment variables", err)
 		}
@@ -242,7 +256,7 @@ func createAlgoJob(ctx context.Context, params *algoJobCreationParams) error {
 		initContainers := []corev1.Container{
 			{
 				Name:    "create-output-dir",
-				Image:   "busybox:1.35",
+				Image:   config.GetString("k8s.init_container.busybox_image"),
 				Command: []string{"sh", "-c"},
 				Args: []string{
 					fmt.Sprintf(`
@@ -253,12 +267,12 @@ func createAlgoJob(ctx context.Context, params *algoJobCreationParams) error {
 			},
 		}
 
-		return k8s.CreateJob(childCtx, params.toK8sJobConfig(jobEnvVars, initContainers))
+		return k8s.CreateJob(childCtx, params.toK8sJobConfig(jobEnvVars, initContainers, volumeMountConfigs))
 	})
 }
 
 // getAlgoJobEnvVars constructs the environment variables for the algorithm job
-func getAlgoJobEnvVars(executionID int, payload *executionPayload) ([]corev1.EnvVar, error) {
+func getAlgoJobEnvVars(taskID string, executionID int, datapackPathPrefix, expPathPrefix string, payload *executionPayload) ([]corev1.EnvVar, error) {
 	tz := config.GetString("system.timezone")
 	if tz == "" {
 		tz = "Asia/Shanghai"
@@ -267,9 +281,17 @@ func getAlgoJobEnvVars(executionID int, payload *executionPayload) ([]corev1.Env
 	now := time.Now()
 	timestamp := now.Format(customTimeFormat)
 
-	outputPath := filepath.Join("/data", payload.datapack.Name)
+	var outputPath string
 	if payload.algorithm.ContainerName != config.GetString("algo.detector") {
-		outputPath = filepath.Join(outputPath, payload.algorithm.Name, timestamp)
+		outputPath = filepath.Join(datapackPathPrefix, payload.datapack.Name)
+	} else {
+		outputPath = filepath.Join(expPathPrefix, payload.algorithm.ContainerName, payload.algorithm.Name, timestamp)
+	}
+
+	// Generate service token for job authentication
+	serviceToken, _, err := utils.GenerateServiceToken(taskID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate service token: %w", err)
 	}
 
 	jobEnvVars := []corev1.EnvVar{
@@ -281,12 +303,9 @@ func getAlgoJobEnvVars(executionID int, payload *executionPayload) ([]corev1.Env
 		{Name: "ABNORMAL_START", Value: strconv.FormatInt(payload.datapack.StartTime.Unix(), 10)},
 		{Name: "ABNORMAL_END", Value: strconv.FormatInt(payload.datapack.EndTime.Unix(), 10)},
 		{Name: "WORKSPACE", Value: "/app"},
-		{Name: "INPUT_PATH", Value: filepath.Join("/data", payload.datapack.Name)},
+		{Name: "INPUT_PATH", Value: filepath.Join(datapackPathPrefix, payload.datapack.Name)},
 		{Name: "OUTPUT_PATH", Value: outputPath},
-		{Name: "RCABENCH_USERNAME", Value: "admin"},
-		{Name: "RCABENCH_PASSWORD", Value: "admin123"},
-		{Name: "ALGORITHM_ID", Value: strconv.Itoa(payload.algorithm.ContainerID)},
-		{Name: "ALGORITHM_VERSION_ID", Value: strconv.Itoa(payload.algorithm.ID)},
+		{Name: "RCABENCH_TOKEN", Value: serviceToken},
 		{Name: "EXECUTION_ID", Value: strconv.Itoa(executionID)},
 	}
 

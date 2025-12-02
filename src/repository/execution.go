@@ -57,7 +57,7 @@ func GetExecutionByID(db *gorm.DB, id int) (*database.Execution, error) {
 }
 
 // ListExecutions lists executions based on filters and pagination
-func ListExecutions(db *gorm.DB, limit, offset int, event *consts.ExecutionState, status *consts.StatusType, labelConditons []map[string]string) ([]database.Execution, int64, error) {
+func ListExecutions(db *gorm.DB, limit, offset int, event *consts.ExecutionState, status *consts.StatusType, labelConditions []map[string]string) ([]database.Execution, int64, error) {
 	var executions []database.Execution
 	var total int64
 
@@ -74,8 +74,8 @@ func ListExecutions(db *gorm.DB, limit, offset int, event *consts.ExecutionState
 		query = query.Where("status = ?", *status)
 	}
 
-	if len(labelConditons) > 0 {
-		for _, condition := range labelConditons {
+	if len(labelConditions) > 0 {
+		for _, condition := range labelConditions {
 			subQuery := db.Table("task_labels tl").
 				Select("e.id").
 				Joins("JOIN executions e ON e.task_id = tl.task_id").

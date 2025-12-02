@@ -542,10 +542,11 @@ func AddContainerVersionEnvVars(db *gorm.DB, envVars []database.ContainerVersion
 func ListContainerVersionEnvVars(db *gorm.DB, keys []string, containerVersionID int) ([]database.ParameterConfig, error) {
 	query := db.Model(&database.ParameterConfig{}).
 		Joins("JOIN container_version_env_vars cvev ON cvev.parameter_config_id = parameter_configs.id").
-		Where("cvev.container_version_id = ?", containerVersionID)
+		Where("cvev.container_version_id = ?", containerVersionID).
+		Where("parameter_configs.category = ?", consts.ParameterCategoryEnvVars)
 
 	if len(keys) > 0 {
-		query = query.Where("parameter_configs.key IN (?) AND parameter_config.category = ?", keys, consts.ParameterCategoryEnvVars)
+		query = query.Where("parameter_configs.config_key IN (?)", keys)
 	}
 
 	var params []database.ParameterConfig
@@ -577,7 +578,7 @@ func ListHelmConfigValues(db *gorm.DB, keys []string, helmConfigID int) ([]datab
 		Where("hcv.helm_config_id = ?", helmConfigID)
 
 	if len(keys) > 0 {
-		query = query.Where("parameter_configs.key IN (?)", keys)
+		query = query.Where("parameter_configs.config_key IN (?)", keys)
 	}
 
 	var params []database.ParameterConfig

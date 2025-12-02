@@ -319,7 +319,7 @@ func ProduceAlgorithmExeuctionTasks(ctx context.Context, req *dto.SubmitExecutio
 			return nil, fmt.Errorf("failed to extract datapacks: %w", err)
 		}
 
-		algorithmVersion, exists := algorithmVersionResults[&spec.Algorithm.ContainerRef]
+		algorithmVersion, exists := algorithmVersionResults[refs[idx]]
 		if !exists {
 			return nil, fmt.Errorf("algorithm version not found for %v", spec.Algorithm)
 		}

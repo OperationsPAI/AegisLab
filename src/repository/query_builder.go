@@ -307,9 +307,13 @@ func ExecuteSearch[T any](db *gorm.DB, searchReq *dto.SearchReq, modelType T) ([
 		return nil, 0, fmt.Errorf("failed to get count: %w", err)
 	}
 
+	if searchReq.Size != 0 && searchReq.Page != 0 {
+		qb.applyPagination(searchReq)
+	}
+
 	// Apply pagination and execute query
 	var items []T
-	err = qb.applyPagination(searchReq).Find(&items).Error
+	err = qb.query.Find(&items).Error
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to execute search query: %w", err)
 	}

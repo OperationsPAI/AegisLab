@@ -2,6 +2,8 @@ package database
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"time"
 
 	"aegis/config"
@@ -10,6 +12,7 @@ import (
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"gorm.io/plugin/opentelemetry/tracing"
 )
 
@@ -94,10 +97,17 @@ func connectWithRetry(dbConfig *databaseConfig) {
 	var err error
 	for i := 0; i <= maxRetries; i++ {
 		DB, err = gorm.Open(mysql.Open(dbConfig.ToDSN()), &gorm.Config{
+			Logger: logger.New(log.New(os.Stdout, "\r\n", log.LstdFlags),
+				logger.Config{
+					SlowThreshold:             time.Second,
+					LogLevel:                  logger.Warn,
+					IgnoreRecordNotFoundError: true,
+					Colorful:                  true,
+				}),
 			TranslateError: true,
 		})
 		if err == nil {
-			logrus.Info("Successfully connected to the database.")
+			logrus.Info("Successfully connected to the database")
 			if err := DB.Use(tracing.NewPlugin()); err != nil {
 				panic(err)
 			}

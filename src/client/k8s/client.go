@@ -59,13 +59,48 @@ func GetK8sDynamicClient() *dynamic.DynamicClient {
 
 func GetK8sRestConfig() *rest.Config {
 	k8sRestConfigOnce.Do(func() {
-		kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
-		restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-		if err != nil {
-			logrus.Fatalf("failed to read Kubernetes config: %v", err)
+		var restConfig *rest.Config
+		var err error
+		var currentContext string
+
+		restConfig, err = rest.InClusterConfig()
+		if err == nil {
+			logrus.Info("Successfully loaded In-Cluster Kubernetes configuration.")
+			currentContext = "In-Cluster"
+			k8sRestConfig = restConfig
+			logrus.Infof("Using Kubernetes Context: %s", currentContext) // 输出 Context
+			return
 		}
 
-		k8sRestConfig = restConfig
+		kubeconfigPath := filepath.Join(os.Getenv("HOME"), ".kube", "config")
+		if _, err := os.Stat(kubeconfigPath); err == nil {
+			configLoad := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+				&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfigPath},
+				&clientcmd.ConfigOverrides{},
+			)
+
+			restConfig, err = configLoad.ClientConfig()
+			if err != nil {
+				logrus.Warnf("Failed to read external Kubernetes config from %s: %v", kubeconfigPath, err)
+			} else {
+				rawConfig, _ := configLoad.RawConfig()
+				currentContext = rawConfig.CurrentContext
+
+				logrus.Infof("Successfully loaded external Kubernetes configuration from %s.", kubeconfigPath)
+				k8sRestConfig = restConfig
+
+				if currentContext != "" {
+					logrus.Infof("Using Kubernetes Context: %s", currentContext)
+				} else {
+					logrus.Warn("Current context name is empty in Kubeconfig.")
+				}
+				return
+			}
+		}
+
+		if k8sRestConfig == nil {
+			logrus.Fatalf("Failed to establish Kubernetes REST config: Neither In-Cluster nor external Kubeconfig available.")
+		}
 	})
 	return k8sRestConfig
 }

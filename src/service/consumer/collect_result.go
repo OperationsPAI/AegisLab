@@ -54,6 +54,16 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 					TaskType:  consts.TaskTypeCollectResult,
 					EventName: consts.EventDatapackNoDetectorData,
 				})
+
+				updateTaskState(
+					childCtx,
+					task.TraceID,
+					task.TaskID,
+					fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
+					consts.TaskCompleted,
+					task.Type,
+				)
+
 				logEntry.Info("no detector results found for the execution ID")
 				span.AddEvent("no detector results found for the execution ID")
 				return nil

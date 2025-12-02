@@ -425,44 +425,58 @@ func (req *SubmitInjectionReq) Validate() error {
 }
 
 type InjectionResp struct {
-	ID            int        `json:"id"`
-	Name          string     `json:"name"`
-	FaultType     string     `json:"fault_type"`
-	DisplayConfig *string    `json:"display_config,omitempty"`
-	PreDuration   int        `json:"pre_duration"`
-	StartTime     *time.Time `json:"start_time,omitempty"`
-	EndTime       *time.Time `json:"end_time,omitempty"`
-	State         string     `json:"state"`
-	Status        string     `json:"status"`
-	TaskID        string     `json:"task_id"`
-	BenchmarkID   int        `json:"benchmark_id"`
-	BenchmarkName string     `json:"benchmark_name"`
-	PedestalID    int        `json:"pedestal_id"`
-	PedestalName  string     `json:"pedestal_name"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
+	ID            int            `json:"id"`
+	Name          string         `json:"name"`
+	FaultType     string         `json:"fault_type"`
+	DisplayConfig map[string]any `json:"display_config,omitempty" swaggertype:"object"`
+	PreDuration   int            `json:"pre_duration"`
+	StartTime     *time.Time     `json:"start_time,omitempty"`
+	EndTime       *time.Time     `json:"end_time,omitempty"`
+	State         string         `json:"state"`
+	Status        string         `json:"status"`
+	TaskID        string         `json:"task_id"`
+	BenchmarkID   int            `json:"benchmark_id"`
+	BenchmarkName string         `json:"benchmark_name"`
+	PedestalID    int            `json:"pedestal_id"`
+	PedestalName  string         `json:"pedestal_name"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
 
 	Labels []LabelItem `json:"labels,omitempty"`
 }
 
 func NewInjectionResp(injection *database.FaultInjection) *InjectionResp {
 	resp := &InjectionResp{
-		ID:            injection.ID,
-		Name:          injection.Name,
-		FaultType:     chaos.ChaosTypeMap[injection.FaultType],
-		DisplayConfig: injection.DisplayConfig,
-		PreDuration:   injection.PreDuration,
-		StartTime:     injection.StartTime,
-		EndTime:       injection.EndTime,
-		State:         consts.GetDatapackStateName(injection.State),
-		Status:        consts.GetStatusTypeName(injection.Status),
-		TaskID:        injection.TaskID,
-		BenchmarkID:   injection.BenchmarkID,
-		BenchmarkName: injection.Benchmark.Container.Name,
-		PedestalID:    injection.PedestalID,
-		PedestalName:  injection.Pedestal.Container.Name,
-		CreatedAt:     injection.CreatedAt,
-		UpdatedAt:     injection.UpdatedAt,
+		ID:          injection.ID,
+		Name:        injection.Name,
+		FaultType:   chaos.ChaosTypeMap[injection.FaultType],
+		PreDuration: injection.PreDuration,
+		StartTime:   injection.StartTime,
+		EndTime:     injection.EndTime,
+		State:       consts.GetDatapackStateName(injection.State),
+		Status:      consts.GetStatusTypeName(injection.Status),
+		TaskID:      injection.TaskID,
+		BenchmarkID: injection.BenchmarkID,
+		PedestalID:  injection.PedestalID,
+		CreatedAt:   injection.CreatedAt,
+		UpdatedAt:   injection.UpdatedAt,
+	}
+
+	if injection.DisplayConfig != nil {
+		var displayConfigData map[string]any
+		_ = json.Unmarshal([]byte(*injection.DisplayConfig), &displayConfigData)
+		resp.DisplayConfig = displayConfigData
+	}
+
+	if injection.Benchmark != nil {
+		if injection.Benchmark.Container != nil {
+			resp.BenchmarkName = injection.Benchmark.Container.Name
+		}
+	}
+	if injection.Pedestal != nil {
+		if injection.Pedestal.Container != nil {
+			resp.PedestalName = injection.Pedestal.Container.Name
+		}
 	}
 
 	// Get labels from associated Task instead of directly from injection
@@ -482,7 +496,7 @@ type InjectionDetailResp struct {
 	InjectionResp
 
 	Description  string             `json:"description,omitempty"`
-	EngineConfig string             `json:"engine_config"`
+	EngineConfig map[string]any     `json:"engine_config" swaggertype:"object"`
 	GroundTruth  *chaos.Groundtruth `json:"ground_truth,omitempty"`
 }
 
@@ -491,8 +505,14 @@ func NewInjectionDetailResp(entity *database.FaultInjection) *InjectionDetailRes
 	resp := &InjectionDetailResp{
 		InjectionResp: *injectionResp,
 		Description:   entity.Description,
-		EngineConfig:  entity.EngineConfig,
 	}
+
+	if entity.EngineConfig != "" {
+		var engineConfigData map[string]any
+		_ = json.Unmarshal([]byte(entity.EngineConfig), &engineConfigData)
+		resp.EngineConfig = engineConfigData
+	}
+
 	return resp
 }
 
@@ -650,10 +670,10 @@ func NewInjectionWithIssuesResp(entity database.FaultInjectionWithIssues) (*Inje
 
 // datapack
 type BuildingSpec struct {
-	Benchmark   *ContainerSpec `json:"benchmark" binding:"required"`
-	Datapack    *string        `json:"datapack" binding:"omitempty"`
-	Dataset     *DatasetRef    `json:"dataset" binding:"omitempty"`
-	PreDuration *int           `json:"pre_duration" binding:"omitempty"`
+	Benchmark   ContainerSpec `json:"benchmark" binding:"required"`
+	Datapack    *string       `json:"datapack" binding:"omitempty"`
+	Dataset     *DatasetRef   `json:"dataset" binding:"omitempty"`
+	PreDuration *int          `json:"pre_duration" binding:"omitempty"`
 }
 
 func (spec *BuildingSpec) Validate() error {
@@ -679,15 +699,11 @@ func (spec *BuildingSpec) Validate() error {
 		}
 	}
 
-	if spec.Benchmark != nil {
-		return fmt.Errorf("benchmark must not be nil")
-	} else {
-		if err := spec.Benchmark.Validate(); err != nil {
-			return fmt.Errorf("invalid benchmark: %w", err)
-		}
-		if err := validateBenchmarkName(spec.Benchmark.Name); err != nil {
-			return err
-		}
+	if err := spec.Benchmark.Validate(); err != nil {
+		return fmt.Errorf("invalid benchmark: %w", err)
+	}
+	if err := validateBenchmarkName(spec.Benchmark.Name); err != nil {
+		return err
 	}
 
 	if spec.PreDuration != nil && *spec.PreDuration <= 0 {
@@ -714,7 +730,7 @@ func validateBenchmarkName(benchmark string) error {
 	if benchmark == "" {
 		return fmt.Errorf("benchmark must not be blank")
 	} else {
-		if _, exists := utils.GetValidBenchmarkMap()[benchmark]; !exists {
+		if _, exists := consts.ValidBenchmarks[benchmark]; !exists {
 			return fmt.Errorf("invalid benchmark: %s", benchmark)
 		}
 	}

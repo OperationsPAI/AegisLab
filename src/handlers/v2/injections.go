@@ -206,7 +206,7 @@ func ListInjections(c *gin.Context) {
 	dto.SuccessResponse(c, resp)
 }
 
-// SearchInjection
+// SearchInjections
 //
 //	@Summary		Search injections
 //	@Description	Advanced search for injections with complex filtering including name search, custom labels, tags, and time ranges

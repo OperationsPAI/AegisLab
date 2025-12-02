@@ -214,11 +214,14 @@ func (h *K8sHandler) HandleCRDSucceeded(namespace, pod, name string, startTime, 
 		return
 	}
 
+	parsedAnnotations.benchmark.EnvVars = []dto.ParameterItem{
+		{Key: "NAMESPACE", Value: namespace},
+	}
+
 	payload := map[string]any{
 		consts.BuildBenchmark:        *parsedAnnotations.benchmark,
 		consts.BuildDatapack:         *datapack,
 		consts.BuildDatasetVersionID: consts.DefaultInvalidID,
-		consts.InjectNamespace:       namespace,
 	}
 
 	task := &dto.UnifiedTask{
@@ -478,7 +481,7 @@ func (h *K8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 		}, withCallerLevel(4))
 
 		if err := updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackBuildSuccess); err != nil {
-			handleTolerableError(taskSpan, logEntry, "update dataset status failed", err)
+			handleTolerableError(taskSpan, logEntry, "update datapack state failed", err)
 		}
 
 		updateTaskState(
@@ -839,10 +842,6 @@ func updateInjectionState(injectionName string, newState consts.DatapackState) e
 		injection, err := repository.GetInjectionByName(tx, injectionName)
 		if err != nil {
 			return fmt.Errorf("failed to get injection %s: %w", injectionName, err)
-		}
-
-		if injection.State != consts.DatapackInitial {
-			return fmt.Errorf("cannot change state of injection %s from %s to %s", injectionName, consts.GetDatapackStateName(injection.State), consts.GetDatapackStateName(newState))
 		}
 
 		if err := repository.UpdateInjection(tx, injection.ID, map[string]any{

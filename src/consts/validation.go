@@ -14,7 +14,8 @@ var ValidAuditLogStates = map[AuditLogState]struct{}{
 }
 
 var ValidBenchmarks = map[string]struct{}{
-	"clickhouse": {},
+	"clickhouse":        {},
+	"clickhouse_harbor": {},
 }
 
 var ValidContainerTypes = map[ContainerType]struct{}{
@@ -81,6 +82,12 @@ var ValidStatuses = map[StatusType]struct{}{
 	CommonDeleted:  {},
 	CommonDisabled: {},
 	CommonEnabled:  {},
+}
+
+var ValidVolumeMountNames = map[VolumeMountName]struct{}{
+	VolumeMountKubeConfig:        {},
+	VolumeMountDataset:           {},
+	VolumeMountExperimentStorage: {},
 }
 
 var ValidTaskEvents = map[TaskType][]EventType{

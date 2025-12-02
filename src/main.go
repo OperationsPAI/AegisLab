@@ -24,10 +24,12 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"time"
 
 	"aegis/client"
 	"aegis/client/k8s"
 	"aegis/config"
+	"aegis/consts"
 	"aegis/database"
 	"aegis/router"
 	"aegis/service"
@@ -127,6 +129,9 @@ func main() {
 			database.InitDB()
 			service.InitConcurrencyLock(ctx)
 
+			consts.InitialTime = utils.TimePtr(time.Now())
+			consts.AppID = utils.GenerateULID(consts.InitialTime)
+
 			client.InitTraceProvider()
 			go k8s.Init(ctx, consumer.NewHandler())
 			go consumer.StartScheduler(ctx)
@@ -144,6 +149,9 @@ func main() {
 			database.InitDB()
 			service.InitializeData(ctx)
 			service.InitConcurrencyLock(ctx)
+
+			consts.InitialTime = utils.TimePtr(time.Now())
+			consts.AppID = utils.GenerateULID(consts.InitialTime)
 
 			utils.InitValidator()
 			client.InitTraceProvider()

@@ -591,7 +591,7 @@ func linkDatapacksToDatasetVersion(db *gorm.DB, versionID int, datapacks []strin
 // packageDatasetToZip packages the specified datapacks into a zip archive, applying exclusion rules
 func packageDatasetToZip(zipWriter *zip.Writer, datapackNames []string, excludeRules []utils.ExculdeRule) error {
 	for _, name := range datapackNames {
-		workDir := filepath.Join(config.GetString("jfs.path"), name)
+		workDir := filepath.Join(config.GetString("jfs.dataset_path"), name)
 		if !utils.IsAllowedPath(workDir) {
 			return fmt.Errorf("Invalid path access to %s", workDir)
 		}

@@ -317,7 +317,7 @@ func installTS(ctx context.Context, releaseName string, namespaceIdx int, info *
 		}
 
 		// Update repositories
-		if err := helmClient.UpdateRepo(); err != nil {
+		if err := helmClient.UpdateRepo(info.HelmConfig.RepoName); err != nil {
 			return fmt.Errorf("failed to update repositories: %w", err)
 		}
 
@@ -335,8 +335,7 @@ func installTS(ctx context.Context, releaseName string, namespaceIdx int, info *
 			"release_name": releaseName,
 			"chart":        info.HelmConfig.FullChart,
 			"namespace":    releaseName,
-			"values":       helmValues,
-		}).Infof("Installing Helm chart with parameters")
+		}).Infof("Installing Helm chart with parameters: %+v", helmValues)
 
 		if err := helmClient.Install(ctx,
 			releaseName,

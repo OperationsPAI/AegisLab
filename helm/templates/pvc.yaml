@@ -112,5 +112,25 @@ spec:
   resources:
     requests:
       storage: {{ .Values.persistence.juicefs.size }}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-juicefs-experiment-storage
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  accessModes:
+    - ReadWriteMany
+  {{- if .Values.persistence.juicefs.useStaticPV }}
+  volumeName: {{ .Release.Name }}-juicefs-experiment-storage-pv
+  storageClassName: ""
+  {{- else }}
+  storageClassName: juicefs-sc
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.juicefs.size }}
 {{- end }}
 

@@ -109,7 +109,7 @@ func (c *HelmClient) AddRepo(name, url string) error {
 }
 
 // UpdateRepo updates all Helm repositories
-func (c *HelmClient) UpdateRepo() error {
+func (c *HelmClient) UpdateRepo(name string) error {
 	repoFile := c.settings.RepositoryConfig
 
 	// Read repo file
@@ -125,13 +125,17 @@ func (c *HelmClient) UpdateRepo() error {
 
 	// Update each repository
 	for _, entry := range f.Repositories {
-		r, err := repo.NewChartRepository(entry, getter.All(c.settings))
-		if err != nil {
-			return fmt.Errorf("failed to create chart repository for %s: %w", entry.Name, err)
-		}
+		if name == entry.Name || name == "" {
+			logrus.Infof("Updating repository %s", entry.Name)
 
-		if _, err := r.DownloadIndexFile(); err != nil {
-			return fmt.Errorf("failed to update repository %s: %w", entry.Name, err)
+			r, err := repo.NewChartRepository(entry, getter.All(c.settings))
+			if err != nil {
+				return fmt.Errorf("failed to create chart repository for %s: %w", entry.Name, err)
+			}
+
+			if _, err := r.DownloadIndexFile(); err != nil {
+				return fmt.Errorf("failed to update repository %s: %w", entry.Name, err)
+			}
 		}
 	}
 

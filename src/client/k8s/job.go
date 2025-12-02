@@ -5,9 +5,11 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"aegis/config"
+	"aegis/consts"
 	"aegis/tracing"
 	"aegis/utils"
 
@@ -18,21 +20,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-type JobConfig struct {
-	Namespace      string
-	JobName        string
-	Image          string
-	Command        []string
-	RestartPolicy  corev1.RestartPolicy
-	BackoffLimit   int32
-	Parallelism    int32
-	Completions    int32
-	Annotations    map[string]string
-	Labels         map[string]string
-	EnvVars        []corev1.EnvVar
-	InitContainers []corev1.Container
-}
 
 type VolumeMountConfig struct {
 	Name      string `json:"name"`
@@ -51,6 +38,28 @@ type VolumeMountConfig struct {
 	ClaimName string `json:"claim_name,omitempty"`
 }
 
+type JobConfig struct {
+	Namespace          string
+	JobName            string
+	Image              string
+	Command            []string
+	RestartPolicy      corev1.RestartPolicy
+	BackoffLimit       int32
+	Parallelism        int32
+	Completions        int32
+	Annotations        map[string]string
+	Labels             map[string]string
+	EnvVars            []corev1.EnvVar
+	InitContainers     []corev1.Container
+	VolumeMountConfigs []VolumeMountConfig
+}
+
+var (
+	volumeMountConfigMap     map[consts.VolumeMountName]VolumeMountConfig
+	volumeMountConfigMapOnce sync.Once
+	volumeMountConfigMapErr  error
+)
+
 func (v *VolumeMountConfig) GetVolumeMount() corev1.VolumeMount {
 	volumeMount := corev1.VolumeMount{
 		Name:      v.Name,
@@ -64,7 +73,7 @@ func (v *VolumeMountConfig) GetVolumeMount() corev1.VolumeMount {
 	return volumeMount
 }
 
-func (v *VolumeMountConfig) GEtVolume() corev1.Volume {
+func (v *VolumeMountConfig) GetVolume() corev1.Volume {
 	volume := corev1.Volume{
 		Name: v.Name,
 	}
@@ -113,24 +122,15 @@ func CreateJob(ctx context.Context, jobConfig *JobConfig) error {
 		jobConfig.Completions = int32(1)
 		jobConfig.RestartPolicy = corev1.RestartPolicyNever
 
-		volumeMountConfigs := make([]VolumeMountConfig, 0)
-		for _, cfgData := range config.GetMap("k8s.job.volume_mount") {
-			cfg, err := utils.ConvertToType[VolumeMountConfig](cfgData)
-			if err != nil {
-				return fmt.Errorf("invalid volume mount config %v: %v", cfgData, err)
-			}
-
-			volumeMountConfigs = append(volumeMountConfigs, cfg)
-		}
-
 		volumeMounts := []corev1.VolumeMount{}
 		volumes := []corev1.Volume{}
-		for _, cfg := range volumeMountConfigs {
+
+		for _, cfg := range jobConfig.VolumeMountConfigs {
 			volumeMounts = append(volumeMounts, cfg.GetVolumeMount())
-			volumes = append(volumes, cfg.GEtVolume())
+			volumes = append(volumes, cfg.GetVolume())
 		}
 
-		jobConfig.Labels["job-name"] = jobConfig.JobName
+		jobConfig.Labels[consts.JobLabelName] = jobConfig.JobName
 		if jobConfig.InitContainers != nil {
 			for i := range jobConfig.InitContainers {
 				if jobConfig.InitContainers[i].VolumeMounts == nil {
@@ -184,6 +184,38 @@ func CreateJob(ctx context.Context, jobConfig *JobConfig) error {
 	})
 }
 
+// GetVolumeMountConfigMap retrieves volume mount configurations from the application config.
+func GetVolumeMountConfigMap() (map[consts.VolumeMountName]VolumeMountConfig, error) {
+	volumeMountConfigMapOnce.Do(func() {
+		cfgMap := config.GetMap("k8s.job.volume_mount")
+		if len(cfgMap) == 0 {
+			logrus.Warn("no volume mount configs found in k8s.job.volume_mount")
+			volumeMountConfigMap = make(map[consts.VolumeMountName]VolumeMountConfig)
+			return
+		}
+
+		tempConfigs := make(map[consts.VolumeMountName]VolumeMountConfig, len(cfgMap))
+		for key, cfgData := range cfgMap {
+			convertedKey := consts.VolumeMountName(key)
+			if _, exists := consts.ValidVolumeMountNames[convertedKey]; !exists {
+				volumeMountConfigMapErr = fmt.Errorf("invalid volume mount name: %s", key)
+				return
+			}
+
+			cfg, err := utils.ConvertToType[VolumeMountConfig](cfgData)
+			if err != nil {
+				volumeMountConfigMapErr = fmt.Errorf("invalid volume mount config %v: %w", cfgData, err)
+				return
+			}
+			tempConfigs[convertedKey] = cfg
+		}
+
+		volumeMountConfigMap = tempConfigs
+	})
+
+	return volumeMountConfigMap, volumeMountConfigMapErr
+}
+
 func deleteJob(ctx context.Context, namespace, name string) error {
 	deletePolicy := metav1.DeletePropagationBackground
 	deleteOptions := metav1.DeleteOptions{
@@ -230,7 +262,7 @@ func GetJob(ctx context.Context, namespace, jobName string) (*batchv1.Job, error
 
 func GetJobPodLogs(ctx context.Context, namespace, jobName string) (map[string][]string, error) {
 	podList, err := k8sClient.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("job-name=%s", jobName),
+		LabelSelector: fmt.Sprintf("%s=%s", consts.JobLabelName, jobName),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list pods: %v", err)
