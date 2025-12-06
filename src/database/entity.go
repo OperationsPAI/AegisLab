@@ -443,6 +443,9 @@ type FaultInjection struct {
 	Benchmark *ContainerVersion `gorm:"foreignKey:BenchmarkID;constraint:OnDelete:RESTRICT"`
 	Pedestal  *ContainerVersion `gorm:"foreignKey:PedestalID;constraint:OnDelete:RESTRICT"`
 	Task      *Task             `gorm:"foreignKey:TaskID;constraint:OnDelete:CASCADE"`
+
+	// Many-to-many relationship with labels
+	Labels []Label `gorm:"many2many:fault_injection_labels"`
 }
 
 type Execution struct {
@@ -556,6 +559,17 @@ type TaskLabel struct {
 	// Foreign key association
 	Task  *Task  `gorm:"foreignKey:TaskID"`
 	Label *Label `gorm:"foreignKey:LabelID"`
+}
+
+// FaultInjectionLabel Many-to-many relationship table between FaultInjection and Label
+type FaultInjectionLabel struct {
+	FaultInjectionID int       `gorm:"primaryKey"`     // Fault injection ID
+	LabelID          int       `gorm:"primaryKey"`     // Label ID
+	CreatedAt        time.Time `gorm:"autoCreateTime"` // Creation time
+
+	// Foreign key association
+	FaultInjection *FaultInjection `gorm:"foreignKey:FaultInjectionID;constraint:OnDelete:CASCADE"`
+	Label          *Label          `gorm:"foreignKey:LabelID"`
 }
 
 // UserContainer Many-to-many relationship table between User and Container (includes container-level permissions)
