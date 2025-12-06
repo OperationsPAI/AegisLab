@@ -52,8 +52,7 @@ Copy the generated token and use it to log in to the dashboard. The name of the 
 # pull image to k8s.io namespace, saving time
 # sudo ctr -n k8s.io image pull quay.io/cilium/cilium-envoy:latest
 
-helm install --namespace kube-system cilium cilium/cilium \
-  --version 1.17.4 -f cilium-user-values.yaml 
+helm install --namespace kube-system cilium cilium/cilium   --version 1.17.4 -f user_values.yaml --set kubeProxyReplacement=true --set k8sServiceHost=10.10.10.220 --set k8sServicePort=6443
 ```
 
 ### monitoring
