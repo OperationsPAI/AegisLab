@@ -3,7 +3,7 @@ from collections.abc import Callable
 from src.common.common import ENV, console
 from src.common.kubernetes_manager import KubernetesManager, with_k8s_manager
 
-__all__ = ["clean_finalziers", "delete_chaos_resources"]
+__all__ = ["delete_chaos_resources"]
 
 CHAOS_TYPES = [
     "dnschaos",

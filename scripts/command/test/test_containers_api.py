@@ -1,6 +1,5 @@
 import pytest
 from conftest import DEFAULT_PAGE, DEFAULT_PAGE_SIZE
-
 from rcabench.openapi import ApiClient
 from rcabench.openapi.api.containers_api import ContainersApi
 from rcabench.openapi.models.container_type import ContainerType

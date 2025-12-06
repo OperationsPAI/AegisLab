@@ -1,6 +1,5 @@
 import pytest
 from conftest import DEFAULT_PAGE, DEFAULT_PAGE_SIZE
-
 from rcabench.openapi import ApiClient
 from rcabench.openapi.api.projects_api import ProjectsApi
 from rcabench.openapi.models.create_project_req import CreateProjectReq
@@ -21,7 +20,9 @@ class TestProjects:
             (1, "pair_diagnosis"),  # Project 1
         ],
     )
-    def test_get_project_by_id(self, projects_api: ProjectsApi, project_id: int, expected_name: str) -> None:
+    def test_get_project_by_id(
+        self, projects_api: ProjectsApi, project_id: int, expected_name: str
+    ) -> None:
         """Test retrieving projects by ID using initial data.
 
         Verifies that each project ID maps to the expected project name from data.json.
@@ -30,7 +31,9 @@ class TestProjects:
         assert resp.code == 200, f"Expected 200 OK, got {resp.code}"
         assert resp.data is not None, "Expected project data in response"
         assert resp.data.id == project_id, "Project ID mismatch"
-        assert resp.data.name == expected_name, f"Expected project name '{expected_name}', got '{resp.data.name}'"
+        assert resp.data.name == expected_name, (
+            f"Expected project name '{expected_name}', got '{resp.data.name}'"
+        )
         assert resp.data.description is not None, "Expected project description"
 
     @pytest.mark.order(2)
@@ -56,13 +59,17 @@ class TestProjects:
         assert resp.data is not None, "Expected data in response"
         assert resp.data.items is not None, "Expected items in data"
         assert isinstance(resp.data.items, list), "Expected items to be a list"
-        assert len(resp.data.items) == expected_length, f"Expected exactly {expected_length} items on page {page}"
+        assert len(resp.data.items) == expected_length, (
+            f"Expected exactly {expected_length} items on page {page}"
+        )
 
         if expected_length > 0:
             # Verify pagination metadata
             assert resp.data.pagination is not None, "Expected pagination info"
             assert resp.data.pagination.total is not None, "Expected total count"
-            assert resp.data.pagination.total == 1, "Expected total of 1 project in initial data"
+            assert resp.data.pagination.total == 1, (
+                "Expected total of 1 project in initial data"
+            )
             assert resp.data.pagination.page == page, "Page number mismatch"
             assert resp.data.pagination.size == size, "Page size mismatch"
 
@@ -90,7 +97,9 @@ class TestProjects:
         assert resp.data is not None, "Expected data in response"
         assert resp.data.items is not None, "Expected items in data"
         assert isinstance(resp.data.items, list), "Expected items to be a list"
-        assert len(resp.data.items) == expected_length, f"Expected exactly {expected_length} items"
+        assert len(resp.data.items) == expected_length, (
+            f"Expected exactly {expected_length} items"
+        )
 
         if expected_length > 0:
             # Verify pagination metadata
