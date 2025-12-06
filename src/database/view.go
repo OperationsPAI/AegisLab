@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"aegis/config"
+	"aegis/consts"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"github.com/sirupsen/logrus"
@@ -62,7 +63,7 @@ func addDetectorJoins(query *gorm.DB) *gorm.DB {
             JOIN container_versions cv ON e.algorithm_version_id = cv.id
             JOIN containers c ON c.id = cv.container_id
             WHERE e.state = 2 AND e.status = 1 AND c.name = ?
-        ) er_ranked ON fi.id = er_ranked.datapack_id AND er_ranked.rn = 1`, config.GetString("algo.detector")).
+        ) er_ranked ON fi.id = er_ranked.datapack_id AND er_ranked.rn = 1`, config.GetString(consts.DetectorKey)).
 		Joins("JOIN detector_results dr ON er_ranked.id = dr.execution_id")
 }
 

@@ -48,6 +48,7 @@ data:
 
     [k8s]
     namespace = "{{ .Values.configmap.k8s.namespace }}"
+    context_env_key = "{{ .Values.configmap.k8s.context_env_key }}"
     [k8s.init_container]
     {{- range $key, $value := .Values.configmap.k8s.init_container }}
     {{ $key }} = {{ $value | quote }}

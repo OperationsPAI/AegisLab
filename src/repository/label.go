@@ -20,6 +20,19 @@ const (
 // Label Repository Functions
 // =====================================================================
 
+// BatchCreateLabels inserts multiple labels
+func BatchCreateLabels(db *gorm.DB, labels []database.Label) error {
+	if len(labels) == 0 {
+		return nil
+	}
+
+	if err := db.Omit(labelKeyOmitFields).Create(&labels).Error; err != nil {
+		return fmt.Errorf("failed to batch upsert labels: %w", err)
+	}
+
+	return nil
+}
+
 // BatchDeleteLabels marks multiple labels as deleted in batch
 func BatchDeleteLabels(db *gorm.DB, labelIDs []int) error {
 	if len(labelIDs) == 0 {
@@ -40,13 +53,14 @@ func BatchIncreaseLabelUsages(db *gorm.DB, labelIDs []int, increament int) error
 		return nil
 	}
 
-	expr := fmt.Sprintf("usage_count + %d", increament)
+	expr := gorm.Expr("usage_count + ?", increament)
+
 	if err := db.Model(&database.Label{}).
 		Where("id IN (?)", labelIDs).
-		Clauses(clause.Returning{}).
 		UpdateColumn("usage_count", expr).Error; err != nil {
-		return fmt.Errorf("failed to batch decrease label usages: %w", err)
+		return fmt.Errorf("failed to batch increase label usages: %w", err)
 	}
+
 	return nil
 }
 
@@ -63,27 +77,6 @@ func BatchDecreaseLabelUsages(db *gorm.DB, labelIDs []int, decrement int) error 
 		UpdateColumn("usage_count", expr).Error; err != nil {
 		return fmt.Errorf("failed to batch decrease label usages: %w", err)
 	}
-	return nil
-}
-
-// BatchUpsertLabels upserts multiple labels
-func BatchUpsertLabels(db *gorm.DB, labels []database.Label) error {
-	if len(labels) == 0 {
-		return fmt.Errorf("no labels to upsert")
-	}
-
-	if err := db.Omit(labelKeyOmitFields).Clauses(clause.OnConflict{
-		OnConstraint: "idx_key_value_unique",
-		DoUpdates: clause.Set{
-			{
-				Column: clause.Column{Name: "usage_count"},
-				Value:  gorm.Expr("usage_count + ?", 1),
-			},
-		},
-	}).Create(&labels).Error; err != nil {
-		return fmt.Errorf("failed to batch upsert labels: %w", err)
-	}
-
 	return nil
 }
 
@@ -184,24 +177,30 @@ func ListLabels(db *gorm.DB, limit, offset int, filterOptions *dto.ListLabelFilt
 	return labels, total, nil
 }
 
+// ListLabelsByConditions lists labels based on key-value conditions
 func ListLabelsByConditions(db *gorm.DB, conditions []map[string]string) ([]database.Label, error) {
 	if len(conditions) == 0 {
 		return []database.Label{}, nil
 	}
 
 	query := db.Model(&database.Label{}).Where("status != ?", consts.CommonDeleted)
+	orBuilder := db.Where("1 = 0")
 
 	for _, condition := range conditions {
+		andBuilder := db.Where("1 = 1")
+
 		if key, ok := condition["key"]; ok {
-			query = query.Where("label_key = ?", key)
+			andBuilder = andBuilder.Where("label_key = ?", key)
 		}
 		if value, ok := condition["value"]; ok {
-			query = query.Where("label_value = ?", value)
+			andBuilder = andBuilder.Where("label_value = ?", value)
 		}
+
+		orBuilder = orBuilder.Or(andBuilder)
 	}
 
 	var labels []database.Label
-	if err := query.Find(&labels).Error; err != nil {
+	if err := query.Where(orBuilder).Find(&labels).Error; err != nil {
 		return nil, fmt.Errorf("failed to list labels by conditions: %w", err)
 	}
 	return labels, nil

@@ -190,7 +190,7 @@ def execute_release_workflow(env: ENV, k8s_manager: KubernetesManager):
 
     console.print()
     console.print("[bold blue]Step 3: Waiting for deployment...[/bold blue]")
-    k8s_manager.wait_for_all_deployments_available(settings.k8s_namespace)
+    k8s_manager.watch_all_deployments_ready(settings.k8s_namespace)
 
     console.print()
     console.print(

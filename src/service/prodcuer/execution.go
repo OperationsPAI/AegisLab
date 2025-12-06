@@ -128,7 +128,7 @@ func GetExecutionDetail(executionID int) (*dto.ExecutionDetailResp, error) {
 
 	resp := dto.NewExecutionDetailResp(execution, labels)
 
-	if execution.AlgorithmVersion.Container.Name == config.GetString("algo.detector") {
+	if execution.AlgorithmVersion.Container.Name == config.GetString(consts.DetectorKey) {
 		detectorResults, err := repository.ListDetectorResultsByExecutionID(database.DB, execution.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get detector results: %w", err)
@@ -390,13 +390,16 @@ func extractDatapacks(db *gorm.DB, datapackName *string, datasetRef *dto.Dataset
 			return nil, nil, fmt.Errorf("failed to get datapack: %w", err)
 		}
 
+		if datapack.State != consts.DatapackDetectorSuccess {
+			return nil, nil, fmt.Errorf("datapack %s is not ready for detector execution", datapack.Name)
+		}
+
 		labels, err := repository.ListLabelsByInjectionID(db, datapack.ID)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get datapack labels: %s", err.Error())
 		}
 
-		exists := checkLabelKeyValue(labels, consts.LabelKeyTag, consts.DetectorNoAnomaly)
-		if exists {
+		if exists := checkLabelKeyValue(labels, consts.LabelKeyTag, consts.DetectorNoAnomaly); exists {
 			return nil, nil, fmt.Errorf("cannot execute detector algorithm on no_anomaly datapack: %s", datapack.Name)
 		}
 
@@ -434,6 +437,9 @@ func extractDatapacks(db *gorm.DB, datapackName *string, datasetRef *dto.Dataset
 		}
 
 		for _, dp := range datapacks {
+			if dp.State != consts.DatapackDetectorSuccess {
+				return nil, nil, fmt.Errorf("datapack %s is not ready for detector execution", dp.Name)
+			}
 			if _, exists := labelsMap[dp.ID]; !exists {
 				return nil, nil, fmt.Errorf("failed to get labels for datapack ID: %d", dp.ID)
 			}

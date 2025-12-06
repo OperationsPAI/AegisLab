@@ -43,18 +43,10 @@ password = "Harbor12345"
 
 [k8s]
 namespace = "exp"
+context_env_key = "TEST_CONTEXT"
 
-[k8s.job.volume_mount.data]
-name = "data"
-mount_path = "/data"
-host_path = "/var/lib/rancher/k3s/rcabench_datapack"
-type = "Directory"
-
-[k8s.job.volume_mount.experiment_storage]
-name = "experiment-storage"
-mount_path = "/experiment_storage"
-host_path = "/var/lib/rancher/k3s/experiment_storage"
-type = "Directory"
+[k8s.init_container]
+busybox_image = "10.10.10.240/library/busybox:1.35"
 
 [k8s.job.volume_mount.kube_config]
 name = "kube-config"
@@ -62,6 +54,18 @@ mount_path = "/root/.kube/config"
 sub_path = "config"
 source_type = "secret"
 secret_name = "kube-config"
+
+[k8s.job.volume_mount.dataset]
+name = "dataset"
+mount_path = "/data"
+source_type = "pvc"
+claim_name = "rcabench-juicefs-dataset"
+
+[k8s.job.volume_mount.experiment_storage]
+name = "experiment-storage"
+mount_path = "/experiment_storage"
+source_type = "pvc"
+claim_name = "rcabench-juicefs-experiment-storage"
 
 [logging]
 dir = "/app/logs"

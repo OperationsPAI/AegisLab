@@ -1,21 +1,23 @@
-import dataclasses
 import json
 import re
 import subprocess
 from typing import Any
 
 from jinja2 import Template
+from pydantic import BaseModel
 
 from src.common.command import run_command
-from src.common.common import ENV, INITIAL_DATA_PATH, console, settings
+from src.common.common import ENV, INITIAL_DATA_PATH, console
+from src.common.helm_cli import HelmCLI, HelmRelease
 from src.common.kubernetes_manager import KubernetesManager, with_k8s_manager
 from src.util import parse_image_address
 
 __all__ = ["Pedestal", "install_pedestals"]
 
 
-@dataclasses.dataclass(frozen=True)
-class HelmValue:
+class HelmValue(BaseModel, frozen=True):
+    """Represents a Helm value configuration."""
+
     key: str
     type: int  # 0: Fixed (use default_value), 1: Dynamic (use template_string)
     category: int
@@ -24,13 +26,59 @@ class HelmValue:
     required: bool = False
 
 
-@dataclasses.dataclass(frozen=True)
-class Pedestal:
+class Pedestal(BaseModel, frozen=True):
+    """Represents a Pedestal configuration."""
+
     image_parts: dict[str, str | None]
-    repo_name: str
     chart_name: str
+    repo_name: str
+    repo_url: str
     ns_prefix: str
     helm_values: list[HelmValue]
+
+    def to_helm_release(self, env: ENV, namespace: str, index: int = 0) -> HelmRelease:
+        """Convert Pedestal to a HelmRelease with rendered values.
+
+        Args:
+            env: Environment for Kubernetes context
+            namespace: Namespace to install into
+            index: Index for dynamic value rendering (e.g., for port numbers)
+
+        Returns:
+            HelmRelease configured with rendered values
+        """
+        extra_args: list[str] = []
+
+        if self.helm_values:
+            # Prepare context for rendering
+            render_context = {
+                "Registry": self.image_parts.get("registry", ""),
+                "Namespace": self.image_parts.get("namespace", ""),
+                "Repository": self.image_parts.get("repository", ""),
+                "Tag": self.image_parts.get("tag", ""),
+            }
+
+            # Render helm values
+            rendered_values = _render_helm_values(
+                self.helm_values, render_context, index
+            )
+
+            # Convert to --set format
+            extra_args.extend(_convert_helm_values_to_set_list(rendered_values))
+
+        extra_args.extend(
+            ["--kube-context", KubernetesManager.get_context_mapping()[env]]
+        )
+
+        return HelmRelease(
+            name=namespace,
+            chart=f"{self.repo_name}/{self.chart_name}",
+            namespace=namespace,
+            repo_name=self.repo_name,
+            repo_url=self.repo_url,
+            create_namespace=True,
+            extra_args=extra_args,
+        )
 
 
 def _load_pedestals(name: str) -> Pedestal | None:
@@ -43,26 +91,17 @@ def _load_pedestals(name: str) -> Pedestal | None:
 
         for version in container["versions"]:
             if "helm_config" in version:
-                # Parse helm values from JSON
-                helm_values = []
-                for value_data in version["helm_config"].get("values", []):
-                    helm_values.append(
-                        HelmValue(
-                            key=value_data["key"],
-                            type=value_data["type"],
-                            category=value_data["category"],
-                            default_value=value_data.get("default_value"),
-                            template_string=value_data.get("template_string"),
-                            required=value_data.get("required", False),
-                        )
-                    )
-
-                return Pedestal(
-                    image_parts=parse_image_address(version["image_ref"]),
-                    repo_name=version["helm_config"]["repo_name"],
-                    chart_name=version["helm_config"]["chart_name"],
-                    ns_prefix=version["helm_config"]["ns_prefix"],
-                    helm_values=helm_values,
+                # Parse helm values from JSON using Pydantic model_validate
+                helm_config = version["helm_config"]
+                return Pedestal.model_validate(
+                    {
+                        "image_parts": parse_image_address(version["image_ref"]),
+                        "repo_name": helm_config["repo_name"],
+                        "repo_url": helm_config["repo_url"],
+                        "chart_name": helm_config["chart_name"],
+                        "ns_prefix": helm_config["ns_prefix"],
+                        "helm_values": helm_config.get("values", []),
+                    }
                 )
 
     return None
@@ -305,12 +344,15 @@ def install_pedestals(
         console.print("[bold red]PEDESTAL_COUNT must be a positive number[/bold red]")
         raise SystemExit(1)
 
+    helm_cli = HelmCLI()
+
     pedestal = _get_pedestal_or_exit(name)
     ns_prefix = pedestal.ns_prefix
     console.print(
         f"[bold blue]Checking Helm releases in namespaces {ns_prefix}0 to {ns_prefix}{count - 1}...[/bold blue]"
     )
 
+    all_finished: list[bool] = []
     for i in range(count):
         ns = f"{ns_prefix}{i}"
         console.print(f"[bold blue]Checking namespace: {ns}[/bold blue]")
@@ -321,95 +363,46 @@ def install_pedestals(
             continue
 
         console.print()
-        has_release = (
-            run_command(
-                [
-                    "helm",
-                    "list",
-                    "-n",
-                    ns,
-                    "-q",
-                    "--kube-context",
-                    KubernetesManager.get_context_mapping()[env],
-                ],
-                check=False,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-            ).stdout
-            or ""
+
+        console.print(
+            f"[bold blue]Checking Helm release '{ns}' in namespace {ns}[/bold blue]"
         )
-        if ns in has_release:
-            console.print(
-                f"[bold yellow]Helm release '{ns}' found in namespace {ns}[/bold yellow]"
-            )
+        has_release = helm_cli.is_release_exist(ns, namespace=ns)
+        if has_release:
+            console.print(f"[gray]Helm release '{ns}' found in namespace {ns}[/gray]")
             if force:
-                run_command(
-                    [
-                        "helm",
-                        "uninstall",
-                        ns,
-                        "-n",
-                        ns,
+                console.print()
+                helm_cli.uninstall(
+                    ns,
+                    namespace=ns,
+                    verbose=True,
+                    wait=True,
+                    extra_args=[
                         "--kube-context",
                         KubernetesManager.get_context_mapping()[env],
-                        "--debug",
-                    ]
+                    ],
                 )
+            else:
+                continue
         else:
             console.print(
-                f"[bold green]Helm release '{ns}' not found in namespace {ns}[/bold green]"
+                f"[bold yellow]Helm release '{ns}' not found in namespace {ns}[/bold yellow]"
             )
 
-        console.print(f"[bold blue]Installing Helm release '{ns}'...[/bold blue]")
-        _install_release(env, pedestal=pedestal, namespace=ns, index=i)
+        console.print()
+
+        release = pedestal.to_helm_release(env, namespace=ns, index=i)
+        helm_cli.install(release, verbose=True, wait=True, timeout="10m0s")
+        all_finished.append(True)
+
         console.print(
             f"[bold green]Installed Helm release '{ns}' in namespace {ns}[/bold green]"
         )
         console.print()
 
-    console.print("[bold green]🎉 Check and installation completed![/bold green]")
-
-
-def _install_release(env: ENV, pedestal: Pedestal, namespace: str, index: int) -> None:
-    """Install a Helm release with rendered values.
-
-    Args:
-        ctx: Kubernetes context
-        pedestal: Pedestal configuration
-        ns: Namespace to install into
-        index: Index for dynamic value rendering (e.g., for port numbers)
-    """
-    chart_ref = f"{pedestal.repo_name}/{pedestal.chart_name}"
-
-    base_cmd: tuple[str, ...] = (
-        "helm",
-        "install",
-        namespace,
-        chart_ref,
-        "--create-namespace",
-        "-n",
-        namespace,
-        "--kube-context",
-        KubernetesManager.get_context_mapping()[env],
-        "--debug",
-    )
-
-    values: list[str] = []
-    if pedestal.helm_values:
-        # Prepare context for rendering
-        render_context = {
-            "Registry": pedestal.image_parts.get("registry", ""),
-            "Namespace": pedestal.image_parts.get("namespace", ""),
-            "Repository": pedestal.image_parts.get("repository", ""),
-            "Tag": pedestal.image_parts.get("tag", ""),
-        }
-
-        # Render helm values
-        rendered_values = _render_helm_values(
-            pedestal.helm_values, render_context, index
+    if all(all_finished):
+        console.print("[bold green]🎉 Check and installation completed![/bold green]")
+    else:
+        console.print(
+            "[bold yellow]⚠️ Some installations failed. Please check the logs above.[/bold yellow]"
         )
-
-        # Convert to --set format
-        values.extend(_convert_helm_values_to_set_list(rendered_values))
-
-    run_command([*base_cmd, *values])

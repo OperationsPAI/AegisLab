@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# start minikube with 3 nodes
 minikube start --nodes 3 \
   --driver=docker \
   --cpus=2 \
@@ -26,8 +25,11 @@ helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm
 helm install --namespace monitoring --create-namespace -f ./manifests/local-dev/otel-kube-stack.yaml opentelemetry-kube-stack open-telemetry/opentelemetry-kube-stack
 
 # install clickhouse
+helm repo add clickstack https://hyperdxio.github.io/helm-charts
+helm repo update
 helm install --namespace monitoring clickstack clickstack/clickstack -f ./manifests/local-dev/click-stack.yaml
 
 
 # demo workload
-helm install otel-demo open-telemetry/opentelemetry-demo -f ./manifests/local-dev/otel-demo-values.yaml --set prometheus.rbac.create=false
+kubectl create ns od
+helm install --namespace od otel-demo open-telemetry/opentelemetry-demo -f ./manifests/local-dev/otel-demo-values.yaml --set prometheus.rbac.create=false

@@ -17,6 +17,9 @@ __all__ = [
 
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
+COMMAND_ROOT_PATH = Path(__file__).parent.parent.parent
+
+DOTENV_PATH = PROJECT_ROOT / ".env"
 HELM_CHART_PATH = PROJECT_ROOT / "helm"
 INITIAL_DATA_PATH = PROJECT_ROOT / "helm" / "files" / "initial_data" / "data.json"
 
@@ -33,11 +36,12 @@ class SourceType(str, Enum):
 
 
 settings = Dynaconf(
-    root_path=Path(__file__).parent.parent.parent,
+    root_path=COMMAND_ROOT_PATH,
     settings_files=["settings.toml"],
+    load_dotenv=True,
     environments=True,
-    envvar_prefix="DYNACONF",
-    dotenv_path=Path(__file__).parent.parent.parent / ".env",
+    envvar_prefix=False,
+    dotenv_path=DOTENV_PATH,
 )
 
 

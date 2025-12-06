@@ -30,7 +30,7 @@ NS_COUNT  ?= 2
 BUILD_COMMAND_SCRIPT := ./scripts/build-command.sh
 
 ifeq ($(ENV_MODE),prod)
-	COMMAND := ./$(COMMAND_BIN)
+	COMMAND := . $(COMMAND_BIN)
 else
 	DEFAULT_REPO := 10.10.10.240/library
 	COMMAND := . $(COMMAND_DIR)/.venv/bin/activate && uv run python $(COMMAND_DIR)/main.py

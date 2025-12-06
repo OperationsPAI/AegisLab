@@ -102,8 +102,7 @@ func GetInjectionDetail(injectionID int) (*dto.InjectionDetailResp, error) {
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"injectionID": injectionID,
-			"error":       err.Error(),
-		}).Error("GetInjectionDetail: failed to get injection from repository")
+		}).Error("failed to get injection from repository: %w", err)
 
 		if errors.Is(err, consts.ErrNotFound) {
 			return nil, fmt.Errorf("%w: injection id: %d", consts.ErrNotFound, injectionID)
@@ -114,14 +113,13 @@ func GetInjectionDetail(injectionID int) (*dto.InjectionDetailResp, error) {
 	logrus.WithFields(logrus.Fields{
 		"injectionID":   injectionID,
 		"injectionName": injection.Name,
-	}).Info("GetInjectionDetail: successfully retrieved injection from repository")
+	}).Info("GetInjectionDetail: fetched injection from repository")
 
 	labels, err := repository.ListLabelsByInjectionID(database.DB, injection.ID)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"injectionID": injectionID,
-			"error":       err.Error(),
-		}).Error("GetInjectionDetail: failed to get injection labels")
+		}).Error("GetInjectionDetail: failed to get injection labels: %w", err)
 		return nil, fmt.Errorf("failed to get injection labels: %w", err)
 	}
 
@@ -132,8 +130,7 @@ func GetInjectionDetail(injectionID int) (*dto.InjectionDetailResp, error) {
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"injectionID": injectionID,
-			"error":       err.Error(),
-		}).Error("GetInjectionDetail: failed to get injection ground truths")
+		}).Error("failed to get injection ground truths: %w", err)
 		return nil, fmt.Errorf("failed to get injection ground truths: %w", err)
 	}
 
@@ -222,10 +219,31 @@ func SearchInjections(req *dto.SearchInjectionReq) (*dto.SearchResp[dto.Injectio
 		filteredInjections = injections
 	}
 
+	injectionNames := make([]string, 0, len(filteredInjections))
+	for _, injection := range filteredInjections {
+		injectionNames = append(injectionNames, injection.Name)
+	}
+
+	groundTruths, err := getInjectionGroundTruths(injectionNames)
+	if err != nil {
+		logrus.Error("failed to get injection ground truths: %w", err)
+		return nil, fmt.Errorf("failed to get injection ground truths: %w", err)
+	}
+
 	// Convert to response format
 	injectionResps := make([]dto.InjectionDetailResp, 0, len(filteredInjections))
 	for _, injection := range filteredInjections {
-		injectionResps = append(injectionResps, *dto.NewInjectionDetailResp(&injection))
+		injectionResp := dto.NewInjectionDetailResp(&injection)
+
+		gt, exists := groundTruths[injection.Name]
+		if !exists {
+			logrus.WithFields(logrus.Fields{
+				"injectionID": injection.ID,
+			}).Warnf("ground truth not found for injection %s", injection.Name)
+		}
+
+		injectionResp.GroundTruth = &gt
+		injectionResps = append(injectionResps, *injectionResp)
 	}
 
 	resp := &dto.SearchResp[dto.InjectionDetailResp]{

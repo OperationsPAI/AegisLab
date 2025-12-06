@@ -143,6 +143,8 @@ const (
 	DatapackInjectSuccess
 	DatapackBuildFailed
 	DatapackBuildSuccess
+	DatapackDetectorFailed
+	DatapackDetectorSuccess
 )
 
 type ExecutionState int

@@ -42,6 +42,7 @@ password = "Harbor12345"
 
 [k8s]
 namespace = "exp"
+context_env_key = "DEV_CONTEXT"
 
 [k8s.init_container]
 busybox_image = "10.10.10.240/library/busybox:1.35"

@@ -33,16 +33,6 @@ Pypi = "{{packageUrl}}"
 requires = ["uv_build>=0.7.12,<0.8.0"]
 build-backend = "uv_build"
 
-
-[dependency-groups]
-dev = [
-    "pytest>=8.3.5",
-    "pytest-asyncio>=1.3.0",
-    "pytest-order>=1.3.0",
-    "python-dotenv>=1.1.1",
-    "python-on-whales>=0.79.0",
-]
-
 [tool.ruff]
 cache-dir = ".cache/ruff"
 line-length = 120
@@ -71,16 +61,4 @@ exclude = [ #
     "logs/",
     "vendor/",
     "output/",
-]
-
-
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "session"
-testpaths = ["tests"]
-pythonpath = ["."]
-addopts = ["-v", "--strict-markers", "--tb=short"]
-markers = [
-    "v2: marks tests for RCABench v2 API",
-    "k8s: marks tests requiring Kubernetes cluster",
 ]

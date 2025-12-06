@@ -411,8 +411,8 @@ func (req *SubmitInjectionReq) Validate() error {
 			if err := algorithm.Validate(); err != nil {
 				return fmt.Errorf("invalid algorithm at index %d: %w", idx, err)
 			}
-			if algorithm.Name == config.GetString("algo.detector") {
-				return fmt.Errorf("algorithm name %s is reserved and cannot be used", config.GetString("algo.detector"))
+			if algorithm.Name == config.GetString(consts.DetectorKey) {
+				return fmt.Errorf("algorithm name %s is reserved and cannot be used", config.GetString(consts.DetectorKey))
 			}
 		}
 	}

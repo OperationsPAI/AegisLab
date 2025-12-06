@@ -232,7 +232,7 @@
                 {
                     "name": "1.0.0",
                     "github_link": "LGU-SE-Internal/train-ticket",
-                    "image_ref": "10.10.10.240/library/ts-train-service:v1.1.0",
+                    "image_ref": "10.10.10.240/library/ts-train-service:v1.2.0",
                     "status": 1,
                     "helm_config": {
                         "repo_name": "train-ticket",

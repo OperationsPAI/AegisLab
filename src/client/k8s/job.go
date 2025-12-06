@@ -133,9 +133,7 @@ func CreateJob(ctx context.Context, jobConfig *JobConfig) error {
 		jobConfig.Labels[consts.JobLabelName] = jobConfig.JobName
 		if jobConfig.InitContainers != nil {
 			for i := range jobConfig.InitContainers {
-				if jobConfig.InitContainers[i].VolumeMounts == nil {
-					jobConfig.InitContainers[i].VolumeMounts = append(jobConfig.InitContainers[i].VolumeMounts, volumeMounts...)
-				}
+				jobConfig.InitContainers[i].VolumeMounts = append(jobConfig.InitContainers[i].VolumeMounts, volumeMounts...)
 			}
 		}
 

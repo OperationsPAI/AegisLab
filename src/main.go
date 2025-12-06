@@ -40,6 +40,7 @@ import (
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	nested "github.com/antonfisher/nested-logrus-formatter"
 	"github.com/go-logr/stdr"
+	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -83,6 +84,11 @@ func main() {
 	}
 
 	config.Init(viper.GetString("conf"))
+
+	err := godotenv.Load()
+	if err != nil {
+		logrus.Warnf("Error loading .env file: %v", err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

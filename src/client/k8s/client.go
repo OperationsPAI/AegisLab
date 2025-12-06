@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sync"
 
+	"aegis/config"
+
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -68,15 +70,33 @@ func GetK8sRestConfig() *rest.Config {
 			logrus.Info("Successfully loaded In-Cluster Kubernetes configuration.")
 			currentContext = "In-Cluster"
 			k8sRestConfig = restConfig
-			logrus.Infof("Using Kubernetes Context: %s", currentContext) // 输出 Context
+			logrus.Infof("Using Kubernetes Context: %s", currentContext)
 			return
+		}
+
+		contextEnvKey := config.GetString("k8s.context_env_key")
+		var configuredContext string
+		if contextEnvKey != "" {
+			configuredContext = os.Getenv(contextEnvKey)
+			if configuredContext != "" {
+				logrus.Infof("Resolved k8s context from env key '%s': %s", contextEnvKey, configuredContext)
+			} else {
+				logrus.Warnf("Environment variable '%s' is not set or empty", contextEnvKey)
+				logrus.Warn("Falling back to default Kubernetes context resolution.")
+			}
 		}
 
 		kubeconfigPath := filepath.Join(os.Getenv("HOME"), ".kube", "config")
 		if _, err := os.Stat(kubeconfigPath); err == nil {
+			configOverrides := &clientcmd.ConfigOverrides{}
+			if configuredContext != "" {
+				configOverrides.CurrentContext = configuredContext
+				logrus.Infof("Using configured Kubernetes context: %s", configuredContext)
+			}
+
 			configLoad := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 				&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfigPath},
-				&clientcmd.ConfigOverrides{},
+				configOverrides,
 			)
 
 			restConfig, err = configLoad.ClientConfig()

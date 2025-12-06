@@ -41,7 +41,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   csi:
     driver: csi.juicefs.com
-    volumeHandle: {{ .Release.Name }}-juicefs-dataset-pv
+    volumeHandle: {{ .Release.Name }}-juicefs-experiment-storage-pv
     fsType: juicefs
     nodePublishSecretRef:
       name: {{ .Release.Name }}-juicefs-secret

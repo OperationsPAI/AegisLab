@@ -35,7 +35,9 @@ class TestContainers:
             (5, "ts_cn"),  # Container 5
         ],
     )
-    def test_get_container_by_id(self, containers_api: ContainersApi, container_id: int, expected_name: str) -> None:
+    def test_get_container_by_id(
+        self, containers_api: ContainersApi, container_id: int, expected_name: str
+    ) -> None:
         """Test retrieving containers by ID using initial data.
 
         Verifies that each container ID maps to the expected container name from data.json.
@@ -44,21 +46,31 @@ class TestContainers:
         assert resp.code == 200, f"Expected 200 OK, got {resp.code}"
         assert resp.data is not None, "Expected container data in response"
         assert resp.data.id == container_id, "Container ID mismatch"
-        assert resp.data.name == expected_name, f"Expected container name '{expected_name}', got '{resp.data.name}'"
+        assert resp.data.name == expected_name, (
+            f"Expected container name '{expected_name}', got '{resp.data.name}'"
+        )
         assert resp.data.type is not None, "Expected container type"
 
     @pytest.mark.order(2)
     @pytest.mark.parametrize(
         "page,size,expected_length",
         [
-            (1, PageSize.Small, 5),  # Page 1: all 5 containers (detector, traceback, clickhouse, ts, ts_cn)
+            (
+                1,
+                PageSize.Small,
+                5,
+            ),  # Page 1: all 5 containers (detector, traceback, clickhouse, ts, ts_cn)
             (2, PageSize.Small, 0),  # Page 2: no more containers
             (1, PageSize.Medium, 5),  # Page 1 with medium size: all 5 containers
             (1, PageSize.Large, 5),  # Page 1 with large size: all 5 containers
         ],
     )
     def test_list_containers_with_pagination(
-        self, containers_api: ContainersApi, page: int, size: PageSize, expected_length: int
+        self,
+        containers_api: ContainersApi,
+        page: int,
+        size: PageSize,
+        expected_length: int,
     ) -> None:
         """Test listing containers with pagination parameters.
 
@@ -74,13 +86,17 @@ class TestContainers:
         assert resp.data is not None, "Expected data in response"
         assert resp.data.items is not None, "Expected items in data"
         assert isinstance(resp.data.items, list), "Expected items to be a list"
-        assert len(resp.data.items) == expected_length, f"Expected exactly {expected_length} items on page {page}"
+        assert len(resp.data.items) == expected_length, (
+            f"Expected exactly {expected_length} items on page {page}"
+        )
 
         if expected_length > 0:
             # Verify pagination metadata
             assert resp.data.pagination is not None, "Expected pagination info"
             assert resp.data.pagination.total is not None, "Expected total count"
-            assert resp.data.pagination.total == 5, "Expected total of 5 containers in initial data"
+            assert resp.data.pagination.total == 5, (
+                "Expected total of 5 containers in initial data"
+            )
             assert resp.data.pagination.page == page, "Page number mismatch"
             assert resp.data.pagination.size == size, "Page size mismatch"
 
@@ -111,7 +127,9 @@ class TestContainers:
         assert resp.data is not None, "Expected data in response"
         assert resp.data.items is not None, "Expected items in data"
         assert isinstance(resp.data.items, list), "Expected items to be a list"
-        assert len(resp.data.items) == expected_length, f"Expected exactly {expected_length} items"
+        assert len(resp.data.items) == expected_length, (
+            f"Expected exactly {expected_length} items"
+        )
 
         if expected_length > 0:
             # Verify pagination metadata
@@ -136,7 +154,11 @@ class TestContainers:
                 image_ref="docker.io/test/image:latest",
                 command="python app.py",
                 env_vars=[
-                    CreateParameterConfigReq(key="ENV", type=ParameterType.Fixed, category=ParameterCategory.EnvVars)
+                    CreateParameterConfigReq(
+                        key="ENV",
+                        type=ParameterType.Fixed,
+                        category=ParameterCategory.EnvVars,
+                    )
                 ],
                 github_link="test/repo",
                 helm_config=CreateHelmConfigReq(
@@ -176,10 +198,14 @@ class TestContainerVersions:
 
         Assumes version IDs are auto-incremented starting from 1, matching container creation order.
         """
-        resp = containers_api.get_container_version_by_id(container_id=container_id, version_id=version_id)
+        resp = containers_api.get_container_version_by_id(
+            container_id=container_id, version_id=version_id
+        )
         assert resp.code == 200, f"Expected 200 OK, got {resp.code}"
         assert resp.data is not None, "Expected version data in response"
-        assert resp.data.id == version_id, f"Version ID mismatch: expected {version_id}, got {resp.data.id}"
+        assert resp.data.id == version_id, (
+            f"Version ID mismatch: expected {version_id}, got {resp.data.id}"
+        )
         assert resp.data.name is not None, "Expected version name"
         assert resp.data.image_ref is not None, "Expected image reference"
 
@@ -189,31 +215,47 @@ class TestContainerVersions:
         [
             (1, 1, PageSize.Small, 1),  # Container 1 (detector) has at least 1 version
             (2, 1, PageSize.Small, 1),  # Container 2 (traceback) has at least 1 version
-            (3, 1, PageSize.Small, 1),  # Container 3 (clickhouse) has at least 1 version
+            (
+                3,
+                1,
+                PageSize.Small,
+                1,
+            ),  # Container 3 (clickhouse) has at least 1 version
             (4, 1, PageSize.Small, 1),  # Container 4 (ts) has at least 1 version
             (5, 1, PageSize.Small, 1),  # Container 5 (ts_cn) has at least 1 version
         ],
     )
     def test_list_container_versions_with_pagination(
-        self, containers_api: ContainersApi, container_id: int, page: int, size: PageSize, expected_length: int
+        self,
+        containers_api: ContainersApi,
+        container_id: int,
+        page: int,
+        size: PageSize,
+        expected_length: int,
     ) -> None:
         """Test listing container versions with pagination.
 
         Each container in initial data has at least 1 version.
         """
-        resp = containers_api.list_container_versions(container_id=container_id, page=page, size=size)
+        resp = containers_api.list_container_versions(
+            container_id=container_id, page=page, size=size
+        )
         assert resp.code == 200, f"Expected 200 OK, got {resp.code}"
         assert resp.data is not None, "Expected data in response"
         assert resp.data.items is not None, "Expected items in data"
         assert isinstance(resp.data.items, list), "Expected items to be a list"
-        assert len(resp.data.items) == expected_length, f"Expected exactly {expected_length} items on page {page}"
+        assert len(resp.data.items) == expected_length, (
+            f"Expected exactly {expected_length} items on page {page}"
+        )
 
         # Verify pagination metadata
         if expected_length > 0:
             # Verify pagination metadata
             assert resp.data.pagination is not None, "Expected pagination info"
             assert resp.data.pagination.total is not None, "Expected total count"
-            assert resp.data.pagination.total == 1, "Expected total of 1 container in initial data"
+            assert resp.data.pagination.total == 1, (
+                "Expected total of 1 container in initial data"
+            )
             assert resp.data.pagination.page == page, "Page number mismatch"
             assert resp.data.pagination.size == size, "Page size mismatch"
 
@@ -226,15 +268,23 @@ class TestContainerVersions:
         ],
     )
     def test_list_container_versions_with_status_filter(
-        self, containers_api: ContainersApi, container_id: int, status: StatusType | None, expected_length: int
+        self,
+        containers_api: ContainersApi,
+        container_id: int,
+        status: StatusType | None,
+        expected_length: int,
     ) -> None:
         """Test listing container versions with status filter."""
-        resp = containers_api.list_container_versions(container_id=container_id, status=status)
+        resp = containers_api.list_container_versions(
+            container_id=container_id, status=status
+        )
         assert resp.code == 200, f"Expected 200 OK, got {resp.code}"
         assert resp.data is not None, "Expected data in response"
         assert resp.data.items is not None, "Expected items in data"
         assert isinstance(resp.data.items, list), "Expected items to be a list"
-        assert len(resp.data.items) == expected_length, f"Expected exactly {expected_length} items"
+        assert len(resp.data.items) == expected_length, (
+            f"Expected exactly {expected_length} items"
+        )
 
         if expected_length > 0:
             # Verify pagination metadata
@@ -254,7 +304,11 @@ class TestContainerVersions:
             image_ref="docker.io/test/image:latest",
             command="python app.py",
             env_vars=[
-                CreateParameterConfigReq(key="ENV", type=ParameterType.Fixed, category=ParameterCategory.EnvVars)
+                CreateParameterConfigReq(
+                    key="ENV",
+                    type=ParameterType.Fixed,
+                    category=ParameterCategory.EnvVars,
+                )
             ],
             github_link="test/repo",
             helm_config=CreateHelmConfigReq(
@@ -264,7 +318,9 @@ class TestContainerVersions:
                 ns_prefix="ts",
             ),
         )
-        resp = containers_api.create_container_version(container_id=1, request=create_container_version_req)
+        resp = containers_api.create_container_version(
+            container_id=1, request=create_container_version_req
+        )
         assert resp.code == 201, f"Expected 201 Created, got {resp.code}"
         assert resp.data is not None, "Expected version data in response"
         assert resp.data.id is not None, "Expected version ID"

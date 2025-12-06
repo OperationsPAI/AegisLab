@@ -7,7 +7,7 @@ app = typer.Typer(
 
 
 def main():
-    from src.cli import backup, chaos, formatter, pedestal, rcabench_, swagger
+    from src.cli import backup, chaos, formatter, pedestal, rcabench_, swagger, test
 
     app.add_typer(backup.app, name="backup", help="Backup and migration utilities.")
     app.add_typer(chaos.app, name="chaos", help="Chaos engineering")
@@ -15,5 +15,6 @@ def main():
     app.add_typer(pedestal.app, name="pedestal", help="Pedestal utilities.")
     app.add_typer(rcabench_.app, name="rcabench", help="RCABench utilities.")
     app.add_typer(swagger.app, name="swagger", help="Swagger/OpenAPI utilities.")
+    app.add_typer(test.app, name="test", help="Test environment utilities.")
 
     app()

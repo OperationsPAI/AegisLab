@@ -1,25 +1,31 @@
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
 from functools import wraps
-from typing import Any
+from pathlib import Path
+from typing import Any, cast
 
 import kubernetes
-from kubernetes import config
+from kubernetes import config, watch
 from kubernetes.client.api import AppsV1Api, BatchV1Api, CoreV1Api
+from kubernetes.client.models import V1Deployment
 from kubernetes.client.rest import ApiException
+from pydantic import BaseModel
 
+from src.common.command import run_command
 from src.common.common import ENV, console, settings
 
 __all__ = ["KubernetesManager", "with_k8s_manager"]
 
 
-@dataclass(kw_only=True)
-class K8sSessionData:
+class K8sSessionData(BaseModel):
+    """Session data for Kubernetes manager."""
+
     apps_api: AppsV1Api | None = None
     batch_api: BatchV1Api | None = None
     core_api: CoreV1Api | None = None
     context_name: str | None = None
+
+    model_config = {"arbitrary_types_allowed": True}
 
 
 class KubernetesManager:
@@ -278,6 +284,20 @@ class KubernetesManager:
             console.print(f"[bold red]Error switching context: {e}[/bold red]")
             return False
 
+    def delete_namespace(self, namespace: str) -> bool:
+        """Delete a specific Kubernetes namespace."""
+        assert self._core_api is not None, "Kubernetes API is not initialized"
+
+        try:
+            self._core_api.delete_namespace(name=namespace)
+            return True
+
+        except ApiException as e:
+            console.print(
+                f"[bold red]Error deleting namespace {namespace}: {e}[/bold red]"
+            )
+            return False
+
     def list_chaos_resources(self, namespace: str, chaos_type: str) -> list[str]:
         """List all chaos resources of a specific type in a given namespace."""
         assert self._core_api is not None, "Kubernetes API is not initialized"
@@ -500,46 +520,152 @@ class KubernetesManager:
                 )
             return False
 
-    def wait_for_all_deployments_available(
+    def watch_deployments_ready(
+        self,
+        names: list[str],
+        namespace: str,
+        timeout_seconds: int = 300,
+    ) -> bool:
+        """Watch and wait for multiple Deployments to become ready using Kubernetes Watch API.
+
+        Args:
+            names: List of Deployment names to watch.
+            namespace: The namespace where the Deployments are located.
+            timeout_seconds: Maximum time to wait for all Deployments to become ready.
+
+        Returns:
+            True if all Deployments become ready within the timeout, False otherwise.
+        """
+        assert self._apps_api is not None, "Kubernetes Apps API is not initialized"
+
+        if not names:
+            return True
+
+        pending_deployments = set(names)
+        w = watch.Watch()
+
+        try:
+            stream = w.stream(
+                self._apps_api.list_namespaced_deployment,
+                namespace=namespace,
+                timeout_seconds=timeout_seconds,
+            )
+
+            for event in stream:
+                event = cast(dict[str, Any], event)
+                deployment = cast(V1Deployment, event["object"])
+
+                metadata = deployment.metadata
+                status = deployment.status
+                spec = deployment.spec
+                if metadata is None or status is None or spec is None:
+                    continue
+
+                deployment_name = metadata.name
+
+                # Skip if not in our watch list
+                if deployment_name not in pending_deployments:
+                    continue
+
+                spec_replicas = spec.replicas or 0
+
+                # Check if this Deployment is ready
+                if (
+                    status.replicas is not None
+                    and status.ready_replicas is not None
+                    and status.available_replicas is not None
+                    and status.replicas == spec_replicas
+                    and status.ready_replicas == spec_replicas
+                    and status.available_replicas == spec_replicas
+                ):
+                    pending_deployments.discard(deployment_name)
+                    console.print(
+                        f"[bold gray]   - Deployment '{deployment_name}' is ready. "
+                        f"Remaining: {len(pending_deployments)}[/bold gray]"
+                    )
+
+                    if not pending_deployments:
+                        w.stop()
+                        console.print(
+                            f"[bold green]All {len(names)} Deployments in namespace '{namespace}' are ready.[/bold green]"
+                        )
+                        return True
+
+        except ApiException as e:
+            console.print(
+                f"[bold red]API error watching Deployments: {e.reason}[/bold red]"
+            )
+            return False
+        finally:
+            w.stop()
+
+        console.print(
+            f"[bold red]Timeout waiting for Deployments in namespace '{namespace}'. "
+            f"Still pending: {pending_deployments}[/bold red]"
+        )
+        return False
+
+    def watch_all_deployments_ready(
         self,
         namespace: str,
         timeout_seconds: int = 300,
-        interval_seconds: int = 5,
     ) -> bool:
+        """Watch and wait for ALL Deployments in a namespace to become ready.
+
+        This method first lists all Deployments in the namespace, then watches
+        until all of them are ready or timeout occurs.
+
+        Args:
+            namespace: The namespace to watch all Deployments in.
+            timeout_seconds: Maximum time to wait for all Deployments to become ready.
+
+        Returns:
+            True if all Deployments become ready within the timeout, False otherwise.
+        """
         assert self._apps_api is not None, "Kubernetes Apps API is not initialized"
-        start_time = time.time()
 
-        while (time.time() - start_time) < timeout_seconds:
-            try:
-                deployments = self._apps_api.list_namespaced_deployment(
-                    namespace=namespace
-                )
+        try:
+            # First, get all deployment names in the namespace
+            deployments = self._apps_api.list_namespaced_deployment(namespace=namespace)
+            deployment_names = [
+                d.metadata.name
+                for d in deployments.items
+                if d.metadata is not None and d.metadata.name is not None
+            ]
 
-                all_available = True
-                for deployment in deployments.items:
-                    desired_replicas = deployment.spec.replicas or 0
-                    available_replicas = deployment.status.available_replicas or 0
-
-                    if desired_replicas != available_replicas:
-                        all_available = False
-
-                if all_available:
-                    console.print(
-                        f"[bold green]All {len(deployments.items)} deployments in namespace '{namespace}' are available.[/bold green]"
-                    )
-                    return True
-
-            except ApiException as e:
+            if not deployment_names:
                 console.print(
-                    f"[bold yellow]API error encountered in {namespace}: {e.reason}. Retrying...[/bold yellow]"
+                    f"[bold yellow]No Deployments found in namespace '{namespace}'.[/bold yellow]"
                 )
-                return False
+                return True
 
-            time.sleep(interval_seconds)
+            console.print(
+                f"[bold blue]Watching {len(deployment_names)} Deployments in namespace '{namespace}': "
+                f"{', '.join(deployment_names)}[/bold blue]"
+            )
 
-        console.print(
-            f"[bold red]Timeout waiting for deployments in namespace '{namespace}' to become available.[/bold red]"
-        )
+            # Use the existing method to watch these deployments
+            return self.watch_deployments_ready(
+                names=deployment_names,
+                namespace=namespace,
+                timeout_seconds=timeout_seconds,
+            )
+
+        except ApiException as e:
+            console.print(
+                f"[bold red]API error listing Deployments in namespace '{namespace}': {e.reason}[/bold red]"
+            )
+            return False
+
+
+def kubectl_apply(manifest: str | Path) -> bool:
+    """Apply a Kubernetes manifest using kubectl."""
+    manifest_str = str(manifest)
+    console.print(f"[bold blue]Applying manifest: {manifest_str}[/bold blue]")
+    try:
+        run_command(["kubectl", "apply", "-f", manifest_str], check=True)
+        return True
+    except SystemExit:
         return False
 
 

@@ -19,13 +19,13 @@ class RCABenchClient:
     """
     RCABench client supporting both username/password and token-based authentication.
 
-    Token-based auth (for K8s jobs):
+    - Token-based auth (for K8s jobs):
         client = RCABenchClient(base_url="...", token="...")
-        # or via environment variable RCABENCH_TOKEN
+        or via environment variable RCABENCH_TOKEN
 
-    Username/password auth (for interactive use):
+    - Username/password auth (for interactive use):
         client = RCABenchClient(base_url="...", username="...", password="...")
-        # or via environment variables RCABENCH_USERNAME, RCABENCH_PASSWORD
+        or via environment variables RCABENCH_USERNAME, RCABENCH_PASSWORD
     """
 
     _instances: dict[tuple[str, str, str | None], "RCABenchClient"] = {}

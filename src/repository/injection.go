@@ -93,7 +93,7 @@ func ListExistingEngineConfigs(db *gorm.DB, configs []string) ([]string, error) 
 	query := db.
 		Model(&database.FaultInjection{}).
 		Select("engine_config").
-		Where("engine_config in (?) AND state = ? AND status = ?", configs, consts.DatapackBuildSuccess, consts.CommonEnabled)
+		Where("engine_config in (?) AND state >= ? AND status = ?", configs, consts.DatapackInjectSuccess, consts.CommonEnabled)
 
 	invalidLabelSubQuery := db.Table("task_labels tl").
 		Select("fi.id").

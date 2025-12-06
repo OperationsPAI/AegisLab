@@ -54,6 +54,7 @@ configmap:
     password: "Harbor12345"
   k8s:
     namespace: "exp"
+    context_env_key: "DEV_CONTEXT"
     init_container:
       busybox_image: "busybox:1.35"
     job:

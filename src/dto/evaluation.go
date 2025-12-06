@@ -2,6 +2,7 @@ package dto
 
 import (
 	"aegis/config"
+	"aegis/consts"
 	"fmt"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
@@ -36,7 +37,7 @@ func (spec *EvaluateDatapackSpec) Validate() error {
 	if err := spec.Algorithm.Validate(); err != nil {
 		return fmt.Errorf("invalid algorithm: %w", err)
 	}
-	if spec.Algorithm.Name == config.GetString("algo.detector") {
+	if spec.Algorithm.Name == config.GetString(consts.DetectorKey) {
 		return fmt.Errorf("detector algorithm cannot be used for evaluation")
 	}
 
@@ -96,7 +97,7 @@ func (spec *EvaluateDatasetSpec) Validate() error {
 	if err := spec.Algorithm.Validate(); err != nil {
 		return fmt.Errorf("invalid algorithm: %w", err)
 	}
-	if spec.Algorithm.Name == config.GetString("algo.detector") {
+	if spec.Algorithm.Name == config.GetString(consts.DetectorKey) {
 		return fmt.Errorf("detector algorithm cannot be used for evaluation")
 	}
 
