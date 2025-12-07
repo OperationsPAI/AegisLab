@@ -95,10 +95,9 @@ func ListExistingEngineConfigs(db *gorm.DB, configs []string) ([]string, error) 
 		Select("engine_config").
 		Where("engine_config in (?) AND state >= ? AND status = ?", configs, consts.DatapackInjectSuccess, consts.CommonEnabled)
 
-	invalidLabelSubQuery := db.Table("task_labels tl").
-		Select("fi.id").
-		Joins("JOIN fault_injections fi ON fi.task_id = tl.task_id").
-		Joins("JOIN labels ON labels.id = tl.label_id").
+	invalidLabelSubQuery := db.Table("fault_injection_labels fil").
+		Select("fil.fault_injection_id").
+		Joins("JOIN labels ON labels.id = fil.label_id").
 		Where("labels.label_key = ? AND labels.label_value = ?", consts.LabelKeyTag, "invalid")
 
 	query = query.Where("fault_injections.id NOT IN (?)", invalidLabelSubQuery)
@@ -159,10 +158,9 @@ func ListInjections(db *gorm.DB, limit, offset int, filterOptions *dto.ListInjec
 
 	if len(filterOptions.LabelConditions) > 0 {
 		for _, condition := range filterOptions.LabelConditions {
-			subQuery := db.Table("task_labels tl").
-				Select("fi.id").
-				Joins("JOIN fault_injections fi ON fi.task_id = tl.task_id").
-				Joins("JOIN labels ON labels.id = tl.label_id").
+			subQuery := db.Table("fault_injection_labels fil").
+				Select("fil.fault_injection_id").
+				Joins("JOIN labels ON labels.id = fil.label_id").
 				Where("labels.label_key = ? AND labels.label_value = ?", condition["key"], condition["value"])
 
 			query = query.Where("fault_injections.id IN (?)", subQuery)
@@ -324,73 +322,55 @@ func GetInjectionCountMapGroupByState(db *gorm.DB) (map[consts.DatapackState]int
 // InjectionLabel Repository Functions
 // =====================================================================
 
-// Business layer: Injection labels are stored as TaskLabel in database
-// Since Injection and Task are 1:1 relationship
+// Business layer: Injection labels are stored as FaultInjectionLabel in database
 
-// AddInjectionLabels adds multiple injection-label associations via TaskLabel
+// AddInjectionLabels adds multiple injection-label associations via FaultInjectionLabel
 func AddInjectionLabels(db *gorm.DB, injectionID int, labelIDs []int) error {
 	if len(labelIDs) == 0 {
 		return nil
 	}
 
-	// Get the TaskID for this injection
-	var injection database.FaultInjection
-	if err := db.Select("task_id").First(&injection, injectionID).Error; err != nil {
-		return fmt.Errorf("failed to get injection task_id: %w", err)
-	}
-
-	// Create TaskLabel associations
-	taskLabels := make([]database.TaskLabel, 0, len(labelIDs))
+	// Create FaultInjectionLabel associations
+	injectionLabels := make([]database.FaultInjectionLabel, 0, len(labelIDs))
 	for _, labelID := range labelIDs {
-		taskLabels = append(taskLabels, database.TaskLabel{
-			TaskID:  injection.TaskID,
-			LabelID: labelID,
+		injectionLabels = append(injectionLabels, database.FaultInjectionLabel{
+			FaultInjectionID: injectionID,
+			LabelID:          labelID,
 		})
 	}
 
 	if err := db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "task_id"}, {Name: "label_id"}},
+		Columns:   []clause.Column{{Name: "fault_injection_id"}, {Name: "label_id"}},
 		DoNothing: true,
-	}).Create(&taskLabels).Error; err != nil {
+	}).Create(&injectionLabels).Error; err != nil {
 		return fmt.Errorf("failed to add injection-label associations: %w", err)
 	}
 
 	return nil
 }
 
-// ClearInjectionLabels removes label associations from specified fault injections via TaskLabel
+// ClearInjectionLabels removes label associations from specified fault injections via FaultInjectionLabel
 func ClearInjectionLabels(db *gorm.DB, injectionIDs []int, labelIDs []int) error {
 	if len(injectionIDs) == 0 {
 		return nil
 	}
 
-	// Use subquery to delete in a single operation
-	subQuery := db.Model(&database.FaultInjection{}).
-		Select("task_id").
-		Where("id IN (?)", injectionIDs)
-
-	query := db.Table("task_labels").
-		Where("task_id IN (?)", subQuery)
+	query := db.Where("fault_injection_id IN (?)", injectionIDs)
 	if len(labelIDs) > 0 {
 		query = query.Where("label_id IN (?)", labelIDs)
 	}
 
-	if err := query.Delete(nil).Error; err != nil {
+	if err := query.Delete(&database.FaultInjectionLabel{}).Error; err != nil {
 		return fmt.Errorf("failed to clear injection labels: %w", err)
 	}
 	return nil
 }
 
 // RemoveInjectionsFromLabel removes all injection-label associations for a specific label
-// This removes TaskLabel entries for all Injections that are associated with this label
+// This removes FaultInjectionLabel entries for all Injections that are associated with this label
 func RemoveInjectionsFromLabel(db *gorm.DB, labelID int) (int64, error) {
-	subQuery := db.Table("task_labels tl").
-		Select("DISTINCT tl.task_id").
-		Joins("JOIN fault_injections fi ON fi.task_id = tl.task_id").
-		Where("tl.label_id = ?", labelID)
-
-	result := db.Where("task_id IN (?) AND label_id = ?", subQuery, labelID).
-		Delete(&database.TaskLabel{})
+	result := db.Where("label_id = ?", labelID).
+		Delete(&database.FaultInjectionLabel{})
 	if err := result.Error; err != nil {
 		return 0, fmt.Errorf("failed to remove injection-label associations for label %d: %w", labelID, err)
 	}
@@ -404,13 +384,8 @@ func RemoveInjectionsFromLabels(db *gorm.DB, labelIDs []int) (int64, error) {
 		return 0, nil
 	}
 
-	subQuery := db.Table("task_labels tl").
-		Select("DISTINCT tl.task_id").
-		Joins("JOIN fault_injections fi ON fi.task_id = tl.task_id").
-		Where("tl.label_id IN (?)", labelIDs)
-
-	result := db.Where("task_id IN (?) AND label_id IN (?)", subQuery, labelIDs).
-		Delete(&database.TaskLabel{})
+	result := db.Where("label_id IN (?)", labelIDs).
+		Delete(&database.FaultInjectionLabel{})
 	if err := result.Error; err != nil {
 		return 0, fmt.Errorf("failed to remove injection-label associations for labels %v: %w", labelIDs, err)
 	}
@@ -449,14 +424,13 @@ func RemoveLabelsFromInjections(db *gorm.DB, injectionIDs []int) error {
 	return nil
 }
 
-// ListInjectionIDsByLabels gets injection IDs associated with all specified labels via TaskLabel
+// ListInjectionIDsByLabels gets injection IDs associated with all specified labels via FaultInjectionLabel
 func ListInjectionIDsByLabels(db *gorm.DB, labelConditions []map[string]string) ([]int, error) {
 	var injectionIDs []int
 	query := db.Model(&database.FaultInjection{}).
 		Select("DISTINCT fault_injections.id").
-		Joins("JOIN tasks ON tasks.id = fault_injections.task_id").
-		Joins("JOIN task_labels tl ON tl.task_id = tasks.id").
-		Joins("JOIN labels ON labels.id = tl.label_id").
+		Joins("JOIN fault_injection_labels fil ON fil.fault_injection_id = fault_injections.id").
+		Joins("JOIN labels ON labels.id = fil.label_id").
 		Where("fault_injections.status != ?", consts.CommonDeleted)
 
 	var whereClauses []string
@@ -479,7 +453,7 @@ func ListInjectionIDsByLabels(db *gorm.DB, labelConditions []map[string]string) 
 	return injectionIDs, nil
 }
 
-// ListInjectionLabels gets labels for multiple injections in batch via TaskLabel
+// ListInjectionLabels gets labels for multiple injections in batch via FaultInjectionLabel
 func ListInjectionLabels(db *gorm.DB, injectionIDs []int) (map[int][]database.Label, error) {
 	if len(injectionIDs) == 0 {
 		return nil, nil
@@ -492,10 +466,9 @@ func ListInjectionLabels(db *gorm.DB, injectionIDs []int) (map[int][]database.La
 
 	var flatResults []injectionLabelResult
 	if err := db.Model(&database.Label{}).
-		Joins("JOIN task_labels tl ON tl.label_id = labels.id").
-		Joins("JOIN fault_injections fi ON fi.task_id = tl.task_id").
-		Where("fi.id IN (?)", injectionIDs).
-		Select("labels.*, fi.id as injection_id").
+		Joins("JOIN fault_injection_labels fil ON fil.label_id = labels.id").
+		Where("fil.fault_injection_id IN (?)", injectionIDs).
+		Select("labels.*, fil.fault_injection_id as injection_id").
 		Find(&flatResults).Error; err != nil {
 		return nil, fmt.Errorf("failed to batch query fault injection labels: %w", err)
 	}
@@ -525,12 +498,11 @@ func ListInjectionLabelCounts(db *gorm.DB, labelIDs []int) (map[int]int64, error
 	}
 
 	var results []injectionLabelResult
-	// Count via task_labels joined with fault_injections
-	if err := db.Table("task_labels tl").
-		Select("tl.label_id, count(DISTINCT fi.id) as count").
-		Joins("JOIN fault_injections fi ON fi.task_id = tl.task_id").
-		Where("tl.label_id IN (?)", labelIDs).
-		Group("tl.label_id").
+	// Count via fault_injection_labels
+	if err := db.Table("fault_injection_labels fil").
+		Select("fil.label_id, count(DISTINCT fil.fault_injection_id) as count").
+		Where("fil.label_id IN (?)", labelIDs).
+		Group("fil.label_id").
 		Find(&results).Error; err != nil {
 		return nil, fmt.Errorf("failed to count injection-label associations: %w", err)
 	}
@@ -543,28 +515,26 @@ func ListInjectionLabelCounts(db *gorm.DB, labelIDs []int) (map[int]int64, error
 	return countMap, nil
 }
 
-// ListInjectionLabelsByInjectionID gets labels for a specific injection via TaskLabel
+// ListLabelsByInjectionID gets labels for a specific injection via FaultInjectionLabel
 func ListLabelsByInjectionID(db *gorm.DB, injectionID int) ([]database.Label, error) {
 	var labels []database.Label
 	if err := db.Table("labels").
-		Joins("JOIN task_labels tl ON labels.id = tl.label_id").
-		Joins("JOIN fault_injections fi ON fi.task_id = tl.task_id").
-		Where("fi.id = ?", injectionID).
+		Joins("JOIN fault_injection_labels fil ON labels.id = fil.label_id").
+		Where("fil.fault_injection_id = ?", injectionID).
 		Find(&labels).Error; err != nil {
 		return nil, fmt.Errorf("failed to get injection labels: %v", err)
 	}
 	return labels, nil
 }
 
-// ListLabelIDsByKeyAndInjectionID finds label IDs by keys associated with a specific injection via TaskLabel
+// ListLabelIDsByKeyAndInjectionID finds label IDs by keys associated with a specific injection via FaultInjectionLabel
 func ListLabelIDsByKeyAndInjectionID(db *gorm.DB, injectionID int, keys []string) ([]int, error) {
 	var labelIDs []int
 
 	err := db.Table("labels l").
 		Select("l.id").
-		Joins("JOIN task_labels tl ON tl.label_id = l.id").
-		Joins("JOIN fault_injections fi ON fi.task_id = tl.task_id").
-		Where("fi.id = ? AND l.label_key IN (?)", injectionID, keys).
+		Joins("JOIN fault_injection_labels fil ON fil.label_id = l.id").
+		Where("fil.fault_injection_id = ? AND l.label_key IN (?)", injectionID, keys).
 		Pluck("l.id", &labelIDs).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to find label IDs by key '%s': %w", keys, err)

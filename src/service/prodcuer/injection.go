@@ -371,16 +371,14 @@ func ManageInjectionLabels(req *dto.ManageInjectionLabelReq, injectionID int) (*
 				return fmt.Errorf("failed to find label ids by keys: %w", err)
 			}
 
-			if len(labelIDs) == 0 {
-				return fmt.Errorf("no labels found for the given keys")
-			}
+			if len(labelIDs) > 0 {
+				if err := repository.ClearInjectionLabels(tx, []int{injectionID}, labelIDs); err != nil {
+					return fmt.Errorf("failed to clear injection labels: %w", err)
+				}
 
-			if err := repository.ClearInjectionLabels(tx, []int{injectionID}, labelIDs); err != nil {
-				return fmt.Errorf("failed to clear injection labels: %w", err)
-			}
-
-			if err := repository.BatchDecreaseLabelUsages(tx, labelIDs, 1); err != nil {
-				return fmt.Errorf("failed to decrease label usage counts: %w", err)
+				if err := repository.BatchDecreaseLabelUsages(tx, labelIDs, 1); err != nil {
+					return fmt.Errorf("failed to decrease label usage counts: %w", err)
+				}
 			}
 		}
 

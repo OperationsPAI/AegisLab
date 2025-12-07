@@ -69,6 +69,7 @@ func InitDB() {
 		&HelmConfigValue{},
 		&DatasetVersionInjection{},
 		&TaskLabel{},
+		&FaultInjectionLabel{},
 
 		&UserContainer{},
 		&UserDataset{},

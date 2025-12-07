@@ -563,9 +563,8 @@ type TaskLabel struct {
 
 // FaultInjectionLabel Many-to-many relationship table between FaultInjection and Label
 type FaultInjectionLabel struct {
-	FaultInjectionID int       `gorm:"primaryKey"`     // Fault injection ID
-	LabelID          int       `gorm:"primaryKey"`     // Label ID
-	CreatedAt        time.Time `gorm:"autoCreateTime"` // Creation time
+	FaultInjectionID int `gorm:"primaryKey"` // Fault injection ID
+	LabelID          int `gorm:"primaryKey"` // Label ID
 
 	// Foreign key association
 	FaultInjection *FaultInjection `gorm:"foreignKey:FaultInjectionID;constraint:OnDelete:CASCADE"`
