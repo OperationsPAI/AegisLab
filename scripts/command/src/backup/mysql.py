@@ -1,3 +1,4 @@
+import json
 import os
 import platform
 import shutil
@@ -6,14 +7,22 @@ from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session, sessionmaker
 
 from src.common.command import run_command, run_pipeline
-from src.common.common import PROJECT_ROOT, SourceType, console, settings
+from src.common.common import (
+    DATAPACK_ROOT_PATH,
+    PROJECT_ROOT,
+    SourceType,
+    console,
+    settings,
+)
 
 BACKUP_DIR = PROJECT_ROOT / "scripts" / "command" / "temp" / "backup_mysql"
 REQUIRED_BINARIES = ["mysql", "mysqldump", "mysqlpump"]
 
-__all__ = ["MysqlClient"]
+__all__ = ["mysql_configs", "MysqlClient", "MysqlBackupManager"]
 
 
 class MysqlConfig(BaseModel):
@@ -46,27 +55,6 @@ class MysqlConfig(BaseModel):
             return "127.0.0.1"
         return v
 
-    def check_database_exists(self) -> bool:
-        """Check if the specified database exists."""
-        result = run_command(
-            [
-                "mysql",
-                "-h",
-                self.host,
-                "-P",
-                self.port,
-                "-u",
-                self.user,
-                f"-p{self.password}",
-                "-e",
-                f"SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '{self.db}';",
-                "--silent",
-                "--raw",
-            ],
-            capture_output=True,
-        )
-        return self.db in result.stdout.strip()
-
     def get_connection_cmd(self) -> list[str]:
         """Get the MySQL connection command."""
         return [
@@ -86,19 +74,341 @@ local_mysql_config = MysqlConfig.model_validate(settings["database"])
 settings.setenv("remote")
 remote_mysql_config = MysqlConfig.model_validate(settings.database.to_dict())
 
+mysql_configs: dict[SourceType, MysqlConfig] = {
+    SourceType.LOCAL: local_mysql_config,
+    SourceType.REMOTE: remote_mysql_config,
+}
+
 
 class MysqlClient:
-    def __init__(self, src: SourceType):
-        if src == SourceType.LOCAL:
-            self.dst = SourceType.REMOTE
-            self.src_mysql_config = local_mysql_config
-            self.dst_mysql_config = remote_mysql_config
-        elif src == SourceType.REMOTE:
-            self.dst = SourceType.LOCAL
-            self.src_mysql_config = remote_mysql_config
-            self.dst_mysql_config = local_mysql_config
+    def __init__(self, config: MysqlConfig):
+        self.config = config
+        self.session = self._connect_database()
 
-        self.target_dir = BACKUP_DIR / src.value / self.src_mysql_config.db
+    def _connect_database(self) -> Session:
+        """
+        Connect to the MySQL database and return a session.
+
+        Returns:
+            Session: SQLAlchemy database session
+
+        Raises:
+            SystemExit: If connection fails
+        """
+        try:
+            db_url = f"mysql+pymysql://{self.config.user}:{self.config.password}@{self.config.host}:{self.config.port}/{self.config.db}"
+            engine = create_engine(db_url, echo=False, pool_pre_ping=True)
+
+            Session = sessionmaker(bind=engine)
+            session = Session()
+
+            # Test connection
+            result = session.execute(text("SELECT version()"))
+            version = result.scalar()
+            console.print("[bold green]✅ Database connection successful[/bold green]")
+            console.print(f"[dim]Version: {version[:50]}...[/dim]")  # type: ignore
+
+            return session
+
+        except Exception as e:
+            console.print(f"[bold red]❌ Database connection failed: {e}[/bold red]")
+            raise SystemExit(1)
+
+    def sync_datapacks_to_database(self):
+        """
+        Synchronize local datapack files to database.
+
+        Scans local datapack directories and imports missing fault_injection records
+        into the database based on injection.json files.
+        """
+        if not DATAPACK_ROOT_PATH.exists:
+            console.print(
+                f"[bold yellow]⚠️ Datapack root path does not exist: {DATAPACK_ROOT_PATH}[/bold yellow]"
+            )
+            return
+
+        local_datapacks = [
+            entry for entry in DATAPACK_ROOT_PATH.iterdir() if entry.is_dir()
+        ]
+        console.print(
+            f"[bold green]📁 Found {len(local_datapacks)} local datapack directories[/bold green]"
+        )
+        console.print()
+
+        console.print("[bold blue]🔄 Starting database synchronization...[/bold blue]")
+        dir = (
+            DATAPACK_ROOT_PATH
+            / "sync_logs"
+            / datetime.now().strftime(settings.time_format)
+        )
+        if not dir.exists():
+            dir.mkdir(parents=True, exist_ok=True)
+
+        # Dictionary to store datapack_name -> database_id mapping
+        datapack_id_mapping = {}
+        mapping_file = dir / "datapack_id_mapping.json"
+
+        try:
+            # Get all fault_injections from database
+            query = text("SELECT id, name FROM fault_injections ORDER BY id DESC")
+            result = self.session.execute(query)
+            db_records = result.fetchall()
+            console.print(
+                f"[bold green]✅ Found {len(db_records)} records in database[/bold green]"
+            )
+
+            db_datapack_names = []
+            for row in db_records:
+                injection_name = row[1]
+                db_datapack_names.append(injection_name)
+
+            # Add missing database records from local files
+            added_count = 0
+            skipped_count = 0
+
+            benchmark_results = self.session.execute(
+                text("""
+                    SELECT cv.id, c.name FROM container_versions cv
+                    JOIN containers c ON cv.container_id = c.id
+                    WHERE c.type = 1 AND cv.status >= 0
+                    ORDER BY cv.id ASC LIMIT 1
+                """)
+            ).fetchall()
+            benchmark_dict = {item[1]: item[0] for item in benchmark_results}
+            if not benchmark_dict:
+                console.print(
+                    "[bold red]❌ No benchmark containers found in database[/bold red]"
+                )
+                return
+
+            pedestal_results = self.session.execute(
+                text("""
+                    SELECT cv.id, c.name FROM container_versions cv
+                    JOIN containers c ON cv.container_id = c.id
+                    WHERE c.type = 2 AND cv.status >= 0
+                    ORDER BY cv.id ASC LIMIT 1
+                """)
+            ).fetchall()
+            pedestal_dict = {item[1]: item[0] for item in pedestal_results}
+            if not pedestal_dict:
+                console.print(
+                    "[bold red]❌ No pedestal containers found in database[/bold red]"
+                )
+                return
+
+            def _safe_get(data: dict, key: str, default: Any = None) -> Any:
+                value = data.get(key, default)
+                return default if value is None else value
+
+            def _parse_timestamp(timestamp_str: Any) -> Any:
+                if timestamp_str is None:
+                    return None
+                try:
+                    if isinstance(timestamp_str, str):
+                        return datetime.fromisoformat(
+                            timestamp_str.replace("Z", "+00:00")
+                        )
+                    return timestamp_str
+                except Exception:
+                    return None
+
+            for local_datapack in local_datapacks:
+                datapack_name = local_datapack.name
+
+                if datapack_name not in db_datapack_names:
+                    injection_json_path = local_datapack / "injection.json"
+
+                    if not injection_json_path.exists():
+                        console.print(
+                            f"[gray]    ⚠️ Missing injection.json: {datapack_name}[/gray]"
+                        )
+                        skipped_count += 1
+                        continue
+
+                    with open(injection_json_path, encoding="utf-8") as f:
+                        injection_data = json.load(f)
+
+                    # Process engine_config
+                    engine_config = _safe_get(injection_data, "engine_config")
+                    if engine_config is None:
+                        console.print(
+                            f"[gray]    ⚠️ Skipping {datapack_name}: missing engine_config[/gray]"
+                        )
+                        skipped_count += 1
+                        continue
+
+                    # Process groundtruth - convert to JSON string
+                    groundtruth_data = _safe_get(injection_data, "ground_truth")
+                    groundtruth_json = None
+                    if groundtruth_data:
+                        try:
+                            groundtruth_json = json.dumps(groundtruth_data)
+                        except Exception as e:
+                            console.print(
+                                f"[gray]    ⚠️ Skipping {datapack_name}: failed to serialize groundtruth: {e}[/gray]"
+                            )
+
+                    # Process duration fields
+                    pre_duration = _safe_get(injection_data, "pre_duration")
+                    if pre_duration is None:
+                        console.print(
+                            f"[gray]    ⚠️ Skipping {datapack_name}: missing pre_duration[/gray]"
+                        )
+                        skipped_count += 1
+                        continue
+
+                    # Get benchmark_id
+                    benchmark_name = _safe_get(injection_data, "benchmark")
+                    benchmark_id = benchmark_dict.get(benchmark_name)
+                    if benchmark_id is None:
+                        console.print(
+                            f"[gray]    ⚠️ Skipping {datapack_name}: benchmark '{benchmark_name}' not found[/gray]"
+                        )
+                        skipped_count += 1
+                        continue
+
+                    # Get pedestal_id from datapack name (format: namespace-pedestal-service-...)
+                    parts = datapack_name.split("-")
+                    pedestal_name = parts[1] if len(parts) > 1 else None
+                    if pedestal_name is None:
+                        console.print(
+                            f"[gray]    ⚠️ Skipping {datapack_name}: cannot determine pedestal name[/gray]"
+                        )
+                        skipped_count += 1
+                        continue
+                    elif pedestal_name == "mysql":
+                        pedestal_name = "ts"
+
+                    pedestal_id = pedestal_dict.get(pedestal_name)
+                    if pedestal_id is None:
+                        console.print(
+                            f"[gray]    ⚠️ Skipping {datapack_name}: pedestal '{pedestal_name}' not found[/gray]"
+                        )
+                        skipped_count += 1
+                        continue
+
+                    try:
+                        # Insert fault_injection
+                        result = self.session.execute(
+                            text("""
+                                INSERT INTO fault_injections (
+                                    name, fault_type, display_config, engine_config, groundtruth,
+                                    pre_duration, start_time, end_time, state, status,
+                                    description, benchmark_id, pedestal_id,
+                                    created_at, updated_at
+                                ) VALUES (
+                                    :name, :fault_type, :display_config, :engine_config, :groundtruth,
+                                    :pre_duration, :start_time, :end_time, :state, :status,
+                                    :description, :benchmark_id, :pedestal_id,
+                                    :created_at, :updated_at
+                                )
+                            """),
+                            {
+                                "name": _safe_get(injection_data, "name")
+                                or _safe_get(injection_data, "injection_name"),
+                                "fault_type": _safe_get(injection_data, "fault_type"),
+                                "display_config": _safe_get(
+                                    injection_data, "display_config"
+                                ),
+                                "engine_config": _safe_get(
+                                    injection_data, "engine_config"
+                                ),
+                                "groundtruth": groundtruth_json,
+                                "pre_duration": _safe_get(
+                                    injection_data, "pre_duration"
+                                ),
+                                "start_time": _parse_timestamp(
+                                    _safe_get(injection_data, "start_time")
+                                ),
+                                "end_time": _parse_timestamp(
+                                    _safe_get(injection_data, "end_time")
+                                ),
+                                "state": 4,  # default: completed
+                                "status": 1,  # enabled
+                                "description": _safe_get(injection_data, "description"),
+                                "benchmark_id": benchmark_id,
+                                "pedestal_id": pedestal_id,
+                                "created_at": _parse_timestamp(
+                                    _safe_get(injection_data, "created_at")
+                                ),
+                                "updated_at": _parse_timestamp(
+                                    _safe_get(injection_data, "updated_at")
+                                ),
+                            },
+                        )
+
+                        inserted_id = result.lastrowid  # type: ignore
+                        self.session.commit()
+
+                        datapack_id_mapping[datapack_name] = inserted_id
+
+                        console.print(
+                            f"[gray]    📝 Added record: {datapack_name} (ID: {inserted_id})[/gray]"
+                        )
+                        added_count += 1
+
+                    except Exception as e:
+                        self.session.rollback()
+                        console.print(
+                            f"[bold red]❌ Failed to add {datapack_name}: {e}[/bold red]"
+                        )
+                        skipped_count += 1
+
+            console.print()
+            console.print(
+                "[bold green]✅ Datapack synchronization completed![/bold green]"
+            )
+            console.print(f"[gray]    Added: {added_count} records[/gray]")
+            console.print(f"[gray]    Skipped: {skipped_count} records[/gray]")
+
+            # Save datapack ID mapping to JSON file
+            if datapack_id_mapping:
+                try:
+                    with open(mapping_file, "w", encoding="utf-8") as f:
+                        json.dump(datapack_id_mapping, f, indent=2, ensure_ascii=False)
+                    console.print()
+                    console.print(
+                        f"[bold green]💾 Saved ID mapping to: {mapping_file}[/bold green]"
+                    )
+                    console.print(
+                        f"[gray]    Total mappings: {len(datapack_id_mapping)}[/gray]"
+                    )
+                except Exception as e:
+                    console.print(
+                        f"[bold yellow]⚠️ Failed to save ID mapping: {e}[/bold yellow]"
+                    )
+
+            with open(dir / "metadata.json", "w", encoding="utf-8") as f:
+                metadata = {
+                    "host": self.config.host,
+                    "finished_at": datetime.now().strftime(settings.time_format),
+                }
+                json.dump(metadata, f, indent=2, ensure_ascii=False)
+
+        except Exception as e:
+            console.print(
+                f"[bold red]❌ Datapack synchronization failed: {e}[/bold red]"
+            )
+            self.session.rollback()
+            dir.rmdir()
+        finally:
+            self.session.close()
+
+
+class MysqlBackupManager:
+    def __init__(self, src: SourceType):
+        self.src = src
+
+        if self.src == SourceType.LOCAL:
+            self.dst = SourceType.REMOTE
+            self.src_mysql_config = mysql_configs[SourceType.LOCAL]
+            self.dst_mysql_config = mysql_configs[SourceType.REMOTE]
+        elif self.src == SourceType.REMOTE:
+            self.dst = SourceType.LOCAL
+            self.src_mysql_config = mysql_configs[SourceType.REMOTE]
+            self.dst_mysql_config = mysql_configs[SourceType.LOCAL]
+
+        self.target_dir = BACKUP_DIR / self.src.value / self.src_mysql_config.db
         if not self.target_dir.exists():
             self.target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -239,8 +549,14 @@ class MysqlClient:
             )
             raise SystemExit(1)
 
+        db_exists = False
         if not force:
-            if self.dst_mysql_config.check_database_exists():
+            try:
+                _ = MysqlClient(self.dst_mysql_config)
+            except SystemExit:
+                db_exists = True
+
+            if db_exists:
                 console.print(
                     f"[bold yellow]⚠️ Target database '{self.dst_mysql_config.db}' already exists on {self.dst.name}.[/bold yellow]"
                 )

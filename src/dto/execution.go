@@ -231,7 +231,6 @@ func NewExecutionResp(execution *database.Execution, labels []database.Label) *E
 		Duration:           execution.Duration,
 		State:              consts.GetExecuteStateName(execution.State),
 		Status:             consts.GetStatusTypeName(execution.Status),
-		TaskID:             execution.TaskID,
 		AlgorithmID:        execution.AlgorithmVersion.ContainerID,
 		AlgorithmName:      execution.AlgorithmVersion.Container.Name,
 		AlgorithmVersionID: execution.AlgorithmVersionID,
@@ -242,9 +241,13 @@ func NewExecutionResp(execution *database.Execution, labels []database.Label) *E
 		UpdatedAt:          execution.UpdatedAt,
 	}
 
+	if execution.TaskID != nil {
+		resp.TaskID = *execution.TaskID
+	}
+
 	if len(labels) > 0 {
-		resp.Labels = make([]LabelItem, 0, len(execution.Task.Labels))
-		for _, l := range execution.Task.Labels {
+		resp.Labels = make([]LabelItem, 0, len(execution.Labels))
+		for _, l := range execution.Labels {
 			resp.Labels = append(resp.Labels, LabelItem{
 				Key:   l.Key,
 				Value: l.Value,

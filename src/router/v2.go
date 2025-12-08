@@ -439,9 +439,10 @@ func SetupV2Routes(router *gin.Engine) {
 		// Injection Write operations
 		injectionWrite := injections.Group("", middleware.RequireInjectionWrite)
 		{
-			injectionWrite.POST("/inject", v2handlers.SubmitFaultInjection)             // Submit new injection
-			injectionWrite.POST("/build", v2handlers.SubmitDatapackBuilding)            // Submit new datapack building
-			injectionWrite.PATCH("/:id/labels", v2handlers.ManageInjectionCustomLabels) // Manage injection custom labels
+			injectionWrite.POST("/inject", v2handlers.SubmitFaultInjection)              // Submit new injection
+			injectionWrite.POST("/build", v2handlers.SubmitDatapackBuilding)             // Submit new datapack building
+			injectionWrite.PATCH("/:id/labels", v2handlers.ManageInjectionCustomLabels)  // Manage injection custom labels
+			injectionWrite.PATCH("/labels/batch", v2handlers.BatchManageInjectionLabels) // Batch manage injection labels
 		}
 
 		// Injection Delete operations

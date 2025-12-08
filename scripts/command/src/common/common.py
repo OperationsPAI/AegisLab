@@ -2,8 +2,9 @@ from enum import Enum
 from pathlib import Path
 
 from dynaconf import Dynaconf
-from git import Repo
 from rich.console import Console
+
+from git import Repo
 
 __all__ = [
     "ENV",
@@ -23,11 +24,25 @@ DOTENV_PATH = PROJECT_ROOT / ".env"
 HELM_CHART_PATH = PROJECT_ROOT / "helm"
 INITIAL_DATA_PATH = PROJECT_ROOT / "helm" / "files" / "initial_data" / "data.json"
 
+DATAPACK_ROOT_PATH = Path("/mnt/jfs/rcabench_dataset")
+
 
 class ENV(str, Enum):
     DEV = "dev"
     PROD = "prod"
     TEST = "test"
+
+
+class LanguageType(str, Enum):
+    GO = "go"
+    PYTHON = "python"
+
+
+class ScopeType(str, Enum):
+    ALL = "all"
+    Modified = "modified"
+    SDK = "sdk"
+    STAGED = "staged"
 
 
 class SourceType(str, Enum):

@@ -269,16 +269,14 @@ func ManageDatasetLabels(req *dto.ManageDatasetLabelReq, datasetID int) (*dto.Da
 				return fmt.Errorf("failed to find label ids by keys: %w", err)
 			}
 
-			if len(labelIDs) == 0 {
-				return fmt.Errorf("no labels found for the given keys")
-			}
+			if len(labelIDs) > 0 {
+				if err := repository.ClearDatasetLabels(tx, []int{datasetID}, labelIDs); err != nil {
+					return fmt.Errorf("failed to clear dataset labels: %w", err)
+				}
 
-			if err := repository.ClearDatasetLabels(tx, []int{datasetID}, labelIDs); err != nil {
-				return fmt.Errorf("failed to clear dataset labels: %w", err)
-			}
-
-			if err := repository.BatchDecreaseLabelUsages(tx, labelIDs, 1); err != nil {
-				return fmt.Errorf("failed to decrease label usage counts: %w", err)
+				if err := repository.BatchDecreaseLabelUsages(tx, labelIDs, 1); err != nil {
+					return fmt.Errorf("failed to decrease label usage counts: %w", err)
+				}
 			}
 		}
 

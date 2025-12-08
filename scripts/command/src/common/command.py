@@ -15,17 +15,19 @@ def run_command(
     cwd: Path = Path.cwd(),
     check: bool = True,
     capture_output: bool = False,
+    cmd_print: bool = True,
     **kwargs,
 ) -> CompletedProcess[str]:
     """Runs a shell command and handles errors."""
     try:
-        console.print(f"${' '.join(shlex.quote(c) for c in cmd_list)}")
+        if cmd_print:
+            console.print(f"${' '.join(shlex.quote(c) for c in cmd_list)}")
+
         cmd_str_list = list(cmd_list)
         result = subprocess.run(
             cmd_str_list,
             cwd=cwd,
             check=check,
-            text=True,
             capture_output=capture_output,
             **kwargs,
         )
@@ -35,7 +37,7 @@ def run_command(
             f"[bold red]❌ Command failed: {' '.join(cmd_str_list)}[/bold red]"
         )
         if e.stderr:
-            print(e.stderr)
+            console.print(e.stderr)
         sys.exit(1)
 
 

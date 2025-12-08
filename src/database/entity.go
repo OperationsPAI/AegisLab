@@ -1,10 +1,11 @@
 package database
 
 import (
-	"aegis/consts"
-	"aegis/utils"
 	"fmt"
 	"time"
+
+	"aegis/consts"
+	"aegis/utils"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"gorm.io/gorm"
@@ -411,9 +412,6 @@ type Task struct {
 	// Foreign key association
 	Project *Project `gorm:"foreignKey:ProjectID"`
 
-	// Many-to-many relationship with labels - 添加这一行
-	Labels []Label `gorm:"many2many:task_labels"`
-
 	// One-to-one back reference with cascade delete
 	FaultInjection *FaultInjection `gorm:"foreignKey:TaskID;references:ID;constraint:OnDelete:CASCADE"`
 	Execution      *Execution      `gorm:"foreignKey:TaskID;references:ID;constraint:OnDelete:CASCADE"`
@@ -427,12 +425,13 @@ type FaultInjection struct {
 	Description   string          `gorm:"type:text"`                                                                   // Description
 	DisplayConfig *string         `gorm:"type:longtext"`                                                               // User-facing display configuration
 	EngineConfig  string          `gorm:"type:longtext;not null"`                                                      // System-facing runtime configuration
+	Groundtruth   *Groundtruth    `gorm:"type:json;serializer:json"`                                                   // Expected impact groundtruth (service, pod, container, metric, function, span)
 	PreDuration   int             `gorm:"not null"`                                                                    // Normal data duration
 	StartTime     *time.Time      `gorm:"index;check:start_time IS NULL OR end_time IS NULL OR start_time < end_time"` // Expected fault start time, nullable with validation
 	EndTime       *time.Time      `gorm:"index"`                                                                       // Expected fault end time, nullable
 	BenchmarkID   int             `gorm:"not null;index"`                                                              // Associated benchmark ID, add index
 	PedestalID    int             `gorm:"not null;index"`                                                              // Associated pedestal ID, add index
-	TaskID        string          `gorm:"not null;uniqueIndex;size:64"`                                                // Associated task ID, add composite index
+	TaskID        *string         `gorm:"index;size:64"`                                                               // Associated task ID, add composite index
 
 	State     consts.DatapackState `gorm:"not null;default:0;index;index:idx_fault_type_state"` // Datapack state
 	Status    consts.StatusType    `gorm:"not null;default:1;index"`                            // Status: -1:deleted 0:disabled 1:enabled
@@ -451,7 +450,7 @@ type FaultInjection struct {
 type Execution struct {
 	ID                 int     `gorm:"primaryKey;autoIncrement"`              // Unique identifier
 	Duration           float64 `gorm:"not null;default:0;index"`              // Execution duration
-	TaskID             string  `gorm:"not null;size:64"`                      // Associated task ID, add composite index
+	TaskID             *string `gorm:"index;size:64"`                         // Associated task ID, add composite index
 	AlgorithmVersionID int     `gorm:"not null;index:idx_exec_algo_datapack"` // Algorithm ID, add composite index
 	DatapackID         int     `gorm:"not null;index:idx_exec_algo_datapack"` // Datapack identifier, add composite index
 	DatasetVersionID   *int    `gorm:"index"`                                 // Dataset identifier (optional, for dataset-based executions)
@@ -469,6 +468,9 @@ type Execution struct {
 
 	DetectorResults    []DetectorResult    `gorm:"foreignKey:ExecutionID"`
 	GranularityResults []GranularityResult `gorm:"foreignKey:ExecutionID"`
+
+	// Many-to-many relationship with labels
+	Labels []Label `gorm:"many2many:execution_injection_labels"`
 }
 
 type DetectorResult struct {
@@ -551,16 +553,6 @@ type DatasetVersionInjection struct {
 	Injection      *FaultInjection `gorm:"foreignKey:InjectionID"`
 }
 
-// TaskLabel Many-to-many relationship table between Task and Label
-type TaskLabel struct {
-	TaskID  string `gorm:"primaryKey;size:64"` // Task ID
-	LabelID int    `gorm:"primaryKey"`         // Label ID
-
-	// Foreign key association
-	Task  *Task  `gorm:"foreignKey:TaskID"`
-	Label *Label `gorm:"foreignKey:LabelID"`
-}
-
 // FaultInjectionLabel Many-to-many relationship table between FaultInjection and Label
 type FaultInjectionLabel struct {
 	FaultInjectionID int `gorm:"primaryKey"` // Fault injection ID
@@ -569,6 +561,17 @@ type FaultInjectionLabel struct {
 	// Foreign key association
 	FaultInjection *FaultInjection `gorm:"foreignKey:FaultInjectionID;constraint:OnDelete:CASCADE"`
 	Label          *Label          `gorm:"foreignKey:LabelID"`
+}
+
+// ExecutionInjectionLabel Many-to-many relationship table between Execution and Label
+type ExecutionInjectionLabel struct {
+	ExecutionID int       `gorm:"primaryKey"`     // Execution ID
+	LabelID     int       `gorm:"primaryKey"`     // Label ID
+	CreatedAt   time.Time `gorm:"autoCreateTime"` // Creation time
+
+	// Foreign key association
+	Execution *Execution `gorm:"foreignKey:ExecutionID;constraint:OnDelete:CASCADE"`
+	Label     *Label     `gorm:"foreignKey:LabelID"`
 }
 
 // UserContainer Many-to-many relationship table between User and Container (includes container-level permissions)

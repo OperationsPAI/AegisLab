@@ -131,7 +131,6 @@ install-chaos-mesh: ## 📦 Install Chaos Mesh
 		--namespace=chaos-mesh \
 		--create-namespace \
 		--set chaosDaemon.runtime=containerd \
-		--set chaosDaemon.socketPath=/run/k3s/containerd/containerd.sock \
 		--version 2.7.2
 	@printf "$(GREEN)✅ Chaos Mesh installation completed$(RESET)\n"
 
@@ -219,48 +218,7 @@ delete-chaos: ## 🗑️  Delete chaos resources in namespaces with specific pre
 # =============================================================================
 
 pre-commit:
-	@printf "$(BLUE)Running pre-commit checks...$(RESET)\n"
-	@devbox run format-staged-go
-	@if [ $$? -ne 0]; then \
-		echo "❌ Go formatting failed. Please fix the issues before committing."; \
-		exit 1; \
-	fi
-	@devbox run format-staged-python
-	@if [ $$? -ne 0]; then \
-		echo "❌ Python formatting failed. Please fix the issues before committing."; \
-		exit 1; \
-	fi
-	@printf "$(GREEN)✅ Pre-commit checks passed!$(RESET)\n"
-
-pre-push: ## 🚀 Run pre-push checks (validates tags and runs tests)
-	@printf "$(BLUE)🚀 Running pre-push checks...$(RESET)\n"
-	@printf "$(GRAY)Checking if pushing tags...$(RESET)\n"
-	@while read local_ref local_sha remote_ref remote_sha; do \
-		if echo "$$remote_ref" | grep -q "refs/tags/"; then \
-			tag_name=$$(echo "$$remote_ref" | sed 's/refs\/tags\///'); \
-			printf "$(CYAN)📌 Detected tag push: $$tag_name$(RESET)\n"; \
-			if echo "$$tag_name" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$$'; then \
-				printf "$(GREEN)✅ Valid semver tag: $$tag_name$(RESET)\n"; \
-			else \
-				printf "$(RED)❌ Invalid tag format: $$tag_name (expected: vX.Y.Z)$(RESET)\n"; \
-				exit 1; \
-			fi; \
-		fi; \
-	done
-	@printf "$(GREEN)✅ Pre-push checks passed!$(RESET)\n"
-
-format-staged-go: ## 🔍 Lint and format staged Go files with golangci-lint
-	@printf "$(BLUE)🔍 Checking Uncommitted Go Issues...$(RESET)\n"
-	@if [ -z "$$(git status --porcelain | grep '\.go$$')" ]; then \
-		printf "$(YELLOW)No uncommitted Go file changes found to lint$(RESET)\n"; \
-		exit 0; \
-	fi
-	@printf "$(CYAN)⚙️  Linting and formating new issues found in uncommitted changes...$(RESET)\n"
-	@cd src && golangci-lint run \
-		--issues-exit-code=1 \
-		--path-prefix=src \
-		--whole-files \
-		--new-from-rev=HEAD~1
+	$(MAKE) run-command ARGS="git pre-commit"
 
 # =============================================================================
 # SDK Generation

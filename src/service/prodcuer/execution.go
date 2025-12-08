@@ -261,15 +261,13 @@ func ManageExecutionLabels(req *dto.ManageExecutionLabelReq, executionID int) (*
 			}
 
 			if len(labelIDs) == 0 {
-				return fmt.Errorf("no labels found for the given keys")
-			}
+				if err := repository.ClearExecutionLabels(tx, []int{executionID}, labelIDs); err != nil {
+					return fmt.Errorf("failed to clear execution labels: %w", err)
+				}
 
-			if err := repository.ClearExecutionLabels(tx, []int{executionID}, labelIDs); err != nil {
-				return fmt.Errorf("failed to clear execution labels: %w", err)
-			}
-
-			if err := repository.BatchDecreaseLabelUsages(tx, labelIDs, 1); err != nil {
-				return fmt.Errorf("failed to decrease label usage counts: %w", err)
+				if err := repository.BatchDecreaseLabelUsages(tx, labelIDs, 1); err != nil {
+					return fmt.Errorf("failed to decrease label usage counts: %w", err)
+				}
 			}
 		}
 

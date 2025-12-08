@@ -356,7 +356,7 @@ func (req *SearchInjectionReq) ConvertToSearchReq() *SearchReq {
 	}
 
 	if req.IncludeLabels {
-		sr.AddInclude("Task.Labels")
+		sr.AddInclude("Labels")
 	}
 	if req.IncludeTask {
 		sr.AddInclude("Task")
@@ -455,7 +455,6 @@ func NewInjectionResp(injection *database.FaultInjection) *InjectionResp {
 		EndTime:     injection.EndTime,
 		State:       consts.GetDatapackStateName(injection.State),
 		Status:      consts.GetStatusTypeName(injection.Status),
-		TaskID:      injection.TaskID,
 		BenchmarkID: injection.BenchmarkID,
 		PedestalID:  injection.PedestalID,
 		CreatedAt:   injection.CreatedAt,
@@ -479,10 +478,14 @@ func NewInjectionResp(injection *database.FaultInjection) *InjectionResp {
 		}
 	}
 
+	if injection.Task != nil {
+		resp.TaskID = *injection.TaskID
+	}
+
 	// Get labels from associated Task instead of directly from injection
-	if injection.Task != nil && len(injection.Task.Labels) > 0 {
-		resp.Labels = make([]LabelItem, 0, len(injection.Task.Labels))
-		for _, l := range injection.Task.Labels {
+	if len(injection.Labels) > 0 {
+		resp.Labels = make([]LabelItem, 0, len(injection.Labels))
+		for _, l := range injection.Labels {
 			resp.Labels = append(resp.Labels, LabelItem{
 				Key:   l.Key,
 				Value: l.Value,
@@ -497,7 +500,7 @@ type InjectionDetailResp struct {
 
 	Description  string             `json:"description,omitempty"`
 	EngineConfig map[string]any     `json:"engine_config" swaggertype:"object"`
-	GroundTruth  *chaos.Groundtruth `json:"ground_truth,omitempty"`
+	Groundtruth  *chaos.Groundtruth `json:"ground_truth,omitempty"`
 }
 
 func NewInjectionDetailResp(entity *database.FaultInjection) *InjectionDetailResp {
@@ -511,6 +514,10 @@ func NewInjectionDetailResp(entity *database.FaultInjection) *InjectionDetailRes
 		var engineConfigData map[string]any
 		_ = json.Unmarshal([]byte(entity.EngineConfig), &engineConfigData)
 		resp.EngineConfig = engineConfigData
+	}
+
+	if entity.Groundtruth != nil {
+		resp.Groundtruth = entity.Groundtruth.ConvertToChaosGroundtruth()
 	}
 
 	return resp
@@ -583,6 +590,58 @@ func (req *ManageInjectionLabelReq) Validate() error {
 	}
 
 	return nil
+}
+
+// InjectionLabelOperation represents label operations for a single injection
+type InjectionLabelOperation struct {
+	InjectionID  int         `json:"injection_id" binding:"required"` // Injection ID to manage
+	AddLabels    []LabelItem `json:"add_labels,omitempty"`            // Labels to add to this injection
+	RemoveLabels []LabelItem `json:"remove_labels,omitempty"`         // Labels to remove from this injection
+}
+
+// BatchManageInjectionLabelReq represents the request to batch manage injection labels
+// Each injection can have its own set of label operations
+type BatchManageInjectionLabelReq struct {
+	Items []InjectionLabelOperation `json:"items" binding:"required,min=1,dive"` // List of label operations per injection
+}
+
+func (req *BatchManageInjectionLabelReq) Validate() error {
+	if len(req.Items) == 0 {
+		return fmt.Errorf("items list cannot be empty")
+	}
+
+	seenIDs := make(map[int]struct{}, len(req.Items))
+	for i, item := range req.Items {
+		if _, exists := seenIDs[item.InjectionID]; exists {
+			return fmt.Errorf("duplicate injection_id at index %d: %d", i, item.InjectionID)
+		}
+		seenIDs[item.InjectionID] = struct{}{}
+
+		if item.InjectionID <= 0 {
+			return fmt.Errorf("invalid injection_id at index %d: %d", i, item.InjectionID)
+		}
+
+		if len(item.AddLabels) == 0 && len(item.RemoveLabels) == 0 {
+			return fmt.Errorf("at least one of add_labels or remove_labels must be provided for injection_id %d at index %d", item.InjectionID, i)
+		}
+
+		if err := validateLabelItemsFiled(item.AddLabels); err != nil {
+			return fmt.Errorf("invalid add_labels for injection_id %d at index %d: %w", item.InjectionID, i, err)
+		}
+		if err := validateLabelItemsFiled(item.RemoveLabels); err != nil {
+			return fmt.Errorf("invalid remove_labels for injection_id %d at index %d: %w", item.InjectionID, i, err)
+		}
+	}
+
+	return nil
+}
+
+// BatchManageInjectionLabelResp represents the response for batch injection label management
+type BatchManageInjectionLabelResp struct {
+	FailedCount  int             `json:"failed_count"`
+	FailedItems  []string        `json:"failed_items"`
+	SuccessCount int             `json:"success_count"`
+	SuccessItems []InjectionResp `json:"success_items"`
 }
 
 // analysis

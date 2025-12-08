@@ -83,9 +83,8 @@ func createDetectorViews() {
 		l.label_key as label_key,
 		l.label_value as label_value,
 		fi.created_at`).
-		Joins("LEFT JOIN tasks t ON t.id = fi.task_id").
-		Joins("LEFT JOIN task_labels tl ON tl.task_id = t.id").
-		Joins("LEFT JOIN labels l ON tl.label_id = l.id").
+		Joins("LEFT JOIN fault_injection_labels fil ON fil.fault_injection_id = fi.id").
+		Joins("LEFT JOIN labels l ON fil.label_id = l.id").
 		Group("fi.id, fi.name, fi.engine_config, fi.created_at"),
 	).Where("dr.issues = '{}' OR dr.issues IS NULL")
 	if err = DB.Migrator().CreateView("fault_injection_no_issues", gorm.ViewOption{Query: noIssuesQuery}); err != nil {
@@ -110,8 +109,8 @@ func createDetectorViews() {
 		dr.abnormal_p99, 
 		dr.normal_p99`).
 		Joins("LEFT JOIN tasks t ON t.id = fi.task_id").
-		Joins("LEFT JOIN task_labels tl ON tl.task_id = t.id").
-		Joins("LEFT JOIN labels l ON tl.label_id = l.id").
+		Joins("LEFT JOIN fault_injection_labels fil ON fil.fault_injection_id = fi.id").
+		Joins("LEFT JOIN labels l ON fil.label_id = l.id").
 		Group("fi.id, fi.name, fi.engine_config, fi.created_at, dr.issues, dr.abnormal_avg_duration, dr.normal_avg_duration, dr.abnormal_succ_rate, dr.normal_succ_rate, dr.abnormal_p99, dr.normal_p99"),
 	).Where("dr.issues != '{}' AND dr.issues IS NOT NULL")
 	if err = DB.Migrator().CreateView("fault_injection_with_issues", gorm.ViewOption{Query: withIssuesQuery}); err != nil {

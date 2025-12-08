@@ -340,7 +340,7 @@ func createExecution(taskID string, algorithmVersionID, datapackID int, datasetV
 
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
 		execution := &database.Execution{
-			TaskID:             taskID,
+			TaskID:             &taskID,
 			AlgorithmVersionID: algorithmVersionID,
 			DatapackID:         datapackID,
 			DatasetVersionID:   datasetVersionID,

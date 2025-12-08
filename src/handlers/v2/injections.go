@@ -243,6 +243,82 @@ func SearchInjections(c *gin.Context) {
 	dto.SuccessResponse(c, resp)
 }
 
+// ListFaultInjectionNoIssues
+//
+//	@Summary		Query Fault Injection Records Without Issues
+//	@Description	Query all fault injection records without issues based on time range, returning detailed records including configuration information
+//	@Tags			Injections
+//	@ID				list_failed_injections
+//	@Produce		json
+//	@Param			labels				query		[]string											false	"Filter by labels (array of key:value strings, e.g., 'type:chaos')"
+//	@Param			lookback			query		string												false	"Time range query, supports custom relative time (1h/24h/7d) or custom, default not set"
+//	@Param			custom_start_time	query		string												false	"Custom start time, RFC3339 format, required when lookback=custom"	Format(date-time)
+//	@Param			custom_end_time		query		string												false	"Custom end time, RFC3339 format, required when lookback=custom"	Format(date-time)
+//	@Success		200					{object}	dto.GenericResponse[[]dto.InjectionNoIssuesResp]	"Successfully returned fault injection records without issues"
+//	@Failure		400					{object}	dto.GenericResponse[any]							"Request parameter error, such as incorrect time format or parameter validation failure, etc."
+//	@Failure		500					{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Router			/api/v2/injections/analysis/no-issues [get]
+//	@x-api-type		{"sdk":"true"}
+func ListFaultInjectionNoIssues(c *gin.Context) {
+	var req dto.ListInjectionNoIssuesReq
+	if err := c.BindQuery(&req); err != nil {
+		logrus.Errorf("failed to bind query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		logrus.Errorf("invalid query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	items, err := producer.ListInjectionsNoIssues(&req)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, items)
+}
+
+// ListFaultInjectionWithIssues
+//
+//	@Summary		Query Fault Injection Records With Issues
+//	@Description	Query all fault injection records with issues based on time range
+//	@Tags			Injections
+//	@ID				list_successful_injections
+//	@Produce		json
+//	@Param			labels				query		[]string	false	"Filter by labels (array of key:value strings, e.g., 'type:chaos')"
+//	@Param			lookback			query		string		false	"Time range query, supports custom relative time (1h/24h/7d) or custom, default not set"
+//	@Param			custom_start_time	query		string		false	"Custom start time, RFC3339 format, required when lookback=custom"	Format(date-time)
+//	@Param			custom_end_time		query		string		false	"Custom end time, RFC3339 format, required when lookback=custom"	Format(date-time)
+//	@Success		200					{object}	dto.GenericResponse[[]dto.InjectionWithIssuesResp]
+//	@Failure		400					{object}	dto.GenericResponse[any]	"Request parameter error, such as incorrect time format or parameter validation failure, etc."
+//	@Failure		500					{object}	dto.GenericResponse[any]	"Internal server error"
+//	@Router			/api/v2/injections/analysis/with-issues [get]
+//	@x-api-type		{"sdk":"true"}
+func ListFaultInjectionWithIssues(c *gin.Context) {
+	var req dto.ListInjectionWithIssuesReq
+	if err := c.BindQuery(&req); err != nil {
+		logrus.Errorf("failed to bind query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		logrus.Errorf("invalid query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	items, err := producer.ListInjectionsWithIssues(&req)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, items)
+}
+
 // ManageInjectionCustomLabels manages injection custom labels (key-value pairs)
 //
 //	@Summary		Manage injection custom labels
@@ -281,6 +357,43 @@ func ManageInjectionCustomLabels(c *gin.Context) {
 	}
 
 	resp, err := producer.ManageInjectionLabels(&req, id)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
+}
+
+// BatchManageInjectionLabels
+//
+//	@Summary		Batch manage injection labels
+//	@Description	Add or remove labels from multiple injections by IDs with success/failure tracking
+//	@Tags			Injections
+//	@ID				batch_manage_injection_labels
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			batch_manage	body		dto.BatchManageInjectionLabelReq						true	"Batch manage label request"
+//	@Success		200				{object}	dto.GenericResponse[dto.BatchManageInjectionLabelResp]	"Injection labels managed successfully"
+//	@Failure		400				{object}	dto.GenericResponse[any]								"Invalid request"
+//	@Failure		401				{object}	dto.GenericResponse[any]								"Authentication required"
+//	@Failure		403				{object}	dto.GenericResponse[any]								"Permission denied"
+//	@Failure		500				{object}	dto.GenericResponse[any]								"Internal server error"
+//	@Router			/api/v2/injections/labels/batch [patch]
+//	@x-api-type		{"sdk":"true"}
+func BatchManageInjectionLabels(c *gin.Context) {
+	var req dto.BatchManageInjectionLabelReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
+		return
+	}
+
+	resp, err := producer.BatchManageInjectionLabels(&req)
 	if handlers.HandleServiceError(c, err) {
 		return
 	}
@@ -407,80 +520,4 @@ func SubmitDatapackBuilding(c *gin.Context) {
 
 	span.SetStatus(codes.Ok, fmt.Sprintf("Successfully submitted %d datapack buildings with groupID: %s", len(resp.Items), groupID))
 	dto.SuccessResponse(c, resp)
-}
-
-// ListFaultInjectionNoIssues
-//
-//	@Summary		Query Fault Injection Records Without Issues
-//	@Description	Query all fault injection records without issues based on time range, returning detailed records including configuration information
-//	@Tags			Injections
-//	@ID				list_failed_injections
-//	@Produce		json
-//	@Param			labels				query		[]string											false	"Filter by labels (array of key:value strings, e.g., 'type:chaos')"
-//	@Param			lookback			query		string												false	"Time range query, supports custom relative time (1h/24h/7d) or custom, default not set"
-//	@Param			custom_start_time	query		string												false	"Custom start time, RFC3339 format, required when lookback=custom"	Format(date-time)
-//	@Param			custom_end_time		query		string												false	"Custom end time, RFC3339 format, required when lookback=custom"	Format(date-time)
-//	@Success		200					{object}	dto.GenericResponse[[]dto.InjectionNoIssuesResp]	"Successfully returned fault injection records without issues"
-//	@Failure		400					{object}	dto.GenericResponse[any]							"Request parameter error, such as incorrect time format or parameter validation failure, etc."
-//	@Failure		500					{object}	dto.GenericResponse[any]							"Internal server error"
-//	@Router			/api/v2/injections/analysis/no-issues [get]
-//	@x-api-type		{"sdk":"true"}
-func ListFaultInjectionNoIssues(c *gin.Context) {
-	var req dto.ListInjectionNoIssuesReq
-	if err := c.BindQuery(&req); err != nil {
-		logrus.Errorf("failed to bind query parameters: %v", err)
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		logrus.Errorf("invalid query parameters: %v", err)
-		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	items, err := producer.ListInjectionsNoIssues(&req)
-	if handlers.HandleServiceError(c, err) {
-		return
-	}
-
-	dto.SuccessResponse(c, items)
-}
-
-// ListFaultInjectionWithIssues
-//
-//	@Summary		Query Fault Injection Records With Issues
-//	@Description	Query all fault injection records with issues based on time range
-//	@Tags			Injections
-//	@ID				list_successful_injections
-//	@Produce		json
-//	@Param			labels				query		[]string	false	"Filter by labels (array of key:value strings, e.g., 'type:chaos')"
-//	@Param			lookback			query		string		false	"Time range query, supports custom relative time (1h/24h/7d) or custom, default not set"
-//	@Param			custom_start_time	query		string		false	"Custom start time, RFC3339 format, required when lookback=custom"	Format(date-time)
-//	@Param			custom_end_time		query		string		false	"Custom end time, RFC3339 format, required when lookback=custom"	Format(date-time)
-//	@Success		200					{object}	dto.GenericResponse[[]dto.InjectionWithIssuesResp]
-//	@Failure		400					{object}	dto.GenericResponse[any]	"Request parameter error, such as incorrect time format or parameter validation failure, etc."
-//	@Failure		500					{object}	dto.GenericResponse[any]	"Internal server error"
-//	@Router			/api/v2/injections/analysis/with-issues [get]
-//	@x-api-type		{"sdk":"true"}
-func ListFaultInjectionWithIssues(c *gin.Context) {
-	var req dto.ListInjectionWithIssuesReq
-	if err := c.BindQuery(&req); err != nil {
-		logrus.Errorf("failed to bind query parameters: %v", err)
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		logrus.Errorf("invalid query parameters: %v", err)
-		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	items, err := producer.ListInjectionsWithIssues(&req)
-	if handlers.HandleServiceError(c, err) {
-		return
-	}
-
-	dto.SuccessResponse(c, items)
 }

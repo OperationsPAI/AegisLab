@@ -61,6 +61,13 @@ func InitDB() {
 		&Resource{},
 		&AuditLog{},
 
+		// Business entities
+		&Task{},
+		&FaultInjection{},
+		&Execution{},
+		&DetectorResult{},
+		&GranularityResult{},
+
 		// Many-to-many relationship tables
 		&ContainerLabel{},
 		&DatasetLabel{},
@@ -68,8 +75,8 @@ func InitDB() {
 		&ContainerVersionEnvVar{},
 		&HelmConfigValue{},
 		&DatasetVersionInjection{},
-		&TaskLabel{},
 		&FaultInjectionLabel{},
+		&ExecutionInjectionLabel{},
 
 		&UserContainer{},
 		&UserDataset{},
@@ -77,13 +84,6 @@ func InitDB() {
 		&UserRole{},
 		&RolePermission{},
 		&UserPermission{},
-
-		// Business entities
-		&Task{},
-		&FaultInjection{},
-		&Execution{},
-		&DetectorResult{},
-		&GranularityResult{},
 	); err != nil {
 		logrus.Fatalf("Failed to migrate database: %v", err)
 	}

@@ -52,6 +52,11 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			return handleExecutionError(span, logEntry, "failed to get display config", err)
 		}
 
+		groundtruth, err := injectionConf.GetGroundtruth()
+		if err != nil {
+			return handleExecutionError(span, logEntry, "failed to get groundtruth", err)
+		}
+
 		displayData, err := json.Marshal(displayMap)
 		if err != nil {
 			return handleExecutionError(span, logEntry, "failed to marshal injection spec to display config", err)
@@ -67,10 +72,11 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			Description:   fmt.Sprintf("Fault for task %s", task.TaskID),
 			DisplayConfig: utils.StringPtr(string(displayData)),
 			EngineConfig:  string(engineData),
+			Groundtruth:   database.NewDBGroundtruth(&groundtruth),
 			PreDuration:   payload.preDuration,
 			State:         consts.DatapackInitial,
 			Status:        consts.CommonEnabled,
-			TaskID:        task.TaskID,
+			TaskID:        &task.TaskID,
 			BenchmarkID:   payload.benchmark.ID,
 			PedestalID:    payload.pedestalID,
 		}

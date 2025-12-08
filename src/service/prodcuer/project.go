@@ -211,15 +211,13 @@ func ManageProjectLabels(req *dto.ManageProjectLabelReq, projectID int) (*dto.Pr
 			}
 
 			if len(labelIDs) == 0 {
-				return fmt.Errorf("no labels found for the given keys")
-			}
+				if err := repository.ClearProjectLabels(tx, []int{projectID}, labelIDs); err != nil {
+					return fmt.Errorf("failed to clear project labels: %w", err)
+				}
 
-			if err := repository.ClearProjectLabels(tx, []int{projectID}, labelIDs); err != nil {
-				return fmt.Errorf("failed to clear project labels: %w", err)
-			}
-
-			if err := repository.BatchDecreaseLabelUsages(tx, labelIDs, 1); err != nil {
-				return fmt.Errorf("failed to decrease label usage counts: %w", err)
+				if err := repository.BatchDecreaseLabelUsages(tx, labelIDs, 1); err != nil {
+					return fmt.Errorf("failed to decrease label usage counts: %w", err)
+				}
 			}
 		}
 

@@ -1,6 +1,6 @@
 import typer
 
-from src.backup.mysql import MysqlClient
+from src.backup.mysql import MysqlBackupManager
 from src.backup.redis_ import RedisClient
 from src.common.common import SourceType, console, settings
 
@@ -35,11 +35,11 @@ def mysql_migrate(
     console.print("[bold blue]Starting database migration...[/bold blue]")
 
     console.print("[bold blue]Step 1: Installing necessary tools...[/bold blue]")
-    MysqlClient.install_tools()
+    MysqlBackupManager.install_tools()
     console.print()
 
     source_type = SourceType.LOCAL if src.lower() == "local" else SourceType.REMOTE
-    client = MysqlClient(source_type)
+    client = MysqlBackupManager(source_type)
 
     console.print(
         f"[bold blue]Step 2: Creating backup from {source_type} server...[/bold blue]"

@@ -219,7 +219,6 @@ func UpdateInjection(db *gorm.DB, id int, updates map[string]any) error {
 	return nil
 }
 
-// TODO 修改
 // ListInjectionsNoIssues lists fault injections without issues based on label conditions and time range
 func ListInjectionsNoIssues(db *gorm.DB, labelConditions []map[string]string, startTime, endTime *time.Time) ([]database.FaultInjectionNoIssues, error) {
 	query := db.Model(&database.FaultInjectionNoIssues{}).Scopes(database.Sort("dataset_id desc"))
@@ -355,7 +354,8 @@ func ClearInjectionLabels(db *gorm.DB, injectionIDs []int, labelIDs []int) error
 		return nil
 	}
 
-	query := db.Where("fault_injection_id IN (?)", injectionIDs)
+	query := db.Table("fault_injection_labels").
+		Where("fault_injection_id IN (?)", injectionIDs)
 	if len(labelIDs) > 0 {
 		query = query.Where("label_id IN (?)", labelIDs)
 	}
@@ -367,7 +367,6 @@ func ClearInjectionLabels(db *gorm.DB, injectionIDs []int, labelIDs []int) error
 }
 
 // RemoveInjectionsFromLabel removes all injection-label associations for a specific label
-// This removes FaultInjectionLabel entries for all Injections that are associated with this label
 func RemoveInjectionsFromLabel(db *gorm.DB, labelID int) (int64, error) {
 	result := db.Where("label_id = ?", labelID).
 		Delete(&database.FaultInjectionLabel{})
@@ -393,38 +392,29 @@ func RemoveInjectionsFromLabels(db *gorm.DB, labelIDs []int) (int64, error) {
 	return result.RowsAffected, nil
 }
 
-// RemoveLabelsFromInjection removes all label associations from a specific injection via TaskLabel
+// RemoveLabelsFromInjection removes all label associations from a specific injection
 func RemoveLabelsFromInjection(db *gorm.DB, injectionID int) error {
-	subQuery := db.Model(&database.FaultInjection{}).
-		Select("task_id").
-		Where("id = ?", injectionID)
-
-	if err := db.Where("task_id IN (?)", subQuery).
-		Delete(&database.TaskLabel{}).Error; err != nil {
+	if err := db.Where("fault_injection_id = ?", injectionID).
+		Delete(&database.FaultInjectionLabel{}).Error; err != nil {
 		return fmt.Errorf("failed to remove all labels from injection %d: %w", injectionID, err)
 	}
 	return nil
 }
 
-// RemoveLabelsFromInjections removes all label associations from multiple injections via TaskLabel
+// RemoveLabelsFromInjections removes all label associations from multiple injections
 func RemoveLabelsFromInjections(db *gorm.DB, injectionIDs []int) error {
 	if len(injectionIDs) == 0 {
 		return nil
 	}
 
-	// Use subquery to delete in a single operation
-	subQuery := db.Model(&database.FaultInjection{}).
-		Select("task_id").
-		Where("id IN (?)", injectionIDs)
-
-	if err := db.Where("task_id IN (?)", subQuery).
-		Delete(&database.TaskLabel{}).Error; err != nil {
+	if err := db.Where("fault_injection_id IN (?)", injectionIDs).
+		Delete(&database.FaultInjectionLabel{}).Error; err != nil {
 		return fmt.Errorf("failed to remove all labels from injections %v: %w", injectionIDs, err)
 	}
 	return nil
 }
 
-// ListInjectionIDsByLabels gets injection IDs associated with all specified labels via FaultInjectionLabel
+// ListInjectionIDsByLabels gets injection IDs associated with all specified labels
 func ListInjectionIDsByLabels(db *gorm.DB, labelConditions []map[string]string) ([]int, error) {
 	var injectionIDs []int
 	query := db.Model(&database.FaultInjection{}).
@@ -453,7 +443,7 @@ func ListInjectionIDsByLabels(db *gorm.DB, labelConditions []map[string]string) 
 	return injectionIDs, nil
 }
 
-// ListInjectionLabels gets labels for multiple injections in batch via FaultInjectionLabel
+// ListInjectionLabels gets labels for multiple injections in batch
 func ListInjectionLabels(db *gorm.DB, injectionIDs []int) (map[int][]database.Label, error) {
 	if len(injectionIDs) == 0 {
 		return nil, nil
@@ -498,7 +488,6 @@ func ListInjectionLabelCounts(db *gorm.DB, labelIDs []int) (map[int]int64, error
 	}
 
 	var results []injectionLabelResult
-	// Count via fault_injection_labels
 	if err := db.Table("fault_injection_labels fil").
 		Select("fil.label_id, count(DISTINCT fil.fault_injection_id) as count").
 		Where("fil.label_id IN (?)", labelIDs).
@@ -515,7 +504,7 @@ func ListInjectionLabelCounts(db *gorm.DB, labelIDs []int) (map[int]int64, error
 	return countMap, nil
 }
 
-// ListLabelsByInjectionID gets labels for a specific injection via FaultInjectionLabel
+// ListInjectionLabelsByInjectionID gets labels for a specific injection
 func ListLabelsByInjectionID(db *gorm.DB, injectionID int) ([]database.Label, error) {
 	var labels []database.Label
 	if err := db.Table("labels").
@@ -527,7 +516,7 @@ func ListLabelsByInjectionID(db *gorm.DB, injectionID int) ([]database.Label, er
 	return labels, nil
 }
 
-// ListLabelIDsByKeyAndInjectionID finds label IDs by keys associated with a specific injection via FaultInjectionLabel
+// ListLabelIDsByKeyAndInjectionID finds label IDs by keys associated with a specific injection via TaskLabel
 func ListLabelIDsByKeyAndInjectionID(db *gorm.DB, injectionID int, keys []string) ([]int, error) {
 	var labelIDs []int
 

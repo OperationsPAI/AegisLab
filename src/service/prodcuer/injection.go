@@ -123,20 +123,8 @@ func GetInjectionDetail(injectionID int) (*dto.InjectionDetailResp, error) {
 		return nil, fmt.Errorf("failed to get injection labels: %w", err)
 	}
 
-	injection.Task.Labels = labels
+	injection.Labels = labels
 	resp := dto.NewInjectionDetailResp(injection)
-
-	groundTruths, err := getInjectionGroundTruths([]string{injection.Name})
-	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"injectionID": injectionID,
-		}).Error("failed to get injection ground truths: %w", err)
-		return nil, fmt.Errorf("failed to get injection ground truths: %w", err)
-	}
-
-	if gt, exists := groundTruths[injection.Name]; exists {
-		resp.GroundTruth = &gt
-	}
 
 	logrus.WithField("injectionID", injectionID).Info("GetInjectionDetail: completed successfully")
 	return resp, err
@@ -165,7 +153,7 @@ func ListInjections(req *dto.ListInjectionReq) (*dto.ListResp[dto.InjectionResp]
 	injectionResps := make([]dto.InjectionResp, 0, len(injections))
 	for _, injection := range injections {
 		if labels, exists := labelsMap[injection.ID]; exists {
-			injection.Task.Labels = labels
+			injection.Labels = labels
 		}
 		injectionResps = append(injectionResps, *dto.NewInjectionResp(&injection))
 	}
@@ -219,31 +207,10 @@ func SearchInjections(req *dto.SearchInjectionReq) (*dto.SearchResp[dto.Injectio
 		filteredInjections = injections
 	}
 
-	injectionNames := make([]string, 0, len(filteredInjections))
-	for _, injection := range filteredInjections {
-		injectionNames = append(injectionNames, injection.Name)
-	}
-
-	groundTruths, err := getInjectionGroundTruths(injectionNames)
-	if err != nil {
-		logrus.Error("failed to get injection ground truths: %w", err)
-		return nil, fmt.Errorf("failed to get injection ground truths: %w", err)
-	}
-
 	// Convert to response format
 	injectionResps := make([]dto.InjectionDetailResp, 0, len(filteredInjections))
 	for _, injection := range filteredInjections {
-		injectionResp := dto.NewInjectionDetailResp(&injection)
-
-		gt, exists := groundTruths[injection.Name]
-		if !exists {
-			logrus.WithFields(logrus.Fields{
-				"injectionID": injection.ID,
-			}).Warnf("ground truth not found for injection %s", injection.Name)
-		}
-
-		injectionResp.GroundTruth = &gt
-		injectionResps = append(injectionResps, *injectionResp)
+		injectionResps = append(injectionResps, *dto.NewInjectionDetailResp(&injection))
 	}
 
 	resp := &dto.SearchResp[dto.InjectionDetailResp]{
@@ -387,7 +354,7 @@ func ManageInjectionLabels(req *dto.ManageInjectionLabelReq, injectionID int) (*
 			return fmt.Errorf("failed to get injection labels: %w", err)
 		}
 
-		injection.Task.Labels = labels
+		injection.Labels = labels
 		managedInjection = injection
 		return nil
 	})
@@ -396,6 +363,205 @@ func ManageInjectionLabels(req *dto.ManageInjectionLabelReq, injectionID int) (*
 	}
 
 	return dto.NewInjectionResp(managedInjection), nil
+}
+
+// BatchManageInjectionLabels adds or removes labels from multiple injections
+// Each injection can have its own set of label operations
+func BatchManageInjectionLabels(req *dto.BatchManageInjectionLabelReq) (*dto.BatchManageInjectionLabelResp, error) {
+	if req == nil {
+		return nil, fmt.Errorf("batch manage injection labels request is nil")
+	}
+
+	resp := &dto.BatchManageInjectionLabelResp{
+		FailedCount:  0,
+		FailedItems:  []string{},
+		SuccessCount: 0,
+		SuccessItems: []dto.InjectionResp{},
+	}
+
+	if len(req.Items) == 0 {
+		return resp, nil
+	}
+
+	// Process all operations in a single transaction
+	return resp, database.DB.Transaction(func(tx *gorm.DB) error {
+		// Step 1: Collect all injection IDs and verify they exist (batch query)
+		allInjectionIDs := make([]int, 0, len(req.Items))
+		operationMap := make(map[int]*dto.InjectionLabelOperation)
+
+		for i := range req.Items {
+			item := &req.Items[i]
+			allInjectionIDs = append(allInjectionIDs, item.InjectionID)
+			operationMap[item.InjectionID] = item
+		}
+
+		injections, err := repository.ListFaultInjectionsByID(tx, allInjectionIDs)
+		if err != nil {
+			return fmt.Errorf("failed to list injections: %w", err)
+		}
+
+		foundIDMap := make(map[int]*database.FaultInjection)
+		for i := range injections {
+			foundIDMap[injections[i].ID] = &injections[i]
+		}
+
+		// Track which IDs were not found
+		validIDs := make([]int, 0, len(foundIDMap))
+		for _, id := range allInjectionIDs {
+			if _, found := foundIDMap[id]; !found {
+				resp.FailedItems = append(resp.FailedItems, fmt.Sprintf("Injection ID %d not found", id))
+				resp.FailedCount++
+				delete(operationMap, id) // Remove from operations
+			} else {
+				validIDs = append(validIDs, id)
+			}
+		}
+
+		if len(validIDs) == 0 {
+			return fmt.Errorf("no valid injection IDs found")
+		}
+
+		// Step 2: Collect all unique labels from all operations and create them in batch
+		allAddLabels := make([]dto.LabelItem, 0)
+		allRemoveLabels := make([]dto.LabelItem, 0)
+		labelKeySet := make(map[string]bool)
+
+		for _, op := range operationMap {
+			for _, label := range op.AddLabels {
+				key := label.Key + ":" + label.Value
+				if !labelKeySet[key] {
+					labelKeySet[key] = true
+					allAddLabels = append(allAddLabels, label)
+				}
+			}
+			for _, label := range op.RemoveLabels {
+				key := label.Key + ":" + label.Value
+				if !labelKeySet[key] {
+					labelKeySet[key] = true
+					allRemoveLabels = append(allRemoveLabels, label)
+				}
+			}
+		}
+
+		// Create or update all labels in batch
+		var labelMap map[string]int // key:value -> label_id
+		if len(allAddLabels) > 0 {
+			labels, err := common.CreateOrUpdateLabelsFromItems(tx, allAddLabels, consts.InjectionCategory)
+			if err != nil {
+				return fmt.Errorf("failed to create or update labels: %w", err)
+			}
+
+			labelMap = make(map[string]int)
+			for _, label := range labels {
+				key := label.Key + ":" + label.Value
+				labelMap[key] = label.ID
+			}
+		}
+
+		// Get label IDs for removal labels
+		var removeLabelMap map[string]int // key:value -> label_id
+		if len(allRemoveLabels) > 0 {
+			labelConditions := make([]map[string]string, 0, len(allRemoveLabels))
+			for _, item := range allRemoveLabels {
+				labelConditions = append(labelConditions, map[string]string{
+					"key":   item.Key,
+					"value": item.Value,
+				})
+			}
+
+			labelIDs, err := repository.ListLabelIDsByConditions(tx, labelConditions, consts.InjectionCategory)
+			if err != nil {
+				return fmt.Errorf("failed to find labels to remove: %w", err)
+			}
+
+			// Map them back for quick lookup
+			if len(labelIDs) > 0 {
+				labels, err := repository.ListLabelsByID(tx, labelIDs)
+				if err != nil {
+					return fmt.Errorf("failed to list labels by IDs: %w", err)
+				}
+
+				removeLabelMap = make(map[string]int)
+				for _, label := range labels {
+					key := label.Key + ":" + label.Value
+					removeLabelMap[key] = label.ID
+				}
+			}
+		}
+
+		// Step 3: Process each injection's operations
+		for _, injectionID := range validIDs {
+			op := operationMap[injectionID]
+
+			if len(op.AddLabels) > 0 {
+				labelIDsToAdd := make([]int, 0, len(op.AddLabels))
+				for _, label := range op.AddLabels {
+					key := label.Key + ":" + label.Value
+					if labelID, exists := labelMap[key]; exists {
+						labelIDsToAdd = append(labelIDsToAdd, labelID)
+					}
+				}
+
+				if len(labelIDsToAdd) > 0 {
+					if err := repository.AddInjectionLabels(tx, injectionID, labelIDsToAdd); err != nil {
+						resp.FailedItems = append(resp.FailedItems, fmt.Sprintf("Injection ID %d: failed to add labels - %s", injectionID, err.Error()))
+						resp.FailedCount++
+						delete(foundIDMap, injectionID)
+						continue
+					}
+				}
+			}
+
+			if len(op.RemoveLabels) > 0 && removeLabelMap != nil {
+				labelIDsToRemove := make([]int, 0, len(op.RemoveLabels))
+				for _, label := range op.RemoveLabels {
+					key := label.Key + ":" + label.Value
+					if labelID, exists := removeLabelMap[key]; exists {
+						labelIDsToRemove = append(labelIDsToRemove, labelID)
+					}
+				}
+
+				if len(labelIDsToRemove) > 0 {
+					if err := repository.ClearInjectionLabels(tx, []int{injectionID}, labelIDsToRemove); err != nil {
+						resp.FailedItems = append(resp.FailedItems, fmt.Sprintf("Injection ID %d: failed to remove labels - %s", injectionID, err.Error()))
+						resp.FailedCount++
+						delete(foundIDMap, injectionID)
+						continue
+					}
+				}
+			}
+		}
+
+		// Step 4: Fetch updated injection data with labels (batch query)
+		if len(foundIDMap) > 0 {
+			successIDs := make([]int, 0, len(foundIDMap))
+			for id := range foundIDMap {
+				successIDs = append(successIDs, id)
+			}
+
+			updatedInjections, err := repository.ListFaultInjectionsByID(tx, successIDs)
+			if err != nil {
+				return fmt.Errorf("failed to fetch updated injections: %w", err)
+			}
+
+			labelsMap, err := repository.ListInjectionLabels(tx, successIDs)
+			if err != nil {
+				return fmt.Errorf("failed to list injection labels: %w", err)
+			}
+
+			for i := range updatedInjections {
+				injection := &updatedInjections[i]
+				if labels, exists := labelsMap[injection.ID]; exists {
+					injection.Labels = labels
+				}
+				injectionResp := dto.NewInjectionResp(injection)
+				resp.SuccessItems = append(resp.SuccessItems, *injectionResp)
+				resp.SuccessCount++
+			}
+		}
+
+		return nil
+	})
 }
 
 // ProduceRestartPedestalTasks produces pedestal restart tasks into Redis based on the request specifications
@@ -683,35 +849,6 @@ func batchDeleteInjectionsCore(db *gorm.DB, injectionIDs []int) error {
 	}
 
 	return nil
-}
-
-func getInjectionGroundTruths(names []string) (map[string]chaos.Groundtruth, error) {
-	engineConfigMap, err := repository.ListEngineConfigByNames(database.DB, names)
-	if err != nil {
-		return nil, err
-	}
-
-	groundtruthMap := make(map[string]chaos.Groundtruth, len(engineConfigMap))
-	for injection, engineConf := range engineConfigMap {
-		var node chaos.Node
-		if err := json.Unmarshal([]byte(engineConf), &node); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal chaos-experiment node for injection %s: %w", injection, err)
-		}
-
-		conf, err := chaos.NodeToStruct[chaos.InjectionConf](&node)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert chaos-experiment node to InjectionConf for injection %s: %w", injection, err)
-		}
-
-		groundtruth, err := conf.GetGroundtruth()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get ground truth for injection %s: %w", injection, err)
-		}
-
-		groundtruthMap[injection] = groundtruth
-	}
-
-	return groundtruthMap, nil
 }
 
 func parseInjectionSpecs(specs []chaos.Node) ([]injectionProcessItem, error) {

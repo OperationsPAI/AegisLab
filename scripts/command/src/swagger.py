@@ -8,8 +8,8 @@ from typing import Any
 from python_on_whales import docker
 
 from src.common.command import run_command
-from src.common.common import console, settings
-from src.formatter import PythonFormatter
+from src.common.common import ScopeType, console, settings
+from src.formatter.python import PythonFormatter
 from src.util import get_longest_common_substring
 
 # Project root: /home/nn/workspace/AegisLab
@@ -626,9 +626,5 @@ def generate_python_sdk(version: str) -> None:
     console.print(
         "[bold blue]Step 3: Formatting post-processed Python SDK...[/bold blue]"
     )
-    formatter = PythonFormatter()
-    files_to_format = PythonFormatter.get_sdk_files(PYTHON_SDK_DIR.as_posix())
-    if formatter.run(files_to_format):
-        console.print(
-            "[bold green]✅ Python SDK generation completed successfully![/bold green]"
-        )
+    formatter = PythonFormatter(scope=ScopeType.SDK)
+    formatter.run()

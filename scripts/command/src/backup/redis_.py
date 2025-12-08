@@ -34,7 +34,7 @@ class RedisClient:
         self.source_redis, self.target_redis = self._connect_redis(
             src_redis_url, dst_redis_url
         )
-        self.db_session = self._connect_database()
+        self.db_session = self.src_mysql_config.connect_database()
 
     def _connect_redis(self, source_url: str, target_url: str) -> tuple[Redis, Redis]:
         """
@@ -63,29 +63,6 @@ class RedisClient:
 
         except redis.ConnectionError as e:
             console.print(f"[bold red]Redis connection failed: {e}[/bold red]")
-            raise SystemExit(1)
-
-    def _connect_database(self) -> Session:
-        """
-        Connect to the MySQL database.
-        """
-        try:
-            db_url = f"mysql+pymysql://{self.src_mysql_config.user}:{self.src_mysql_config.password}@{self.src_mysql_config.host}:{self.src_mysql_config.port}/{self.src_mysql_config.db}"
-            engine = create_engine(db_url, echo=False, pool_pre_ping=True)
-
-            Session = sessionmaker(bind=engine)
-            session = Session()
-
-            # Test connection
-            result = session.execute(text("SELECT version()"))
-            version = result.scalar()
-            console.print("[bold green]✅ Database connection successful[/bold green]")
-            console.print(f"[dim]Version: {version[:50]}...[/dim]")  # type: ignore
-
-            return session
-
-        except sqlalchemy.except_all.SQLAlchemyError as e:
-            console.print(f"[bold red]❌ Database connection failed: {e}[/bold red]")
             raise SystemExit(1)
 
     def _read_hashes_fuzzy(self, pattern: str) -> list[str]:

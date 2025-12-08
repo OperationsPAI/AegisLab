@@ -206,6 +206,37 @@ func ListLabelsByConditions(db *gorm.DB, conditions []map[string]string) ([]data
 	return labels, nil
 }
 
+// ListLabelIDsByConditions lists label IDs based on key-value conditions and category
+func ListLabelIDsByConditions(db *gorm.DB, conditions []map[string]string, category consts.LabelCategory) ([]int, error) {
+	if len(conditions) == 0 {
+		return []int{}, nil
+	}
+
+	query := db.Model(&database.Label{}).
+		Where("status != ? AND category = ?", consts.CommonDeleted, category)
+
+	orBuilder := db.Where("1 = 0")
+
+	for _, condition := range conditions {
+		andBuilder := db.Where("1 = 1")
+
+		if key, ok := condition["key"]; ok {
+			andBuilder = andBuilder.Where("label_key = ?", key)
+		}
+		if value, ok := condition["value"]; ok {
+			andBuilder = andBuilder.Where("label_value = ?", value)
+		}
+
+		orBuilder = orBuilder.Or(andBuilder)
+	}
+
+	var labelIDs []int
+	if err := query.Where(orBuilder).Pluck("id", &labelIDs).Error; err != nil {
+		return nil, fmt.Errorf("failed to list label IDs by conditions: %w", err)
+	}
+	return labelIDs, nil
+}
+
 // ListLabelsByID lists labels by their IDs
 func ListLabelsByID(db *gorm.DB, labelIDs []int) ([]database.Label, error) {
 	if len(labelIDs) == 0 {

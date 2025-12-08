@@ -1,15 +1,20 @@
 import os
 import re
-import subprocess
 from collections import Counter
 
 from rich.table import Table
 
-from src.common.common import console, repo, settings
+from src.common.command import run_command
+from src.common.common import PROJECT_ROOT, ScopeType, console, settings
+from src.formatter.common import (
+    Formatter,
+    get_modified_files_helper,
+    get_staged_files_helper,
+)
 
 
-class PythonFormatter:
-    """Handles Python code linting and formatting for staged files."""
+class PythonFormatter(Formatter):
+    """Handles Python code linting and formatting."""
 
     IGNORED_DIRS = {
         ".git",
@@ -20,44 +25,66 @@ class PythonFormatter:
         "node_modules",
         "python-gen",
     }
+    REQUIRED_BINARIES = ["ruff"]
+    SUFFIX = ".py"
 
-    EXTRA_ARGS = ["--config", os.path.join(settings.python_sdk_dir, "pyproject.toml")]
+    def __init__(self, scope: ScopeType = ScopeType.STAGED, sdk_dir: str | None = None):
+        """
+        Initialize PythonFormatter with a specific scope.
 
-    def __init__(self):
+        Args:
+            scope: The scope type determining which files to format
+            sdk_dir: Custom SDK directory path (only used when scope is SDK)
+        """
+        self.scope = scope
+        self.sdk_dir = sdk_dir or settings.python_sdk_dir
         self.has_errors = False
+        self.extra_args = ["--config", os.path.join(self.sdk_dir, "pyproject.toml")]
+        self.files_to_format = self._get_files()
 
-    @staticmethod
-    def get_staged_files() -> list[str]:
-        """Get all staged Python files from git."""
-        try:
-            staged_changes = repo.index.diff(repo.head.commit, staged=True)
+    def _get_files(self) -> list[str]:
+        """
+        Get files to format based on the configured scope.
 
-            python_files = []
+        Returns:
+            List of file paths to format
+        """
+        files_to_format: list[str] = []
+        if self.scope == ScopeType.STAGED:
+            files_to_format = get_staged_files_helper(suffies=[self.SUFFIX])
+        elif self.scope == ScopeType.Modified:
+            files_to_format = get_modified_files_helper(
+                suffies=[self.SUFFIX], include_untracked=True
+            )
+        elif self.scope == ScopeType.ALL:
+            files_to_format = self._get_all_files()
+        elif self.scope == ScopeType.SDK:
+            files_to_format = self._get_sdk_files()
+        else:
+            console.print(f"[bold yellow]⚠️  Unknown scope: {self.scope}[/bold yellow]")
+            raise ValueError("Unknown scope type")
 
-            for diff_item in staged_changes:
-                file_path = diff_item.b_path if diff_item.b_path else diff_item.a_path
+        console.print(
+            f"\n[cyan]Files to format (total: {len(files_to_format)}):[/cyan]"
+        )
 
-                if file_path and file_path.endswith(".py"):
-                    python_files.append(file_path)
+        for file in files_to_format:
+            console.print(f"    [dim]-[/dim] {file}")
+        console.print()
 
-            return python_files
+        return files_to_format
 
-        except Exception as e:
-            console.print(f"[bold red]❌ Failed to get staged files: {e}[/bold red]")
-            return []
-
-    @staticmethod
-    def get_all_files() -> list[str]:
+    def _get_all_files(self) -> list[str]:
         """
         Recursively finds all Python (.py) files in the current working directory,
-        excluding common ignored directories like .git and .venv.
+        excluding common ignored directories.
         """
         all_python_files = []
 
-        for root, dirs, files in os.walk("."):
-            dirs[:] = [d for d in dirs if d not in PythonFormatter.IGNORED_DIRS]
+        for root, dirs, files in os.walk(PROJECT_ROOT):
+            dirs[:] = [d for d in dirs if d not in self.IGNORED_DIRS]
             for file in files:
-                if file.endswith(".py"):
+                if file.endswith(self.SUFFIX):
                     full_path = os.path.join(root, file)
 
                     if full_path.startswith("./"):
@@ -67,44 +94,47 @@ class PythonFormatter:
 
         return all_python_files
 
-    @staticmethod
-    def get_sdk_files(sdk_dir: str) -> list[str]:
+    def _get_sdk_files(self) -> list[str]:
         """
         Recursively finds all Python (.py) files within the specified SDK directory,
         excluding common ignored directories.
         """
         sdk_python_files = []
 
-        if not os.path.isdir(sdk_dir):
+        if not os.path.isdir(self.sdk_dir):
             console.print(
-                f"[bold red]❌ Error: Directory not found at path: {sdk_dir}[/bold red]"
+                f"[bold red]❌ Error: Directory not found at path: {self.sdk_dir}[/bold red]"
             )
             return []
 
-        for root, dirs, files in os.walk(sdk_dir):
-            dirs[:] = [d for d in dirs if d not in PythonFormatter.IGNORED_DIRS]
+        for root, dirs, files in os.walk(self.sdk_dir):
+            dirs[:] = [d for d in dirs if d not in self.IGNORED_DIRS]
 
             for file in files:
-                if file.endswith(".py"):
+                if file.endswith(self.SUFFIX):
                     full_path = os.path.join(root, file)
                     normalized_path = os.path.normpath(full_path)
                     sdk_python_files.append(normalized_path)
 
         return sdk_python_files
 
-    def _categorize_files(self, files: list[str]) -> dict[str, list[str]]:
+    @staticmethod
+    def install_tools():
+        pass
+
+    def _categorize_files(self) -> dict[str, list[str]]:
         """Categorize files into sdk/python and other files."""
         sdk_files = []
         other_files = []
 
-        for file in files:
-            if file.startswith(settings.python_sdk_dir):
+        for file in self.files_to_format:
+            if file.startswith(self.sdk_dir):
                 sdk_files.append(file)
             elif not file.startswith("src/"):
                 other_files.append(file)
 
         return {
-            "sdk": sdk_files,
+            ScopeType.SDK.value: sdk_files,  # Use ScopeType enum value
             "other": other_files,
         }
 
@@ -112,23 +142,23 @@ class PythonFormatter:
         """Run ruff check --fix on files."""
         cmd = ["ruff", "check", "--fix", "--unsafe-fixes"]
         cmd.extend(files)
-        if category == "sdk":
-            cmd.extend(self.EXTRA_ARGS)
+        if category == ScopeType.SDK.value:
+            cmd.extend(self.extra_args)
 
         try:
-            process = subprocess.run(
-                cmd, cwd=os.getcwd(), check=False, capture_output=True
+            process = run_command(
+                cmd, check=False, capture_output=True, cmd_print=False
             )
             if process.stderr:
                 console.print(
-                    f"[bold yellow]⚠️  Ruff check encountered issues: {process.stderr.decode()}[/bold yellow]"
+                    f"[bold yellow]    ⚠️  Ruff check encountered issues: {process.stderr}[/bold yellow]"
                 )
                 return False
 
             return True
         except Exception as e:
             console.print(
-                f"[bold yellow]⚠️  Ruff check encountered issues: {e}[/bold yellow]"
+                f"[bold yellow]    ⚠️  Ruff check encountered issues: {e}[/bold yellow]"
             )
             return False
 
@@ -136,20 +166,34 @@ class PythonFormatter:
         """Check for remaining errors after fix."""
         cmd = ["ruff", "check"]
         cmd.extend(files)
-        if category == "sdk":
-            cmd.extend(self.EXTRA_ARGS)
+        if category == ScopeType.SDK.value:
+            cmd.extend(self.extra_args)
 
         try:
-            result = subprocess.run(
-                cmd, cwd=os.getcwd(), capture_output=True, text=True, check=False
+            result = run_command(
+                cmd, check=False, capture_output=True, text=True, cmd_print=False
             )
-            return result.stdout if result.stdout else None
+            if result.stdout:
+                # Ensure we have a string, not bytes
+                if isinstance(result.stdout, bytes):
+                    return result.stdout.decode("utf-8")
+                return result.stdout
+            return None
         except Exception as e:
-            console.print(f"[bold yellow]⚠️  Failed to check errors: {e}[/bold yellow]")
+            console.print(
+                f"[bold yellow]    ⚠️  Failed to check errors: {e}[/bold yellow]"
+            )
             return None
 
     def _display_error_statistics(self, output: str) -> None:
         """Display error statistics in a formatted table."""
+        # Ensure output is a string
+        if not isinstance(output, str):
+            console.print(
+                f"[bold yellow]    ⚠️  Invalid output type: {type(output)}[/bold yellow]"
+            )
+            return
+
         pattern = r"([A-Z]{1,2}\d{3,4})"
         codes = re.findall(pattern, output)
         stats = dict(Counter(codes))
@@ -190,31 +234,17 @@ class PythonFormatter:
                 content = item.strip()
                 output_contents.append(f"{current_code} {content}")
 
-        # for line in output_contents[:20]:
-        #     console.print(line)
-
-        # if len(output_contents) > 20:
-        #     console.print(
-        #         f"\n[bright cyan]... (showing first 20 results of {len(content)} total)[/bright cyan]"
-        #     )
-
         console.print(output)
 
     def _run_ruff_format(self, category: str, files: list[str]) -> bool:
         """Run ruff format on files."""
         cmd = ["ruff", "format"] + files
         cmd.extend(files)
-        if category == "sdk":
-            cmd.extend(self.EXTRA_ARGS)
+        if category == ScopeType.SDK.value:
+            cmd.extend(self.extra_args)
 
-        try:
-            subprocess.run(cmd, cwd=os.getcwd(), check=True, capture_output=True)
-            return True
-        except subprocess.CalledProcessError as e:
-            console.print(
-                f"[bold yellow]⚠️  Ruff format encountered issues: {e}[/bold yellow]"
-            )
-            return False
+        run_command(cmd, check=True, capture_output=True, cmd_print=False)
+        return True
 
     def _process_files(self, category: str, files: list[str]) -> None:
         """Process files in a given category."""
@@ -232,12 +262,16 @@ class PythonFormatter:
         console.print("[gray]    Step 3/3: Running ruff format...[/gray]")
         self._run_ruff_format(category, files=files)
 
-    def run(self, files_to_format: list[str]) -> int:
+    def run(self) -> int:
         """Main execution flow."""
+        if not self.files_to_format:
+            console.print("[bold yellow]No Python files to format.[/bold yellow]")
+            return 1
+
         console.print("[bold blue]🎨 Formatting Python files with ruff...[/bold blue]")
 
         # Process each category
-        for category, files in self._categorize_files(files_to_format).items():
+        for category, files in self._categorize_files().items():
             self._process_files(category, files=files)
 
         if self.has_errors:

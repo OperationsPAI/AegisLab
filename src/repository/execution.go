@@ -76,10 +76,9 @@ func ListExecutions(db *gorm.DB, limit, offset int, event *consts.ExecutionState
 
 	if len(labelConditions) > 0 {
 		for _, condition := range labelConditions {
-			subQuery := db.Table("task_labels tl").
-				Select("e.id").
-				Joins("JOIN executions e ON e.task_id = tl.task_id").
-				Joins("JOIN labels ON labels.id = tl.label_id").
+			subQuery := db.Table("execution_injection_labels eil").
+				Select("eil.execution_id").
+				Joins("JOIN labels ON labels.id = eil.label_id").
 				Where("labels.label_key = ? AND labels.label_value = ?", condition["key"], condition["value"])
 
 			query = query.Where("execution.id IN (?)", subQuery)
@@ -136,53 +135,39 @@ func UpdateExecution(db *gorm.DB, id int, updates map[string]any) error {
 // ExecutionLabel Repository Functions
 // =====================================================================
 
-// Business layer: Execution labels are stored as TaskLabel in database
-// Since Execution and Task are 1:1 relationship
-
-// AddExecutionLabels adds multiple execution-label associations via TaskLabel
+// AddExecutionLabels adds multiple execution-label associations
 func AddExecutionLabels(db *gorm.DB, executionID int, labelIDs []int) error {
 	if len(labelIDs) == 0 {
 		return nil
 	}
 
-	// Get the TaskID for this execution
-	var execution database.Execution
-	if err := db.Select("task_id").First(&execution, executionID).Error; err != nil {
-		return fmt.Errorf("failed to get execution task_id: %w", err)
-	}
-
-	// Create TaskLabel associations
-	taskLabels := make([]database.TaskLabel, 0, len(labelIDs))
+	// Create ExecutionInjectionLabel associations
+	executionLabels := make([]database.ExecutionInjectionLabel, 0, len(labelIDs))
 	for _, labelID := range labelIDs {
-		taskLabels = append(taskLabels, database.TaskLabel{
-			TaskID:  execution.TaskID,
-			LabelID: labelID,
+		executionLabels = append(executionLabels, database.ExecutionInjectionLabel{
+			ExecutionID: executionID,
+			LabelID:     labelID,
 		})
 	}
 
 	if err := db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "task_id"}, {Name: "label_id"}},
+		Columns:   []clause.Column{{Name: "execution_id"}, {Name: "label_id"}},
 		DoNothing: true,
-	}).Create(&taskLabels).Error; err != nil {
+	}).Create(&executionLabels).Error; err != nil {
 		return fmt.Errorf("failed to add execution-label associatons: %w", err)
 	}
 
 	return nil
 }
 
-// ClearExecutionLabels removes label associations from specified executions via TaskLabel
+// ClearExecutionLabels removes label associations from specified executions
 func ClearExecutionLabels(db *gorm.DB, executionIDs []int, labelIDs []int) error {
 	if len(executionIDs) == 0 {
 		return nil
 	}
 
-	// Use subquery to delete in a single operation
-	subQuery := db.Model(&database.Execution{}).
-		Select("task_id").
-		Where("id IN (?)", executionIDs)
-
-	query := db.Table("task_labels").
-		Where("task_id IN (?)", subQuery)
+	query := db.Table("execution_injection_labels").
+		Where("execution_id IN (?)", executionIDs)
 	if len(labelIDs) > 0 {
 		query = query.Where("label_id IN (?)", labelIDs)
 	}
@@ -193,49 +178,32 @@ func ClearExecutionLabels(db *gorm.DB, executionIDs []int, labelIDs []int) error
 	return nil
 }
 
-// RemoveLabelsFromExecution removes all label associations from a specific execution via TaskLabel
+// RemoveLabelsFromExecution removes all label associations from a specific execution
 func RemoveLabelsFromExecution(db *gorm.DB, executionID int) error {
-	// Use subquery to delete in a single operation
-	subQuery := db.Model(&database.Execution{}).
-		Select("task_id").
-		Where("id = ?", executionID)
-
-	if err := db.Where("task_id IN (?)", subQuery).
-		Delete(&database.TaskLabel{}).Error; err != nil {
+	if err := db.Where("execution_id = ?", executionID).
+		Delete(&database.ExecutionInjectionLabel{}).Error; err != nil {
 		return fmt.Errorf("failed to remove all labels from execution %d: %w", executionID, err)
 	}
 	return nil
 }
 
-// RemoveLabelsFromExecutions removes all label associations from multiple executions via TaskLabel
+// RemoveLabelsFromExecutions removes all label associations from multiple executions
 func RemoveLabelsFromExecutions(db *gorm.DB, executionIDs []int) error {
 	if len(executionIDs) == 0 {
 		return nil
 	}
 
-	// Use subquery to delete in a single operation
-	subQuery := db.Model(&database.Execution{}).
-		Select("task_id").
-		Where("id IN (?)", executionIDs)
-
-	if err := db.Where("task_id IN (?)", subQuery).
-		Delete(&database.TaskLabel{}).Error; err != nil {
+	if err := db.Where("execution_id IN (?)", executionIDs).
+		Delete(&database.ExecutionInjectionLabel{}).Error; err != nil {
 		return fmt.Errorf("failed to remove all labels from executions %v: %w", executionIDs, err)
 	}
 	return nil
 }
 
 // RemoveExecutionsFromLabel deletes all execution-label associations for a specific label
-// This removes TaskLabel entries for all Executions that are associated with this label
 func RemoveExecutionsFromLabel(db *gorm.DB, labelID int) (int64, error) {
-	// Use subquery to find TaskIDs and delete in a single operation
-	subQuery := db.Table("task_labels tl").
-		Select("DISTINCT tl.task_id").
-		Joins("JOIN executions e ON e.task_id = tl.task_id").
-		Where("tl.label_id = ?", labelID)
-
-	result := db.Where("task_id IN (?) AND label_id = ?", subQuery, labelID).
-		Delete(&database.TaskLabel{})
+	result := db.Where("label_id = ?", labelID).
+		Delete(&database.ExecutionInjectionLabel{})
 	if err := result.Error; err != nil {
 		return 0, fmt.Errorf("failed to delete execution-label associations for label %d: %w", labelID, err)
 	}
@@ -249,14 +217,8 @@ func RemoveExecutionsFromLabels(db *gorm.DB, labelIDs []int) (int64, error) {
 		return 0, nil
 	}
 
-	// Use subquery to find TaskIDs and delete in a single operation
-	subQuery := db.Table("task_labels tl").
-		Select("DISTINCT tl.task_id").
-		Joins("JOIN executions e ON e.task_id = tl.task_id").
-		Where("tl.label_id IN (?)", labelIDs)
-
-	result := db.Where("task_id IN (?) AND label_id IN (?)", subQuery, labelIDs).
-		Delete(&database.TaskLabel{})
+	result := db.Where("label_id IN (?)", labelIDs).
+		Delete(&database.ExecutionInjectionLabel{})
 	if err := result.Error; err != nil {
 		return 0, fmt.Errorf("failed to delete execution-label associations for labels %v: %w", labelIDs, err)
 	}
@@ -279,8 +241,8 @@ func ListExecutionsByDatapackFilter(db *gorm.DB, algorithmVersionID int, datapac
 
 	if len(labelConditions) > 0 {
 		query = query.
-			Joins("JOIN task_labels tl ON tl.task_id = executions.task_id").
-			Joins("JOIN labels l ON l.id = tl.label_id")
+			Joins("JOIN execution_injection_labels eil ON eil.execution_id = executions.id").
+			Joins("JOIN labels l ON l.id = eil.label_id")
 
 		var whereConditions *gorm.DB
 		for _, condition := range labelConditions {
@@ -324,8 +286,8 @@ func ListExecutionsByDatasetFilter(db *gorm.DB, algorithmVersionID, datasetVersi
 
 	if len(labelConditions) > 0 {
 		query = query.
-			Joins("JOIN task_labels tl ON tl.task_id = executions.task_id").
-			Joins("JOIN labels l ON l.id = tl.label_id")
+			Joins("JOIN execution_injection_labels eil ON eil.execution_id = executions.id").
+			Joins("JOIN labels l ON l.id = eil.label_id")
 
 		var whereConditions *gorm.DB
 		for _, condition := range labelConditions {
@@ -353,13 +315,13 @@ func ListExecutionsByDatasetFilter(db *gorm.DB, algorithmVersionID, datasetVersi
 	return executions, nil
 }
 
-// ListExecutionIDsByLabels gets execution IDs associated with all specified labels via TaskLabel
+// ListExecutionIDsByLabels gets execution IDs associated with all specified labels
 func ListExecutionIDsByLabels(db *gorm.DB, labelConditions []map[string]string) ([]int, error) {
 	var executionIDs []int
 	query := db.Model(&database.Execution{}).
 		Select("DISTINCT executions.id").
-		Joins("JOIN task_labels tl ON tl.task_id = executions.task_id").
-		Joins("JOIN labels ON labels.id = tl.label_id").
+		Joins("JOIN execution_injection_labels eil ON eil.execution_id = executions.id").
+		Joins("JOIN labels ON labels.id = eil.label_id").
 		Where("executions.status != ?", consts.CommonDeleted)
 
 	var whereClauses []string
@@ -395,9 +357,9 @@ func ListExecutionLabels(db *gorm.DB, executionIDs []int) (map[int][]database.La
 
 	var flatResults []executionLabelResult
 	if err := db.Model(&database.Label{}).
-		Joins("JOIN execution_result_labels erl ON erl.label_id = labels.id").
-		Where("erl.execution_id IN (?)", executionIDs).
-		Select("labels.*, erl.execution_id").
+		Joins("JOIN execution_injection_labels eil ON eil.label_id = labels.id").
+		Where("eil.execution_id IN (?)", executionIDs).
+		Select("labels.*, eil.execution_id").
 		Find(&flatResults).Error; err != nil {
 		return nil, fmt.Errorf("failed to batch query execution labels: %w", err)
 	}
@@ -427,12 +389,10 @@ func ListExecutionLabelCounts(db *gorm.DB, labelIDs []int) (map[int]int64, error
 	}
 
 	var results []executionLabelResult
-	// Count via task_labels joined with executions
-	if err := db.Table("task_labels tl").
-		Select("tl.label_id, count(DISTINCT e.id) as count").
-		Joins("JOIN executions e ON e.task_id = tl.task_id").
-		Where("tl.label_id IN (?)", labelIDs).
-		Group("tl.label_id").
+	if err := db.Table("execution_injection_labels eil").
+		Select("eil.label_id, count(DISTINCT eil.execution_id) as count").
+		Where("eil.label_id IN (?)", labelIDs).
+		Group("eil.label_id").
 		Find(&results).Error; err != nil {
 		return nil, fmt.Errorf("failed to count execution-label associations: %w", err)
 	}
@@ -445,28 +405,26 @@ func ListExecutionLabelCounts(db *gorm.DB, labelIDs []int) (map[int]int64, error
 	return countMap, nil
 }
 
-// ListLabelsByExecutionID retrieves all labels associated with a specific execution via TaskLabel
+// ListLabelsByExecutionID retrieves all labels associated with a specific execution
 func ListLabelsByExecutionID(db *gorm.DB, executionID int) ([]database.Label, error) {
 	var labels []database.Label
 	if err := db.Table("labels").
-		Joins("JOIN task_labels tl ON labels.id = tl.label_id").
-		Joins("JOIN executions e ON e.task_id = tl.task_id").
-		Where("e.id = ?", executionID).
+		Joins("JOIN execution_injection_labels eil ON labels.id = eil.label_id").
+		Where("eil.execution_id = ?", executionID).
 		Find(&labels).Error; err != nil {
 		return nil, fmt.Errorf("failed to get execution labels: %v", err)
 	}
 	return labels, nil
 }
 
-// ListLabelIDsByKeyAndExecutionID retrieves label IDs for a specific execution based on label keys via TaskLabel
+// ListLabelIDsByKeyAndExecutionID retrieves label IDs for a specific execution based on label keys
 func ListLabelIDsByKeyAndExecutionID(db *gorm.DB, executionID int, keys []string) ([]int, error) {
 	var labelIDs []int
 
 	err := db.Table("labels l").
 		Select("l.id").
-		Joins("JOIN task_labels tl ON tl.label_id = l.id").
-		Joins("JOIN executions e ON e.task_id = tl.task_id").
-		Where("e.id = ? AND l.label_key IN (?)", executionID, keys).
+		Joins("JOIN execution_injection_labels eil ON eil.label_id = l.id").
+		Where("eil.execution_id = ? AND l.label_key IN (?)", executionID, keys).
 		Pluck("l.id", &labelIDs).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to find label IDs by key '%s': %w", keys, err)
