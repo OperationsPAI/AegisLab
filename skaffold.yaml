@@ -4,7 +4,7 @@ metadata:
   name: rcabench
 build:
   artifacts:
-  - image: 10.10.10.240/library/rcabench
+  - image: docker.io/opspai
     context: .
     docker:
       dockerfile: src/Dockerfile

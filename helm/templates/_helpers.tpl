@@ -60,3 +60,18 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Return the proper image name with global registry support
+Usage: {{ include "helm.image" (dict "imageConfig" .Values.images.redis "global" .Values.global) }}
+*/}}
+{{- define "helm.image" -}}
+{{- $registry := .global.imageRegistry -}}
+{{- $name := .imageConfig.name -}}
+{{- $tag := .imageConfig.tag -}}
+{{- if $registry -}}
+{{- printf "%s/%s:%s" $registry $name $tag -}}
+{{- else -}}
+{{- printf "%s:%s" $name $tag -}}
+{{- end -}}
+{{- end -}}

@@ -1,28 +1,37 @@
 # values.yaml
-image:
-  repository: docker.io/opspai/rcabench
-  tag: latest
-  pullPolicy: Always
+
+# Global image registry configuration
+global:
+  imageRegistry: "pair-diag-cn-guangzhou.cr.volces.com/pair"
+  # Set to empty string to use default public registries
+  # imageRegistry: ""
 
 images:
+  rcabench:
+    # Original: opspai/rcabench
+    name: rcabench
+    tag: latest
+    pullPolicy: Always
   redis:
-    repository: redis
+    name: redis
     tag: 8.0-M02-alpine3.20
     pullPolicy: IfNotPresent
   mysql:
-    repository: mysql
+    name: mysql
     tag: 8.0.43
     pullPolicy: IfNotPresent
   jaeger:
-    repository: jaegertracing/all-in-one
+    # Original: jaegertracing/all-in-one
+    name: jaeger
     tag: latest
     pullPolicy: IfNotPresent
   busybox:
-    repository: busybox
-    tag: 1.35
+    name: busybox
+    tag: "1.35"
     pullPolicy: IfNotPresent
   buildkit:
-    repository: moby/buildkit
+    # Original: moby/buildkit
+    name: buildkit
     tag: buildx-stable-1
     pullPolicy: IfNotPresent
 
@@ -96,38 +105,55 @@ configmap:
     token_wait_timeout: 10
 
 persistence:
+  # Global storage type setting - applies to containers, logs, and juicefs sections
+  # Options: "juicefs" | "volcengine" | "external"
+  storageType: "volcengine"
+  
+  # Common StorageClass names for each type
+  storageClassNames:
+    juicefs: "juicefs-sc"
+    volcengine: "rcabench"
+    external: ""
+  
   redis:
     enabled: true
-    accessMode: ReadWriteOnce
+    accessMode: ReadWriteMany
     size: 1Gi
-    storageClass: "openebs-hostpath"
+    storageClass: "rcabench"
   mysql:
     enabled: true
-    accessMode: ReadWriteOnce
+    accessMode: ReadWriteMany
     size: 1Gi
-    storageClass: "openebs-hostpath"
+    storageClass: "rcabench"
   jaeger:
     enabled: true
-    accessMode: ReadWriteOnce
+    accessMode: ReadWriteMany
     size: 2Gi
-    storageClass: "openebs-hostpath"
+    storageClass: "rcabench"
   containers:
     enabled: true
     accessMode: ReadWriteMany
-    size: 1Gi
-    storageClass: "juicefs-sc"
+    size: 20Gi
+    # storageClass is determined by persistence.storageType
   logs:
     enabled: true
     accessMode: ReadWriteMany
-    size: 1Gi
-    storageClass: "juicefs-sc"
+    size: 20Gi
+    # storageClass is determined by persistence.storageType
   juicefs:
     enabled: true
     size: 1000Gi
-    useStaticPV: true
+    # Uses persistence.storageType for storage selection
+    useStaticPV: true  # Only applies when storageType is "juicefs"
     subPath:
       dataset: "rcabench_dataset"
       experiment_storage: "experiment_storage"
+    # Volcengine-specific settings (NAS supports ReadWriteMany)
+    volcengine:
+      accessMode: ReadWriteMany
+    # External-specific settings
+    external:
+      accessMode: ReadWriteMany
 
 # JuiceFS Configuration
 juicefs:

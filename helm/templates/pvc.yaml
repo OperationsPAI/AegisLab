@@ -1,40 +1,3 @@
-{{- if .Values.persistence.mysql.enabled }}
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ .Release.Name }}-mysql-data
-  annotations:
-    "helm.sh/resource-policy": keep
-spec:
-  accessModes:
-    - {{ .Values.persistence.mysql.accessMode }}
-  {{- if .Values.persistence.mysql.storageClass }}
-  storageClassName: {{ .Values.persistence.mysql.storageClass | quote }}
-  {{- end }}
-  resources:
-    requests:
-      storage: {{ .Values.persistence.mysql.size }}
-{{- end }}
-
-{{- if .Values.persistence.redis.enabled }}
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ .Release.Name }}-redis-data
-  annotations:
-    "helm.sh/resource-policy": keep
-spec:
-  accessModes:
-    - {{ .Values.persistence.redis.accessMode }}
-  {{- if .Values.persistence.redis.storageClass }}
-  storageClassName: {{ .Values.persistence.redis.storageClass | quote }}
-  {{- end }}
-  resources:
-    requests:
-      storage: {{ .Values.persistence.redis.size }}
-{{- end }}
-
 {{- if .Values.persistence.jaeger.enabled }}
 ---
 apiVersion: v1
@@ -65,9 +28,7 @@ metadata:
 spec:
   accessModes:
     - {{ .Values.persistence.containers.accessMode }}
-  {{- if .Values.persistence.containers.storageClass }}
-  storageClassName: {{ .Values.persistence.containers.storageClass | quote }}
-  {{- end }}
+  storageClassName: {{ index .Values.persistence.storageClassNames .Values.persistence.storageType | quote }}
   resources:
     requests:
       storage: {{ .Values.persistence.containers.size }}
@@ -84,9 +45,7 @@ metadata:
 spec:
   accessModes:
     - {{ .Values.persistence.logs.accessMode }}
-  {{- if .Values.persistence.logs.storageClass }}
-  storageClassName: {{ .Values.persistence.logs.storageClass | quote }}
-  {{- end }}
+  storageClassName: {{ index .Values.persistence.storageClassNames .Values.persistence.storageType | quote }}
   resources:
     requests:
       storage: {{ .Values.persistence.logs.size }}
@@ -102,12 +61,24 @@ metadata:
     "helm.sh/resource-policy": keep
 spec:
   accessModes:
+    {{- if eq .Values.persistence.storageType "juicefs" }}
     - ReadWriteMany
+    {{- else if eq .Values.persistence.storageType "external" }}
+    - {{ .Values.persistence.juicefs.external.accessMode }}
+    {{- else if eq .Values.persistence.storageType "volcengine" }}
+    - {{ .Values.persistence.juicefs.volcengine.accessMode }}
+    {{- else }}
+    - ReadWriteMany
+    {{- end }}
+  {{- if eq .Values.persistence.storageType "juicefs" }}
   {{- if .Values.persistence.juicefs.useStaticPV }}
   volumeName: {{ .Release.Name }}-juicefs-dataset-pv
   storageClassName: ""
   {{- else }}
-  storageClassName: juicefs-sc
+  storageClassName: {{ index .Values.persistence.storageClassNames "juicefs" | quote }}
+  {{- end }}
+  {{- else }}
+  storageClassName: {{ index .Values.persistence.storageClassNames .Values.persistence.storageType | quote }}
   {{- end }}
   resources:
     requests:
@@ -122,12 +93,24 @@ metadata:
     "helm.sh/resource-policy": keep
 spec:
   accessModes:
+    {{- if eq .Values.persistence.storageType "juicefs" }}
     - ReadWriteMany
+    {{- else if eq .Values.persistence.storageType "external" }}
+    - {{ .Values.persistence.juicefs.external.accessMode }}
+    {{- else if eq .Values.persistence.storageType "volcengine" }}
+    - {{ .Values.persistence.juicefs.volcengine.accessMode }}
+    {{- else }}
+    - ReadWriteMany
+    {{- end }}
+  {{- if eq .Values.persistence.storageType "juicefs" }}
   {{- if .Values.persistence.juicefs.useStaticPV }}
   volumeName: {{ .Release.Name }}-juicefs-experiment-storage-pv
   storageClassName: ""
   {{- else }}
-  storageClassName: juicefs-sc
+  storageClassName: {{ index .Values.persistence.storageClassNames "juicefs" | quote }}
+  {{- end }}
+  {{- else }}
+  storageClassName: {{ index .Values.persistence.storageClassNames .Values.persistence.storageType | quote }}
   {{- end }}
   resources:
     requests:

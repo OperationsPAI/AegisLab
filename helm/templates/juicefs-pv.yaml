@@ -1,4 +1,7 @@
-{{- if .Values.persistence.juicefs.useStaticPV }}
+{{/*
+  Only create JuiceFS PVs when using juicefs storage type with static PV
+*/}}
+{{- if and .Values.persistence.juicefs.enabled (eq .Values.persistence.storageType "juicefs") .Values.persistence.juicefs.useStaticPV }}
 ---
 apiVersion: v1
 kind: PersistentVolume

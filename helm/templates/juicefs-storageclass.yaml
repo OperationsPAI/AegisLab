@@ -1,7 +1,22 @@
+{{/*
+  Create StorageClass based on storage type
+  
+  Storage Types:
+  - "juicefs": Creates JuiceFS StorageClass with CSI driver
+  - "volcengine": Uses existing Volcengine EBS StorageClass (e.g., on ByteDance VKE)
+  - "external": Uses any existing external StorageClass
+  
+  For volcengine/external types, no StorageClass is created here - 
+  PVCs will reference the existing StorageClass by name.
+*/}}
+{{- if .Values.persistence.juicefs.enabled }}
+
+{{/* JuiceFS StorageClass - only created when using juicefs type */}}
+{{- if eq .Values.persistence.storageType "juicefs" }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: juicefs-sc
+  name: {{ index .Values.persistence.storageClassNames "juicefs" }}
 provisioner: csi.juicefs.com
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: {{ .Release.Name }}-juicefs-secret
@@ -11,3 +26,12 @@ parameters:
 reclaimPolicy: Retain
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
+{{- end }}
+
+{{/* 
+  For "volcengine" and "external" storage types:
+  No StorageClass is created here. The PVCs in pvc.yaml will reference 
+  the existing StorageClass specified in persistence.storageClassNames
+*/}}
+
+{{- end }}

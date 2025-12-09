@@ -1,0 +1,93 @@
+# redis
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-redis
+spec:
+  serviceName: {{ .Release.Name }}-redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-redis
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-redis
+    spec:
+      containers:
+        - name: redis
+          image: {{ include "helm.image" (dict "imageConfig" .Values.images.redis "global" .Values.global) }}
+          imagePullPolicy: "{{ .Values.images.redis.pullPolicy }}"
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes:
+          - {{ .Values.persistence.redis.accessMode }}
+        {{- if .Values.persistence.redis.storageClass }}
+        storageClassName: {{ .Values.persistence.redis.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.redis.size }}
+
+---
+# mysql
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-mysql
+spec:
+  serviceName: {{ .Release.Name }}-mysql
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-mysql
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-mysql
+    spec:
+      securityContext:
+        fsGroup: 999
+        runAsUser: 999
+        runAsGroup: 999
+      containers:
+        - name: mysql
+          image: {{ include "helm.image" (dict "imageConfig" .Values.images.mysql "global" .Values.global) }}
+          imagePullPolicy: "{{ .Values.images.mysql.pullPolicy }}"
+          securityContext:
+            runAsUser: 999
+            runAsGroup: 999
+            allowPrivilegeEscalation: false
+          env:
+            - name: MYSQL_DATABASE
+              value: rcabench
+            - name: MYSQL_ROOT_PASSWORD
+              value: "{{ .Values.configmap.database.mysql_password }}"
+          args:
+            - --default-authentication-plugin=mysql_native_password
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_unicode_ci
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+  volumeClaimTemplates:
+    - metadata:
+        name: mysql-data
+      spec:
+        accessModes:
+          - {{ .Values.persistence.mysql.accessMode }}
+        {{- if .Values.persistence.mysql.storageClass }}
+        storageClassName: {{ .Values.persistence.mysql.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.mysql.size }}
