@@ -1,7 +1,7 @@
 global:
   image:
     repository: "pair-diagnose-cn-guangzhou.cr.volces.com/opspai"
-    tag: "v1.2.7"
+    tag: "v1.2.8"
   security:
     allowInsecureImages: true
 
