@@ -1,0 +1,33 @@
+global:
+  storageClassName: openebs-hostpath
+  keepPVC: false
+
+hyperdx:
+  image:
+    repository: pair-diag-cn-guangzhou.cr.volces.com/pair/hyperdx
+  waitForMongodb:
+    image: pair-diagnose-cn-guangzhou.cr.volces.com/library/busybox@sha256:1fcf5df59121b92d61e066df1788e8df0cc35623f5d62d9679a41e163b6a0cdb
+  otelExporterEndpoint: http://opentelemetry-kube-stack-deployment-collector:4318
+  service:
+    type: NodePort
+
+mongodb:
+  image: pair-diag-cn-guangzhou.cr.volces.com/pair/mongo:5.0.14-focal
+  service:
+    type: NodePort
+
+clickhouse:
+  image: pair-diag-cn-guangzhou.cr.volces.com/pair/clickhouse-server:25.7-alpine
+  config:
+    users:
+      appUserPassword: hyperdx
+      otelUserPassword: otelcollectorpass
+      otelUserName: "otelcollector"
+  service:
+    type: NodePort
+
+otel:
+  image:
+    repository: pair-diag-cn-guangzhou.cr.volces.com/pair/clickstack-otel-collector
+    tag: latest
+  enabled: false

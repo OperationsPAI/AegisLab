@@ -1,0 +1,25 @@
+global:
+  image:
+    repository: "pair-diagnose-cn-guangzhou.cr.volces.com/opspai"
+    tag: "v1.2.7"
+  security:
+    allowInsecureImages: true
+
+services:
+  tsUiDashboard:
+    nodePort: 31000
+
+mysql:
+  image:
+    repository: "pair-diagnose-cn-guangzhou.cr.volces.com/library/mysql"
+
+rabbitmq:
+  image:
+    registry: "pair-diagnose-cn-guangzhou.cr.volces.com"
+    repository: "bitnamilegacy/rabbitmq"
+
+loadgenerator:
+  image:
+    repository: "pair-diagnose-cn-guangzhou.cr.volces.com/opspai/loadgenerator"
+  initContainer:
+    image: "pair-diagnose-cn-guangzhou.cr.volces.com/nicolaka/netshoot:v0.14"

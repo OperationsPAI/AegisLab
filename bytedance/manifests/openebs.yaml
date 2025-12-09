@@ -1,0 +1,21 @@
+localpv-provisioner:
+  global:
+    imageRegistry: docker.1ms.run
+
+engine:
+  local:
+    lvm:
+      enabled: false
+    zfs:
+      enabled: false
+    rawfile:
+      enabled: false
+  replicated:
+    mayastor:
+      enabled: false
+
+loki:
+  enabled: false
+
+alloy:
+  enabled: false

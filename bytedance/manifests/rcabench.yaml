@@ -1,0 +1,15 @@
+image:
+  repository: pair-diagnose-cn-guangzhou.cr.volces.com/opspai/rcabench
+  pullPolicy: Always
+
+images:
+  redis:
+    repository: pair-diagnose-cn-guangzhou.cr.volces.com/library/redis
+  mysql:
+    repository: pair-diagnose-cn-guangzhou.cr.volces.com/library/mysql
+  jaeger:
+    repository: pair-diagnose-cn-guangzhou.cr.volces.com/jaegertracing/all-in-one
+  busybox:
+    repository: pair-diagnose-cn-guangzhou.cr.volces.com/library/busybox
+  buildkit:
+    repository: pair-diagnose-cn-guangzhou.cr.volces.com//moby/build

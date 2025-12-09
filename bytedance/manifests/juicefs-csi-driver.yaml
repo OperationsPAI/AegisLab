@@ -1,0 +1,15 @@
+image:
+  repository: pair-diag-cn-guangzhou.cr.volces.com/pair/juicefs-csi-driver
+
+dashboardImage:
+  repository: pair-diag-cn-guangzhou.cr.volces.com/pair/csi-dashboard
+
+sidecars:
+  livenessProbeImage:
+    repository: pair-diag-cn-guangzhou.cr.volces.com/pair/livenessprobe
+  nodeDriverRegistrarImage:
+    repository: pair-diag-cn-guangzhou.cr.volces.com/pair/csi-node-driver-registrar
+  csiProvisionerImage:
+    repository: pair-diag-cn-guangzhou.cr.volces.com/pair/csi-provisioner
+  csiResizerImage:
+    repository: pair-diag-cn-guangzhou.cr.volces.com/pair/csi-resizer

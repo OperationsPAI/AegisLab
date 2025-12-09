@@ -1,0 +1,142 @@
+# values.yaml
+image:
+  repository: docker.io/opspai/rcabench
+  tag: latest
+  pullPolicy: Always
+
+images:
+  redis:
+    repository: redis
+    tag: 8.0-M02-alpine3.20
+    pullPolicy: IfNotPresent
+  mysql:
+    repository: mysql
+    tag: 8.0.43
+    pullPolicy: IfNotPresent
+  jaeger:
+    repository: jaegertracing/all-in-one
+    tag: latest
+    pullPolicy: IfNotPresent
+  busybox:
+    repository: busybox
+    tag: 1.35
+    pullPolicy: IfNotPresent
+  buildkit:
+    repository: moby/buildkit
+    tag: buildx-stable-1
+    pullPolicy: IfNotPresent
+
+configmap:
+  name: "rcabench"
+  version: "0.1.0"
+  port: 8080
+  workspace: "/app"
+  system:
+    env_mode: "prod"
+    timezone: "Asia/Shanghai"
+  initialization:
+    data_path: "/app/data/initial_data"
+  injection:
+    target_label_key: "app"
+    namespace_config:
+      ts:
+        count: 2
+  database:
+    clickhouse_host: "10.10.10.58"
+    mysql_user: "root"
+    mysql_password: "yourpassword"
+    mysql_port: "3306"
+    mysql_db: "rcabench"
+  harbor:
+    registry: "10.10.10.240"
+    namespace: "library"
+    username: "admin"
+    password: "Harbor12345"
+  k8s:
+    namespace: "exp"
+    context_env_key: "DEV_CONTEXT"
+    init_container:
+      busybox_image: "busybox:1.35"
+    job:
+      volume_mount:
+        kube_config:
+          name: "kube-config"
+          mount_path: "/root/.kube/config"
+          sub_path: "config"
+          source_type: "secret"
+          secret_name: "kube-config"
+        dataset:
+          name: "dataset"
+          mount_path: "/data"
+          source_type: "pvc"
+          claim_name: "rcabench-juicefs-dataset"
+        experiment_storage:
+          name: "experiment-storage"
+          mount_path: "/experiment_storage"
+          source_type: "pvc"
+          claim_name: "rcabench-juicefs-experiment-storage"
+  logging:
+    dir: "/app/logs"
+    job:
+      dir: "jobs"
+      log_retention_days: 7
+  jfs:
+    dataset_path: "/var/lib/rcabench/dataset"
+    experiment_storage_path: "/var/lib/rcabench/experiment_storage"
+  algo:
+    detector: "detector"
+  container:
+    storage_path: "/app/containers"
+  debugging:
+    enable: true
+  rate_limiting:
+    max_concurrent_builds: 3
+    max_concurrent_restarts: 2
+    max_concurrent_algo_execution: 5
+    token_wait_timeout: 10
+
+persistence:
+  redis:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    storageClass: "openebs-hostpath"
+  mysql:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    storageClass: "openebs-hostpath"
+  jaeger:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 2Gi
+    storageClass: "openebs-hostpath"
+  containers:
+    enabled: true
+    accessMode: ReadWriteMany
+    size: 1Gi
+    storageClass: "juicefs-sc"
+  logs:
+    enabled: true
+    accessMode: ReadWriteMany
+    size: 1Gi
+    storageClass: "juicefs-sc"
+  juicefs:
+    enabled: true
+    size: 1000Gi
+    useStaticPV: true
+    subPath:
+      dataset: "rcabench_dataset"
+      experiment_storage: "experiment_storage"
+
+# JuiceFS Configuration
+juicefs:
+  name: "jfs"
+  metaurl: "redis://juicefs-redis-master.juicefs.svc.cluster.local:6379/0"
+  # metaurl: "redis://10.10.10.119:6379/1"
+  cacheSize: "1024"
+  # Optional: configure object storage if needed
+  # storage: "s3"
+  # bucket: "your-bucket"
+  # accessKey: "your-access-key"
+  # secretKey: "your-secret-key"

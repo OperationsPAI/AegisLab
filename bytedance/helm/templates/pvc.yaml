@@ -1,0 +1,136 @@
+{{- if .Values.persistence.mysql.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-mysql-data
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  accessModes:
+    - {{ .Values.persistence.mysql.accessMode }}
+  {{- if .Values.persistence.mysql.storageClass }}
+  storageClassName: {{ .Values.persistence.mysql.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.mysql.size }}
+{{- end }}
+
+{{- if .Values.persistence.redis.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-redis-data
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  accessModes:
+    - {{ .Values.persistence.redis.accessMode }}
+  {{- if .Values.persistence.redis.storageClass }}
+  storageClassName: {{ .Values.persistence.redis.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.redis.size }}
+{{- end }}
+
+{{- if .Values.persistence.jaeger.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-jaeger-data
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  accessModes:
+    - {{ .Values.persistence.jaeger.accessMode }}
+  {{- if .Values.persistence.jaeger.storageClass }}
+  storageClassName: {{ .Values.persistence.jaeger.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.jaeger.size }}
+{{- end }}
+
+{{- if .Values.persistence.containers.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-containers-data
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  accessModes:
+    - {{ .Values.persistence.containers.accessMode }}
+  {{- if .Values.persistence.containers.storageClass }}
+  storageClassName: {{ .Values.persistence.containers.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.containers.size }}
+{{- end }}
+
+{{- if .Values.persistence.logs.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-logs-data
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  accessModes:
+    - {{ .Values.persistence.logs.accessMode }}
+  {{- if .Values.persistence.logs.storageClass }}
+  storageClassName: {{ .Values.persistence.logs.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.logs.size }}
+{{- end }}
+
+{{- if .Values.persistence.juicefs.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-juicefs-dataset
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  accessModes:
+    - ReadWriteMany
+  {{- if .Values.persistence.juicefs.useStaticPV }}
+  volumeName: {{ .Release.Name }}-juicefs-dataset-pv
+  storageClassName: ""
+  {{- else }}
+  storageClassName: juicefs-sc
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.juicefs.size }}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-juicefs-experiment-storage
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  accessModes:
+    - ReadWriteMany
+  {{- if .Values.persistence.juicefs.useStaticPV }}
+  volumeName: {{ .Release.Name }}-juicefs-experiment-storage-pv
+  storageClassName: ""
+  {{- else }}
+  storageClassName: juicefs-sc
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.juicefs.size }}
+{{- end }}
+
