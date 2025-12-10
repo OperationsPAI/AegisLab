@@ -1,0 +1,17 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-rcabench-rolebinding
+  labels:
+    app: {{ .Release.Name }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-rcabench-sa
+    namespace: {{ .Values.configmap.k8s.namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ .Release.Name }}-rcabench-role
+  apiGroup: rbac.authorization.k8s.io

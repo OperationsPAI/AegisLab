@@ -47,6 +47,7 @@ spec:
       labels:
         app: {{ .Release.Name }}-producer
     spec:
+      serviceAccountName: {{ .Release.Name }}-rcabench-sa
       initContainers:
         - name: wait-for-redis
           image: {{ include "helm.image" (dict "imageConfig" .Values.images.busybox "global" .Values.global) }}
@@ -100,9 +101,6 @@ spec:
             - name: initial-data
               mountPath: "{{ .Values.configmap.initialization.data_path }}"
               readOnly: true
-            - name: kube-config
-              mountPath: /root/.kube/config
-              subPath: config
             - name: containers-data
               mountPath: "{{ .Values.configmap.container.storage_path }}"
             - name: dataset
@@ -114,12 +112,6 @@ spec:
         - name: initial-data
           configMap:
             name: {{ .Release.Name }}-initial-data
-        - name: kube-config
-          secret:
-            secretName: kube-config
-            items:
-              - key: config
-                path: config
         - name: containers-data
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-containers-data
@@ -142,6 +134,7 @@ spec:
       labels:
         app: {{ .Release.Name }}-consumer
     spec:
+      serviceAccountName: {{ .Release.Name }}-rcabench-sa
       initContainers:
         - name: wait-for-redis
           image: {{ include "helm.image" (dict "imageConfig" .Values.images.busybox "global" .Values.global) }}
@@ -198,9 +191,6 @@ spec:
             - name: harbor-cert
               mountPath: /usr/local/share/ca-certificates/harbor.lab.pj.crt
               subPath: harbor.lab.pj.crt
-            - name: kube-config
-              mountPath: /root/.kube/config
-              subPath: config
             - name: containers-data
               mountPath: "{{ .Values.configmap.container.storage_path }}"
             - name: dataset
@@ -229,12 +219,6 @@ spec:
             items:
               - key: harbor.lab.pj.crt
                 path: harbor.lab.pj.crt
-        - name: kube-config
-          secret:
-            secretName: kube-config
-            items:
-              - key: config
-                path: config
         - name: containers-data
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-containers-data
@@ -247,7 +231,6 @@ spec:
         - name: logs-data
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-logs-data
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -263,6 +246,7 @@ spec:
       labels:
         app: {{ .Release.Name }}-buildkit
     spec:
+      serviceAccountName: {{ .Release.Name }}-rcabench-sa
       containers:
         - name: buildkit
           image: {{ include "helm.image" (dict "imageConfig" .Values.images.buildkit "global" .Values.global) }}
@@ -279,9 +263,6 @@ spec:
             - name: config
               mountPath: /etc/rcabench/config.prod.toml
               subPath: config.prod.toml
-            - name: kube-config
-              mountPath: /root/.kube/config
-              subPath: config
             - name: containers-data
               mountPath: "{{ .Values.configmap.container.storage_path }}"
             - name: buildkit-socket
@@ -296,12 +277,6 @@ spec:
         - name: config
           configMap:
             name: {{ .Release.Name }}-rcabench-config
-        - name: kube-config
-          secret:
-            secretName: kube-config
-            items:
-              - key: config
-                path: config
         - name: containers-data
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-containers-data
@@ -316,3 +291,4 @@ spec:
             items:
               - key: harbor.lab.pj.crt
                 path: harbor.lab.pj.crt
+
