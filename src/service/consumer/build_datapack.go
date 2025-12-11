@@ -151,7 +151,7 @@ func createDatapackJob(ctx context.Context, params *datapackJobCreationParams) e
 func getDatapackJobEnvVars(taskID string, datapackPathPrefix string, payload *datapackPayload) ([]corev1.EnvVar, error) {
 	tz := config.GetString("system.timezone")
 	if tz == "" {
-		tz = "Asia/Shanghai"
+		tz = "UTC"
 	}
 
 	now := time.Now()

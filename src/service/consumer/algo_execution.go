@@ -275,7 +275,7 @@ func createAlgoJob(ctx context.Context, params *algoJobCreationParams) error {
 func getAlgoJobEnvVars(taskID string, executionID int, datapackPathPrefix, expPathPrefix string, payload *executionPayload) ([]corev1.EnvVar, error) {
 	tz := config.GetString("system.timezone")
 	if tz == "" {
-		tz = "Asia/Shanghai"
+		tz = "UTC"
 	}
 
 	now := time.Now()

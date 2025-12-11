@@ -6,7 +6,7 @@ workspace = "/app"
 
 [system]
 env_mode = "dev"
-timezone = "Asia/Shanghai"
+timezone = "UTC"
 
 [initialization]
 data_path = "/app/initial_data"
