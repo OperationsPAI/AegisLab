@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: debug-busybox
+  namespace: exp
+  labels:
+    app: debug
+    component: busybox-interactive
+spec:
+  restartPolicy: Always
+  containers:
+  - name: busybox
+    image: pair-diag-cn-guangzhou.cr.volces.com/pair/busybox:1.35
+    command:
+    - sh
+    - -c
+    - |
+      echo "========================================"
+      echo "🔍 Interactive Debug Pod Ready"
+      echo "========================================"
+      echo ""
+      echo "📦 Mounted volumes:"
+      echo "  /data               -> rcabench-juicefs-dataset"
+      echo "  /experiment_storage -> rcabench-juicefs-experiment-storage"
+      echo "  /logs               -> rcabench-logs-data"
+      echo "  /containers         -> rcabench-containers-data"
+      echo ""
+      echo "💡 Access this pod:"
+      echo "  kubectl exec -it debug-busybox -n exp -- sh"
+      echo ""
+      echo "Useful commands:"
+      echo "  ls -lah /data"
+      echo "  ls -lah /experiment_storage"
+      echo "  ls -lah /logs"
+      echo "  ls -lah /containers"
+      echo "  find /data -type f | head -20"
+      echo "  du -sh /data/*"
+      echo "  du -sh /logs/*"
+      echo "  du -sh /containers/*"
+      echo ""
+      echo "Keeping pod alive..."
+      sleep infinity
+    volumeMounts:
+    - name: dataset
+      mountPath: /data
+    - name: experiment-storage
+      mountPath: /experiment_storage
+    - name: logs
+      mountPath: /logs
+    - name: containers
+      mountPath: /containers
+  volumes:
+  - name: dataset
+    persistentVolumeClaim:
+      claimName: rcabench-juicefs-dataset
+  - name: experiment-storage
+    persistentVolumeClaim:
+      claimName: rcabench-juicefs-experiment-storage
+  - name: logs
+    persistentVolumeClaim:
+      claimName: rcabench-logs-data
+  - name: containers
+    persistentVolumeClaim:
+      claimName: rcabench-containers-data

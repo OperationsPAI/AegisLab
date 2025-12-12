@@ -148,7 +148,7 @@ func ConsumeTasks() {
 			logrus.Errorf("consumer panic: %v", r)
 		}
 	}()
-	logrus.Info("start consume tasks")
+	logrus.Info("Starting consume tasks")
 	ctx := context.Background()
 
 	for {

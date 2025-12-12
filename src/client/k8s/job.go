@@ -52,6 +52,7 @@ type JobConfig struct {
 	EnvVars            []corev1.EnvVar
 	InitContainers     []corev1.Container
 	VolumeMountConfigs []VolumeMountConfig
+	ServiceAccountName string // ServiceAccount for the Job pod
 }
 
 var (
@@ -152,8 +153,10 @@ func CreateJob(ctx context.Context, jobConfig *JobConfig) error {
 						Labels: jobConfig.Labels,
 					},
 					Spec: corev1.PodSpec{
-						RestartPolicy:  jobConfig.RestartPolicy,
-						InitContainers: jobConfig.InitContainers,
+						ServiceAccountName: jobConfig.ServiceAccountName,
+						RestartPolicy:      jobConfig.RestartPolicy,
+						DNSPolicy:          corev1.DNSClusterFirst,
+						InitContainers:     jobConfig.InitContainers,
 						Containers: []corev1.Container{
 							{
 								Name:            jobConfig.JobName,

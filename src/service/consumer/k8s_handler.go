@@ -851,7 +851,7 @@ func updateExecutionState(executionID int, newState consts.ExecutionState) error
 // updateInjectionState updates the state of a fault injection
 func updateInjectionState(injectionName string, newState consts.DatapackState) error {
 	return database.DB.Transaction(func(tx *gorm.DB) error {
-		injection, err := repository.GetInjectionByName(tx, injectionName)
+		injection, err := repository.GetInjectionByName(tx, injectionName, false)
 		if err != nil {
 			return fmt.Errorf("failed to get injection %s: %w", injectionName, err)
 		}
@@ -870,7 +870,7 @@ func updateInjectionState(injectionName string, newState consts.DatapackState) e
 func updateInjectionTimestamp(injectionName string, startTime time.Time, endTime time.Time) (*dto.InjectionItem, error) {
 	var updatedInjection *database.FaultInjection
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		injection, err := repository.GetInjectionByName(tx, injectionName)
+		injection, err := repository.GetInjectionByName(tx, injectionName, false)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("injection %s not found", injectionName)

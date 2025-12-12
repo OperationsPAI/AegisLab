@@ -148,8 +148,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				EventName: consts.EventAlgoNoResultData,
 			})
 			span.AddEvent("no granularity results found for the execution ID")
-			logEntry.Info("no granularity results found for the execution ID")
-			return nil
+			return fmt.Errorf("no granularity results found for the execution ID")
 		}
 
 		publishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{

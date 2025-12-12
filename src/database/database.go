@@ -16,17 +16,36 @@ import (
 	"gorm.io/plugin/opentelemetry/tracing"
 )
 
-type databaseConfig struct {
-	host     string
-	port     int
-	user     string
-	password string
-	database string
+type DatabaseConfig struct {
+	Type     string
+	Host     string
+	Port     int
+	User     string
+	Password string
+	Database string
+	Timezone string
 }
 
-func (d *databaseConfig) ToDSN() string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		d.user, d.password, d.host, d.port, d.database)
+func NewDatabaseConfig(databaseType string) *DatabaseConfig {
+	return &DatabaseConfig{
+		Type:     databaseType,
+		Host:     config.GetString(fmt.Sprintf("database.%s.host", databaseType)),
+		Port:     config.GetInt(fmt.Sprintf("database.%s.port", databaseType)),
+		User:     config.GetString(fmt.Sprintf("database.%s.user", databaseType)),
+		Password: config.GetString(fmt.Sprintf("database.%s.password", databaseType)),
+		Database: config.GetString(fmt.Sprintf("database.%s.db", databaseType)),
+		Timezone: config.GetString(fmt.Sprintf("database.%s.timezone", databaseType)),
+	}
+}
+
+func (d *DatabaseConfig) ToDSN() (string, error) {
+	if d.Type != "mysql" {
+		return "", fmt.Errorf("unsupported database type: %s", d.Type)
+	}
+
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		d.User, d.Password, d.Host, d.Port, d.Database)
+	return dsn, nil
 }
 
 // Global DB object
@@ -35,13 +54,7 @@ var DB *gorm.DB
 func InitDB() {
 	var err error
 
-	mysqlConfig := &databaseConfig{
-		host:     config.GetString("database.mysql_host"),
-		port:     config.GetInt("database.mysql_port"),
-		user:     config.GetString("database.mysql_user"),
-		password: config.GetString("database.mysql_password"),
-		database: config.GetString("database.mysql_db"),
-	}
+	mysqlConfig := NewDatabaseConfig("mysql")
 
 	connectWithRetry(mysqlConfig)
 
@@ -91,13 +104,17 @@ func InitDB() {
 	createDetectorViews()
 }
 
-func connectWithRetry(dbConfig *databaseConfig) {
+func connectWithRetry(dbConfig *DatabaseConfig) {
 	maxRetries := 3
 	retryDelay := 10 * time.Second
 
-	var err error
+	dsn, err := dbConfig.ToDSN()
+	if err != nil {
+		logrus.Fatalf("Failed to construct DSN: %v", err)
+	}
+
 	for i := 0; i <= maxRetries; i++ {
-		DB, err = gorm.Open(mysql.Open(dbConfig.ToDSN()), &gorm.Config{
+		DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
 			Logger: logger.New(log.New(os.Stdout, "\r\n", log.LstdFlags),
 				logger.Config{
 					SlowThreshold:             time.Second,

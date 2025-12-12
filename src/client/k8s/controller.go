@@ -313,7 +313,7 @@ func (c *Controller) genJobEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 
 				if oldJob.Status.Succeeded == 0 && newJob.Status.Succeeded > 0 {
 					c.callback.HandleJobSucceeded(newJob, newJob.Annotations, newJob.Labels)
-					if !config.GetBool("debugging.enable") {
+					if !config.GetBool("debugging.enabled") {
 						c.queue.Add(QueueItem{
 							Type:      DeleteJob,
 							Namespace: newJob.Namespace,
@@ -366,7 +366,7 @@ func (c *Controller) genPodEventHandlerFuncs(ctx context.Context) cache.Resource
 							// Trigger job failed callback to ensure proper cleanup (e.g., token release)
 							c.callback.HandleJobFailed(job, job.Annotations, job.Labels)
 
-							if !config.GetBool("debugging.enable") {
+							if !config.GetBool("debugging.enabled") {
 								c.queue.Add(QueueItem{
 									Type:      DeleteJob,
 									Namespace: job.Namespace,
@@ -415,7 +415,7 @@ func (c *Controller) processQueueItem() bool {
 
 		err = deleteCRD(context.Background(), item.GVR, item.Namespace, item.Name)
 	case DeleteJob:
-		if !config.GetBool("debugging.enable") {
+		if !config.GetBool("debugging.enabled") {
 			err = deleteJob(context.Background(), item.Namespace, item.Name)
 		} else {
 			logrus.WithFields(logrus.Fields{
@@ -498,7 +498,7 @@ func (c *Controller) handleCRDSuccess(gvr schema.GroupVersionResource, u *unstru
 
 	pod, _, _ := unstructured.NestedString(u.Object, "spec", "selector", "labelSelectors", "app")
 	c.callback.HandleCRDSucceeded(u.GetNamespace(), pod, u.GetName(), timeRange.Start, timeRange.End, u.GetAnnotations(), u.GetLabels())
-	if !config.GetBool("debugging.enable") {
+	if !config.GetBool("debugging.enabled") {
 		c.queue.Add(QueueItem{
 			Type:      DeleteCRD,
 			Namespace: u.GetNamespace(),
@@ -516,7 +516,7 @@ func (c *Controller) handleCRDFailed(gvr schema.GroupVersionResource, u *unstruc
 	}).Errorf("CRD failed: %s", errMsg)
 
 	c.callback.HandleCRDFailed(u.GetName(), u.GetAnnotations(), u.GetLabels(), errMsg)
-	if !config.GetBool("debugging.enable") {
+	if !config.GetBool("debugging.enabled") {
 		c.queue.Add(QueueItem{
 			Type:      DeleteCRD,
 			Namespace: u.GetNamespace(),

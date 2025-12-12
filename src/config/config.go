@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/sirupsen/logrus"
@@ -45,7 +46,12 @@ func Init(configPath string) {
 
 	// Automatically bind environment variables
 	viper.AutomaticEnv()
-	logrus.Info(viper.AllSettings())
+
+	// Validate configuration
+	if err := validate(); err != nil {
+		logrus.Fatalf("Configuration validation failed: %v", err)
+	}
+	logrus.Info("Configuration validation passed")
 }
 
 // Get Get configuration item value
@@ -97,5 +103,102 @@ func GetList(key string) []any {
 	if list, ok := value.([]any); ok {
 		return list
 	}
+	return nil
+}
+
+// validate validates the configuration
+func validate() error {
+	// Required fields validation
+	requiredFields := []string{
+		"name",
+		"version",
+		"port",
+		"workspace",
+	}
+
+	for _, field := range requiredFields {
+		if !viper.IsSet(field) {
+			return fmt.Errorf("required field '%s' is missing", field)
+		}
+	}
+
+	// System configuration
+	if !viper.IsSet("system.env_mode") {
+		return fmt.Errorf("required field 'system.env_mode' is missing")
+	}
+
+	// Database configuration
+	clickhouseFields := []string{
+		"database.clickhouse.host",
+		"database.clickhouse.port",
+		"database.clickhouse.user",
+		"database.clickhouse.password",
+		"database.clickhouse.db",
+	}
+	for _, field := range clickhouseFields {
+		if !viper.IsSet(field) {
+			return fmt.Errorf("required field '%s' is missing", field)
+		}
+	}
+
+	mysqlFields := []string{
+		"database.mysql.host",
+		"database.mysql.port",
+		"database.mysql.user",
+		"database.mysql.password",
+		"database.mysql.db",
+	}
+	for _, field := range mysqlFields {
+		if !viper.IsSet(field) {
+			return fmt.Errorf("required field '%s' is missing", field)
+		}
+	}
+
+	// Redis configuration
+	if !viper.IsSet("redis.host") {
+		return fmt.Errorf("required field 'redis.host' is missing")
+	}
+
+	// Jaeger configuration
+	if !viper.IsSet("jaeger.endpoint") {
+		return fmt.Errorf("required field 'jaeger.endpoint' is missing")
+	}
+
+	// Kubernetes configuration
+	k8sFields := []string{
+		"k8s.namespace",
+		"k8s.job.service_account.name",
+	}
+	for _, field := range k8sFields {
+		if !viper.IsSet(field) {
+			return fmt.Errorf("required field '%s' is missing", field)
+		}
+	}
+
+	// BuildKit configuration
+	if !viper.IsSet("buildkit.address") {
+		return fmt.Errorf("required field 'buildkit.address' is missing")
+	}
+
+	// Validate port range
+	port := viper.GetInt("port")
+	if port <= 0 || port > 65535 {
+		return fmt.Errorf("invalid port number: %d (must be between 1-65535)", port)
+	}
+
+	// Validate rate limiting values
+	if viper.IsSet("rate_limiting.max_concurrent_builds") {
+		if viper.GetInt("rate_limiting.max_concurrent_builds") <= 0 {
+			return fmt.Errorf("rate_limiting.max_concurrent_builds must be greater than 0")
+		}
+	}
+
+	if viper.IsSet("rate_limiting.max_concurrent_algo_execution") {
+		if viper.GetInt("rate_limiting.max_concurrent_algo_execution") <= 0 {
+			return fmt.Errorf("rate_limiting.max_concurrent_algo_execution must be greater than 0")
+		}
+	}
+
+	logrus.Debug("All required configuration fields are present and valid")
 	return nil
 }

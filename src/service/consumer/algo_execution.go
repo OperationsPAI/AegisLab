@@ -39,6 +39,7 @@ type algoJobCreationParams struct {
 	image       string
 	annotations map[string]string
 	labels      map[string]string
+	datapackID  int
 	executionID int
 	payload     *executionPayload
 }
@@ -53,6 +54,7 @@ func (p *algoJobCreationParams) toK8sJobConfig(envVars []corev1.EnvVar, initCont
 		Labels:             p.labels,
 		InitContainers:     initContainers,
 		VolumeMountConfigs: volumeMountconfigs,
+		ServiceAccountName: config.GetString("k8s.job.service_account.name"),
 	}
 }
 
@@ -116,7 +118,6 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 		}
 		annotations[consts.JobAnnotationDatapack] = string(datapackJson)
 
-		jobName := task.TaskID
 		jobLabels := utils.MergeSimpleMaps(
 			task.GetLabels(),
 			map[string]string{
@@ -127,10 +128,11 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 		)
 
 		params := &algoJobCreationParams{
-			jobName:     jobName,
+			jobName:     task.TaskID,
 			image:       payload.algorithm.ImageRef,
 			annotations: annotations,
 			labels:      jobLabels,
+			datapackID:  payload.datapack.ID,
 			executionID: executionID,
 			payload:     payload,
 		}
@@ -229,7 +231,6 @@ func createAlgoJob(ctx context.Context, params *algoJobCreationParams) error {
 		})
 
 		volumeMountConfigs, err := getRequiredVolumeMountConfigs([]consts.VolumeMountName{
-			consts.VolumeMountKubeConfig,
 			consts.VolumeMountDataset,
 			consts.VolumeMountExperimentStorage,
 		})
@@ -237,8 +238,8 @@ func createAlgoJob(ctx context.Context, params *algoJobCreationParams) error {
 			return handleExecutionError(span, logEntry, "failed to get volume mount configurations", err)
 		}
 
-		datapackPathPrefix := volumeMountConfigs[1].MountPath
-		expPathPrefix := volumeMountConfigs[2].MountPath
+		datapackPathPrefix := volumeMountConfigs[0].MountPath
+		expPathPrefix := volumeMountConfigs[1].MountPath
 
 		jobEnvVars, err := getAlgoJobEnvVars(params.jobName, params.executionID, datapackPathPrefix, expPathPrefix, params.payload)
 		if err != nil {
@@ -275,7 +276,7 @@ func createAlgoJob(ctx context.Context, params *algoJobCreationParams) error {
 func getAlgoJobEnvVars(taskID string, executionID int, datapackPathPrefix, expPathPrefix string, payload *executionPayload) ([]corev1.EnvVar, error) {
 	tz := config.GetString("system.timezone")
 	if tz == "" {
-		tz = "UTC"
+		tz = time.Local.String()
 	}
 
 	now := time.Now()
@@ -295,7 +296,6 @@ func getAlgoJobEnvVars(taskID string, executionID int, datapackPathPrefix, expPa
 	}
 
 	jobEnvVars := []corev1.EnvVar{
-		{Name: "ENV_MODE", Value: config.GetString("system.env_mode")},
 		{Name: "TIMEZONE", Value: tz},
 		{Name: "TIMESTAMP", Value: timestamp},
 		{Name: "NORMAL_START", Value: strconv.FormatInt(payload.datapack.StartTime.Add(-time.Duration(payload.datapack.PreDuration)*time.Minute).Unix(), 10)},
@@ -305,7 +305,9 @@ func getAlgoJobEnvVars(taskID string, executionID int, datapackPathPrefix, expPa
 		{Name: "WORKSPACE", Value: "/app"},
 		{Name: "INPUT_PATH", Value: filepath.Join(datapackPathPrefix, payload.datapack.Name)},
 		{Name: "OUTPUT_PATH", Value: outputPath},
+		{Name: "RCABENCH_BASE_URL", Value: config.GetString("k8s.service.internal_url")},
 		{Name: "RCABENCH_TOKEN", Value: serviceToken},
+		{Name: "DATAPACK_ID", Value: strconv.Itoa(payload.datapack.ID)},
 		{Name: "EXECUTION_ID", Value: strconv.Itoa(executionID)},
 	}
 

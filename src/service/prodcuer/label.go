@@ -278,16 +278,6 @@ func UpdateLabel(req *dto.UpdateLabelReq, labelID int) (*dto.LabelResp, error) {
 	return dto.NewLabelResp(updatedLabel), nil
 }
 
-// checkLabelKeyValue checks if a label with the specified key and value exists in the provided label slice
-func checkLabelKeyValue(labels []database.Label, key, value string) bool {
-	for _, label := range labels {
-		if label.Key == key && label.Value == value {
-			return true
-		}
-	}
-	return false
-}
-
 // removeContainersFromLabels removes container associations from multiple labels and returns the total usage count removed
 func removeContainersFromLabels(db *gorm.DB, labelIDs []int) (map[int]int64, error) {
 	if len(labelIDs) == 0 {

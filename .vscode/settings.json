@@ -25,6 +25,10 @@
   "python.analysis.typeCheckingMode": "basic",
   "python.testing.pytestEnabled": true,
   "python.testing.unittestEnabled": false,
-  "python.analysis.extraPaths": ["./sdk/python/src", "./sdk/python-gen"],
+  "python.analysis.extraPaths": [
+    "./sdk/python/src",
+    "./sdk/python-gen",
+    "./scripts/command"
+  ],
   "ruff.path": ["ruff"]
 }

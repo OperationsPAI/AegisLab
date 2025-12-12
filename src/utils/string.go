@@ -41,6 +41,18 @@ func ConvertStringToSimpleType(s string) (any, error) {
 
 	var value any
 
+	// Check for leading zeros - if present, keep as string to preserve format
+	// e.g., "023" should remain "023", not be converted to 23
+	// Also handle negative numbers with leading zeros after the minus sign, e.g., "-023"
+	if len(s) > 1 && s[0] == '0' && s[1] >= '0' && s[1] <= '9' {
+		// Has leading zero (not "0" alone, not "0.xxx"), keep as string
+		return s, nil
+	}
+	if len(s) > 2 && s[0] == '-' && s[1] == '0' && s[2] >= '0' && s[2] <= '9' {
+		// Negative number with leading zero, e.g., "-023", keep as string
+		return s, nil
+	}
+
 	if convertedValueI, err := strconv.Atoi(s); err == nil {
 		value = convertedValueI
 		return value, nil

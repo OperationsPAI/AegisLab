@@ -144,6 +144,16 @@ install-jfs-driver: ## 🚀 Install JuiceFS CSI Driver
 	--set storageClasses[0].enabled=false
 	@printf "$(GREEN)✅ JuiceFS CSI Driver installation completed$(RESET)\n"
 
+install-rcabench:  ## 🔧 Deploy RCABench application
+	@printf "$(BLUE)Deploying RCABench application...$(RESET)\n"
+	helm upgrade -i rcabench ./helm --namespace exp \
+		--create-namespace \
+		--values ./manifests/prod/rcabench.yaml \
+		--wait --timeout 10m
+	@printf "$(GREEN)✅ RCABench installed successfully$(RESET)\n\n"
+	@printf "$(BLUE)🔗 Starting automatic port forwarding...$(RESET)\n"
+	@./scripts/forward.sh
+
 install-secrets: ## 🔑 Install all Secrets from Helm templates
 	@printf "$(BLUE)🔑 Installing Secrets in namespace $(NS)...$(RESET)\n"
 	@helm template $(RELEASE_NAME) ./helm -n $(NS) -s templates/secret.yaml | kubectl apply -f -

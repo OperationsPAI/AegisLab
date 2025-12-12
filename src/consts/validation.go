@@ -13,11 +13,6 @@ var ValidAuditLogStates = map[AuditLogState]struct{}{
 	AuditLogStateSuccess: {},
 }
 
-var ValidBenchmarks = map[string]struct{}{
-	"clickhouse":        {},
-	"clickhouse_harbor": {},
-}
-
 var ValidContainerTypes = map[ContainerType]struct{}{
 	ContainerTypeAlgorithm: {},
 	ContainerTypeBenchmark: {},

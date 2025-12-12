@@ -14,7 +14,6 @@ const (
 	DefaultContainerTag     = "latest"
 	DefaultInvalidID        = 0
 	DefaultLabelUsage       = 1
-	DefaultBenchmark        = "clickhouse"
 	DefaultTimeUnit         = time.Minute
 )
 

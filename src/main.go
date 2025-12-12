@@ -36,11 +36,11 @@ import (
 	"aegis/service/consumer"
 	"aegis/utils"
 
-	cli "github.com/LGU-SE-Internal/chaos-experiment/client"
+	chaosCli "github.com/LGU-SE-Internal/chaos-experiment/client"
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	nested "github.com/antonfisher/nested-logrus-formatter"
+	"github.com/gin-gonic/gin"
 	"github.com/go-logr/stdr"
-	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -60,6 +60,25 @@ func init() {
 	})
 	logrus.SetLevel(logrus.InfoLevel)
 	logrus.Info("Logger initialized")
+}
+
+func initChaosExperiment() {
+	k8sConfig := k8s.GetK8sRestConfig()
+	if err := chaosCli.InitWithConfig(k8sConfig); err != nil {
+		logrus.Fatalf("failed to initialize chaos experiment client: %v", err)
+	}
+
+	nsTargetMap, err := utils.GetNsCountMap()
+	logrus.Infof("initalized nsTargetMap: %v", nsTargetMap)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
+	targetLabelKey := config.GetString("injection.target_label_key")
+	if err := chaos.InitTargetConfig(nsTargetMap, targetLabelKey); err != nil {
+		logrus.Fatal(err)
+	}
+
 }
 
 func main() {
@@ -84,25 +103,12 @@ func main() {
 	}
 
 	config.Init(viper.GetString("conf"))
-
-	err := godotenv.Load()
-	if err != nil {
-		logrus.Warnf("Error loading .env file: %v", err)
+	if env_mode := config.GetString("system.env_mode"); env_mode == "prod" {
+		gin.SetMode(gin.ReleaseMode)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	nsTargetMap, err := utils.GetNsCountMap()
-	logrus.Infof("initalized nsTargetMap: %v", nsTargetMap)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	targetLabelKey := config.GetString("injection.target_label_key")
-	if err := chaos.InitTargetConfig(nsTargetMap, targetLabelKey); err != nil {
-		logrus.Fatal(err)
-	}
 
 	// Producer command - runs HTTP server for API endpoints
 	var producerCmd = &cobra.Command{
@@ -118,8 +124,7 @@ func main() {
 
 			engine := router.New()
 			port := viper.GetString("port")
-			err := engine.Run(":" + port)
-			if err != nil {
+			if err := engine.Run(":" + port); err != nil {
 				panic(err)
 			}
 		},
@@ -141,6 +146,7 @@ func main() {
 			client.InitTraceProvider()
 			go k8s.Init(ctx, consumer.NewHandler())
 			go consumer.StartScheduler(ctx)
+			initChaosExperiment()
 			consumer.ConsumeTasks()
 		},
 	}
@@ -151,6 +157,7 @@ func main() {
 		Short: "Run as both producer and consumer",
 		Run: func(cmd *cobra.Command, args []string) {
 			logrus.Println("Running as both producer and consumer")
+
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
 			database.InitDB()
 			service.InitializeData(ctx)
@@ -163,18 +170,17 @@ func main() {
 			client.InitTraceProvider()
 			go k8s.Init(ctx, consumer.NewHandler())
 			go consumer.StartScheduler(ctx)
+			initChaosExperiment()
 			go consumer.ConsumeTasks()
 
 			engine := router.New()
 			port := viper.GetString("port")
-			err := engine.Run(":" + port)
-			if err != nil {
+			if err := engine.Run(":" + port); err != nil {
 				panic(err)
 			}
 		},
 	}
 
-	cli.NewK8sClient()
 	rootCmd.AddCommand(producerCmd, consumerCmd, bothCmd)
 	if err := rootCmd.Execute(); err != nil {
 		logrus.Println(err.Error())

@@ -1,3 +1,46 @@
+# jaeger
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-jaeger
+spec:
+  serviceName: {{ .Release.Name }}-jaeger
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-jaeger
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-jaeger
+    spec:
+      containers:
+        - name: jaeger
+          image: {{ include "helm.image" (dict "imageConfig" .Values.images.jaeger "global" .Values.global) }}
+          imagePullPolicy: "{{ .Values.images.jaeger.pullPolicy }}"
+          ports:
+            - containerPort: 4317
+            - containerPort: 4318
+            - containerPort: 6831
+            - containerPort: 14268
+            - containerPort: 16686
+          volumeMounts:
+            - name: jaeger-data
+              mountPath: /badger
+  volumeClaimTemplates:
+    - metadata:
+        name: jaeger-data
+      spec:
+        accessModes:
+          - {{ .Values.persistence.jaeger.accessMode }}
+        {{- if .Values.persistence.jaeger.storageClass }}
+        storageClassName: {{ .Values.persistence.jaeger.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.jaeger.size }}
+
+---
 # redis
 apiVersion: apps/v1
 kind: StatefulSet
@@ -67,9 +110,9 @@ spec:
             allowPrivilegeEscalation: false
           env:
             - name: MYSQL_DATABASE
-              value: rcabench
+              value: "{{ .Values.configmap.database.mysql.db }}"
             - name: MYSQL_ROOT_PASSWORD
-              value: "{{ .Values.configmap.database.mysql_password }}"
+              value: "{{ .Values.configmap.database.mysql.password }}"
           args:
             - --default-authentication-plugin=mysql_native_password
             - --character-set-server=utf8mb4

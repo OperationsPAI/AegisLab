@@ -101,7 +101,7 @@ class GoFormatter(Formatter):
                     check=True,
                 )
                 console.print(
-                    "\n[bold green]✅ Go formatting completed successfully[/bold green]"
+                    "[bold green]✅ Go formatting completed successfully[/bold green]"
                 )
                 return 0
             else:

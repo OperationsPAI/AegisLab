@@ -9,11 +9,14 @@ COPY src /app
 RUN go build -o /app/exp
 
 FROM debian:bookworm AS runner
+ENV TZ=Asia/Shanghai
 WORKDIR /app
 
 COPY ./helm/certs/harbor.lab.pj.crt /usr/local/share/ca-certificates/harbor.lab.pj.crt
-RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources && apt-get update && \
+# Install ca-certificates first with default sources, then switch to mirror
+RUN apt-get update && \
     apt-get install -y ca-certificates tzdata git && \
+    sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources && \
     chmod 644 /usr/local/share/ca-certificates/harbor.lab.pj.crt && \
     update-ca-certificates && \
     rm -rf /var/lib/apt/lists/*

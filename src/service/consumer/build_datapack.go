@@ -16,6 +16,7 @@ import (
 	"aegis/client/k8s"
 	"aegis/config"
 	"aegis/consts"
+	"aegis/database"
 	"aegis/dto"
 	"aegis/tracing"
 	"aegis/utils"
@@ -34,6 +35,7 @@ type datapackJobCreationParams struct {
 	annotations map[string]string
 	labels      map[string]string
 	payload     *datapackPayload
+	dbConfig    *database.DatabaseConfig
 }
 
 func (p *datapackJobCreationParams) toK8sJobConfig(envVars []corev1.EnvVar, volumeMountConfigs []k8s.VolumeMountConfig) *k8s.JobConfig {
@@ -45,6 +47,7 @@ func (p *datapackJobCreationParams) toK8sJobConfig(envVars []corev1.EnvVar, volu
 		Annotations:        p.annotations,
 		Labels:             p.labels,
 		VolumeMountConfigs: volumeMountConfigs,
+		ServiceAccountName: config.GetString("k8s.job.service_account.name"),
 	}
 }
 
@@ -70,7 +73,6 @@ func executeBuildDatapack(ctx context.Context, task *dto.UnifiedTask) error {
 		}
 		annotations[consts.JobAnnotationDatapack] = string(itemJson)
 
-		jobName := task.TaskID
 		jobLabels := utils.MergeSimpleMaps(
 			task.GetLabels(),
 			map[string]string{
@@ -81,11 +83,12 @@ func executeBuildDatapack(ctx context.Context, task *dto.UnifiedTask) error {
 		)
 
 		params := &datapackJobCreationParams{
-			jobName:     jobName,
+			jobName:     task.TaskID,
 			image:       payload.benchmark.ImageRef,
 			annotations: annotations,
 			labels:      jobLabels,
 			payload:     payload,
+			dbConfig:    database.NewDatabaseConfig("clickhouse"),
 		}
 		return createDatapackJob(childCtx, params)
 	})
@@ -130,16 +133,15 @@ func createDatapackJob(ctx context.Context, params *datapackJobCreationParams) e
 		})
 
 		volumeMountConfigs, err := getRequiredVolumeMountConfigs([]consts.VolumeMountName{
-			consts.VolumeMountKubeConfig,
 			consts.VolumeMountDataset,
 		})
 		if err != nil {
 			return handleExecutionError(span, logEntry, "failed to get volume mount configurations", err)
 		}
 
-		datapackPathPrefix := volumeMountConfigs[1].MountPath
+		datapackPathPrefix := volumeMountConfigs[0].MountPath
 
-		jobEnvVars, err := getDatapackJobEnvVars(params.jobName, datapackPathPrefix, params.payload)
+		jobEnvVars, err := getDatapackJobEnvVars(params.jobName, datapackPathPrefix, params.payload, params.dbConfig)
 		if err != nil {
 			return handleExecutionError(span, logEntry, "failed to get job environment variables", err)
 		}
@@ -148,10 +150,10 @@ func createDatapackJob(ctx context.Context, params *datapackJobCreationParams) e
 	})
 }
 
-func getDatapackJobEnvVars(taskID string, datapackPathPrefix string, payload *datapackPayload) ([]corev1.EnvVar, error) {
+func getDatapackJobEnvVars(taskID string, datapackPathPrefix string, payload *datapackPayload, dbConfig *database.DatabaseConfig) ([]corev1.EnvVar, error) {
 	tz := config.GetString("system.timezone")
 	if tz == "" {
-		tz = "UTC"
+		tz = time.Local.String()
 	}
 
 	now := time.Now()
@@ -164,7 +166,6 @@ func getDatapackJobEnvVars(taskID string, datapackPathPrefix string, payload *da
 	}
 
 	jobEnvVars := []corev1.EnvVar{
-		{Name: "ENV_MODE", Value: config.GetString("system.env_mode")},
 		{Name: "TIMEZONE", Value: tz},
 		{Name: "TIMESTAMP", Value: timestamp},
 		{Name: "NORMAL_START", Value: strconv.FormatInt(payload.datapack.StartTime.Add(-time.Duration(payload.datapack.PreDuration)*time.Minute).Unix(), 10)},
@@ -174,7 +175,14 @@ func getDatapackJobEnvVars(taskID string, datapackPathPrefix string, payload *da
 		{Name: "WORKSPACE", Value: "/app"},
 		{Name: "INPUT_PATH", Value: filepath.Join(datapackPathPrefix, payload.datapack.Name)},
 		{Name: "OUTPUT_PATH", Value: filepath.Join(datapackPathPrefix, payload.datapack.Name)},
+		{Name: "RCABENCH_BASE_URL", Value: config.GetString("k8s.service.internal_url")},
 		{Name: "RCABENCH_TOKEN", Value: serviceToken},
+		{Name: "DB_HOST", Value: dbConfig.Host},
+		{Name: "DB_PORT", Value: fmt.Sprint(dbConfig.Port)},
+		{Name: "DB_USER", Value: dbConfig.User},
+		{Name: "DB_PASSWORD", Value: dbConfig.Password},
+		{Name: "DB_DATABASE", Value: dbConfig.Database},
+		{Name: "DB_TIMEZONE", Value: dbConfig.Timezone},
 	}
 
 	envNameIndexMap := make(map[string]int, len(jobEnvVars))

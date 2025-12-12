@@ -2,27 +2,24 @@
 
 # Global image registry configuration
 global:
-  imageRegistry: "pair-diag-cn-guangzhou.cr.volces.com/pair"
   # Set to empty string to use default public registries
-  # imageRegistry: ""
+  imageRegistry: ""
 
 images:
   rcabench:
-    # Original: opspai/rcabench
-    name: rcabench
+    name: opspai/rcabench
     tag: latest
     pullPolicy: Always
   redis:
     name: redis
-    tag: 8.0-M02-alpine3.20
+    tag: "8.0-M02-alpine3.20"
     pullPolicy: IfNotPresent
   mysql:
     name: mysql
-    tag: 8.0.43
+    tag: "8.0.43"
     pullPolicy: IfNotPresent
   jaeger:
-    # Original: jaegertracing/all-in-one
-    name: jaeger
+    name: jaegertracing/all-in-one
     tag: latest
     pullPolicy: IfNotPresent
   busybox:
@@ -30,10 +27,24 @@ images:
     tag: "1.35"
     pullPolicy: IfNotPresent
   buildkit:
-    # Original: moby/buildkit
-    name: buildkit
+    name: moby/buildkit
     tag: buildx-stable-1
     pullPolicy: IfNotPresent
+  init_data:
+    name: init-data
+    tag: latest
+    pullPolicy: IfNotPresent
+
+harbor:
+  enabled: true
+  registry: "10.10.10.240"
+  namespace: "library"
+  username: "admin"
+  password: "Harbor12345"
+
+# Initialization settings for PVC setup during install/upgrade
+initialization:
+  enabled: true
 
 configmap:
   name: "rcabench"
@@ -42,7 +53,7 @@ configmap:
   workspace: "/app"
   system:
     env_mode: "prod"
-    timezone: "UTC"
+    timezone: "Asia/Shanghai"
   initialization:
     data_path: "/app/data/initial_data"
   injection:
@@ -51,29 +62,24 @@ configmap:
       ts:
         count: 2
   database:
-    clickhouse_host: "10.10.10.58"
-    mysql_user: "root"
-    mysql_password: "yourpassword"
-    mysql_port: "3306"
-    mysql_db: "rcabench"
-  harbor:
-    registry: "10.10.10.240"
-    namespace: "library"
-    username: "admin"
-    password: "Harbor12345"
+    clickhouse:
+      host: "10.10.10.58"
+      port: "8123"
+      user: "default"
+      password: "password"
+      db: "default"
+      timezone: "Asia/Shanghai"
+    mysql:
+      user: "root"
+      port: "3306"
+      password: "yourpassword"
+      db: "rcabench"
   k8s:
     namespace: "exp"
-    context_env_key: "DEV_CONTEXT"
     init_container:
       busybox_image: "busybox:1.35"
     job:
       volume_mount:
-        kube_config:
-          name: "kube-config"
-          mount_path: "/root/.kube/config"
-          sub_path: "config"
-          source_type: "secret"
-          secret_name: "kube-config"
         dataset:
           name: "dataset"
           mount_path: "/data"
@@ -97,7 +103,7 @@ configmap:
   container:
     storage_path: "/app/containers"
   debugging:
-    enable: true
+    enabled: true
   rate_limiting:
     max_concurrent_builds: 3
     max_concurrent_restarts: 2
@@ -107,7 +113,7 @@ configmap:
 persistence:
   # Global storage type setting - applies to containers, logs, and juicefs sections
   # Options: "juicefs" | "volcengine" | "external"
-  storageType: "volcengine"
+  storageType: "juicefs"
   
   # Common StorageClass names for each type
   storageClassNames:
@@ -117,19 +123,19 @@ persistence:
   
   redis:
     enabled: true
-    accessMode: ReadWriteMany
+    accessMode: ReadWriteOnce
     size: 1Gi
-    storageClass: "rcabench"
+    storageClass: "openebs-hostpath"
   mysql:
     enabled: true
-    accessMode: ReadWriteMany
+    accessMode: ReadWriteOnce
     size: 1Gi
-    storageClass: "rcabench"
+    storageClass: "openebs-hostpath"
   jaeger:
     enabled: true
-    accessMode: ReadWriteMany
+    accessMode: ReadWriteOnce
     size: 2Gi
-    storageClass: "rcabench"
+    storageClass: "openebs-hostpath"
   containers:
     enabled: true
     accessMode: ReadWriteMany

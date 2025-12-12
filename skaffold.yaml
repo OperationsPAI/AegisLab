@@ -4,21 +4,19 @@ metadata:
   name: rcabench
 build:
   artifacts:
-  - image: docker.io/opspai
-    context: .
-    docker:
-      dockerfile: src/Dockerfile
+    - image: rcabench
+      context: .
+      docker:
+        dockerfile: src/Dockerfile
+  tagPolicy:
+    envTemplate:
+      template: latest
 deploy:
   helm:
     releases:
-    - name: rcabench
-      chartPath: helm
-      valuesFiles:
-      - helm/values.yaml
-      version: 0.1.0
-      namespace: exp
-      setValueTemplates:
-        image.tag: '{{.IMAGE_TAG}}'
-      setValues:
-        image.repository: 10.10.10.240/library/rcabench
-        image.pullPolicy: IfNotPresent
+      - name: rcabench
+        chartPath: helm
+        valuesFiles:
+          - helm/values.yaml
+        version: 0.1.0
+        namespace: exp

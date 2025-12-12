@@ -1,18 +1,18 @@
 name = "AegisLab"
-version = "0.1.0"
+version = "1.1.49"
 
 port = 8080
 workspace = "/app"
 
 [system]
 env_mode = "dev"
-timezone = "UTC"
+timezone = "Asia/Shanghai"
 
 [initialization]
-data_path = "/app/initial_data"
+data_path = "/data/initial_data"
 
 [debugging]
-enable = false
+enable = true
 
 [injection]
 benchmark = ["clickhouse"]
@@ -21,13 +21,19 @@ target_label_key = "app"
 [injection.namespace_config.ts]
 count = 1
 
-[database]
-clickhouse_host = "10.10.10.58"
-mysql_user = "root"
-mysql_password = "yourpassword"
-mysql_host = "test-mysql"
-mysql_port = "3306"
-mysql_db = "rcabench_test"
+[database.clickhouse]
+port = "8123"
+host = "10.10.10.58"
+user = "app"
+password = "hyperdx"
+db = "default"
+timezone = "Asia/Shanghai"
+
+[database.mysql]
+host = "localhost"
+port = "3306"
+user = "root"
+password = "yourpassword"
 
 [jaeger]
 endpoint = "test-jaeger:4318"
@@ -43,17 +49,14 @@ password = "Harbor12345"
 
 [k8s]
 namespace = "exp"
-context_env_key = "TEST_CONTEXT"
+[k8s.service]
+internal_url = "http://rcabench-exp:8082"
 
 [k8s.init_container]
 busybox_image = "10.10.10.240/library/busybox:1.35"
 
-[k8s.job.volume_mount.kube_config]
-name = "kube-config"
-mount_path = "/root/.kube/config"
-sub_path = "config"
-source_type = "secret"
-secret_name = "kube-config"
+[k8s.job.service_account]
+name = "rcabench-sa"
 
 [k8s.job.volume_mount.dataset]
 name = "dataset"

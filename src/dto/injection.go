@@ -174,9 +174,6 @@ func (req *ListInjectionReq) Validate() error {
 	if err := req.PaginationReq.Validate(); err != nil {
 		return err
 	}
-	if err := validateBenchmarkName(req.Benchmark); err != nil {
-		return err
-	}
 	if err := validateChaosType(req.Type); err != nil {
 		return err
 	}
@@ -265,12 +262,6 @@ func (req *SearchInjectionReq) Validate() error {
 	for i, name := range req.Names {
 		if strings.TrimSpace(name) == "" {
 			return fmt.Errorf("empty injection name at index %d", i)
-		}
-	}
-
-	for i, benchmark := range req.Benchmarks {
-		if err := validateBenchmarkName(benchmark); err != nil {
-			return fmt.Errorf("invalid benchmark name at index %d: %w", i, err)
 		}
 	}
 
@@ -387,15 +378,7 @@ func (req *SubmitInjectionReq) Validate() error {
 
 	if req.Benchmark == nil {
 		return fmt.Errorf("benchmark must not be nil")
-	} else {
-		if err := req.Benchmark.Validate(); err != nil {
-			return fmt.Errorf("invalid benchmark: %w", err)
-		}
-		if err := validateBenchmarkName(req.Benchmark.Name); err != nil {
-			return err
-		}
 	}
-
 	if req.ProjectName == "" {
 		return fmt.Errorf("project name must not be blank")
 	}
@@ -758,13 +741,6 @@ func (spec *BuildingSpec) Validate() error {
 		}
 	}
 
-	if err := spec.Benchmark.Validate(); err != nil {
-		return fmt.Errorf("invalid benchmark: %w", err)
-	}
-	if err := validateBenchmarkName(spec.Benchmark.Name); err != nil {
-		return err
-	}
-
 	if spec.PreDuration != nil && *spec.PreDuration <= 0 {
 		return fmt.Errorf("pre_duration must be greater than 0")
 	}
@@ -782,19 +758,6 @@ type SubmitBuildingItem struct {
 type SubmitDatapackBuildingResp struct {
 	GroupID string               `json:"group_id"`
 	Items   []SubmitBuildingItem `json:"items"`
-}
-
-// validateBenchmark checks if the benchmark name is valid
-func validateBenchmarkName(benchmark string) error {
-	if benchmark == "" {
-		return fmt.Errorf("benchmark must not be blank")
-	} else {
-		if _, exists := consts.ValidBenchmarks[benchmark]; !exists {
-			return fmt.Errorf("invalid benchmark: %s", benchmark)
-		}
-	}
-
-	return nil
 }
 
 // validateChaosType checks if the provided chaos type is valid

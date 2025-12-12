@@ -312,7 +312,7 @@ func ProduceAlgorithmExeuctionTasks(ctx context.Context, req *dto.SubmitExecutio
 
 	var allExecutionItems []dto.SubmitExecutionItem
 	for idx, spec := range req.Specs {
-		datapacks, datasetID, err := extractDatapacks(database.DB, spec.Datapack, spec.Dataset, userID)
+		datapacks, datasetID, err := extractDatapacks(database.DB, spec.Datapack, spec.Dataset, userID, consts.TaskTypeRunAlgorithm)
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract datapacks: %w", err)
 		}
@@ -378,78 +378,6 @@ func ProduceAlgorithmExeuctionTasks(ctx context.Context, req *dto.SubmitExecutio
 		Items:   allExecutionItems,
 	}
 	return resp, nil
-}
-
-// extractDatapacks extracts datapacks based on the provided datapack name or dataset ref
-func extractDatapacks(db *gorm.DB, datapackName *string, datasetRef *dto.DatasetRef, userID int) ([]database.FaultInjection, *int, error) {
-	if datapackName != nil {
-		datapack, err := repository.GetInjectionByName(db, *datapackName)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get datapack: %w", err)
-		}
-
-		if datapack.State != consts.DatapackDetectorSuccess {
-			return nil, nil, fmt.Errorf("datapack %s is not ready for detector execution", datapack.Name)
-		}
-
-		labels, err := repository.ListLabelsByInjectionID(db, datapack.ID)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get datapack labels: %s", err.Error())
-		}
-
-		if exists := checkLabelKeyValue(labels, consts.LabelKeyTag, consts.DetectorNoAnomaly); exists {
-			return nil, nil, fmt.Errorf("cannot execute detector algorithm on no_anomaly datapack: %s", datapack.Name)
-		}
-
-		return []database.FaultInjection{*datapack}, nil, nil
-	}
-
-	if datasetRef != nil {
-		datasetVersionResults, err := common.MapRefsToDatasetVersions([]*dto.DatasetRef{datasetRef}, userID)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get dataset versions: %w", err)
-		}
-
-		version, exists := datasetVersionResults[datasetRef]
-		if !exists {
-			return nil, nil, fmt.Errorf("dataset version not found for %v", datasetRef)
-		}
-
-		datapacks, err := repository.ListInjectionsByDatasetVersionID(db, version.ID)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get dataset datapacks: %s", err.Error())
-		}
-
-		if len(datapacks) == 0 {
-			return nil, nil, fmt.Errorf("dataset contains no datapacks")
-		}
-
-		datapackIDs := make([]int, 0, len(datapacks))
-		for _, dp := range datapacks {
-			datapackIDs = append(datapackIDs, dp.ID)
-		}
-
-		labelsMap, err := repository.ListInjectionLabels(db, datapackIDs)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get datapack labels map: %s", err.Error())
-		}
-
-		for _, dp := range datapacks {
-			if dp.State != consts.DatapackDetectorSuccess {
-				return nil, nil, fmt.Errorf("datapack %s is not ready for detector execution", dp.Name)
-			}
-			if _, exists := labelsMap[dp.ID]; !exists {
-				return nil, nil, fmt.Errorf("failed to get labels for datapack ID: %d", dp.ID)
-			}
-			if exists := checkLabelKeyValue(labelsMap[dp.ID], consts.LabelKeyTag, consts.DetectorNoAnomaly); exists {
-				return nil, nil, fmt.Errorf("cannot execute detector algorithm on no_anomaly datapack: %s", dp.Name)
-			}
-		}
-
-		return datapacks, &version.ID, nil
-	}
-
-	return nil, nil, fmt.Errorf("either datapack or dataset must be specified")
 }
 
 // updateExecutionDuration updates the duration of an execution

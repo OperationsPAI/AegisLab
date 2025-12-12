@@ -1,37 +1,3 @@
-# jaeger
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ .Release.Name }}-jaeger
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: {{ .Release.Name }}-jaeger
-  template:
-    metadata:
-      labels:
-        app: {{ .Release.Name }}-jaeger
-    spec:
-      containers:
-        - name: jaeger
-          image: {{ include "helm.image" (dict "imageConfig" .Values.images.jaeger "global" .Values.global) }}
-          imagePullPolicy: "{{ .Values.images.jaeger.pullPolicy }}"
-          ports:
-            - containerPort: 4317
-            - containerPort: 4318
-            - containerPort: 6831
-            - containerPort: 14268
-            - containerPort: 16686
-          volumeMounts:
-            - name: jaeger-data
-              mountPath: /badger
-      volumes:
-        - name: jaeger-data
-          persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-jaeger-data
-
----
 # exp Application
 apiVersion: apps/v1
 kind: Deployment
@@ -47,7 +13,7 @@ spec:
       labels:
         app: {{ .Release.Name }}-producer
     spec:
-      serviceAccountName: {{ .Release.Name }}-rcabench-sa
+      serviceAccountName: {{ .Release.Name }}-sa
       initContainers:
         - name: wait-for-redis
           image: {{ include "helm.image" (dict "imageConfig" .Values.images.busybox "global" .Values.global) }}
@@ -134,7 +100,7 @@ spec:
       labels:
         app: {{ .Release.Name }}-consumer
     spec:
-      serviceAccountName: {{ .Release.Name }}-rcabench-sa
+      serviceAccountName: {{ .Release.Name }}-sa
       initContainers:
         - name: wait-for-redis
           image: {{ include "helm.image" (dict "imageConfig" .Values.images.busybox "global" .Values.global) }}
@@ -185,12 +151,14 @@ spec:
               subPath: config.prod.toml
             - name: initial-data
               mountPath: "{{ .Values.configmap.initialization.data_path }}"
+            {{- if .Values.harbor.enabled }}
             - name: docker-config-volume
               mountPath: /root/.docker/config.json
               subPath: config.json
             - name: harbor-cert
               mountPath: /usr/local/share/ca-certificates/harbor.lab.pj.crt
               subPath: harbor.lab.pj.crt
+            {{- end }}
             - name: containers-data
               mountPath: "{{ .Values.configmap.container.storage_path }}"
             - name: dataset
@@ -199,7 +167,6 @@ spec:
               mountPath: "{{ .Values.configmap.jfs.experiment_storage_path }}"
             - name: logs-data
               mountPath: "{{ .Values.configmap.logging.dir }}"
-              readOnly: true
       volumes:
         - name: config
           configMap:
@@ -207,6 +174,7 @@ spec:
         - name: initial-data
           configMap:
             name: {{ .Release.Name }}-initial-data
+        {{- if .Values.harbor.enabled }}
         - name: docker-config-volume
           secret:
             secretName: docker-config
@@ -219,6 +187,7 @@ spec:
             items:
               - key: harbor.lab.pj.crt
                 path: harbor.lab.pj.crt
+        {{- end }}
         - name: containers-data
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-containers-data
@@ -246,7 +215,7 @@ spec:
       labels:
         app: {{ .Release.Name }}-buildkit
     spec:
-      serviceAccountName: {{ .Release.Name }}-rcabench-sa
+      serviceAccountName: {{ .Release.Name }}-sa
       containers:
         - name: buildkit
           image: {{ include "helm.image" (dict "imageConfig" .Values.images.buildkit "global" .Values.global) }}
@@ -270,9 +239,11 @@ spec:
             - name: buildkit-config
               mountPath: /etc/buildkit/buildkitd.toml
               subPath: buildkitd.toml
+            {{- if .Values.harbor.enabled }}
             - name: harbor-cert
               mountPath: /usr/local/share/ca-certificates/harbor.lab.pj.crt
               subPath: harbor.lab.pj.crt
+            {{- end }}
       volumes:
         - name: config
           configMap:
@@ -285,10 +256,12 @@ spec:
         - name: buildkit-config
           configMap:
             name: {{ .Release.Name }}-buildkit-config
+        {{- if .Values.harbor.enabled }}
         - name: harbor-cert
           secret:
             secretName: harbor-cert
             items:
               - key: harbor.lab.pj.crt
                 path: harbor.lab.pj.crt
+        {{- end }}
 

@@ -757,7 +757,7 @@ func ProduceDatapackBuildingTasks(ctx context.Context, req *dto.SubmitDatapackBu
 
 	var allBuildingItems []dto.SubmitBuildingItem
 	for idx, spec := range req.Specs {
-		datapacks, datasetVersionID, err := extractDatapacks(database.DB, spec.Datapack, spec.Dataset, userID)
+		datapacks, datasetVersionID, err := extractDatapacks(database.DB, spec.Datapack, spec.Dataset, userID, consts.TaskTypeBuildDatapack)
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract datapacks: %w", err)
 		}

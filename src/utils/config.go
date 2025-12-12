@@ -4,29 +4,7 @@ import (
 	"aegis/config"
 	"fmt"
 	"sort"
-
-	"github.com/sirupsen/logrus"
 )
-
-func GetValidBenchmarkMap() map[string]struct{} {
-	benchmarks := config.GetStringSlice("injection.benchmark")
-	if len(benchmarks) == 0 {
-		logrus.Warn("No benchmarks configured, using default 'clickhouse'")
-		benchmarks = []string{"clickhouse"}
-	}
-
-	benchmarkMap := make(map[string]struct{}, len(benchmarks))
-	for _, benchmark := range benchmarks {
-		if benchmark == "" {
-			logrus.Warn("Empty benchmark name found, skipping")
-			continue
-		}
-
-		benchmarkMap[benchmark] = struct{}{}
-	}
-
-	return benchmarkMap
-}
 
 func GetNsConfigMap() (map[string]map[string]any, error) {
 	m := config.GetMap("injection.namespace_config")

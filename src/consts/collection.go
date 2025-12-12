@@ -12,11 +12,13 @@ var containerTypeMap = map[ContainerType]string{
 }
 
 var DatapackStateMap = map[DatapackState]string{
-	DatapackInitial:       "initial",
-	DatapackInjectFailed:  "inject_failed",
-	DatapackInjectSuccess: "inject_success",
-	DatapackBuildFailed:   "build_failed",
-	DatapackBuildSuccess:  "build_success",
+	DatapackInitial:         "initial",
+	DatapackInjectFailed:    "inject_failed",
+	DatapackInjectSuccess:   "inject_success",
+	DatapackBuildFailed:     "build_failed",
+	DatapackBuildSuccess:    "build_success",
+	DatapackDetectorFailed:  "detector_failed",
+	DatapackDetectorSuccess: "detector_success",
 }
 
 var ExecuteStateMap = map[ExecutionState]string{

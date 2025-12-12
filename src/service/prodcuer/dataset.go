@@ -443,7 +443,7 @@ func DownloadDatasetVersion(zipWriter *zip.Writer, excludeRules []utils.ExculdeR
 		return fmt.Errorf("zip writer cannot be nil")
 	}
 
-	datapacks, err := repository.ListInjectionsByDatasetVersionID(database.DB, versionID)
+	datapacks, err := repository.ListInjectionsByDatasetVersionID(database.DB, versionID, false)
 	if err != nil {
 		return fmt.Errorf("failed to list datapacks for dataset version: %w", err)
 	}
@@ -507,7 +507,7 @@ func ManageDatasetVersionInjections(req *dto.ManageDatasetVersionInjectionReq, v
 			}
 		}
 
-		datapacks, err := repository.ListInjectionsByDatasetVersionID(tx, version.ID)
+		datapacks, err := repository.ListInjectionsByDatasetVersionID(tx, version.ID, false)
 		if err != nil {
 			return fmt.Errorf("failed to list datapacks for dataset version: %w", err)
 		}

@@ -183,6 +183,9 @@ src/docs/converted/
 src/docs/openapi2/
 src/docs/openapi3/
 
+# Sensitive files with credentials
+helm/certs/*.crt
+
 # Command
 scripts/command/*.build/
 scripts/command/*.dist/

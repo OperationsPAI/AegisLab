@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"aegis/config"
-
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -74,50 +72,14 @@ func GetK8sRestConfig() *rest.Config {
 			return
 		}
 
-		contextEnvKey := config.GetString("k8s.context_env_key")
-		var configuredContext string
-		if contextEnvKey != "" {
-			configuredContext = os.Getenv(contextEnvKey)
-			if configuredContext != "" {
-				logrus.Infof("Resolved k8s context from env key '%s': %s", contextEnvKey, configuredContext)
-			} else {
-				logrus.Warnf("Environment variable '%s' is not set or empty", contextEnvKey)
-				logrus.Warn("Falling back to default Kubernetes context resolution.")
-			}
+		logrus.Warn("In-cluster config not found, trying kubeconfig file")
+		kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
+		config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			logrus.Fatalf("Failed to load Kubernetes config: %v", err)
 		}
 
-		kubeconfigPath := filepath.Join(os.Getenv("HOME"), ".kube", "config")
-		if _, err := os.Stat(kubeconfigPath); err == nil {
-			configOverrides := &clientcmd.ConfigOverrides{}
-			if configuredContext != "" {
-				configOverrides.CurrentContext = configuredContext
-				logrus.Infof("Using configured Kubernetes context: %s", configuredContext)
-			}
-
-			configLoad := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-				&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfigPath},
-				configOverrides,
-			)
-
-			restConfig, err = configLoad.ClientConfig()
-			if err != nil {
-				logrus.Warnf("Failed to read external Kubernetes config from %s: %v", kubeconfigPath, err)
-			} else {
-				rawConfig, _ := configLoad.RawConfig()
-				currentContext = rawConfig.CurrentContext
-
-				logrus.Infof("Successfully loaded external Kubernetes configuration from %s.", kubeconfigPath)
-				k8sRestConfig = restConfig
-
-				if currentContext != "" {
-					logrus.Infof("Using Kubernetes Context: %s", currentContext)
-				} else {
-					logrus.Warn("Current context name is empty in Kubeconfig.")
-				}
-				return
-			}
-		}
-
+		k8sRestConfig = config
 		if k8sRestConfig == nil {
 			logrus.Fatalf("Failed to establish Kubernetes REST config: Neither In-Cluster nor external Kubeconfig available.")
 		}

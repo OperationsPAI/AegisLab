@@ -54,9 +54,14 @@ func GetInjectionByID(db *gorm.DB, id int) (*database.FaultInjection, error) {
 }
 
 // GetInjectionByName gets injection by name with preloaded associations
-func GetInjectionByName(db *gorm.DB, name string) (*database.FaultInjection, error) {
+func GetInjectionByName(db *gorm.DB, name string, includeLabels bool) (*database.FaultInjection, error) {
+	query := db
+	if includeLabels {
+		query = query.Preload("Labels")
+	}
+
 	var injection database.FaultInjection
-	if err := db.
+	if err := query.
 		Where("name = ? AND status != ?", name, consts.CommonDeleted).First(&injection).Error; err != nil {
 		return nil, fmt.Errorf("failed to find injection with name %s: %w", name, err)
 	}

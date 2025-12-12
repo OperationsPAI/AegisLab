@@ -466,9 +466,14 @@ func RemoveDatasetVersionsFromInjection(db *gorm.DB, faultInjectionID int) error
 }
 
 // ListInjectionsByDatasetVersionID lists all fault injections associated with a specific dataset version
-func ListInjectionsByDatasetVersionID(db *gorm.DB, datasetVersionID int) ([]database.FaultInjection, error) {
+func ListInjectionsByDatasetVersionID(db *gorm.DB, datasetVersionID int, includeLabels bool) ([]database.FaultInjection, error) {
+	query := db.Model(&database.FaultInjection{})
+	if includeLabels {
+		query = query.Preload("Labels")
+	}
+
 	var injections []database.FaultInjection
-	if err := db.Model(&database.FaultInjection{}).
+	if err := query.
 		Joins("JOIN dataset_version_injections dvi ON dvi.injection_id = id").
 		Where("state = ? AND status != ?", consts.DatapackBuildSuccess, consts.CommonDeleted).
 		Where("dvi.dataset_version_id = ?", datasetVersionID).

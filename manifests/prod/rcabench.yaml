@@ -1,0 +1,44 @@
+global:
+  imageRegistry: pair-diag-cn-guangzhou.cr.volces.com
+
+images:
+  rcabench:
+    name: pair/rcabench
+  redis:
+    name: pair/redis
+  mysql:
+    name: pair/mysql
+  jaeger:
+    name: pair/jaeger
+  busybox:
+    name: pair/busybox
+  buildkit:
+    name: pair/buildkit
+  init_data:
+    name: pair/init-data
+
+harbor:
+  enabled: false
+
+configmap:
+  database:
+    clickhouse:
+      host: "clickstack-clickhouse.monitoring.svc.cluster.local"
+      user: app
+      password: hyperdx
+      timezone: "UTC"
+  k8s:
+    init_container:
+      busybox_image: "pair-diag-cn-guangzhou.cr.volces.com/pair/busybox:1.35"
+  algo:
+    detector: detector_cn
+
+persistence:
+  storageType: volcengine
+
+  redis:
+    storageClass: rcabench
+  mysql:
+    storageClass: rcabench
+  jaeger:
+    storageClass: rcabench

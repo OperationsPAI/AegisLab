@@ -1,22 +1,3 @@
-{{- if .Values.persistence.jaeger.enabled }}
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ .Release.Name }}-jaeger-data
-  annotations:
-    "helm.sh/resource-policy": keep
-spec:
-  accessModes:
-    - {{ .Values.persistence.jaeger.accessMode }}
-  {{- if .Values.persistence.jaeger.storageClass }}
-  storageClassName: {{ .Values.persistence.jaeger.storageClass | quote }}
-  {{- end }}
-  resources:
-    requests:
-      storage: {{ .Values.persistence.jaeger.size }}
-{{- end }}
-
 {{- if .Values.persistence.containers.enabled }}
 ---
 apiVersion: v1

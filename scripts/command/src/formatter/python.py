@@ -266,7 +266,7 @@ class PythonFormatter(Formatter):
         """Main execution flow."""
         if not self.files_to_format:
             console.print("[bold yellow]No Python files to format.[/bold yellow]")
-            return 1
+            return 0
 
         console.print("[bold blue]🎨 Formatting Python files with ruff...[/bold blue]")
 

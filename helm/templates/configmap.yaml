@@ -16,6 +16,9 @@ data:
     [initialization]
     data_path = "{{ .Values.configmap.initialization.data_path }}"
 
+    [debugging]
+    enabled = {{ .Values.configmap.debugging.enabled }}
+
     [injection]
     target_label_key = "{{ .Values.configmap.injection.target_label_key }}"
     {{- with .Values.configmap.injection.namespace_config }}
@@ -26,33 +29,36 @@ data:
     {{- end }}
     {{- end }}
 
-    [database]
-    clickhouse_host = "{{ .Values.configmap.database.clickhouse_host }}"
-    mysql_user = "{{ .Values.configmap.database.mysql_user }}"
-    mysql_password = "{{ .Values.configmap.database.mysql_password }}"
-    mysql_host = "{{ .Release.Name }}-mysql"
-    mysql_port = "{{ .Values.configmap.database.mysql_port }}"
-    mysql_db = "{{ .Values.configmap.database.mysql_db }}"
+    [database.clickhouse]
+    host = "{{ .Values.configmap.database.clickhouse.host }}"
+    port = "{{ .Values.configmap.database.clickhouse.port }}"
+    user = "{{ .Values.configmap.database.clickhouse.user }}"
+    password = "{{ .Values.configmap.database.clickhouse.password }}"
+    db = "{{ .Values.configmap.database.clickhouse.db }}"
+    timezone = "{{ .Values.configmap.database.clickhouse.timezone }}"
+
+    [database.mysql]
+    host = "{{ .Release.Name }}-mysql"
+    port = "{{ .Values.configmap.database.mysql.port }}"
+    user = "{{ .Values.configmap.database.mysql.user }}"
+    password = "{{ .Values.configmap.database.mysql.password }}"
+    db = "{{ .Values.configmap.database.mysql.db }}"
 
     [jaeger]
     endpoint = "{{ .Release.Name }}-jaeger:4318"
 
     [redis]
     host = "{{ .Release.Name }}-redis:6379"
-
-    [harbor]
-    registry = "{{ .Values.configmap.harbor.registry }}"
-    namespace = "{{ .Values.configmap.harbor.namespace }}"
-    username = "{{ .Values.configmap.harbor.username }}"
-    password = "{{ .Values.configmap.harbor.password }}"
-
     [k8s]
     namespace = "{{ .Values.configmap.k8s.namespace }}"
-    context_env_key = "{{ .Values.configmap.k8s.context_env_key }}"
+    [k8s.service]
+    internal_url = "http://{{ .Release.Name }}-exp:8080"
     [k8s.init_container]
     {{- range $key, $value := .Values.configmap.k8s.init_container }}
     {{ $key }} = {{ $value | quote }}
     {{- end }}
+    [k8s.job.service_account]
+    name = "{{ .Release.Name }}-sa"
     {{- range $key, $value := .Values.configmap.k8s.job.volume_mount }}
     [k8s.job.volume_mount.{{ $key }}]
     name = {{ $value.name | quote }}
@@ -93,9 +99,6 @@ data:
     [container]
     storage_path = "{{ .Values.configmap.container.storage_path }}"
 
-    [debugging]
-    enable = {{ .Values.configmap.debugging.enable }}
-
     [buildkit]
     address = "{{ .Release.Name }}-buildkit:1234"
 
@@ -118,9 +121,14 @@ data:
     [grpc]
     address = ["tcp://0.0.0.0:1234"]
 
+    {{- if .Values.harbor.enabled }}
     [registry."10.10.10.240"]
     http = false
     ca = ["/usr/local/share/ca-certificates/harbor.lab.pj.crt"]
+    {{- else }}
+    [registry."pair-diag-cn-guangzhou.cr.volces.com/pair"]
+    http = false
+    {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
